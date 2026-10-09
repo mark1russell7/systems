@@ -1,0 +1,37 @@
+---
+title: The thesis
+description: A connection is a chain of state machines, and most silent failures are two of them that do not agree.
+---
+
+One connection is a chain of state machines. Most silent failures are two of these machines that do not agree.
+
+## One conversation, many copies of its state
+
+Look at a client that talks to Postgres through PgBouncer, behind a Kubernetes service. One conversation has all of these parts, and each part has its own timers:
+
+- the pool of the client library
+- the TCP socket in the kernel of the client
+- the copy of the TCP state that conntrack keeps for the address translation of kube-proxy
+- the client connection of PgBouncer, its pool assignment and its server connection
+- the session of the Postgres backend, its transaction and the locks of that transaction.
+
+## The incidents live where the copies differ
+
+| Pattern | What happens |
+| --- | --- |
+| A middlebox forgets the connection | A cloud NAT gateway closes an idle flow after 350 s. The two endpoints keep a connection that the middle does not know. |
+| The keep-alive race | A Node server closes an idle socket after approximately 5 s. A load balancer in front reuses the socket, and the client gets a 502. |
+| The middle rejects valid traffic | conntrack marks a reply as invalid. The client answers with a reset, and the reset closes the real connection. |
+| A dead client keeps its locks | A client stops with a row lock. The server keeps the transaction until its own detector fires, 7875 s at the defaults. |
+
+## What follows from the thesis
+
+The name of this idea is differential observability, from the work on gray failures (Huang and others, HotOS 2017). Different observers see different health. This program applies the idea to connections.
+
+- **The model predicts a window of divergence.** A window is the time that two copies of the state do not agree. The time to detection is the window between the fault and the first change of an observer.
+- **The prober observes each copy of the state.** It does not observe only the endpoints.
+- **The tests aim at the windows.** They do not aim only at crashes.
+
+## How a claim earns its place
+
+Each answer comes from a completed test, or it states what it depends on. The engines agree with each other where they overlap. They agree with the harness where the harness can reach. A disagreement is a finding, and the program records which number was wrong.

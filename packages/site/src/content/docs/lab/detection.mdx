@@ -1,0 +1,26 @@
+---
+title: The detection lab
+description: Set the timers of Linux, select a failure, and see which timer tells the client first, and when.
+---
+
+import DetectionLab from "../../../components/DetectionLab.tsx";
+
+A peer goes silent. The client finds out when the first live timer fires. This lab computes that timer from the rules of the kernel at version 6.6.
+
+<DetectionLab client:visible />
+
+## How the lab computes the time
+
+- **Keepalive** counts from the last segment that the client received. It waits for the idle time, and then for one interval for each probe without an answer.
+- **The retransmission give-up** counts from the first retransmission of the RTO timer. It is not the tail loss probe one RTO before it. The give-up comes at the first firing at or after the budget of `tcp_retries2`.
+- **A frozen process** keeps the acknowledgments of its kernel. Each acknowledgment starts keepalive again, so no TCP timer fires.
+
+## How late a timer fires
+
+The kernel files each timer on a level of its timer wheel. The wheel rounds the timer up to the granularity of that level. At HZ 250, a 2 s timer fires up to 32 ms late, and a 2 h timer fires up to 131 s late.
+
+The real RTO is the round trip plus 200 ms, in whole jiffies. At HZ 250 on a fast network, the RTO is 204 ms, not 200 ms. The band of the lab includes the step past the budget and the rounding of each firing.
+
+## Where the numbers come from
+
+The forms are a copy of the algebra in jarvis. Tests hold the copy to the figures of the algebra: 7875 s for keepalive, 924.6 s for the give-up, and 149.504 s for the lateness of keepalive.

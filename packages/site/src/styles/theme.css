@@ -1,0 +1,271 @@
+/*
+ * The family tokens (tokens.css, from lag and Vex) mapped to the variables of Starlight. Starlight and the
+ * tokens both use the attribute data-theme on the html element, so both themes follow the same switch.
+ * In Starlight, "white" is the text with the most contrast and "black" is the page, in both themes.
+ */
+:root,
+:root[data-theme="light"],
+:root[data-theme="dark"] {
+  --sl-font: var(--font-sans);
+  --sl-font-mono: var(--font-mono);
+  --sl-color-accent-low: var(--color-accent-wash);
+  --sl-color-accent: var(--color-accent);
+  --sl-color-accent-high: var(--color-accent-strong);
+  --sl-color-white: var(--color-ink);
+  --sl-color-gray-1: var(--color-ink);
+  --sl-color-gray-2: var(--color-ink-secondary);
+  --sl-color-gray-3: var(--color-ink-muted);
+  --sl-color-gray-4: var(--color-rule-strong);
+  --sl-color-gray-5: var(--color-rule);
+  --sl-color-gray-6: var(--color-surface-sunken);
+  --sl-color-gray-7: var(--color-surface);
+  --sl-color-black: var(--color-page);
+  --sl-color-bg-nav: color-mix(in srgb, var(--color-page) 92%, transparent);
+  --sl-color-bg-sidebar: var(--color-page);
+  --sl-color-hairline: var(--color-rule);
+  --sl-color-hairline-light: var(--color-rule);
+  --sl-color-hairline-shade: var(--color-rule-strong);
+  --sl-color-red: var(--color-mark);
+  --sl-color-red-low: var(--color-mark-wash);
+  --sl-color-red-high: var(--color-mark);
+}
+
+header.header {
+  backdrop-filter: blur(6px);
+}
+
+/* ---------------------------------------------------------------- the widgets of the site */
+
+.sy-frame {
+  margin-block: var(--space-5);
+  border: 1px solid var(--color-rule);
+  border-top: 3px solid var(--color-ink);
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.sy-frame > header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: baseline;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-rule);
+  font-size: var(--text-sm);
+  color: var(--color-ink-secondary);
+}
+
+.sy-frame > header strong {
+  color: var(--color-ink);
+}
+
+.sy-body {
+  padding: var(--space-4);
+}
+
+.sy-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+}
+
+.sy-button {
+  min-height: 2.25rem;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-control-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.sy-button:hover {
+  background: var(--color-surface-sunken);
+}
+
+.sy-button[aria-pressed="true"] {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-surface);
+}
+
+.sy-knobs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-3) var(--space-5);
+  margin: 0;
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--color-rule);
+}
+
+.sy-knob {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--color-ink-secondary);
+}
+
+.sy-knob output {
+  font-family: var(--font-mono);
+  color: var(--color-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.sy-knob input[type="range"] {
+  width: 100%;
+  accent-color: var(--color-accent);
+}
+
+.sy-readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  font-variant-numeric: tabular-nums;
+}
+
+.sy-readout div {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.sy-readout dt {
+  font-size: var(--text-xs);
+  color: var(--color-ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.sy-readout dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  color: var(--color-ink);
+}
+
+.sy-wide {
+  grid-column: 1 / -1;
+}
+
+.sy-body > p {
+  margin: 0 0 var(--space-2);
+}
+
+.sy-caption {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-xs);
+  color: var(--color-ink-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.sy-strip {
+  width: 100%;
+}
+
+.sy-strip svg {
+  display: block;
+  overflow: visible;
+}
+
+.sy-strip text {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  fill: var(--color-ink-secondary);
+}
+
+.sy-strip .sy-axis line {
+  stroke: var(--chart-axis);
+}
+
+.sy-strip .sy-grid {
+  stroke: var(--chart-axis);
+}
+
+.sy-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: var(--space-2) 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--color-ink-secondary);
+}
+
+.sy-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sy-legend svg {
+  display: inline-block;
+  flex: none;
+}
+
+.sy-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0.05em 0.5em;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
+  white-space: nowrap;
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+.sy-chip[data-state="pass"] {
+  border-color: var(--status-good);
+  color: var(--status-good-ink);
+}
+
+.sy-chip[data-state="fail"] {
+  border-color: var(--color-mark);
+  background: var(--color-mark-wash);
+  color: var(--color-mark);
+}
+
+.sy-muted {
+  color: var(--color-ink-muted);
+  font-size: var(--text-sm);
+}
+
+.sy-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.sy-table th,
+.sy-table td {
+  padding: var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--color-rule);
+  text-align: left;
+  vertical-align: top;
+}
+
+.sy-scroll {
+  overflow-x: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

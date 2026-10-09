@@ -1,0 +1,34 @@
+---
+title: About
+description: What this program is, where its code lives now, and what comes next.
+---
+
+This program studies how systems fail. It starts at the system calls and the TCP stack. It continues through network cards, proxies and databases, and it ends at the silicon.
+
+## Where the code lives
+
+At this time, the code lives in [jarvis](https://github.com/mark1russell7/jarvis). These are the parts:
+
+| Part | Package in jarvis |
+| --- | --- |
+| The corpus, the state machines and the algebra | `@jarvis/domain-systems` |
+| The harness | `@loom/harness` |
+| The prober | `@loom/harness`, folder `image` |
+| The service abstraction | `@loom/service` |
+| The units of measure | `@loom/quantity` |
+
+The code moves into this repository after the first system, Redis, is complete. Until then, this site holds copies of the parts that it shows, and tests hold each copy to the figures of jarvis.
+
+## The slices
+
+1. **S0, the groundwork.** The ontology, the units, the corpus and the first claims. It is complete.
+2. **S1, detection and divergence in Docker.** The harness, the prober, the algebra and the simulator, one system at a time. Redis is first.
+3. **S2, intermediaries and Kubernetes.** Proxies, service meshes and zones.
+4. **S3, outcomes under failure and load.** Histories, checkers, retry storms and metastability.
+5. **S4, the host, the network card and the cloud.** Virtual machines and real hardware.
+6. **S5, the silicon.** From the layout of a transistor to a block of an FPGA.
+7. **S6, the service abstraction.** Services that declare their clients, timeouts and checks as data.
+
+## Disclosure
+
+An AI model (Claude, from Anthropic) wrote most of the text and the code of this repository, under the direction of the author. The tests and the STE linter examine them.

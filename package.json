@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "systems-monorepo",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.10.1",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "package": "tsx packages/cli/src/index.ts package",
+    "template": "tsx packages/cli/src/index.ts repo",
+    "test": "pnpm -r run test",
+    "typecheck": "pnpm -r run typecheck",
+    "lint:ste": "ste-lint"
+  },
+  "devDependencies": {
+    "@mark1russell7/cue": "github:mark1russell7/cue",
+    "@mark1russell7/ste-lint": "github:mark1russell7/ste-lint",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}

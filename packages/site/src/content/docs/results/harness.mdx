@@ -1,0 +1,27 @@
+---
+title: The first harness cells
+description: Q1 to Q3 at the level of the kernel, on scaled timers, against Redis 7.4. Each cell holds against its prediction.
+---
+
+import HarnessResults from "../../../components/HarnessResults.tsx";
+
+The harness started four cells on 2026-10-08. It measured each cell 11 times over two fresh environments. The target was a stock Redis 7.4.11 container.
+
+The timers were scaled. Keepalive used an idle time of 5 s and 3 probes 2 s apart, and the kernel clock was HZ 250. The prober measured each interval from the records of the kernel.
+
+<HarnessResults client:visible />
+
+## What the cells show
+
+- **Q1, an idle connection into a black hole.** Keepalive found the failure in each run. The probes went out 2.016 s apart, which is 16 ms late for each step.
+- **Q2, a request in flight.** The retransmission give-up found the failure. At `tcp_retries2 = 5`, the keepalive time is shorter than the budget. Thus the cell also proves that the first retransmission stops keepalive.
+- **Q3, a frozen process.** No TCP timer fired in 20 s. The frozen kernel acknowledged the request, and it answered each keepalive probe.
+
+## Two errors that the first test found
+
+- **An error of the harness.** The harness measured from the tail loss probe. The budget of the give-up starts one RTO later, at the first retransmission of the RTO timer.
+- **An error of the algebra.** The band for `tcp_retries2 = 3` ended at 6.2 s, and the runs came at 6.21 s to 6.42 s. The algebra did not have the real RTO or the rounding of the timer wheel. The correction added both.
+
+## The two vantages agree
+
+The client also read the view of the kernel through `TCP_INFO`, every 2 ms. That view agrees with the eBPF records to within 0.19 ms on keepalive, and to within 4 ms on the retransmissions.

@@ -1,0 +1,585 @@
+{
+  "ranAt": "2026-10-08",
+  "target": "redis 7.4.11",
+  "source": "the prober's eBPF records",
+  "units": "s",
+  "cells": [
+    {
+      "name": "Q1 idle, black hole",
+      "fault": "black-hole",
+      "mode": "idle",
+      "sysctls": {
+        "net.ipv4.tcp_keepalive_time": "5",
+        "net.ipv4.tcp_keepalive_intvl": "2",
+        "net.ipv4.tcp_keepalive_probes": "3"
+      },
+      "prediction": {
+        "detects": true,
+        "timer": "keepalive",
+        "errno": "ETIMEDOUT",
+        "from": "last-received",
+        "low": 10.996,
+        "high": 11.352
+      },
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "error",
+          "elapsed": 11.155542,
+          "socket": 11.155451,
+          "noticed": 0.000029,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 0
+        },
+        {
+          "environment": 0,
+          "outcome": "error",
+          "elapsed": 11.132336,
+          "socket": 11.132315,
+          "noticed": 0.000045,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 0
+        },
+        {
+          "environment": 0,
+          "outcome": "error",
+          "elapsed": 11.269362,
+          "socket": 11.269348,
+          "noticed": 0.00003,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 0
+        },
+        {
+          "environment": 0,
+          "outcome": "error",
+          "elapsed": 11.192171,
+          "socket": 11.191985,
+          "noticed": 0.000063,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 0
+        },
+        {
+          "environment": 0,
+          "outcome": "error",
+          "elapsed": 11.188152,
+          "socket": 11.188072,
+          "noticed": 0.000028,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 0
+        },
+        {
+          "environment": 0,
+          "outcome": "error",
+          "elapsed": 11.140015,
+          "socket": 11.140019,
+          "noticed": 0.000066,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 0
+        },
+        {
+          "environment": 1,
+          "outcome": "error",
+          "elapsed": 11.061692,
+          "socket": 11.061701,
+          "noticed": 0.000078,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 0
+        },
+        {
+          "environment": 1,
+          "outcome": "error",
+          "elapsed": 11.053754,
+          "socket": 11.053813,
+          "noticed": 0.000121,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 0
+        },
+        {
+          "environment": 1,
+          "outcome": "error",
+          "elapsed": 11.172323,
+          "socket": 11.172275,
+          "noticed": 0.000027,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 0
+        },
+        {
+          "environment": 1,
+          "outcome": "error",
+          "elapsed": 11.234689,
+          "socket": 11.234617,
+          "noticed": 0.000027,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 0
+        },
+        {
+          "environment": 1,
+          "outcome": "error",
+          "elapsed": 11.156039,
+          "socket": 11.156021,
+          "noticed": 0.000042,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 0
+        }
+      ],
+      "steps": [
+        5.107491,
+        7.123476,
+        9.139496
+      ],
+      "verdict": {
+        "decision": "holds",
+        "why": "11 of 11 runs inside [10.99, 11.358] s; median 11.156039 s, its interval [11.061692, 11.234689] s",
+        "band": {
+          "low": 10.99,
+          "high": 11.358
+        },
+        "median": 11.156039
+      },
+      "kernel": "6.6.87.2-microsoft-standard-WSL2",
+      "hz": "250"
+    },
+    {
+      "name": "Q2 in flight, black hole, tcp_retries2 = 3",
+      "fault": "black-hole",
+      "mode": "inflight",
+      "sysctls": {
+        "net.ipv4.tcp_keepalive_time": "5",
+        "net.ipv4.tcp_keepalive_intvl": "2",
+        "net.ipv4.tcp_keepalive_probes": "3",
+        "net.ipv4.tcp_retries2": "3"
+      },
+      "prediction": {
+        "detects": true,
+        "timer": "retrans_giveup",
+        "errno": "ETIMEDOUT",
+        "from": "first-retransmission",
+        "low": 3,
+        "high": 6.616
+      },
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "error",
+          "elapsed": 6.236006,
+          "socket": 6.235914,
+          "noticed": 0.000033,
+          "probes": 0,
+          "retransmissions": 5,
+          "acks": 0
+        },
+        {
+          "environment": 0,
+          "outcome": "error",
+          "elapsed": 6.420007,
+          "socket": 6.416092,
+          "noticed": 0.00005,
+          "probes": 0,
+          "retransmissions": 5,
+          "acks": 0
+        },
+        {
+          "environment": 0,
+          "outcome": "error",
+          "elapsed": 6.407986,
+          "socket": 6.408089,
+          "noticed": 0.000185,
+          "probes": 0,
+          "retransmissions": 5,
+          "acks": 0
+        },
+        {
+          "environment": 0,
+          "outcome": "error",
+          "elapsed": 6.299937,
+          "socket": 6.299785,
+          "noticed": 0.000048,
+          "probes": 0,
+          "retransmissions": 5,
+          "acks": 0
+        },
+        {
+          "environment": 0,
+          "outcome": "error",
+          "elapsed": 6.416082,
+          "socket": 6.412236,
+          "noticed": 0.00025,
+          "probes": 0,
+          "retransmissions": 5,
+          "acks": 0
+        },
+        {
+          "environment": 0,
+          "outcome": "error",
+          "elapsed": 6.440087,
+          "socket": 6.43983,
+          "noticed": 0.000035,
+          "probes": 0,
+          "retransmissions": 5,
+          "acks": 0
+        },
+        {
+          "environment": 1,
+          "outcome": "error",
+          "elapsed": 6.339989,
+          "socket": 6.339924,
+          "noticed": 0.000041,
+          "probes": 0,
+          "retransmissions": 5,
+          "acks": 0
+        },
+        {
+          "environment": 1,
+          "outcome": "error",
+          "elapsed": 6.311943,
+          "socket": 6.31183,
+          "noticed": 0.000054,
+          "probes": 0,
+          "retransmissions": 5,
+          "acks": 0
+        },
+        {
+          "environment": 1,
+          "outcome": "error",
+          "elapsed": 6.212018,
+          "socket": 6.20801,
+          "noticed": 0.000035,
+          "probes": 0,
+          "retransmissions": 5,
+          "acks": 0
+        },
+        {
+          "environment": 1,
+          "outcome": "error",
+          "elapsed": 6.311954,
+          "socket": 6.308049,
+          "noticed": 0.000035,
+          "probes": 0,
+          "retransmissions": 5,
+          "acks": 0
+        },
+        {
+          "environment": 1,
+          "outcome": "error",
+          "elapsed": 6.423981,
+          "socket": 6.42396,
+          "noticed": 0.000022,
+          "probes": 0,
+          "retransmissions": 5,
+          "acks": 0
+        }
+      ],
+      "steps": [
+        0.411996,
+        1.244014,
+        2.907958
+      ],
+      "verdict": {
+        "decision": "holds",
+        "why": "11 of 11 runs inside [2.994, 6.622] s; median 6.339989 s, its interval [6.236006, 6.423981] s",
+        "band": {
+          "low": 2.994,
+          "high": 6.622
+        },
+        "median": 6.339989
+      },
+      "kernel": "6.6.87.2-microsoft-standard-WSL2",
+      "hz": "250"
+    },
+    {
+      "name": "Q2 in flight, black hole, tcp_retries2 = 5",
+      "fault": "black-hole",
+      "mode": "inflight",
+      "sysctls": {
+        "net.ipv4.tcp_keepalive_time": "5",
+        "net.ipv4.tcp_keepalive_intvl": "2",
+        "net.ipv4.tcp_keepalive_probes": "3",
+        "net.ipv4.tcp_retries2": "5"
+      },
+      "prediction": {
+        "detects": true,
+        "timer": "retrans_giveup",
+        "errno": "ETIMEDOUT",
+        "from": "first-retransmission",
+        "low": 12.6,
+        "high": 26.52
+      },
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "error",
+          "elapsed": 12.920007,
+          "socket": 12.916076,
+          "noticed": 0.000026,
+          "probes": 0,
+          "retransmissions": 6,
+          "acks": 0
+        },
+        {
+          "environment": 0,
+          "outcome": "error",
+          "elapsed": 13.07598,
+          "socket": 13.0721,
+          "noticed": 0.00009,
+          "probes": 0,
+          "retransmissions": 6,
+          "acks": 0
+        },
+        {
+          "environment": 0,
+          "outcome": "error",
+          "elapsed": 12.871918,
+          "socket": 12.868062,
+          "noticed": 0.000029,
+          "probes": 0,
+          "retransmissions": 6,
+          "acks": 0
+        },
+        {
+          "environment": 0,
+          "outcome": "error",
+          "elapsed": 13.011992,
+          "socket": 13.011972,
+          "noticed": 0.000024,
+          "probes": 0,
+          "retransmissions": 6,
+          "acks": 0
+        },
+        {
+          "environment": 0,
+          "outcome": "error",
+          "elapsed": 13.032021,
+          "socket": 13.032011,
+          "noticed": 0.000029,
+          "probes": 0,
+          "retransmissions": 6,
+          "acks": 0
+        },
+        {
+          "environment": 0,
+          "outcome": "error",
+          "elapsed": 12.912063,
+          "socket": 12.91207,
+          "noticed": 0.000051,
+          "probes": 0,
+          "retransmissions": 6,
+          "acks": 0
+        },
+        {
+          "environment": 1,
+          "outcome": "error",
+          "elapsed": 12.863958,
+          "socket": 12.863866,
+          "noticed": 0.000028,
+          "probes": 0,
+          "retransmissions": 6,
+          "acks": 0
+        },
+        {
+          "environment": 1,
+          "outcome": "error",
+          "elapsed": 12.935995,
+          "socket": 12.931996,
+          "noticed": 0.000032,
+          "probes": 0,
+          "retransmissions": 6,
+          "acks": 0
+        },
+        {
+          "environment": 1,
+          "outcome": "error",
+          "elapsed": 12.944128,
+          "socket": 12.944133,
+          "noticed": 0.000068,
+          "probes": 0,
+          "retransmissions": 6,
+          "acks": 0
+        },
+        {
+          "environment": 1,
+          "outcome": "error",
+          "elapsed": 12.892045,
+          "socket": 12.891975,
+          "noticed": 0.000034,
+          "probes": 0,
+          "retransmissions": 6,
+          "acks": 0
+        },
+        {
+          "environment": 1,
+          "outcome": "error",
+          "elapsed": 12.86014,
+          "socket": 12.860167,
+          "noticed": 0.000064,
+          "probes": 0,
+          "retransmissions": 6,
+          "acks": 0
+        }
+      ],
+      "steps": [
+        0.435912,
+        1.268002,
+        2.931949,
+        6.259979
+      ],
+      "verdict": {
+        "decision": "holds",
+        "why": "11 of 11 runs inside [12.594, 26.526] s; median 12.920007 s, its interval [12.863958, 13.032021] s",
+        "band": {
+          "low": 12.594,
+          "high": 26.526
+        },
+        "median": 12.920007
+      },
+      "kernel": "6.6.87.2-microsoft-standard-WSL2",
+      "hz": "250"
+    },
+    {
+      "name": "Q3 in flight, frozen process",
+      "fault": "freeze-process",
+      "mode": "inflight",
+      "sysctls": {
+        "net.ipv4.tcp_keepalive_time": "5",
+        "net.ipv4.tcp_keepalive_intvl": "2",
+        "net.ipv4.tcp_keepalive_probes": "3",
+        "net.ipv4.tcp_retries2": "3"
+      },
+      "prediction": {
+        "detects": false,
+        "window": 20
+      },
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "silent",
+          "elapsed": null,
+          "socket": null,
+          "noticed": null,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 5
+        },
+        {
+          "environment": 0,
+          "outcome": "silent",
+          "elapsed": null,
+          "socket": null,
+          "noticed": null,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 5
+        },
+        {
+          "environment": 0,
+          "outcome": "silent",
+          "elapsed": null,
+          "socket": null,
+          "noticed": null,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 5
+        },
+        {
+          "environment": 0,
+          "outcome": "silent",
+          "elapsed": null,
+          "socket": null,
+          "noticed": null,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 5
+        },
+        {
+          "environment": 0,
+          "outcome": "silent",
+          "elapsed": null,
+          "socket": null,
+          "noticed": null,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 5
+        },
+        {
+          "environment": 0,
+          "outcome": "silent",
+          "elapsed": null,
+          "socket": null,
+          "noticed": null,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 5
+        },
+        {
+          "environment": 1,
+          "outcome": "silent",
+          "elapsed": null,
+          "socket": null,
+          "noticed": null,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 5
+        },
+        {
+          "environment": 1,
+          "outcome": "silent",
+          "elapsed": null,
+          "socket": null,
+          "noticed": null,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 5
+        },
+        {
+          "environment": 1,
+          "outcome": "silent",
+          "elapsed": null,
+          "socket": null,
+          "noticed": null,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 5
+        },
+        {
+          "environment": 1,
+          "outcome": "silent",
+          "elapsed": null,
+          "socket": null,
+          "noticed": null,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 5
+        },
+        {
+          "environment": 1,
+          "outcome": "silent",
+          "elapsed": null,
+          "socket": null,
+          "noticed": null,
+          "probes": 3,
+          "retransmissions": 0,
+          "acks": 5
+        }
+      ],
+      "steps": [],
+      "verdict": {
+        "decision": "holds",
+        "why": "nothing detected it in 11 runs of 20 s",
+        "band": null,
+        "median": null
+      },
+      "kernel": "6.6.87.2-microsoft-standard-WSL2",
+      "hz": "250"
+    }
+  ]
+}
