@@ -26,5 +26,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm test
+      # The build that npm gets, for each package that the repository publishes
+      - run: pnpm build
       # The writing rules (ASD-STE100) of the README files and the doc comments
       - run: pnpm lint:ste

@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json.schemastore.org/package",
+  "name": "@mark1russell7/quantity",
+  "version": "0.1.0",
+  "description": "Amounts in typed units: an exponent vector over six bases, exact rational conversion factors, canonical spellings, zod schemas and one way to print an amount.",
+  "keywords": [
+    "quantity",
+    "units",
+    "unit-conversion",
+    "dimensions",
+    "dimensional-analysis",
+    "rational",
+    "bigint",
+    "money",
+    "duration",
+    "zod"
+  ],
+  "homepage": "https://mark1russell7.github.io/systems/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/systems.git",
+    "directory": "packages/quantity"
+  },
+  "bugs": {
+    "url": "https://github.com/mark1russell7/systems/issues"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "build",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.19"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit --emitDeclarationOnly false && tsc -p tsconfig.test.json",
+    "prepublishOnly": "node ../../scripts/publish-guard.mjs && pnpm build"
+  },
+  "peerDependencies": {
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@mark1russell7/cue": "github:mark1russell7/cue",
+    "@types/node": "^26.6.4",
+    "tsdown": "^0.23.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3",
+    "zod": "^4.6.6"
+  },
+  "publishConfig": {
+    "access": "public",
+    "main": "./build/index.js",
+    "types": "./build/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./build/index.d.ts",
+        "default": "./build/index.js"
+      },
+      "./package.json": "./package.json"
+    }
+  }
+}

@@ -10,6 +10,7 @@
   "scripts": {
     "package": "tsx packages/cli/src/index.ts package",
     "template": "tsx packages/cli/src/index.ts repo",
+    "build": "pnpm --filter \"@mark1russell7/*\" run build",
     "test": "pnpm -r run test",
     "typecheck": "pnpm -r run typecheck",
     "lint:ste": "ste-lint"
