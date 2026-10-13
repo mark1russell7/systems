@@ -6,12 +6,14 @@ The site is at [mark1russell7.github.io/systems](https://mark1russell7.github.io
 
 ## Where the code lives
 
-At this time, the code of the program lives in [jarvis](https://github.com/mark1russell7/jarvis): the corpus, the algebra, the harness, the prober and the service abstraction. The code moves here after the first system, Redis, is complete. Until then, the site holds copies of the parts that it shows, and tests hold each copy to the figures of jarvis.
+Most of the code of the program is in [jarvis](https://github.com/mark1russell7/jarvis): the corpus, the algebra, the harness and the prober. It moves here one package at a time, and each package that moves goes to npm under `@mark1russell7`. Until a part moves, the site holds a copy of what it shows, and tests hold each copy to the figures of jarvis.
 
 ## Packages
 
 | Package | Function |
 | --- | --- |
+| `packages/quantity` | [`@mark1russell7/quantity`](https://www.npmjs.com/package/@mark1russell7/quantity): amounts in typed units, with exact arithmetic |
+| `packages/service` | [`@mark1russell7/service`](https://www.npmjs.com/package/@mark1russell7/service): a service declared as data, and the timer-ordering law on that declaration |
 | `packages/site` | The site: Astro and Starlight, with React islands for the labs and the charts |
 | `packages/cli` | The generator of the repository: `pnpm package add <name>` |
 

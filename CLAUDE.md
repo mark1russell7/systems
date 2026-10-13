@@ -2,9 +2,12 @@
 
 ## What this repository is
 
-This repository is the home of the systems program. At this time, its code lives in jarvis (`~/jarvis`). This repository holds the site, at `mark1russell7.github.io/systems`. The code moves here after the first system, Redis, is complete.
+This repository is the home of the systems program. It holds the site, at `mark1russell7.github.io/systems`. It also holds the packages that the program publishes to npm, under the scope `@mark1russell7`. The other code of the program is in jarvis, and it moves here one package at a time.
 
 - The site copies a part of jarvis only to show it. Each copy has tests that hold it to the figures of jarvis.
+- A package moves here with its code unchanged. Only its comments change, to STE. Its jarvis tests then use the npm release.
+- Publish a package when its CI is green. Mark gave this permission on 2026-10-13.
+- npm asks for a one-time password, thus Mark starts each publish.
 - Push and deploy this repository without a question to Mark. Mark gave this permission on 2026-10-08.
 - Do not publish a file that names a machine, a user, a path of the machine or an employer.
 
