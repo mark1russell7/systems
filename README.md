@@ -29,6 +29,12 @@ pnpm lint:ste
 pnpm --filter @systems/site dev
 ```
 
+## Releases
+
+CI publishes the packages to npm (`.github/workflows/release.yml`). To release a package, change its version in its `package.json` and push to main. The workflow does the gates of CI, packs each package, and tests each tarball in an empty project. Then it publishes each version that npm does not have. The trust of npm comes from OpenID Connect, thus the workflow uses no npm token, and each version gets a provenance statement.
+
+npm trusts a workflow only for a package that exists. Thus the first version of a new package goes out by hand, and then the workflow becomes its trusted publisher.
+
 ## Writing style
 
 All prose of this repository follows ASD-STE100 Simplified Technical English. The linter `ste-lint` examines it in CI.

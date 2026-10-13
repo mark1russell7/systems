@@ -6,8 +6,8 @@ This repository is the home of the systems program. It holds the site, at `mark1
 
 - The site copies a part of jarvis only to show it. Each copy has tests that hold it to the figures of jarvis.
 - A package moves here with its code unchanged. Only its comments change, to STE. Its jarvis tests then use the npm release.
-- Publish a package when its CI is green. Mark gave this permission on 2026-10-13.
-- npm asks for a one-time password, thus Mark starts each publish.
+- CI publishes each release (`.github/workflows/release.yml`). To release, change the version of a package and push to main.
+- npm trusts CI only for a package that exists. Thus Mark publishes the first version of a new package by hand.
 - Push and deploy this repository without a question to Mark. Mark gave this permission on 2026-10-08.
 - Do not publish a file that names a machine, a user, a path of the machine or an employer.
 
