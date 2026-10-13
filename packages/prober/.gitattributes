@@ -1,0 +1,2 @@
+# the identity fixture is raw records: bytes, never text
+fixtures/*.bin binary

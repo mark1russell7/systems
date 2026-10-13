@@ -6,6 +6,11 @@ packages:
 allowBuilds:
   "@mark1russell7/cue@git+https://github.com/mark1russell7/cue.git": true
   esbuild: true
+  # Testcontainers reaches Docker through ssh2, which works without its optional native addon
+  # (cpu-features). The script of protobufjs only checks a version. The harness needs none of them.
+  cpu-features: false
+  protobufjs: false
+  ssh2: false
 
 minimumReleaseAgeExclude:
   - "@astrojs/starlight@0.42.6"

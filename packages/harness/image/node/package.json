@@ -1,0 +1,8 @@
+{
+  "name": "loom-harness-ioredis-client",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "ioredis": "6.0.0"
+  }
+}

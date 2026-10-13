@@ -1,0 +1,30 @@
+[package]
+name = "prober"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "The prober's native side: the record contract, the clock, and the collector for the kernel source"
+
+[lib]
+name = "prober"
+path = "src/lib.rs"
+
+# the collector loads the kernel source, so it alone needs libbpf: the harness's tools use the
+# library without it
+[[bin]]
+name = "prober"
+path = "src/bin/prober.rs"
+required-features = ["collector"]
+
+[features]
+collector = ["dep:libbpf-rs"]
+
+[dependencies]
+libbpf-rs = { version = "=0.27.2", optional = true }
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+lto = true
+codegen-units = 1
