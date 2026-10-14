@@ -170,9 +170,13 @@ header.header {
   width: 100%;
 }
 
+/* Before hydration a chart has a guessed width. Its viewBox then scales it into the column. After
+   hydration the chart draws at the real width, and the scale is 1. */
 .sy-strip svg {
   display: block;
   overflow: visible;
+  max-width: 100%;
+  height: auto;
 }
 
 .sy-strip text {

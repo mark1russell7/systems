@@ -7,22 +7,23 @@ This program studies how systems fail. It starts at the system calls and the TCP
 
 ## Where the code lives
 
-At this time, the code lives in [jarvis](https://github.com/mark1russell7/jarvis). These are the parts:
+The engines of the program are packages in this repository, and each package goes to npm under `@mark1russell7`. The corpus stays in jarvis, because it is a part of a larger graph.
 
-| Part | Package in jarvis |
+| Part | Where it is |
 | --- | --- |
-| The corpus, the state machines and the algebra | `@jarvis/domain-systems` |
-| The harness | `@loom/harness` |
-| The prober | `@loom/harness`, folder `image` |
-| The service abstraction | `@loom/service` |
-| The units of measure | `@loom/quantity` |
+| The units of measure | `@mark1russell7/quantity`, in this repository |
+| The service abstraction | `@mark1russell7/service`, in this repository |
+| The prober | `@mark1russell7/prober`, in this repository |
+| The harness | `@mark1russell7/harness`, in this repository |
+| The state machines and the algebra | `@mark1russell7/algebra`, in this repository |
+| The corpus: components, knobs, claims and sources | `@jarvis/domain-systems` in jarvis |
 
-The code moves into this repository after the first system, Redis, is complete. Until then, this site holds copies of the parts that it shows, and tests hold each copy to the figures of jarvis.
+The site holds copies of the results that it shows, and tests hold each copy to its figures.
 
 ## The slices
 
 1. **S0, the groundwork.** The ontology, the units, the corpus and the first claims. It is complete.
-2. **S1, detection and divergence in Docker.** The harness, the prober, the algebra and the simulator, one system at a time. Redis is first.
+2. **S1, detection and divergence in Docker.** The harness, the prober, the algebra and the simulator, one system at a time. Redis is first. Q1 to Q4 hold from three observers: the kernel of the client, the ioredis driver and the Redis server.
 3. **S2, intermediaries and Kubernetes.** Proxies, service meshes and zones.
 4. **S3, outcomes under failure and load.** Histories, checkers, retry storms and metastability.
 5. **S4, the host, the network card and the cloud.** Virtual machines and real hardware.

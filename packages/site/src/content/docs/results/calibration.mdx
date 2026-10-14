@@ -1,0 +1,23 @@
+---
+title: Calibration
+description: Stage 0. The noise of the harness itself, and how many environments the machine holds at the same time before the noise increases.
+---
+
+import Calibration from "../../../components/Calibration.tsx";
+
+The harness must know its own noise before it can tell a finding from noise. Stage 0 measures that noise with two reference cells. Each cell has 30 runs at 1, 4 and 8 environments at the same time, and each environment has its own prober.
+
+- **A reset on the next send.** The target answers the next segment of the client with a reset. No timer is in the path. Thus the time from the send to the error is the noise of the pipeline.
+- **A scaled keepalive.** This cell is the same as Q1. Its spread at each level tells if more environments change the timing of a timer.
+
+<Calibration client:visible />
+
+## What the calibration sets
+
+- **δ_abs is 4 ms.** δ_abs is the 99.9th percentile of the latency of a reset, at the concurrency cap or less. Its minimum is one jiffy, which is 4 ms at HZ 250. Each reset was shorter than that minimum.
+- **The concurrency cap is 4.** In an earlier run at 8 environments, one reset waited 18.6 ms for the scheduler. Up to 4 environments, each reset took less than 2 ms.
+- **More environments do not change the spread of keepalive.** At 1, 4 and 8 environments, the runs stay in the same band.
+
+The rule for the cap reads the 99th percentile of 30 runs, which is the worst run. Thus one slow wake can set the cap to 1. A better rule, with more runs for each level or a lower percentile, is an open question.
+
+Stage 0 occurs again after each change to the harness, the kernel or Docker.

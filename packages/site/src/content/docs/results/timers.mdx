@@ -1,0 +1,24 @@
+---
+title: The timers behind their slot
+description: The prober records each firing of the timers of a socket. Thus a run that measured the host, and not the kernel, is void.
+---
+
+import TimerTable from "../../../components/TimerTable.tsx";
+
+A prediction of the algebra is about the timing of the kernel. But the kernel operates in a VM, and the host can stop a vCPU. Then a timer fires late, and the run measures the host.
+
+The prober records each firing of the keepalive and retransmit timers of a socket, from the timer wheel. Each record has three values:
+
+- **Behind.** This value is the number of jiffies between the wheel slot and the time that the CPU did the slot. The wheel does a slot in the tick when the slot is due. Thus a delay here comes from the CPU or the VM, not from the kernel.
+- **Late.** This value is the number of jiffies between the expiry that the socket asked for and the firing. It is the rounding of the wheel, which the algebra predicts.
+- **Owned.** This flag tells if the timer found its socket held by its owner.
+
+A run is void when the timer that drives its measurement was 2 jiffies or more behind its slot, in the timed interval. A keepalive timer that found its socket held also makes its run void, because such a timer tries again HZ/20 later.
+
+<TimerTable />
+
+## What the records found
+
+- **Most firings were on their slot.** In the twelve cells, 977 of 1019 firings were on their slot, and 37 were one jiffy behind. One jiffy is a tick that occurred while the wheel worked, and δ_abs includes it.
+- **A few firings show the VM.** Five firings were 2 jiffies behind or more. One of them was 103 jiffies (412 ms) behind, a stall of the VM, but it did not meet an interval that a run timed. One run of 132 was void for this reason, in Q1 of ioredis.
+- **The harness itself moved a timer.** At 8 environments, the client of the harness read its socket with a timeout. Such a read takes the lock of the socket each time that it wakes. A keepalive timer that finds its socket held sends nothing, and it tries again HZ/20 later, which is 52 ms at HZ 250. At this time, the client waits in `poll()`, which does not take the lock. After that change, no firing found its socket held.

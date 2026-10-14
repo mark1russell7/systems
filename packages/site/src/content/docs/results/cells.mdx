@@ -1,0 +1,50 @@
+---
+title: The S1 cells
+description: Q1 to Q4 against Redis 7.4, from three observers, the kernel of the client, the ioredis driver and the server. Each cell holds against its prediction.
+---
+
+import CellResults from "../../../components/CellResults.tsx";
+
+These are the latest results of the twelve S1 cells, from 2026-10-13. The target is a stock Redis 7.4 container on Linux 6.6, with HZ 250. Each cell has 11 runs in two fresh environments. The prober measures each interval from the records of the kernel.
+
+Each prediction comes from the algebra. The algebra reads the state machines of Linux TCP, Redis and ioredis, and the settings of the cell. A run outside the band is a finding, and so is a median outside the band.
+
+## The kernel of the client
+
+The client is the TCP client of the harness. It sets no socket option, thus the timers of its namespace apply: an idle time of 5 s, and 3 keepalive probes 2 s apart.
+
+- **Q1, an idle connection into a black hole.** Keepalive detects the failure. The time counts from the last received segment.
+- **Q2, a request in flight.** The retransmission give-up detects the failure. Its budget starts at the first retransmission of the RTO timer, not at the tail loss probe one RTO earlier.
+- **Q3, a frozen process.** No TCP timer fires. The frozen kernel acknowledges the request, and it answers each keepalive probe.
+
+<CellResults group="client" client:visible />
+
+## Recovery from a stall (Q4)
+
+A stall is a black hole that stops by itself. The connection moves again at the first retransmission after the stall, and the reply comes back one round trip later. The injector stops the stall in the VM, at its length after the send of the request.
+
+The retransmissions of a lone segment start with the loss probe, one RTO after the send. Then the wait doubles, thus the firing k comes 2^k RTOs after the send. At an RTO of 204 ms, the first firing after a 1 s stall is at 8 RTOs (1.632 s). After a 3.5 s stall, it is at 32 RTOs (6.528 s). Thus a stall of 3.5 s holds the request for almost two times its length.
+
+<CellResults group="recovery" client:visible />
+
+## A driver: ioredis
+
+The driver is ioredis 6.0.0 on Node 24.21.0, in its own image. ioredis sets the keepalive of its socket itself. With a keepAlive of 5000 ms, the idle time is 5 s, and Node sets the interval to 1 s and the count to 10. Thus Q1 detects the failure after 15 s, not 11 s.
+
+ioredis knows of each failure 1 ms to 6 ms after the kernel reports it. That delay is the event loop of Node. The TCP client of the harness knows of it in less than 0.1 ms.
+
+<CellResults group="ioredis" client:visible />
+
+## The server: Redis
+
+These cells observe Redis and its hold on the connection of the client: the server socket in the namespace of the target. The fault is on the side of the client.
+
+- **Q1, an idle client into a black hole.** Redis sets the keepalive of each client socket from its `tcp-keepalive` setting. At 5, the idle time is 5 s, the interval is 1 s, and the count is 3.
+- **Q2, a reply in flight.** The client sends a BLPOP with a timeout of 2 s, and the fault starts while Redis holds the request. The reply then goes into the black hole, and the retransmissions of Redis give up at `tcp_retries2 = 3`.
+- **Q3, a frozen client.** No TCP timer of Redis fires.
+
+<CellResults group="server" client:visible />
+
+## Where the data comes from
+
+Each run lands in the chaos ledger of jarvis as a record. The record has the cell, the manifests of its environments, each run and the records of the kernel. This page shows the latest landing of each cell. The [first results](../harness/), from 2026-10-08, stay on their own page.

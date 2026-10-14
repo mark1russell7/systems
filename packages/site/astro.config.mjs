@@ -26,7 +26,7 @@ export default defineConfig({
       sidebar: [
         { label: "Thesis", items: ["thesis"] },
         { label: "Lab", items: ["lab/detection"] },
-        { label: "Results", items: ["results/harness"] },
+        { label: "Results", items: ["results/cells", "results/calibration", "results/timers", "results/harness"] },
         { label: "About", items: ["about"] },
       ],
     }),

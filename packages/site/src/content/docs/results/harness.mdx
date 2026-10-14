@@ -5,6 +5,8 @@ description: Q1 to Q3 at the level of the kernel, on scaled timers, against Redi
 
 import HarnessResults from "../../../components/HarnessResults.tsx";
 
+This page shows the first results, from 2026-10-08. The latest results are on [the S1 cells](../cells/).
+
 The harness started four cells on 2026-10-08. It measured each cell 11 times over two fresh environments. The target was a stock Redis 7.4.11 container.
 
 The timers were scaled. Keepalive used an idle time of 5 s and 3 probes 2 s apart, and the kernel clock was HZ 250. The prober measured each interval from the records of the kernel.

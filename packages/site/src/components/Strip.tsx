@@ -14,16 +14,20 @@ export interface StripProps {
   readonly closed?: number | undefined;
   /** the nominal firings of the timer, on the bottom row */
   readonly marks?: ReadonlyArray<{ readonly t: number; readonly label: string }>;
-  /** the measured runs, on one row for each environment */
+  /** the measured runs, on one row for each environment, or for each named row */
   readonly runs?: ReadonlyArray<{ readonly t: number; readonly row: number; readonly label: string }>;
+  /** the names of the rows of runs, at the left edge. Without names, the runs have two rows. */
+  readonly rows?: readonly string[] | undefined;
   /** dashed lines with a label, for example the median */
   readonly lines?: ReadonlyArray<{ readonly t: number; readonly label: string }>;
   readonly label: string;
 }
 
-const HEIGHT = 118;
-const AXIS = 92;
 const PAD = 14;
+/** the width of the names of the rows, at the left edge */
+const GUTTER = 44;
+/** the space between two rows of runs */
+const ROW = 20;
 
 /** This hook gives the width of an element in pixels, and follows each change of the width. */
 const useWidth = (): [React.RefObject<HTMLDivElement | null>, number] => {
@@ -44,43 +48,55 @@ const useWidth = (): [React.RefObject<HTMLDivElement | null>, number] => {
 export default function Strip(props: StripProps): ReactElement {
   const [ref, width] = useWidth();
   const { from, to } = props;
-  const x = (t: number): number => PAD + ((width - 2 * PAD) * (t - from)) / (to - from);
+  const named = props.rows !== undefined;
+  // two rows of runs without names keep the first layout: rows at 36 and 56, the axis at 92
+  const count = props.rows?.length ?? 2;
+  const rowY = (row: number): number => (named ? 30 + row * ROW : row === 0 ? 36 : 56);
+  const axis = named ? Math.max(92, 30 + (count - 1) * ROW + 30) : 92;
+  const height = axis + 26;
+  const left = named ? PAD + GUTTER : PAD;
+  const x = (t: number): number => left + ((width - left - PAD) * (t - from)) / (to - from);
   const inside = (t: number): boolean => t >= from && t <= to;
-  const ticks = ticksBetween(from, to, Math.max(3, Math.floor(width / 110)));
+  const ticks = ticksBetween(from, to, Math.max(3, Math.floor((width - left) / 110)));
   return (
     <div ref={ref} className="sy-strip">
-      <svg width={width} height={HEIGHT} viewBox={`0 0 ${width} ${HEIGHT}`} role="img" aria-label={props.label}>
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={props.label}>
         {props.band === undefined ? null : (
-          <rect x={x(Math.max(from, props.band.low))} y={16} width={Math.max(3, x(Math.min(to, props.band.high)) - x(Math.max(from, props.band.low)))} height={AXIS - 26} rx={4} fill="var(--color-accent-wash)" stroke="var(--color-accent)">
+          <rect x={x(Math.max(from, props.band.low))} y={16} width={Math.max(3, x(Math.min(to, props.band.high)) - x(Math.max(from, props.band.low)))} height={axis - 26} rx={4} fill="var(--color-accent-wash)" stroke="var(--color-accent)">
             <title>{`The prediction: ${duration(props.band.low)} to ${duration(props.band.high)}`}</title>
           </rect>
         )}
+        {(props.rows ?? []).map((name, row) => (
+          <text key={name} className="sy-axis" x={PAD} y={rowY(row) + 4}>
+            {name}
+          </text>
+        ))}
         {props.closed === undefined || !inside(props.closed) ? null : (
           <g>
-            <line x1={x(props.closed)} x2={x(props.closed)} y1={12} y2={AXIS} stroke="var(--color-accent)" strokeWidth={2} />
+            <line x1={x(props.closed)} x2={x(props.closed)} y1={12} y2={axis} stroke="var(--color-accent)" strokeWidth={2} />
             <text x={x(props.closed)} y={10} textAnchor="middle">closed form</text>
           </g>
         )}
         {(props.lines ?? []).filter((line) => inside(line.t)).map((line) => (
-          <line key={line.label} x1={x(line.t)} x2={x(line.t)} y1={20} y2={AXIS - 6} stroke="var(--color-ink)" strokeWidth={1.5} strokeDasharray="3 3">
+          <line key={line.label} x1={x(line.t)} x2={x(line.t)} y1={20} y2={axis - 6} stroke="var(--color-ink)" strokeWidth={1.5} strokeDasharray="3 3">
             <title>{`${line.label}: ${duration(line.t)}`}</title>
           </line>
         ))}
         {(props.marks ?? []).filter((mark) => inside(mark.t)).map((mark) => (
-          <circle key={mark.label} cx={x(mark.t)} cy={AXIS - 12} r={4} fill="var(--series-1)" stroke="var(--color-surface)" strokeWidth={2}>
+          <circle key={mark.label} cx={x(mark.t)} cy={axis - 12} r={4} fill="var(--series-1)" stroke="var(--color-surface)" strokeWidth={2}>
             <title>{`${mark.label}: ${duration(mark.t)}`}</title>
           </circle>
         ))}
         {(props.runs ?? []).filter((run) => inside(run.t)).map((run, n) => (
-          <circle key={n} cx={x(run.t)} cy={run.row === 0 ? 36 : 56} r={4.5} fill="var(--series-2)" stroke="var(--color-surface)" strokeWidth={2}>
+          <circle key={n} cx={x(run.t)} cy={rowY(run.row)} r={4.5} fill="var(--series-2)" stroke="var(--color-surface)" strokeWidth={2}>
             <title>{`${run.label}: ${duration(run.t)}`}</title>
           </circle>
         ))}
-        <line className="sy-grid" x1={PAD} x2={width - PAD} y1={AXIS} y2={AXIS} />
+        <line className="sy-grid" x1={left} x2={width - PAD} y1={axis} y2={axis} />
         {ticks.values.map((t) => (
           <g key={t} className="sy-axis">
-            <line x1={x(t)} x2={x(t)} y1={AXIS} y2={AXIS + 5} />
-            <text x={x(t)} y={AXIS + 18} textAnchor="middle">{`${Number((t / ticks.unit.ms).toPrecision(6))} ${ticks.unit.name}`}</text>
+            <line x1={x(t)} x2={x(t)} y1={axis} y2={axis + 5} />
+            <text x={x(t)} y={axis + 18} textAnchor="middle">{`${Number((t / ticks.unit.ms).toPrecision(6))} ${ticks.unit.name}`}</text>
           </g>
         ))}
       </svg>
