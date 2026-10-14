@@ -1,0 +1,763 @@
+{
+  "format": "mark1russell7.machine/1",
+  "id": "nf-conntrack-tcp",
+  "title": "conntrack's TCP state machine (Linux 6.6.87.2-microsoft-standard-WSL2)",
+  "layer": "middlebox",
+  "version": "6.6.87.2",
+  "conditions": {
+    "kernel": "6.6.87.2-microsoft-standard-WSL2",
+    "note": "regenerate per kernel: 6.1 and 7.3 change this machine"
+  },
+  "sources": [
+    {
+      "ref": "nf_conntrack_proto_tcp.c:138-260 tcp_conntracks[2][6][10]",
+      "rung": "implemented"
+    },
+    {
+      "ref": "nf_conntrack_proto_tcp.c:61 tcp_timeouts[]",
+      "rung": "implemented"
+    },
+    {
+      "ref": "nf_reject_ipv4.c:279 nf_ct_set_closing() on REJECT with tcp-reset",
+      "rung": "implemented"
+    },
+    {
+      "ref": "include/net/netfilter/nf_conntrack_core.h:55-72 events delivered at confirm (POSTROUTING / LOCAL_IN)",
+      "rung": "implemented"
+    }
+  ],
+  "states": {
+    "NONE": {
+      "initial": true,
+      "note": "no entry"
+    },
+    "SYN_SENT": {},
+    "SYN_RECV": {},
+    "ESTABLISHED": {},
+    "FIN_WAIT": {},
+    "CLOSE_WAIT": {},
+    "LAST_ACK": {},
+    "TIME_WAIT": {},
+    "CLOSE": {},
+    "SYN_SENT2": {},
+    "DESTROYED": {
+      "final": true,
+      "pseudo": true,
+      "note": "the entry is gone; conntrack -E shows [DESTROY] with the last state"
+    }
+  },
+  "events": {
+    "orig.syn": {
+      "kind": "packet"
+    },
+    "orig.synack": {
+      "kind": "packet"
+    },
+    "orig.fin": {
+      "kind": "packet"
+    },
+    "orig.ack": {
+      "kind": "packet"
+    },
+    "orig.rst": {
+      "kind": "packet"
+    },
+    "orig.none": {
+      "kind": "packet"
+    },
+    "reply.syn": {
+      "kind": "packet"
+    },
+    "reply.synack": {
+      "kind": "packet"
+    },
+    "reply.fin": {
+      "kind": "packet"
+    },
+    "reply.ack": {
+      "kind": "packet"
+    },
+    "reply.rst": {
+      "kind": "packet"
+    },
+    "reply.none": {
+      "kind": "packet"
+    },
+    "local.set-closing": {
+      "kind": "local"
+    },
+    "local.delete": {
+      "kind": "local"
+    },
+    "timer.state-timeout": {
+      "kind": "timer"
+    }
+  },
+  "knobs": {
+    "gc_lag_max": {
+      "key": "conntrack GC lag (gc_worker)",
+      "scope": "global",
+      "unit": "s",
+      "default": 61,
+      "note": "an expired entry's DESTROY waits for the GC, about 61 s here"
+    },
+    "nf_conntrack_tcp_loose": {
+      "key": "net.netfilter.nf_conntrack_tcp_loose",
+      "scope": "netns",
+      "unit": null,
+      "default": 1
+    },
+    "nf_conntrack_tcp_timeout_syn_sent": {
+      "key": "net.netfilter.nf_conntrack_tcp_timeout_syn_sent",
+      "scope": "netns",
+      "unit": "s",
+      "default": 120
+    },
+    "nf_conntrack_tcp_timeout_syn_recv": {
+      "key": "net.netfilter.nf_conntrack_tcp_timeout_syn_recv",
+      "scope": "netns",
+      "unit": "s",
+      "default": 60
+    },
+    "nf_conntrack_tcp_timeout_established": {
+      "key": "net.netfilter.nf_conntrack_tcp_timeout_established",
+      "scope": "netns",
+      "unit": "s",
+      "default": 432000
+    },
+    "nf_conntrack_tcp_timeout_fin_wait": {
+      "key": "net.netfilter.nf_conntrack_tcp_timeout_fin_wait",
+      "scope": "netns",
+      "unit": "s",
+      "default": 120
+    },
+    "nf_conntrack_tcp_timeout_close_wait": {
+      "key": "net.netfilter.nf_conntrack_tcp_timeout_close_wait",
+      "scope": "netns",
+      "unit": "s",
+      "default": 60
+    },
+    "nf_conntrack_tcp_timeout_last_ack": {
+      "key": "net.netfilter.nf_conntrack_tcp_timeout_last_ack",
+      "scope": "netns",
+      "unit": "s",
+      "default": 30
+    },
+    "nf_conntrack_tcp_timeout_time_wait": {
+      "key": "net.netfilter.nf_conntrack_tcp_timeout_time_wait",
+      "scope": "netns",
+      "unit": "s",
+      "default": 120
+    },
+    "nf_conntrack_tcp_timeout_close": {
+      "key": "net.netfilter.nf_conntrack_tcp_timeout_close",
+      "scope": "netns",
+      "unit": "s",
+      "default": 10
+    },
+    "nf_conntrack_tcp_timeout_syn_sent2": {
+      "key": "net.netfilter.nf_conntrack_tcp_timeout_syn_sent2",
+      "scope": "netns",
+      "unit": "s",
+      "default": 120
+    }
+  },
+  "timers": {
+    "expire_syn_sent": {
+      "duration": {
+        "knob": "nf_conntrack_tcp_timeout_syn_sent",
+        "unit": "s"
+      },
+      "lateness": {
+        "knob": "gc_lag_max",
+        "unit": "s"
+      },
+      "arms": [
+        "enter:SYN_SENT",
+        "orig.ack",
+        "reply.ack"
+      ],
+      "fires": "timer.state-timeout",
+      "note": "each packet re-arms the state's timeout (default 120 s, line 62); the DESTROY event waits for the GC worker or a lookup"
+    },
+    "expire_syn_recv": {
+      "duration": {
+        "knob": "nf_conntrack_tcp_timeout_syn_recv",
+        "unit": "s"
+      },
+      "lateness": {
+        "knob": "gc_lag_max",
+        "unit": "s"
+      },
+      "arms": [
+        "enter:SYN_RECV",
+        "orig.ack",
+        "reply.ack"
+      ],
+      "fires": "timer.state-timeout",
+      "note": "each packet re-arms the state's timeout (default 60 s, line 63); the DESTROY event waits for the GC worker or a lookup"
+    },
+    "expire_established": {
+      "duration": {
+        "knob": "nf_conntrack_tcp_timeout_established",
+        "unit": "s"
+      },
+      "lateness": {
+        "knob": "gc_lag_max",
+        "unit": "s"
+      },
+      "arms": [
+        "enter:ESTABLISHED",
+        "orig.ack",
+        "reply.ack"
+      ],
+      "fires": "timer.state-timeout",
+      "note": "each packet re-arms the state's timeout (default 432000 s, line 64); the DESTROY event waits for the GC worker or a lookup"
+    },
+    "expire_fin_wait": {
+      "duration": {
+        "knob": "nf_conntrack_tcp_timeout_fin_wait",
+        "unit": "s"
+      },
+      "lateness": {
+        "knob": "gc_lag_max",
+        "unit": "s"
+      },
+      "arms": [
+        "enter:FIN_WAIT",
+        "orig.ack",
+        "reply.ack"
+      ],
+      "fires": "timer.state-timeout",
+      "note": "each packet re-arms the state's timeout (default 120 s, line 65); the DESTROY event waits for the GC worker or a lookup"
+    },
+    "expire_close_wait": {
+      "duration": {
+        "knob": "nf_conntrack_tcp_timeout_close_wait",
+        "unit": "s"
+      },
+      "lateness": {
+        "knob": "gc_lag_max",
+        "unit": "s"
+      },
+      "arms": [
+        "enter:CLOSE_WAIT",
+        "orig.ack",
+        "reply.ack"
+      ],
+      "fires": "timer.state-timeout",
+      "note": "each packet re-arms the state's timeout (default 60 s, line 66); the DESTROY event waits for the GC worker or a lookup"
+    },
+    "expire_last_ack": {
+      "duration": {
+        "knob": "nf_conntrack_tcp_timeout_last_ack",
+        "unit": "s"
+      },
+      "lateness": {
+        "knob": "gc_lag_max",
+        "unit": "s"
+      },
+      "arms": [
+        "enter:LAST_ACK",
+        "orig.ack",
+        "reply.ack"
+      ],
+      "fires": "timer.state-timeout",
+      "note": "each packet re-arms the state's timeout (default 30 s, line 67); the DESTROY event waits for the GC worker or a lookup"
+    },
+    "expire_time_wait": {
+      "duration": {
+        "knob": "nf_conntrack_tcp_timeout_time_wait",
+        "unit": "s"
+      },
+      "lateness": {
+        "knob": "gc_lag_max",
+        "unit": "s"
+      },
+      "arms": [
+        "enter:TIME_WAIT",
+        "orig.ack",
+        "reply.ack"
+      ],
+      "fires": "timer.state-timeout",
+      "note": "each packet re-arms the state's timeout (default 120 s, line 68); the DESTROY event waits for the GC worker or a lookup"
+    },
+    "expire_close": {
+      "duration": {
+        "knob": "nf_conntrack_tcp_timeout_close",
+        "unit": "s"
+      },
+      "lateness": {
+        "knob": "gc_lag_max",
+        "unit": "s"
+      },
+      "arms": [
+        "enter:CLOSE",
+        "orig.ack",
+        "reply.ack"
+      ],
+      "fires": "timer.state-timeout",
+      "note": "each packet re-arms the state's timeout (default 10 s, line 69); the DESTROY event waits for the GC worker or a lookup"
+    },
+    "expire_syn_sent2": {
+      "duration": {
+        "knob": "nf_conntrack_tcp_timeout_syn_sent2",
+        "unit": "s"
+      },
+      "lateness": {
+        "knob": "gc_lag_max",
+        "unit": "s"
+      },
+      "arms": [
+        "enter:SYN_SENT2",
+        "orig.ack",
+        "reply.ack"
+      ],
+      "fires": "timer.state-timeout",
+      "note": "each packet re-arms the state's timeout (default 120 s, line 70); the DESTROY event waits for the GC worker or a lookup"
+    }
+  },
+  "realizes": {
+    "systems.mechanism.middlebox-idle": {
+      "timer": "expire_established"
+    },
+    "systems.mechanism.tcp-timeout-close-wait": {
+      "timer": "expire_close_wait"
+    }
+  },
+  "transitions": [
+    {
+      "id": "ct.none.syn_sent",
+      "from": "NONE",
+      "to": "SYN_SENT",
+      "on": [
+        "orig.syn"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:138"
+    },
+    {
+      "id": "ct.syn_sent.syn_sent",
+      "from": "SYN_SENT",
+      "to": "SYN_SENT",
+      "on": [
+        "orig.syn"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:138"
+    },
+    {
+      "id": "ct.time_wait.syn_sent",
+      "from": "TIME_WAIT",
+      "to": "SYN_SENT",
+      "on": [
+        "orig.syn",
+        "reply.syn"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:138"
+    },
+    {
+      "id": "ct.close.syn_sent",
+      "from": "CLOSE",
+      "to": "SYN_SENT",
+      "on": [
+        "orig.syn"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:138"
+    },
+    {
+      "id": "ct.syn_sent2.syn_sent2",
+      "from": "SYN_SENT2",
+      "to": "SYN_SENT2",
+      "on": [
+        "orig.syn",
+        "reply.syn"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:138"
+    },
+    {
+      "id": "ct.syn_recv.syn_recv",
+      "from": "SYN_RECV",
+      "to": "SYN_RECV",
+      "on": [
+        "orig.synack",
+        "reply.ack"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:155"
+    },
+    {
+      "id": "ct.syn_sent2.syn_recv",
+      "from": "SYN_SENT2",
+      "to": "SYN_RECV",
+      "on": [
+        "orig.synack",
+        "reply.synack"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:155"
+    },
+    {
+      "id": "ct.syn_recv.fin_wait",
+      "from": "SYN_RECV",
+      "to": "FIN_WAIT",
+      "on": [
+        "orig.fin",
+        "reply.fin"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:169"
+    },
+    {
+      "id": "ct.established.fin_wait",
+      "from": "ESTABLISHED",
+      "to": "FIN_WAIT",
+      "on": [
+        "orig.fin",
+        "reply.fin"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:169"
+    },
+    {
+      "id": "ct.fin_wait.last_ack",
+      "from": "FIN_WAIT",
+      "to": "LAST_ACK",
+      "on": [
+        "orig.fin",
+        "reply.fin"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:169"
+    },
+    {
+      "id": "ct.close_wait.last_ack",
+      "from": "CLOSE_WAIT",
+      "to": "LAST_ACK",
+      "on": [
+        "orig.fin",
+        "reply.fin"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:169"
+    },
+    {
+      "id": "ct.last_ack.last_ack",
+      "from": "LAST_ACK",
+      "to": "LAST_ACK",
+      "on": [
+        "orig.fin",
+        "reply.fin"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:169"
+    },
+    {
+      "id": "ct.time_wait.time_wait",
+      "from": "TIME_WAIT",
+      "to": "TIME_WAIT",
+      "on": [
+        "orig.fin",
+        "orig.ack",
+        "reply.fin",
+        "reply.ack"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:169"
+    },
+    {
+      "id": "ct.close.close",
+      "from": "CLOSE",
+      "to": "CLOSE",
+      "on": [
+        "orig.fin",
+        "orig.ack",
+        "orig.rst",
+        "reply.fin",
+        "reply.ack",
+        "reply.rst"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:169"
+    },
+    {
+      "id": "ct.none.established",
+      "from": "NONE",
+      "to": "ESTABLISHED",
+      "on": [
+        "orig.ack"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:186",
+      "guard": "nf_conntrack_tcp_loose != 0 (mid-stream pickup)"
+    },
+    {
+      "id": "ct.syn_recv.established",
+      "from": "SYN_RECV",
+      "to": "ESTABLISHED",
+      "on": [
+        "orig.ack"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:186"
+    },
+    {
+      "id": "ct.established.established",
+      "from": "ESTABLISHED",
+      "to": "ESTABLISHED",
+      "on": [
+        "orig.ack",
+        "reply.ack"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:186"
+    },
+    {
+      "id": "ct.fin_wait.close_wait",
+      "from": "FIN_WAIT",
+      "to": "CLOSE_WAIT",
+      "on": [
+        "orig.ack",
+        "reply.ack"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:186"
+    },
+    {
+      "id": "ct.close_wait.close_wait",
+      "from": "CLOSE_WAIT",
+      "to": "CLOSE_WAIT",
+      "on": [
+        "orig.ack",
+        "reply.ack"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:186"
+    },
+    {
+      "id": "ct.last_ack.time_wait",
+      "from": "LAST_ACK",
+      "to": "TIME_WAIT",
+      "on": [
+        "orig.ack",
+        "reply.ack"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:186"
+    },
+    {
+      "id": "ct.syn_sent.close",
+      "from": "SYN_SENT",
+      "to": "CLOSE",
+      "on": [
+        "orig.rst",
+        "reply.rst"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:200"
+    },
+    {
+      "id": "ct.syn_recv.close",
+      "from": "SYN_RECV",
+      "to": "CLOSE",
+      "on": [
+        "orig.rst",
+        "reply.rst"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:200"
+    },
+    {
+      "id": "ct.established.close",
+      "from": "ESTABLISHED",
+      "to": "CLOSE",
+      "on": [
+        "orig.rst",
+        "reply.rst"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:200"
+    },
+    {
+      "id": "ct.fin_wait.close",
+      "from": "FIN_WAIT",
+      "to": "CLOSE",
+      "on": [
+        "orig.rst",
+        "reply.rst"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:200"
+    },
+    {
+      "id": "ct.close_wait.close",
+      "from": "CLOSE_WAIT",
+      "to": "CLOSE",
+      "on": [
+        "orig.rst",
+        "reply.rst"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:200"
+    },
+    {
+      "id": "ct.last_ack.close",
+      "from": "LAST_ACK",
+      "to": "CLOSE",
+      "on": [
+        "orig.rst",
+        "reply.rst"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:200"
+    },
+    {
+      "id": "ct.time_wait.close",
+      "from": "TIME_WAIT",
+      "to": "CLOSE",
+      "on": [
+        "orig.rst",
+        "reply.rst"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:200"
+    },
+    {
+      "id": "ct.syn_sent2.close",
+      "from": "SYN_SENT2",
+      "to": "CLOSE",
+      "on": [
+        "orig.rst",
+        "reply.rst"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:200"
+    },
+    {
+      "id": "ct.syn_sent.syn_sent2",
+      "from": "SYN_SENT",
+      "to": "SYN_SENT2",
+      "on": [
+        "reply.syn"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:206"
+    },
+    {
+      "id": "ct.syn_sent.syn_recv",
+      "from": "SYN_SENT",
+      "to": "SYN_RECV",
+      "on": [
+        "reply.synack"
+      ],
+      "source": "nf_conntrack_proto_tcp.c:220"
+    },
+    {
+      "id": "ct.reopen-kill",
+      "from": [
+        "TIME_WAIT",
+        "CLOSE"
+      ],
+      "to": "DESTROYED",
+      "on": [
+        "orig.syn"
+      ],
+      "guard": "CLOSE_INIT seen in either direction, or the last packet in this direction was an RST",
+      "note": "the old entry is deleted and the SYN creates a new one (NONE -> SYN_SENT)",
+      "source": "nf_conntrack_proto_tcp.c:1003-1025"
+    },
+    {
+      "id": "ct.set-closing",
+      "from": "*",
+      "to": "CLOSE",
+      "on": [
+        "local.set-closing"
+      ],
+      "note": "nf_conntrack_tcp_set_closing(): the REJECT target sets CLOSE (10 s) when it sends a reset (nf_reject_ipv4.c:279)",
+      "source": "nf_conntrack_proto_tcp.c:916"
+    },
+    {
+      "id": "ct.expire.syn_sent",
+      "from": "SYN_SENT",
+      "to": "DESTROYED",
+      "on": [
+        "timer.state-timeout"
+      ],
+      "timer": "expire_syn_sent"
+    },
+    {
+      "id": "ct.expire.syn_recv",
+      "from": "SYN_RECV",
+      "to": "DESTROYED",
+      "on": [
+        "timer.state-timeout"
+      ],
+      "timer": "expire_syn_recv"
+    },
+    {
+      "id": "ct.expire.established",
+      "from": "ESTABLISHED",
+      "to": "DESTROYED",
+      "on": [
+        "timer.state-timeout"
+      ],
+      "timer": "expire_established"
+    },
+    {
+      "id": "ct.expire.fin_wait",
+      "from": "FIN_WAIT",
+      "to": "DESTROYED",
+      "on": [
+        "timer.state-timeout"
+      ],
+      "timer": "expire_fin_wait"
+    },
+    {
+      "id": "ct.expire.close_wait",
+      "from": "CLOSE_WAIT",
+      "to": "DESTROYED",
+      "on": [
+        "timer.state-timeout"
+      ],
+      "timer": "expire_close_wait"
+    },
+    {
+      "id": "ct.expire.last_ack",
+      "from": "LAST_ACK",
+      "to": "DESTROYED",
+      "on": [
+        "timer.state-timeout"
+      ],
+      "timer": "expire_last_ack"
+    },
+    {
+      "id": "ct.expire.time_wait",
+      "from": "TIME_WAIT",
+      "to": "DESTROYED",
+      "on": [
+        "timer.state-timeout"
+      ],
+      "timer": "expire_time_wait"
+    },
+    {
+      "id": "ct.expire.close",
+      "from": "CLOSE",
+      "to": "DESTROYED",
+      "on": [
+        "timer.state-timeout"
+      ],
+      "timer": "expire_close"
+    },
+    {
+      "id": "ct.expire.syn_sent2",
+      "from": "SYN_SENT2",
+      "to": "DESTROYED",
+      "on": [
+        "timer.state-timeout"
+      ],
+      "timer": "expire_syn_sent2"
+    },
+    {
+      "id": "ct.delete",
+      "from": "*",
+      "to": "DESTROYED",
+      "on": [
+        "local.delete"
+      ],
+      "note": "conntrack -D, a flush, or early drop under table pressure"
+    }
+  ],
+  "observe": {
+    "conntrack-events": {
+      "states": {
+        "SYN_SENT": "SYN_SENT",
+        "SYN_RECV": "SYN_RECV",
+        "ESTABLISHED": "ESTABLISHED",
+        "FIN_WAIT": "FIN_WAIT",
+        "CLOSE_WAIT": "CLOSE_WAIT",
+        "LAST_ACK": "LAST_ACK",
+        "TIME_WAIT": "TIME_WAIT",
+        "CLOSE": "CLOSE",
+        "LISTEN": "SYN_SENT2",
+        "SYN_SENT2": "SYN_SENT2",
+        "[DESTROY]": "DESTROYED"
+      },
+      "fidelity": "lossy",
+      "note": "events are cached per packet and delivered at confirm: a change caused by a packet dropped before POSTROUTING is never reported (observed: a1, a2); netlink overruns drop events (ENOBUFS); DESTROY lags expiry by the GC"
+    }
+  }
+}

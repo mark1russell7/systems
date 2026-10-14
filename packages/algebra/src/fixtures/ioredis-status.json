@@ -1,0 +1,299 @@
+{
+  "format": "mark1russell7.machine/1",
+  "id": "ioredis-status",
+  "title": "ioredis 6.0.0 standalone connection status (Redis#status)",
+  "layer": "driver",
+  "version": "6.0.0",
+  "conditions": {
+    "ioredis": "6.0.0",
+    "mode": "standalone (no Sentinel, no Cluster)",
+    "node": "24.21.0"
+  },
+  "sources": [
+    {
+      "ref": "ioredis 6.0.0 built/Redis.js:88-93 (constructor: wait or connect), :131-132 (connectionEpoch += 1; connecting), :149-155 (connector error: end), :737-743 setStatus()",
+      "rung": "implemented"
+    },
+    {
+      "ref": "ioredis 6.0.0 built/redis/event_handler.js:120 connect, :294-337 closeHandler (close; reconnecting or end), :352 end, :366 ready, :369 monitoring",
+      "rung": "implemented"
+    },
+    {
+      "ref": "ioredis 6.0.0 built/redis/RedisOptions.js (connectTimeout 10000, retryStrategy, keepAlive 30000, maxRetriesPerRequest 20, autoResendUnfulfilledCommands true)",
+      "rung": "implemented"
+    },
+    {
+      "ref": "node v24.21.0 lib/net.js:846-888 (setKeepAlive truncates the delay to whole seconds) and src/tcp_wrap.cc:204-221 (interval 1 s and count 10 when none is given)",
+      "rung": "implemented"
+    },
+    {
+      "ref": "ioredis 6.0.0 built/Redis.js:167-177 (setKeepAlive(true, keepAlive) once the socket connects)",
+      "rung": "implemented"
+    }
+  ],
+  "states": {
+    "[empty]": {
+      "initial": true,
+      "pseudo": true,
+      "note": "before the constructor sets a status"
+    },
+    "wait": {},
+    "connecting": {},
+    "connect": {
+      "note": "socket connected, handshake (HELLO, CLIENT SETNAME, INFO ready check) in progress"
+    },
+    "ready": {},
+    "monitoring": {},
+    "close": {},
+    "reconnecting": {},
+    "end": {
+      "final": true,
+      "note": "connect() may still start a new attempt from end"
+    }
+  },
+  "events": {
+    "app.construct": {
+      "kind": "app"
+    },
+    "app.connect": {
+      "kind": "app",
+      "note": "connect(), or the first command with lazyConnect"
+    },
+    "stream.connect": {
+      "kind": "local",
+      "note": "the socket's connect event"
+    },
+    "stream.close": {
+      "kind": "local",
+      "note": "the socket closed: peer FIN or RST, ETIMEDOUT, destroy() by the connect timeout"
+    },
+    "handshake.ready": {
+      "kind": "local",
+      "note": "handshake and ready check passed"
+    },
+    "connector.error": {
+      "kind": "local"
+    },
+    "retry.delay": {
+      "kind": "local",
+      "note": "retryStrategy returned a number"
+    },
+    "retry.stop": {
+      "kind": "local",
+      "note": "retryStrategy returned a non-number, or the close was manual (quit, disconnect)"
+    },
+    "timer.retry": {
+      "kind": "timer"
+    },
+    "timer.connect-timeout": {
+      "kind": "timer",
+      "note": "destroys the socket, which then closes"
+    },
+    "ready.monitor": {
+      "kind": "local"
+    }
+  },
+  "knobs": {
+    "connectTimeout": {
+      "key": "ioredis connectTimeout",
+      "scope": "client",
+      "unit": "ms",
+      "default": 10000
+    },
+    "keepAlive": {
+      "key": "ioredis keepAlive",
+      "scope": "client",
+      "unit": "ms",
+      "default": 30000,
+      "note": "setKeepAlive's initial delay; libuv fixes the probe interval at 1 s and the count at 10"
+    },
+    "node_keepalive_interval": {
+      "key": "node net.Socket setKeepAlive interval",
+      "scope": "client",
+      "unit": "s",
+      "default": 1,
+      "note": "Node passes 1 s to libuv when setKeepAlive is given no interval, as ioredis gives none"
+    },
+    "node_keepalive_count": {
+      "key": "node net.Socket setKeepAlive count",
+      "scope": "client",
+      "unit": "count",
+      "default": 10,
+      "note": "Node passes 10 to libuv when setKeepAlive is given no count, as ioredis gives none"
+    }
+  },
+  "timers": {
+    "connect_timeout": {
+      "duration": {
+        "knob": "connectTimeout",
+        "unit": "ms"
+      },
+      "arms": [
+        "enter:connecting"
+      ],
+      "cancels": [
+        "stream.connect"
+      ],
+      "fires": "timer.connect-timeout"
+    },
+    "retry_delay": {
+      "duration": {
+        "model": "ioredis.retry-base",
+        "knobs": [
+          "fired"
+        ],
+        "unit": "s"
+      },
+      "lateness": {
+        "const": 0.2,
+        "unit": "s"
+      },
+      "arms": [
+        "enter:reconnecting"
+      ],
+      "fires": "timer.retry",
+      "backoff": {
+        "resets": [
+          "handshake.ready"
+        ]
+      },
+      "note": "the wait before the next reconnect: min(2^fired × 50, 5000) ms, where fired counts the reconnects since the connection was last ready (retryStrategy(++retryAttempts), reset in readyHandler), plus a jitter in [0, 200) ms"
+    }
+  },
+  "realizes": {
+    "systems.mechanism.connect-bound": {
+      "timer": "connect_timeout"
+    }
+  },
+  "transitions": [
+    {
+      "id": "io.lazy",
+      "from": "[empty]",
+      "to": "wait",
+      "on": "app.construct"
+    },
+    {
+      "id": "io.construct-connect",
+      "from": "[empty]",
+      "to": "connecting",
+      "on": "app.construct"
+    },
+    {
+      "id": "io.connect",
+      "from": [
+        "wait",
+        "end"
+      ],
+      "to": "connecting",
+      "on": "app.connect"
+    },
+    {
+      "id": "io.socket-up",
+      "from": "connecting",
+      "to": "connect",
+      "on": "stream.connect"
+    },
+    {
+      "id": "io.attempt-failed",
+      "from": "connecting",
+      "to": "close",
+      "on": [
+        "stream.close",
+        "timer.connect-timeout"
+      ]
+    },
+    {
+      "id": "io.connector-error",
+      "from": "connecting",
+      "to": "end",
+      "on": "connector.error"
+    },
+    {
+      "id": "io.ready",
+      "from": "connect",
+      "to": "ready",
+      "on": "handshake.ready"
+    },
+    {
+      "id": "io.handshake-lost",
+      "from": "connect",
+      "to": "close",
+      "on": "stream.close"
+    },
+    {
+      "id": "io.lost",
+      "from": [
+        "ready",
+        "monitoring"
+      ],
+      "to": "close",
+      "on": "stream.close"
+    },
+    {
+      "id": "io.monitor",
+      "from": "ready",
+      "to": "monitoring",
+      "on": "ready.monitor"
+    },
+    {
+      "id": "io.retry",
+      "from": "close",
+      "to": "reconnecting",
+      "on": "retry.delay"
+    },
+    {
+      "id": "io.give-up",
+      "from": "close",
+      "to": "end",
+      "on": "retry.stop"
+    },
+    {
+      "id": "io.reconnect",
+      "from": "reconnecting",
+      "to": "connecting",
+      "on": "timer.retry",
+      "timer": "retry_delay"
+    }
+  ],
+  "observe": {
+    "driver-status": {
+      "fidelity": "complete",
+      "note": "a wrapper on Redis#setStatus (same tick as the change)",
+      "states": {
+        "wait": "wait",
+        "connecting": "connecting",
+        "connect": "connect",
+        "ready": "ready",
+        "monitoring": "monitoring",
+        "close": "close",
+        "reconnecting": "reconnecting",
+        "end": "end"
+      }
+    }
+  },
+  "over": {
+    "machine": "systems.machine.linux-tcp",
+    "states": {
+      "connecting": "SYN_SENT",
+      "connect": "ESTABLISHED",
+      "ready": "ESTABLISHED",
+      "monitoring": "ESTABLISHED"
+    },
+    "sets": {
+      "keepidle": {
+        "expr": "floor(keepAlive / 1000)",
+        "unit": "s"
+      },
+      "keepintvl": {
+        "knob": "node_keepalive_interval",
+        "unit": "s"
+      },
+      "keepcnt": {
+        "knob": "node_keepalive_count",
+        "unit": "count"
+      }
+    },
+    "ends": "stream.close",
+    "note": "ioredis's socket is a Linux TCP socket. Once it connects, ioredis calls setKeepAlive(true, keepAlive), and Node gives libuv the delay in whole seconds with its own interval and count, so the namespace's keepalive sysctls never reach it. A delay under a second is 0 s, which libuv refuses with EINVAL. When the socket ends, ioredis hears stream.close."
+  }
+}

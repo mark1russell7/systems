@@ -1,0 +1,183 @@
+{
+  "format": "mark1russell7.machine/1",
+  "id": "redis-client",
+  "title": "A client connection as the Redis 8 server holds it (CLIENT LIST)",
+  "layer": "server",
+  "version": "8.10.2",
+  "conditions": {
+    "redis": "8.10.2",
+    "os": "linux"
+  },
+  "sources": [
+    {
+      "ref": "redis 8.10.2 src/anet.c:113-252 anetKeepAlive(): on Linux idle = tcp-keepalive, intvl = idle/3 (min 1), cnt = 3",
+      "rung": "implemented"
+    },
+    {
+      "ref": "Redis CLIENT LIST documentation (id, addr, laddr, fd, name, age, idle, flags, cmd ...)",
+      "rung": "documented"
+    }
+  ],
+  "states": {
+    "ABSENT": {
+      "initial": true,
+      "pseudo": true
+    },
+    "CONNECTED": {
+      "note": "listed by CLIENT LIST; flags and cmd change within it"
+    },
+    "GONE": {
+      "final": true,
+      "note": "freed; the id is never reused within a server process"
+    }
+  },
+  "events": {
+    "accept": {
+      "kind": "local"
+    },
+    "peer.fin": {
+      "kind": "peer",
+      "note": "read returns 0: the client closed (QUIT included)"
+    },
+    "peer.rst": {
+      "kind": "peer",
+      "note": "read fails ECONNRESET"
+    },
+    "timer.idle": {
+      "kind": "timer",
+      "note": "the timeout config (0 = off)"
+    },
+    "app.kill": {
+      "kind": "app",
+      "note": "CLIENT KILL, output-buffer limits"
+    },
+    "peer.data": {
+      "kind": "peer",
+      "note": "a segment from the client (re-arms the keepalive idle timer)"
+    },
+    "app.quit": {
+      "kind": "app",
+      "note": "QUIT: the server replies and closes (close after reply)"
+    },
+    "socket.error": {
+      "kind": "local",
+      "note": "read fails with the socket's own error: the kernel beneath gave up, by its keepalive or its retransmissions (ETIMEDOUT)"
+    }
+  },
+  "knobs": {
+    "tcp_keepalive": {
+      "key": "redis tcp-keepalive",
+      "scope": "server",
+      "unit": "s",
+      "default": 300
+    },
+    "timeout": {
+      "key": "redis timeout",
+      "scope": "server",
+      "unit": "s",
+      "default": 0
+    },
+    "hz": {
+      "key": "CONFIG_HZ",
+      "scope": "global",
+      "unit": "Hz",
+      "default": null,
+      "note": "the kernel's build option: Redis's keepalive is the kernel's, so its firings are rounded on the kernel's timer wheel, which counts in jiffies"
+    }
+  },
+  "timers": {
+    "idle": {
+      "duration": {
+        "knob": "timeout",
+        "unit": "s"
+      },
+      "arms": [
+        "accept"
+      ],
+      "fires": "timer.idle"
+    }
+  },
+  "realizes": {
+    "systems.mechanism.idle-refresh-interval": {
+      "duration": {
+        "knob": "tcp_keepalive",
+        "unit": "s"
+      },
+      "lateness": {
+        "model": "linux.wheel",
+        "knobs": [
+          "tcp_keepalive",
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "early": {
+        "model": "linux.jiffy",
+        "knobs": [
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "note": "the keepalive timer's first firing, when the first probe refreshes an idle flow: its idle time, rounded up on the wheel"
+    },
+    "systems.mechanism.keepalive-detection-window": {
+      "timer": "keepalive"
+    },
+    "systems.mechanism.server-idle-close": {
+      "timer": "idle"
+    }
+  },
+  "transitions": [
+    {
+      "id": "rc.accept",
+      "from": "ABSENT",
+      "to": "CONNECTED",
+      "on": "accept"
+    },
+    {
+      "id": "rc.gone",
+      "from": "CONNECTED",
+      "to": "GONE",
+      "on": [
+        "peer.fin",
+        "peer.rst",
+        "socket.error",
+        "timer.idle",
+        "app.kill",
+        "app.quit"
+      ]
+    }
+  ],
+  "observe": {
+    "client-list": {
+      "fidelity": "sampled",
+      "note": "polled; appearance and disappearance are bracketed by two polls",
+      "states": {
+        "listed": "CONNECTED",
+        "(gone)": "GONE"
+      }
+    }
+  },
+  "over": {
+    "machine": "systems.machine.linux-tcp",
+    "states": {
+      "CONNECTED": "ESTABLISHED"
+    },
+    "sets": {
+      "keepidle": {
+        "knob": "tcp_keepalive",
+        "unit": "s"
+      },
+      "keepintvl": {
+        "expr": "max(1, floor(tcp_keepalive / 3))",
+        "unit": "s"
+      },
+      "keepcnt": {
+        "const": 3,
+        "unit": "count"
+      }
+    },
+    "ends": "socket.error",
+    "note": "Redis holds each client on a Linux TCP socket, and anetKeepAlive sets its keepalive from tcp-keepalive alone: the idle time, a third of it in whole seconds and at least 1, and 3 probes. So its detection of a dead client is the kernel's keepalive, or its retransmissions when a reply is unacknowledged, and either reaches Redis as a read error."
+  }
+}

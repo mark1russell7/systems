@@ -6,13 +6,14 @@ The site is at [mark1russell7.github.io/systems](https://mark1russell7.github.io
 
 ## Where the code lives
 
-Most of the code of the program is in jarvis: the corpus and the algebra. It moves here one package at a time, and each package that moves goes to npm under `@mark1russell7`. Until a part moves, the site holds a copy of what it shows, and tests hold each copy to the figures of jarvis.
+The engines of the program are packages in this repository, and each package goes to npm under `@mark1russell7`. The corpus stays in jarvis, because it is a part of a larger graph. The site holds a copy of the results that it shows, and tests hold each copy to its figures.
 
 ## Packages
 
 | Package | Function |
 | --- | --- |
 | `packages/quantity` | [`@mark1russell7/quantity`](https://www.npmjs.com/package/@mark1russell7/quantity): amounts in typed units, with exact arithmetic |
+| `packages/algebra` | [`@mark1russell7/algebra`](https://www.npmjs.com/package/@mark1russell7/algebra): state machines as data, and the timer algebra over them: detection and recovery |
 | `packages/service` | [`@mark1russell7/service`](https://www.npmjs.com/package/@mark1russell7/service): a service declared as data, and the timer-ordering law on that declaration |
 | `packages/prober` | [`@mark1russell7/prober`](https://www.npmjs.com/package/@mark1russell7/prober): an eBPF prober that records what the kernel did to each TCP socket |
 | `packages/harness` | [`@mark1russell7/harness`](https://www.npmjs.com/package/@mark1russell7/harness): a fault-injection harness that measures connection timers in Docker |

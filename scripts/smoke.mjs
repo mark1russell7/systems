@@ -142,6 +142,12 @@ try {
     }
     if (name === "@mark1russell7/prober")
       check(module.RECORD_KINDS.length === 14, "prober has 14 record kinds");
+    if (name === "@mark1russell7/algebra") {
+      const node = module.parseExpr("idle + interval * probes");
+      check(typeof node === "object" && node !== null, "algebra parses an expression of a timer");
+      const old = module.machineSchema.safeParse({ format: "jarvis.machine/1" });
+      check(old.success === false, "algebra refuses a machine document of another format");
+    }
     if (name === "@mark1russell7/harness") {
       const verdict = module.verdictOf({ detects: false, window: s(1) }, []);
       check(verdict.decision === "inconclusive", "harness judges no runs as inconclusive");

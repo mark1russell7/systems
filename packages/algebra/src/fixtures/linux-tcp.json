@@ -1,0 +1,745 @@
+{
+  "format": "mark1russell7.machine/1",
+  "id": "linux-tcp",
+  "title": "TCP as Linux 6.6 implements it (one full socket; the request and time-wait minisocks noted)",
+  "layer": "kernel",
+  "version": "6.6.87.2",
+  "conditions": {
+    "kernel": ">=6.6 <6.10",
+    "note": "6.10 / 6.6.y change TCP_USER_TIMEOUT on zero windows; 6.15 adds a per-socket RTO maximum"
+  },
+  "sources": [
+    {
+      "ref": "RFC 9293 §3.3.2 Figure 5 (states and transitions)",
+      "rung": "normative"
+    },
+    {
+      "ref": "RFC 9293 §3.10.8 (USER TIMEOUT, RETRANSMISSION TIMEOUT, TIME-WAIT TIMEOUT)",
+      "rung": "normative"
+    },
+    {
+      "ref": "RFC 9293 §3.8.4 (keep-alives: off by default, interval no less than two hours)",
+      "rung": "normative"
+    },
+    {
+      "ref": "include/net/tcp_states.h:12-29 (Linux state numbering; CLOSE, not CLOSED; NEW_SYN_RECV)",
+      "rung": "implemented"
+    },
+    {
+      "ref": "net/ipv4/tcp_timer.c:281 tcp_write_timeout() -> tcp_write_err(): ETIMEDOUT, no RST",
+      "rung": "implemented"
+    },
+    {
+      "ref": "net/ipv4/tcp_timer.c:796-798 keepalive exhausted: tcp_send_active_reset() then tcp_write_err()",
+      "rung": "implemented"
+    },
+    {
+      "ref": "include/net/tcp.h:124 TCP_TIMEWAIT_LEN 60 s; :142-143 RTO 200 ms .. 120 s; :148 initial RTO 1 s; :159-161 keepalive 7200/75/9",
+      "rung": "implemented"
+    },
+    {
+      "ref": "net/ipv4/inet_timewait_sock.c:208 the time-wait minisock keeps the socket cookie",
+      "rung": "implemented"
+    }
+  ],
+  "states": {
+    "CLOSE": {
+      "initial": true,
+      "final": true,
+      "note": "Linux's name for RFC CLOSED; also the state a socket dies in"
+    },
+    "LISTEN": {},
+    "SYN_SENT": {},
+    "SYN_RECV": {
+      "note": "a full socket in SYN_RECV exists only briefly (an accepted child, or Fast Open); handshakes live in NEW_SYN_RECV request socks"
+    },
+    "ESTABLISHED": {},
+    "FIN_WAIT1": {},
+    "FIN_WAIT2": {},
+    "CLOSE_WAIT": {},
+    "CLOSING": {},
+    "LAST_ACK": {},
+    "TIME_WAIT": {
+      "note": "held by a time-wait minisock, not the full socket"
+    }
+  },
+  "events": {
+    "app.connect": {
+      "kind": "app"
+    },
+    "app.listen": {
+      "kind": "app"
+    },
+    "app.close": {
+      "kind": "app"
+    },
+    "app.abort": {
+      "kind": "app",
+      "note": "close() with SO_LINGER 0 or unread data: sends RST"
+    },
+    "rx.syn": {
+      "kind": "rx"
+    },
+    "rx.synack": {
+      "kind": "rx"
+    },
+    "rx.ack": {
+      "kind": "rx",
+      "note": "an ACK that acknowledges our SYN or FIN"
+    },
+    "rx.fin": {
+      "kind": "rx"
+    },
+    "rx.finack": {
+      "kind": "rx",
+      "note": "the peer's FIN that also acknowledges ours"
+    },
+    "rx.rst": {
+      "kind": "rx",
+      "note": "an in-window RST (RFC 5961 exact-sequence check)"
+    },
+    "rx.icmp-hard": {
+      "kind": "rx",
+      "note": "an ICMP error during connect: fails at once"
+    },
+    "peer.reuse": {
+      "kind": "peer",
+      "note": "a new SYN on a TIME_WAIT tuple (tcp_tw_reuse, or an acceptable ISN)"
+    },
+    "tx.data": {
+      "kind": "tx",
+      "note": "data goes out that the peer has not yet acknowledged"
+    },
+    "tx.retransmit.first": {
+      "kind": "tx",
+      "note": "the first retransmission the RTO timer makes, which sets retrans_stamp; the tail loss probe one RTO earlier does not"
+    },
+    "timer.syn.exhausted": {
+      "kind": "timer"
+    },
+    "timer.synack.exhausted": {
+      "kind": "timer"
+    },
+    "timer.rto": {
+      "kind": "timer",
+      "note": "the retransmission timer fires and the oldest unacknowledged segment goes out again: the first time as the tail loss probe, then as the RTO"
+    },
+    "timer.rto.exhausted": {
+      "kind": "timer"
+    },
+    "timer.keepalive.exhausted": {
+      "kind": "timer"
+    },
+    "timer.user-timeout": {
+      "kind": "timer"
+    },
+    "timer.zero-window.exhausted": {
+      "kind": "timer"
+    },
+    "timer.fin-wait2": {
+      "kind": "timer"
+    },
+    "timer.time-wait": {
+      "kind": "timer"
+    }
+  },
+  "knobs": {
+    "tcp_syn_retries": {
+      "key": "net.ipv4.tcp_syn_retries",
+      "scope": "netns",
+      "unit": "count",
+      "default": 6
+    },
+    "tcp_syn_linear_timeouts": {
+      "key": "net.ipv4.tcp_syn_linear_timeouts",
+      "scope": "netns",
+      "unit": "count",
+      "default": 4
+    },
+    "tcp_retries2": {
+      "key": "net.ipv4.tcp_retries2",
+      "scope": "netns",
+      "unit": "count",
+      "default": 15
+    },
+    "tcp_rto_min": {
+      "key": "TCP_RTO_MIN",
+      "scope": "global",
+      "unit": "ms",
+      "default": 200,
+      "note": "a route's rto_min overrides it per destination"
+    },
+    "tcp_rto_max": {
+      "key": "TCP_RTO_MAX",
+      "scope": "global",
+      "unit": "ms",
+      "default": 120000,
+      "note": "compile-time before 6.15"
+    },
+    "keepidle": {
+      "key": "net.ipv4.tcp_keepalive_time",
+      "scope": "netns",
+      "unit": "s",
+      "default": 7200,
+      "note": "TCP_KEEPIDLE overrides it per socket"
+    },
+    "keepintvl": {
+      "key": "net.ipv4.tcp_keepalive_intvl",
+      "scope": "netns",
+      "unit": "s",
+      "default": 75,
+      "note": "TCP_KEEPINTVL overrides it per socket"
+    },
+    "keepcnt": {
+      "key": "net.ipv4.tcp_keepalive_probes",
+      "scope": "netns",
+      "unit": "count",
+      "default": 9,
+      "note": "TCP_KEEPCNT overrides it per socket"
+    },
+    "tcp_user_timeout": {
+      "key": "TCP_USER_TIMEOUT",
+      "scope": "socket",
+      "unit": "ms",
+      "default": 0,
+      "note": "0 = off"
+    },
+    "tcp_fin_timeout": {
+      "key": "net.ipv4.tcp_fin_timeout",
+      "scope": "netns",
+      "unit": "s",
+      "default": 60
+    },
+    "rtt": {
+      "key": "tcpi_rtt",
+      "scope": "socket",
+      "unit": "ms",
+      "default": null,
+      "note": "the connection's smoothed round-trip time, as TCP_INFO reports it: a condition of the path, not a setting"
+    },
+    "hz": {
+      "key": "CONFIG_HZ",
+      "scope": "global",
+      "unit": "Hz",
+      "default": null,
+      "note": "a build option, 100, 250, 300 or 1000: one jiffy is 1/HZ, and the timer wheel's granularity is counted in jiffies"
+    }
+  },
+  "timers": {
+    "syn_giveup": {
+      "duration": {
+        "model": "linux.syn-giveup",
+        "knobs": [
+          "tcp_syn_retries",
+          "tcp_syn_linear_timeouts"
+        ],
+        "unit": "s"
+      },
+      "arms": [
+        "enter:SYN_SENT"
+      ],
+      "cancels": [
+        "rx.synack",
+        "rx.rst"
+      ],
+      "fires": "timer.syn.exhausted",
+      "note": "6.6: linear 1 s waits for the first tcp_syn_linear_timeouts retransmissions, then doubling; 131 s at the defaults"
+    },
+    "retransmit": {
+      "duration": {
+        "model": "linux.rto-wait",
+        "knobs": [
+          "fired",
+          "tcp_rto_min",
+          "tcp_rto_max",
+          "rtt",
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "lateness": {
+        "model": "linux.rto-wait-lateness",
+        "knobs": [
+          "fired",
+          "tcp_rto_min",
+          "tcp_rto_max",
+          "rtt",
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "early": {
+        "model": "linux.jiffy",
+        "knobs": [
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "arms": [
+        "tx.data"
+      ],
+      "cancels": [
+        "rx.ack"
+      ],
+      "fires": "timer.rto",
+      "backoff": {
+        "resets": [
+          "rx.ack"
+        ]
+      },
+      "note": "with a lone segment in flight, as a request is: the tail loss probe fires first, after the RTO (2·srtt + TCP_RTO_MIN, at most the RTO), and re-arms the RTO, which doubles at each firing up to tcp_rto_max. So the k-th firing comes 2^k RTOs after the send. An ACK of new data resets the backoff; retrans_giveup is what gives up on it. With more segments in flight the probe fires after 2·srtt + 2 jiffies instead (measured: 30 ms), and the doubling counts from it"
+    },
+    "retrans_giveup": {
+      "duration": {
+        "model": "linux.retrans-budget",
+        "knobs": [
+          "tcp_retries2",
+          "tcp_rto_min",
+          "tcp_rto_max"
+        ],
+        "unit": "s"
+      },
+      "lateness": {
+        "model": "linux.retrans-step",
+        "knobs": [
+          "tcp_retries2",
+          "tcp_rto_min",
+          "tcp_rto_max",
+          "rtt",
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "arms": [
+        "tx.retransmit.first"
+      ],
+      "cancels": [
+        "rx.ack"
+      ],
+      "fires": "timer.rto.exhausted",
+      "note": "the budget counts from the first retransmission the RTO timer makes, not the tail loss probe before it; the give-up lands on the first RTO firing at or after the budget, at most one step later at the path's real RTO (the round trip plus the minimum, in whole jiffies), plus each firing's rounding on the timer wheel"
+    },
+    "keepalive": {
+      "duration": {
+        "expr": "keepidle + keepintvl * keepcnt",
+        "unit": "s"
+      },
+      "lateness": {
+        "model": "linux.keepalive-lateness",
+        "knobs": [
+          "keepidle",
+          "keepintvl",
+          "keepcnt",
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "early": {
+        "model": "linux.jiffy",
+        "knobs": [
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "arms": [
+        "enter:ESTABLISHED",
+        "rx.ack"
+      ],
+      "cancels": [
+        "tx.retransmit.first"
+      ],
+      "fires": "timer.keepalive.exhausted",
+      "note": "idle counts from the last received segment and only while nothing is unacked; the idle timer and each probe interval fire up to their wheel level's granularity late (at HZ 250: up to 256 ms and 32 ms at 5 s and 2 s, where a measurement found 16 ms an interval; up to 131 s and 2 s at 7200 s and 75 s), and the count starts in the jiffy before the segment"
+    },
+    "user_timeout": {
+      "duration": {
+        "knob": "tcp_user_timeout",
+        "unit": "ms"
+      },
+      "arms": [
+        "tx.retransmit.first"
+      ],
+      "cancels": [
+        "rx.ack"
+      ],
+      "fires": "timer.user-timeout"
+    },
+    "fin_wait2": {
+      "duration": {
+        "knob": "tcp_fin_timeout",
+        "unit": "s"
+      },
+      "arms": [
+        "enter:FIN_WAIT2"
+      ],
+      "fires": "timer.fin-wait2",
+      "note": "orphaned sockets only; the socket becomes a time-wait minisock in the FIN_WAIT2 substate"
+    },
+    "time_wait": {
+      "duration": {
+        "const": 60,
+        "unit": "s"
+      },
+      "arms": [
+        "enter:TIME_WAIT"
+      ],
+      "fires": "timer.time-wait",
+      "note": "TCP_TIMEWAIT_LEN, compile-time"
+    }
+  },
+  "realizes": {
+    "systems.mechanism.idle-refresh-interval": {
+      "duration": {
+        "knob": "keepidle",
+        "unit": "s"
+      },
+      "lateness": {
+        "model": "linux.wheel",
+        "knobs": [
+          "keepidle",
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "early": {
+        "model": "linux.jiffy",
+        "knobs": [
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "note": "the keepalive timer's first firing, when the first probe refreshes an idle flow: its idle time, rounded up on the wheel"
+    },
+    "systems.mechanism.keepalive-detection-window": {
+      "timer": "keepalive"
+    },
+    "systems.mechanism.retrans-giveup-time": {
+      "timer": "retrans_giveup"
+    },
+    "systems.mechanism.tcp-user-timeout-socket": {
+      "timer": "user_timeout"
+    },
+    "systems.mechanism.tcp-fin-timeout": {
+      "timer": "fin_wait2"
+    }
+  },
+  "transitions": [
+    {
+      "id": "tcp.connect",
+      "from": "CLOSE",
+      "to": "SYN_SENT",
+      "on": "app.connect",
+      "emits": [
+        "tx.syn"
+      ]
+    },
+    {
+      "id": "tcp.listen",
+      "from": "CLOSE",
+      "to": "LISTEN",
+      "on": "app.listen"
+    },
+    {
+      "id": "tcp.unlisten",
+      "from": "LISTEN",
+      "to": "CLOSE",
+      "on": "app.close"
+    },
+    {
+      "id": "tcp.accepted",
+      "from": "CLOSE",
+      "to": "SYN_RECV",
+      "on": "rx.ack",
+      "note": "the child full socket is created in SYN_RECV when the handshake's final ACK arrives at the listener's request sock"
+    },
+    {
+      "id": "tcp.syn-recv.established",
+      "from": "SYN_RECV",
+      "to": "ESTABLISHED",
+      "on": "rx.ack"
+    },
+    {
+      "id": "tcp.simultaneous-open",
+      "from": "SYN_SENT",
+      "to": "SYN_RECV",
+      "on": "rx.syn",
+      "emits": [
+        "tx.synack"
+      ]
+    },
+    {
+      "id": "tcp.established",
+      "from": "SYN_SENT",
+      "to": "ESTABLISHED",
+      "on": "rx.synack",
+      "emits": [
+        "tx.ack"
+      ]
+    },
+    {
+      "id": "tcp.refused",
+      "from": "SYN_SENT",
+      "to": "CLOSE",
+      "on": "rx.rst",
+      "errno": "ECONNREFUSED"
+    },
+    {
+      "id": "tcp.connect-timeout",
+      "from": "SYN_SENT",
+      "to": "CLOSE",
+      "on": "timer.syn.exhausted",
+      "timer": "syn_giveup",
+      "errno": "ETIMEDOUT"
+    },
+    {
+      "id": "tcp.connect-icmp",
+      "from": "SYN_SENT",
+      "to": "CLOSE",
+      "on": "rx.icmp-hard",
+      "errno": "EHOSTUNREACH"
+    },
+    {
+      "id": "tcp.connect-abort",
+      "from": "SYN_SENT",
+      "to": "CLOSE",
+      "on": "app.close"
+    },
+    {
+      "id": "tcp.synrecv-reset",
+      "from": "SYN_RECV",
+      "to": "CLOSE",
+      "on": [
+        "rx.rst",
+        "timer.synack.exhausted"
+      ]
+    },
+    {
+      "id": "tcp.active-close",
+      "from": "ESTABLISHED",
+      "to": "FIN_WAIT1",
+      "on": "app.close",
+      "emits": [
+        "tx.fin"
+      ]
+    },
+    {
+      "id": "tcp.passive-close",
+      "from": "ESTABLISHED",
+      "to": "CLOSE_WAIT",
+      "on": "rx.fin",
+      "emits": [
+        "tx.ack"
+      ]
+    },
+    {
+      "id": "tcp.reset",
+      "from": [
+        "ESTABLISHED",
+        "FIN_WAIT1",
+        "FIN_WAIT2",
+        "CLOSE_WAIT",
+        "CLOSING",
+        "LAST_ACK"
+      ],
+      "to": "CLOSE",
+      "on": "rx.rst",
+      "errno": "ECONNRESET",
+      "note": "EPIPE on a later write"
+    },
+    {
+      "id": "tcp.abort",
+      "from": [
+        "ESTABLISHED",
+        "CLOSE_WAIT",
+        "FIN_WAIT1"
+      ],
+      "to": "CLOSE",
+      "on": "app.abort",
+      "emits": [
+        "tx.rst"
+      ]
+    },
+    {
+      "id": "tcp.retrans-giveup",
+      "from": [
+        "ESTABLISHED",
+        "FIN_WAIT1",
+        "CLOSE_WAIT",
+        "CLOSING",
+        "LAST_ACK"
+      ],
+      "to": "CLOSE",
+      "on": "timer.rto.exhausted",
+      "timer": "retrans_giveup",
+      "errno": "ETIMEDOUT",
+      "note": "tcp_write_err(): no RST is sent; the errno is a soft ICMP error if one arrived (EHOSTUNREACH ...)",
+      "source": "net/ipv4/tcp_timer.c:281"
+    },
+    {
+      "id": "tcp.keepalive-giveup",
+      "from": [
+        "ESTABLISHED",
+        "CLOSE_WAIT"
+      ],
+      "to": "CLOSE",
+      "on": "timer.keepalive.exhausted",
+      "timer": "keepalive",
+      "errno": "ETIMEDOUT",
+      "emits": [
+        "tx.rst"
+      ],
+      "source": "net/ipv4/tcp_timer.c:796-798"
+    },
+    {
+      "id": "tcp.user-timeout",
+      "from": [
+        "ESTABLISHED",
+        "FIN_WAIT1",
+        "CLOSE_WAIT",
+        "LAST_ACK"
+      ],
+      "to": "CLOSE",
+      "on": [
+        "timer.user-timeout",
+        "timer.zero-window.exhausted"
+      ],
+      "errno": "ETIMEDOUT"
+    },
+    {
+      "id": "tcp.fin-wait1.ack",
+      "from": "FIN_WAIT1",
+      "to": "FIN_WAIT2",
+      "on": "rx.ack"
+    },
+    {
+      "id": "tcp.fin-wait1.fin",
+      "from": "FIN_WAIT1",
+      "to": "CLOSING",
+      "on": "rx.fin",
+      "emits": [
+        "tx.ack"
+      ]
+    },
+    {
+      "id": "tcp.fin-wait1.finack",
+      "from": "FIN_WAIT1",
+      "to": "TIME_WAIT",
+      "on": "rx.finack",
+      "emits": [
+        "tx.ack"
+      ]
+    },
+    {
+      "id": "tcp.fin-wait2.fin",
+      "from": "FIN_WAIT2",
+      "to": "TIME_WAIT",
+      "on": "rx.fin",
+      "emits": [
+        "tx.ack"
+      ]
+    },
+    {
+      "id": "tcp.fin-wait2.timeout",
+      "from": "FIN_WAIT2",
+      "to": "CLOSE",
+      "on": "timer.fin-wait2",
+      "timer": "fin_wait2"
+    },
+    {
+      "id": "tcp.closing.ack",
+      "from": "CLOSING",
+      "to": "TIME_WAIT",
+      "on": "rx.ack"
+    },
+    {
+      "id": "tcp.close-wait.close",
+      "from": "CLOSE_WAIT",
+      "to": "LAST_ACK",
+      "on": "app.close",
+      "emits": [
+        "tx.fin"
+      ]
+    },
+    {
+      "id": "tcp.last-ack.ack",
+      "from": "LAST_ACK",
+      "to": "CLOSE",
+      "on": "rx.ack"
+    },
+    {
+      "id": "tcp.time-wait.expire",
+      "from": "TIME_WAIT",
+      "to": "CLOSE",
+      "on": [
+        "timer.time-wait",
+        "rx.rst",
+        "peer.reuse"
+      ],
+      "timer": "time_wait",
+      "note": "an RST kills TIME_WAIT while tcp_rfc1337 = 0"
+    }
+  ],
+  "observe": {
+    "ss": {
+      "fidelity": "sampled",
+      "note": "polled; a state shorter than the period is missed; '(gone)' is a socket that vanished between polls",
+      "states": {
+        "ESTAB": "ESTABLISHED",
+        "SYN-SENT": "SYN_SENT",
+        "SYN-RECV": "SYN_RECV",
+        "FIN-WAIT-1": "FIN_WAIT1",
+        "FIN-WAIT-2": "FIN_WAIT2",
+        "CLOSE-WAIT": "CLOSE_WAIT",
+        "LAST-ACK": "LAST_ACK",
+        "CLOSING": "CLOSING",
+        "TIME-WAIT": "TIME_WAIT",
+        "LISTEN": "LISTEN",
+        "UNCONN": "CLOSE",
+        "(gone)": "CLOSE"
+      }
+    },
+    "ss-destroy": {
+      "fidelity": "complete",
+      "note": "ss -E: sock_diag destroy broadcasts, one per freed full socket (state UNCONN = CLOSE)",
+      "states": {
+        "UNCONN": "CLOSE"
+      }
+    },
+    "tracepoint": {
+      "fidelity": "complete",
+      "hides": [
+        "TIME_WAIT"
+      ],
+      "note": "sock:inet_sock_set_state never shows TIME_WAIT or request socks on 6.6",
+      "states": {
+        "TCP_ESTABLISHED": "ESTABLISHED",
+        "TCP_SYN_SENT": "SYN_SENT",
+        "TCP_SYN_RECV": "SYN_RECV",
+        "TCP_FIN_WAIT1": "FIN_WAIT1",
+        "TCP_FIN_WAIT2": "FIN_WAIT2",
+        "TCP_TIME_WAIT": "TIME_WAIT",
+        "TCP_CLOSE": "CLOSE",
+        "TCP_CLOSE_WAIT": "CLOSE_WAIT",
+        "TCP_LAST_ACK": "LAST_ACK",
+        "TCP_LISTEN": "LISTEN",
+        "TCP_CLOSING": "CLOSING"
+      }
+    },
+    "wire": {
+      "fidelity": "derived",
+      "note": "inferred from the endpoint's own packets; silent timer closes are invisible on the wire",
+      "states": {
+        "SYN_SENT": "SYN_SENT",
+        "SYN_RECV": "SYN_RECV",
+        "ESTABLISHED": "ESTABLISHED",
+        "FIN_WAIT1": "FIN_WAIT1",
+        "FIN_WAIT2": "FIN_WAIT2",
+        "CLOSE_WAIT": "CLOSE_WAIT",
+        "LAST_ACK": "LAST_ACK",
+        "CLOSING": "CLOSING",
+        "TIME_WAIT": "TIME_WAIT",
+        "CLOSE": "CLOSE"
+      }
+    }
+  }
+}
