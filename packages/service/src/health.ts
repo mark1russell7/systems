@@ -1,8 +1,9 @@
 import { valueIn } from "@mark1russell7/quantity";
-import type { Clock } from "./clock.ts";
+import type { Cancel, Clock } from "./clock.ts";
 import { realClock } from "./clock.ts";
 import type { Check, Gate, ServiceDescription } from "./description.ts";
-import type { Latch, Result } from "./latch.ts";
+import type { MachineName, Recorder } from "./events.ts";
+import type { Latch, Result, Trace } from "./latch.ts";
 import { latch } from "./latch.ts";
 import type { CheckFn, Poller } from "./poller.ts";
 import { poller } from "./poller.ts";
@@ -14,6 +15,13 @@ export interface StartOptions {
   readonly random?: (() => number) | undefined;
   /** This list names the checks or dependencies whose polls fail at once (a seam for tests). */
   readonly forceFail?: readonly string[] | undefined;
+  /** This function receives each transition of each machine of the runtime. */
+  readonly record?: Recorder | undefined;
+  /**
+   * This function can replace the function of a check, for example to add a delay to each call
+   * (a seam for tests: a degraded dependency). It gives the function to use.
+   */
+  readonly wrapCheck?: ((check: Check, run: CheckFn) => CheckFn) | undefined;
 }
 
 /** A check verdict is the cached state of one check, for the probes and the report. */
@@ -78,9 +86,17 @@ export interface Health {
   stop(): void;
 }
 
-/** The runtime parts that the builder uses: the warm-up sweep, and the parts that join after the start. */
+/** The runtime parts that the builder and the lifecycle use. */
 export interface Runtime extends Health {
+  /**
+   * This method opens the startup gate: one bounded warm-up sweep of each check, then the loops of
+   * the pollers. It is idempotent, and it does nothing after `failStartup()` or `stop()`.
+   */
   warmUp(): Promise<void>;
+  /** This method moves the gate from `closed` to `starting`: the lifecycle starts its components. */
+  beginStartup(): void;
+  /** This method moves the gate to `failed` for good: a component did not start. */
+  failStartup(cause: string): void;
   addCheck(check: Check, run: CheckFn): void;
   addDependency(name: string): void;
 }
@@ -113,6 +129,33 @@ export const healthRuntime = (
   let started = false;
   let draining = false;
   let stopped = false;
+  // the startup gate: closed, starting (components start), sweeping (the warm-up), open or failed
+  let gate = "closed";
+
+  const tracer =
+    (machine: MachineName, instance: string): Trace =>
+    (from, to, on) =>
+      options.record?.({ at: clock.now(), machine, instance, from, to, on });
+  const gateTrace = tracer("gate", description.name);
+  const moveGate = (to: string, on: string, detail?: string): void => {
+    const from = gate;
+    gate = to;
+    options.record?.({
+      at: clock.now(),
+      machine: "gate",
+      instance: description.name,
+      from,
+      to,
+      on,
+      ...(detail === undefined ? {} : { detail }),
+    });
+  };
+  // the startup budget: a gate that is not open at its end says so. The platform's startup probe
+  // acts on it, and the runtime does not stop itself
+  let budgetTimer: Cancel | null = clock.after(budget, () => {
+    budgetTimer = null;
+    if (gate !== "open" && gate !== "failed") gateTrace(gate, gate, "startup.over-budget");
+  });
 
   const changed = (): void => {
     if (listeners.size === 0) return;
@@ -120,11 +163,21 @@ export const healthRuntime = (
     for (const listener of listeners) listener(now);
   };
 
-  const add = (check: Check, run: CheckFn, late: boolean): void => {
+  const add = (check: Check, given: CheckFn, late: boolean): void => {
+    const run = options.wrapCheck?.(check, given) ?? given;
     const timing = check.gates === null ? null : description.policies[check.gates];
     // readiness is earned: its latch starts tripped. Liveness passes from the start (and a late
     // liveness check starts released too, or one late registration could restart the process)
-    const made = timing === null ? null : latch(timing, clock, check.gates === "readiness", changed);
+    const made =
+      timing === null
+        ? null
+        : latch(
+            timing,
+            clock,
+            check.gates === "readiness",
+            changed,
+            tracer(timing.type === "window" ? "window" : "latch", check.name),
+          );
     const entry: Entry = {
       check,
       latch: made,
@@ -142,6 +195,7 @@ export const healthRuntime = (
           if (result.outcome === "ok" && check.dependency !== null)
             if (lateDependencies.delete(check.dependency)) changed();
         },
+        trace: tracer("poller", check.name),
       }),
     };
     entries.set(check.name, entry);
@@ -158,9 +212,9 @@ export const healthRuntime = (
     add(check, run, false);
   }
 
-  const latchesOf = (gate: Gate, keep: (check: Check) => boolean = () => true): Latch[] =>
+  const latchesOf = (gateOf: Gate, keep: (check: Check) => boolean = () => true): Latch[] =>
     [...entries.values()].flatMap((entry) =>
-      entry.check.gates === gate && entry.latch !== null && keep(entry.check) ? [entry.latch] : [],
+      entry.check.gates === gateOf && entry.latch !== null && keep(entry.check) ? [entry.latch] : [],
     );
   const released = (latches: readonly Latch[]): boolean => latches.every((each) => !each.tripped);
   /** This function tells if a policy fails through a declared coupling from another policy. */
@@ -173,8 +227,8 @@ export const healthRuntime = (
       liveness: released(latchesOf("liveness")),
     };
     const alive = base.liveness && !coupledOff("liveness", base);
-    const gate = started && !draining && !coupledOff("readiness", base);
-    const ready = gate && base.readiness;
+    const open = started && !draining && !coupledOff("readiness", base);
+    const ready = open && base.readiness;
     const dependencyReady = (name: string): boolean =>
       !lateDependencies.has(name) &&
       released(latchesOf("readiness", (check) => check.dependency === name));
@@ -183,7 +237,7 @@ export const healthRuntime = (
     for (const name of dependencies) dependenciesOut[name] = dependencyReady(name);
     const controllers: Record<string, boolean> = {};
     for (const controller of description.controllers)
-      controllers[controller.name] = gate && own && controller.requires.every(dependencyReady);
+      controllers[controller.name] = open && own && controller.requires.every(dependencyReady);
     const checks: Record<string, CheckVerdict> = {};
     for (const [name, entry] of entries) {
       checks[name] = {
@@ -247,20 +301,35 @@ export const healthRuntime = (
     },
     stop() {
       stopped = true;
+      budgetTimer?.();
+      budgetTimer = null;
       for (const entry of entries.values()) {
         entry.poller.stop();
         entry.latch?.stop();
       }
     },
+    beginStartup() {
+      if (gate === "closed") moveGate("starting", "startup.begin");
+    },
+    failStartup(cause) {
+      if (gate === "open" || gate === "failed") return;
+      moveGate("failed", "startup.fail", cause);
+      budgetTimer?.();
+      budgetTimer = null;
+    },
     async warmUp() {
-      if (started || stopped) return;
+      if (started || stopped || gate === "failed" || gate === "sweeping") return;
+      moveGate("sweeping", "mark-ready");
       // one bounded sweep of each check: each poll ends at its timeout at the latest
       const sweep = clock.now();
       await Promise.all([...entries.values()].map((entry) => entry.poller.pollNow()));
-      if (stopped) return;
+      if (stopped || gate !== "sweeping") return;
       for (const entry of entries.values())
         entry.poller.start(entry.poller.jittered() - (clock.now() - sweep));
       started = true;
+      budgetTimer?.();
+      budgetTimer = null;
+      moveGate("open", "sweep.done");
       changed();
     },
     addCheck(check, run) {

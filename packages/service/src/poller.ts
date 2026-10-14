@@ -1,6 +1,6 @@
 import { valueIn } from "@mark1russell7/quantity";
 import type { Cancel, Clock } from "./clock.ts";
-import type { Outcome, Result } from "./latch.ts";
+import type { Outcome, Result, Trace } from "./latch.ts";
 import type { Poll } from "./timing.ts";
 
 /**
@@ -32,6 +32,11 @@ export interface PollerOptions {
   /** This function tells if the force-fail list names the check at this time. */
   readonly forced: () => boolean;
   readonly record: (result: Result) => void;
+  /**
+   * This function receives each transition of the poller. Its states are `idle`, `waiting`,
+   * `calling`, `hung` (a call that outlived its timeout) and `stopped`.
+   */
+  readonly trace?: Trace | undefined;
 }
 
 const message = (error: unknown): string =>
@@ -53,10 +58,28 @@ export const poller = (options: PollerOptions): Poller => {
   let last: Result | null = null;
   let next: Cancel | null = null;
   let stopped = false;
-  // the call that has not ended, and when it started
-  let pending: { readonly since: number } | null = null;
+  let looping = false;
+  // the call that has not ended, and when it started; `late` once the call outlived its timeout
+  let pending: { readonly since: number; late: boolean } | null = null;
   // the polls in flight: stop() ends each one, and its timer
   const active = new Set<() => void>();
+
+  /** This function gives the name of the state, as the machine document of the poller names it. */
+  const named = (): string =>
+    stopped
+      ? "stopped"
+      : pending !== null
+        ? pending.late
+          ? "hung"
+          : "calling"
+        : looping
+          ? "waiting"
+          : "idle";
+  const step = (on: string, change: () => void): void => {
+    const from = named();
+    change();
+    options.trace?.(from, named(), on);
+  };
 
   const result = (
     outcome: Outcome,
@@ -95,14 +118,21 @@ export const poller = (options: PollerOptions): Poller => {
         finish(result("error", started, { cause: "the runtime stopped" }));
       };
       active.add(abandon);
+      const call = { since: started, late: false };
+      pending = call;
       const cancel = clock.after(timeout, () => {
         controller.abort();
+        // the poll fails at its timeout. The call stays pending until it settles
+        step("timeout", () => {
+          if (pending === call) call.late = true;
+        });
         finish(result("error", started, { cause: `no answer in ${timeout} ms`, timedOut: true }));
       });
-      const call = { since: started };
-      pending = call;
       const settled = (): void => {
-        if (pending === call) pending = null;
+        if (pending !== call) return;
+        step(call.late ? "late-answer" : "answer", () => {
+          pending = null;
+        });
       };
       let answer: Promise<Outcome | void>;
       try {
@@ -135,24 +165,40 @@ export const poller = (options: PollerOptions): Poller => {
   const tick = (): void => {
     next = null;
     if (stopped) return;
-    next = clock.after(jittered(), tick);
-    void once().then(handle);
+    let polled: Promise<Result> | undefined;
+    step("tick", () => {
+      next = clock.after(jittered(), tick);
+      polled = once();
+    });
+    void polled!.then(handle);
   };
 
   return {
     get last() {
       return last;
     },
-    pollNow: () => once().then(handle),
+    pollNow: () => {
+      let polled: Promise<Result> | undefined;
+      step("sweep", () => {
+        polled = once();
+      });
+      return polled!.then(handle);
+    },
     start(delay) {
       if (stopped || next !== null) return;
-      next = clock.after(Math.max(0, delay), tick);
+      step("start", () => {
+        looping = true;
+        next = clock.after(Math.max(0, delay), tick);
+      });
     },
     jittered,
     stop() {
-      stopped = true;
-      next?.();
-      next = null;
+      if (stopped) return;
+      step("stop", () => {
+        stopped = true;
+        next?.();
+        next = null;
+      });
       for (const abandon of [...active]) abandon();
     },
   };

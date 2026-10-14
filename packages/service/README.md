@@ -1,8 +1,8 @@
 # @mark1russell7/service
 
-A service that you declare as data before it starts. You compose it with plain calls: its dependencies, its checks, its policies and its shutdown. `describe()` gives the whole graph as data, and it starts nothing. `lint()` then applies the timer-ordering law to that graph. `start()` gives the graph to the health runtime.
+A service that you declare as data before it starts. You compose it with plain calls: its dependencies, its checks, its policies and its shutdown. `describe()` gives the whole graph as data, and it starts nothing. `lint()` then applies the timer-ordering law to that graph. `start()` gives the graph to the health runtime, and `run()` starts the whole lifecycle.
 
-This release has the declaration, its export, the law and the health runtime. The lifecycle and the drain come in a later release.
+This release has the declaration, its export, the law, the health runtime and the lifecycle. The wrappers of the clients come in a later release.
 
 ## What the package does
 
@@ -31,14 +31,39 @@ The format of a description is `mark1russell7.service/1`.
 - **Probes from the cache.** `health.probe("startup" | "readiness" | "liveness" | "report", controller?)` gives a status (200 or 503) and an `application/health+json` body, for any HTTP framework. A probe starts no check. The report always answers 200, with the whole verdict.
 - **Seams for tests.** `health.forceFail(name, true)` makes the polls of a check or a dependency fail at once. `health.drain()` fails readiness for good. `health.stop()` stops each loop and each timer, and the timers of the real clock do not keep a Node process alive.
 
+## The lifecycle
+
+`await svc.run()` starts the whole life of the service, and gives a `Lifecycle` when the startup ends. It refuses a declaration that it cannot start: a transport without its implementation, or a stage with work and no declared phase.
+
+- **The parts.** `svc.server(name, knobs, impl)`, `svc.consumer(…)` and `svc.worker(…)` give a transport its implementation. Each transport has one contract: `start`, `stopIntake`, `drain(deadline, signal)`, `inFlight` and `close`. `svc.dependency(name, spec, handle)` gives a dependency a handle that connects and closes. `svc.healthServer(server)` gives the server of the probes.
+- **The startup.** The health server starts first, thus the probes answer while the dependencies connect. Then each dependency connects, in its declared sequence. Then each transport starts, and the startup gate opens last, after one warm-up sweep of each check. A part that does not start fails the startup. Then only the parts that started stop, and the exit code is 1.
+- **The startup budget.** When the gate is not open at the end of its budget, the gate says so. The runtime does not stop itself, because the startup probe of the platform acts on it.
+- **The signals.** The runtime owns the handlers of SIGINT, SIGTERM and SIGQUIT. The first signal starts the shutdown, and a later signal has no effect. A signal during the startup gets its shutdown after the startup ends.
+- **The shutdown.** Readiness fails first. Then the declared phases occur in their sequence, and each phase races its cap. `svc.onPhase(name, work)` adds the work of an owner to a phase.
+- **The stages.** A declared phase with the name of a stage gets the work of that stage. The stages are `fail readiness`, `stop intake`, `drain`, `close transports`, `stop the poller`, `tear down dependencies` and `close the health server`. The phase `fail readiness` holds for its cap while the endpoints update. The signal of the service aborts after the poller stops. `describe()` refuses the stages out of their sequence.
+- **The cooperative abort.** During the drain, the requests and the transports get a signal that aborts at the cap less the cooperative window. That time is half the cap at the least, and a window without a bound gives half the cap.
+- **Requests.** `life.request(controller, route, work)` does one request on a declared route. While the service cannot take new work, it refuses the request with a retryable 503. That occurs before the start, after the intake stops, or while the controller is not ready.
+- **Cut requests.** When the drain cuts a request, an idempotent route answers 503, retryable. Each other route answers 500, because the work can have had its effect. A keyed route is retryable only while the server keeps its key.
+- **Keep-alive.** `life.keepAlive()` is false while the service is not ready. Thus each response then closes its connection.
+- **The exit.** Only the lifecycle ends the process, through its `ProcessPort`. The exit code is 0 after a clean shutdown. It is 1 after an error: a startup that failed, a phase whose work did not end in its cap, or a work that threw. A phase over its cap does not stop the sequence.
+- **The watchdog.** `svc.watchdog(spec)` declares a check on the event loop. A blocked loop delays each timer, thus a tick that comes late by more than the threshold fails the check. A liveness window then reads the wedge of the process.
+
+## The machines
+
+The machines of the runtime are `mark1russell7.machine/1` documents, which `@mark1russell7/algebra` reads. They are the gate, the latch (a debounce), the window, the poller, the exit manager and the watchdog. `drainMachine(description)` gives the drain of a declaration, with one state for each phase. Each machine gives its transitions to `run({ record })` or `start({ record })`. `replay(doc, events)` gives each transition that the document does not permit.
+
+The tests replay the real runtime against each document. They also compare each timer of the documents, from the algebra, with the time that the runtime keeps.
+
 ## The testing subpath
 
 `@mark1russell7/service/testing` has the seams that a test of a service needs:
 
-- `fakeClock()` gives a clock that moves only on `advance(ms)`. Pass it to `start({ clock })`, and the timing of the runtime is exact and repeatable.
+- `fakeClock()` gives a clock that moves only on `advance(ms)`. Pass it to `start({ clock })`, and the timing of the runtime is exact and repeatable. `block(ms)` moves the clock and starts no timer, as a blocked event loop does.
+- `fakeProcess()` gives a process port that takes signals from a test, and keeps each exit code in place of an exit.
 - `seeded(seed)` gives a seeded random number generator for the jitter (`start({ random })`).
 - `scriptedCheck(behavior)` gives a check whose behavior a test sets: `"ok"`, `"error"`, `"indeterminate"`, `"throw"`, `"timeout"` or `"hang"`.
 - `quietServer()` starts a TCP echo server that can go quiet. Its connections stay open while it is quiet, as with a frozen peer.
+- `contractCases(declare)` generates the contract test of a declaration. The cases are the service at rest, each dependency unavailable, each dependency degraded by 100 ms, each recovery, and a negative control. A dependency that no check exercises is a finding, and so is a check whose timeout a latency of 100 ms fails.
 
 ## Installation
 
@@ -88,6 +113,31 @@ const health = await svc.start();
 const answer = health.probe("readiness"); // { status: 200, contentType, body }
 ```
 
+A service that starts its whole lifecycle declares its parts and each stage of its shutdown:
+
+```ts
+const app = service("app")
+  .dependency("db", { system: null, knobs: {}, operations: {} }, { connect: () => db.connect(), close: () => db.end() })
+  .server("http", {}, httpTransport)
+  .healthServer(probeServer)
+  .check(roundTrip, roundTripFn)
+  .readiness({ type: "debounce", interval: s(5), failAfter: 3, recoverAfter: 1 })
+  .liveness({ type: "window", failAfter: s(45) })
+  .startup(s(60))
+  .phase("fail readiness", s(2))
+  .phase("stop intake", s(5))
+  .phase("drain", s(15))
+  .phase("close transports", s(2))
+  .phase("stop the poller", s(1))
+  .phase("tear down dependencies", s(2))
+  .phase("close the health server", s(1))
+  .cooperativeWindow(s(5));
+app.controller("orders").requires("db").route("POST /orders", { idempotent: false });
+
+const life = await app.run(); // the process exits after SIGTERM, with 0 or 1
+const outcome = await life.request("orders", "POST /orders", (signal) => createOrder(signal));
+```
+
 ## Tests
 
 `pnpm --filter @mark1russell7/service test` starts the tests:
@@ -96,5 +146,11 @@ const answer = health.probe("readiness"); // { status: 200, contentType, body }
 - **The permutations.** The permutations cross the policy, the timing, the poll interval, the jitter and the way that the step fails. For each one, a latch on a fake clock must trip inside `failSpan` and recover inside `recoverSpan`. Each permutation has eight seeds for the jitter and the phase of the fault. A failure names its permutation and its seed. Two more tests show that the bounds are reached.
 - **The edges.** These tests cover a flapping signal, a check that does not answer at any time, and late parts. They also cover couplings, controllers, the force-fail list, the drain, the stop, and the loop of a slow check.
 - **Real time.** The runtime on the real clock, and a check against a quiet server over TCP.
+- **The lifecycle.** These tests cover the startup in its sequence, a startup that fails, and a signal during the startup. They cover the shutdown in its phases, the answers of the requests and keep-alive. They also cover a phase over its cap, a work that throws, the refusals of the declaration, and a blocked event loop (21 s).
+- **The shutdown by permutation.** These 144 permutations cross when the signal comes, the cap of the drain, the work in flight and the cooperative window. Each one checks the sequence and the caps of the phases, and readiness in the hold. It also checks the cooperative abort, the teardown, the answer of each request and the exit.
+- **The startup by permutation.** These 48 permutations cross the budget, the warm-up of a check, the time of a connection and a late dependency.
+- **Mutations.** Five mutations of the runtime each fail between 48 and 148 tests.
+- **The machines.** Each document is valid, consistent and readable by the algebra. Eight scenarios replay against the documents and reach each state. The timers of the documents give the times of the runtime. The ordering law (O16) agrees with the clamp of the cooperative abort.
+- **The contract.** The contract of a sample declaration passes. The contract also finds a blind dependency, a check whose timeout is too short, and a check that names the wrong dependency.
 
 `pnpm --filter @mark1russell7/service build` writes the package for npm into `build/`.

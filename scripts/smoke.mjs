@@ -158,6 +158,23 @@ try {
       await clock.advance(18_000);
       check(health.probe("readiness").status === 503, "service fails readiness inside 18 s of a failing check");
       health.stop();
+      // the lifecycle: a signal, the phases, one exit, on the fake process of the testing subpath
+      const process = testing.fakeProcess();
+      const runClock = testing.fakeClock();
+      const exits = module
+        .service("exits")
+        .readiness(latch)
+        .liveness({ type: "window", failAfter: s(45) })
+        .startup(s(60))
+        .phase("fail readiness", s(1))
+        .phase("drain", s(2))
+        .cooperativeWindow(s(1));
+      const life = await exits.run({ clock: runClock, random: testing.seeded(1), process });
+      check(life.state === "running", "service runs its lifecycle");
+      process.signal("SIGTERM");
+      await runClock.advance(5000);
+      check(process.exits.length === 1 && process.exits[0] === 0, "service shuts down in its phases on SIGTERM, and exits 0 one time");
+      check(module.MACHINES.gate.format === "mark1russell7.machine/1", "service gives its machines as documents");
     }
     if (name === "@mark1russell7/prober")
       check(module.RECORD_KINDS.length === 14, "prober has 14 record kinds");

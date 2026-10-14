@@ -302,6 +302,9 @@ importers:
 
   packages/service:
     dependencies:
+      '@mark1russell7/algebra':
+        specifier: workspace:^
+        version: link:../algebra
       '@mark1russell7/quantity':
         specifier: workspace:^
         version: link:../quantity
