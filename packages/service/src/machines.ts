@@ -328,7 +328,7 @@ export const drainMachine = (description: ServiceDescription): Machine => {
 };
 
 /** These are the static machines of the runtime, by the name that their events carry. */
-export const MACHINES: Readonly<Record<Exclude<MachineName, "drain">, Machine>> = {
+export const MACHINES: Readonly<Record<Exclude<MachineName, "drain" | "client">, Machine>> = {
   gate: GATE_MACHINE,
   latch: LATCH_MACHINE,
   window: WINDOW_MACHINE,

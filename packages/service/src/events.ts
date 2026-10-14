@@ -1,8 +1,9 @@
 /**
  * A machine name names one machine of the runtime. Each machine has a document in `machines.ts`,
- * which names the same states and events.
+ * which names the same states and events. The document of a client is with its client, for example
+ * `REDIS_CLIENT_MACHINE`.
  */
-export type MachineName = "gate" | "latch" | "window" | "poller" | "drain" | "exit" | "watchdog";
+export type MachineName = "gate" | "latch" | "window" | "poller" | "drain" | "exit" | "watchdog" | "client";
 
 /**
  * A lifecycle event is one transition of one machine of the runtime, on the monotonic clock. The

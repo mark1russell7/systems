@@ -175,6 +175,30 @@ try {
       await runClock.advance(5000);
       check(process.exits.length === 1 && process.exits[0] === 0, "service shuts down in its phases on SIGTERM, and exits 0 one time");
       check(module.MACHINES.gate.format === "mark1russell7.machine/1", "service gives its machines as documents");
+      // the Redis client: ioredis is an optional peer, absent here, thus the subpath must import without it
+      const redis = await load("@mark1russell7/service/redis");
+      const cache = redis.redisClient("cache", {
+        host: "localhost",
+        port: 6379,
+        system: null,
+        heartbeatMisses: 2,
+        knobs: {
+          connect_bound: s(1),
+          request_timeout: s(1),
+          driver_writeoff_time: s(2),
+          keepalive_idle: s(5),
+          heartbeat_interval: s(1),
+          heartbeat_timeout: s(0.4),
+          client_retry_window: s(10),
+          retry_base: s(0.05),
+          retry_cap: s(0.4),
+          close_bound: s(0.3),
+          max_connection_age: { value: "infinite", unit: "s" },
+          retrans_giveup_time: s(924.6),
+        },
+      });
+      check(cache.declaration.knobs.heartbeat_detection_time.value === 2.4, "service/redis declares its client without ioredis installed");
+      check(redis.unwatched(cache.meets).length === 0, "service/redis finds each manifestation with a detector");
     }
     if (name === "@mark1russell7/prober")
       check(module.RECORD_KINDS.length === 14, "prober has 14 record kinds");
