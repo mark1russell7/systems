@@ -10,6 +10,7 @@ import {
   service,
   verdictOf,
 } from "./index.ts";
+import { fakeClock } from "./testing.ts";
 
 const s = (value: number) => ({ value, unit: "s" });
 const POLL = { interval: s(5), jitter: 0.2, timeout: s(4) };
@@ -98,14 +99,24 @@ describe("composed with plain calls, exported as data with nothing started", () 
   });
 
   it("closes composition at the start: a late dependency is partial, a late shape is refused", async () => {
-    const svc = declared();
-    await svc.start();
+    // the runtime has no defaults: a check without its function cannot start
+    await expect(declared().start()).rejects.toThrow(/check world.local-state has no function/);
+    const svc = service("svc")
+      .dependency("db", { system: null, knobs: {}, operations: {} })
+      .check(CHECK, () => "ok")
+      .readiness({ type: "debounce", interval: s(5), failAfter: 3, recoverAfter: 1 })
+      .liveness({ type: "window", failAfter: s(45) })
+      .startup(s(60))
+      .phase("fail readiness", s(2))
+      .cooperativeWindow(s(5));
+    const health = await svc.start({ clock: fakeClock() });
     svc.dependency("late", { system: null, knobs: {}, operations: {} });
     expect(svc.describe().partial).toBe(true);
     expect(() => svc.controller("late")).toThrow(
       /svc has started: a controller is declared before svc.start\(\)/,
     );
     expect(() => svc.phase("late", s(1))).toThrow(/has started/);
+    health.stop();
   });
 });
 
