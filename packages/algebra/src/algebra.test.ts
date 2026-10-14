@@ -7,6 +7,7 @@ import type { Manifestation } from "./algebra.ts";
 import {
   algebraProblems,
   detection,
+  errnoOf,
   evaluate,
   overValues,
   parseExpr,
@@ -14,6 +15,7 @@ import {
   realizationOf,
   recovery,
   timerOf,
+  timerUnder,
 } from "./algebra.ts";
 import type { Machine } from "./machine.ts";
 
@@ -394,5 +396,63 @@ describe("detection: the minimum over the detectors still live (Q1–Q3)", () =>
     );
     expect(open.first?.timer).toBe("retrans_giveup");
     expect(open.unsettled).toEqual(["user_timeout"]);
+  });
+});
+
+describe("what a failure delivers, the errno it sets, and the durations it changes", () => {
+  const reverted: Manifestation = {
+    name: "unreachable-host",
+    passes: [],
+    errno: { errno: "EHOSTUNREACH", timers: ["retrans_giveup", "user_timeout"] },
+    replaces: {
+      retrans_giveup: {
+        lateness: {
+          model: "linux.retrans-step-reverted",
+          knobs: ["tcp_retries2", "tcp_rto_min", "tcp_rto_max", "rtt", "hz"],
+          unit: "s",
+        },
+      },
+    },
+  };
+
+  it("detects a FIN that the failure delivers at once, with no errno", async () => {
+    const tcp = await machine("systems.machine.linux-tcp");
+    const fin = detection(
+      tcp,
+      { state: "ESTABLISHED", inFlight: false },
+      { name: "fin", passes: [], delivers: ["rx.fin"] },
+      given(HERE),
+    );
+    expect(fin.delivered).toEqual([{ event: "rx.fin", to: "CLOSE_WAIT", errno: null }]);
+    // a delivered event that no transition takes from the state detects nothing
+    const none = detection(
+      tcp,
+      { state: "ESTABLISHED", inFlight: false },
+      { name: "x", passes: [], delivers: ["rx.synack"] },
+      given(HERE),
+    );
+    expect(none.delivered).toEqual([]);
+  });
+
+  it("reports the soft errno of an ICMP at the timeout of a retransmission, and not of keepalive", async () => {
+    const tcp = await machine("systems.machine.linux-tcp");
+    const giveUp = { timer: "retrans_giveup", fires: "timer.rto.exhausted" };
+    const keepalive = { timer: "keepalive", fires: "timer.keepalive.exhausted" };
+    expect(errnoOf(tcp, "ESTABLISHED", giveUp, reverted)).toBe("EHOSTUNREACH");
+    // a keepalive probe quotes snd_una − 1, outside the window, thus tcp_v4_err drops its ICMP
+    expect(errnoOf(tcp, "ESTABLISHED", keepalive, reverted)).toBe("ETIMEDOUT");
+    const blackhole = { name: "blackhole", passes: [] };
+    expect(errnoOf(tcp, "ESTABLISHED", giveUp, blackhole)).toBe("ETIMEDOUT");
+  });
+
+  it("gives the give-up under the revert of RFC 6069 at most one RTO after its budget", async () => {
+    const tcp = await machine("systems.machine.linux-tcp");
+    const values = given({ ...HERE, tcp_retries2: { value: 3, unit: "count" } });
+    // the budget is the same, 3.0 s. The step is one RTO of 51 jiffies, not the doubled 816
+    expect(timerUnder(tcp, "retrans_giveup", values, reverted)).toMatchObject({
+      duration: { value: 3, unit: "s" },
+      lateness: { value: 0.268, unit: "s" },
+    });
+    expect(timerOf(tcp, "retrans_giveup", values).lateness).toEqual({ value: 3.616, unit: "s" });
   });
 });

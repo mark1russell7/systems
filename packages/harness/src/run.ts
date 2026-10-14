@@ -1,6 +1,6 @@
 import { valueIn } from "@mark1russell7/quantity";
 import type { Cell, KernelRecord, ProbeEvent, Run } from "./cell.ts";
-import type { Lab, Manifest, Probe } from "./lab.ts";
+import type { FaultOptions, Lab, Manifest, Probe } from "./lab.ts";
 import { openLab } from "./lab.ts";
 import type { Measured } from "./observe.ts";
 import { measure } from "./observe.ts";
@@ -46,6 +46,8 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
     : valueIn(prediction.window, "s");
   const args = [lab.targetIp, String(cell.target.port), "--mode", probe.mode];
   if (probe.request !== undefined) args.push("--request", probe.request);
+  if (probe.count !== undefined) args.push("--count", String(probe.count));
+  if (probe.interval !== undefined) args.push("--interval-ms", String(valueIn(probe.interval, "ms")));
   if (probe.driver !== undefined) {
     // a driver sets its socket options from its own options: the keepAlive of ioredis
     args.push("--keepalive-ms", String(valueIn(probe.driver.keepAlive, "ms")));
@@ -61,8 +63,9 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
 
 /**
  * This function waits for an error on the socket of the target for the connection of the
- * client. The prober records that error in the namespace of the target. A cell on the server side
- * waits for that. The promise resolves after `within` ms at the latest.
+ * client, or for its end of file (CLOSE_WAIT, state 8). The prober records both in the namespace
+ * of the target. A cell on the server side waits for that. The promise resolves after `within` ms
+ * at the latest.
  */
 const serverError = (lab: Lab, local: unknown, within: number): Promise<void> =>
   new Promise((resolve) => {
@@ -70,10 +73,10 @@ const serverError = (lab: Lab, local: unknown, within: number): Promise<void> =>
     const look = () => {
       const seen = lab.kernel.some(
         (record) =>
-          record.ev === "error" &&
-          (record.err ?? 0) !== 0 &&
           record.netns === lab.netns.target &&
-          record.dst === local,
+          record.dst === local &&
+          ((record.ev === "error" && (record.err ?? 0) !== 0) ||
+            (record.ev === "state" && (record as { readonly new?: number }).new === 8)),
       );
       if (seen || Date.now() - started > within) resolve();
       else setTimeout(look, 50);
@@ -109,6 +112,15 @@ const requestSent = (probe: Probe, within: number): Promise<ProbeEvent> =>
  * next run. The run keeps the records of the prober from its start to its end. The frozen process
  * is the peer of the observer: the target, or the client for the server.
  */
+/** This function gives the netem specification of a cell: its latency, then the netem of its fault when it has one. */
+const netemSpec = (cell: Cell, fault: string | undefined): string | null => {
+  const parts = [
+    ...(cell.latency === undefined ? [] : [`delay ${valueIn(cell.latency, "ms")}ms`]),
+    ...(fault === undefined ? [] : [fault]),
+  ];
+  return parts.length === 0 ? null : parts.join(" ");
+};
+
 const once = async (lab: Lab, cell: Cell, environment: number, index: number): Promise<Run> => {
   // each run starts from kernels that keep nothing from the runs before it
   await lab.forget();
@@ -130,8 +142,11 @@ const once = async (lab: Lab, cell: Cell, environment: number, index: number): P
   try {
     await probe.until(["ready"], 15_000);
     // the in-flight data of a run on the server side is the reply of the server. The request goes
-    // out first, and the fault occurs while the server holds it (the timeout of BLPOP)
-    const replyInFlight = server && cell.probe.mode === "inflight";
+    // out first, and the fault occurs while the server holds it (the timeout of BLPOP). A fin with
+    // a request in flight kills the server while it holds the request, so it goes first too
+    const replyInFlight =
+      cell.probe.mode === "inflight" &&
+      ((server && cell.fault !== "mtu-blackhole") || cell.fault === "fin");
     if (replyInFlight) {
       // the client sends one sample after the file appears. The request reaches the server well
       // in the pause, and the reply waits for the timeout of the request
@@ -139,12 +154,67 @@ const once = async (lab: Lab, cell: Cell, environment: number, index: number): P
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
     const faultAt = server ? "client" : "target";
-    // a stall is a black hole that stops by itself
-    const network = cell.fault === "stall" ? "blackhole" : cell.fault;
-    fault = network === "freeze-process" ? null : await lab.fault(network, faultAt);
-    if (network === "freeze-process") await peer.freeze();
+    // the direction of a simplex drop, relative to the namespace of the rule: in the target, the
+    // segments to the server come in; in the client, they go out
+    const direction: FaultOptions["direction"] =
+      cell.drops === undefined
+        ? undefined
+        : (cell.drops === "to-server") === (faultAt === "target")
+          ? "in"
+          : "out";
+    const options: FaultOptions = {
+      ...(direction === undefined ? {} : { direction }),
+      ...(cell.icmp === undefined ? {} : { code: cell.icmp }),
+      ...(cell.mtu === undefined ? {} : { above: cell.mtu }),
+    };
+    // an MTU drop goes where the long reply arrives: the namespace of the client
+    const apply = async (): Promise<Run["fault"]> => {
+      switch (cell.fault) {
+        case "freeze-process":
+          await peer.freeze();
+          return null;
+        case "fin":
+          await (server ? probe.kill() : lab.kill());
+          return null;
+        case "unreachable":
+          return lab.fault("reject", faultAt, { code: cell.icmp ?? "host" });
+        case "simplex":
+          return lab.fault("blackhole", faultAt, options);
+        case "mtu-blackhole":
+          return lab.fault("mtu", "client", { above: cell.mtu ?? 1200 });
+        case "netem":
+          return lab.netem(netemSpec(cell, cell.netem), "target");
+        case "rst":
+          return lab.fault("rst", faultAt);
+        default:
+          // a stall is a black hole that stops by itself
+          return lab.fault("blackhole", faultAt);
+      }
+    };
+    const lift = async (): Promise<void> => {
+      switch (cell.fault) {
+        case "freeze-process":
+          return peer.thaw();
+        case "fin":
+          return undefined;
+        case "unreachable":
+          return lab.lift("reject", faultAt, { code: cell.icmp ?? "host" });
+        case "simplex":
+          return lab.lift("blackhole", faultAt, options);
+        case "mtu-blackhole":
+          return lab.lift("mtu", "client", { above: cell.mtu ?? 1200 });
+        case "netem":
+          await lab.netem(netemSpec(cell, undefined), "target");
+          return undefined;
+        case "rst":
+          return lab.lift("rst", faultAt);
+        default:
+          return heal === null ? lab.lift("blackhole", faultAt) : undefined;
+      }
+    };
+    fault = await apply();
     try {
-      if (cell.probe.mode === "inflight" && !replyInFlight) await go();
+      if (cell.probe.mode !== "idle" && !replyInFlight) await go();
       const { prediction } = cell;
       if (cell.fault === "stall") {
         if (cell.stall === undefined) throw new Error(`${cell.name} says no stall's length`);
@@ -153,6 +223,10 @@ const once = async (lab: Lab, cell: Cell, environment: number, index: number): P
         heal = await lab.heal(faultAt, sent.t + valueIn(cell.stall, "s") * 1e9);
         const window = valueIn(prediction.detects ? prediction.high : prediction.window, "s");
         await probe.until(["data", "error", "eof"], window * 1_000).catch(() => undefined);
+      } else if (prediction.detects === null) {
+        // a distribution: the stream ends by itself, or the connection does
+        const window = valueIn(prediction.window, "s") * 1_000;
+        await probe.until(["done", "error", "eof", "deadline"], window).catch(() => undefined);
       } else if (prediction.detects) {
         const within = valueIn(prediction.high, "s") * 2_000 + 10_000;
         if (server) {
@@ -167,8 +241,7 @@ const once = async (lab: Lab, cell: Cell, environment: number, index: number): P
         );
       }
     } finally {
-      if (network === "freeze-process") await peer.thaw();
-      else if (heal === null) await lab.lift(network, faultAt);
+      await lift();
     }
     // a thawed target answers the request that it held: the client sees the late reply
     if (cell.fault === "freeze-process" && !server)
@@ -211,6 +284,17 @@ const inEnvironment = async (
     // the settings of the target first: Redis applies tcp-keepalive to a client when it accepts it
     const settings = await lab.configure(cell.targetSettings ?? {});
     const targetSysctls = await lab.targetSysctl(cell.targetSysctls ?? {});
+    if (cell.targetSetup !== undefined) await lab.setup(cell.targetSetup);
+    // netem and a length match act on segments only when TSO, GSO and GRO are off on the two ends
+    if (cell.fault === "mtu-blackhole" || cell.fault === "netem") {
+      await lab.offload(false, "target");
+      await lab.offload(false, "client");
+    }
+    // a latency is on the path before the client connects, thus its round trip and RTO include it
+    const latency = netemSpec(cell, undefined);
+    if (latency !== null) await lab.netem(latency, "target");
+    // the first connection must not wait for ARP: under a delay, that is a longer first round trip
+    await lab.warm();
     const manifest = await lab.manifest(await lab.sysctl(cell.sysctls), settings, targetSysctls);
     const runs: Run[] = [];
     for (let index = 0; index < count; index += 1) {

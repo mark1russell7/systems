@@ -273,6 +273,26 @@ const rtoWait = (fired: bigint, min: Rational, max: Rational, rtt: Rational, hz:
  * probe, each rounded up on the wheel at its own level. Linux arms the idle timer, then one probe
  * interval for each probe without an answer.
  */
+/**
+ * This function gives the lateness of the retransmission give-up after its budget, under an ICMP
+ * host or net unreachable for each RTO retransmission. Each ICMP reverts one doubling of the backoff
+ * (tcp_ld_RTO_revert in net/ipv4/tcp_ipv4.c at v6.6, RFC 6069). Then each wait after the first RTO
+ * firing is one RTO again, thus the give-up comes at most one RTO after the budget. Each firing up
+ * to it can fire up to the granularity of its level of the wheel late.
+ */
+const retransLatenessReverted = (
+  retries: bigint,
+  min: Rational,
+  max: Rational,
+  rtt: Rational,
+  hz: Rational,
+): Rational => {
+  const base = jiffiesOf(r.add(min, rtt), hz);
+  const budget = jiffiesOf(retransBudget(retries, min, max), hz);
+  const firings = (budget + base - 1n) / base + 1n;
+  return r.div(whole(base + firings * granularity(base)), hz);
+};
+
 const keepaliveLateness = (
   idle: Rational,
   interval: Rational,
@@ -313,6 +333,21 @@ const MODELS: Readonly<Record<string, Model>> = {
       r.div(whole(rtoWait(integer(fired!, FIRED), min!, max!, rtt!, hz!)), hz!),
     source:
       "net/ipv4/tcp_timer.c tcp_retransmit_timer and tcp_output.c tcp_schedule_loss_probe at v6.6 (measured by @mark1russell7/harness, 2026-10-12)",
+  },
+  // one wait of the retransmission timer when each RTO retransmission draws an ICMP host or net
+  // unreachable: the revert of RFC 6069 takes back the doubling, thus each wait is one RTO
+  "linux.rto-wait-reverted": {
+    knobs: [null, "s", "s", "s", "Hz"],
+    seconds: ([, min, , rtt, hz]) => r.div(whole(jiffiesOf(r.add(min!, rtt!), hz!)), hz!),
+    source: "net/ipv4/tcp_ipv4.c tcp_v4_err and tcp_ld_RTO_revert at v6.6 (RFC 6069)",
+  },
+  // the give-up under that revert: at most one RTO after its budget, plus the rounding of each firing
+  "linux.retrans-step-reverted": {
+    knobs: [null, "s", "s", "s", "Hz"],
+    seconds: ([retries, min, max, rtt, hz]) =>
+      retransLatenessReverted(integer(retries!, "tcp_retries2"), min!, max!, rtt!, hz!),
+    source:
+      "net/ipv4/tcp_ipv4.c tcp_ld_RTO_revert and net/ipv4/tcp_timer.c retransmits_timed_out at v6.6 (RFC 6069)",
   },
   // the rounding of that wait on the timer wheel, at the level that its length puts it in
   "linux.rto-wait-lateness": {
@@ -624,6 +659,28 @@ export const modelSource = (name: string): string | undefined => MODELS[name]?.s
 export interface Manifestation {
   readonly name: string;
   readonly passes: readonly string[];
+  /**
+   * These are the events that the failure itself sends one time, for example the FIN of a process
+   * that stopped with SIGKILL. A delivered event that a transition takes from the state of the connection detects the
+   * failure at once.
+   */
+  readonly delivers?: readonly string[] | undefined;
+  /**
+   * This errno replaces ETIMEDOUT when one of these timers gives up. Linux keeps an ICMP error on
+   * an established socket as a soft error, and the timeout reports it (tcp_write_err). An ICMP
+   * counts only when it quotes a segment in the window (tcp_v4_err). A retransmission is in the
+   * window. A keepalive probe uses the sequence number before snd_una, thus its ICMP does not count.
+   */
+  readonly errno?: { readonly errno: string; readonly timers: readonly string[] } | undefined;
+  /**
+   * These are the durations that the failure changes, by timer. For example, an ICMP host
+   * unreachable for each retransmission reverts the backoff of the retransmission timer.
+   */
+  readonly replaces?:
+    | Readonly<
+        Record<string, { readonly duration?: Expr; readonly lateness?: Expr; readonly early?: Expr }>
+      >
+    | undefined;
 }
 
 /** A situation is the activity of the connection when the failure started. */
@@ -653,6 +710,16 @@ export interface Detection {
   readonly unsettled: readonly string[];
   /** These are the timers that are armed but cannot fire, and the reason for each. */
   readonly held: ReadonlyArray<{ readonly timer: string; readonly why: string }>;
+  /**
+   * These are the events that the failure delivers and that a transition takes from the state:
+   * each detects the failure at once, before any timer. The errno is the errno of the transition,
+   * or null for an end of file.
+   */
+  readonly delivered: ReadonlyArray<{
+    readonly event: string;
+    readonly to: string;
+    readonly errno: string | null;
+  }>;
 }
 
 const soonest = (a: Detector, b: Detector): number => {
@@ -705,7 +772,8 @@ export const detection = (
       held.push({ timer, why: `${rearmed} keeps arriving and re-arms it` });
       continue;
     }
-    detectors.push({ timer, fires: def.fires, duration: evaluate(doc, def.duration, values) });
+    const duration = manifestation.replaces?.[timer]?.duration ?? def.duration;
+    detectors.push({ timer, fires: def.fires, duration: evaluate(doc, duration, values) });
   }
   detectors.sort(soonest);
   const [earliest] = detectors;
@@ -713,12 +781,59 @@ export const detection = (
     earliest !== undefined &&
     !("unknown" in earliest.duration) &&
     earliest.duration.value !== "infinite";
+  const delivered = (manifestation.delivers ?? []).flatMap((event) => {
+    const taken = transitionOn(doc, situation.state, event);
+    return taken === undefined ? [] : [{ event, to: taken.to, errno: taken.errno ?? null }];
+  });
   return {
     detectors,
     first: finite ? earliest : null,
     unsettled: detectors.filter((d) => "unknown" in d.duration).map((d) => d.timer),
     held,
+    delivered,
   };
+};
+
+/**
+ * This function gives the bounds of a timer of a machine under a failure: its own bounds, with each
+ * duration that the manifestation replaces.
+ */
+export const timerUnder = (
+  doc: Machine,
+  timer: string,
+  values: KnobValues,
+  manifestation: Manifestation,
+  fired?: number,
+): TimerBounds => {
+  const def = doc.timers[timer];
+  if (def === undefined) throw new Error(`${doc.title} has no timer ${timer}`);
+  const replaced = manifestation.replaces?.[timer];
+  const duration = replaced?.duration ?? def.duration;
+  const lateness = replaced?.lateness ?? def.lateness;
+  const early = replaced?.early ?? def.early;
+  return {
+    duration: evaluate(doc, duration, values, fired),
+    ...(lateness !== undefined ? { lateness: evaluate(doc, lateness, values, fired) } : {}),
+    ...(early !== undefined ? { early: evaluate(doc, early, values, fired) } : {}),
+  };
+};
+
+/**
+ * This function gives the errno of a detection by a timer: the errno of the transition that its
+ * event takes from the state. A soft error of the manifestation replaces ETIMEDOUT, but only for
+ * the timers whose segments its ICMP quotes in the window.
+ */
+export const errnoOf = (
+  doc: Machine,
+  state: string,
+  detector: { readonly timer: string; readonly fires: string },
+  manifestation: Manifestation,
+): string | null => {
+  const errno = transitionOn(doc, state, detector.fires)?.errno ?? null;
+  const soft = manifestation.errno;
+  return errno === "ETIMEDOUT" && soft !== undefined && soft.timers.includes(detector.timer)
+    ? soft.errno
+    : errno;
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -790,5 +905,7 @@ export const stackedDetection = (
     first: finite ? earliest : null,
     unsettled: detectors.filter((d) => "unknown" in d.duration).map((d) => d.timer),
     held: [...own.held, ...below.held.map((h) => ({ ...h, why: `${h.why}, beneath` }))],
+    // what the failure delivers reaches the socket below: its end is the end of this machine
+    delivered: below.delivered,
   };
 };

@@ -26,8 +26,12 @@ A machine document has the format `mark1russell7.machine/1`, and `machineSchema`
   - `linux.keepalive-lateness`, `linux.wheel` and `linux.jiffy`: the rounding of the timer wheel at the HZ of the kernel.
   - `linux.syn-giveup`: the SYN give-up of 6.5 and later, with linear timeouts. At the defaults it is 131 s.
   - `ioredis.retry-base`: the reconnect delay of ioredis 6, min(2^(times − 1) × 50, 5000) ms.
+  - `linux.rto-wait-reverted` and `linux.retrans-step-reverted`: the retransmissions when each one gets an ICMP host or net unreachable. The revert of RFC 6069 (`tcp_ld_RTO_revert`) takes back each doubling, thus each wait is one RTO.
 - **Detection.** `detection` gives the minimum over the timers that are live in the situation of the connection. With no live timer, the failure is silent at this level. `stackedDetection` adds the timers of the machine below.
-- **Manifestations.** A manifestation tells which incoming events a failure lets through. A black hole lets nothing through. The kernel of a frozen process continues to send ACKs, which stop keepalive before it fires.
+- **Manifestations.** A manifestation tells which incoming events a failure lets through. A black hole lets nothing through. The kernel of a frozen process continues to send ACKs, which stop keepalive before it fires. A manifestation can also tell:
+  - the events that the failure sends one time (`delivers`), for example the FIN of a process that stopped with SIGKILL. Such an event detects the failure at once (`Detection.delivered`).
+  - the errno that replaces ETIMEDOUT at a timeout (`errno`). An ICMP error on an established socket is a soft error, and the timeout gives it (`errnoOf`).
+  - the durations that the failure changes, by timer (`replaces`). `timerUnder` gives the bounds of a timer under the failure.
 - **Recovery.** `recovery` tells when a backoff timer moves a connection again after a stall. The connection moves at the first firing at the end of the stall or after it. A stall of 3.5 s on Linux TCP holds a request for approximately 6.5 s.
 
 ## Installation

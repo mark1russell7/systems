@@ -36,6 +36,7 @@ export type {
 export {
   algebraProblems,
   detection,
+  errnoOf,
   evaluate,
   modelSource,
   overValues,
@@ -45,5 +46,6 @@ export {
   recovery,
   stackedDetection,
   timerOf,
+  timerUnder,
   transitionOn,
 } from "./algebra.ts";

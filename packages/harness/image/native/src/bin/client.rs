@@ -1,5 +1,5 @@
-//! client HOST PORT --mode idle|inflight [--keepalive] [--user-timeout-ms N] [--go PATH]
-//!        [--request TEXT] [--sample-ms N] [--max-s N]
+//! client HOST PORT --mode idle|inflight|stream [--keepalive] [--user-timeout-ms N] [--go PATH]
+//!        [--request TEXT] [--count N] [--interval-ms N] [--sample-ms N] [--max-s N]
 //!
 //! A cell's TCP client: one connection, every event a JSON line stamped on CLOCK_MONOTONIC. It
 //! sets no per-socket TCP timer unless the cell asks, so the namespace's sysctls are what gets
@@ -14,6 +14,9 @@
 //! names that second request, a Redis inline command: PING unless it says otherwise. BLPOP with a
 //! timeout makes the server answer only when the timeout runs out, so its reply can be the one in
 //! flight when a fault lands.
+//! stream: then wait for --go, and send the request --count times, each when the reply to the one
+//! before it has come and --interval-ms has passed: a distribution of reply times, for a fault
+//! whose outcome is one (loss, reordering). It ends with a done line.
 
 use prober::{errno_name, monotonic_ns, quantity};
 use serde_json::{json, Value};
@@ -101,6 +104,9 @@ struct Args {
     host: String,
     port: u16,
     inflight: bool,
+    /// in stream mode, how many requests, and the pause after each reply
+    stream: Option<u32>,
+    interval: Duration,
     keepalive: bool,
     user_timeout_ms: Option<i32>,
     go: String,
@@ -113,14 +119,17 @@ struct Args {
 fn args() -> Result<Args, Box<dyn Error>> {
     let raw: Vec<String> = std::env::args().skip(1).collect();
     let value = |flag: &str| raw.iter().position(|arg| arg == flag).and_then(|at| raw.get(at + 1)).cloned();
-    let mode = value("--mode").ok_or("--mode idle|inflight is required")?;
-    if mode != "idle" && mode != "inflight" {
-        return Err(format!("--mode is idle or inflight, not {mode}").into());
+    let mode = value("--mode").ok_or("--mode idle|inflight|stream is required")?;
+    if mode != "idle" && mode != "inflight" && mode != "stream" {
+        return Err(format!("--mode is idle, inflight or stream, not {mode}").into());
     }
+    let count: u32 = value("--count").map(|v| v.parse()).transpose()?.unwrap_or(100);
     Ok(Args {
         host: raw.first().ok_or("the target's host comes first")?.clone(),
         port: raw.get(1).ok_or("then its port")?.parse()?,
-        inflight: mode == "inflight",
+        inflight: mode != "idle",
+        stream: (mode == "stream").then_some(count),
+        interval: Duration::from_millis(value("--interval-ms").map(|v| v.parse()).transpose()?.unwrap_or(20)),
         keepalive: raw.iter().any(|arg| arg == "--keepalive"),
         user_timeout_ms: value("--user-timeout-ms").map(|v| v.parse()).transpose()?,
         go: value("--go").unwrap_or_else(|| "/tmp/go".into()),
@@ -133,7 +142,12 @@ fn args() -> Result<Args, Box<dyn Error>> {
 fn run() -> Result<(), Box<dyn Error>> {
     let args = args()?;
     let boot_id = std::fs::read_to_string("/proc/sys/kernel/random/boot_id")?.trim().to_string();
-    emit("start", json!({ "boot_id": boot_id, "mode": if args.inflight { "inflight" } else { "idle" } }));
+    let mode = match (args.inflight, args.stream) {
+        (_, Some(_)) => "stream",
+        (true, None) => "inflight",
+        (false, None) => "idle",
+    };
+    emit("start", json!({ "boot_id": boot_id, "mode": mode }));
     let deadline = monotonic_ns() + args.max.as_nanos() as u64;
 
     let mut stream = TcpStream::connect((args.host.as_str(), args.port))?;
@@ -169,6 +183,10 @@ fn run() -> Result<(), Box<dyn Error>> {
     let mut waiting = args.inflight;
     let mut seen: Option<[u32; 7]> = None;
     let mut age = info.tcpi_last_ack_recv;
+    // stream mode: requests sent, whether one waits for its reply, and when the next may go
+    let mut sent: u32 = 0;
+    let mut awaiting = false;
+    let mut next_at: u64 = 0;
     loop {
         if readable(fd, tick)? {
             match stream.read(&mut buf) {
@@ -176,7 +194,13 @@ fn run() -> Result<(), Box<dyn Error>> {
                     emit("eof", json!({}));
                     return Ok(());
                 }
-                Ok(n) => emit("data", json!({ "n": n, "text": String::from_utf8_lossy(&buf[..n.min(40)]) })),
+                Ok(n) => {
+                    emit("data", json!({ "n": n, "text": String::from_utf8_lossy(&buf[..n.min(40)]) }));
+                    if awaiting {
+                        awaiting = false;
+                        next_at = monotonic_ns() + args.interval.as_nanos() as u64;
+                    }
+                }
                 // nothing after all; ETIMEDOUT is the connection's own end
                 Err(error) if error.kind() == ErrorKind::WouldBlock || error.kind() == ErrorKind::Interrupted => {}
                 Err(error) => {
@@ -208,6 +232,21 @@ fn run() -> Result<(), Box<dyn Error>> {
         if waiting && Path::new(&args.go).exists() {
             send(&mut stream, &args.request)?;
             waiting = false;
+            sent = 1;
+            awaiting = args.stream.is_some();
+        }
+        if let Some(count) = args.stream {
+            if !waiting && !awaiting {
+                if sent >= count {
+                    emit("done", json!({ "requests": sent }));
+                    return Ok(());
+                }
+                if monotonic_ns() >= next_at {
+                    send(&mut stream, &args.request)?;
+                    sent += 1;
+                    awaiting = true;
+                }
+            }
         }
         if monotonic_ns() > deadline {
             emit("deadline", json!({}));

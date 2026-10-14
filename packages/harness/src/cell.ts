@@ -13,17 +13,35 @@ export type { KernelRecord };
  *   It is the reference for the noise of the harness itself.
  * - `stall` is a black hole that stops by itself, `Cell.stall` after the client sends its
  *   request. The VM times it. It shows what recovers, and when.
+ * - `fin` stops the process of the peer with SIGKILL, while its kernel stays up. The kernel closes its sockets
+ *   with a FIN, or with a reset when unread data is in the queue.
+ * - `unreachable` answers each segment from the observer with an ICMP unreachable (`Cell.icmp`).
+ *   Linux keeps it as a soft error on an established socket, and it continues to retransmit.
+ * - `simplex` drops the segments in one direction only (`Cell.drops`).
+ * - `mtu-blackhole` drops each segment to the observer that is longer than `Cell.mtu` bytes.
+ * - `netem` is tc netem on the egress of the target (`Cell.netem`): loss, duplication,
+ *   reordering or corruption. Its outcome is a distribution.
  */
-export type Fault = "blackhole" | "freeze-process" | "rst" | "stall";
+export type Fault =
+  | "blackhole"
+  | "freeze-process"
+  | "rst"
+  | "stall"
+  | "fin"
+  | "unreachable"
+  | "simplex"
+  | "mtu-blackhole"
+  | "netem";
 
 /**
  * A reference is the event that the time of a detector counts from: the event that arms the
  * timer in its machine document. Keepalive counts from the last received segment. The give-up of
  * the retransmissions counts from the first retransmission of the RTO timer, not from the tail
  * loss probe one RTO before it. The request itself meets a reset, thus a reset counts from the
- * send of the client.
+ * send of the client. A FIN counts from the change of state of the socket of the peer when its
+ * process dies (`peer-closed`).
  */
-export type Reference = "last-received" | "first-retransmission" | "request-sent";
+export type Reference = "last-received" | "first-retransmission" | "request-sent" | "peer-closed";
 
 /**
  * This prediction tells when a connection moves again after a stall. That occurs at the first
@@ -50,12 +68,16 @@ export interface Recovers {
  * after the reference event, or nothing detects the fault in a window. Nothing detects a stall
  * that is shorter than the give-up, and the connection recovers from it. The prediction then also
  * tells when.
+ *
+ * A cell whose outcome is a distribution, for example under netem loss, has no band. Its
+ * prediction is `detects: null` with the reason, and its runs are measurements only.
  */
 export type Prediction =
   | {
       readonly detects: true;
       /** This name is the timer of the machine that fires first, or the event that detects the fault, with its errno. */
       readonly timer: string;
+      /** This name is the errno of the detection, or EOF for an end of file without an error. */
       readonly errno: string;
       readonly from: Reference;
       /** This time is the closed form, less the most that the timer can fire early. */
@@ -63,7 +85,8 @@ export type Prediction =
       /** This time is the closed form, plus the most that the timer can fire late. */
       readonly high: Quantity;
     }
-  | { readonly detects: false; readonly window: Quantity; readonly recovers?: Recovers };
+  | { readonly detects: false; readonly window: Quantity; readonly recovers?: Recovers }
+  | { readonly detects: null; readonly window: Quantity; readonly why: string };
 
 /** A target is the server that a cell connects to: a stock image. */
 export interface Target {
@@ -78,6 +101,13 @@ export interface Target {
    * has no settings to set.
    */
   readonly settings?: { readonly set: readonly string[]; readonly get: readonly string[] };
+  /**
+   * This command replaces the command of the image, for example a shell that holds the server
+   * process as its child. Then a `fin` fault can stop the server, and the container stays up.
+   */
+  readonly command?: readonly string[];
+  /** This command stops the server process in the target with SIGKILL, as argv, for a `fin` fault. */
+  readonly kill?: readonly string[];
 }
 
 /** A client is what the runs of a cell use: the TCP client of the harness, or a driver on its socket. */
@@ -98,8 +128,15 @@ export interface Cell {
   /** These are the sysctls of the network namespace of the client, as the kernel spells them. The harness sets them before the client connects. */
   readonly sysctls: Readonly<Record<string, string>>;
   readonly probe: {
-    /** This mode tells if the client is idle after its first reply, or sends a request into the fault. */
-    readonly mode: "idle" | "inflight";
+    /**
+     * This mode tells if the client is idle after its first reply, or sends a request into the
+     * fault. In a stream, it sends `count` requests into it, each `interval` after the reply before.
+     */
+    readonly mode: "idle" | "inflight" | "stream";
+    /** This count is the number of requests of a stream. */
+    readonly count?: number;
+    /** This time is the pause after each reply of a stream, before the next request. */
+    readonly interval?: Quantity;
     /** This flag sets SO_KEEPALIVE without overrides for the socket: the keepalive sysctls of the namespace apply. */
     readonly keepalive: boolean;
     /** This time sets TCP_USER_TIMEOUT. Without it, the default of the kernel (off) applies. */
@@ -120,6 +157,21 @@ export interface Cell {
   readonly fault: Fault;
   /** This time is the length of a stall, from the send of the request. */
   readonly stall?: Quantity;
+  /** This code is the ICMP unreachable of an `unreachable` fault. */
+  readonly icmp?: "host" | "net" | "port" | "admin";
+  /** This direction is the one that a `simplex` fault drops: the segments to the server, or to the client. */
+  readonly drops?: "to-server" | "to-client";
+  /** This length is the longest segment, in bytes, that an `mtu-blackhole` fault lets through to the observer. */
+  readonly mtu?: number;
+  /** This specification is the tc netem of a `netem` fault, on the egress of the target: for example "loss 5%". */
+  readonly netem?: string;
+  /**
+   * This delay goes on the egress of the target before the client connects, with tc netem. Thus
+   * each round trip is longer by the delay, and so is the RTO.
+   */
+  readonly latency?: Quantity;
+  /** These commands run in the target before a client connects, each as argv: for example, a large value to read. */
+  readonly targetSetup?: readonly (readonly string[])[];
   readonly prediction: Prediction;
   /** This side is the side whose detection the cell measures. Without it, the side is the client. */
   readonly observer?: Observer;

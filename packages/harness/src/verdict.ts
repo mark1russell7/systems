@@ -16,8 +16,11 @@ export const RELATIVE = 0.05;
 /** These are the run counts of a cell: 11, then 22 and 44 while its median crosses the edge of the band. */
 export const STEPS = [11, 22, 44] as const;
 
-/** A decision is the result of a verdict. */
-export type Decision = "holds" | "fails" | "extend" | "inconclusive";
+/**
+ * A decision is the result of a verdict. A cell whose outcome is a distribution has no band, and
+ * its decision is `measured`: a record, not a test.
+ */
+export type Decision = "holds" | "fails" | "extend" | "inconclusive" | "measured";
 
 /** An interval is a range of times. */
 export interface Interval {
@@ -92,6 +95,26 @@ export const verdictOf = (prediction: Prediction, runs: readonly Measured[]): Ve
   const empty = { counted: counted.length, voided, median: null, medianInterval: null };
   if (counted.length === 0)
     return { ...empty, decision: "inconclusive", band: null, outside, why: "no run counted" };
+
+  if (prediction.detects === null) {
+    const samples = counted
+      .flatMap((run) => (run.samples ?? []).map((sample) => valueIn(sample, "s")))
+      .sort((a, b) => a - b);
+    const retransmissions = counted.reduce((sum, run) => sum + run.retransmissions, 0);
+    const ended = counted.filter((run) => run.outcome.kind === "error" || run.outcome.kind === "eof");
+    const why =
+      samples.length === 0
+        ? `${counted.length} runs measured, with no reply: ${prediction.why}`
+        : `${counted.length} runs, ${samples.length} replies: median ${s(middle(samples)).value} s, slowest ${s(samples.at(-1)!).value} s, ${retransmissions} retransmissions, ${ended.length} connections ended. ${prediction.why}`;
+    return {
+      ...empty,
+      decision: "measured",
+      band: null,
+      outside: [],
+      median: samples.length === 0 ? null : s(middle(samples)),
+      why,
+    };
+  }
 
   if (!prediction.detects && prediction.recovers === undefined) {
     const decision = outside.length === 0 ? "holds" : "fails";

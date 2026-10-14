@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Cell, KernelRecord, ProbeEvent, Run } from "./cell.ts";
 import { measure } from "./observe.ts";
+import { verdictOf } from "./verdict.ts";
 
 const s = (value: number) => ({ value, unit: "s" });
 const NETNS = 4026532583;
@@ -387,5 +388,72 @@ describe("a run measured against its cell, from the kernel's own records", () =>
       void: null,
       finding: null,
     });
+  });
+
+  /** a change of state of a socket, as the prober writes it: TCP_ESTABLISHED is 1 */
+  const state = (mono: number, old: number, next: number, more: Partial<KernelRecord> = {}) =>
+    k("state", mono, { ...more, ...({ old, new: next } as unknown as Partial<KernelRecord>) });
+
+  it("times a FIN from the close of the peer's socket to the CLOSE_WAIT of the observer's", () => {
+    const FIN: Cell = {
+      ...KEEPALIVE,
+      name: "fin",
+      fault: "fin",
+      prediction: {
+        detects: true,
+        timer: "rx.fin",
+        errno: "EOF",
+        from: "peer-closed",
+        low: s(0),
+        high: s(0.001),
+      },
+    };
+    const killed = T + 1e9;
+    const kernel = [
+      ...reply,
+      // the server's socket, in the target's namespace: its process dies, and it sends its FIN
+      state(killed, 1, 4, { netns: NETNS + 1, cookie: 99, src: "172.21.0.2:6379", dst: LOCAL }),
+      state(killed + 61_000, 1, 8),
+    ];
+    const events: ProbeEvent[] = [...client, { ev: "eof", t: killed + 300_000 }];
+    const read = measure(FIN, run(events, kernel, null));
+    expect(read).toMatchObject({
+      outcome: { kind: "eof" },
+      elapsed: s(0.000061),
+      void: null,
+      finding: null,
+    });
+    // an error where an end of file was predicted is a finding
+    const reset = measure(FIN, run(events, [...kernel.slice(0, -1), k("error", killed + 70_000, { err: 104 })], null));
+    expect(reset.finding).toBe("it ended with ECONNRESET, not EOF");
+  });
+
+  it("records the reply time of each request of a stream, and judges none of them", () => {
+    const STREAM: Cell = {
+      ...KEEPALIVE,
+      name: "stream",
+      fault: "netem",
+      probe: { mode: "stream", keepalive: true, count: 3, interval: { value: 10, unit: "ms" } },
+      prediction: { detects: null, window: s(30), why: "a distribution: the simulator predicts it" },
+    };
+    const go = T + 1e9;
+    const events: ProbeEvent[] = [
+      ...client,
+      { ev: "sent", t: go },
+      { ev: "data", t: go + 120_000 },
+      { ev: "sent", t: go + 10_200_000 },
+      // a lost segment: the reply waits for the retransmission, an RTO later
+      { ev: "data", t: go + 214_300_000 },
+      { ev: "sent", t: go + 224_400_000 },
+      { ev: "data", t: go + 224_520_000 },
+      { ev: "done", t: go + 224_600_000 },
+    ];
+    const kernel = [...reply, retrans(go + 214_000_000, "rto", 1)];
+    const read = measure(STREAM, run(events, kernel, { t0: go - 2e6, t1: go - 1e6 }));
+    expect(read).toMatchObject({ outcome: { kind: "answered" }, void: null, finding: null, retransmissions: 1 });
+    expect(read.samples).toEqual([s(0.00012), s(0.2041), s(0.00012)]);
+    const verdict = verdictOf(STREAM.prediction, [read, { ...read, index: 1 }]);
+    expect(verdict).toMatchObject({ decision: "measured", band: null, outside: [] });
+    expect(verdict.why).toMatch(/^2 runs, 6 replies: median 0\.00012 s, slowest 0\.2041 s, 2 retransmissions/);
   });
 });
