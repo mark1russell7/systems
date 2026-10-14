@@ -31,6 +31,11 @@ export interface Measured {
    * the RTO timer. After a stall, they are each retransmission from the send, the loss probe first.
    */
   readonly steps: readonly Quantity[];
+  /**
+   * These are the reply times of a measurement-only cell. For each request after the first, a
+   * sample is the time from its send to the first data after it.
+   */
+  readonly samples?: readonly Quantity[];
   /** This count is the number of keepalive probes that the kernel sent. */
   readonly probes: number;
   /** This count is the number of segments that the kernel sent again. */
@@ -58,6 +63,10 @@ const ERRNO: Readonly<Record<number, string>> = {
 const between = (from: number, to: number): Quantity =>
   quantity(Math.round((to - from) / 1e3) / 1e6, "s");
 
+/** These functions give the states of a state record: before the change, and after it. TCP_ESTABLISHED is 1, TCP_CLOSE_WAIT 8. */
+const oldState = (record: KernelRecord): number | undefined => (record as { readonly old?: number }).old;
+const newState = (record: KernelRecord): number | undefined => (record as { readonly new?: number }).new;
+
 const count = (event: ProbeEvent | undefined, field: string): number =>
   event === undefined ? 0 : Number(event[field] ?? 0);
 
@@ -68,7 +77,7 @@ const socketVantage = (
   ready: ProbeEvent,
   request: ProbeEvent,
 ): Quantity | null => {
-  if (!cell.prediction.detects) return null;
+  if (!cell.prediction.detects || cell.prediction.from === "peer-closed") return null;
   const ended = events.find((event) => event.ev === "error" || event.ev === "eof");
   const reference =
     cell.prediction.from === "last-received"
@@ -94,8 +103,8 @@ export const measure = (cell: Cell, run: Run): Measured => {
   const { events, kernel } = run;
   const ready = events.find((event) => event.ev === "ready");
   const local = events.find((event) => event.ev === "connected")?.["local"];
-  const request =
-    cell.probe.mode === "inflight" ? events.filter((event) => event.ev === "sent")[1] : ready;
+  const inflight = cell.probe.mode !== "idle";
+  const request = inflight ? events.filter((event) => event.ev === "sent")[1] : ready;
   // the socket of the observer: the client socket, by the address that it connected from, or the
   // socket of the target for the same connection, in its namespace, whose peer is that address
   const server = cell.observer === "server";
@@ -104,6 +113,12 @@ export const measure = (cell: Cell, run: Run): Measured => {
     (record) => record.netns === netns && (server ? record.dst : record.src) === local,
   )?.cookie;
   const socket = kernel.filter((record) => record.netns === netns && record.cookie === cookie);
+  // the socket of the peer for the same connection, in the other namespace: a FIN counts from the
+  // change of state that its close makes
+  const peerNetns = server ? run.netns : run.targetNetns;
+  const peerCookie = kernel.find(
+    (record) => record.netns === peerNetns && (server ? record.src : record.dst) === local,
+  )?.cookie;
   const keepalives = socket.filter(
     (record) => record.ev === "probe" && record.what === "keepalive",
   );
@@ -168,15 +183,17 @@ export const measure = (cell: Cell, run: Run): Measured => {
   let voided: string | null = null;
   if (run.fault !== null) {
     // the request of a client must go into the fault. The request of a cell on the server side must
-    // reach the server first, and its reply must not reach the client before the fault holds
+    // reach the server first, and its reply must not reach the client before the fault holds. An
+    // mtu-blackhole drops only the long reply, thus its request goes after the fault, as a client's does
+    const replyFirst = server && inflight && cell.fault !== "mtu-blackhole";
     const replied = events.some(
       (event) => event.ev === "data" && event.t > request.t && event.t < run.fault!.t1,
     );
-    if (cell.probe.mode === "inflight" && !server && run.fault.t1 > request.t)
+    if (inflight && !replyFirst && run.fault.t1 > request.t)
       voided = "the request went out before the fault held";
-    else if (cell.probe.mode === "inflight" && server && run.fault.t1 < request.t)
+    else if (replyFirst && run.fault.t1 < request.t)
       voided = "the request went out into the fault, so the server never had it";
-    else if (cell.probe.mode === "inflight" && server && replied)
+    else if (replyFirst && replied)
       voided = "the server's reply arrived before the fault held";
     else if (keepalives[0] !== undefined && keepalives[0].mono < run.fault.t1)
       voided = "a keepalive probe went out before the fault held";
@@ -188,18 +205,41 @@ export const measure = (cell: Cell, run: Run): Measured => {
   const seen = server
     ? undefined
     : events.find((event) => event.ev === "error" || event.ev === "eof");
+  // an end of file without an error is the change of state that the FIN of the peer makes, from
+  // ESTABLISHED to CLOSE_WAIT, as the kernel stamps it
+  const closeWait = socket.find((record) => record.ev === "state" && newState(record) === 8);
   const outcome: Outcome =
     reported !== undefined
       ? { kind: "error", errno: ERRNO[reported.err!] ?? `E${reported.err}` }
-      : seen?.ev === "eof"
+      : closeWait !== undefined || seen?.ev === "eof"
         ? { kind: "eof" }
         : seen !== undefined
           ? { kind: "error", errno: String(seen["errno"]) }
           : { kind: "silent" };
-  const ended = reported?.mono ?? seen?.t;
+  const ended = reported?.mono ?? closeWait?.mono ?? seen?.t;
   const noticed =
     reported !== undefined && seen !== undefined ? between(reported.mono, seen.t) : null;
   const { prediction } = cell;
+
+  // a cell whose outcome is a distribution: each request of the run, and the time to its reply
+  if (prediction.detects === null) {
+    const sends = events.filter((event) => event.ev === "sent").slice(1);
+    const samples = sends.flatMap((send, n) => {
+      const next = sends[n + 1]?.t ?? Infinity;
+      const reply = events.find((event) => event.ev === "data" && event.t > send.t && event.t < next);
+      return reply === undefined ? [] : [between(send.t, reply.t)];
+    });
+    return {
+      ...base,
+      ...nothing,
+      outcome: ended !== undefined ? outcome : { kind: "answered" },
+      steps: retransmitted
+        .filter((record) => record.mono > request.t)
+        .map((record) => between(request.t, record.mono)),
+      samples,
+      void: voided,
+    };
+  }
 
   // a stall: nothing must detect it, and the connection must move again at the first
   // retransmission after it stops, timed from the send of the request
@@ -288,7 +328,15 @@ export const measure = (cell: Cell, run: Run): Measured => {
       ? socket.filter((record) => record.ev === "rx" && record.mono <= before).at(-1)
       : prediction.from === "first-retransmission"
         ? retransmitted.find((record) => record.why === "rto")
-        : undefined;
+        : prediction.from === "peer-closed"
+          ? kernel.find(
+              (record) =>
+                record.netns === peerNetns &&
+                record.cookie === peerCookie &&
+                record.ev === "state" &&
+                oldState(record) === 1,
+            )
+          : undefined;
   const reference: number | undefined =
     prediction.from === "request-sent" ? request.t : kernelReference?.mono;
   if (reference === undefined) {
@@ -308,13 +356,16 @@ export const measure = (cell: Cell, run: Run): Measured => {
         ? retransmitted.filter((record) => record.why === "rto" && record.mono > reference)
         : []
   ).map((record) => between(reference, record.mono));
-  const finding =
-    outcome.kind === "error" && outcome.errno === prediction.errno
-      ? null
-      : `it ended with ${outcome.kind === "error" ? outcome.errno : "end of file"}, not ${prediction.errno}`;
+  const matches =
+    prediction.errno === "EOF"
+      ? outcome.kind === "eof"
+      : outcome.kind === "error" && outcome.errno === prediction.errno;
+  const finding = matches
+    ? null
+    : `it ended with ${outcome.kind === "error" ? outcome.errno : "end of file"}, not ${prediction.errno}`;
   // a firing at the reference itself only moves the start of the interval. A reset meets the send
-  // with no timer
-  if (prediction.from !== "request-sent")
+  // with no timer, and a FIN arrives with none
+  if (prediction.from !== "request-sent" && prediction.from !== "peer-closed")
     voided ??= delayed(
       reference,
       ended,

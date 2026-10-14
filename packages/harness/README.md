@@ -46,6 +46,14 @@ ioredis sets the keepalive of its socket itself, after it connects. Thus a cell 
 - **A reset** is a `REJECT --reject-with tcp-reset` rule in the namespace of the target, for the segments of the client. The next send of the client gets a reset one round trip later. It is the reference fault of the calibration.
 - **A frozen process** is the cgroup freezer (`docker pause`), while the kernel stays up.
 - **A stall** is a black hole that stops by itself, `Cell.stall` after the send of the request. The run reads the stamp of the client on the send. Then `inject clear PEER --at NS` holds the end in the VM until that instant (`lab.heal`). Thus the latency of a docker exec does not change the length of the stall.
+- **An ICMP unreachable** (`unreachable`, `Cell.icmp`) answers each segment from the observer with host, net or port unreachable, or admin prohibited. Linux keeps it as a soft error, continues to retransmit, and gives the errno of the ICMP at the timeout. Host and net unreachable also revert the backoff (RFC 6069).
+- **A simplex partition** (`simplex`, `Cell.drops`) drops the segments to the server, or the segments to the client, but not both.
+- **A FIN** (`fin`) stops the process of the peer with SIGKILL while its kernel stays up. For the client, the target starts its server as the child of a shell (`Target.command`), and `Target.kill` stops it. For the server, the harness stops the container of the client.
+- **An MTU black hole** (`mtu-blackhole`, `Cell.mtu`) drops each segment longer than the length, in the namespace that receives it.
+- **netem** (`netem`, `Cell.netem`) is tc netem on the egress of the target: loss, duplication, reordering or corruption. The outcome is a distribution.
+- **A latency** (`Cell.latency`) is tc netem delay on the egress of the target before the client connects. Thus the round trip and the RTO include it.
+
+A length match and netem act on GSO super-packets of up to 64 KB, not on segments, while TSO, GSO and GRO are on. Thus the cells of `mtu-blackhole` and `netem` turn them off on the two ends (`lab.offload`).
 
 Each run starts from kernels that keep nothing from the run before it (`lab.forget()`). When a connection closes, each kernel keeps TCP metrics for the address of its peer. These metrics set the first round trip of the next connection, and thus its RTO. The harness removes the `tcp_metrics` of the two namespaces before each run.
 
@@ -59,6 +67,8 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
 - **Void runs.** A run is void when the timer that drives the measurement was two jiffies or more behind its wheel slot in the timed interval. The wheel does a slot in the tick when it is due. Thus such a firing measured the host, which stopped a vCPU, not the kernel. A keepalive timer that found its socket held also makes the run void. A run whose fault came too late is void too.
 - **Findings.** A finding is a wrong errno, a detector that did not fire, or a detection where the prediction is silence.
 - **Recovery.** After a stall (`prediction.recovers`), it times the send to the first segment back after the stall stopped. That segment is the answer of the server to the retransmission that got through. A run whose stall stopped outside the window of its prediction is void. A run where nothing came back is a finding.
+- **An end of file.** A FIN counts from the change of state of the socket of the peer when it closes (`peer-closed`). It ends at the change of the socket of the observer to CLOSE_WAIT. The kernel stamps the two changes.
+- **A stream.** In a stream (`probe.mode` is `stream`), the client sends `count` requests. The run keeps the time from each send to the first data after it (`samples`).
 
 ## The verdict
 
@@ -68,6 +78,7 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
 - **Median equivalence.** The order-statistic interval of the median must be in the band, made 5 % wider.
 - **Extension.** A median across the edge of the band extends the cell from 11 runs to 22, then 44. Then the verdict is inconclusive.
 - **Recovery.** The recovery after a stall gets the same test as a detection, by its band. A detection is then a finding.
+- **Measurements.** A cell whose outcome is a distribution (`detects: null`) has no band. Its decision is `measured`, and the verdict gives the median and the slowest reply time.
 
 The distribution test needs a simulator, which does not exist at this time.
 

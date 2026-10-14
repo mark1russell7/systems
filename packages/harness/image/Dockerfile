@@ -23,7 +23,8 @@ RUN cd harness/image/native && cargo build --release --locked && cargo test --re
 
 # --- run ------------------------------------------------------------------------------------------
 FROM alpine:3.23@sha256:865b95f46d98cf867a156fe4a135ad3fe50d2056aa3f25ed31662dff6da4eb62
-RUN apk add --no-cache iproute2 iptables libelf zlib zstd-libs libgcc
+# tc for netem, ethtool for the offloads that decide whether netem acts on segments
+RUN apk add --no-cache iproute2 iproute2-tc iptables ethtool libelf zlib zstd-libs libgcc
 COPY --from=build /src/prober.bpf.o /src/prober/native/target/release/prober /opt/harness/
 COPY --from=build /src/harness/image/native/target/release/client /src/harness/image/native/target/release/inject /opt/harness/
 WORKDIR /opt/harness

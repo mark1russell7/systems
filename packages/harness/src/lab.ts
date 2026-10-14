@@ -135,8 +135,36 @@ export const harnessImage = (): Promise<string> => build(HARNESS);
 /** This function gives the image of the Node client. */
 export const nodeClientImage = (): Promise<string> => build(NODE);
 
-/** A network fault is a fault that the injector applies, by the name of its manifestation. */
-export type NetworkFault = "blackhole" | "rst";
+/**
+ * A network fault is a fault that the injector applies as a filter rule. It is a black hole (both
+ * directions, or one), or a reset on the next segment. It can also be an ICMP unreachable for each
+ * segment, or a drop of each segment that is longer than a length.
+ */
+export type NetworkFault = "blackhole" | "rst" | "reject" | "mtu";
+
+/** These are the options of a network fault: the direction of a black hole, the code of a reject, the length of an MTU drop. */
+export interface FaultOptions {
+  /** This direction is relative to the namespace of the rule: `in` drops what comes from the peer, `out` what goes to it. */
+  readonly direction?: "in" | "out";
+  readonly code?: "host" | "net" | "port" | "admin";
+  /** This length is the longest segment in bytes that an MTU drop lets through. */
+  readonly above?: number;
+}
+
+/** This function gives the arguments of the injector for the options of a fault. */
+const optionArgs = (options: FaultOptions): string[] => [
+  ...(options.direction === undefined ? [] : ["--direction", options.direction]),
+  ...(options.code === undefined ? [] : ["--code", options.code]),
+  ...(options.above === undefined ? [] : ["--above", String(options.above)]),
+];
+
+/** These are the actions of the injector that lift each network fault. */
+const LIFT: Readonly<Record<NetworkFault, string>> = {
+  blackhole: "clear",
+  rst: "clear-rst",
+  reject: "clear-reject",
+  mtu: "clear-mtu",
+};
 
 /**
  * A fault side is the namespace that gets the rules of a fault: the namespace of the peer of the
@@ -239,6 +267,8 @@ export interface Probe {
   /** This method freezes the client with the cgroup freezer: its process stops, and its kernel continues to answer. */
   freeze(): Promise<void>;
   thaw(): Promise<void>;
+  /** This method stops the process of the client with SIGKILL. Its kernel then closes its socket with a FIN, or a reset. */
+  kill(): Promise<void>;
   readonly events: readonly ProbeEvent[];
   stop(): Promise<void>;
 }
@@ -261,9 +291,33 @@ export interface Lab {
    * target. The fault is a black hole, or a reset that answers the next segment of the client. The stamps of
    * the injector bracket it.
    */
-  fault(kind: NetworkFault, at?: FaultSide): Promise<{ t0: number; t1: number }>;
+  fault(
+    kind: NetworkFault,
+    at?: FaultSide,
+    options?: FaultOptions,
+  ): Promise<{ t0: number; t1: number }>;
   /** This method removes a fault. */
-  lift(kind: NetworkFault, at?: FaultSide): Promise<void>;
+  lift(kind: NetworkFault, at?: FaultSide, options?: FaultOptions): Promise<void>;
+  /**
+   * This method puts tc netem on the egress of a namespace, for example "delay 20ms" or "loss 5%",
+   * or removes it with null. The stamps of the injector bracket it.
+   */
+  netem(spec: string | null, at?: FaultSide): Promise<{ t0: number; t1: number }>;
+  /**
+   * This method sets the TSO, GSO and GRO of a namespace. With them off, netem and a length match
+   * act on segments, not on GSO super-packets of up to 64 KB.
+   */
+  offload(on: boolean, at?: FaultSide): Promise<void>;
+  /** This method stops the server process in the target with SIGKILL, with the command of the target. */
+  kill(): Promise<void>;
+  /**
+   * This method resolves the neighbors of the path in the two directions, with a ping from each
+   * namespace. Without it, the first connection of an environment waits for ARP. Under a netem
+   * delay, that wait is one more delayed round, and its round trip and RTO are longer.
+   */
+  warm(): Promise<void>;
+  /** This method runs commands in the target before a client connects, each as argv. */
+  setup(commands: ReadonlyArray<readonly string[]>): Promise<void>;
   /**
    * This method stops a black hole at an instant on the monotonic clock of the VM. The injector
    * waits for that instant in the VM, thus the length of a stall does not include the latency of
@@ -339,10 +393,13 @@ export const openLab = async (target: Target, kind: Client = "tcp"): Promise<Lab
   };
   try {
     network = await new Network().start();
-    const server = await new GenericContainer(target.image)
+    const stock = new GenericContainer(target.image)
       .withNetwork(network)
-      .withWaitStrategy(Wait.forLogMessage(target.ready))
-      .start();
+      .withWaitStrategy(Wait.forLogMessage(target.ready));
+    // a holder command keeps the container up when a fin fault kills the server process
+    const server = await (
+      target.command === undefined ? stock : stock.withCommand([...target.command])
+    ).start();
     opened.push(server);
     const client = await new GenericContainer(image).withNetwork(network).start();
     opened.push(client);
@@ -412,18 +469,39 @@ export const openLab = async (target: Target, kind: Client = "tcp"): Promise<Lab
         }
         return read;
       },
-      async fault(kind, at = "target") {
+      async fault(kind, at = "target", options = {}) {
         const [where, peer] = at === "client" ? [admin, targetIp] : [injector, clientIp];
-        const stamp = JSON.parse(await output(where, ["/opt/harness/inject", kind, peer])) as {
-          t0: number;
-          t1: number;
-        };
+        const args = ["/opt/harness/inject", kind, peer, ...optionArgs(options)];
+        const stamp = JSON.parse(await output(where, args)) as { t0: number; t1: number };
         return { t0: stamp.t0, t1: stamp.t1 };
       },
-      async lift(kind, at = "target") {
+      async lift(kind, at = "target", options = {}) {
         const [where, peer] = at === "client" ? [admin, targetIp] : [injector, clientIp];
-        const action = kind === "blackhole" ? "clear" : "clear-rst";
-        await output(where, ["/opt/harness/inject", action, peer]);
+        await output(where, ["/opt/harness/inject", LIFT[kind], peer, ...optionArgs(options)]);
+      },
+      async netem(spec, at = "target") {
+        const where = at === "client" ? admin : injector;
+        const args =
+          spec === null
+            ? ["/opt/harness/inject", "clear-netem", "eth0"]
+            : ["/opt/harness/inject", "netem", "eth0", ...spec.split(/\s+/)];
+        const stamp = JSON.parse(await output(where, args)) as { t0: number; t1: number };
+        return { t0: stamp.t0, t1: stamp.t1 };
+      },
+      async offload(on, at = "target") {
+        const where = at === "client" ? admin : injector;
+        await output(where, ["/opt/harness/inject", "offload", "eth0", on ? "on" : "off"]);
+      },
+      async kill() {
+        if (target.kill === undefined) throw new Error(`${target.image} names no way to kill its server`);
+        await output(server, [...target.kill]);
+      },
+      async warm() {
+        await output(admin, ["ping", "-c", "2", "-W", "2", targetIp]);
+        await output(injector, ["ping", "-c", "2", "-W", "2", clientIp]);
+      },
+      async setup(commands) {
+        for (const argv of commands) await output(server, [...argv]);
       },
       async heal(at, when) {
         const [where, peer] = at === "client" ? [admin, targetIp] : [injector, clientIp];
@@ -458,7 +536,17 @@ export const openLab = async (target: Target, kind: Client = "tcp"): Promise<Lab
               .getById(container.getId())
               .unpause()
               .then(() => undefined),
-          stop: () => container.stop(STOP).then(() => undefined),
+          kill: () =>
+            runtime.container
+              .getById(container.getId())
+              .kill({ signal: "SIGKILL" })
+              .then(() => undefined),
+          // a killed client has no container to stop
+          stop: () =>
+            container
+              .stop(STOP)
+              .then(() => undefined)
+              .catch(() => undefined),
         };
       },
       async settle() {

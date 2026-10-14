@@ -1,14 +1,28 @@
-//! inject blackhole PEER | inject clear PEER [--at NS] | inject rst PEER | inject clear-rst PEER
+//! inject ACTION ARGS... [--at NS]
 //!
-//! A cell's fault, applied inside the network namespace this sidecar shares with the target, so
-//! the target's image stays stock. Each lands in one iptables-restore commit,
-//! bracketed by CLOCK_MONOTONIC stamps taken in the VM: a docker exec from Windows lands 190 ms late
-//! at the median, and the bracket does not care.
+//! A cell's fault, applied inside the network namespace this sidecar shares with the target (or,
+//! for the server's side, with the client), so the target's image stays stock. Each lands in one
+//! commit, bracketed by CLOCK_MONOTONIC stamps taken in the VM: a docker exec from Windows lands
+//! 190 ms late at the median, and the bracket does not care.
 //!
-//! - blackhole: both directions drop, so nothing comes back;
-//! - rst: the peer's next segment is answered with a reset, so its next send fails at once. A
-//!   REJECT resets only the sender of the matched segment: the target's process
-//!   never hears of it.
+//! The actions, each with its lift:
+//!
+//! - `blackhole PEER [--direction both|in|out]` / `clear PEER [--direction …]`: the peer's
+//!   segments drop, in both directions or one. `in` drops what comes from the peer, `out` what
+//!   goes to it: a simplex partition.
+//! - `rst PEER` / `clear-rst PEER`: the peer's next segment is answered with a reset, so its next
+//!   send fails at once. A REJECT resets only the sender of the matched segment: the target's
+//!   process never hears of it.
+//! - `reject PEER --code host|net|port|admin` / `clear-reject PEER --code …`: each segment from the
+//!   peer is answered with that ICMP unreachable. On an established socket Linux keeps it as a
+//!   soft error (tcp_v4_err) and goes on retransmitting.
+//! - `mtu PEER --above N` / `clear-mtu PEER --above N`: each segment from the peer longer than N
+//!   bytes drops, as a path MTU black hole does, in the namespace that receives it. It acts on
+//!   segments only when the sender's TSO and GSO and the receiver's GRO are off (`offload`).
+//! - `netem DEV SPEC…` / `clear-netem DEV`: tc netem on the device's egress, for example
+//!   `netem eth0 delay 100ms 10ms` or `netem eth0 loss 5%`.
+//! - `offload DEV on|off`: the device's TSO, GSO and GRO, so that netem and length matches act on
+//!   segments rather than on GSO super-packets of up to 64 KB.
 //!
 //! `--at NS` holds the commit until that instant on CLOCK_MONOTONIC, the clock every stamp is on.
 //! A stall's end is timed that way, from inside the VM: the exec only has to arrive before it, and
@@ -46,46 +60,209 @@ fn until(at: u64) -> Result<(), Box<dyn Error>> {
     }
 }
 
-fn run() -> Result<(), Box<dyn Error>> {
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    let action = args.first().ok_or("say blackhole, clear, rst or clear-rst")?.as_str();
-    // parsed, never pasted: only an address reaches the rules
-    let peer: Ipv4Addr = args.get(1).ok_or("and the peer's address")?.parse()?;
-    let at: Option<u64> = match args.get(2).map(String::as_str) {
-        None => None,
-        Some("--at") => Some(args.get(3).ok_or("--at takes an instant in ns")?.parse()?),
-        Some(other) => return Err(format!("unknown option {other}").into()),
-    };
-    let rules = match action {
+/// The options after the positional arguments: `--at NS`, `--direction D`, `--code C`, `--above N`.
+#[derive(Default)]
+struct Options {
+    at: Option<u64>,
+    direction: Option<String>,
+    code: Option<String>,
+    above: Option<u32>,
+}
+
+fn options(args: &[String]) -> Result<Options, Box<dyn Error>> {
+    let mut out = Options::default();
+    let mut rest = args.iter();
+    while let Some(flag) = rest.next() {
+        let value = rest.next().ok_or_else(|| format!("{flag} takes a value"))?;
+        match flag.as_str() {
+            "--at" => out.at = Some(value.parse()?),
+            "--direction" => out.direction = Some(value.clone()),
+            "--code" => out.code = Some(value.clone()),
+            "--above" => out.above = Some(value.parse()?),
+            other => return Err(format!("unknown option {other}").into()),
+        }
+    }
+    Ok(out)
+}
+
+/// The iptables rules of an action that is a filter rule, or None for an action that is not.
+fn rules(action: &str, peer: Ipv4Addr, opts: &Options) -> Result<String, Box<dyn Error>> {
+    let op = |set: &str| if action == set { "-I" } else { "-D" };
+    Ok(match action {
         "blackhole" | "clear" => {
-            let op = if action == "blackhole" { "-I" } else { "-D" };
-            format!("{op} INPUT -s {peer}/32 -j DROP\n{op} OUTPUT -d {peer}/32 -j DROP\n")
+            let op = op("blackhole");
+            let direction = opts.direction.as_deref().unwrap_or("both");
+            let input = format!("{op} INPUT -s {peer}/32 -j DROP\n");
+            let output = format!("{op} OUTPUT -d {peer}/32 -j DROP\n");
+            match direction {
+                "both" => format!("{input}{output}"),
+                "in" => input,
+                "out" => output,
+                other => return Err(format!("unknown direction {other}").into()),
+            }
         }
         "rst" | "clear-rst" => {
-            let op = if action == "rst" { "-I" } else { "-D" };
+            let op = op("rst");
             format!("{op} INPUT -s {peer}/32 -p tcp -j REJECT --reject-with tcp-reset\n")
         }
+        "reject" | "clear-reject" => {
+            let op = op("reject");
+            let with = match opts.code.as_deref().ok_or("--code host|net|port|admin")? {
+                "host" => "icmp-host-unreachable",
+                "net" => "icmp-net-unreachable",
+                "port" => "icmp-port-unreachable",
+                "admin" => "icmp-admin-prohibited",
+                other => return Err(format!("unknown code {other}").into()),
+            };
+            format!("{op} INPUT -s {peer}/32 -p tcp -j REJECT --reject-with {with}\n")
+        }
+        // the long segments drop where they arrive: in the sender's own namespace, an OUTPUT drop
+        // would fail its sends with EPERM rather than lose them on the way
+        "mtu" | "clear-mtu" => {
+            let op = op("mtu");
+            let above = opts.above.ok_or("--above N")?;
+            format!("{op} INPUT -s {peer}/32 -p tcp -m length --length {}:65535 -j DROP\n", above + 1)
+        }
         other => return Err(format!("unknown action {other}").into()),
-    };
-    let script = format!("*filter\n{rules}COMMIT\n");
-    if let Some(at) = at {
-        until(at)?;
+    })
+}
+
+/// a token of a netem specification: a word, or a number with an optional unit
+fn netem_token(token: &str) -> bool {
+    let word = !token.is_empty() && token.chars().all(|c| c.is_ascii_lowercase());
+    let number = token
+        .trim_end_matches(|c: char| c.is_ascii_alphabetic() || c == '%')
+        .parse::<f64>()
+        .is_ok()
+        && token
+            .trim_start_matches(|c: char| c.is_ascii_digit() || c == '.')
+            .chars()
+            .all(|c| c.is_ascii_alphabetic() || c == '%');
+    word || number
+}
+
+/// a device name: letters, digits, dots, dashes
+fn device(name: &str) -> Result<&str, Box<dyn Error>> {
+    if !name.is_empty() && name.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-') {
+        Ok(name)
+    } else {
+        Err(format!("not a device: {name}").into())
     }
-    let t0 = monotonic_ns();
-    let mut child = Command::new("iptables-restore").arg("--noflush").stdin(Stdio::piped()).spawn()?;
-    child.stdin.take().ok_or("iptables-restore took no stdin")?.write_all(script.as_bytes())?;
-    let status = child.wait()?;
-    let t1 = monotonic_ns();
-    if !status.success() {
-        return Err(format!("iptables-restore exited {status}").into());
+}
+
+/// runs a command and fails with its stderr when it fails
+fn command(program: &str, args: &[&str]) -> Result<(), Box<dyn Error>> {
+    let out = Command::new(program).args(args).output()?;
+    if !out.status.success() {
+        return Err(format!(
+            "{program} {} exited {}: {}",
+            args.join(" "),
+            out.status,
+            String::from_utf8_lossy(&out.stderr).trim()
+        )
+        .into());
     }
-    println!("{}", json!({ "action": action, "peer": peer.to_string(), "t0": t0, "t1": t1 }));
     Ok(())
+}
+
+fn run() -> Result<(), Box<dyn Error>> {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    let action = args.first().ok_or("say an action: blackhole, clear, rst, reject, mtu, netem, offload …")?.as_str();
+    match action {
+        "netem" | "clear-netem" | "offload" => {
+            let dev = device(args.get(1).ok_or("and a device")?)?;
+            let rest: Vec<&str> = args[2..].iter().map(String::as_str).collect();
+            let (spec, at) = match rest.iter().position(|token| *token == "--at") {
+                Some(index) => (
+                    rest[..index].to_vec(),
+                    Some(rest.get(index + 1).ok_or("--at takes an instant in ns")?.parse::<u64>()?),
+                ),
+                None => (rest, None),
+            };
+            if let Some(at) = at {
+                until(at)?;
+            }
+            let t0 = monotonic_ns();
+            match action {
+                "netem" => {
+                    if spec.is_empty() || !spec.iter().all(|token| netem_token(token)) {
+                        return Err(format!("not a netem specification: {}", spec.join(" ")).into());
+                    }
+                    let mut tc = vec!["qdisc", "replace", "dev", dev, "root", "netem"];
+                    tc.extend(spec.iter().copied());
+                    command("tc", &tc)?;
+                }
+                "clear-netem" => command("tc", &["qdisc", "del", "dev", dev, "root"])?,
+                _ => {
+                    let state = match spec.as_slice() {
+                        ["on"] => "on",
+                        ["off"] => "off",
+                        _ => return Err("offload takes on or off".into()),
+                    };
+                    command("ethtool", &["-K", dev, "tso", state, "gso", state, "gro", state])?;
+                }
+            }
+            let t1 = monotonic_ns();
+            println!("{}", json!({ "action": action, "device": dev, "spec": spec, "t0": t0, "t1": t1 }));
+            Ok(())
+        }
+        _ => {
+            // parsed, never pasted: only an address reaches the rules
+            let peer: Ipv4Addr = args.get(1).ok_or("and the peer's address")?.parse()?;
+            let opts = options(&args[2..])?;
+            let script = format!("*filter\n{}COMMIT\n", rules(action, peer, &opts)?);
+            if let Some(at) = opts.at {
+                until(at)?;
+            }
+            let t0 = monotonic_ns();
+            let mut child =
+                Command::new("iptables-restore").arg("--noflush").stdin(Stdio::piped()).spawn()?;
+            child.stdin.take().ok_or("iptables-restore took no stdin")?.write_all(script.as_bytes())?;
+            let status = child.wait()?;
+            let t1 = monotonic_ns();
+            if !status.success() {
+                return Err(format!("iptables-restore exited {status}").into());
+            }
+            println!("{}", json!({ "action": action, "peer": peer.to_string(), "t0": t0, "t1": t1 }));
+            Ok(())
+        }
+    }
 }
 
 fn main() {
     if let Err(error) = run() {
         eprintln!("inject: {error}");
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn netem_specifications_are_words_and_numbers_with_units() {
+        for token in ["delay", "100ms", "10ms", "loss", "5%", "25.5%", "distribution", "normal", "1"] {
+            assert!(netem_token(token), "{token}");
+        }
+        for token in ["", ";", "100ms;rm", "$(x)", "-1", "a b"] {
+            assert!(!netem_token(token), "{token}");
+        }
+    }
+
+    #[test]
+    fn rules_cover_each_direction_code_and_length() {
+        let peer: Ipv4Addr = "10.0.0.2".parse().unwrap();
+        let with = |direction: &str| Options { direction: Some(direction.into()), ..Options::default() };
+        assert_eq!(rules("blackhole", peer, &with("in")).unwrap(), "-I INPUT -s 10.0.0.2/32 -j DROP\n");
+        assert_eq!(rules("clear", peer, &with("out")).unwrap(), "-D OUTPUT -d 10.0.0.2/32 -j DROP\n");
+        let code = Options { code: Some("net".into()), ..Options::default() };
+        assert!(rules("reject", peer, &code).unwrap().contains("icmp-net-unreachable"));
+        let above = Options { above: Some(1200), ..Options::default() };
+        assert_eq!(
+            rules("mtu", peer, &above).unwrap(),
+            "-I INPUT -s 10.0.0.2/32 -p tcp -m length --length 1201:65535 -j DROP\n"
+        );
+        assert!(rules("reject", peer, &Options::default()).is_err());
     }
 }
