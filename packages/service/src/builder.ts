@@ -1,17 +1,21 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
-import { convertible } from "@mark1russell7/quantity";
+import { convertible, valueIn } from "@mark1russell7/quantity";
 import type {
   Check,
   Controller,
   Coupling,
   Dependency,
+  Gate,
   Phase,
   ServiceDescription,
   Transport,
 } from "./description.ts";
 import { FORMAT } from "./description.ts";
+import type { Health, Runtime, StartOptions } from "./health.ts";
+import { healthRuntime } from "./health.ts";
 import type { Operation } from "./operation.ts";
 import { operationProblems } from "./operation.ts";
+import type { CheckFn } from "./poller.ts";
 import type { Timing } from "./timing.ts";
 
 /**
@@ -25,9 +29,9 @@ import type { Timing } from "./timing.ts";
  *       operations: { "GET /v1/forecast": { idempotent: true } },
  *     });
  *     svc.controller("forecast").requires("weather").route("GET /api/forecast", { idempotent: true });
- *     svc.check({ name: "weather.round-trip", dependency: "weather", … });
+ *     svc.check({ name: "weather.round-trip", dependency: "weather", … }, roundTrip);
  *     svc.describe(); // the whole graph as data, with nothing started
- *     await svc.start();
+ *     const health = await svc.start();
  *
  * The graph has one source, thus its parts cannot disagree. A dependency or a check can join
  * after the start. It starts tripped, and the export is partial. The runtime has no defaults of
@@ -49,7 +53,8 @@ export interface ServiceBuilder {
   consumer(name: string, knobs: Readonly<Record<string, Extent>>): ServiceBuilder;
   worker(name: string, knobs: Readonly<Record<string, Extent>>): ServiceBuilder;
   controller(name: string): ControllerBuilder;
-  check(check: Check): ServiceBuilder;
+  /** This method declares a check, and the function that measures its step. `start()` needs the function. */
+  check(check: Check, run?: CheckFn): ServiceBuilder;
   readiness(timing: Timing): ServiceBuilder;
   liveness(timing: Timing): ServiceBuilder;
   startup(budget: Quantity): ServiceBuilder;
@@ -58,11 +63,39 @@ export interface ServiceBuilder {
   cooperativeWindow(window: Extent): ServiceBuilder;
   /** This method gives the service as data, and it starts nothing. */
   describe(): ServiceDescription;
-  /** This method closes the composition. A part that joins after it starts tripped, and it makes the export partial. */
-  start(): Promise<void>;
+  /**
+   * This method closes the composition, starts the health runtime, and gives it after one warm-up
+   * sweep of each check. A part that joins after it starts tripped, and it makes the export
+   * partial. A second use gives the same runtime.
+   */
+  start(options?: StartOptions): Promise<Health>;
+  /**
+   * This value is the health runtime from the time that `start()` begins, or null before. Thus the
+   * probes can answer during the warm-up sweep: the startup probe fails until the sweep ends.
+   */
+  readonly health: Health | null;
 }
 
 const isTime = (amount: Extent): boolean => convertible(amount.unit, "s");
+const above = (amount: Extent): boolean =>
+  amount.value === "infinite" || (isTime(amount) && valueIn(amount as Quantity, "s") > 0);
+const whole = (count: number): boolean => Number.isInteger(count) && count >= 1;
+
+/** This function gives the problems of a timing: a zero interval or count fails decoding. */
+const timingProblems = (policy: Gate, timing: Timing): string[] => {
+  if (timing.type === "debounce") {
+    const problems: string[] = [];
+    if (!above(timing.interval)) problems.push(`the ${policy} debounce polls at an interval that is not above zero`);
+    if (!whole(timing.failAfter)) problems.push(`the ${policy} debounce fails after ${timing.failAfter} polls, not a whole number above zero`);
+    if (!whole(timing.recoverAfter)) problems.push(`the ${policy} debounce recovers after ${timing.recoverAfter} polls, not a whole number above zero`);
+    return problems;
+  }
+  const negative = (amount: Quantity | undefined): boolean =>
+    amount !== undefined && (!isTime(amount) || valueIn(amount, "s") < 0);
+  return negative(timing.failAfter) || negative(timing.recoverAfter)
+    ? [`the ${policy} window is not a time of zero or more`]
+    : [];
+};
 
 /** This function starts the composition of a service. */
 export const service = (name: string): ServiceBuilder => {
@@ -75,6 +108,7 @@ export const service = (name: string): ServiceBuilder => {
     routes: Record<string, Operation>;
   }> = [];
   const checks: Check[] = [];
+  const runs = new Map<string, CheckFn>();
   const couplings: Coupling[] = [];
   const phases: Phase[] = [];
   let readiness: Timing | undefined;
@@ -83,6 +117,8 @@ export const service = (name: string): ServiceBuilder => {
   let cooperative: Extent | undefined;
   let started = false;
   let partial = false;
+  let runtime: Promise<Health> | undefined;
+  let live: Runtime | undefined;
 
   /** This function stops a change to the shape of the service after the start. */
   const composing = (what: string): void => {
@@ -102,6 +138,9 @@ export const service = (name: string): ServiceBuilder => {
 
   const builder: ServiceBuilder = {
     name,
+    get health() {
+      return live ?? null;
+    },
     dependency(entry, spec) {
       once(dependencies, entry, "dependency");
       dependencies.push({
@@ -110,7 +149,10 @@ export const service = (name: string): ServiceBuilder => {
         knobs: { ...spec.knobs },
         operations: { ...spec.operations },
       });
-      if (started) partial = true;
+      if (started) {
+        partial = true;
+        live?.addDependency(entry);
+      }
       return builder;
     },
     server: transport("server"),
@@ -141,10 +183,16 @@ export const service = (name: string): ServiceBuilder => {
       };
       return handle;
     },
-    check(check) {
+    check(check, run) {
       once(checks, check.name, "check");
+      if (started && run === undefined)
+        throw new Error(`check ${check.name} joins after the start, thus it needs its function`);
       checks.push({ ...check });
-      if (started) partial = true;
+      if (run !== undefined) runs.set(check.name, run);
+      if (started) {
+        partial = true;
+        live?.addCheck({ ...check, poll: { ...check.poll } }, run!);
+      }
       return builder;
     },
     readiness(timing) {
@@ -192,6 +240,9 @@ export const service = (name: string): ServiceBuilder => {
         );
       const known = new Set(dependencies.map((entry) => entry.name));
       const problems: string[] = [];
+      const policies: Record<Gate, Timing> = { readiness: readiness!, liveness: liveness! };
+      for (const gate of ["readiness", "liveness"] as const)
+        problems.push(...timingProblems(gate, policies[gate]));
       for (const check of checks) {
         if (check.dependency !== null && !known.has(check.dependency)) {
           problems.push(
@@ -200,7 +251,22 @@ export const service = (name: string): ServiceBuilder => {
         }
         if (!isTime(check.poll.interval) || !isTime(check.poll.timeout)) {
           problems.push(`check ${check.name} polls in a unit that is not a time`);
+        } else if (!above(check.poll.interval) || !above(check.poll.timeout)) {
+          problems.push(`check ${check.name} polls with an interval or a timeout that is not above zero`);
         }
+        if (!(check.poll.jitter >= 0 && check.poll.jitter < 1))
+          problems.push(`check ${check.name} has a jitter of ${check.poll.jitter}, not a fraction below 1`);
+        // a debounce counts the polls of each check that it gates, thus they poll at its interval
+        const timing = check.gates === null ? null : policies[check.gates];
+        if (
+          timing?.type === "debounce" &&
+          isTime(check.poll.interval) &&
+          above(timing.interval) &&
+          valueIn(check.poll.interval, "s") !== valueIn(timing.interval, "s")
+        )
+          problems.push(
+            `check ${check.name} polls every ${valueIn(check.poll.interval, "s")} s, but the ${check.gates} debounce counts polls every ${valueIn(timing.interval, "s")} s`,
+          );
       }
       for (const controller of controllers) {
         for (const needed of controller.requires) {
@@ -243,11 +309,19 @@ export const service = (name: string): ServiceBuilder => {
         },
       };
     },
-    start() {
-      // the start needs the whole graph: describe() is the check
-      builder.describe();
+    start(options) {
+      // the start needs the whole graph: describe() is the check, and the runtime reads it
+      if (runtime !== undefined) return runtime;
+      let made: Runtime;
+      try {
+        made = healthRuntime(builder.describe(), runs, options);
+      } catch (error) {
+        return Promise.reject(error);
+      }
       started = true;
-      return Promise.resolve();
+      live = made;
+      runtime = made.warmUp().then(() => made);
+      return runtime;
     },
   };
   return builder;

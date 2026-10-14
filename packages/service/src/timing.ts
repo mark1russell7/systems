@@ -38,11 +38,16 @@ export interface Span {
 }
 
 /**
- * This type tells how a failed step answers a poll. An `"error"` step refuses at once. A
- * `"timeout"` step (a black hole) answers only when the timeout of the poll ends. Thus it is
- * slower by that timeout, at the two ends of the span.
+ * This type tells how a failed step answers a poll.
+ * - An `"error"` step refuses at once.
+ * - A `"timeout"` step (a black hole) answers only when the timeout of the poll ends. Each poll
+ *   makes a new call, and each call ends at its timeout. Thus the step is slower by that timeout,
+ *   at the two ends of the span.
+ * - A `"hang"` step makes a use that does not end. The first poll fails at its timeout. While the
+ *   use stays pending, the runtime does not start the check again, and each later poll fails at
+ *   once. Thus a debounce of two polls or more fails as fast as on an error.
  */
-export type FailsBy = "error" | "timeout";
+export type FailsBy = "error" | "timeout" | "hang";
 
 const seconds = (amount: Quantity): Rational =>
   convertExact(r.fromNumber(amount.value), amount.unit, "s");
@@ -69,11 +74,14 @@ const debounced = (polls: Rational, interval: Rational, jitter: Rational): [Rati
  * debounce of N polls takes approximately N intervals, with the jitter. A window takes its
  * duration, plus one interval at most for the poll that starts its sequence. A step that fails by
  * a timeout adds the timeout of the poll. At 3 polls of 5 s ± 20 %, the latch fails in 8–18 s on
- * an error, and in 12–22 s on a 4 s timeout.
+ * an error, and in 12–22 s on a 4 s timeout. A step that hangs adds the timeout only where its
+ * first failure ends the sequence: a window, or a debounce of one poll.
  */
 export const failSpan = (timing: Timing, poll: Poll, by: FailsBy = "error"): Span => {
   const jitter = fraction(poll.jitter);
-  const late = by === "timeout" ? seconds(poll.timeout) : r.ZERO;
+  const first = timing.type === "window" || timing.failAfter === 1;
+  const late =
+    by === "timeout" || (by === "hang" && first) ? seconds(poll.timeout) : r.ZERO;
   if (timing.type === "debounce") {
     const [min, max] = debounced(
       count(timing.failAfter, "failAfter"),

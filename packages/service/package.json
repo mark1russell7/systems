@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/service",
-  "version": "0.1.0",
-  "description": "A service declared as data before it starts: its dependencies, checks, policies and shutdown, with the timer-ordering law checked against the declaration.",
+  "version": "0.2.0",
+  "description": "A service declared as data before it starts, and its health runtime: checks on jittered loops, a latch for each policy, and probes that answer from the cache. The timer-ordering law checks the declaration.",
   "keywords": [
     "service",
     "readiness",
@@ -30,6 +30,7 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./testing": "./src/testing.ts",
     "./package.json": "./package.json"
   },
   "files": [
@@ -69,6 +70,10 @@
       ".": {
         "types": "./build/index.d.ts",
         "default": "./build/index.js"
+      },
+      "./testing": {
+        "types": "./build/testing.d.ts",
+        "default": "./build/testing.js"
       },
       "./package.json": "./package.json"
     }

@@ -139,6 +139,25 @@ try {
       const latch = { type: "debounce", interval: s(5), failAfter: 3, recoverAfter: 1 };
       const span = module.failSpan(latch, { interval: s(5), jitter: 0.2, timeout: s(4) });
       check(span.min.value === 8 && span.max.value === 18, "service gives a latch 8–18 s to fail");
+      // the health runtime, on the fake clock of the testing subpath
+      const testing = await load("@mark1russell7/service/testing");
+      const clock = testing.fakeClock();
+      const step = testing.scriptedCheck("ok");
+      const poll = { interval: s(5), jitter: 0.2, timeout: s(4) };
+      const live = module
+        .service("live")
+        .check({ name: "x", dependency: null, step: "round-trip", ownConnection: true, gates: "readiness", poll }, step.run)
+        .readiness(latch)
+        .liveness({ type: "window", failAfter: s(45) })
+        .startup(s(60))
+        .phase("drain", s(15))
+        .cooperativeWindow(s(5));
+      const health = await live.start({ clock, random: testing.seeded(1) });
+      check(health.probe("readiness").status === 200, "service starts its health runtime, and it is ready");
+      step.behavior = "error";
+      await clock.advance(18_000);
+      check(health.probe("readiness").status === 503, "service fails readiness inside 18 s of a failing check");
+      health.stop();
     }
     if (name === "@mark1russell7/prober")
       check(module.RECORD_KINDS.length === 14, "prober has 14 record kinds");
