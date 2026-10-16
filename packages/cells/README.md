@@ -137,6 +137,26 @@ The CAL catalog (`src/calibration.ts`) measures the own time of each proxy: HAPr
 - Each request gives a time toward the target. It starts at the arrival on the socket of the proxy toward the client. It stops at the write on the socket toward the target. Each reply gives a time toward the client, the other way. The writes are the `tx` records of the prober.
 - `PROXY_TIMES` holds the 99th percentile of each direction, by nearest rank. A band through a proxy adds it for each crossing.
 
+## The MongoDB catalogs
+
+The MongoDB catalogs (`src/mongo/`) put the Node driver `mongodb` 7.7.0 on Node 24.21.0 against replica sets of mongod 9.0.4 (`mongo:9.0.4`, pinned by digest). T01 and T03 use a set of one member, because the monitor of the driver needs a set. T11 uses a set of three members. Each cell has the identifier of the cell of the plan that it stands for. The harness does not start these cells yet: it needs a group of members, the client and the faults of a group first.
+
+The machine documents come from the source at the pinned versions, and each fact names its file and line:
+
+- **The driver** (`mongodb-node.ts`). The monitor streams `hello` and writes a silent server off after `connectTimeoutMS + heartbeatFrequencyMS`: 40 s at the defaults. A timeout of the monitor clears the pool and interrupts each operation in flight. An end of the stream by the kernel does not interrupt it. A retryable operation retries one time, after a new selection of `serverSelectionTimeoutMS`. Each socket gets `setKeepAlive(true, 120000)`, thus keepalive at 120 s and 10 probes 1 s apart.
+- **The replication of mongod** (`mongod-replication.ts`). A member sends a heartbeat each 2 s, and a window of 10 s without an answer marks the target DOWN. A secondary starts an election 10 s after its last contact with the primary, plus an offset of less than 1.5 s. A primary steps down when it cannot see a majority for 10 s. A new primary waits in its catch-up for an answer or a failure from each other member.
+- **The connections of mongod** (`mongod-session.ts`). `mongod` lowers the keepalive idle time of each socket to 300 s and its interval to 1 s. Thus its window is 309 s at the Linux defaults.
+
+The predictions compose these documents:
+
+- **T01 and T03** (`single.ts`). The driver's document goes over Linux TCP on each socket: the monitor's socket and the pool's socket. The first detection on the monitor's socket is the write-off, or the kernel's keepalive when its delay is shorter. The operation in flight then fails, and its retry selects again. With one member, the selection times out while the fault holds. Each band counts from an event of one socket, the fault, or the start of the client.
+- **T03, a forgotten flow** (`t03.ts`). O03 decides each flow of the driver against the router: the pool connection by its keepalive, the monitor by its heartbeat or its keepalive. The border cells divide each timer of the chain by 20. The defaults stage keeps each preset at its own idle timeout.
+- **T11, the timeline** (`model.ts`, `t11.ts`). The stages are the first member that marks the primary DOWN, the start of the election and the win. Then come the end of the catch-up and the first write of the new primary. Then the client finds the new primary, and its first write lands. When the old primary is silent to the client, that write lands at the driver's write-off. The catch-up has two modes: the window to the old primary that is open at the win, or a new window of 10 s.
+
+The defaults stage starts in real time. A cell whose trigger the harness cannot do, or whose breakpoint names another system, waits with its reason (`*_WAITING`). A cell of the plan that is the same as another cell is an alias (`*_ALIASES`).
+
+The client of these cells is `clients/mongo/client-mongo.mjs`, with its npm lockfile. It writes the lines of the TCP client of the harness. It also writes each socket of the driver by its role, and the events of the driver's monitor and pool. Each try of an operation gets a line, with its server.
+
 ## The runner
 
 `CELLS=1 pnpm --filter @systems/cells test` starts the catalogs on `@mark1russell7/harness`. It needs Docker and privileged containers. The names of the cells start with their catalog: `T01`, `T03`, `T02`, `TOX`, `T12` or `CAL`.
