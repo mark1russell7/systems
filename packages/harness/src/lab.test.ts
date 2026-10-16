@@ -7,7 +7,8 @@ import { measure } from "./observe.ts";
 /**
  * A lab on Docker, opt-in: `HARNESS_LAB=1`. It needs Docker and privileged containers. It starts a
  * client from an image that the caller gives, and an agent in the namespaces of the target. It
- * also puts a reset and netem at a router of a topology, and it fails a group of Valkey over.
+ * also puts a reset and netem at a router of a topology, and it fails a group of Valkey over. Each
+ * HTTP client sends two requests to a Node server on one connection.
  */
 const RUN = process.env["HARNESS_LAB"] === "1";
 const REDIS: Target = {
@@ -88,6 +89,46 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
       await lab.close();
     }
   }, 300_000);
+
+  it("runs each HTTP client against a Node server on a stock image, and reads which connection each request went on", async () => {
+    // a server from a script that goes into the stock image, and writes its own lines
+    const script = [
+      'import http from "node:http";',
+      "const emit = (ev, f = {}) => process.stdout.write(JSON.stringify({ ev, t: Number(process.hrtime.bigint()), ...f }) + '\\n');",
+      'const server = http.createServer((req, res) => { req.resume(); res.on("finish", () => emit("finished")); res.end("ok\\n"); });',
+      'server.listen(8080, "0.0.0.0", () => emit("listening", { keepAliveTimeout: server.keepAliveTimeout }));',
+    ].join("\n");
+    const node: Target = {
+      image: "node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1",
+      port: 8080,
+      ready: "listening",
+      files: { "/srv/server.mjs": script },
+      command: ["node", "/srv/server.mjs"],
+      lines: true,
+    };
+    for (const client of ["go-http", "http-agent", "undici"] as const) {
+      const lab = await openLab(node, client);
+      try {
+        const probe = await lab.probe([lab.targetIp, String(lab.targetPort), "--mode", "gap", "--method", "GET", "--gap-ms", "300", "--linger-ms", "100", "--max-s", "20"]);
+        await probe.until(["done", "fail", "deadline"], 60_000);
+        const local = probe.events.find((event) => event.ev === "connected")?.["local"];
+        // the second request went on the connection of the first, 0.3 s later, and got its reply
+        const second = probe.events.find((event) => event.ev === "request" && event["i"] === 2);
+        expect(second, client).toMatchObject({ reused: true, local });
+        expect(probe.events.some((event) => event.ev === "replied" && event["i"] === 2), client).toBe(true);
+        await probe.stop();
+        expect(lab.kernel.some((record) => record.netns === lab.netns.client && record.src === local), client).toBe(true);
+        // the server wrote its own lines, and the manifest has its first one and its script
+        expect(lab.server.filter((line) => line.ev === "finished").length, client).toBe(2);
+        const manifest = await lab.manifest({});
+        expect(manifest.target.first, client).toMatchObject({ ev: "listening", keepAliveTimeout: 5000 });
+        expect(Object.keys(manifest.target.files ?? {}), client).toEqual(["/srv/server.mjs"]);
+        expect(manifest.client.kind, client).toBe(client);
+      } finally {
+        await lab.close();
+      }
+    }
+  }, 900_000);
 
   it("puts a fault at a router in its FORWARD chain, and netem on its device toward one side", async () => {
     const lab = await openLab(REDIS, "tcp", {

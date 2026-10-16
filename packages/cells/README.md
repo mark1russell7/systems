@@ -90,6 +90,45 @@ T12 is a replicated group under an external failover authority: clients → thre
 
 The cells of T12 go one at a time: a group has 16 containers, and its timeline reads the scheduler of six processes.
 
+## The HTTP catalog
+
+The HTTP catalog (`src/http/`) has the cells of T01 and T03 with the Node HTTP server. They are the defaults stage, and the border cells of the keep-alive race. Each catalog entry has its prediction, and the name of the plan cell that it stands for. `cells.ts` makes each entry a cell of the harness.
+
+- **The systems.** The server is the `http.Server` of Node 24.21.0, as a script on the stock Node image (`targets/node-http-server.mjs`). The clients are three, each from an image of the harness:
+  - the `http.Transport` of Go 1.27.2 (`go-http`)
+  - the `http.Agent` of Node 24.21.0 (`http-agent`)
+  - an HTTP/1.1 `Client` of undici 8.12.2 (`undici`)
+- **The lines.** Each client writes the JSON lines of the TCP client of the harness. For each request, it also writes its connection (the local port), a flag if the client reused it, a new try, and the outcome. The server writes a line at each accept, request, idle timeout and close.
+- **The documents.** Each system has a machine document from its source at its version: `node-server.ts`, `go-transport.ts`, `node-agent.ts` and `undici.ts`. Each fact has its file and its line.
+- **The lateness of a user timer.** A Node or Go timer sleeps in `epoll_wait`. The kernel lets that sleep end late by a slack: the remaining time divided by 1000, at most 100 ms (`timers.ts`). Thus the 6 s keep-alive timer of the Node server can fire 7 ms late.
+- **The coarse clock.** At HZ 1000, the coarse clock of the kernel has a step of 1 ms. Then libuv reads its loop clock from the coarse clock. Thus each bound of a Node timer gets one more jiffy. The knob `hz` of each Node document comes from `CELLS_HZ`.
+
+### The keep-alive race
+
+Two requests go on one connection, with a gap g between the first reply and the second request (`race.ts`). The server closes an idle connection at S after its response: `keepAliveTimeout + keepAliveTimeoutBuffer`, 6 s at the defaults. The pool of the client drops it at C after the reply. The one-way delays cancel, except for the round trip:
+
+| Ordering | Condition | What the second request meets |
+| --- | --- | --- |
+| `kept` | g + RTT < S, and g < C | the same connection, and a reply |
+| `dropped` | C < g, and C < S | a new connection: the pool closed the old one |
+| `fin-first` | S < g, and S < C | a new connection: the FIN came before the send |
+| `crossed` | S − RTT < g < S, and g < C | the FIN of the server in flight, and a reset from its kernel |
+
+In a crossing, each client does a different thing. Go sends a GET again on a new connection, and it gives a POST the end of file. The agent gives `socket hang up` (ECONNRESET), and undici gives `other side closed` (`UND_ERR_SOCKET`).
+
+- **The width of the window.** The crossing window is one round trip wide. On the Docker bridge, the round trip is narrower than the bounds of S. Thus a cell with the gap at S is measurement-only. A cell with 100 ms of latency has a window that holds the bounds of S.
+- **Only Go races.** The agent and undici take C from the hint of the server, less a buffer. The hint is S in whole seconds or less, thus their C stays below S. Go ignores the hint, and its C is 90 s.
+- **The border of O01.** The plan gives O01 a margin of 0.26 s at S = 6 s. The documents give a margin of a few milliseconds: the lateness of C, the early bound of S and the round trip. Thus the cells on each side of the border of the plan predict no race.
+
+### The faults
+
+Each prediction of a fault composes the document of the client, or of the server, over Linux TCP (`stackedDetection`). Thus the keepalive of Go or the `keepAliveMsecs` of the agent is the keepalive of the kernel.
+
+- **A timer of the client can come first.** At its defaults, Go closes an idle connection at C (90 s), before its keepalive window ends (165 s). Thus a black hole behind an idle Go connection gives no error.
+- **A new try meets the fault.** Go sends a GET again after a failure on a reused connection. Its SYN then meets the fault: a reset gives ECONNREFUSED, an ICMP error gives EHOSTUNREACH, and a black hole gives the dial timeout.
+- **The server stays out of the way.** The fault cells set `keepAliveTimeout` to 60 s, thus the FIN of the server does not compete with the detection of the cell.
+- **A trigger that the harness cannot do waits.** Its reason is in the catalog (`HTTP_WAITING`). Apache HttpClient 5 and the AWS SDK are out of the scope of this step (`HTTP_OUT_OF_SCOPE`).
+
 ## The calibration of the proxies
 
 The CAL catalog (`src/calibration.ts`) measures the own time of each proxy: HAProxy as T02 has it, and Toxiproxy with no toxic. Stage 0 measures δ_abs in the same way, on a path with no timer.

@@ -1,0 +1,8 @@
+{
+  "name": "loom-harness-http-clients",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "undici": "8.12.2"
+  }
+}

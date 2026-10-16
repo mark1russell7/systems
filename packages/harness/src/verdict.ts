@@ -3,6 +3,15 @@ import { quantity, valueIn } from "@mark1russell7/quantity";
 import type { Prediction, Stage } from "./cell.ts";
 import type { Measured, Reordering } from "./observe.ts";
 
+/** This function gives the words of the outcome of a second request: its connection, a retry, and its end. */
+export const requestWords = (outcome: {
+  readonly connection: "reused" | "new";
+  readonly retried: boolean;
+  readonly error: string | null;
+  readonly pending?: boolean | undefined;
+}): string =>
+  `${outcome.connection}${outcome.retried ? ", a retry" : ""}, ${outcome.pending === true ? "pending" : (outcome.error ?? "a reply")}`;
+
 /**
  * This amount is the noise of the pipeline itself, δ_abs, as the calibration measured it. It is
  * the 99.9th percentile of the whole latency of a reset, at the concurrency cap or less. Its
@@ -55,6 +64,12 @@ export interface Verdict {
   readonly proxy?: { readonly hop: string; readonly up: Spread | null; readonly down: Spread | null };
   /** This record is what the group of a group cell did over the counted runs: its stages, and its writes. */
   readonly group?: GroupVerdict;
+  /**
+   * These are the outcomes of the second request of an HTTP client over the counted runs, each
+   * with its count: for example "reused, a retry, a reply". An outcome other than the predicted
+   * one is a finding of its run.
+   */
+  readonly requests?: Readonly<Record<string, number>>;
   readonly why: string;
 }
 
@@ -193,10 +208,31 @@ const middle = (sorted: readonly number[]): number => {
  * which does not exist at this time.
  */
 export const verdictOf = (prediction: Prediction, runs: readonly Measured[]): Verdict => {
-  const verdict = verdictOfBand(prediction, runs);
+  const band = verdictOfBand(prediction, runs);
   const counted = runs.filter((run) => run.void === null);
+  const verdict = counted.some((run) => run.request !== undefined) ? withRequests(band, counted) : band;
   if (prediction.group === undefined && !counted.some((run) => run.group !== undefined)) return verdict;
   return { ...verdict, group: groupVerdictOf(prediction, counted) };
+};
+
+/**
+ * This function adds the outcomes of the second request of an HTTP client to a verdict. A cell
+ * whose outcome is a distribution gets them in its reason too.
+ */
+const withRequests = (verdict: Verdict, counted: readonly Measured[]): Verdict => {
+  const requests: Record<string, number> = {};
+  for (const run of counted) {
+    const words = run.request === null || run.request === undefined ? "no second request" : requestWords(run.request);
+    requests[words] = (requests[words] ?? 0) + 1;
+  }
+  const listed = Object.entries(requests)
+    .map(([words, n]) => `${n} ${words}`)
+    .join("; ");
+  return {
+    ...verdict,
+    requests,
+    why: verdict.decision === "measured" ? `${verdict.why} Second requests: ${listed}.` : verdict.why,
+  };
 };
 
 /** This function gives the median of some counts, or null for none. */

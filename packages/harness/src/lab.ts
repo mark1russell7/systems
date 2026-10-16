@@ -83,6 +83,18 @@ const NODE: Image = {
   dockerfile: "harness/image/node/Dockerfile",
   from: ["harness/image/node"],
 };
+/** This image holds the Go HTTP client: the http.Transport of Go 1.27.2. */
+const GO_HTTP: Image = {
+  name: "loom-harness-go-http",
+  dockerfile: "harness/image/go-http/Dockerfile",
+  from: ["harness/image/go-http"],
+};
+/** This image holds the Node HTTP clients: the http.Agent of Node 24.21.0, and undici 8.12.2. */
+const NODE_HTTP: Image = {
+  name: "loom-harness-node-http",
+  dockerfile: "harness/image/node-http/Dockerfile",
+  from: ["harness/image/node-http"],
+};
 /** This image is the router of a middlebox chain: NAT and conntrack, with a form for a forgotten flow. */
 const ROUTER: Image = {
   name: "loom-harness-router",
@@ -159,6 +171,10 @@ export const harnessImage = (): Promise<string> => build(HARNESS);
 export const nodeClientImage = (): Promise<string> => build(NODE);
 /** This function gives the image of the router. */
 export const routerImage = (): Promise<string> => build(ROUTER);
+/** This function gives the image of the Go HTTP client. */
+export const goHttpImage = (): Promise<string> => build(GO_HTTP);
+/** This function gives the image of the Node HTTP clients. */
+export const nodeHttpImage = (): Promise<string> => build(NODE_HTTP);
 
 /**
  * This time is the interval of the listing of a router, when its hop does not set one. A listing
@@ -241,6 +257,10 @@ export interface Manifest {
     readonly settings: Readonly<Record<string, string>>;
     /** These are the sysctls of its namespace, as read back after the harness set them. */
     readonly sysctls: Readonly<Record<string, string>>;
+    /** These are the files that went into the target, by their path, each with the sha256 of its content. */
+    readonly files?: Readonly<Record<string, string>>;
+    /** This line is the first line of a target that writes them: a server that tells its settings as it reads them. */
+    readonly first?: ProbeEvent;
   };
   readonly harness: { readonly image: string; readonly id: string; readonly packages: string[] };
   /** This record is the client of each run: the TCP client of the harness, a driver, or an image that the cell gives. */
@@ -362,6 +382,8 @@ export interface Lab {
   readonly topology: RunTopology | null;
   /** These are the lines of the routers of a topology, in sequence, each with the name of its hop. A direct pair has none. */
   readonly middlebox: readonly MiddleboxEvent[];
+  /** These are the lines of a target that writes them (`Target.lines`), in sequence. Another target has none. */
+  readonly server: readonly ProbeEvent[];
   /** This method adds a toxic to the Toxiproxy hop of a topology, or removes it with null. The stamps of the injector bracket it. */
   toxic(toxic: Toxic | null): Promise<{ t0: number; t1: number }>;
   /** This method makes the target close the connection of each client, with the command of the target. */
@@ -531,6 +553,13 @@ export const clientOf = async (
       command: ["node", "/opt/harness/node/client-ioredis.mjs"],
       clientKind: kind,
     };
+  if (kind === "go-http") return { clientImage: await goHttpImage(), command: ["/opt/harness/client-go"], clientKind: kind };
+  if (kind === "http-agent" || kind === "undici")
+    return {
+      clientImage: await nodeHttpImage(),
+      command: ["node", `/opt/harness/node-http/client-${kind === "undici" ? "undici" : "agent"}.mjs`],
+      clientKind: kind,
+    };
   return { clientImage: image, command: ["/opt/harness/client"], clientKind: kind };
 };
 
@@ -590,6 +619,8 @@ export const openLab = async (
   const runtime = await getContainerRuntimeClient();
   const opened: StartedTestContainer[] = [];
   const networks: StartedNetwork[] = [];
+  // the lines of a target that writes them, on the clock of the VM
+  const serverLines = lines<ProbeEvent>();
   const close = async () => {
     for (const container of opened.reverse()) await container.stop(STOP).catch(() => undefined);
     for (const network of networks.reverse()) await network.stop().catch(() => undefined);
@@ -617,9 +648,15 @@ export const openLab = async (
     // network j joins element j and element j + 1: 0 is the client, i + 1 is hop i, the last is the target
     for (let at = 0; at <= hops.length; at += 1) networks.push(await new Network().start());
     const last = networks[hops.length]!;
-    const stock = new GenericContainer(target.image)
+    let stock = new GenericContainer(target.image)
       .withNetwork(last)
       .withWaitStrategy(Wait.forLogMessage(target.ready));
+    // the files of the target go in before it starts, for example the script of a server on a stock image
+    if (target.files !== undefined)
+      stock = stock.withCopyContentToContainer(
+        Object.entries(target.files).map(([path, content]) => ({ content, target: path })),
+      );
+    if (target.lines === true) stock = stock.withLogConsumer(serverLines.consume);
     // a holder command keeps the container up when a fin fault kills the server process
     const server = await (
       target.command === undefined ? stock : stock.withCommand([...target.command])
@@ -847,6 +884,7 @@ export const openLab = async (
       netns,
       topology: placed,
       middlebox,
+      server: serverLines.seen,
       kernel: records.seen,
       async sysctl(values) {
         const settings = Object.entries(values).map(([key, value]) => `${key}=${value}`);
@@ -1052,6 +1090,14 @@ export const openLab = async (
             id: (await inspect(server)).Image,
             settings,
             sysctls: targetSysctls,
+            ...(target.files === undefined
+              ? {}
+              : {
+                  files: Object.fromEntries(
+                    Object.entries(target.files).map(([path, content]) => [path, createHash("sha256").update(content).digest("hex")]),
+                  ),
+                }),
+            ...(serverLines.seen[0] === undefined ? {} : { first: serverLines.seen[0] }),
           },
           harness: {
             image,

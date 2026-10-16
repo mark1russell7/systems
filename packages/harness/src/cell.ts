@@ -44,6 +44,10 @@ export type { KernelRecord };
  * - `freeze-process` stops the server process of the part with SIGSTOP, and SIGCONT thaws it. Its
  *   kernel stays up. `fin` stops the process with SIGKILL.
  * - `planned-failover` asks a Sentinel for a failover: `SENTINEL FAILOVER <group>`.
+ *
+ * This fault is of an HTTP server:
+ * - `app-stall` injects nothing. The server process holds the reply to the request, because the
+ *   request asks for that (`HttpProbe.hold`), while its kernel stays up.
  */
 export type Fault =
   | "blackhole"
@@ -61,6 +65,7 @@ export type Fault =
   | "server-close"
   | "partition"
   | "planned-failover"
+  | "app-stall"
   | "none";
 
 /**
@@ -316,6 +321,22 @@ export interface MiddleboxExpectation {
 }
 
 /**
+ * A request prediction tells what the second request of an HTTP client meets, beside the band of
+ * its cell. The client writes it in its lines: the connection of each try, and the outcome.
+ * - `connection` is the connection of its first try: the one that the first request used
+ *   (`reused`), or a new one.
+ * - `retried` tells that the client sent it again on a new connection by itself.
+ * - `error` is the error that reaches the caller, or null for a reply.
+ * - `pending` tells that nothing ends the request in the window of the cell.
+ */
+export interface RequestPrediction {
+  readonly connection: "reused" | "new";
+  readonly retried: boolean;
+  readonly error: string | null;
+  readonly pending?: true;
+}
+
+/**
  * A prediction is what a cell predicts. Either a detection occurs in an interval [T_lo, T_hi]
  * after the reference event, or nothing detects the fault in a window. Nothing detects a stall
  * that is shorter than the give-up, and the connection recovers from it. The prediction then also
@@ -332,13 +353,19 @@ export interface MiddleboxExpectation {
  *
  * For a group cell, the band is the first write that a primary accepts after the fault, and its
  * errno is `OK`. `group` tells which primary, and the stages of the group on the way.
+ *
+ * For an HTTP cell, `request` tells what the second request meets. The errno `CLOSED` is a close
+ * of the observer itself: its pool closes an idle connection, a FIN that it sends.
  */
 export type Prediction =
   | {
       readonly detects: true;
       /** This name is the timer of the machine that fires first, or the event that detects the fault, with its errno. */
       readonly timer: string;
-      /** This name is the errno of the detection, or EOF for an end of file without an error. It is OK for a write that a primary accepts. */
+      /**
+       * This name is the errno of the detection, or EOF for an end of file without an error. It is
+       * OK for a write that a primary accepts, and CLOSED for a close of the observer itself.
+       */
       readonly errno: string;
       readonly from: Reference;
       /** This time is the closed form, less the most that the timer can fire early. */
@@ -348,6 +375,7 @@ export type Prediction =
       readonly rtt?: RttRange;
       readonly through?: readonly ProxyTime[];
       readonly group?: GroupPrediction;
+      readonly request?: RequestPrediction;
     }
   | {
       readonly detects: false;
@@ -358,6 +386,7 @@ export type Prediction =
       readonly rtt?: RttRange;
       readonly through?: readonly ProxyTime[];
       readonly group?: GroupPrediction;
+      readonly request?: RequestPrediction;
     }
   | {
       readonly detects: null;
@@ -365,6 +394,7 @@ export type Prediction =
       readonly why: string;
       readonly from?: Reference;
       readonly group?: GroupPrediction;
+      readonly request?: RequestPrediction;
     };
 
 /** A target is the server that a cell connects to: a stock image. */
@@ -389,10 +419,42 @@ export interface Target {
   readonly kill?: readonly string[];
   /** This command makes the server close the connection of each client, as argv, for a `server-close` fault. */
   readonly close?: readonly string[];
+  /**
+   * These files go into the target before it starts, by their path, for example the script of a
+   * server on a stock Node image. The image stays stock.
+   */
+  readonly files?: Readonly<Record<string, string>>;
+  /**
+   * This flag tells that the target writes JSON lines with an `ev` and a `t` on its standard
+   * output, on CLOCK_MONOTONIC. Each run then keeps its lines (`Run.server`).
+   */
+  readonly lines?: true;
 }
 
-/** A client is what the runs of a cell use: the TCP client of the harness, or a driver on its socket. */
-export type Client = "tcp" | "ioredis";
+/**
+ * A client is what the runs of a cell use: the TCP client of the harness, or a driver on its
+ * socket. The HTTP clients are the `http.Transport` of Go (`go-http`), the `http.Agent` of Node
+ * (`http-agent`) and an HTTP/1.1 `Client` of undici (`undici`).
+ */
+export type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici";
+
+/**
+ * An HTTP probe is the workload of an HTTP client. The first request is a GET of the root. The
+ * second request follows the mode of the probe: after the signal (`inflight`), or after a gap
+ * (`gap`).
+ */
+export interface HttpProbe {
+  /** This method is the method of the second request. */
+  readonly method: "GET" | "POST";
+  /** This time is the gap of a `gap` workload: from the end of the first reply to the second request. */
+  readonly gap?: Quantity;
+  /** This time is how long the server holds the reply to the second request (`/hold?ms=`). */
+  readonly hold?: Quantity;
+  /** This length is the length of the body of the reply to the second request, in bytes (`/big?bytes=`). */
+  readonly bytes?: number;
+  /** These are settings of the client over its defaults, by the names of its flags: for example `idle-conn-timeout-ms`. */
+  readonly options?: Readonly<Record<string, number>>;
+}
 
 /**
  * A client image is a process that a lab starts as the client of each run, in the network
@@ -430,8 +492,9 @@ export interface Cell {
     /**
      * This mode tells if the client is idle after its first reply, or sends a request into the
      * fault. In a stream, it sends `count` requests into it, each `interval` after the reply before.
+     * An HTTP client in a `gap` sends its second request a gap after its first reply, by itself.
      */
-    readonly mode: "idle" | "inflight" | "stream";
+    readonly mode: "idle" | "inflight" | "stream" | "gap";
     /** This count is the number of requests of a stream. */
     readonly count?: number;
     /** This time is the pause after each reply of a stream, before the next request. */
@@ -452,6 +515,8 @@ export interface Cell {
      * and `userTimeout`.
      */
     readonly driver?: { readonly name: "ioredis"; readonly keepAlive: Quantity };
+    /** This workload is the workload of an HTTP client (`Cell.client` is an HTTP client). The client then ignores `keepalive` and `userTimeout`. */
+    readonly http?: HttpProbe;
   };
   readonly fault: Fault;
   /** This time is the length of a stall, from the send of the request. */
@@ -489,8 +554,8 @@ export interface Cell {
   readonly idleBefore?: Quantity;
   /** This toxic is the toxic of a `toxic` fault, which the Toxiproxy hop gets. */
   readonly toxic?: Toxic;
-  /** This image replaces the TCP client of the harness for each run. */
-  readonly client?: ClientImage;
+  /** This image, or this client of the harness, replaces the TCP client of the harness for each run. An HTTP client is one. */
+  readonly client?: ClientImage | Client;
   /**
    * This name is the proxy hop whose own time a calibration cell measures. The time of a request
    * (`up`) starts at its arrival on the socket of the proxy toward the client. It stops at the
@@ -588,6 +653,8 @@ export interface Run {
   readonly middlebox?: readonly MiddleboxEvent[];
   /** This record is the group of a group cell: its parts, and what it did in the run. */
   readonly group?: RunGroup;
+  /** These are the lines of a target that writes them (`Target.lines`), from the start to the end of the run. */
+  readonly server?: readonly ProbeEvent[];
 }
 
 /** A Sentinel event is one line of the observer of a group: an event that a Sentinel published, on the clock of the VM. */

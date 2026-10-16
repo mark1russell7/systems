@@ -50,6 +50,20 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
     (prediction.detects ? valueIn(prediction.high, "s") : valueIn(prediction.window, "s")) +
     (cell.idleBefore === undefined ? 0 : valueIn(cell.idleBefore, "s"));
   const args = [lab.targetIp, String(lab.targetPort), "--mode", probe.mode];
+  if (probe.http !== undefined) {
+    // an HTTP client sets its socket options from its own settings, and sends its own requests
+    const { http } = probe;
+    const gap = http.gap === undefined ? 0 : valueIn(http.gap, "s");
+    args.push("--method", http.method);
+    if (http.gap !== undefined) args.push("--gap-ms", String(valueIn(http.gap, "ms")));
+    if (http.hold !== undefined) args.push("--hold-ms", String(valueIn(http.hold, "ms")));
+    if (http.bytes !== undefined) args.push("--bytes", String(http.bytes));
+    for (const [name, value] of Object.entries(http.options ?? {})) args.push(`--${name}`, String(value));
+    // the client waits after its second request, thus its own close comes after the window
+    args.push("--linger-ms", String(LINGER_MS));
+    args.push("--max-s", String(Math.ceil(longest * 2 + gap + 10)));
+    return args;
+  }
   if (probe.request !== undefined) args.push("--request", probe.request);
   if (probe.count !== undefined) args.push("--count", String(probe.count));
   if (probe.interval !== undefined) args.push("--interval-ms", String(valueIn(probe.interval, "ms")));
@@ -105,6 +119,15 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 export const QUIET_MS = 250;
 
 /**
+ * This time is how long an HTTP client waits after its second request, before it exits. The exit
+ * closes its sockets, thus that close comes after the window of the cell.
+ */
+export const LINGER_MS = 1000;
+
+/** These are the lines that end the workload of an HTTP client: the end of its second request, its deadline, or its failure. */
+const HTTP_DONE = ["done", "deadline", "fail"];
+
+/**
  * This function waits for the request that an in-flight client sends on the signal: its second
  * send, after the PING that made it ready. Its stamp is when the request first met the fault.
  */
@@ -154,6 +177,7 @@ const once = async (
   await lab.forget();
   const from = lab.kernel.length;
   const middleboxFrom = lab.middlebox.length;
+  const serverFrom = lab.server.length;
   const lostBefore = droppedSoFar(lab.kernel);
   const probe = await lab.probe(probeArgs(cell, lab));
   const server = cell.observer === "server";
@@ -241,14 +265,16 @@ const once = async (
           case "simplex":
             return lab.fault("blackhole", faultAt, options);
           case "mtu-blackhole":
-            return lab.fault("mtu", "client", { above: cell.mtu ?? 1200 });
+            return lab.fault("mtu", cell.faultAt ?? "client", { above: cell.mtu ?? 1200 });
           case "netem":
             return netemOn(cell.netem);
           case "rst":
             return lab.fault("rst", faultAt);
-          // the router or the proxy of the topology is the fault, or a calibration has none: nothing to inject
+          // the router or the proxy of the topology is the fault, or a calibration has none, or the
+          // server holds the reply by itself: nothing to inject
           case "middlebox-forget":
           case "proxy-idle":
+          case "app-stall":
           case "none":
             return null;
           case "toxic":
@@ -270,6 +296,7 @@ const once = async (
           case "middlebox-forget":
           case "proxy-idle":
           case "server-close":
+          case "app-stall":
           case "none":
             return undefined;
           case "unreachable":
@@ -277,7 +304,7 @@ const once = async (
           case "simplex":
             return lab.lift("blackhole", faultAt, options);
           case "mtu-blackhole":
-            return lab.lift("mtu", "client", { above: cell.mtu ?? 1200 });
+            return lab.lift("mtu", cell.faultAt ?? "client", { above: cell.mtu ?? 1200 });
           case "netem":
             await netemOn(undefined);
             return undefined;
@@ -295,9 +322,16 @@ const once = async (
         // an idle time before the request: a router forgets the flow in it, or a keepalive keeps it
         if (cell.idleBefore !== undefined && cell.probe.mode !== "idle")
           await sleep(valueIn(cell.idleBefore, "ms"));
-        if (cell.probe.mode !== "idle" && !replyInFlight) await go();
+        // a client in a gap sends its second request by itself, a gap after its first reply
+        if ((cell.probe.mode === "inflight" || cell.probe.mode === "stream") && !replyInFlight) await go();
         const { prediction } = cell;
-        if (cell.fault === "stall") {
+        const http = cell.probe.http !== undefined;
+        if (cell.probe.mode === "gap") {
+          // the run ends when the second request does: its outcome is a part of the record
+          const gap = cell.probe.http?.gap === undefined ? 0 : valueIn(cell.probe.http.gap, "s");
+          const window = valueIn(prediction.detects ? prediction.high : prediction.window, "s");
+          await probe.until(HTTP_DONE, (gap + window) * 2_000 + 10_000).catch(() => undefined);
+        } else if (cell.fault === "stall") {
           if (cell.stall === undefined) throw new Error(`${cell.name} says no stall's length`);
           // the injector holds the end in the VM until the length of the stall after the send
           const sent = await requestSent(probe, 5_000);
@@ -312,8 +346,12 @@ const once = async (
           const within = valueIn(prediction.high, "s") * 2_000 + 10_000;
           if (cell.observer !== undefined && cell.observer !== "client") {
             await observerError(cell, partial, within);
+          } else if (http && cell.probe.mode !== "idle") {
+            // an HTTP client can send the request again on a new connection: its outcome ends the run
+            await probe.until(HTTP_DONE, within).catch(() => undefined);
           } else {
-            await probe.until(["error", "eof", "deadline"], within).catch(() => undefined);
+            // an HTTP client writes `closed` when its pool closes an idle connection by itself
+            await probe.until(["error", "eof", "deadline", ...(http ? ["closed"] : [])], within).catch(() => undefined);
           }
         } else {
           await sleep(valueIn(prediction.window, "s") * 1_000);
@@ -344,6 +382,7 @@ const once = async (
     lost,
     ...placed,
     ...(lab.topology === null ? {} : { middlebox: lab.middlebox.slice(middleboxFrom) }),
+    ...(cell.target.lines === true ? { server: lab.server.slice(serverFrom) } : {}),
   };
 };
 

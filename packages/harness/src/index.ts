@@ -15,6 +15,7 @@ export type {
   GroupRole,
   Hop,
   HopPlace,
+  HttpProbe,
   MiddleboxEvent,
   MiddleboxExpectation,
   MiddleboxForm,
@@ -29,6 +30,7 @@ export type {
   Reference,
   Replies,
   RouterHop,
+  RequestPrediction,
   RttRange,
   Run,
   RunGroup,
@@ -42,20 +44,22 @@ export type {
   Toxic,
 } from "./cell.ts";
 export { isHopPlace } from "./cell.ts";
-export type { Crossings, Measured, Outcome, Reordering, SocketPlace } from "./observe.ts";
-export { crossingsOf, measure, reorderingOf, socketOf } from "./observe.ts";
+export type { Crossings, Measured, Outcome, Reordering, RequestReading, SocketPlace } from "./observe.ts";
+export { crossingsOf, measure, reorderingOf, requestOf, socketOf } from "./observe.ts";
 export type { ErrorOnTheWay, GroupMeasured, GroupReading, Writes } from "./timeline.ts";
 export { STAGES, errorsOf, lagsOf, measureGroup, stagesOf, writesOf } from "./timeline.ts";
 export type { Decision, GroupVerdict, Interval, Spread, StageVerdict, Verdict } from "./verdict.ts";
-export { NOISE, RELATIVE, STEPS, groupVerdictOf, medianInterval, quantileOf, spreadOf, verdictOf } from "./verdict.ts";
+export { NOISE, RELATIVE, STEPS, groupVerdictOf, medianInterval, quantileOf, requestWords, spreadOf, verdictOf } from "./verdict.ts";
 export type { Agent, FaultSide, Lab, Manifest, ManifestHop, NetworkFault, Probe } from "./lab.ts";
 export {
   LISTING,
   PUMP,
   deviceOf,
   endpointAfter,
+  goHttpImage,
   harnessImage,
   nodeClientImage,
+  nodeHttpImage,
   openLab,
   routerImage,
   routesOf,
@@ -77,4 +81,4 @@ export {
   viewOf,
 } from "./group.ts";
 export type { CellResult } from "./run.ts";
-export { judge, runCell, spread } from "./run.ts";
+export { LINGER_MS, QUIET_MS, judge, runCell, spread } from "./run.ts";

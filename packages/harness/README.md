@@ -82,11 +82,16 @@ A Sentinel that aborted a failover does not try again for 2 × `failover-timeout
 ## The clients and the agents
 
 - **A client image** (`ClientImage`, `Cell.client`) replaces the TCP client of the harness in each run. It operates in the namespace of the client. Its command gets the arguments of the TCP client, and it prints the same JSON lines.
+- **An HTTP client** (`Cell.client`: `go-http`, `http-agent` or `undici`) is a client of the harness from its own image. It sends a GET of the root, then a second request (`probe.http`):
+  - after the signal (`inflight`), into the fault
+  - or by itself, a gap after its first reply (`gap`), for the keep-alive race.
+- **The lines of an HTTP client.** It writes the lines of the TCP client, with the number `i` of the request on each line of a request. It also writes the connection of each try of a request (`request`, then `retry`), with its local address and a flag for a reused connection. Each connection gets a `conn` line, and each end of a connection a line (`eof`, `conn-error`, `closed`). The end of the second request is a `done` line.
+- **A target with a script.** A target can take files before it starts (`Target.files`), for example the script of a Node server on the stock Node image. A target that writes JSON lines (`Target.lines`) gives them to each run (`Run.server`). The manifest holds the sha256 of each file and the first line of the target.
 - **An agent** (`lab.agent(image, command, { pid })`) is a container in the network namespace of the target. With `pid`, it also shares the process namespace of the target, thus it can signal the server process. Its JSON lines and its `exec` stay available to the caller.
 
 ## The images
 
-The harness builds three images. The tag of each image comes from the content of all the files that its Dockerfile reads. The harness copies these files into a new build context, from its own package and from the prober package. Thus the build works in a workspace and from npm.
+The harness builds five images. The tag of each image comes from the content of all the files that its Dockerfile reads. The harness copies these files into a new build context, from its own package and from the prober package. Thus the build works in a workspace and from npm.
 
 - **The harness image** (`image/Dockerfile`) has two stages, each a digest-pinned Alpine. `Cargo.lock` pins the crates. The image holds:
   - the kernel program of the prober, compiled against the BTF of the kernel that builds it, and its Rust collector.
@@ -95,6 +100,8 @@ The harness builds three images. The tag of each image comes from the content of
   - `inject`, which applies a fault in one `iptables-restore` commit, with monotonic stamps around the commit. Thus the start of a fault is known in the VM. A `docker exec` from Windows comes 190 ms late at the median. With `--via DEV`, the rules go in the FORWARD chain, on the device toward one side.
   - `inject` also sends a signal to a process by its name (`signal`), and one command to a server of the Redis protocol (`resp`). Stamps bracket each.
 - **The Node client image** (`image/node`) is a driver client: ioredis 6.0.0 on Node 24.21.0. The digest of the image and an npm lockfile pin them. `client-ioredis.mjs` prints the lines of the TCP client on the same clock, and it adds the status changes of ioredis as `status` lines. The same image holds the client of a group in Sentinel mode (`client-sentinel.mjs`) and the observer of its Sentinels (`observer.mjs`).
+- **The Go HTTP image** (`image/go-http`) is the `http.Transport` of Go 1.27.2 at its defaults (`client-go`). The program uses the standard library only, thus the digest of the Go builder pins all of its code. The build does `gofmt` and `go vet` first. A wrapper on each connection writes what the read loop of the transport reads. The trace of the transport writes each try of a request.
+- **The Node HTTP image** (`image/node-http`) holds the `http.Agent` of Node 24.21.0 (`client-agent.mjs`) and an HTTP/1.1 `Client` of undici 8.12.2 (`client-undici.mjs`). The digest of the image and an npm lockfile pin them. It is apart from the image of ioredis, thus the cells of ioredis keep their image.
 - **The router image** (`image/router`) is a digest-pinned Alpine with conntrack-tools, nftables, iproute2 and Python. `mbx.sh` sets the form of the router in one nftables table, `ctwatch.py` writes the conntrack events, and `resetter.py` sends the resets of the `reset-both` form. Each run records its packages in the manifest.
 
 The build does the `cargo test` of the two crates. Thus the record decoder passes its tests before an image exists. Each amount that the native programs print is a quantity in a canonical unit. For example, an RTO is in `jiffy`, a round trip in `us`, and a segment in `B`.
@@ -110,7 +117,7 @@ ioredis sets the keepalive of its socket itself, after it connects. Thus a cell 
 - **An ICMP unreachable** (`unreachable`, `Cell.icmp`) answers each segment from the observer with host, net or port unreachable, or admin prohibited. Linux keeps it as a soft error, continues to retransmit, and gives the errno of the ICMP at the timeout. Host and net unreachable also revert the backoff (RFC 6069).
 - **A simplex partition** (`simplex`, `Cell.drops`) drops the segments to the server, or the segments to the client, but not both.
 - **A FIN** (`fin`) stops the process of the peer with SIGKILL while its kernel stays up. For the client, the target starts its server as the child of a shell (`Target.command`), and `Target.kill` stops it. For the server, the harness stops the container of the client.
-- **An MTU black hole** (`mtu-blackhole`, `Cell.mtu`) drops each segment longer than the length, in the namespace that receives it.
+- **An MTU black hole** (`mtu-blackhole`, `Cell.mtu`) drops each segment longer than the length, in the namespace that receives it. At a router (`Cell.faultAt`), it drops what the router forwards from one side.
 - **netem** (`netem`, `Cell.netem`) is tc netem on the egress of the target: loss, duplication, reordering or corruption. The outcome is a distribution. At a hop, netem is on the egress of the device of the hop toward one side.
 - **A latency** (`Cell.latency`) is tc netem delay on the egress of the target before the client connects. Thus the round trip and the RTO include it.
 - **A fault at a proxy** (`Cell.faultAt`) puts the rules of a fault in the namespace of the proxy, toward the client or toward the target. The rules act on the sockets of the proxy.
@@ -125,6 +132,7 @@ ioredis sets the keepalive of its socket itself, after it connects. Thus a cell 
 - **An idle proxy** (`proxy-idle`) injects nothing. The proxy closes an idle connection at its own timeout.
 - **A toxic** (`toxic`, `Cell.toxic`) is one toxic of Toxiproxy, added through its HTTP API by `inject http`, with monotonic stamps around the request. Its name is `fault`, and the harness removes it after the run. A cell whose fault is another one adds its toxic first: a slow close, then the close of the server.
 - **A close of the server** (`server-close`) makes the server close the connection of each client, with `Target.close`: `CLIENT KILL` for Redis.
+- **A stall of the application** (`app-stall`) injects nothing. The server process holds the reply, because the request asks for it (`HttpProbe.hold`), and its kernel stays up.
 - **A fault on a group** acts on the part that `Cell.faultAt` names by its role:
   - A black hole (`blackhole`) drops each segment between the part and each peer. A reset (`rst`) answers each segment from a peer with a reset, thus the part refuses each connection.
   - A partial partition (`partition`) is a black hole between the part and some of its peers (`GroupPlace.cuts`). `group` cuts the part from the other members and the Sentinels, and `clients` cuts it from the client.
@@ -156,6 +164,11 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
 - **Reordering.** A measurement-only run also gives what reordering, duplicates and losses did (`reordering`). At the client, it counts the arrivals beyond a hole and the arrivals of data that it had already, against `rcv_nxt`. From the sender, it gives the most SACKed and lost segments, the DSACKs, the fast retransmissions, and the reordering degree and count of the kernel.
 - **An arrival is not always one segment.** The segments that arrive while the owner holds the socket wait in its backlog, and the kernel joins the contiguous ones. Thus the kernel counts out-of-order segments (`rcv_ooopack`), and the prober counts arrivals.
 - **A proxy's own time.** A calibration cell (`Cell.calibrates`) gives the time of its proxy for each request and its reply (`crossings`). Each time goes from an arrival on one socket of the proxy to its next write on the other socket (a `tx` record).
+- **An HTTP client** (`requestOf`). The run gives what the second request met (`request`): the connection of its first try, a new try, and its error or its reply. The prediction gives the same (`Prediction.request`), and another outcome is a finding.
+  - In a gap, the idle connection counts from the first reply, and the run gives the gap from the lines of the client.
+  - A new try that gets no connection writes only its failed dial (`dial-error`). That line counts as a new try.
+  - A close of the observer itself (errno `CLOSED`) is the change of its socket from ESTABLISHED to FIN_WAIT1: its pool closed an idle connection.
+  - A timer of the client or the server is not a timer of the kernel. Thus a delayed keepalive timer of the socket does not make such a run void.
 - **A router that forgets in silence.** A silent prediction can say that the router forgets the flow in a band after the last segment (`Prediction.middlebox`). The run then holds when the forget is in that band and nothing detects it. A missing forget, or one outside its band, is a finding. Without it, the router must keep the flow.
 - **A group** (`measureGroup`, `timeline.ts`). The time counts from the start of the commit of the fault, or from the first write into a stall.
   - It ends at the first write that a primary accepted after the fault. That primary is a new one, or the same one after the lift, as the prediction says (`GroupPrediction.lands`).
@@ -184,6 +197,8 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
   - A run that did not announce the stage is outside too. A stage outside its band fails that stage. The decision of the cell stays the decision of its band.
   - The verdict also gives the median of each stage, the lost writes of each run, and the errors on the way.
 
+- **An HTTP client** (`Verdict.requests`). The verdict counts each outcome of the second request over the counted runs. A measurement-only cell also gives them in its reason.
+
 The distribution test needs a simulator, which does not exist at this time.
 
 ## Runs
@@ -200,6 +215,8 @@ The distribution test needs a simulator, which does not exist at this time.
   - Its in-flight data is the reply of the server. Thus the client sends `probe.request` first, for example a BLPOP with a timeout, and the fault occurs while the server holds it.
 - **The pause before the fault.** In every other run, the fault comes 250 ms after the client's first reply (`QUIET_MS`). That is more than Linux's longest delayed ACK, 200 ms. A fault that comes earlier meets the client's delayed ACK of the reply, not the request or the idle time that the cell measures. On a fast host the fault came 35 ms after the reply, and the ACK met a reset first.
   - A run of a group has no such pause. Its fault comes after the 20th accepted write of its stream, and each band of a group counts from the fault.
+  - An HTTP client in a gap counts its gap from its own first reply, thus the pause does not change it. Its run ends at the end of its second request (`done`).
+- **An HTTP client.** A run of an HTTP client in flight ends at the end of its second request, after a new try of the client. The client waits one second after it (`LINGER_MS`), thus its own close comes after the window.
 - **`judge(cell, runs)`** (`run.ts`) measures and judges the raw records of a cell with the code at this time. `runCell` uses it during a cell. A holder of raw records can judge them again after a change to `observe.ts` or to the verdict.
 - **Testcontainers loads when a lab first opens.** Code that only measures and judges does not load it.
 
@@ -217,6 +234,6 @@ A run needs Docker, and privileged containers for the prober and the sidecars. T
 
 The tests also measure a group run from test lines. They find the first accepted write, the stages, the writes that the group kept, and the void runs. They test the views that make a group healthy, and the peers that a fault on a part cuts.
 
-The cells themselves need Docker and privileged containers. CI does not start them. `HARNESS_LAB=1` starts the lab tests on Docker. They start a client image and an agent, and they put a reset and netem at a router. They also fail a group of Valkey 9.1 over with a planned failover.
+The cells themselves need Docker and privileged containers. CI does not start them. `HARNESS_LAB=1` starts the lab tests on Docker. They start a client image and an agent, and they put a reset and netem at a router. They also fail a group of Valkey 9.1 over with a planned failover. Each HTTP client sends two requests on one connection to a Node server, from a script in the stock Node image.
 
 `pnpm --filter @mark1russell7/harness build` writes the package for npm into `build/`.

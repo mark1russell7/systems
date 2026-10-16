@@ -59,6 +59,7 @@ describe.skipIf(!RUN)("the catalogs, on the harness", () => {
           why: verdict.why,
           ...(verdict.reordering === undefined ? {} : { reordering: verdict.reordering }),
           ...(verdict.proxy === undefined ? {} : { proxy: verdict.proxy }),
+          ...(verdict.requests === undefined ? {} : { requests: verdict.requests }),
           void: result.measured.filter((run) => run.void !== null).map((run) => run.void),
           warmups: result.warmups.map((run) => {
             const read = measure(cell, run);
