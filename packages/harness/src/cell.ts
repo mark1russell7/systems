@@ -537,7 +537,7 @@ export type Prediction =
       /**
        * This choice ends the measured time at the close of the socket by the observer itself, the
        * change from ESTABLISHED to FIN_WAIT1. Without it, the time ends at a report of the kernel or
-       * at the last data, and an idle pool that closes its own socket gives no end.
+       * at the last data. Then an idle pool that closes its own socket gives no end.
        */
       readonly ends?: "own-close";
       readonly group?: GroupPrediction;
@@ -811,8 +811,8 @@ export interface Cell {
    */
   readonly concurrency?: number;
   /**
-   * This time is δ_abs of the environment that the cell runs in: the noise of the pipeline that
-   * each band allows, and the least delay of a timer that voids a run. Stage 0 measures it in each
+   * This time is δ_abs of the environment of the cell: the noise of the pipeline. Each band includes
+   * it, and a timer must be at least that late to make a run void. Stage 0 measures it in each
    * environment. Without it, the cell gets `NOISE`, the δ_abs of the first environment (4 ms).
    */
   readonly noise?: Quantity;

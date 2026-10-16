@@ -23,8 +23,8 @@ export const NOISE: Quantity = quantity(4, "ms");
 
 /**
  * This time is how late the injector can commit or lift a fault before the run is void. Stage 0
- * measures the commit apart from δ_abs, and it is longer: on a hosted runner it took up to 2.75 ms
- * at 4 environments, where δ_abs is 1 ms. Thus a cell's δ_abs does not change it.
+ * measures the commit apart from δ_abs, and the commit is longer. On a hosted runner it took up to
+ * 2.75 ms at 4 environments, where δ_abs is 1 ms. Thus a cell's δ_abs does not change it.
  */
 export const INJECT: Quantity = NOISE;
 
@@ -34,7 +34,7 @@ export const noiseOf = (cell: { readonly noise?: Quantity | undefined }): Quanti
 /**
  * This function tells if a timer firing came late enough to void a run. A firing two jiffies or
  * more behind its wheel slot came late because the host stopped a vCPU. With the HZ of the run,
- * the rule is in time: the delay must also reach δ_abs, because each band already allows that
+ * the rule is in time: the delay must also reach δ_abs, because each band already includes that
  * noise. At HZ 250 two jiffies are 8 ms, more than a δ_abs of 4 ms. At HZ 1000 they are 2 ms.
  */
 export const delayVoids = (behind: number, hz: number | undefined, noise: Quantity): boolean => {

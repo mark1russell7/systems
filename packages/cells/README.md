@@ -178,6 +178,14 @@ The CAL catalog (`src/calibration.ts`) measures the own time of each proxy: HAPr
 - Each request gives a time toward the target. It starts at the arrival on the socket of the proxy toward the client. It stops at the write on the socket toward the target. Each reply gives a time toward the client, the other way. The writes are the `tx` records of the prober.
 - `PROXY_TIMES` holds the 99th percentile of each direction, by nearest rank. A band through a proxy adds it for each crossing.
 
+## The environments of stage 0
+
+Stage 0 measures δ_abs in each environment: the latency of the pipeline on a path that has no timer. `src/environments.ts` holds each runner image that it calibrated, by `$ImageOS $ImageVersion`.
+
+- The runner gives each cell the δ_abs of its image (`Cell.noise`), when the cell gives none. A band and the rule of a late timer read it.
+- The image `ubuntu24 20261012.334.1` has a δ_abs of 1 ms: the worst reset took 0.147 ms at HZ 1000. Its concurrency cap is 4.
+- A cell on an image that stage 0 did not calibrate keeps 4 ms, the δ_abs of the first environment. A new image gets its calibration before its cells get a smaller δ_abs.
+
 ## The MongoDB catalogs
 
 The MongoDB catalogs (`src/mongo/`) put the Node driver `mongodb` 7.7.0 on Node 24.21.0 against replica sets of mongod 9.0.4 (`mongo:9.0.4`, pinned by digest). T01 and T03 use a set of one member, because the monitor of the driver needs a set. T11 uses a set of three members. Each cell has the identifier of the cell of the plan that it stands for.

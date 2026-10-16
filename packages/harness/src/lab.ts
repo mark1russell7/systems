@@ -269,8 +269,8 @@ export interface Manifest {
   readonly architecture: string;
   readonly hz: string | null;
   /**
-   * This text tells where the HZ came from: the configuration of the kernel, or a measurement of
-   * jiffies against CLOCK_MONOTONIC on a host that has no /proc/config.gz (a hosted runner).
+   * This text tells where the HZ came from: the configuration of the kernel, or a measurement. A
+   * host without /proc/config.gz (a hosted runner) gets a measurement of jiffies against the clock.
    */
   readonly hzFrom?: "config" | "measured";
   readonly boot_id: string;
