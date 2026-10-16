@@ -9,7 +9,7 @@
  * The bytes are `struct ev` (`bpf/prober.h`), little-endian, as the kernel side writes it on x86.
  */
 
-export const RECORD_SIZE = 192;
+export const RECORD_SIZE = 216;
 
 interface Fields {
   mono: bigint;
@@ -35,7 +35,11 @@ interface Fields {
   dport: number;
   hasTcp: number;
   hasSeg: number;
-  /** These are the TCP fields: `retransmits`, `pending`, `backoff`, `probes_out`, `rto`, `srtt_us`, `snd_una`, `snd_nxt` and `rcv_nxt`. */
+  /**
+   * These are the TCP fields: `retransmits`, `pending`, `backoff`, `probes_out`, `rto`, `srtt_us`,
+   * `snd_una`, `snd_nxt` and `rcv_nxt`. Then come the SACK scoreboard and the reordering state:
+   * `sacked_out`, `lost_out`, `reordering`, `reord_seen`, `dsack_dups` and `rcv_ooopack`.
+   */
   tcp: readonly number[];
   /** These are the segment fields: `seq`, `ack`, `len` and `flags`. */
   seg: readonly number[];
@@ -69,7 +73,7 @@ const BASE: Fields = {
   dport: 6379,
   hasTcp: 1,
   hasSeg: 1,
-  tcp: [0, 1, 0, 0, 51, 120, 1000, 1064, 2000],
+  tcp: [0, 1, 0, 0, 51, 120, 1000, 1064, 2000, 0, 0, 3, 0, 0, 0],
   seg: [1000, 2000, 64, 0x18],
   behind: 0,
   late: 0,
@@ -119,14 +123,17 @@ export const CASES: ReadonlyArray<{ why: string; fields: Partial<Fields> }> = [
     why: "an accept, no CLOCK_TAI, no owner",
     fields: { kind: 2, tai: 0n, comm: bytesOf("redis-server") },
   },
-  { why: "the tail loss probe", fields: { kind: 3, tcp: [0, 5, 0, 0, 51, 120, 1, 2, 3] } },
   {
-    why: "the RTO timer's retransmission",
-    fields: { kind: 3, tcp: [2, 0, 2, 0, 204, 120, 1, 2, 3] },
+    why: "the tail loss probe",
+    fields: { kind: 3, tcp: [0, 5, 0, 0, 51, 120, 1, 2, 3, 0, 0, 3, 0, 0, 0] },
   },
   {
-    why: "a retransmission from ACK processing",
-    fields: { kind: 3, tcp: [0, 1, 0, 0, 51, 120, 1, 2, 3] },
+    why: "the RTO timer's retransmission",
+    fields: { kind: 3, tcp: [2, 0, 2, 0, 204, 120, 1, 2, 3, 0, 1, 3, 0, 0, 0] },
+  },
+  {
+    why: "a retransmission from ACK processing, with SACKed segments",
+    fields: { kind: 3, tcp: [0, 1, 0, 0, 51, 120, 1, 2, 3, 2, 0, 3, 0, 0, 0] },
   },
   { why: "a retransmission without TCP state names no cause", fields: { kind: 3, hasTcp: 0 } },
   { why: "an active reset", fields: { kind: 4, extra: 1, hasSeg: 0 } },
@@ -145,6 +152,10 @@ export const CASES: ReadonlyArray<{ why: string; fields: Partial<Fields> }> = [
   { why: "a segment received, with its ack and flags", fields: { kind: 13 } },
   { why: "a segment received with no segment recorded", fields: { kind: 13, hasSeg: 0 } },
   {
+    why: "a segment received after reordering: the scoreboard, the DSACKs and the out-of-order count",
+    fields: { kind: 13, tcp: [0, 1, 0, 0, 51, 120, 1000, 1064, 2000, 4, 1, 12, 2, 3, 17] },
+  },
+  {
     why: "a keepalive timer run on its slot, 8 jiffies past its expiry",
     fields: { kind: 14, extra: 1, hasSeg: 0, late: 8 },
   },
@@ -153,6 +164,7 @@ export const CASES: ReadonlyArray<{ why: string; fields: Partial<Fields> }> = [
     fields: { kind: 14, extra: 2, hasSeg: 0, behind: 24, late: 25 },
   },
   { why: "a timer of no known kind", fields: { kind: 14, extra: 7, hasSeg: 0 } },
+  { why: "a write: its first sequence number and its length, no ack and no flags", fields: { kind: 15 } },
   {
     why: "a keepalive timer that found its socket in its owner's hands",
     fields: { kind: 14, extra: 0x101, hasSeg: 0, late: 4 },
@@ -183,7 +195,7 @@ export const CASES: ReadonlyArray<{ why: string; fields: Partial<Fields> }> = [
       newst: 2_147_483_647,
       sport: 0,
       dport: 65_535,
-      tcp: [U32, U32, U32, U32, U32, U32, U32, U32, U32],
+      tcp: Array.from({ length: 15 }, () => U32),
       seg: [U32, U32, U32, U32],
       kind: 13,
     },

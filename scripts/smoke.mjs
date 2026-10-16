@@ -205,7 +205,7 @@ try {
       check(redis.unwatched(cache.meets).length === 0, "service/redis finds each manifestation with a detector");
     }
     if (name === "@mark1russell7/prober")
-      check(module.RECORD_KINDS.length === 14, "prober has 14 record kinds");
+      check(module.RECORD_KINDS.length === 15 && module.RECORD_KINDS.at(-1) === "tx", "prober has 15 record kinds, the write last");
     if (name === "@mark1russell7/algebra") {
       const node = module.parseExpr("idle + interval * probes");
       check(typeof node === "object" && node !== null, "algebra parses an expression of a timer");
@@ -221,6 +221,8 @@ try {
       check(verdict.decision === "inconclusive", "harness judges no runs as inconclusive");
       check(module.routesOf([{ kind: "router" }])[0].networks[0] === 1, "harness routes the network after a router through it");
       check(module.toxicBody({ type: "latency", stream: "downstream", attributes: { latency: 100 } }).includes("toxicity"), "harness writes a toxic for Toxiproxy");
+      check(module.deviceOf("172.22.0.2 dev eth1 src 172.22.0.3 uid 0") === "eth1", "harness finds the device of a router toward a side");
+      check(module.quantileOf([1, 2, 3, 4], 0.99) === 4 && module.spreadOf([s(0.001), s(0.003)]).median.value === 0.002, "harness gives the quantiles of a calibration");
     }
   }
 } catch (error) {

@@ -17,6 +17,7 @@ enum {
 	EV_PROBE,     /* a probe sent by tcp_write_wakeup: keepalive or zero window */
 	EV_RX,        /* a segment received on an established socket (tcp_probe) */
 	EV_TIMER,     /* a socket's own timer run from the wheel: its keepalive, or its retransmit timer */
+	EV_TX,        /* bytes the owner gave the socket to send (tcp_sendmsg): a proxy's departure */
 };
 
 /* what EV_PROBE's extra says the probe was */
@@ -35,9 +36,17 @@ struct tcp_now {
 	__u32 rto;         /* icsk_rto, in jiffies */
 	__u32 srtt_us;     /* the smoothed RTT, in microseconds */
 	__u32 snd_una, snd_nxt, rcv_nxt;
+	/* the scoreboard and the reordering state: what SACK, DSACK and out-of-order arrivals did */
+	__u32 sacked_out;  /* the segments the peer SACKed */
+	__u32 lost_out;    /* the segments marked lost */
+	__u32 reordering;  /* the reordering degree the kernel holds, in segments: tcp_reordering at first */
+	__u32 reord_seen;  /* the reorderings the kernel detected */
+	__u32 dsack_dups;  /* the DSACK blocks received: segments the peer got twice */
+	__u32 rcv_ooopack; /* the segments that arrived out of order */
 };
 
-/* the segment a record is about: retransmitted, or received */
+/* the segment a record is about: retransmitted, or received; for EV_TX, the write: its first
+ * sequence number (write_seq) and its length */
 struct seg {
 	__u32 seq, ack, len, flags;
 };

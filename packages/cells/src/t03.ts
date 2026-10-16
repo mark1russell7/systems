@@ -1,10 +1,21 @@
 import type { KnobValues } from "@mark1russell7/algebra";
-import { detection, overValues, stackedDetection, timerOf, timerUnder, transitionOn, realizationOf } from "@mark1russell7/algebra";
+import {
+  detection,
+  overValues,
+  realizationOf,
+  recovery,
+  stackedDetection,
+  timerOf,
+  timerUnder,
+  transitionOn,
+} from "@mark1russell7/algebra";
 import type { Cell, MiddleboxForm, Prediction } from "@mark1russell7/harness";
 import type { Extent } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
+import type { Spec } from "./catalog.ts";
 import {
   HZ,
+  KEEPALIVE,
   LINUX,
   LINUX_66,
   REDIS,
@@ -14,12 +25,15 @@ import {
   count,
   given,
   ms,
+  predictAt,
   q,
   s,
   seconds,
   sysctlsOf,
 } from "./catalog.ts";
+import type { ManifestationName } from "./manifestations.ts";
 import { MANIFESTATIONS } from "./manifestations.ts";
+import { assuming } from "./rtt.ts";
 import type { O03Verdict } from "./topologies.ts";
 import { CONNTRACK, LISTING, ROUTER_PUMP, o03, router } from "./topologies.ts";
 
@@ -29,7 +43,6 @@ export const IDLE = 5;
 const WINDOW = 15;
 /** This time is how long an in-flight client stays idle before its request: longer than the latest forget. */
 const IDLE_BEFORE = 8;
-const rtt = RTT_MS / 1000;
 
 /** A T03 spec is one cell of the stateful middlebox chain, before its prediction. */
 export interface T03Spec {
@@ -93,13 +106,13 @@ export const routerValues: KnobValues = given({
   gc_lag_max: s(valueIn(ROUTER_PUMP, "s") + 2 * valueIn(LISTING, "s")),
 });
 
-/** This function gives the values of Linux TCP at the client of a spec. */
-const clientValues = (spec: T03Spec): Record<string, Extent> => ({
+/** This function gives the values of Linux TCP at the client of a spec, at a round trip in ms. */
+const clientValues = (spec: T03Spec, rttMs = RTT_MS): Record<string, Extent> => ({
   ...LINUX_66,
   ...(spec.keepidle === undefined ? {} : { keepidle: s(spec.keepidle), keepintvl: s(1), keepcnt: count(3) }),
   ...(spec.retries === undefined ? {} : { tcp_retries2: count(spec.retries) }),
   hz: { value: HZ, unit: "Hz" },
-  rtt: ms(RTT_MS),
+  rtt: ms(rttMs),
 });
 const redisValues = (spec: T03Spec): Record<string, Extent> => ({
   tcp_keepalive: s(spec.redisKeepalive ?? 300),
@@ -123,28 +136,54 @@ const band = (
   };
 };
 
-/** This function gives the O03 verdict of a spec: the keepalive of its observer against the router. */
-export const o03Of = (spec: T03Spec): O03Verdict =>
-  spec.observer === "server"
-    ? o03({ doc: REDIS_CLIENT, values: given(redisValues(spec)) }, routerValues, rtt)
-    : o03({ doc: LINUX, values: given(clientValues(spec)) }, routerValues, rtt);
+/** This band is when the router forgets a flow after its last packet: expire_established, late by the pump and two listings at most. */
+const forgetBand = (): { low: ReturnType<typeof q>; high: ReturnType<typeof q> } =>
+  band(timerOf(CONNTRACK, "expire_established", routerValues), "expire_established");
 
 /**
- * This function gives the prediction of a T03 cell from the algebra. The conntrack document gives the
- * forget, and Linux TCP gives the endpoint. O03 decides if the forget occurs at all.
+ * This function tells if the socket of the observer of a spec has keepalive on. The client sets
+ * SO_KEEPALIVE only when the spec gives it a keepalive idle time. Redis sets it on each client
+ * when its tcp-keepalive is more than 0.
+ */
+export const keepaliveOn = (spec: T03Spec): boolean =>
+  spec.observer === "server" ? (spec.redisKeepalive ?? 300) > 0 : spec.keepidle !== undefined;
+
+/**
+ * This function gives the O03 verdict of a spec: the keepalive of its observer against the router,
+ * at a round trip in ms. The refresh comes from the keepalive of the socket as it is. A socket
+ * without keepalive refreshes nothing, whatever the keepalive sysctls of its namespace say. Thus
+ * its refresh has no bound, and O03 does not hold by its construction.
+ */
+export const o03Of = (spec: T03Spec, rttMs = RTT_MS): O03Verdict => {
+  const off: Extent = { value: "infinite", unit: "s" };
+  if (spec.observer === "server") {
+    const redis = redisValues(spec);
+    return o03({ doc: REDIS_CLIENT, values: given(keepaliveOn(spec) ? redis : { ...redis, tcp_keepalive: off }) }, routerValues, rttMs / 1000);
+  }
+  const linux = clientValues(spec, rttMs);
+  return o03({ doc: LINUX, values: given(keepaliveOn(spec) ? linux : { ...linux, keepidle: off }) }, routerValues, rttMs / 1000);
+};
+
+/**
+ * This function gives the prediction of a T03 cell from the algebra, with the range of first round
+ * trips that its band assumes. The conntrack document gives the forget, and Linux TCP gives the
+ * endpoint. O03 decides if the forget occurs at all.
  * - When O03 holds, the keepalive refreshes the flow, and nothing detects anything in the window.
  * - When it does not, the form decides. A reset to both ends comes at the forget. A reset to the
  *   next packet comes at the first send after the forget. A silent drop leaves the endpoint to its
  *   own give-up: keepalive, or the retransmissions of a request.
  */
-export const predictT03 = (spec: T03Spec): Prediction => {
-  const verdict = o03Of(spec);
-  const forget = band(timerOf(CONNTRACK, "expire_established", routerValues), "expire_established");
+export const predictT03 = (spec: T03Spec): Prediction => assuming((rtt) => predictT03At(spec, rtt), RTT_MS);
+
+const predictT03At = (spec: T03Spec, rttMs: number): Prediction => {
+  const rtt = rttMs / 1000;
+  const verdict = o03Of(spec, rttMs);
+  const forget = forgetBand();
   if (spec.mode === "inflight") {
     // the request goes after the latest forget: it meets a router that forgot the flow
     if (!(IDLE_BEFORE > valueIn(forget.high, "s") + verdict.margin))
       throw new Error(`${spec.name}: the request can go before the router forgets the flow`);
-    const linux = given(clientValues(spec));
+    const linux = given(clientValues(spec, rttMs));
     if (spec.form === "reset-next")
       return { detects: true, timer: "rx.rst", errno: resetErrno(), from: "request-sent", low: q(0), high: q(rtt) };
     if (spec.form === "recreate") {
@@ -167,7 +206,7 @@ export const predictT03 = (spec: T03Spec): Prediction => {
   if (spec.form === "reset-both")
     return { detects: true, timer: "expire_established", errno: resetErrno(), from: "last-received", ...forget };
   if (spec.observer === "client") {
-    const linux = given(clientValues(spec));
+    const linux = given(clientValues(spec, rttMs));
     if (spec.form === "reset-next") {
       // the first keepalive probe after the forget meets the reset: the refresh of the client, one round trip later
       const first = realizationOf(LINUX, "systems.mechanism.idle-refresh-interval", linux)!;
@@ -185,7 +224,7 @@ export const predictT03 = (spec: T03Spec): Prediction => {
   }
   // the server: a late packet from outside is dropped (reset-next), or meets the reset of the router's own stack (none)
   const redis = given(redisValues(spec));
-  const linux = given(clientValues(spec));
+  const linux = given(clientValues(spec, rttMs));
   if (spec.form === "none") {
     const first = realizationOf(REDIS_CLIENT, "systems.mechanism.idle-refresh-interval", redis)!;
     return { detects: true, timer: "rx.rst", errno: resetErrno(), from: "last-received", ...band(first, "tcp-keepalive", rtt) };
@@ -216,7 +255,7 @@ export const t03Cell = (spec: T03Spec): Cell => {
     name: `T03 ${spec.name}`,
     target: REDIS,
     sysctls: server ? {} : sysctlsOf(clientValues(spec)),
-    probe: { mode: spec.mode, keepalive: !server && spec.keepidle !== undefined },
+    probe: { mode: spec.mode, keepalive: !server && keepaliveOn(spec) },
     fault: "middlebox-forget",
     topology: { name: "T03", hops: [router(spec.form, IDLE)] },
     prediction: predictT03(spec),
@@ -234,5 +273,242 @@ export const t03Cell = (spec: T03Spec): Cell => {
   };
 };
 
-/** These are the cells of the T03 catalog. */
-export const T03_CELLS: readonly Cell[] = T03_SPECS.map(t03Cell);
+// ---------------------------------------------------------------------------------------------
+// a fault at the router: FORWARD rules on its device toward one side
+// ---------------------------------------------------------------------------------------------
+
+/** A T03 fault spec is one cell of a fault at the router, before its prediction. */
+export interface T03FaultSpec {
+  readonly name: string;
+  readonly form: MiddleboxForm;
+  readonly fault: "blackhole" | "rst" | "unreachable" | "simplex" | "netem";
+  /** This name is the manifestation that the client meets, as the T01 cells name it. */
+  readonly manifestation: ManifestationName;
+  /** This side is the side of the router that the rules face. */
+  readonly toward: "client" | "target";
+  readonly mode: "idle" | "inflight";
+  /** These are the knobs of Linux TCP at the client that differ from Linux 6.6. */
+  readonly linux: Readonly<Record<string, Extent>>;
+  readonly icmp?: Cell["icmp"];
+  readonly drops?: Cell["drops"];
+  /** This delay is netem on the device of the router toward the side, in milliseconds. */
+  readonly delay?: number;
+  /** This flag marks a cell where the router forgets the flow while the fault holds. */
+  readonly forgets?: true;
+}
+
+const IN_FLIGHT = { ...KEEPALIVE, tcp_retries2: count(3) };
+
+/**
+ * The T03 cells of a fault at the router. The router forwards, thus the rules of the fault are
+ * FORWARD rules in its namespace, on its device toward one side. A reject answers from the router:
+ * a reset with the address of the target, or an ICMP error from the address of the router. The
+ * form is a plain NAT (`none`), except in the cells where the router forgets the flow while the
+ * fault holds.
+ */
+export const T03_FAULT_SPECS: readonly T03FaultSpec[] = [
+  // ---- a black hole at the router: the band of the direct pair, while the router keeps the flow
+  {
+    name: "client idle, blackhole at the router, keepidle 5 s, none",
+    form: "none",
+    fault: "blackhole",
+    manifestation: "blackhole",
+    toward: "client",
+    mode: "idle",
+    linux: KEEPALIVE,
+  },
+  {
+    name: "client in flight, blackhole at the router, tcp_retries2 = 3, none",
+    form: "none",
+    fault: "blackhole",
+    manifestation: "blackhole",
+    toward: "client",
+    mode: "inflight",
+    linux: IN_FLIGHT,
+  },
+  // ---- a reset and the ICMP errors of the router, toward the client
+  {
+    name: "client in flight, rst at the router toward the client",
+    form: "none",
+    fault: "rst",
+    manifestation: "blackhole",
+    toward: "client",
+    mode: "inflight",
+    linux: IN_FLIGHT,
+  },
+  ...(["host", "net", "port", "admin"] as const).map(
+    (icmp): T03FaultSpec => ({
+      name: `client in flight, unreachable-${icmp} at the router toward the client, tcp_retries2 = 3`,
+      form: "none",
+      fault: "unreachable",
+      manifestation: `unreachable-${icmp}`,
+      toward: "client",
+      mode: "inflight",
+      linux: IN_FLIGHT,
+      icmp,
+    }),
+  ),
+  // ---- a simplex partition at the router, in each direction
+  ...(["to-server", "to-client"] as const).map(
+    (drops): T03FaultSpec => ({
+      name: `client in flight, simplex-${drops} at the router toward the client, tcp_retries2 = 3`,
+      form: "none",
+      fault: "simplex",
+      manifestation: `simplex-${drops}`,
+      toward: "client",
+      mode: "inflight",
+      linux: IN_FLIGHT,
+      drops,
+    }),
+  ),
+  // ---- netem on the device of the router toward each side
+  ...(["client", "target"] as const).map(
+    (toward): T03FaultSpec => ({
+      name: `client in flight, netem delay 100 ms at the router toward the ${toward}`,
+      form: "none",
+      fault: "netem",
+      manifestation: "blackhole",
+      toward,
+      mode: "inflight",
+      linux: IN_FLIGHT,
+      delay: 100,
+    }),
+  ),
+  // ---- the router forgets the flow behind its own black hole: its conntrack still acts
+  {
+    name: "client idle, blackhole at the router, keepidle 6 s, none, the router forgets the flow",
+    form: "none",
+    fault: "blackhole",
+    manifestation: "blackhole",
+    toward: "client",
+    mode: "idle",
+    linux: { keepidle: s(6), keepintvl: s(1), keepcnt: count(3) },
+    forgets: true,
+  },
+  {
+    name: "client idle, blackhole at the router, keepidle 6 s, reset-both, the router forgets the flow",
+    form: "reset-both",
+    fault: "blackhole",
+    manifestation: "blackhole",
+    toward: "client",
+    mode: "idle",
+    linux: { keepidle: s(6), keepintvl: s(1), keepcnt: count(3) },
+    forgets: true,
+  },
+  {
+    name: "client in flight, blackhole at the router, tcp_retries2 = 8, reset-both, the router forgets the flow",
+    form: "reset-both",
+    fault: "blackhole",
+    manifestation: "blackhole",
+    toward: "client",
+    mode: "inflight",
+    linux: { ...KEEPALIVE, tcp_retries2: count(8) },
+    forgets: true,
+  },
+];
+
+/** This function gives the values of Linux TCP at the client of a fault spec, at a round trip in ms. */
+const faultValues = (spec: T03FaultSpec, rttMs = RTT_MS): Record<string, Extent> => ({
+  ...LINUX_66,
+  ...spec.linux,
+  hz: { value: HZ, unit: "Hz" },
+  rtt: ms(rttMs),
+});
+
+/** This function gives the T01 spec that a fault at the router is to the client: the same manifestation and knobs. */
+const asDirect = (spec: T03FaultSpec): Spec => ({
+  name: spec.name,
+  fault: spec.fault,
+  manifestation: spec.manifestation,
+  observer: "client",
+  mode: spec.mode,
+  linux: spec.linux,
+  ...(spec.icmp === undefined ? {} : { icmp: spec.icmp }),
+  ...(spec.drops === undefined ? {} : { drops: spec.drops }),
+});
+
+/**
+ * This function gives the time of the forget of a flow in flight, from the send of its request.
+ * Each retransmission refreshes the conntrack entry, because conntrack sees each segment before
+ * the FORWARD rules drop it. Thus the router forgets the flow one idle timeout after the last
+ * retransmission before a wait longer than that timeout. The firings come from the retransmit
+ * timer of Linux TCP, each with its bounds.
+ */
+const forgetInFlight = (spec: T03FaultSpec, rttMs: number): { low: number; high: number } => {
+  const linux = given(faultValues(spec, rttMs));
+  const ladder = recovery(LINUX, "retransmit", linux, s(60));
+  if ("unknown" in ladder) throw new Error(`${spec.name}: ${ladder.unknown}`);
+  const forget = forgetBand();
+  const [earliest, latest] = [valueIn(forget.low, "s"), valueIn(forget.high, "s")];
+  // the send is the first packet: firing −1, at 0
+  const firings = [{ low: 0, high: 0 }, ...ladder.firings.map((f) => ({ low: valueIn(f.low, "s"), high: valueIn(f.high, "s") }))];
+  for (let at = 0; at + 1 < firings.length; at += 1) {
+    const [here, next] = [firings[at]!, firings[at + 1]!];
+    // the router keeps the flow when the next firing surely comes before the earliest forget
+    if (next.high - here.low < earliest) continue;
+    // and forgets it when the next firing surely comes after the latest forget
+    if (next.low - here.high > latest) return { low: here.low + earliest, high: here.high + latest };
+    throw new Error(`${spec.name}: the forget can come before or after firing ${at}`);
+  }
+  throw new Error(`${spec.name}: no wait of the ladder is longer than the idle timeout`);
+};
+
+/**
+ * This function gives the prediction of a fault at the router, at a round trip in ms.
+ * - netem delays each segment toward its side: the reply comes back after the delay and a round trip.
+ * - A reset answers the request from the router at once.
+ * - Each other fault is the manifestation of the direct pair, with the same knobs. The router is
+ *   between the two ends, and the client meets what the rules let through. A plain NAT router
+ *   that forgets the flow passes a late packet into the fault, thus the forget changes nothing.
+ * - A router that resets both ends at the forget does it from its own stack, past its own FORWARD
+ *   rules. Idle, that is one idle timeout after the last segment. In flight, it is one idle
+ *   timeout after the last retransmission before a long wait (`forgetInFlight`).
+ */
+const predictFaultAt = (spec: T03FaultSpec, rttMs: number): Prediction => {
+  const rtt = rttMs / 1000;
+  if (spec.fault === "netem") {
+    const delay = (spec.delay ?? 0) / 1000;
+    return { detects: false, window: q(2), replies: { low: q(delay), high: q(delay + rtt) } };
+  }
+  if (spec.fault === "rst")
+    return { detects: true, timer: "rx.rst", errno: resetErrno(), from: "request-sent", low: q(0), high: q(rtt) };
+  if (spec.forgets === true && spec.form === "reset-both") {
+    if (spec.mode === "idle")
+      return { detects: true, timer: "expire_established", errno: resetErrno(), from: "last-received", ...forgetBand() };
+    const forget = forgetInFlight(spec, rttMs);
+    const giveUp = predictAt(asDirect(spec), rttMs);
+    if (giveUp.detects !== true || valueIn(giveUp.low, "s") <= forget.high)
+      throw new Error(`${spec.name}: the give-up can come before the forget`);
+    return { detects: true, timer: "expire_established", errno: resetErrno(), from: "request-sent", low: q(forget.low), high: q(forget.high) };
+  }
+  if (spec.form !== "none") throw new Error(`${spec.name}: only a plain NAT router passes a late packet into the fault`);
+  return predictAt(asDirect(spec), rttMs);
+};
+
+/** This function gives the cell of a fault at the router for the harness. */
+export const t03FaultCell = (spec: T03FaultSpec): Cell => {
+  const hop = router(spec.form, IDLE);
+  return {
+    name: `T03 ${spec.name}`,
+    target: REDIS,
+    sysctls: sysctlsOf(faultValues(spec)),
+    probe: { mode: spec.mode, keepalive: true },
+    fault: spec.fault,
+    // the router sends each ICMP error: its rate limit is 0, thus each retransmission draws one
+    topology: {
+      name: "T03",
+      hops: [spec.fault === "unreachable" ? { ...hop, sysctls: { "net.ipv4.icmp_ratelimit": "0" } } : hop],
+    },
+    faultAt: { hop: hop.name, toward: spec.toward },
+    prediction: assuming((rtt) => predictFaultAt(spec, rtt), RTT_MS),
+    ...(spec.icmp === undefined ? {} : { icmp: spec.icmp }),
+    ...(spec.drops === undefined ? {} : { drops: spec.drops }),
+    ...(spec.delay === undefined ? {} : { netem: `delay ${spec.delay}ms` }),
+    runs: RUNS,
+    environments: 2,
+    concurrency: 1,
+  };
+};
+
+/** These are the cells of the T03 catalog: a forgotten flow, then a fault at the router. */
+export const T03_CELLS: readonly Cell[] = [...T03_SPECS.map(t03Cell), ...T03_FAULT_SPECS.map(t03FaultCell)];

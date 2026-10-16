@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { Cell, KernelRecord, MiddleboxEvent, ProbeEvent, Run } from "./cell.ts";
-import { endpointAfter, routesOf, templated, toxicBody } from "./lab.ts";
+import { deviceOf, endpointAfter, routesOf, templated, toxicBody } from "./lab.ts";
 import { measure, socketOf } from "./observe.ts";
 import { judge } from "./run.ts";
-import { verdictOf } from "./verdict.ts";
+import { quantileOf, verdictOf } from "./verdict.ts";
 
 const s = (value: number) => ({ value, unit: "s" });
 const CLIENT = 4026532620;
@@ -177,6 +177,66 @@ describe("a run in a topology, measured from the records of each namespace", () 
     const warm: Run = { ...run({ kernel: [] }), warmup: true };
     expect(judge(only, [run({ kernel, events: [...events, { ev: "eof", t: T + 5_003_100_000 }] }), warm]).measured).toHaveLength(1);
   });
+
+  it("times a proxy from an arrival on one of its sockets to its write on the other, in each direction", () => {
+    // client → toxiproxy → Redis: the socket of the proxy toward the client, and toward the target
+    const proxied = {
+      targetPeer: "172.22.0.3",
+      hops: { toxiproxy: { netns: HOP, client: "172.21.0.3", target: "172.22.0.2:6379" } },
+    };
+    const CAL: Cell = {
+      ...ROUTER,
+      name: "CAL toxiproxy",
+      fault: "none",
+      probe: { mode: "stream", keepalive: false, count: 2 },
+      topology: { name: "CAL", hops: [{ name: "toxiproxy", kind: "proxy", image: "toxiproxy", port: 6380 }] },
+      calibrates: "toxiproxy",
+      prediction: { detects: null, window: s(10), why: "a calibration" },
+    };
+    const near = { netns: HOP, cookie: 70, src: "172.21.0.2:6380", dst: LOCAL };
+    const far = { netns: HOP, cookie: 71, src: "172.22.0.3:41000", dst: "172.22.0.2:6379" };
+    const data = (len: number) => ({ seg: { seq: 1, len: { value: len, unit: "B" } } });
+    const sends = [T + 1e9, T + 1.1e9];
+    const kernel = [
+      k("rx", T - 50_000),
+      k("state", T - 1_900_000, { ...near, old: 2, new: 1 } as Partial<KernelRecord>),
+      k("state", T - 1_800_000, { ...far, old: 2, new: 1 } as Partial<KernelRecord>),
+      ...sends.flatMap((sent, n) => [
+        k("rx", sent + 100_000, { ...near, ...data(6) }),
+        k("tx", sent + 600_000 + n * 100_000, { ...far, ...data(6) }),
+        k("rx", sent + 800_000, { ...far, ...data(7) }),
+        k("tx", sent + 1_800_000, { ...near, ...data(7) }),
+      ]),
+    ];
+    const read = measure(
+      CAL,
+      run({
+        topology: proxied,
+        kernel,
+        events: [...events, ...sends.flatMap((t) => [{ ev: "sent", t }, { ev: "replied", t: t + 2e6 }]), { ev: "done", t: T + 1.2e9 }],
+      }),
+    );
+    expect(read.crossings).toEqual({ hop: "toxiproxy", up: [s(0.0005), s(0.0006)], down: [s(0.001), s(0.001)] });
+    expect(read.samples).toEqual([s(0.002), s(0.002)]);
+    const verdict = verdictOf(CAL.prediction, [read]);
+    expect(verdict).toMatchObject({
+      decision: "measured",
+      proxy: { hop: "toxiproxy", up: { count: 2, median: s(0.00055), p99: s(0.0006), max: s(0.0006) }, down: { count: 2, p99: s(0.001) } },
+    });
+    expect(verdict.why).toBe(
+      "1 runs measured toxiproxy: toward the target median 0.55 ms, p99 0.6 ms, p99.9 0.6 ms, max 0.6 ms of 2; toward the client median 1 ms, p99 1 ms, p99.9 1 ms, max 1 ms of 2. a calibration",
+    );
+  });
+});
+
+describe("the quantiles of a calibration", () => {
+  it("takes each quantile by nearest rank", () => {
+    const sorted = Array.from({ length: 1000 }, (_, at) => at + 1);
+    expect(quantileOf(sorted, 0.5)).toBe(500);
+    expect(quantileOf(sorted, 0.99)).toBe(990);
+    expect(quantileOf(sorted, 0.999)).toBe(999);
+    expect(quantileOf([7], 0.99)).toBe(7);
+  });
 });
 
 describe("the chain of a topology", () => {
@@ -195,6 +255,12 @@ describe("the chain of a topology", () => {
     expect(endpointAfter([proxy, router], 0)).toBe(1);
     expect(endpointAfter([proxy, router], 1)).toBe(3);
     expect(endpointAfter([], 0)).toBe(1);
+  });
+
+  it("finds the device of a hop toward each side from its route", () => {
+    expect(deviceOf("172.21.0.3 dev eth0 src 172.21.0.2 uid 0 \\    cache ")).toBe("eth0");
+    expect(deviceOf("172.22.0.2 via 172.21.0.4 dev eth1 src 172.21.0.2 uid 0")).toBe("eth1");
+    expect(() => deviceOf("RTNETLINK answers: Network is unreachable")).toThrow("no device");
   });
 
   it("writes the next hop into the files of a proxy, and a toxic as the API of Toxiproxy takes it", () => {

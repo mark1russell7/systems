@@ -11,14 +11,14 @@ use std::borrow::Cow;
 use std::net::Ipv4Addr;
 
 /// `struct ev`'s size in bytes. In order: seven u64, five u32, seven i32, two u16, two u32,
-/// `struct tcp_now` (nine u32), `struct seg` (four u32), two u32 for a timer and a 16-byte comm.
-/// Every field sits on its own alignment, so the C compiler adds no padding.
-pub const SIZE: usize = 192;
+/// `struct tcp_now` (fifteen u32), `struct seg` (four u32), two u32 for a timer and a 16-byte
+/// comm. Every field sits on its own alignment, so the C compiler adds no padding.
+pub const SIZE: usize = 216;
 
 /// The event kinds, in `prober.h`'s order, from 1.
-const KINDS: [&str; 14] = [
+const KINDS: [&str; 15] = [
     "state", "accept", "retrans", "rst_tx", "rst_rx", "error", "destroy", "tw_enter", "tw_kill",
-    "req_new", "rst_v4", "probe", "rx", "timer",
+    "req_new", "rst_v4", "probe", "rx", "timer", "tx",
 ];
 
 /// ICSK_TIME_LOSS_PROBE in include/net/inet_connection_sock.h: the tail loss probe is armed
@@ -39,6 +39,13 @@ pub struct TcpNow {
     pub snd_una: u32,
     pub snd_nxt: u32,
     pub rcv_nxt: u32,
+    /// the SACK scoreboard and the reordering state, as `tcp_info` names them
+    pub sacked_out: u32,
+    pub lost_out: u32,
+    pub reordering: u32,
+    pub reord_seen: u32,
+    pub dsack_dups: u32,
+    pub rcv_ooopack: u32,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -138,6 +145,12 @@ impl Ev {
             snd_una: f.u32(),
             snd_nxt: f.u32(),
             rcv_nxt: f.u32(),
+            sacked_out: f.u32(),
+            lost_out: f.u32(),
+            reordering: f.u32(),
+            reord_seen: f.u32(),
+            dsack_dups: f.u32(),
+            rcv_ooopack: f.u32(),
         };
         let seg = Seg { seq: f.u32(), ack: f.u32(), len: f.u32(), flags: f.u32() };
         let (behind, late) = (f.u32(), f.u32());
@@ -206,11 +219,17 @@ impl Ev {
 #[derive(Serialize)]
 pub struct TcpOut {
     pub backoff: u32,
+    pub dsack_dups: u32,
+    pub lost: u32,
     pub pending: u32,
     pub probes_out: u32,
     pub rcv_nxt: u32,
+    pub rcv_ooopack: u32,
+    pub reord_seen: u32,
+    pub reordering: u32,
     pub retransmits: u32,
     pub rto: Quantity,
+    pub sacked: u32,
     pub snd_nxt: u32,
     pub snd_una: u32,
     pub srtt: Quantity,
@@ -334,6 +353,12 @@ impl<'a> From<&'a Ev> for Record<'a> {
                 snd_una: t.snd_una,
                 snd_nxt: t.snd_nxt,
                 rcv_nxt: t.rcv_nxt,
+                sacked: t.sacked_out,
+                lost: t.lost_out,
+                reordering: t.reordering,
+                reord_seen: t.reord_seen,
+                dsack_dups: t.dsack_dups,
+                rcv_ooopack: t.rcv_ooopack,
             }),
             seg: e.seg.as_ref().map(|s| SegOut {
                 seq: s.seq,
@@ -546,16 +571,28 @@ impl Ev {
         if let Some(t) = &self.tcp {
             out.extend_from_slice(b",\"tcp\":{\"backoff\":");
             push_u64(out, t.backoff.into());
+            out.extend_from_slice(b",\"dsack_dups\":");
+            push_u64(out, t.dsack_dups.into());
+            out.extend_from_slice(b",\"lost\":");
+            push_u64(out, t.lost_out.into());
             out.extend_from_slice(b",\"pending\":");
             push_u64(out, t.pending.into());
             out.extend_from_slice(b",\"probes_out\":");
             push_u64(out, t.probes_out.into());
             out.extend_from_slice(b",\"rcv_nxt\":");
             push_u64(out, t.rcv_nxt.into());
+            out.extend_from_slice(b",\"rcv_ooopack\":");
+            push_u64(out, t.rcv_ooopack.into());
+            out.extend_from_slice(b",\"reord_seen\":");
+            push_u64(out, t.reord_seen.into());
+            out.extend_from_slice(b",\"reordering\":");
+            push_u64(out, t.reordering.into());
             out.extend_from_slice(b",\"retransmits\":");
             push_u64(out, t.retransmits.into());
             out.extend_from_slice(b",\"rto\":");
             push_quantity(out, t.rto, "jiffy");
+            out.extend_from_slice(b",\"sacked\":");
+            push_u64(out, t.sacked_out.into());
             out.extend_from_slice(b",\"snd_nxt\":");
             push_u64(out, t.snd_nxt.into());
             out.extend_from_slice(b",\"snd_una\":");
@@ -610,7 +647,7 @@ mod tests {
         b.extend_from_slice(&6379_u16.to_ne_bytes());
         b.extend_from_slice(&1_u32.to_ne_bytes());
         b.extend_from_slice(&1_u32.to_ne_bytes());
-        for v in [retransmits, pending, 1, 0, 102, 80, 10, 16, 20] {
+        for v in [retransmits, pending, 1, 0, 102, 80, 10, 16, 20, 2, 1, 3, 0, 1, 4] {
             b.extend_from_slice(&v.to_ne_bytes());
         }
         for v in [10_u32, 0, 6, 0] {
@@ -637,6 +674,18 @@ mod tests {
         assert_eq!(json["why"], "rto");
         assert_eq!(json["src"], "172.21.0.3:41978");
         assert_eq!(json["tcp"]["rto"], serde_json::json!({ "value": 102.0, "unit": "jiffy" }));
+        // the SACK scoreboard and the reordering state, by the names of tcp_info
+        assert_eq!((&json["tcp"]["sacked"], &json["tcp"]["lost"]), (&serde_json::json!(2), &serde_json::json!(1)));
+        assert_eq!((&json["tcp"]["reordering"], &json["tcp"]["rcv_ooopack"]), (&serde_json::json!(3), &serde_json::json!(4)));
+    }
+
+    #[test]
+    fn says_what_a_write_gave_the_socket() {
+        let ev = Ev::decode(&raw(15, 0, 0)).unwrap();
+        assert_eq!(ev.kind_name(), "tx");
+        let json = serde_json::to_value(Record::from(&ev)).unwrap();
+        // a write has its first sequence number and its length, but no ack and no flags
+        assert_eq!(json["seg"], serde_json::json!({ "len": { "value": 6.0, "unit": "B" }, "seq": 10 }));
     }
 
     #[test]
@@ -670,7 +719,7 @@ mod tests {
 
     #[test]
     fn refuses_a_record_of_the_wrong_size() {
-        assert!(Ev::decode(&[0u8; 12]).unwrap_err().contains("192 bytes"));
+        assert!(Ev::decode(&[0u8; 12]).unwrap_err().contains("216 bytes"));
     }
 
     /// every whole record of the identity fixture, which the Go and C collectors are held to
@@ -691,6 +740,6 @@ mod tests {
             );
             checked += 1;
         }
-        assert_eq!(checked, 46);
+        assert_eq!(checked, 48);
     }
 }

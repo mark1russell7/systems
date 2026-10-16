@@ -15,8 +15,10 @@
 //! timeout makes the server answer only when the timeout runs out, so its reply can be the one in
 //! flight when a fault lands.
 //! stream: then wait for --go, and send the request --count times, each when the reply to the one
-//! before it has come and --interval-ms has passed: a distribution of reply times, for a fault
-//! whose outcome is one (loss, reordering). It ends with a done line.
+//! before it is whole and --interval-ms has passed: a distribution of reply times, for a fault
+//! whose outcome is one (loss, reordering). A reply is whole at its CRLF, or for a bulk string
+//! after its length: so `GET big` keeps a long reply's many segments in flight, and the replied
+//! line stamps its last byte. It ends with a done line.
 
 use prober::{errno_name, monotonic_ns, quantity};
 use serde_json::{json, Value};
@@ -84,6 +86,40 @@ fn readable(fd: i32, ms: i32) -> std::io::Result<bool> {
         -1 if std::io::Error::last_os_error().kind() == ErrorKind::Interrupted => Ok(false),
         -1 => Err(std::io::Error::last_os_error()),
         _ => Ok(wanted.revents != 0),
+    }
+}
+
+/// The whole length of a Redis reply from its first bytes, or None while its first line is not
+/// all there: a simple string, an error or an integer ends at its CRLF, and a bulk string after
+/// its length and one more CRLF (a null one, of length -1, at its first CRLF).
+fn reply_length(head: &[u8]) -> Option<usize> {
+    let line = head.windows(2).position(|pair| pair == b"\r\n")? + 2;
+    if head.first() != Some(&b'$') {
+        return Some(line);
+    }
+    let length: i64 = std::str::from_utf8(&head[1..line - 2]).ok()?.parse().ok()?;
+    Some(if length < 0 { line } else { line + length as usize + 2 })
+}
+
+/// The reply a stream waits for: its first bytes until its length is known, and how much came.
+#[derive(Default)]
+struct Reply {
+    head: Vec<u8>,
+    length: Option<usize>,
+    got: usize,
+}
+
+impl Reply {
+    /// Takes the bytes of one read, and says whether the reply is whole.
+    fn take(&mut self, bytes: &[u8]) -> bool {
+        self.got += bytes.len();
+        if self.length.is_none() {
+            // a bulk string's first line is its length: 64 bytes hold any
+            let room = 64usize.saturating_sub(self.head.len());
+            self.head.extend_from_slice(&bytes[..bytes.len().min(room)]);
+            self.length = reply_length(&self.head);
+        }
+        matches!(self.length, Some(length) if self.got >= length)
     }
 }
 
@@ -186,6 +222,7 @@ fn run() -> Result<(), Box<dyn Error>> {
     // stream mode: requests sent, whether one waits for its reply, and when the next may go
     let mut sent: u32 = 0;
     let mut awaiting = false;
+    let mut reply = Reply::default();
     let mut next_at: u64 = 0;
     loop {
         if readable(fd, tick)? {
@@ -196,8 +233,10 @@ fn run() -> Result<(), Box<dyn Error>> {
                 }
                 Ok(n) => {
                     emit("data", json!({ "n": n, "text": String::from_utf8_lossy(&buf[..n.min(40)]) }));
-                    if awaiting {
+                    if awaiting && reply.take(&buf[..n]) {
+                        emit("replied", json!({ "n": quantity(reply.got as u32, "B") }));
                         awaiting = false;
+                        reply = Reply::default();
                         next_at = monotonic_ns() + args.interval.as_nanos() as u64;
                     }
                 }
@@ -259,5 +298,26 @@ fn main() {
     if let Err(error) = run() {
         emit("fail", json!({ "why": error.to_string() }));
         std::process::exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_reply_is_whole_at_its_crlf_or_after_its_bulk_length() {
+        assert_eq!(reply_length(b"+PONG\r\n"), Some(7));
+        assert_eq!(reply_length(b"+PON"), None);
+        assert_eq!(reply_length(b"$5\r\nhello\r\n"), Some(11));
+        assert_eq!(reply_length(b"$-1\r\n"), Some(5));
+        assert_eq!(reply_length(b"$1000000\r\nxx"), Some(1_000_012));
+        // a long reply in reads of any size: whole only at its last byte
+        let mut reply = Reply::default();
+        assert!(!reply.take(b"$10\r"));
+        assert!(!reply.take(b"\n01234"));
+        assert!(!reply.take(b"56789\r"));
+        assert!(reply.take(b"\n"));
+        assert_eq!(reply.got, 17);
     }
 }

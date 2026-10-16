@@ -5,14 +5,15 @@
  *
  * Its core was built and verified first: the state changes, the owner at
  * connect and accept, retransmissions, resets, error reports, destruction, TIME_WAIT and request
- * socks, with the socket cookie, the namespace and the cgroup. The harness adds four things:
+ * socks, with the socket cookie, the namespace and the cgroup. The harness adds five things:
  * - each probe tcp_write_wakeup sends, as keepalive or zero-window;
  * - every segment received on an established socket, so a frozen peer's ACKs show;
  * - the connection's retransmit-timer state on each retransmission, so the tail loss probe (its
  *   pending event is the loss probe) parts from the RTO timer's retransmissions, which alone
- *   count toward tcp_retries2;
+ *   count toward tcp_retries2; with it the SACK scoreboard and the reordering state;
  * - each run of a socket's keepalive or retransmit timer, with how far behind its wheel slot it
- *   ran, so a run that a stalled vCPU delayed tells itself apart from the kernel's own timing. */
+ *   ran, so a run that a stalled vCPU delayed tells itself apart from the kernel's own timing;
+ * - each write of the owner, so a proxy's own time shows between its two sockets. */
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
@@ -95,6 +96,12 @@ static __always_inline void fill_tcp(struct ev *e, const struct sock *sk)
 	e->tcp.snd_una = BPF_CORE_READ(tp, snd_una);
 	e->tcp.snd_nxt = BPF_CORE_READ(tp, snd_nxt);
 	e->tcp.rcv_nxt = BPF_CORE_READ(tp, rcv_nxt);
+	e->tcp.sacked_out = BPF_CORE_READ(tp, sacked_out);
+	e->tcp.lost_out = BPF_CORE_READ(tp, lost_out);
+	e->tcp.reordering = BPF_CORE_READ(tp, reordering);
+	e->tcp.reord_seen = BPF_CORE_READ(tp, reord_seen);
+	e->tcp.dsack_dups = BPF_CORE_READ(tp, dsack_dups);
+	e->tcp.rcv_ooopack = BPF_CORE_READ(tp, rcv_ooopack);
 }
 
 SEC("tp_btf/inet_sock_set_state")
@@ -283,6 +290,21 @@ int BPF_PROG(on_rx, struct sock *sk, struct sk_buff *skb)
 	e->seg.len = len > head ? len - head : 0;
 	e->seg.flags = ((__u32)th.fin) | ((__u32)th.syn << 1) | ((__u32)th.rst << 2) | ((__u32)th.psh << 3) |
 		       ((__u32)th.ack << 4);
+	bpf_ringbuf_submit(e, wake());
+	return 0;
+}
+
+/* every write the owner makes: the bytes enter the socket here, and with TCP_NODELAY leave it in
+ * the same call. A proxy's time is from its arrival on one socket to this on the other. */
+SEC("fentry/tcp_sendmsg")
+int BPF_PROG(on_tx, struct sock *sk, struct msghdr *msg, size_t size)
+{
+	struct ev *e = sk_record(sk, EV_TX, 0);
+	if (!e) return 0;
+	fill_tcp(e, sk);
+	e->has_seg = 1;
+	e->seg.seq = BPF_CORE_READ((struct tcp_sock *)sk, write_seq);
+	e->seg.len = (__u32)size;
 	bpf_ringbuf_submit(e, wake());
 	return 0;
 }

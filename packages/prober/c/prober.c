@@ -20,7 +20,7 @@
 #include <sys/stat.h>
 #include <time.h>
 
-#define SIZE 192 /* struct ev: seven u64, five u32, seven i32, two u16, two u32, nine u32, four u32, two u32, 16 bytes */
+#define SIZE 216 /* struct ev: seven u64, five u32, seven i32, two u16, two u32, fifteen u32, four u32, two u32, 16 bytes */
 #define ICSK_TIME_LOSS_PROBE 5
 #define TIMER_OWNED 0x100 /* prober.h: a timer found its socket held by its owner */
 #define DEFAULT_OBJECT "/opt/harness/prober.bpf.o"
@@ -28,7 +28,7 @@
 
 static const char *const KINDS[] = {
 	"state", "accept", "retrans", "rst_tx", "rst_rx", "error", "destroy",
-	"tw_enter", "tw_kill", "req_new", "rst_v4", "probe", "rx", "timer",
+	"tw_enter", "tw_kill", "req_new", "rst_v4", "probe", "rx", "timer", "tx",
 };
 
 struct ev {
@@ -39,7 +39,9 @@ struct ev {
 	int32_t pid, fd, oldst, newst, state, err, owner;
 	uint16_t sport, dport;
 	uint32_t has_tcp, has_seg;
-	uint32_t tcp[9]; /* retransmits, pending, backoff, probes_out, rto, srtt_us, snd_una, snd_nxt, rcv_nxt */
+	/* retransmits, pending, backoff, probes_out, rto, srtt_us, snd_una, snd_nxt, rcv_nxt, then
+	 * sacked_out, lost_out, reordering, reord_seen, dsack_dups, rcv_ooopack */
+	uint32_t tcp[15];
 	uint32_t seg[4]; /* seq, ack, len, flags */
 	uint32_t behind, late; /* a timer's jiffies behind its wheel slot, and after its expiry */
 	uint8_t comm[16];
@@ -79,10 +81,11 @@ static const char *kind_name(const struct ev *e)
 	return e->kind >= 1 && e->kind <= sizeof(KINDS) / sizeof(KINDS[0]) ? KINDS[e->kind - 1] : "unknown";
 }
 
-/* A line under construction, written with one fwrite. No record's line comes near 1 KiB: its
- * longest field is a 16-byte name, at most six bytes a byte once escaped. */
+/* A line under construction, written with one fwrite. No record's line comes near 2 KiB: with
+ * every integer at its extreme it is under 900 bytes, and its longest field is a 16-byte name, at
+ * most six bytes a byte once escaped. */
 struct buf {
-	char b[1024];
+	char b[2048];
 	size_t n;
 };
 
@@ -290,16 +293,28 @@ static void line(FILE *out, const struct ev *e)
 		const uint32_t *t = e->tcp;
 		PUT(&o, ",\"tcp\":{\"backoff\":");
 		put_u64(&o, t[2]);
+		PUT(&o, ",\"dsack_dups\":");
+		put_u64(&o, t[13]);
+		PUT(&o, ",\"lost\":");
+		put_u64(&o, t[10]);
 		PUT(&o, ",\"pending\":");
 		put_u64(&o, t[1]);
 		PUT(&o, ",\"probes_out\":");
 		put_u64(&o, t[3]);
 		PUT(&o, ",\"rcv_nxt\":");
 		put_u64(&o, t[8]);
+		PUT(&o, ",\"rcv_ooopack\":");
+		put_u64(&o, t[14]);
+		PUT(&o, ",\"reord_seen\":");
+		put_u64(&o, t[12]);
+		PUT(&o, ",\"reordering\":");
+		put_u64(&o, t[11]);
 		PUT(&o, ",\"retransmits\":");
 		put_u64(&o, t[0]);
 		PUT(&o, ",\"rto\":");
 		PUT_QUANTITY(&o, t[4], "jiffy");
+		PUT(&o, ",\"sacked\":");
+		put_u64(&o, t[9]);
 		PUT(&o, ",\"snd_nxt\":");
 		put_u64(&o, t[7]);
 		PUT(&o, ",\"snd_una\":");

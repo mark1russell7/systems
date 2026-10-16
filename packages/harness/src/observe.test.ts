@@ -454,6 +454,103 @@ describe("a run measured against its cell, from the kernel's own records", () =>
     expect(read.samples).toEqual([s(0.00012), s(0.2041), s(0.00012)]);
     const verdict = verdictOf(STREAM.prediction, [read, { ...read, index: 1 }]);
     expect(verdict).toMatchObject({ decision: "measured", band: null, outside: [] });
-    expect(verdict.why).toMatch(/^2 runs, 6 replies: median 0\.00012 s, slowest 0\.2041 s, 2 retransmissions/);
+    expect(verdict.why).toMatch(/^2 runs, 6 replies: median 0\.00012 s, p99 0\.2041 s, slowest 0\.2041 s, 2 retransmissions, 0 connections ended\. a distribution/);
+  });
+
+  it("times a long reply to its last byte, and counts what reordering did at the two ends", () => {
+    const BULK: Cell = {
+      ...KEEPALIVE,
+      name: "bulk",
+      fault: "netem",
+      probe: { mode: "stream", keepalive: false, request: "GET big", count: 1 },
+      prediction: { detects: null, window: s(30), why: "a distribution" },
+    };
+    const go = T + 1e9;
+    const events: ProbeEvent[] = [
+      ...client,
+      { ev: "sent", t: go },
+      { ev: "data", t: go + 2_000_000, n: 1448 },
+      { ev: "data", t: go + 30_000_000, n: 2896 },
+      { ev: "replied", t: go + 30_000_000, n: { value: 4344, unit: "B" } },
+      { ev: "done", t: go + 30_100_000 },
+    ];
+    // the server's socket for the connection: the sender of the reply
+    const server = { netns: NETNS + 1, cookie: 9184, src: "172.21.0.2:6379", dst: LOCAL };
+    const tcp = (rcv_nxt: number, more: Partial<NonNullable<KernelRecord["tcp"]>> = {}) => ({
+      retransmits: 0,
+      pending: 0,
+      backoff: 0,
+      probes_out: 0,
+      rto: { value: 54, unit: "jiffy" },
+      srtt: { value: 10_400, unit: "us" },
+      rcv_nxt,
+      ...more,
+    });
+    const seg = (seq: number) => ({ seq, len: { value: 1448, unit: "B" } });
+    const kernel = [
+      ...reply,
+      k("rx", go - 1_000_000, { netns: NETNS + 1, cookie: 9184, src: "172.21.0.2:6379", dst: LOCAL }),
+      // the second segment overtook the first, and the first came twice
+      k("rx", go + 2_000_000, { seg: seg(2448), tcp: tcp(1000, { rcv_ooopack: 0 }) }),
+      k("rx", go + 12_000_000, { seg: seg(1000), tcp: tcp(1000, { rcv_ooopack: 1 }) }),
+      k("rx", go + 22_000_000, { seg: seg(1000), tcp: tcp(3896, { rcv_ooopack: 1 }) }),
+      k("rx", go + 3_000_000, { ...server, tcp: tcp(7, { sacked: 1, reordering: 3, dsack_dups: 0, reord_seen: 0 }) }),
+      k("rx", go + 23_000_000, { ...server, tcp: tcp(7, { sacked: 0, reordering: 5, dsack_dups: 1, reord_seen: 1 }) }),
+      { ...retrans(go + 13_000_000, "rto", 0), ...server, why: "fast" as const },
+    ];
+    const read = measure(BULK, run(events, kernel, { t0: go - 2e6, t1: go - 1e6 }));
+    // the last byte of the reply, not its first data
+    expect(read.samples).toEqual([s(0.03)]);
+    expect(read.reordering).toEqual({
+      outOfOrder: 1,
+      duplicates: 1,
+      ooo: 1,
+      sacked: 1,
+      lost: null,
+      dsacks: 1,
+      fast: 1,
+      degree: 5,
+      seen: 1,
+    });
+    const verdict = verdictOf(BULK.prediction, [read, { ...read, index: 1 }]);
+    expect(verdict.reordering).toMatchObject({ outOfOrder: 2, duplicates: 2, dsacks: 2, degree: 5, seen: 2 });
+    expect(verdict.why).toContain(
+      "Reordering: 2 arrivals out of order and 2 duplicate arrivals at the client, its kernel counted 2 segments out of order, the server held up to 1 segments SACKed, got 2 DSACKs, sent 2 fast retransmissions, saw 2 reorderings, and its reordering degree went to 5.",
+    );
+  });
+
+  it("voids a run whose first round trip is above the range that its band assumes", () => {
+    const stall: Cell = {
+      ...IN_FLIGHT,
+      name: "a 1 s stall",
+      fault: "stall",
+      stall: s(1),
+      prediction: {
+        detects: false,
+        window: s(20),
+        recovers: { firing: 3, low: s(1.616), high: s(1.705), heal: { low: s(0.856), high: s(1.616) } },
+        rtt: { low: { value: 0, unit: "ms" }, high: { value: 4, unit: "ms" } },
+      },
+    };
+    const sent = T + 300_000_000;
+    const first = (srtt: number) =>
+      k("rx", T - 1_400_000, { tcp: { retransmits: 0, pending: 0, backoff: 0, probes_out: 0, rto: { value: 52, unit: "jiffy" }, srtt: { value: srtt, unit: "us" } } });
+    const kernel = (srtt: number) => [
+      first(srtt),
+      reply[1]!,
+      retrans(sent + 1_736_000_000, "rto", 3),
+      k("rx", sent + 1_736_300_000, { seg: { seq: 8, len: { value: 7, unit: "B" } } }),
+    ];
+    const events = [...client, { ev: "sent", t: sent }, { ev: "data", t: sent + 1_736_500_000, n: 7 }];
+    const healed = (srtt: number): Run => ({
+      ...run(events, kernel(srtt), { t0: T + 100e6, t1: T + 104e6 }),
+      heal: { t0: sent + 1e9, t1: sent + 1e9 + 2_500_000 },
+    });
+    // the step 3 outlier: a handshake of 4.826 ms made its RTO 52 jiffies, not 51
+    expect(measure(stall, healed(4826))).toMatchObject({
+      rtt: { value: 4.826, unit: "ms" },
+      void: "rtt-over-assumption: its first round trip was 4.826 ms, above the 4 ms that the prediction assumes",
+    });
+    expect(measure(stall, healed(762))).toMatchObject({ rtt: { value: 0.762, unit: "ms" }, void: null });
   });
 });
