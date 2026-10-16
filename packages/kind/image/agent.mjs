@@ -30,6 +30,7 @@ const serve = async () => {
   let polls = 0;
   let spent = 0;
   let beat = now();
+  let dumped = null;
   for (;;) {
     if (!existsSync("/tmp/rules.json")) {
       last = null;
@@ -47,6 +48,12 @@ const serve = async () => {
     } else {
       const backends = backendsOf(rule.mode, run.stdout, rule);
       const key = backends.join(",");
+      // a dump that names the Service but gives no backend: once for each rule, its text, to read the format
+      const config = JSON.stringify(rule);
+      if (backends.length === 0 && run.stdout.includes(`${rule.ns}/${rule.svc}`) && dumped !== config) {
+        say({ ev: "rules-dump", t, text: run.stdout.slice(0, 30000) });
+        dumped = config;
+      }
       if (key !== last) {
         say({ ev: "rules", t, prev: previous, took: Math.round(took * 1000) / 1000, b: backends });
         last = key;

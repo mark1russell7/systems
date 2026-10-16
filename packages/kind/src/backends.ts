@@ -38,12 +38,15 @@ export const backendsOf = (mode: ServiceRule["mode"], text: string, rule: Pick<S
       if (to !== null) out.add(to[1]!);
     }
   } else if (mode === "nftables") {
+    // a chain name with a slash can print in quotes: `chain "service-…" {` and `goto "endpoint-…"`
     let inside = false;
+    const ours = `-${rule.ns}/${rule.svc}/`;
     for (const line of lines) {
-      const head = /^\s*chain (\S+) \{/.exec(line);
-      if (head !== null) inside = head[1]!.startsWith("service-") && head[1]!.includes(`-${rule.ns}/${rule.svc}/`);
+      const head = /^\s*chain\s+"?([^"\s{]+)"?\s*\{/.exec(line);
+      if (head !== null) inside = head[1]!.startsWith("service-") && head[1]!.includes(ours);
       if (!inside) continue;
-      for (const match of line.matchAll(/endpoint-[0-9A-Za-z]+-[^\s,}]+__([0-9.]+)\/(\d+)/g)) out.add(`${match[1]}:${match[2]}`);
+      for (const match of line.matchAll(/(?:goto|jump)\s+"?endpoint-[0-9A-Za-z]+(-[^\s,}"]+)__([0-9.]+)\/(\d+)"?/g))
+        if (match[1]!.startsWith(ours)) out.add(`${match[2]}:${match[3]}`);
     }
   } else {
     let inside = false;

@@ -57,6 +57,12 @@ describe("the backends of a Service in the rules of kube-proxy", () => {
     expect(backendsOf("ipvs", IPVS, RULE)).toEqual(["10.244.1.3:8080"]);
   });
 
+  it("reads the chain names of nftables in quotes too", () => {
+    const quoted = NFTABLES.replaceAll(/(chain |goto )(\S+?)( \{| ,| \})/g, '$1"$2"$3');
+    expect(quoted).toContain('chain "service-ULMVA6XW-lab-x/lab/tcp/http" {');
+    expect(backendsOf("nftables", quoted, RULE)).toEqual(["10.244.1.3:8080", "10.244.2.4:8080"]);
+  });
+
   it("gives no backend for a Service without rules", () => {
     for (const mode of ["iptables", "nftables", "ipvs"] as const) expect(backendsOf(mode, "", RULE)).toEqual([]);
   });
