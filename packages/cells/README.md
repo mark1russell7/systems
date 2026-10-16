@@ -131,12 +131,14 @@ Each band of a client counts from the last segment of the reply that the kernel 
 - **What it changes.** The handling time goes on the high bound of the pool expiry and of the gap of a Node client. A client with no reuse closes at its decision, in the handling time. The orderings of the race stay the same. Go handles its first reply in less than 0.71 ms, thus it gets no handling time.
 - **The bands that it repairs.** The CI run 38931350785 refuted four bands, each by the handling time:
 
-| Cell | The band before | What the runs showed |
-| --- | --- | --- |
-| `T01.border-off.124` undici, a GET 5.95 s after the reply | [5.898, 5.9079] s | 8 of 11 runs above the band and δ_abs, by up to 0.95 ms. The `ready` line came 5.9 ms to 6.5 ms after the last segment, and the timer arms after it. |
-| `T01` undici, a GET 4 s after the reply | [2.998, 3.005] s | 4 of 11 runs above the band and δ_abs, by up to 1.4 ms. |
-| `T01` undici, a hint of 2 (no reuse) | [0, 0.001] s | 1 run at 5.7 ms. undici closes in the parse of the reply, 4.2 ms to 5.7 ms after the last segment. |
-| `T01` agent, a hint of 1 (no reuse) | [0, 0.001] s | Each run inside the band and δ_abs. But the interval of the median, [4.19, 4.76] ms, is above the band, thus the verdict fails. |
+| Cell | The band before | What the runs showed | The band with the handling time (HZ 1000) |
+| --- | --- | --- | --- |
+| `T01.border-off.124` undici, a GET 5.95 s after the reply | [5.898, 5.9079] s | 8 of 11 runs above the band and δ_abs, by up to 0.95 ms. The `ready` line came 5.9 ms to 6.5 ms after the last segment, and the timer arms after it. | [5.898, 5.919082] s |
+| `T01` undici, a GET 4 s after the reply | [2.998, 3.005] s | 4 of 11 runs above the band and δ_abs, by up to 1.4 ms. | [2.998, 3.016182] s |
+| `T01` undici, a hint of 2 (no reuse) | [0, 0.001] s | 1 run at 5.7 ms. undici closes in the parse of the reply, 4.2 ms to 5.7 ms after the last segment. | [0, 0.011182] s |
+| `T01` agent, a hint of 1 (no reuse) | [0, 0.001] s | Each run inside the band and δ_abs. But the interval of the median, [4.19, 4.76] ms, is above the band, thus the verdict fails. | [0, 0.00673] s |
+
+The CI run 38976874040 tested the 13 race cells of the Node clients and the 8 CAL cells with these bands, and each one holds. Its CAL cells stay below `HANDLING`: 6.263 ms for the agent, and 9.022 ms for undici.
 
 ### The faults
 
