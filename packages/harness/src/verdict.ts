@@ -250,7 +250,9 @@ export const groupVerdictOf = (prediction: Prediction, counted: readonly Measure
     for (const run of counted) {
       const at = run.group?.stages[band.stage];
       if (at === undefined) {
-        outside.push({ run: name(run), why: `no Sentinel announced ${band.stage}` });
+        // a stage of a Sentinel starts with +: a Sentinel announces it. The members and the client of a replica set mark the others
+        const who = band.stage.startsWith("+") ? "no Sentinel announced" : "no member or client marked";
+        outside.push({ run: name(run), why: `${who} ${band.stage}` });
         continue;
       }
       const value = valueIn(at, "s");

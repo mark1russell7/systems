@@ -1,0 +1,755 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-10-16",
+  "units": "s",
+  "runs": 11,
+  "kernel": "6.17.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {
+    "iptables": {
+      "all": {
+        "count": 33,
+        "min": 0.017,
+        "median": 0.059,
+        "p99": 0.105,
+        "max": 0.105
+      },
+      "slice": {
+        "count": 11,
+        "min": 0.006,
+        "median": 0.012,
+        "p99": 0.024,
+        "max": 0.024
+      },
+      "intake": {
+        "count": 11,
+        "min": 12.006,
+        "median": 12.011,
+        "p99": 12.013,
+        "max": 12.013
+      },
+      "values": [0.017, 0.023, 0.025, 0.026, 0.033, 0.04, 0.041, 0.042, 0.044, 0.049, 0.053, 0.053, 0.056, 0.057, 0.058, 0.058, 0.059, 0.062, 0.063, 0.066, 0.067, 0.067, 0.068, 0.071, 0.071, 0.078, 0.079, 0.082, 0.083, 0.088, 0.091, 0.098, 0.105]
+    },
+    "ipvs": {
+      "all": {
+        "count": 33,
+        "min": 0.123,
+        "median": 0.192,
+        "p99": 0.309,
+        "max": 0.309
+      },
+      "slice": {
+        "count": 11,
+        "min": 0.005,
+        "median": 0.018,
+        "p99": 0.03,
+        "max": 0.03
+      },
+      "intake": {
+        "count": 11,
+        "min": 12.008,
+        "median": 12.01,
+        "p99": 12.012,
+        "max": 12.012
+      },
+      "values": [0.123, 0.149, 0.151, 0.153, 0.157, 0.162, 0.168, 0.169, 0.17, 0.171, 0.173, 0.18, 0.182, 0.185, 0.189, 0.192, 0.192, 0.193, 0.198, 0.212, 0.218, 0.218, 0.225, 0.226, 0.232, 0.234, 0.235, 0.238, 0.247, 0.252, 0.254, 0.285, 0.309]
+    },
+    "nftables": {
+      "all": {
+        "count": 33,
+        "min": 0.019,
+        "median": 0.045,
+        "p99": 0.079,
+        "max": 0.079
+      },
+      "slice": {
+        "count": 11,
+        "min": 0.004,
+        "median": 0.008,
+        "p99": 0.023,
+        "max": 0.023
+      },
+      "intake": {
+        "count": 11,
+        "min": 12.007,
+        "median": 12.009,
+        "p99": 12.011,
+        "max": 12.011
+      },
+      "values": [0.019, 0.021, 0.021, 0.025, 0.025, 0.027, 0.027, 0.028, 0.029, 0.029, 0.031, 0.034, 0.034, 0.038, 0.04, 0.043, 0.045, 0.047, 0.047, 0.047, 0.048, 0.05, 0.052, 0.054, 0.055, 0.055, 0.056, 0.057, 0.063, 0.065, 0.067, 0.077, 0.079]
+    }
+  },
+  "cells": [
+    {
+      "id": "CAL.T07.iptables",
+      "template": "T07",
+      "name": "iptables, the propagation of a deletion, preStop 10 s",
+      "mode": "iptables",
+      "trigger": "pod-deletion",
+      "group": "calibration",
+      "prediction": {
+        "kind": "calibration",
+        "band": null,
+        "text": "This cell is a calibration. A preStop sleep of 10 s keeps the pod open while the deletion propagates, thus no request fails. Each node gives its propagation: the time from the deletion to the first poll of its rules without the pod."
+      },
+      "decision": "calibration",
+      "counted": 11,
+      "voided": 0,
+      "failed": 1,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+      "why": "The calibration measured the propagation in each of the 11 counted runs. In 1 counted run, 1 request failed with a timeout."
+    },
+    {
+      "id": "T07.defaults.9",
+      "template": "T07",
+      "name": "iptables, pod deletion, the design's hold of 2 s",
+      "mode": "iptables",
+      "trigger": "pod-deletion",
+      "group": "deletion",
+      "prediction": {
+        "kind": "none",
+        "band": null,
+        "text": "The algebra predicts that no request fails."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 0 failed requests."
+    },
+    {
+      "id": "T07.border-off.68",
+      "template": "T07",
+      "name": "iptables, pod deletion, no hold and no preStop",
+      "mode": "iptables",
+      "trigger": "pod-deletion",
+      "group": "deletion",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the stop of the intake, and it closes 0 s to 105 ms after the deletion of the pod."
+      },
+      "decision": "fails",
+      "counted": 11,
+      "voided": 0,
+      "failed": 1,
+      "unit": "requests",
+      "median": 3,
+      "values": [7, 0, 3, 3, 3, 2, 2, 5, 4, 6, 2],
+      "why": "1 of the 11 counted runs disagrees with the prediction. In that run, 1 request failed outside the window of −100 ms to 161 ms after the stop of the intake. The median run had 3 failed requests."
+    },
+    {
+      "id": "T07.defaults.34",
+      "template": "T07",
+      "name": "iptables, pod deletion while kube-proxy pauses 5 s on one node, the design's hold of 2 s",
+      "mode": "iptables",
+      "trigger": "freeze-process",
+      "group": "pause",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the stop of the intake, and it closes 0 s to 105 ms after the resume of kube-proxy. Only the clients of the paused node fail. At least one request fails."
+      },
+      "decision": "fails",
+      "counted": 11,
+      "voided": 0,
+      "failed": 8,
+      "unit": "requests",
+      "median": 61,
+      "values": [51, 64, 61, 56, 84, 61, 61, 76, 71, 64, 56],
+      "why": "8 of the 11 counted runs disagree with the prediction. In the first of them, 1 request failed outside the window of −100 ms to 2.49 s after the stop of the intake. The median run had 61 failed requests."
+    },
+    {
+      "id": "T07.border-off.1",
+      "template": "T07",
+      "name": "iptables, pod deletion while kube-proxy pauses 5 s on one node, a hold of 8 s",
+      "mode": "iptables",
+      "trigger": "freeze-process",
+      "group": "pause",
+      "prediction": {
+        "kind": "none",
+        "band": null,
+        "text": "The algebra predicts that no request fails."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 0 failed requests."
+    },
+    {
+      "id": "CAL.T07.ipvs",
+      "template": "T07",
+      "name": "ipvs, the propagation of a deletion, preStop 10 s",
+      "mode": "ipvs",
+      "trigger": "pod-deletion",
+      "group": "calibration",
+      "prediction": {
+        "kind": "calibration",
+        "band": null,
+        "text": "This cell is a calibration. A preStop sleep of 10 s keeps the pod open while the deletion propagates, thus no request fails. Each node gives its propagation: the time from the deletion to the first poll of its rules without the pod."
+      },
+      "decision": "calibration",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "The calibration measured the propagation in each of the 11 counted runs."
+    },
+    {
+      "id": "T07.defaults.1",
+      "template": "T07",
+      "name": "ipvs, pod deletion, the design's hold of 2 s",
+      "mode": "ipvs",
+      "trigger": "pod-deletion",
+      "group": "deletion",
+      "prediction": {
+        "kind": "none",
+        "band": null,
+        "text": "The algebra predicts that no request fails."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 0 failed requests."
+    },
+    {
+      "id": "T07.border-off.68",
+      "template": "T07",
+      "name": "ipvs, pod deletion, no hold and no preStop",
+      "mode": "ipvs",
+      "trigger": "pod-deletion",
+      "group": "deletion",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the stop of the intake, and it closes 73 ms to 309 ms after the deletion of the pod."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 13,
+      "values": [15, 12, 12, 12, 15, 12, 13, 14, 14, 15, 13],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 13 failed requests. The counted runs had 12 to 15 failed requests."
+    },
+    {
+      "id": "T07.defaults.31",
+      "template": "T07",
+      "name": "ipvs, pod deletion while kube-proxy pauses 5 s on one node, the design's hold of 2 s",
+      "mode": "ipvs",
+      "trigger": "freeze-process",
+      "group": "pause",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the stop of the intake, and it closes 73 ms to 309 ms after the resume of kube-proxy. Only the clients of the paused node fail. At least one request fails."
+      },
+      "decision": "fails",
+      "counted": 11,
+      "voided": 0,
+      "failed": 7,
+      "unit": "requests",
+      "median": 65,
+      "values": [57, 61, 58, 65, 65, 67, 66, 57, 68, 75, 83],
+      "why": "7 of the 11 counted runs disagree with the prediction. In the first of them, 3 requests failed outside the window of −100 ms to 2.687 s after the stop of the intake. The median run had 65 failed requests."
+    },
+    {
+      "id": "T07.border-off.1",
+      "template": "T07",
+      "name": "ipvs, pod deletion while kube-proxy pauses 5 s on one node, a hold of 8 s",
+      "mode": "ipvs",
+      "trigger": "freeze-process",
+      "group": "pause",
+      "prediction": {
+        "kind": "none",
+        "band": null,
+        "text": "The algebra predicts that no request fails."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 0 failed requests."
+    },
+    {
+      "id": "CAL.T07.nftables",
+      "template": "T07",
+      "name": "nftables, the propagation of a deletion, preStop 10 s",
+      "mode": "nftables",
+      "trigger": "pod-deletion",
+      "group": "calibration",
+      "prediction": {
+        "kind": "calibration",
+        "band": null,
+        "text": "This cell is a calibration. A preStop sleep of 10 s keeps the pod open while the deletion propagates, thus no request fails. Each node gives its propagation: the time from the deletion to the first poll of its rules without the pod."
+      },
+      "decision": "calibration",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "The calibration measured the propagation in each of the 11 counted runs."
+    },
+    {
+      "id": "T07.defaults.30",
+      "template": "T07",
+      "name": "nftables, pod deletion, the design's hold of 2 s",
+      "mode": "nftables",
+      "trigger": "pod-deletion",
+      "group": "deletion",
+      "prediction": {
+        "kind": "none",
+        "band": null,
+        "text": "The algebra predicts that no request fails."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 0 failed requests."
+    },
+    {
+      "id": "T07.border-off.68",
+      "template": "T07",
+      "name": "nftables, pod deletion, no hold and no preStop",
+      "mode": "nftables",
+      "trigger": "pod-deletion",
+      "group": "deletion",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the stop of the intake, and it closes 0 s to 79 ms after the deletion of the pod."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 1,
+      "values": [0, 2, 2, 1, 0, 1, 1, 3, 1, 2, 3],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 1 failed request. The counted runs had 0 to 3 failed requests."
+    },
+    {
+      "id": "T07.defaults.28",
+      "template": "T07",
+      "name": "nftables, pod deletion while kube-proxy pauses 5 s on one node, the design's hold of 2 s",
+      "mode": "nftables",
+      "trigger": "freeze-process",
+      "group": "pause",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the stop of the intake, and it closes 0 s to 79 ms after the resume of kube-proxy. Only the clients of the paused node fail. At least one request fails."
+      },
+      "decision": "fails",
+      "counted": 11,
+      "voided": 0,
+      "failed": 6,
+      "unit": "requests",
+      "median": 60,
+      "values": [56, 59, 46, 80, 63, 75, 57, 51, 81, 60, 70],
+      "why": "6 of the 11 counted runs disagree with the prediction. In the first of them, 14 requests failed outside the window of −100 ms to 2.521 s after the stop of the intake. The median run had 60 failed requests."
+    },
+    {
+      "id": "T07.border-off.1",
+      "template": "T07",
+      "name": "nftables, pod deletion while kube-proxy pauses 5 s on one node, a hold of 8 s",
+      "mode": "nftables",
+      "trigger": "freeze-process",
+      "group": "pause",
+      "prediction": {
+        "kind": "none",
+        "band": null,
+        "text": "The algebra predicts that no request fails."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 0 failed requests."
+    },
+    {
+      "id": "T07.defaults.23",
+      "template": "T07",
+      "name": "iptables, rolling update, the design's hold of 2 s",
+      "mode": "iptables",
+      "trigger": "rolling-update",
+      "group": "triggers",
+      "prediction": {
+        "kind": "none",
+        "band": null,
+        "text": "The algebra predicts that no request fails."
+      },
+      "decision": "fails",
+      "counted": 11,
+      "voided": 0,
+      "failed": 1,
+      "unit": "requests",
+      "median": 0,
+      "values": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "1 of the 11 counted runs disagrees with the prediction. In that run, 1 request failed with a timeout. The median run had 0 failed requests."
+    },
+    {
+      "id": "T07.defaults.27",
+      "template": "T07",
+      "name": "nftables, scale-in from 3 to 2, the design's hold of 2 s",
+      "mode": "nftables",
+      "trigger": "scale-in",
+      "group": "triggers",
+      "prediction": {
+        "kind": "none",
+        "band": null,
+        "text": "The algebra predicts that no request fails."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 0 failed requests."
+    },
+    {
+      "id": "T07.defaults.24",
+      "template": "T07",
+      "name": "iptables, node drain, the design's hold of 2 s",
+      "mode": "iptables",
+      "trigger": "node-drain",
+      "group": "triggers",
+      "prediction": {
+        "kind": "none",
+        "band": null,
+        "text": "The algebra predicts that no request fails."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 0 failed requests."
+    },
+    {
+      "id": "T07.defaults.25",
+      "template": "T07",
+      "name": "iptables, crash of the server process",
+      "mode": "iptables",
+      "trigger": "crash",
+      "group": "triggers",
+      "prediction": {
+        "kind": "measured",
+        "band": null,
+        "text": "This cell has no band. No document gives the time from the exit of a container to the removal of its endpoint. The kubelet finds the exit at its own relist, and the relist is not a setting."
+      },
+      "decision": "measured",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 67,
+      "values": [59, 70, 61, 66, 74, 71, 80, 59, 8, 67, 68],
+      "why": "The harness measured 11 counted runs. The median run had 67 failed requests. The counted runs had 8 to 80 failed requests."
+    },
+    {
+      "id": "T07.defaults.11",
+      "template": "T07",
+      "name": "ipvs, liveness restart, liveness fails readiness, readiness 2 s × 3 and liveness 10 s × 3",
+      "mode": "ipvs",
+      "trigger": "liveness-restart",
+      "group": "triggers",
+      "prediction": {
+        "kind": "none",
+        "band": null,
+        "text": "The algebra predicts that no request ends with a refusal, a reset, a timeout, an unreachable error or another error. An answer of 503 from a replica is not one of them."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 0 failed requests."
+    },
+    {
+      "id": "T07.defaults.11",
+      "template": "T07",
+      "name": "ipvs, liveness restart, liveness does not fail readiness",
+      "mode": "ipvs",
+      "trigger": "liveness-restart",
+      "group": "triggers",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the stop of the intake. At least one request fails."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 22,
+      "values": [28, 18, 21, 22, 24, 23, 20, 25, 21, 21, 23],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 22 failed requests. The counted runs had 18 to 28 failed requests."
+    },
+    {
+      "id": "T18.defaults.1",
+      "template": "T18",
+      "name": "rst from Redis to each replica, the round trip gates readiness",
+      "mode": "iptables",
+      "trigger": "rst",
+      "group": "redis",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 28,
+          "high": 48.105
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 28 s to 48.105 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 34.244,
+      "values": [44.148, 34.08, 43.258, 34.103, 33.955, 34.125, 43.255, 43.998, 43.163, 34.089, 34.244],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 34.244 s. The counted runs measured 33.955 s to 44.148 s."
+    },
+    {
+      "id": "T18.defaults.10",
+      "template": "T18",
+      "name": "Redis frozen with SIGSTOP, the round trip gates readiness",
+      "mode": "iptables",
+      "trigger": "freeze-process",
+      "group": "redis",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 28,
+          "high": 50.105
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 28 s to 50.105 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 43.12,
+      "values": [44.948, 42.956, 43.163, 33.166, 43.12, 35.165, 44.039, 36.026, 44.011, 34.011, 43.992],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 43.12 s. The counted runs measured 33.166 s to 44.948 s."
+    },
+    {
+      "id": "T18.defaults.11",
+      "template": "T18",
+      "name": "blackhole between Redis and each replica, the round trip gates readiness",
+      "mode": "iptables",
+      "trigger": "blackhole",
+      "group": "redis",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 28,
+          "high": 50.105
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 28 s to 50.105 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 42.277,
+      "values": [43.118, 33.968, 44.074, 44.219, 44.052, 43.24, 42.265, 36.979, 42.277, 34.217, 37.115],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 42.277 s. The counted runs measured 33.968 s to 44.219 s."
+    },
+    {
+      "id": "T18.defaults.11",
+      "template": "T18",
+      "name": "blackhole between Redis and each replica, the round trip gates nothing",
+      "mode": "iptables",
+      "trigger": "blackhole",
+      "group": "redis",
+      "prediction": {
+        "kind": "stays",
+        "band": null,
+        "text": "The algebra predicts that each replica stays in the Service, and that no request is refused. The requests that need Redis fail at the replica."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 8507,
+      "values": [8501, 8586, 8507, 8482, 8391, 8553, 8523, 8564, 8500, 8432, 8584],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 8,507 failed requests. The counted runs had 8,391 to 8,586 failed requests."
+    },
+    {
+      "id": "T18.defaults.5",
+      "template": "T18",
+      "name": "Redis gone without a close, the round trip gates readiness",
+      "mode": "iptables",
+      "trigger": "peer-gone-without-close",
+      "group": "redis",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 28,
+          "high": 50.105
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 28 s to 50.105 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 42.143,
+      "values": [32.312, 41.285, 42.257, 42.37, 33.269, 33.34, 43.196, 43.257, 42.447, 42.119, 42.143],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 42.143 s. The counted runs measured 32.312 s to 43.257 s."
+    },
+    {
+      "id": "T18.defaults.4",
+      "template": "T18",
+      "name": "the event loop of one replica blocked for 40 s",
+      "mode": "iptables",
+      "trigger": "app-stall",
+      "group": "other",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 21,
+          "high": 31.105
+        },
+        "text": "The algebra predicts that the replica leaves the EndpointSlice and the rules of each node. The band is 21 s to 31.105 s after the start of the stall."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 26.383,
+      "values": [21.475, 26.383, 29.36, 25.29, 30.385, 22.139, 24.003, 21.168, 28.603, 28.268, 30.383],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 26.383 s. The counted runs measured 21.168 s to 30.385 s."
+    },
+    {
+      "id": "T18.defaults.6",
+      "template": "T18",
+      "name": "blackhole of Redis for 60 s, liveness reads only the event loop",
+      "mode": "iptables",
+      "trigger": "blackhole",
+      "group": "liveness",
+      "prediction": {
+        "kind": "restarts",
+        "band": null,
+        "text": "The algebra predicts that no replica receives SIGTERM, thus no replica restarts."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "replicas",
+      "median": 0,
+      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "Each of the 11 counted runs agrees with the prediction. No replica received SIGTERM."
+    },
+    {
+      "id": "T18.defaults.6",
+      "template": "T18",
+      "name": "blackhole of Redis, readiness fails liveness",
+      "mode": "iptables",
+      "trigger": "blackhole",
+      "group": "liveness",
+      "prediction": {
+        "kind": "restarts",
+        "band": {
+          "low": 28,
+          "high": 50
+        },
+        "text": "The algebra predicts that each replica receives SIGTERM. The band is 28 s to 50 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 38.043,
+      "values": [39.094, 37.193, 37.556, 38.043, 37.029, 38.864, 38.678, 37.673, 37.162, 38.691, 39.124],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 38.043 s. The counted runs measured 37.029 s to 39.124 s."
+    },
+    {
+      "id": "T18.defaults.7",
+      "template": "T18",
+      "name": "rolling update while Redis has no endpoint",
+      "mode": "iptables",
+      "trigger": "rollout",
+      "group": "other",
+      "prediction": {
+        "kind": "stalls",
+        "band": null,
+        "text": "The algebra predicts that the rollout stops while Redis is down, and that it continues after Redis is back. The harness measures the time from the return of Redis to the first new pod that is ready."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 6.954,
+      "values": [8.034, 6.954, 7.969, 6.119, 16.638, 6.014, 6.261, 6.266, 16.098, 16.155, 6.3],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 6.954 s. The counted runs measured 6.014 s to 16.638 s."
+    },
+    {
+      "id": "T18.defaults.9",
+      "template": "T18",
+      "name": "cpu.max of one replica at 1 ms in each 1 s for 40 s",
+      "mode": "iptables",
+      "trigger": "cpu-throttle",
+      "group": "other",
+      "prediction": {
+        "kind": "measured",
+        "band": null,
+        "text": "This cell has no band. The quota gives the stall in each period, 0.999 s, but not the CPU time that the replica needs. A probe meets its deadline of 1 s or not by that need."
+      },
+      "decision": "measured",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 1530,
+      "values": [1530, 1449, 1659, 1699, 1672, 1337, 1385, 1226, 1592, 1572, 1360],
+      "why": "The harness measured 11 counted runs. The median run had 1,530 failed requests. The counted runs had 1,226 to 1,699 failed requests."
+    }
+  ]
+}

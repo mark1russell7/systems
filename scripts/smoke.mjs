@@ -69,6 +69,11 @@ const NEEDS = {
     "image/node-http/lines.mjs",
     "image/node-http/client-agent.mjs",
     "image/node-http/client-undici.mjs",
+    "image/mongo/Dockerfile",
+    "image/mongo/client-mongo.mjs",
+    "image/mongo/stepdown-mongo.mjs",
+    "image/mongo/package.json",
+    "image/mongo/npm-lock.json",
     "image/router/Dockerfile",
     "image/router/mbx.sh",
     "image/router/ctwatch.py",
@@ -284,6 +289,11 @@ try {
       ];
       const second = module.requestOf(lines);
       check(module.requestWords(second) === "reused, a retry, a reply" && second.gap.value === 6, "harness reads the second request of an HTTP client");
+      // a replica set: a cut from one member in one direction, and a log line of mongod
+      const set = { name: "rs0", members: ["m1", "m2"], port: 27017 };
+      check(module.cutOf(set, parts.members, "10.0.0.9", "m1", "one-way").direction === "out", "harness cuts a member of a replica set from one member in one direction");
+      const line = module.memberLineOf("m1", '{"t":{"$date":"2026-10-16T12:00:00.000+00:00"},"c":"REPL","id":21331,"msg":"Transition to primary complete"}');
+      check(line?.id === 21331 && module.REPLICA_SET_STAGES.length === 9, "harness reads a log line of a member of a replica set");
     }
     if (name === "@mark1russell7/kind") {
       const judgeEntry = await load("@mark1russell7/kind/judge");

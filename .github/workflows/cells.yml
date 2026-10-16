@@ -60,10 +60,11 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # the output of each lab test stays in the log: the memory of the runner with a replica set of three
       - name: The harness's lab test
         env:
           HARNESS_LAB: "1"
-        run: pnpm --filter @mark1russell7/harness test
+        run: pnpm --filter @mark1russell7/harness exec vitest run --silent=false
       # what the kernel says when the prober cannot load: the verifier's log goes to its stderr
       - name: The prober on its own, after a failure
         if: failure()

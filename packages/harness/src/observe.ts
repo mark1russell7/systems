@@ -1,6 +1,8 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 import type { Cell, KernelRecord, ProbeEvent, Reference, Run } from "./cell.ts";
+import type { DriverStepTime } from "./driver.ts";
+import { measureDriver } from "./driver.ts";
 import type { GroupMeasured } from "./timeline.ts";
 import { measureGroup } from "./timeline.ts";
 import { NOISE, requestWords } from "./verdict.ts";
@@ -79,6 +81,8 @@ export interface Measured {
   readonly group?: GroupMeasured;
   /** This record is what the second request of an HTTP client met, for a cell whose prediction says it. */
   readonly request?: RequestReading | null;
+  /** This record is the time of each later band of a driver cell (`DriverBand.then`). */
+  readonly driver?: { readonly steps: readonly DriverStepTime[] };
   /** This text is the reason that the run cannot count, or null. A void run is not a pass and not a finding. */
   readonly void: string | null;
   /** This text tells what in the run disagrees with the prediction, other than its timing, or null. */
@@ -384,7 +388,7 @@ export const requestOf = (events: readonly ProbeEvent[]): RequestReading | null 
 
 /** This function reads the socket of one run against its cell, as `measure` does without the second request of an HTTP client. */
 const measureSocket = (cell: Cell, run: Run): Measured => {
-  if (cell.group !== undefined) {
+  if (cell.group !== undefined || cell.replicaSet !== undefined) {
     const read = measureGroup(cell, run);
     return {
       environment: run.environment,
@@ -402,6 +406,8 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
       group: read.group,
     };
   }
+  // a driver with more than one socket: its bands name their socket and their line
+  if (cell.prediction.detects !== null && cell.prediction.driver !== undefined) return measureDriver(cell, run);
   const { events, kernel } = run;
   const ready = events.find((event) => event.ev === "ready");
   const local = events.find((event) => event.ev === "connected")?.["local"];
@@ -554,6 +560,7 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
   const referenceAt = (from: Reference): number | undefined => {
     if (from === "request-sent") return request.t;
     if (from === "fault") return run.fault?.t0;
+    if (from === "client-start") return (events.find((event) => event.ev === "connecting") ?? events[0])?.t;
     const record: KernelRecord | undefined =
       from === "last-received"
         ? socket.filter((each) => each.ev === "rx" && each.mono <= before).at(-1)

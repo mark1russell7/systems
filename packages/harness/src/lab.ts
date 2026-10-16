@@ -95,6 +95,12 @@ const NODE_HTTP: Image = {
   dockerfile: "harness/image/node-http/Dockerfile",
   from: ["harness/image/node-http"],
 };
+/** This image holds the MongoDB client: the driver mongodb 7.7.0 on Node 24.21.0, and its step-down script. */
+const MONGO: Image = {
+  name: "loom-harness-mongo",
+  dockerfile: "harness/image/mongo/Dockerfile",
+  from: ["harness/image/mongo"],
+};
 /** This image is the router of a middlebox chain: NAT and conntrack, with a form for a forgotten flow. */
 const ROUTER: Image = {
   name: "loom-harness-router",
@@ -175,6 +181,8 @@ export const routerImage = (): Promise<string> => build(ROUTER);
 export const goHttpImage = (): Promise<string> => build(GO_HTTP);
 /** This function gives the image of the Node HTTP clients. */
 export const nodeHttpImage = (): Promise<string> => build(NODE_HTTP);
+/** This function gives the image of the MongoDB client. */
+export const mongoClientImage = (): Promise<string> => build(MONGO);
 
 /**
  * This time is the interval of the listing of a router, when its hop does not set one. A listing
@@ -451,6 +459,12 @@ export interface Lab {
   /** This method freezes the target with the cgroup freezer: its process stops, and its kernel continues to answer. */
   freeze(): Promise<void>;
   thaw(): Promise<void>;
+  /**
+   * This method sends a signal to the server process of the target (`Target.program`), at once or
+   * at an instant of the VM. A sidecar in the network and process namespaces of the target sends
+   * it, and the injector stamps it. The lab starts that sidecar at the first signal.
+   */
+  signal(signal: "STOP" | "CONT" | "KILL", at?: number): Promise<{ t0: number; t1: number }>;
   probe(args: readonly string[]): Promise<Probe>;
   /**
    * This method waits for the next clock line of the prober, which gives the count of lost
@@ -558,6 +572,12 @@ export const clientOf = async (
     return {
       clientImage: await nodeHttpImage(),
       command: ["node", `/opt/harness/node-http/client-${kind === "undici" ? "undici" : "agent"}.mjs`],
+      clientKind: kind,
+    };
+  if (kind === "mongodb")
+    return {
+      clientImage: await mongoClientImage(),
+      command: ["node", "/opt/harness/mongo/client-mongo.mjs"],
       clientKind: kind,
     };
   return { clientImage: image, command: ["/opt/harness/client"], clientKind: kind };
@@ -834,6 +854,7 @@ export const openLab = async (
           };
     const paused = runtime.container.getById(server.getId());
     let targetAdmin: StartedTestContainer | undefined;
+    let signaller: StartedTestContainer | undefined;
     const hopNamed = (name: string): HopIn => {
       const found = inChain.find((hop) => hop.hop.name === name);
       if (found === undefined) throw new Error(`the topology has no hop ${name}`);
@@ -1002,6 +1023,17 @@ export const openLab = async (
       },
       freeze: () => paused.pause().then(() => undefined),
       thaw: () => paused.unpause().then(() => undefined),
+      async signal(signal, at) {
+        if (target.program === undefined) throw new Error(`${target.image} names no server process to signal`);
+        // only when a cell asks for it: otherwise no sidecar shares the process namespace of the target
+        signaller ??= await withPid(
+          new GenericContainer(image).withNetworkMode(`container:${server.getId()}`).withAddedCapabilities("NET_ADMIN", "NET_RAW"),
+          `container:${server.getId()}`,
+        ).start();
+        if (!opened.includes(signaller)) opened.push(signaller);
+        const when = at === undefined ? [] : ["--at", String(Math.round(at))];
+        return stamped(signaller, ["/opt/harness/inject", "signal", target.program, signal, ...when]);
+      },
       async probe(args) {
         const events = lines<ProbeEvent>();
         const container = await new GenericContainer(clientImage)

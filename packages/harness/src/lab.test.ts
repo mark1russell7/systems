@@ -1,8 +1,11 @@
+import { freemem, totalmem } from "node:os";
 import { describe, expect, it } from "vitest";
-import type { Cell, Group, Target } from "./cell.ts";
+import type { Cell, Group, ReplicaSet, Target } from "./cell.ts";
 import { groupOnce, openGroupLab } from "./group.ts";
 import { nodeClientImage, openLab } from "./lab.ts";
 import { measure } from "./observe.ts";
+import { openReplicaSetLab, replicaSetOnce } from "./replset.ts";
+import { runCell } from "./run.ts";
 
 /**
  * A lab on Docker, opt-in: `HARNESS_LAB=1`. It needs Docker and privileged containers. It starts a
@@ -31,7 +34,104 @@ const GROUP: Group = {
   ready: { member: "Ready to accept connections", sentinel: "+monitor master" },
 };
 
+const MONGO = "mongo:9.0.4@sha256:f90507905ce6e52e4a63d0ff8964fc254fa4d37ccbe56c56f4bc0186eb02edea";
+const SET: ReplicaSet = {
+  name: "rs0",
+  image: MONGO,
+  programs: { server: "mongod", shell: "mongosh" },
+  args: ["--wiredTigerCacheSizeGB", "0.25"],
+  port: 27017,
+  members: ["m1", "m2", "m3"],
+  settings: {},
+  ready: "Waiting for connections",
+};
+const SHELL = 'mongosh --quiet --norc "mongodb://127.0.0.1:27017/?directConnection=true"';
+/** This target is a replica set of one member. Its setup starts the set with the address of the member, and waits for its primary. */
+const ONE: Target = {
+  image: MONGO,
+  port: 27017,
+  ready: "Waiting for connections",
+  command: ["sh", "-c", "mongod --replSet rs0 --bind_ip_all --wiredTigerCacheSizeGB 0.25 & echo $! > /tmp/server.pid; while :; do sleep 3600; done"],
+  kill: ["sh", "-c", 'kill -KILL "$(cat /tmp/server.pid)"'],
+  program: "mongod",
+};
+const INITIATE = [
+  "sh",
+  "-c",
+  `${SHELL} --eval 'rs.initiate({ _id: "rs0", members: [{ _id: 0, host: "'"$(hostname -i)"':27017" }] })' && ` +
+    `for i in $(seq 1 300); do ${SHELL} --eval 'db.hello().isWritablePrimary' | grep -q true && exit 0; sleep 0.2; done; exit 1`,
+];
+
 describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
+  it("steps a replica set of MongoDB down, and the driver writes to the new primary", async () => {
+    const cell: Cell = {
+      name: "lab replica set, event:stepdown",
+      target: { image: MONGO, port: 27017, ready: "Waiting for connections" },
+      sysctls: {},
+      probe: { mode: "stream", keepalive: false, interval: { value: 50, unit: "ms" } },
+      fault: "step-down",
+      replicaSet: SET,
+      prediction: {
+        detects: null,
+        window: { value: 30, unit: "s" },
+        why: "a lab test",
+        from: "fault",
+        group: { lands: "new", failover: true, stages: [] },
+      },
+      runs: 1,
+      environments: 1,
+    };
+    const lab = await openReplicaSetLab(SET);
+    try {
+      // the smoke of a runner: three members, their sidecars, the client and the prober in its memory
+      const free = Math.round(freemem() / 2 ** 20);
+      console.log(`memory with a replica set of three: ${free} MiB free of ${Math.round(totalmem() / 2 ** 20)} MiB`);
+      expect(free).toBeGreaterThan(2_048);
+      const manifest = await lab.manifest({});
+      expect(manifest.group?.members.map((member) => member.settings["version"])).toEqual(["9.0.4", "9.0.4", "9.0.4"]);
+      const run = await replicaSetOnce(lab, cell, 0, 0);
+      expect(run.group?.after).not.toBe(run.group?.primary);
+      const read = measure(cell, run);
+      expect(read).toMatchObject({ outcome: { kind: "answered" }, void: null });
+      expect(read.group?.to).toBe(run.group?.after);
+      expect(read.group?.stages["elected"]).toBeDefined();
+      expect(read.group?.stages["discovered"]).toBeDefined();
+      expect(read.group?.writes.lost).toEqual([]);
+    } finally {
+      await lab.close();
+    }
+  }, 600_000);
+
+  it("resets a write of the MongoDB driver in flight to a set of one member, and its retry's selection times out", async () => {
+    const s = (value: number) => ({ value, unit: "s" });
+    const cell: Cell = {
+      name: "lab mongodb, rst, a write in flight",
+      target: ONE,
+      targetSetup: [INITIATE],
+      sysctls: {},
+      probe: { mode: "inflight", keepalive: false, driver: { name: "mongodb", set: "rs0" } },
+      fault: "rst",
+      prediction: {
+        detects: true,
+        timer: "the reset of the request",
+        errno: "ECONNRESET",
+        from: "request-sent",
+        low: s(0),
+        high: s(1),
+        driver: {
+          socket: "pool",
+          then: [{ what: "the retry's selection times out", name: "MongoServerSelectionError", from: "request-sent", ends: { ev: "fail", where: { n: 2 } }, low: s(25), high: s(35) }],
+        },
+      },
+      runs: 1,
+      environments: 1,
+    };
+    const result = await runCell(cell);
+    const [read] = result.measured;
+    expect(read).toMatchObject({ outcome: { kind: "error", errno: "ECONNRESET" }, void: null, finding: null });
+    expect(result.manifests[0]?.client.kind).toBe("mongodb");
+  }, 600_000);
+
   it("fails a group of Valkey over with a planned failover, and the client writes to the new primary", async () => {
     const cell: Cell = {
       name: "lab group, event:planned SENTINEL FAILOVER",
