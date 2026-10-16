@@ -1,6 +1,8 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 import type { Cell, KernelRecord, ProbeEvent, Reference, Run } from "./cell.ts";
+import type { GroupMeasured } from "./timeline.ts";
+import { measureGroup } from "./timeline.ts";
 import { NOISE } from "./verdict.ts";
 
 /**
@@ -59,6 +61,8 @@ export interface Measured {
   readonly reordering?: Reordering;
   /** These are the times of the proxy of a calibration cell, one for each request and its reply. */
   readonly crossings?: Crossings;
+  /** This record is what a run of a group cell measured: the stages of its timeline, and what became of each write. */
+  readonly group?: GroupMeasured;
   /** This text is the reason that the run cannot count, or null. A void run is not a pass and not a finding. */
   readonly void: string | null;
   /** This text tells what in the run disagrees with the prediction, other than its timing, or null. */
@@ -309,6 +313,24 @@ export const crossingsOf = (
  *   prober lost is also void.
  */
 export const measure = (cell: Cell, run: Run): Measured => {
+  if (cell.group !== undefined) {
+    const read = measureGroup(cell, run);
+    return {
+      environment: run.environment,
+      index: run.index,
+      outcome: read.outcome,
+      elapsed: read.elapsed,
+      socket: read.socket,
+      noticed: read.noticed,
+      steps: [],
+      probes: 0,
+      retransmissions: run.kernel.filter((record) => record.netns === run.netns && record.ev === "retrans").length,
+      acks: read.group.writes.acked,
+      void: read.void,
+      finding: read.finding,
+      group: read.group,
+    };
+  }
   const { events, kernel } = run;
   const ready = events.find((event) => event.ev === "ready");
   const local = events.find((event) => event.ev === "connected")?.["local"];
@@ -619,12 +641,24 @@ export const measure = (cell: Cell, run: Run): Measured => {
     // the test of silence covers the window from the send of the request
     const window = valueIn(prediction.window, "s") * 1e9;
     if (ended === undefined || ended - request.t > window) {
-      // a router that forgot the flow in the window broke the silence, though nothing detected it yet
-      const forgot =
-        forgotten !== undefined && forgotten.t - request.t <= window
-          ? `a router forgot the flow ${between(lastRx, forgotten.t).value} s after the last segment, where it should keep it`
-          : null;
-      return { ...base, ...nothing, ...chain, void: voided, finding: forgot };
+      // the router keeps the flow in the window, unless the prediction says that it forgets it,
+      // and when. Either way, nothing detects it
+      const forgetIn = forgotten !== undefined && forgotten.t - request.t <= window ? forgotten : undefined;
+      const expected = prediction.middlebox?.forgets;
+      const after = forgetIn === undefined ? null : between(lastRx, forgetIn.t);
+      let finding: string | null = null;
+      if (expected === undefined) {
+        if (after !== null) finding = `a router forgot the flow ${after.value} s after the last segment, where it should keep it`;
+      } else if (after === null) {
+        finding = "no router forgot the flow in the window, where it should forget it";
+      } else {
+        const noise = valueIn(NOISE, "s");
+        const low = valueIn(expected.low, "s") - noise;
+        const high = valueIn(expected.high, "s") + noise;
+        if (after.value < low || after.value > high)
+          finding = `a router forgot the flow ${after.value} s after the last segment, outside [${Math.round(low * 1e6) / 1e6}, ${Math.round(high * 1e6) / 1e6}] s`;
+      }
+      return { ...base, ...nothing, ...chain, void: voided, finding };
     }
     return {
       ...base,

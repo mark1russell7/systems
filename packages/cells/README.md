@@ -62,6 +62,34 @@ The TOX catalog has Toxiproxy 2.12.0 as the subject, between the client and Redi
 - **The time of Toxiproxy.** The documentation states no time of its own. Thus each band adds the time of Toxiproxy for each crossing (`through`). A request crosses toward the target, and a reply or a close toward the client. Each time is the 99th percentile of its calibration cell.
 - **The close translation.** A reset and a black hole on the upstream connection of Toxiproxy are measurement-only, because Toxiproxy documents no close. The same faults on the direct pair, with iptables or netem, have predictions from the algebra.
 
+## The T12 catalog
+
+T12 is a replicated group under an external failover authority: clients → three Sentinels → a primary and two replicas, all Valkey 9.1.2, quorum 2 (`src/t12.ts`). The client is ioredis 6.0.0 in Sentinel mode, at its defaults, with a stream of writes. The name of each cell starts with the cell of the plan that it stands for, for example `T12.defaults.6`.
+
+- **Two machine documents** give the timers. Comments cite each fact by its file and line.
+  - `src/sentinel.ts` is the Sentinel of Valkey 9.1.2, from `src/sentinel.c` at that tag. It gives the tick, the ping period, down-after, the asks, the election, the promotion and the conversion.
+  - `src/ioredis-sentinel.ts` is the Sentinel path of ioredis 6.0.0. It gives the reconnect ladder, the connects that each ask a Sentinel, and the give-up of the offline queue.
+- **The failover** (`failoverOf`) adds the stages, each from the Sentinel document:
+  - The first PING without a PONG, then down-after-milliseconds and a tick.
+  - The second Sentinel that is down, then a tick for the election, and a tick each for the selection and the promotion.
+  - The next INFO of the replica, which shows the promotion to the leader. Then the hello of the leader, which switches the other Sentinels.
+- **At the defaults,** the Sentinels name the new primary 30.2 s to 32.8 s after a primary goes silent.
+- **The client.** The driver has no timer for the group: it moves only when its own connection closes.
+  - A fin or a refusal closes it at once. Its reconnect ladder finds the new primary at the first connect after the Sentinels name it (`firstAfter`).
+  - A frozen primary keeps the client until its thaw. The Sentinels convert the old primary one INFO period after its return, and their `CLIENT` command closes the client (`conversionOf`).
+- **The triggers.** Each trigger of the plan's T12 cells over `valkey-9.1-sentinel` gets a cell at the position that the plan names: the primary.
+  - `partition:partial` gets both directions. One cuts the primary from its Sentinels and its replicas, and its clients stay with it (DV-40). The other cuts the primary from its clients only.
+  - `event:planned` gets the plain and the coordinated failover.
+  - `event:bundle` waits: it is an event of Pulsar (`T12_WAITING`).
+- **Measurement-only.** A black hole and the partition of DV-40 keep the client on the old primary while they hold.
+  - After the lift, the old primary is a replica again only when a Sentinel reaches it. That occurs on the SYN backoff of its kernel, from a time that no document gives.
+  - The coordinated failover rests on the FAILOVER command of the server, which has no document.
+- **The borders.** A primary silence of 29 s and of 33 s, on each side of down-after-milliseconds. Also the failover against the give-up of the offline queue: 21 closes of ioredis 6 take 71.35 s to 75.9 s. Thus down-after-milliseconds of 69 s keeps the queue, and 76 s fails each queued write with `MaxRetriesPerRequestError` first.
+- **The stamps.** Each stage band includes the error of the stamps of the observer (`STAMPS`). The calibration cell `T12_CAL` measures it: the prober records each write of a Sentinel to the observer.
+- **The RTT.** A band of the group holds for each round trip from 0 to 2 ms (`GROUP_RTT_MS`).
+
+The cells of T12 go one at a time: a group has 16 containers, and its timeline reads the scheduler of six processes.
+
 ## The calibration of the proxies
 
 The CAL catalog (`src/calibration.ts`) measures the own time of each proxy: HAProxy as T02 has it, and Toxiproxy with no toxic. Stage 0 measures δ_abs in the same way, on a path with no timer.
@@ -72,7 +100,7 @@ The CAL catalog (`src/calibration.ts`) measures the own time of each proxy: HAPr
 
 ## The runner
 
-`CELLS=1 pnpm --filter @systems/cells test` starts the catalogs on `@mark1russell7/harness`. It needs Docker and privileged containers. The names of the cells start with their catalog: `T01`, `T03`, `T02`, `TOX` or `CAL`.
+`CELLS=1 pnpm --filter @systems/cells test` starts the catalogs on `@mark1russell7/harness`. It needs Docker and privileged containers. The names of the cells start with their catalog: `T01`, `T03`, `T02`, `TOX`, `T12` or `CAL`.
 
 - `CELLS_ONLY` selects the cells whose names match a regular expression.
 - `CELLS_SHARD=i/n` takes every n-th cell from the i-th. Thus two processes can share the catalog.

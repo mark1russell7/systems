@@ -1,5 +1,7 @@
 import { valueIn } from "@mark1russell7/quantity";
 import type { Cell, FaultPlace, KernelRecord, ProbeEvent, Run } from "./cell.ts";
+import { isHopPlace } from "./cell.ts";
+import { groupOnce, openGroupLab } from "./group.ts";
 import type { FaultOptions, Lab, Manifest, Probe } from "./lab.ts";
 import { openLab } from "./lab.ts";
 import type { Measured } from "./observe.ts";
@@ -206,7 +208,7 @@ const once = async (
       // the direction of a simplex drop, relative to the namespace of the rule: in the target, or at
       // a proxy toward the client, the segments to the server come in; in the client, they go out
       const towardServerComesIn =
-        faultAt === "target" || (typeof faultAt === "object" && faultAt.toward === "client");
+        faultAt === "target" || (isHopPlace(faultAt) && faultAt.toward === "client");
       const direction: FaultOptions["direction"] =
         cell.drops === undefined
           ? undefined
@@ -374,6 +376,7 @@ const inEnvironment = async (
   count: number,
   say: (line: string) => void,
 ): Promise<{ manifest: Manifest; runs: Run[]; warmup: Run }> => {
+  if (cell.group !== undefined) return inGroupEnvironment(cell, environment, count, say);
   const lab = await openLab(cell.target, cell.client ?? cell.probe.driver?.name ?? "tcp", cell.topology);
   try {
     // the settings of the target first: Redis applies tcp-keepalive to a client when it accepts it
@@ -385,7 +388,7 @@ const inEnvironment = async (
     if (cell.fault === "mtu-blackhole" || cell.fault === "netem") {
       await lab.offload(false, "target");
       await lab.offload(false, "client");
-      if (typeof cell.faultAt === "object") await lab.offload(false, cell.faultAt);
+      if (isHopPlace(cell.faultAt)) await lab.offload(false, cell.faultAt);
     }
     // a latency is on the path before the client connects, thus its round trip and RTO include it
     const latency = netemSpec(cell, undefined);
@@ -399,6 +402,35 @@ const inEnvironment = async (
     const runs: Run[] = [];
     for (let index = 0; index < count; index += 1) {
       const run = await once(lab, cell, environment, index);
+      runs.push(run);
+      say(line(cell, run, measure(cell, run)));
+    }
+    return { manifest, runs, warmup };
+  } finally {
+    await lab.close();
+  }
+};
+
+/**
+ * This function does the part of the runs of a group cell in one environment. The warm-up is a
+ * whole run with its fault, because no fault of a group ends its environment. A server that a
+ * fin stopped starts again, and the group converges before each run.
+ */
+const inGroupEnvironment = async (
+  cell: Cell,
+  environment: number,
+  count: number,
+  say: (line: string) => void,
+): Promise<{ manifest: Manifest; runs: Run[]; warmup: Run }> => {
+  const lab = await openGroupLab(cell.group!, { watchSentinels: cell.calibrates === "sentinels" });
+  try {
+    const manifest = await lab.manifest(await lab.sysctl(cell.sysctls));
+    const warmed = await groupOnce(lab, cell, environment, -1);
+    const warmup: Run = { ...warmed, warmup: true };
+    say(line(cell, warmup, measure(cell, warmup)));
+    const runs: Run[] = [];
+    for (let index = 0; index < count; index += 1) {
+      const run = await groupOnce(lab, cell, environment, index);
       runs.push(run);
       say(line(cell, run, measure(cell, run)));
     }

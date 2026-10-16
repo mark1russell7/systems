@@ -17,11 +17,13 @@ import type { StartedNetwork, StartedTestContainer } from "testcontainers";
 import type * as Testcontainers from "testcontainers";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
+import { isHopPlace } from "./cell.ts";
 import type {
   Client,
   ClientImage,
   FaultPlace,
   Hop,
+  HopPlace,
   KernelRecord,
   MiddleboxEvent,
   ProbeEvent,
@@ -253,6 +255,12 @@ export interface Manifest {
   readonly sysctls: Readonly<Record<string, string>>;
   /** These are the hops of a topology, in sequence from the client. */
   readonly hops?: readonly ManifestHop[];
+  /** These are the parts of a group, with their settings as each part read them back. */
+  readonly group?: {
+    readonly members: ReadonlyArray<{ readonly name: string; readonly ip: string; readonly id: string; readonly settings: Readonly<Record<string, string>> }>;
+    readonly sentinels: ReadonlyArray<{ readonly name: string; readonly ip: string; readonly id: string; readonly settings: Readonly<Record<string, string>> }>;
+    readonly observer: { readonly image: string };
+  };
 }
 
 /** These are the JSON lines of a program, as they arrive. */
@@ -434,6 +442,12 @@ export interface Lab {
   ): Promise<Manifest>;
   close(): Promise<void>;
 }
+
+/** This function makes a container share the process namespace of another container, for example `container:<id>`. */
+export const withPid = <T extends Testcontainers.GenericContainer>(container: T, mode: string): T => {
+  (container as unknown as { hostConfig: { PidMode?: string } }).hostConfig.PidMode = mode;
+  return container;
+};
 
 /** This container class can share the process namespace of another container. */
 const shared = (Base: typeof Testcontainers.GenericContainer) =>
@@ -794,18 +808,24 @@ export const openLab = async (
      * on its sockets. A router forwards past INPUT and OUTPUT, thus its rules are FORWARD rules on
      * its device toward the side (`--via`).
      */
-    const placeOf = (at: FaultPlace): [StartedTestContainer, string, string[]] => {
-      if (at === "client") return [admin, targetIp, []];
-      if (at === "target") return [injector, targetPeer, []];
+    const hopPlace = (at: FaultPlace): HopPlace => {
+      if (!isHopPlace(at)) throw new Error(`a lab of a topology has no part ${JSON.stringify(at)}: a group cell opens a group lab`);
+      return at;
+    };
+    const placeOf = (place: FaultPlace): [StartedTestContainer, string, string[]] => {
+      if (place === "client") return [admin, targetIp, []];
+      if (place === "target") return [injector, targetPeer, []];
+      const at = hopPlace(place);
       const hop = hopNamed(at.hop);
       const peer = at.toward === "client" ? hop.peer.client : hop.peer.target.split(":")[0]!;
       const via = hop.hop.kind === "router" ? ["--via", hop.devices[at.toward]] : [];
       return [hop.injector, peer, via];
     };
     /** This function gives the namespace and the device of netem at a place: an end, or the device of a hop toward a side. */
-    const deviceAt = (at: FaultPlace): [StartedTestContainer, string] => {
-      if (at === "client") return [admin, "eth0"];
-      if (at === "target") return [injector, "eth0"];
+    const deviceAt = (place: FaultPlace): [StartedTestContainer, string] => {
+      if (place === "client") return [admin, "eth0"];
+      if (place === "target") return [injector, "eth0"];
+      const at = hopPlace(place);
       const hop = hopNamed(at.hop);
       return [hop.injector, hop.devices[at.toward]];
     };
@@ -880,8 +900,7 @@ export const openLab = async (
       },
       async offload(on, at = "target") {
         // at a hop, the two devices: a router merges what it receives (GRO) and forwards it whole
-        const devices =
-          typeof at === "object" ? Object.values(hopNamed(at.hop).devices) : [deviceAt(at)[1]];
+        const devices = isHopPlace(at) ? Object.values(hopNamed(at.hop).devices) : [deviceAt(at)[1]];
         const [where] = deviceAt(at);
         for (const device of devices)
           await output(where, ["/opt/harness/inject", "offload", device, on ? "on" : "off"]);
