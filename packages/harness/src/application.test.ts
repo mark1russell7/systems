@@ -172,17 +172,21 @@ describe("a detection by the program of the observer, from its lines and the ker
     // the global WebSocket: a close frame, and the socket stays ESTABLISHED to the end of the run
     expect(measure(frame, run(client, kernel))).toMatchObject({ outcome: { kind: "dropped" }, left: null, finding: null });
     expect(measure(close, run(client, kernel)).finding).toBe(
-      "its socket stayed ESTABLISHED after the drop, where a close takes it out at once",
+      "the program did not close its socket after the drop, where a close is at once",
     );
     // the WebSocket of ws: terminate() destroys the socket, a FIN 0.3 ms after the drop line, and no write
     const terminated = [...kernel.filter((record) => record.mono !== D + 30_000), state(D + 300_000, 1, 4)];
     const read = measure(close, run(client, terminated));
     expect(read).toMatchObject({ outcome: { kind: "dropped" }, elapsed: s(1.001775), left: s(0.0003), finding: null });
     expect(measure(frame, run(client, terminated)).finding).toBe("the drop wrote no close frame on its socket");
-    expect(verdictOf(close.prediction, [read]).why).toContain("After the drop, the socket left ESTABLISHED in 1 runs, median 0.3 ms after its drop line.");
+    expect(verdictOf(close.prediction, [read]).why).toContain("After the drop, the program closed its socket in 1 runs, median 0.3 ms after its drop line.");
+    // a peer that answers the close frame and closes its side: a FIN of the peer, not a close by the program
+    const answered = [...kernel, state(D + 6_200_000, 1, 8)];
+    expect(measure(frame, run(client, answered))).toMatchObject({ left: null, finding: null });
+    expect(measure(close, run(client, answered)).finding).toBe("the program did not close its socket after the drop, where a close is at once");
     // a socket that left ESTABLISHED later than the noise did not leave at once
     const late = [...kernel.filter((record) => record.mono !== D + 30_000), state(D + 520_000_000, 1, 4)];
-    expect(measure(close, run(client, late)).finding).toBe("its socket left ESTABLISHED 0.52 s after the drop, not at once");
+    expect(measure(close, run(client, late)).finding).toBe("the program closed its socket 0.52 s after the drop, not at once");
   });
 
   it("does not take the drop of a try that never opened for the drop of the connection of the run", () => {

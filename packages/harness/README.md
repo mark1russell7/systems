@@ -200,7 +200,7 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
   - A drop counts when it comes before each report of the kernel. A report of the kernel that comes first is the detection, and the drop after it is not.
   - The second view is the stamps of the program: from its `ping` line to its `drop` line. The steps are the later pings, each from the reference.
   - The lines of a client name the socket by its local address (`local`), and the lines of a server by its peer (`peer`). For the server, the lines are the lines of the target. A line whose address is null is about a try that did not open.
-  - A prediction can say how the program drops (`drop`). A close frame (`frame`) is a write, and the socket stays ESTABLISHED after it. A close (`close`) takes the socket out of ESTABLISHED in δ_abs. Another drop is a finding. The run gives the time from the `drop` line to the change of the socket out of ESTABLISHED (`left`).
+  - A prediction can say how the program drops (`drop`). A close frame (`frame`) is a write, and the socket stays ESTABLISHED after it. A close (`close`) closes the socket in δ_abs: a FIN or an abort. Another drop is a finding. A FIN of the peer that answers a close frame is no close by the program. The run gives the time from the `drop` line to the close by the program (`left`).
   - A heartbeat is a timer of the program. The retransmit timer of its ping fires in the same interval. Thus a run whose retransmit timer was two jiffies or more behind its wheel slot is void: the VM stopped a vCPU.
 - **The reconnect** (`reconnectOf`). A prediction with `reconnects` also reads what the client did after the detection.
   - Each wait goes from a `reconnecting` line, where the program starts its timer, to its next `dial` line, where it makes the socket. A wait outside its band, widened by δ_abs, is a finding. A try that did not come is a finding too.
@@ -258,7 +258,7 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
 - **An HTTP client** (`Verdict.requests`). The verdict counts each outcome of the second request over the counted runs. A measurement-only cell also gives them in its reason.
 - **The reconnect** (`Verdict.reconnect`). A wait outside its band is a finding of its run, thus the cell fails. The verdict gives the spread of each wait, of the first SYN, of the first ESTABLISHED and of the work before each connect(2). Its reason says the medians.
 - **A call in flight** (`Verdict.calls`). The verdict counts each outcome of the call in flight of a WebSocket client, and its reason says them.
-- **The socket after a drop** (`Verdict.left`). The verdict gives the spread of the time from a drop to the change of its socket out of ESTABLISHED. It also counts the runs where the socket stayed.
+- **The socket after a drop** (`Verdict.left`). The verdict gives the spread of the time from a drop to the close of its socket by the program. It also counts the runs where the program did not close it.
 
 The distribution test needs a simulator, which does not exist at this time.
 

@@ -92,9 +92,9 @@ export interface Measured {
   /** This record is what the call in flight of a WebSocket client met. */
   readonly call?: CallReading;
   /**
-   * This time is from the drop line of the program to the change of its socket out of ESTABLISHED.
-   * A prediction that says how the program drops (`drop`) gets it. It is null when the socket
-   * stayed ESTABLISHED to the end of the run.
+   * This time is from the drop line of the program to the close of its socket by its own side: a
+   * FIN or an abort. A prediction that says how the program drops (`drop`) gets it. It is null
+   * when the socket did not close itself in the run.
    */
   readonly left?: Quantity | null;
   /** This text is the reason that the run cannot count, or null. A void run is not a pass and not a finding. */

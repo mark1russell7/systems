@@ -75,8 +75,8 @@ export interface Verdict {
   /** These are the outcomes of the call in flight of a WebSocket client over the counted runs, each with its count. */
   readonly calls?: Readonly<Record<string, number>>;
   /**
-   * This record is the time from a drop of the program to the change of its socket out of
-   * ESTABLISHED, over the counted runs. It also counts the runs where the socket stayed ESTABLISHED.
+   * This record is the time from a drop of the program to the close of its socket by its own side,
+   * over the counted runs. It also counts the runs where the socket did not close itself.
    */
   readonly left?: { readonly spread: Spread | null; readonly stayed: number };
   readonly why: string;
@@ -269,7 +269,7 @@ const withProgram = (verdict: Verdict, counted: readonly Measured[]): Verdict =>
     ...(left === undefined
       ? []
       : [
-          `After the drop, the socket left ESTABLISHED in ${gone.length} runs, median ${ms(left.spread)} after its drop line${left.stayed === 0 ? "" : `, and it stayed ESTABLISHED in ${left.stayed}`}.`,
+          `After the drop, the program closed its socket in ${gone.length} runs, median ${ms(left.spread)} after its drop line${left.stayed === 0 ? "" : `, and it did not close it in ${left.stayed}`}.`,
         ]),
     ...(reconnect === undefined
       ? []

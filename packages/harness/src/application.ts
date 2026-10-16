@@ -76,29 +76,31 @@ const eventOf = (socket: readonly KernelRecord[], line: ProbeEvent, matches: (re
 };
 
 /**
- * This function gives the time from a line of the program to the next change of the socket out
- * of ESTABLISHED. That change is a close or an abort. It is null when the socket stayed
- * ESTABLISHED to the end of the records.
+ * This function gives the time from a line of the program to the close of the socket by its own
+ * side. That close is its change from ESTABLISHED to FIN_WAIT1, or to CLOSE (an abort). A FIN of
+ * the peer (CLOSE_WAIT) is not such a close. It is null when the socket did not close itself.
  */
 export const leftAfter = (socket: readonly KernelRecord[], line: ProbeEvent): Quantity | null => {
-  const left = socket.find((record) => record.ev === "state" && oldState(record) === 1 && record.mono >= line.t);
+  const left = socket.find(
+    (record) => record.ev === "state" && oldState(record) === 1 && (newState(record) === 4 || newState(record) === 7) && record.mono >= line.t,
+  );
   return left === undefined ? null : between(line.t, left.mono);
 };
 
 /**
  * This function tells how a drop differs from the way that its prediction gives, or gives null.
- * A close takes the socket out of ESTABLISHED in δ_abs. A close frame is a write, and the socket
- * stays ESTABLISHED after it.
+ * A close closes the socket in δ_abs. A close frame is a write, and the program does not close
+ * the socket at the drop. A peer that answers the close frame can close it, and that is no finding.
  */
 export const dropFinding = (expected: "frame" | "close", drop: ProgramEvent, left: Quantity | null): string | null => {
   const noise = valueIn(NOISE, "s");
   const soon = left !== null && valueIn(left, "s") <= noise;
   if (expected === "close") {
-    if (left === null) return "its socket stayed ESTABLISHED after the drop, where a close takes it out at once";
-    return soon ? null : `its socket left ESTABLISHED ${left.value} s after the drop, not at once`;
+    if (left === null) return "the program did not close its socket after the drop, where a close is at once";
+    return soon ? null : `the program closed its socket ${left.value} s after the drop, not at once`;
   }
   if (drop.record !== "write") return "the drop wrote no close frame on its socket";
-  return soon ? "its socket left ESTABLISHED at the drop, where a close frame leaves it open" : null;
+  return soon ? "the program closed its socket at the drop, where a close frame leaves it open" : null;
 };
 
 const isWrite = (record: KernelRecord): boolean => record.ev === "tx";
