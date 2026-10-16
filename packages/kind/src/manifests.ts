@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { KindCell, KubeletProbe } from "./cell.ts";
+import { CLIENT, HEALTH_PORT, LOG_LABEL, PORT, REDIS, SERVER } from "./names.ts";
 
 /**
  * This module generates the Kubernetes objects of a cell. They are its namespace, its Redis, the
@@ -10,15 +11,7 @@ import type { KindCell, KubeletProbe } from "./cell.ts";
  * Kubernetes as values.
  */
 
-/** These are the ports of the app: its server, and its health server for the probes. */
-export const PORT = 8080;
-export const HEALTH_PORT = 9000;
-/** This label makes the watcher follow the log of a pod. */
-export const LOG_LABEL = "lab.systems/log";
-/** These are the names of the objects of a cell. */
-export const SERVER = "lab";
-export const CLIENT = "client";
-export const REDIS = "redis";
+export { CLIENT, HEALTH_PORT, LOG_LABEL, PORT, REDIS, SERVER } from "./names.ts";
 
 /** This image is Redis 7.4, the stock target of the harness, pinned by digest. */
 export const REDIS_IMAGE = "redis:7.4@sha256:c6eabf748fc7a61dbb5a705c78bcf3d6377b1127a97d0ce965c11c44ba46896f";

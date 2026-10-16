@@ -17,6 +17,7 @@ The engines of the program are packages in this repository, and each package goe
 | `packages/service` | [`@mark1russell7/service`](https://www.npmjs.com/package/@mark1russell7/service): a service declared as data, and the timer-ordering law on that declaration |
 | `packages/prober` | [`@mark1russell7/prober`](https://www.npmjs.com/package/@mark1russell7/prober): an eBPF prober that records what the kernel did to each TCP socket |
 | `packages/harness` | [`@mark1russell7/harness`](https://www.npmjs.com/package/@mark1russell7/harness): a fault-injection harness that measures connection timers in Docker |
+| `packages/kind` | [`@mark1russell7/kind`](https://www.npmjs.com/package/@mark1russell7/kind): Kubernetes in Docker as a lab for connection timers, and a judge of its raw records |
 | `packages/site` | The site: Astro and Starlight, with React islands for the labs and the charts |
 | `packages/cli` | The generator of the repository: `pnpm package add <name>` |
 

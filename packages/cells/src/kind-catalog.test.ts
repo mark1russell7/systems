@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { KindCell } from "@systems/kind";
-import { clientObjects, describeCell, lintCell, namespaceOf, pausedWindow, planOf, serverObjects, verdictsOf } from "@systems/kind";
+import type { KindCell } from "@mark1russell7/kind";
+import { clientObjects, describeCell, lintCell, namespaceOf, pausedWindow, planOf, serverObjects, verdictsOf } from "@mark1russell7/kind";
+import { valueIn } from "@mark1russell7/quantity";
 import { PROPAGATION, s } from "./kind.ts";
 import { T07_CELLS } from "./t07.ts";
 import { T18_CELLS } from "./t18.ts";
@@ -12,7 +13,7 @@ const propagationOf = (cell: KindCell) => {
   const e = PROPAGATION[cell.mode];
   if (cell.template !== "T07" || cell.trigger.kind !== "freeze-process") return e;
   const window = pausedWindow(cell.declaration, cell.pod.preStop, cell.trigger.lead!, cell.trigger.hold!, e);
-  return { ...e, hi: window.resume + e.hi };
+  return { ...e, hi: s(valueIn(window.resume, "s") + valueIn(e.hi, "s")) };
 };
 
 describe("the kind catalogs", () => {
@@ -55,19 +56,20 @@ describe("the kind catalogs", () => {
   });
 
   it("gives T18 the bands of the research at the defaults: the Service is empty from 28 s, and each replica restarts in 28–50 s", () => {
-    const e = PROPAGATION.iptables;
+    const e = { lo: valueIn(PROPAGATION.iptables.lo, "s"), hi: valueIn(PROPAGATION.iptables.hi, "s") };
+    const b = (lo: number, hi: number) => ({ lo: s(lo), hi: s(hi) });
     const band = (name: RegExp) => {
       const prediction = T18_CELLS.find((cell) => name.test(cell.name))!.prediction;
       return "band" in prediction ? prediction.band : null;
     };
-    expect(band(/^T18 rst/)).toEqual({ lo: 28 + e.lo, hi: 48 + e.hi });
-    expect(band(/^T18 Redis frozen/)).toEqual({ lo: 28 + e.lo, hi: 50 + e.hi });
-    expect(band(/readiness fails liveness/)).toEqual({ lo: 28, hi: 50 });
-    expect(band(/event loop/)).toEqual({ lo: 21 + e.lo, hi: 31 + e.hi });
+    expect(band(/^T18 rst/)).toEqual(b(28 + e.lo, 48 + e.hi));
+    expect(band(/^T18 Redis frozen/)).toEqual(b(28 + e.lo, 50 + e.hi));
+    expect(band(/readiness fails liveness/)).toEqual(b(28, 50));
+    expect(band(/event loop/)).toEqual(b(21 + e.lo, 31 + e.hi));
     // the hold of each fault outlasts its band
     for (const cell of T18_CELLS) {
       const b = "band" in cell.prediction ? cell.prediction.band : null;
-      if (b !== null && cell.trigger.kind !== "app-stall") expect(cell.trigger.hold!.value, cell.name).toBeGreaterThan(b.hi);
+      if (b !== null && cell.trigger.kind !== "app-stall") expect(valueIn(cell.trigger.hold!, "s"), cell.name).toBeGreaterThan(valueIn(b.hi, "s"));
     }
     expect(T18_CELLS.find((cell) => cell.trigger.kind === "app-stall")!.trigger.hold).toEqual(s(40));
   });

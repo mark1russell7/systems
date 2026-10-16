@@ -1,6 +1,7 @@
+import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { KindCell } from "./cell.ts";
-import { CLIENT, REDIS, SERVER } from "./manifests.ts";
+import { CLIENT, REDIS, SERVER } from "./names.ts";
 
 /**
  * This module maps each trigger of a cell to the acts of the lab, as data. The runner finds each
@@ -20,14 +21,15 @@ export type Target = "server" | "redis" | "kube-proxy";
 export type Step =
   | { readonly do: "kubectl"; readonly args: readonly string[]; readonly background?: boolean }
   | { readonly do: "signal"; readonly target: Target; readonly signal: "SIGKILL" | "SIGSTOP" | "SIGCONT" }
-  /** This step sends SIGSTOP, then SIGCONT `ms` later, as the VM times it. The next step starts at once. */
-  | { readonly do: "pause"; readonly target: Target; readonly ms: number }
+  /** This step sends SIGSTOP, then SIGCONT `time` later, as the VM times it. The next step starts at once. */
+  | { readonly do: "pause"; readonly target: Target; readonly time: Quantity }
   /** This step starts the injector of the harness in the namespace of the target, with each replica of the service as a peer. */
   | { readonly do: "inject"; readonly target: Target; readonly action: "blackhole" | "clear" | "rst" | "clear-rst" }
   | { readonly do: "flag"; readonly target: Target; readonly on: boolean }
   | { readonly do: "cpu"; readonly target: Target; readonly max: string }
-  | { readonly do: "stall"; readonly target: Target; readonly ms: number }
-  | { readonly do: "wait"; readonly ms: number };
+  /** This step blocks the event loop of the target for `time`. */
+  | { readonly do: "stall"; readonly target: Target; readonly time: Quantity }
+  | { readonly do: "wait"; readonly time: Quantity };
 
 /**
  * A fault plan is the steps of a run:
@@ -37,15 +39,18 @@ export type Step =
  */
 export interface FaultPlan {
   readonly inject: readonly Step[];
-  readonly hold: number | null;
+  readonly hold: Quantity | null;
   readonly heal: readonly Step[];
   readonly restore: readonly Step[];
 }
 
-const ms = (seconds: { value: number; unit: string } | undefined, what: string): number => {
-  if (seconds === undefined) throw new Error(`the trigger needs ${what}`);
-  return valueIn(seconds, "ms");
+const needs = (time: Quantity | undefined, what: string): Quantity => {
+  if (time === undefined) throw new Error(`the trigger needs ${what}`);
+  return time;
 };
+
+/** This function gives an amount in microseconds as a whole number, for `cpu.max`. */
+const micros = (amount: Quantity): number => Math.round(valueIn(amount, "us"));
 
 /** This value marks the name of the target pod in the arguments of kubectl. The runner replaces it. */
 export const POD = "{pod}";
@@ -96,11 +101,10 @@ export const planOf = (cell: KindCell): FaultPlan => {
       return { inject: [{ do: "flag", target: "server", on: true }], hold: null, heal: [], restore: [] };
     case "freeze-process":
       if (cell.template === "T07") {
-        const hold = ms(trigger.hold, "a hold");
         return {
           inject: [
-            { do: "pause", target: "kube-proxy", ms: hold },
-            { do: "wait", ms: ms(trigger.lead, "a lead") },
+            { do: "pause", target: "kube-proxy", time: needs(trigger.hold, "a hold") },
+            { do: "wait", time: needs(trigger.lead, "a lead") },
             { do: "kubectl", args: [...ns, "delete", "pod", POD, "--wait=false"] },
           ],
           hold: null,
@@ -110,21 +114,21 @@ export const planOf = (cell: KindCell): FaultPlan => {
       }
       return {
         inject: [{ do: "signal", target: "redis", signal: "SIGSTOP" }],
-        hold: ms(trigger.hold, "a hold"),
+        hold: needs(trigger.hold, "a hold"),
         heal: [{ do: "signal", target: "redis", signal: "SIGCONT" }],
         restore: [],
       };
     case "rst":
       return {
         inject: [{ do: "inject", target: "redis", action: "rst" }],
-        hold: ms(trigger.hold, "a hold"),
+        hold: needs(trigger.hold, "a hold"),
         heal: [{ do: "inject", target: "redis", action: "clear-rst" }],
         restore: [],
       };
     case "blackhole":
       return {
         inject: [{ do: "inject", target: "redis", action: "blackhole" }],
-        hold: ms(trigger.hold, "a hold"),
+        hold: needs(trigger.hold, "a hold"),
         heal: [{ do: "inject", target: "redis", action: "clear" }],
         restore: [],
       };
@@ -135,12 +139,12 @@ export const planOf = (cell: KindCell): FaultPlan => {
           { do: "inject", target: "redis", action: "blackhole" },
           { do: "kubectl", args: [...ns, "scale", `deployment/${REDIS}`, "--replicas=0"] },
         ],
-        hold: ms(trigger.hold, "a hold"),
+        hold: needs(trigger.hold, "a hold"),
         heal: [{ do: "kubectl", args: [...ns, "scale", `deployment/${REDIS}`, "--replicas=1"] }],
         restore: [],
       };
     case "app-stall":
-      return { inject: [{ do: "stall", target: "server", ms: ms(trigger.hold, "a hold") }], hold: null, heal: [], restore: [] };
+      return { inject: [{ do: "stall", target: "server", time: needs(trigger.hold, "a hold") }], hold: null, heal: [], restore: [] };
     case "rollout":
       // Redis is down for each pod, a new one too: the Service of Redis has no endpoint
       return {
@@ -148,17 +152,18 @@ export const planOf = (cell: KindCell): FaultPlan => {
           { do: "kubectl", args: [...ns, "scale", `deployment/${REDIS}`, "--replicas=0"] },
           { do: "kubectl", args: [...ns, "set", "env", `deployment/${SERVER}`, `LAB_VERSION=${VERSION}`] },
         ],
-        hold: ms(trigger.hold, "a hold"),
+        hold: needs(trigger.hold, "a hold"),
         heal: [{ do: "kubectl", args: [...ns, "scale", `deployment/${REDIS}`, "--replicas=1"] }],
         restore: [],
       };
     case "cpu-throttle": {
       const max = trigger.cpuMax;
       if (max === undefined) throw new Error("the trigger needs its cpu.max");
+      // the kernel reads cpu.max as the quota and the period in microseconds
       return {
-        inject: [{ do: "cpu", target: "server", max: `${max.quota} ${max.period}` }],
-        hold: ms(trigger.hold, "a hold"),
-        heal: [{ do: "cpu", target: "server", max: `max ${max.period}` }],
+        inject: [{ do: "cpu", target: "server", max: `${micros(max.quota)} ${micros(max.period)}` }],
+        hold: needs(trigger.hold, "a hold"),
+        heal: [{ do: "cpu", target: "server", max: `max ${micros(max.period)}` }],
         restore: [],
       };
     }
@@ -171,4 +176,8 @@ export const deletes = (cell: KindCell): boolean =>
   (cell.template === "T07" && cell.trigger.kind === "freeze-process");
 
 /** These are the names of the objects of a cell that a plan names. */
-export const OBJECTS = { server: SERVER, client: CLIENT, redis: REDIS } as const;
+export const OBJECTS: { readonly server: typeof SERVER; readonly client: typeof CLIENT; readonly redis: typeof REDIS } = {
+  server: SERVER,
+  client: CLIENT,
+  redis: REDIS,
+};

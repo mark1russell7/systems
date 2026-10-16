@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import type { ClusterManifest } from "./record.ts";
 import type { KindScenario } from "./scenario.ts";
 import { NODE_IMAGES, cidrOverlap, kindConfig, nodeNames } from "./scenario.ts";
 import { KIND, KUBECTL, ensureTool } from "./tools.ts";
@@ -31,22 +32,6 @@ export const command = async (
     throw new Error(`${program} ${args.join(" ")} failed: ${(failed.stderr ?? failed.message ?? "").toString().trim().slice(0, 2000)}`);
   }
 };
-
-/** A cluster manifest is what a run records about its cluster: the versions, the images, the nodes and the mode as read back. */
-export interface ClusterManifest {
-  readonly kind: string;
-  readonly nodeImage: string;
-  readonly server: string;
-  readonly mode: string;
-  readonly docker: string;
-  readonly nodes: ReadonlyArray<{
-    readonly name: string;
-    readonly kubelet: string;
-    readonly kernel: string;
-    readonly runtime: string;
-    readonly os: string;
-  }>;
-}
 
 /** The credentials of the API, as a container on the network of the cluster reaches it. */
 export interface Credentials {
