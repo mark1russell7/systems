@@ -9,15 +9,15 @@ import { HZ, LINUX, LINUX_66, RTT_MS, RUNS, WINDOW, count, given, ms, predictAt,
 import { NODE_IMAGE } from "./http/cells.ts";
 import type { ManifestationName } from "./manifestations.ts";
 import { MANIFESTATIONS } from "./manifestations.ts";
-import type { WsClientSettings } from "./procedures-ws.ts";
-import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER, PROCEDURES_WS_SERVER_MAIN } from "./procedures-ws.ts";
+import type { WsClientSettings, WsServerSettings } from "./procedures-ws.ts";
+import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "./procedures-ws.ts";
 import { assuming } from "./rtt.ts";
 
 /**
- * This module is the WS catalog: the WebSocket client and server of `@procedures/client` 0.2.3
+ * This module is the WS catalog: the WebSocket client and server of `@procedures/client` 0.3.0
  * on a direct pair. The client is the harness client `procedures-ws`, and the target starts the
- * server script of the same image. Each cell gives each setting of the client and each knob of
- * Linux TCP at the observer, thus nothing comes from a default.
+ * server script of the same image. Each cell gives each setting of the client and of the server.
+ * It also gives each knob of Linux TCP at the observer, thus nothing comes from a default.
  *
  * The predictions compose the documents of `procedures-ws.ts` over Linux TCP
  * (`stackedDetection`). Thus the heartbeat of the client competes with the keepalive that undici
@@ -28,12 +28,16 @@ import { assuming } from "./rtt.ts";
 const PORT = 8080;
 
 /**
- * This function gives the procedures server as a target: the image of the harness with
- * `@procedures/client` 0.2.3, and its server script. A held server is the child of a shell, thus
- * a `fin` fault can stop it while the container stays up.
+ * This function gives the procedures server as a target. It is the image of the harness with
+ * `@procedures/client` 0.3.0, and its server script with the settings of a cell. A held server is
+ * the child of a shell, thus a `fin` fault can stop it while the container stays up.
  */
-export const wsServer = (held = false): Target => {
-  const run = ["node", "/opt/harness/procedures/server-ws.mjs", "--port", String(PORT), "--tcp-keepalive", "off"];
+export const wsServer = (settings: WsServerSettings, held = false): Target => {
+  const heartbeat =
+    settings.heartbeat === null
+      ? ["--heartbeat", "off"]
+      : ["--heartbeat", "on", "--heartbeat-interval-ms", String(settings.heartbeat.interval), "--heartbeat-misses", String(settings.heartbeat.misses)];
+  const run = ["node", "/opt/harness/procedures/server-ws.mjs", "--port", String(PORT), "--tcp-keepalive", "off", ...heartbeat];
   return {
     image: NODE_IMAGE,
     harness: "procedures",
@@ -56,6 +60,7 @@ export interface WsSpec {
   readonly observer: "client" | "server";
   readonly mode: "idle" | "inflight";
   readonly client: WsClientSettings;
+  readonly server: WsServerSettings;
   /** These are the knobs of Linux TCP at the observer that differ from Linux 6.6. */
   readonly linux?: Readonly<Record<string, Extent>>;
   /** This time is the length of a stall, in seconds. */
@@ -68,14 +73,19 @@ export interface WsSpec {
   readonly window?: number;
 }
 
-/** These are the times of the heartbeat of most cells: a ping each 2 s, and a pong timeout of 1 s. */
-const HEARTBEAT = { interval: 2000, timeout: 1000 };
-/** These are the settings of the reconnect: 0.5 s, then each wait two times the one before it, up to 4 s. */
-const RECONNECT = { initialDelay: 500, multiplier: 2, maxDelay: 4000, attempts: 10 };
-/** These are the settings of the client of most cells. A call waits 60 s for its reply, thus no call times out in a band. */
-const CLIENT: WsClientSettings = { heartbeat: HEARTBEAT, reconnect: RECONNECT, requestTimeout: 60_000, connectionTimeout: 10_000 };
+/** These are the times of the heartbeat of most cells: a ping each 2 s, a pong timeout of 1 s, and one miss drops. */
+const HEARTBEAT = { interval: 2000, timeout: 1000, misses: 1 };
+/** These are the settings of the reconnect: 0.5 s, then each wait two times the one before it, up to 4 s, with no jitter. */
+const RECONNECT = { initialDelay: 500, multiplier: 2, maxDelay: 4000, attempts: 10, jitter: 0 };
+/**
+ * These are the settings of the client of most cells: the global WebSocket of Node. A call waits
+ * 60 s for its reply, thus no call times out in a band.
+ */
+const CLIENT: WsClientSettings = { socket: "global", heartbeat: HEARTBEAT, reconnect: RECONNECT, requestTimeout: 60_000, connectionTimeout: 10_000 };
 /** This client has no heartbeat and no reconnect: a cell on the server side, where the client must stay. */
 const SILENT_CLIENT: WsClientSettings = { ...CLIENT, heartbeat: null, reconnect: null };
+/** This server has no heartbeat: the cells of the client meet no ping of the server. */
+const QUIET_SERVER: WsServerSettings = { heartbeat: null };
 /**
  * These are the knobs of Linux TCP that keep the kernel out of the way of the heartbeat. The
  * give-up of a ping comes 102.2 s after its first retransmission at tcp_retries2 = 8. The
@@ -84,15 +94,17 @@ const SILENT_CLIENT: WsClientSettings = { ...CLIENT, heartbeat: null, reconnect:
 const QUIET = { tcp_retries2: count(8) };
 
 /**
- * The WS catalog. Each cell stands for a claim of the heartbeat or the reconnect of 0.2.3.
+ * The WS catalog. Each cell stands for a claim of the heartbeat or the reconnect of 0.3.0.
  * - A black hole, idle or with a call in flight, and a frozen server. The heartbeat drops the
  *   connection one pong timeout after the ping without an answer. The kernel waits longer.
+ * - The drop of each class of sockets. The global WebSocket writes a close frame and its socket
+ *   stays ESTABLISHED. The WebSocket of ws ends its socket at once with terminate().
  * - A stall shorter than the pong timeout. The pong comes back, and nothing drops.
  * - A reset and a FIN. The kernel tells the client at once, and the reconnect waits its backoff.
  * - A give-up of the kernel before the pong timeout, and a client without a heartbeat. The kernel
  *   wins.
- * - The server. 0.2.3 has no heartbeat on the server. Only the kernel finds a silent client, with a
- *   reply in flight.
+ * - The server. Its heartbeat drops a silent client after `misses` beats. Without it, only the
+ *   kernel finds a silent client, with a reply in flight.
  */
 export const WS_SPECS: readonly WsSpec[] = [
   {
@@ -102,6 +114,18 @@ export const WS_SPECS: readonly WsSpec[] = [
     observer: "client",
     mode: "idle",
     client: CLIENT,
+    server: QUIET_SERVER,
+    linux: QUIET,
+    tries: 1,
+  },
+  {
+    name: "client idle, blackhole, heartbeat 2 s and 1 s, the ws class: terminate()",
+    fault: "blackhole",
+    manifestation: "blackhole",
+    observer: "client",
+    mode: "idle",
+    client: { ...CLIENT, socket: "ws" },
+    server: QUIET_SERVER,
     linux: QUIET,
     tries: 1,
   },
@@ -112,6 +136,7 @@ export const WS_SPECS: readonly WsSpec[] = [
     observer: "client",
     mode: "inflight",
     client: CLIENT,
+    server: QUIET_SERVER,
     linux: QUIET,
     tries: 1,
   },
@@ -122,6 +147,7 @@ export const WS_SPECS: readonly WsSpec[] = [
     observer: "client",
     mode: "idle",
     client: CLIENT,
+    server: QUIET_SERVER,
     linux: QUIET,
     tries: 1,
   },
@@ -131,7 +157,8 @@ export const WS_SPECS: readonly WsSpec[] = [
     manifestation: "blackhole",
     observer: "client",
     mode: "idle",
-    client: { ...CLIENT, heartbeat: { interval: 2000, timeout: 3000 } },
+    client: { ...CLIENT, heartbeat: { interval: 2000, timeout: 3000, misses: 1 } },
+    server: QUIET_SERVER,
     linux: QUIET,
     stall: 1,
     window: 5,
@@ -143,6 +170,7 @@ export const WS_SPECS: readonly WsSpec[] = [
     observer: "client",
     mode: "idle",
     client: CLIENT,
+    server: QUIET_SERVER,
     linux: QUIET,
     tries: 1,
   },
@@ -153,6 +181,7 @@ export const WS_SPECS: readonly WsSpec[] = [
     observer: "client",
     mode: "idle",
     client: CLIENT,
+    server: QUIET_SERVER,
     linux: QUIET,
     tries: 3,
   },
@@ -162,7 +191,8 @@ export const WS_SPECS: readonly WsSpec[] = [
     manifestation: "blackhole",
     observer: "client",
     mode: "idle",
-    client: { ...CLIENT, heartbeat: { interval: 2000, timeout: 10_000 } },
+    client: { ...CLIENT, heartbeat: { interval: 2000, timeout: 10_000, misses: 1 } },
+    server: QUIET_SERVER,
     linux: { tcp_retries2: count(3) },
     tries: 1,
   },
@@ -173,25 +203,38 @@ export const WS_SPECS: readonly WsSpec[] = [
     observer: "client",
     mode: "idle",
     client: { ...CLIENT, heartbeat: null },
+    server: QUIET_SERVER,
     linux: QUIET,
     tries: 1,
   },
   {
-    name: "server idle, blackhole",
+    name: "server idle, blackhole, server heartbeat 1 s and 2 misses",
     fault: "blackhole",
     manifestation: "blackhole",
     observer: "server",
     mode: "idle",
     client: SILENT_CLIENT,
+    server: { heartbeat: { interval: 1000, misses: 2 } },
     linux: QUIET,
   },
   {
-    name: "server, a reply in flight, blackhole, tcp_retries2 = 3",
+    name: "server idle, blackhole, server heartbeat off",
+    fault: "blackhole",
+    manifestation: "blackhole",
+    observer: "server",
+    mode: "idle",
+    client: SILENT_CLIENT,
+    server: QUIET_SERVER,
+    linux: QUIET,
+  },
+  {
+    name: "server, a reply in flight, blackhole, tcp_retries2 = 3, server heartbeat off",
     fault: "blackhole",
     manifestation: "blackhole",
     observer: "server",
     mode: "inflight",
     client: SILENT_CLIENT,
+    server: QUIET_SERVER,
     linux: { tcp_retries2: count(3) },
     hold: 2000,
   },
@@ -206,15 +249,27 @@ export const clientValues = (settings: WsClientSettings): KnobValues => {
   return given({
     heartbeat_interval: heartbeat === null ? off("ms") : ms(heartbeat.interval),
     heartbeat_timeout: heartbeat === null ? off("ms") : ms(heartbeat.timeout),
+    heartbeat_misses: count(heartbeat === null ? 1 : heartbeat.misses),
     reconnect_initial_delay: reconnect === null ? off("ms") : ms(reconnect.initialDelay),
     reconnect_backoff_multiplier: count(reconnect === null ? 1 : reconnect.multiplier),
     reconnect_max_delay: reconnect === null ? off("ms") : ms(reconnect.maxDelay),
     reconnect_max_attempts: count(reconnect === null ? 0 : reconnect.attempts),
+    reconnect_jitter: count(reconnect === null ? 0 : reconnect.jitter),
     request_timeout: ms(settings.requestTimeout),
     connection_timeout: ms(settings.connectionTimeout),
+    // undici turns keepalive on with 60 s, and the ws package turns none on
+    socket_keepidle: settings.socket === "global" ? s(60) : off("s"),
     hz: { value: HZ, unit: "Hz" },
   });
 };
+
+/** This function gives the values of the knobs of the server document for the settings of a cell. */
+export const serverValues = (settings: WsServerSettings): KnobValues =>
+  given({
+    heartbeat_interval: settings.heartbeat === null ? off("ms") : ms(settings.heartbeat.interval),
+    heartbeat_misses: count(settings.heartbeat === null ? 1 : settings.heartbeat.misses),
+    hz: { value: HZ, unit: "Hz" },
+  });
 
 /** This function gives the values of Linux TCP at the observer of a spec, at a round trip in ms: the sysctls of its namespace. */
 const linuxValues = (spec: WsSpec, rttMs: number): Record<string, Extent> => ({
@@ -241,8 +296,8 @@ const linuxReference = (timer: string): Reference => {
 
 /**
  * This function gives the bands of the waits of the reconnect. Try n + 1 waits
- * min(initialDelay × multiplier^n, maxDelay). Each wait is a Node timer, with its early and late
- * bounds.
+ * min(initialDelay × multiplier^n, maxDelay), less its jitter. Each wait is a Node timer, with its
+ * early and late bounds.
  */
 export const reconnectsOf = (spec: WsSpec): { readonly reconnects?: Reconnects } => {
   if (spec.observer !== "client" || spec.client.reconnect === null || spec.tries === undefined) return {};
@@ -287,8 +342,9 @@ const stallAt = (spec: WsSpec, rttMs: number): Prediction => {
  * the client, or of the server, over Linux TCP:
  * - A FIN arrives at once: an end of file one way after the close of the peer.
  * - A reset answers the first ping into the fault one round trip later.
- * - Otherwise the first live timer detects it. A timer of the kernel gives its errno. The pong
- *   timer of the client drops the connection (`DROPPED`), one timeout after its ping.
+ * - Otherwise the first live timer detects it. A timer of the kernel gives its errno. A heartbeat
+ *   drops the connection (`DROPPED`), from the first ping without an answer. The global WebSocket
+ *   drops with a close frame, and the WebSocket of ws and the server with a close of the socket.
  */
 export const predictWsAt = (spec: WsSpec, rttMs: number): Prediction => {
   const rtt = rttMs / 1000;
@@ -306,10 +362,10 @@ export const predictWsAt = (spec: WsSpec, rttMs: number): Prediction => {
     };
   const server = spec.observer === "server";
   const doc = server ? PROCEDURES_WS_SERVER : PROCEDURES_WS_CLIENT;
-  const values = server ? given({}) : clientValues(spec.client);
-  // a client with a heartbeat meets a silent fault with its ping in flight, and awaits its pong
-  const pinging = !server && spec.client.heartbeat !== null && spec.manifestation !== "fin";
-  const state = server ? "OPEN" : pinging ? "AWAITING_PONG" : "CONNECTED";
+  const values = server ? serverValues(spec.server) : clientValues(spec.client);
+  // a side with a heartbeat meets a silent fault with its ping in flight, and awaits its pong
+  const pinging = (server ? spec.server.heartbeat !== null : spec.client.heartbeat !== null) && spec.manifestation !== "fin";
+  const state = server ? (pinging ? "MISSING" : "OPEN") : pinging ? "AWAITING_PONG" : "CONNECTED";
   const inFlight = spec.mode === "inflight" || pinging;
   const manifestation: Manifestation = MANIFESTATIONS[spec.manifestation];
   const linux = given(socketValues(spec, rttMs));
@@ -336,7 +392,8 @@ export const predictWsAt = (spec: WsSpec, rttMs: number): Prediction => {
       ...reconnects,
     };
   // a timer of the program itself: the heartbeat drops the connection by itself
-  return { detects: true, timer, errno: "DROPPED", from: "ping-sent", ...band, ...reconnects };
+  const drop = !server && spec.client.socket === "global" ? "frame" : "close";
+  return { detects: true, timer, errno: "DROPPED", from: "ping-sent", ...band, ...reconnects, drop };
 };
 
 /** This function gives the prediction of a cell, with the range of first round trips that its band assumes. */
@@ -346,11 +403,18 @@ export const predictWs = (spec: WsSpec): Prediction => assuming((rtt) => predict
 const probeOf = (spec: WsSpec): WsProbe => {
   const { heartbeat, reconnect } = spec.client;
   return {
-    heartbeat: heartbeat === null ? null : { interval: ms(heartbeat.interval), timeout: ms(heartbeat.timeout) },
+    socket: spec.client.socket,
+    heartbeat: heartbeat === null ? null : { interval: ms(heartbeat.interval), timeout: ms(heartbeat.timeout), misses: heartbeat.misses },
     reconnect:
       reconnect === null
         ? null
-        : { initialDelay: ms(reconnect.initialDelay), multiplier: reconnect.multiplier, maxDelay: ms(reconnect.maxDelay), attempts: reconnect.attempts },
+        : {
+            initialDelay: ms(reconnect.initialDelay),
+            multiplier: reconnect.multiplier,
+            maxDelay: ms(reconnect.maxDelay),
+            attempts: reconnect.attempts,
+            jitter: reconnect.jitter,
+          },
     requestTimeout: ms(spec.client.requestTimeout),
     connectionTimeout: ms(spec.client.connectionTimeout),
     ...(spec.hold === undefined ? {} : { hold: ms(spec.hold) }),
@@ -368,7 +432,7 @@ export const wsCellOf = (spec: WsSpec): Cell => {
   const killsServer = spec.fault === "fin" && !server;
   return {
     name: `WS ${spec.name}`,
-    target: wsServer(killsServer),
+    target: wsServer(spec.server, killsServer),
     client: "procedures-ws",
     sysctls: server ? {} : namespace,
     probe: { mode: spec.mode, keepalive: false, ws: probeOf(spec) },
@@ -383,35 +447,3 @@ export const wsCellOf = (spec: WsSpec): Cell => {
 
 /** These are the cells of the WS catalog, in the sequence of the specs. */
 export const WS_CELLS: readonly Cell[] = WS_SPECS.map(wsCellOf);
-
-/** A waiting cell is a cell that the harness cannot start at this time, with its prediction and the reason. */
-export interface WaitingCell {
-  readonly name: string;
-  readonly prediction: Prediction;
-  readonly waits: string;
-}
-
-/**
- * These cells wait. The heartbeat of the server is on the main branch of the client (roadmap R3),
- * and 0.2.3 on npm has none. Its prediction is here, from `PROCEDURES_WS_SERVER_MAIN`: two beats of
- * 1 s after the first ping that got no answer.
- */
-export const WS_WAITING: readonly WaitingCell[] = [
-  (() => {
-    const values = given({ heartbeat_interval: ms(1000), heartbeat_misses: count(2), hz: { value: HZ, unit: "Hz" } });
-    const bounds = timerOf(PROCEDURES_WS_SERVER_MAIN, "heartbeat", values);
-    const duration = seconds(bounds.duration, "heartbeat");
-    return {
-      name: "WS server idle, blackhole, the server heartbeat of client main, 1 s and 2 misses",
-      prediction: {
-        detects: true,
-        timer: "heartbeat",
-        errno: "DROPPED",
-        from: "ping-sent",
-        low: q(duration - seconds(bounds.early, "the heartbeat's early bound")),
-        high: q(duration + seconds(bounds.lateness, "the heartbeat's lateness")),
-      },
-      waits: "The heartbeat of the server is on the main branch of the client (roadmap R3), and no release on npm has it. The harness starts the cell on the first release that has it.",
-    };
-  })(),
-];

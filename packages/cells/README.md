@@ -151,23 +151,24 @@ Each prediction of a fault composes the document of the client, or of the server
 
 ## The WS catalog
 
-The WS catalog has the WebSocket client and server of `@procedures/client` 0.2.3 on a direct pair (`src/ws.ts`). The client is the harness client `procedures-ws`, and the server is a script in its image. 0.2.3 is the release on npm. The heartbeat of the server and the new defaults of the client are only on the main branch of the client.
+The WS catalog has the WebSocket client and server of `@procedures/client` 0.3.0 on a direct pair (`src/ws.ts`). The client is the harness client `procedures-ws`, and the server is a script in its image. Each cell gives each setting of the client and of the server.
 
-- **The documents** (`src/procedures-ws.ts`) are the client and the server of 0.2.3, from the files of the release. Each fact has its file and its line.
-  - The states and the events come from the document of the client repository at commit 1f50f47 (`WEBSOCKET_CONNECTION_MACHINE`). That document has misses, jitter and a timer of the handshake. 0.2.3 has none of them, thus the timers come from the code of 0.2.3.
-  - The heartbeat of the client sends a ping only when no pong is awaited. Its pong timeout drops the connection one timeout after the ping that got no answer.
-  - The reconnect waits min(initialDelay × multiplier^(n − 1), maxDelay) before try n, with no jitter. The algebra reads it with `pow` (`@mark1russell7/algebra` 0.6.0).
-  - The drop writes a close frame and leaves the socket: undici destroys nothing. Thus the kernel stamps the drop as a write, and the socket stays ESTABLISHED below.
-  - undici turns keepalive on with 60 s, and libuv adds 1 s and 10 probes. Thus the keepalive sysctls of the namespace do not reach the socket of the client.
+- **The documents** (`src/procedures-ws.ts`) are the client and the server of 0.3.0, from the files of the release and of `@mark1russell7/service` 0.4.0. Each fact has its file and its line.
+  - The states and the events come from the document of the client repository at commit 1f50f47 (`WEBSOCKET_CONNECTION_MACHINE`). The timers come from the code of 0.3.0.
+  - The heartbeat of the client is `heartbeat()` of the service. It sends a ping only when no pong is awaited, and `misses` misses in sequence drop the connection. With one miss, the drop comes one timeout after the ping that got no answer.
+  - The reconnect waits min(initialDelay × multiplier^(n − 1), maxDelay) before try n, less its jitter. The cells set the jitter to 0. The algebra reads the wait with `pow` (`@mark1russell7/algebra` 0.6.0).
+  - A drop of a socket of the global `WebSocket` writes a close frame and destroys nothing. Thus the kernel stamps the drop as a write, and the socket stays ESTABLISHED below. A socket of the `WebSocket` of ws ends at once with `terminate()`.
+  - undici turns keepalive on with 60 s, and libuv adds 1 s and 10 probes. The ws package turns no keepalive on. Thus the keepalive sysctls of the namespace do not reach the socket of the client.
+  - The heartbeat of the server pings each connection at each beat of a `setInterval`. It ends a connection after `misses` beats without a pong: `misses` beats after its first ping without an answer.
 - **The lateness of a timer of the program.** Each timer of the program is a Node timer, with the lateness of `http/timers.ts`. That is the slack of `epoll_wait`, the truncation of the loop clock to 1 ms, and the step of the coarse clock. The early bound is the truncation and the step. The time of the loop in other callbacks is the time of the application, and δ_abs holds a small part of it.
-- **The claims.** Each cell gives each setting of the client and each knob of Linux TCP at the observer.
+- **The claims.** Each cell gives each knob of Linux TCP at the observer too.
   - A black hole, idle or with a call in flight, and a frozen server: the heartbeat drops the connection one pong timeout after its ping. The kernel of a frozen server acknowledges the ping, thus only the heartbeat finds it.
+  - The drop of each class. The global `WebSocket` writes a close frame, and its socket stays ESTABLISHED. With the `WebSocket` of ws, the socket leaves ESTABLISHED at once.
   - At `tcp_retries2` = 8 the kernel gives up 102.2 s after its first retransmission, and the keepalive of undici waits 60 s. Thus the heartbeat comes first.
   - A stall of 1 s: the retransmission after the stall moves the ping, and the pong comes back before the timeout of 3 s. Nothing drops.
   - A reset and a FIN: the kernel tells the client at once. The reconnect then waits its backoff: 0.5 s, then 1 s and 2 s after each refused try.
   - Where the timer of the kernel is shorter, the kernel wins: the give-up at `tcp_retries2` = 3 comes before a pong timeout of 10 s. A client without a heartbeat waits for the keepalive of undici: 70 s.
-  - The server of 0.2.3 has no heartbeat, thus a silent client stays. Only its kernel finds it, with a reply in flight.
-- **A cell that waits.** The heartbeat of the server on the main branch of the client (roadmap R3) has its prediction in `WS_WAITING`. The harness starts it on the first release that has it.
+  - The heartbeat of the server at 1 s and 2 misses drops a silent client 2 s after its first ping without an answer. Without the heartbeat, a silent client stays, and only the kernel finds it with a reply in flight.
 
 ## The calibration of the proxies
 

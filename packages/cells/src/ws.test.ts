@@ -2,8 +2,8 @@ import { algebraProblems, machineProblems } from "@mark1russell7/algebra";
 import { describe, expect, it } from "vitest";
 import { HZ } from "./catalog.ts";
 import { nodeEarlySeconds, nodeLateSeconds } from "./http/timers.ts";
-import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER, PROCEDURES_WS_SERVER_MAIN } from "./procedures-ws.ts";
-import { WS_CELLS, WS_SPECS, WS_WAITING } from "./ws.ts";
+import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "./procedures-ws.ts";
+import { WS_CELLS, WS_SPECS } from "./ws.ts";
 
 const round = (value: number) => Math.round(value * 1e9) / 1e9;
 const cell = (name: string) => {
@@ -13,7 +13,7 @@ const cell = (name: string) => {
 };
 const band = (name: string) => {
   const p = cell(name).prediction;
-  if (p.detects === true) return { timer: p.timer, errno: p.errno, from: p.from, low: p.low.value, high: p.high.value };
+  if (p.detects === true) return { timer: p.timer, errno: p.errno, from: p.from, low: p.low.value, high: p.high.value, ...(p.drop === undefined ? {} : { drop: p.drop }) };
   if (p.detects === false && p.recovers !== undefined)
     return { firing: p.recovers.firing, low: p.recovers.low.value, high: p.recovers.high.value, window: p.window.value };
   return p.detects === false ? { silent: p.window.value } : "measured";
@@ -26,8 +26,8 @@ const waits = (name: string) => {
 const nodeBand = (seconds: number) => [round(seconds - nodeEarlySeconds(HZ)), round(seconds + nodeLateSeconds(seconds, HZ))];
 
 describe("the WS catalog", () => {
-  it("reads three documents that the algebra accepts", () => {
-    for (const doc of [PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER, PROCEDURES_WS_SERVER_MAIN]) {
+  it("reads two documents that the algebra accepts", () => {
+    for (const doc of [PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER]) {
       expect(machineProblems(doc), doc.id).toEqual([]);
       expect(algebraProblems(doc), doc.id).toEqual([]);
     }
@@ -52,16 +52,29 @@ describe("the WS catalog", () => {
       // the kernel of a frozen server acknowledges the ping: only the heartbeat finds it
       "client idle, freeze-process of the server, heartbeat 2 s and 1 s",
     ])
-      expect(band(name), name).toEqual({ timer: "pong", errno: "DROPPED", from: "ping-sent", low, high });
+      expect(band(name), name).toEqual({ timer: "pong", errno: "DROPPED", from: "ping-sent", low, high, drop: "frame" });
     // the band does not read the round trip
     expect(cell("client idle, blackhole, heartbeat 2 s and 1 s").prediction).not.toHaveProperty("rtt");
+  });
+
+  it("predicts the drop of the ws class at the same time, as a close of its socket at once", () => {
+    const [low, high] = nodeBand(1);
+    expect(band("client idle, blackhole, heartbeat 2 s and 1 s, the ws class: terminate()")).toEqual({
+      timer: "pong",
+      errno: "DROPPED",
+      from: "ping-sent",
+      low,
+      high,
+      drop: "close",
+    });
+    expect(cell("client idle, blackhole, heartbeat 2 s and 1 s, the ws class: terminate()").probe.ws?.socket).toBe("ws");
   });
 
   it("predicts each wait of the reconnect from its backoff: 0.5 s, then 1 s and 2 s after each refusal", () => {
     expect(waits("client idle, blackhole, heartbeat 2 s and 1 s")).toEqual([nodeBand(0.5)]);
     expect(waits("client idle, fin of the server, three tries refused")).toEqual([nodeBand(0.5), nodeBand(1), nodeBand(2)]);
     // a cell on the server side has a client that does not reconnect
-    expect(waits("server, a reply in flight, blackhole, tcp_retries2 = 3")).toEqual([]);
+    expect(waits("server, a reply in flight, blackhole, tcp_retries2 = 3, server heartbeat off")).toEqual([]);
   });
 
   it("lets the kernel win where its timer is shorter: the give-up at tcp_retries2 = 3, and the keepalive of undici without a heartbeat", () => {
@@ -86,25 +99,46 @@ describe("the WS catalog", () => {
     expect(cell("client idle, a 1 s stall, heartbeat 2 s and 3 s").stall).toEqual({ value: 1, unit: "s" });
   });
 
-  it("finds that the server of 0.2.3 has no heartbeat: silence idle, and the give-up of its kernel with a reply in flight", () => {
-    expect(band("server idle, blackhole")).toEqual({ silent: 20 });
-    expect(band("server, a reply in flight, blackhole, tcp_retries2 = 3")).toMatchObject({ timer: "retrans_giveup", errno: "ETIMEDOUT", low: 3 });
-    // the heartbeat of the server on the main branch of the client waits for a release: two beats of 1 s
-    const [waiting] = WS_WAITING;
-    expect(waiting?.prediction).toMatchObject({ errno: "DROPPED", from: "ping-sent", low: { value: round(2 - 2 * nodeEarlySeconds(HZ)) } });
-    expect(waiting?.waits).toContain("roadmap R3");
+  it("predicts the heartbeat of the server two beats after its first ping without an answer, and the kernel without it", () => {
+    const beats = band("server idle, blackhole, server heartbeat 1 s and 2 misses");
+    expect(beats).toEqual({
+      timer: "heartbeat",
+      errno: "DROPPED",
+      from: "ping-sent",
+      low: round(2 - 2 * nodeEarlySeconds(HZ)),
+      high: round(2 + 2 * nodeLateSeconds(1, HZ)),
+      drop: "close",
+    });
+    expect(cell("server idle, blackhole, server heartbeat 1 s and 2 misses").target.command).toEqual([
+      "node",
+      "/opt/harness/procedures/server-ws.mjs",
+      "--port",
+      "8080",
+      "--tcp-keepalive",
+      "off",
+      "--heartbeat",
+      "on",
+      "--heartbeat-interval-ms",
+      "1000",
+      "--heartbeat-misses",
+      "2",
+    ]);
+    expect(band("server idle, blackhole, server heartbeat off")).toEqual({ silent: 20 });
+    expect(band("server, a reply in flight, blackhole, tcp_retries2 = 3, server heartbeat off")).toMatchObject({ timer: "retrans_giveup", errno: "ETIMEDOUT", low: 3 });
   });
 
-  it("gives each setting of the client and each knob of Linux TCP at the observer", () => {
+  it("gives each setting of the client, of the server, and each knob of Linux TCP at the observer", () => {
     const idle = cell("client idle, blackhole, heartbeat 2 s and 1 s");
     expect(idle.probe.ws).toEqual({
-      heartbeat: { interval: { value: 2000, unit: "ms" }, timeout: { value: 1000, unit: "ms" } },
-      reconnect: { initialDelay: { value: 500, unit: "ms" }, multiplier: 2, maxDelay: { value: 4000, unit: "ms" }, attempts: 10 },
+      socket: "global",
+      heartbeat: { interval: { value: 2000, unit: "ms" }, timeout: { value: 1000, unit: "ms" }, misses: 1 },
+      reconnect: { initialDelay: { value: 500, unit: "ms" }, multiplier: 2, maxDelay: { value: 4000, unit: "ms" }, attempts: 10, jitter: 0 },
       requestTimeout: { value: 60_000, unit: "ms" },
       connectionTimeout: { value: 10_000, unit: "ms" },
     });
     expect(idle.sysctls).toMatchObject({ "net.ipv4.tcp_retries2": "8" });
-    const server = cell("server, a reply in flight, blackhole, tcp_retries2 = 3");
+    expect(idle.target.command).toContain("--heartbeat");
+    const server = cell("server, a reply in flight, blackhole, tcp_retries2 = 3, server heartbeat off");
     expect(server).toMatchObject({ observer: "server", targetSysctls: { "net.ipv4.tcp_retries2": "3" }, sysctls: {} });
     expect(server.probe.ws).toMatchObject({ heartbeat: null, reconnect: null, hold: { value: 2000, unit: "ms" } });
     // a FIN of the server ends its environment: each run has its own, and a shell holds the server
