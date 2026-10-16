@@ -70,7 +70,25 @@ export interface Verdict {
    * one is a finding of its run.
    */
   readonly requests?: Readonly<Record<string, number>>;
+  /** This record is what the client did after the detection over the counted runs, for a prediction that says when it reconnects. */
+  readonly reconnect?: ReconnectVerdict;
+  /** These are the outcomes of the call in flight of a WebSocket client over the counted runs, each with its count. */
+  readonly calls?: Readonly<Record<string, number>>;
   readonly why: string;
+}
+
+/**
+ * A reconnect verdict sums the reconnect of the client over the counted runs. Each wait before a
+ * try gets its spread. A wait outside its band is a finding of its run, thus it is in `outside`.
+ * - `syn` is the time from the detection to the first SYN of a new socket.
+ * - `established` is the time from the detection to the first new socket that became ESTABLISHED.
+ * - `connect` is the time from a `dial` line to the SYN of its socket: the work of the program.
+ */
+export interface ReconnectVerdict {
+  readonly waits: ReadonlyArray<Spread | null>;
+  readonly syn: Spread | null;
+  readonly established: Spread | null;
+  readonly connect: Spread | null;
 }
 
 /**
@@ -210,9 +228,51 @@ const middle = (sorted: readonly number[]): number => {
 export const verdictOf = (prediction: Prediction, runs: readonly Measured[]): Verdict => {
   const band = verdictOfBand(prediction, runs);
   const counted = runs.filter((run) => run.void === null);
-  const verdict = counted.some((run) => run.request !== undefined) ? withRequests(band, counted) : band;
+  const asked = counted.some((run) => run.request !== undefined) ? withRequests(band, counted) : band;
+  const verdict = withProgram(asked, counted);
   if (prediction.group === undefined && !counted.some((run) => run.group !== undefined)) return verdict;
   return { ...verdict, group: groupVerdictOf(prediction, counted) };
+};
+
+/**
+ * This function adds the reconnect of the client and the outcomes of its call in flight to a
+ * verdict. Its reason gets a sentence for each. A verdict whose runs have neither stays as it is.
+ */
+const withProgram = (verdict: Verdict, counted: readonly Measured[]): Verdict => {
+  const reconnects = counted.flatMap((run) => (run.reconnect === undefined ? [] : [run.reconnect]));
+  const calls = counted.flatMap((run) => (run.call === undefined ? [] : [run.call]));
+  if (reconnects.length === 0 && calls.length === 0) return verdict;
+  const ms = (spread: Spread | null) => (spread === null ? "none" : `${Math.round(valueIn(spread.median, "s") * 1e6) / 1e3} ms`);
+  const tries = Math.max(0, ...reconnects.map((each) => each.waits.length));
+  const reconnect: ReconnectVerdict | undefined =
+    reconnects.length === 0
+      ? undefined
+      : {
+          waits: Array.from({ length: tries }, (_, at) =>
+            spreadOf(reconnects.flatMap((each) => (each.waits[at] === undefined ? [] : [each.waits[at]!]))),
+          ),
+          syn: spreadOf(reconnects.flatMap((each) => (each.syn === null ? [] : [each.syn]))),
+          established: spreadOf(reconnects.flatMap((each) => (each.established === null ? [] : [each.established]))),
+          connect: spreadOf(reconnects.flatMap((each) => each.connects)),
+        };
+  const outcomes: Record<string, number> = {};
+  for (const call of calls) outcomes[call.outcome] = (outcomes[call.outcome] ?? 0) + 1;
+  const said = [
+    ...(reconnect === undefined
+      ? []
+      : [
+          `Reconnect: the waits before each try, median ${reconnect.waits.map(ms).join(", ")}; the first SYN median ${ms(reconnect.syn)} and ESTABLISHED median ${ms(reconnect.established)} after the detection.`,
+        ]),
+    ...(calls.length === 0
+      ? []
+      : [`Calls in flight: ${Object.entries(outcomes).map(([outcome, n]) => `${n} ${outcome}`).join("; ")}.`]),
+  ];
+  return {
+    ...verdict,
+    ...(reconnect === undefined ? {} : { reconnect }),
+    ...(calls.length === 0 ? {} : { calls: outcomes }),
+    why: `${verdict.why.endsWith(".") ? verdict.why : `${verdict.why}.`} ${said.join(" ")}`,
+  };
 };
 
 /**

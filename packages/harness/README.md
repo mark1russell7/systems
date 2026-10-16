@@ -13,6 +13,7 @@ A **cell** (`cell.ts`) is all that one measurement needs, as data:
 - **The workload.** A connection that stays idle, a connection with a request in flight, or a stream of requests. A stream of `GET` requests for a long value keeps many segments in flight.
 - **The fault.** A black hole, a reset, a frozen process, or a stall. In a topology, also a fault at a router or a proxy, or a router that forgets a flow. Also a proxy that closes an idle connection, or a toxic of Toxiproxy.
 - **The prediction.** An interval [T_lo, T_hi] after the event that arms the timer, or silence in a window. After a stall, the prediction also tells when the connection recovers. A silent prediction can also tell when the reply comes back (`replies`).
+- **A detection by the program.** The timer can be a timer of the program of the observer, for example a heartbeat. The program then drops the connection itself (`DROPPED`). A detection can also give the waits of the reconnect of the client (`reconnects`).
 - **The assumptions of the band.** A band can name the range of first round trips that it assumes (`rtt`), and the proxy times that it includes (`through`).
 
 ## The environment
@@ -105,6 +106,11 @@ A fault names a member by its role at the start of a run: `primary`, or `replica
   - or by itself, a gap after its first reply (`gap`), for the keep-alive race.
 - **The lines of an HTTP client.** It writes the lines of the TCP client, with the number `i` of the request on each line of a request. It also writes the connection of each try of a request (`request`, then `retry`), with its local address and a flag for a reused connection. Each connection gets a `conn` line, and each end of a connection a line (`eof`, `conn-error`, `closed`). The end of the second request is a `done` line.
 - **A target with a script.** A target can take files before it starts (`Target.files`), for example the script of a Node server on the stock Node image. A target that writes JSON lines (`Target.lines`) gives them to each run (`Run.server`). The manifest holds the sha256 of each file and the first line of the target.
+- **The WebSocket client** (`Cell.client` is `procedures-ws`) is the `WebSocketTransport` of `@procedures/client` 0.2.3. The cell gives each of its settings (`probe.ws`): the heartbeat, the reconnect, and the times of a call.
+  - Its first request is `harness.echo`. In flight, its request into the fault is `harness.echo`, or `harness.hold` for a held reply.
+  - It writes the lines of the TCP client. It also writes a line for each act of the program: `ping`, `drop`, `reconnecting` and `dial`.
+  - It puts a subclass of the global `WebSocket` class of Node in its place before the transport starts. The subclass writes a line, then gives the work to the class of Node. Thus the transport and undici operate as they do without it.
+- **A target from an image of the harness** (`Target.harness`). The target operates an image of the harness in place of its stock image. The procedures server is a script in the image of the WebSocket client (`server-ws.mjs`). Thus the client and the server use one release of the package. `Target.image` is the stock base of that image, and the manifest names both.
 - **An agent** (`lab.agent(image, command, { pid })`) is a container in the network namespace of the target. With `pid`, it also shares the process namespace of the target, thus it can signal the server process. Its JSON lines and its `exec` stay available to the caller.
 
 ## The images
@@ -125,6 +131,7 @@ The harness builds six images. The tag of each image comes from the content of a
   - The events of the driver are `sdam` lines (the heartbeats and the changes of each server), `cmap` lines (the pools) and `command` lines (each try of an operation).
   - Each operation is a `sent` line, then an `ack` line or a `fail` line. An `ack` line has the server that accepted it. A `fail` line has the name and the labels of its error.
   - The same image holds `stepdown-mongo.mjs`, the sender of `replSetStepDown`.
+- **The procedures image** (`image/procedures`) holds `@procedures/client` 0.2.3 on Node 24.21.0, whose WebSocket is undici 7.29.1. The digest of the image and an npm lockfile pin them. It holds the WebSocket client (`client-ws.mjs`) and the script of the procedures server (`server-ws.mjs`). Each takes each of its settings as a flag, and it has no default.
 - **The router image** (`image/router`) is a digest-pinned Alpine with conntrack-tools, nftables, iproute2 and Python. `mbx.sh` sets the form of the router in one nftables table, `ctwatch.py` writes the conntrack events, and `resetter.py` sends the resets of the `reset-both` form. Each run records its packages in the manifest.
 
 The build does the `cargo test` of the two crates. Thus the record decoder passes its tests before an image exists. Each amount that the native programs print is a quantity in a canonical unit. For example, an RTO is in `jiffy`, a round trip in `us`, and a segment in `B`.
@@ -137,7 +144,7 @@ ioredis sets the keepalive of its socket itself, after it connects. Thus a cell 
 - **A reset** is a `REJECT --reject-with tcp-reset` rule in the namespace of the target, for the segments of the client. The next send of the client gets a reset one round trip later. It is the reference fault of the calibration.
 - **A frozen process** is the cgroup freezer (`docker pause`), while the kernel stays up. A target that names its server process (`Target.program`) freezes by SIGSTOP from a sidecar in its process namespace, with stamps (`lab.signal`). A hold (`Cell.hold`) then thaws it with SIGCONT at that time after the freeze.
 - **A fault before the client** (`Cell.before`) holds before the client starts. Thus the first selection of the driver meets it. It is a black hole, a reset or an ICMP unreachable.
-- **A stall** is a black hole that stops by itself, `Cell.stall` after the send of the request. The run reads the stamp of the client on the send. Then `inject clear PEER --at NS` holds the end in the VM until that instant (`lab.heal`). Thus the latency of a docker exec does not change the length of the stall.
+- **A stall** is a black hole that stops by itself, `Cell.stall` after the send of the request. The run reads the stamp of the client on the send. Then `inject clear PEER --at NS` holds the end in the VM until that instant (`lab.heal`). Thus the latency of a docker exec does not change the length of the stall. An idle client sends only the pings of its heartbeat, thus its stall counts from its first ping into the stall.
 - **An ICMP unreachable** (`unreachable`, `Cell.icmp`) answers each segment from the observer with host, net or port unreachable, or admin prohibited. Linux keeps it as a soft error, continues to retransmit, and gives the errno of the ICMP at the timeout. Host and net unreachable also revert the backoff (RFC 6069).
 - **A simplex partition** (`simplex`, `Cell.drops`) drops the segments to the server, or the segments to the client, but not both.
 - **A FIN** (`fin`) stops the process of the peer with SIGKILL while its kernel stays up. For the client, the target starts its server as the child of a shell (`Target.command`), and `Target.kill` stops it. For the server, the harness stops the container of the client.
@@ -185,6 +192,19 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
 - **A topology.** A run in a topology also gives the bytes that the client read after its request, and when a router forgot its flow (`forgot`).
 - **Recovery.** After a stall (`prediction.recovers`), it times the send to the first segment back after the stall stopped. That segment is the answer of the server to the retransmission that got through. A run whose stall stopped outside the window of its prediction is void. A run where nothing came back is a finding.
 - **An end of file.** A FIN counts from the change of state of the socket of the peer when it closes (`peer-closed`). It ends at the change of the socket of the observer to CLOSE_WAIT. The kernel stamps the two changes.
+- **A detection by the program** (`application.ts`). The kernel has no report of it. Thus the program of the observer writes a line before each of its own acts, and the kernel stamps each act on the socket.
+  - The program writes `ping` before each ping of its heartbeat. The kernel stamps the write of the ping (`tx`).
+  - The reference is the first ping that got no answer (`ping-sent`): no segment with data reached the socket after its write, up to the detection. Its write starts the timer of the heartbeat that the fault met. The fault can come at any time, and its stamps are not necessary.
+  - The program writes `drop` before it drops the connection itself. The detection is the kernel's stamp of that drop: the write of its close frame, or the change of its socket out of ESTABLISHED. Without such a record in δ_abs, it is the stamp of the line.
+  - A drop counts when it comes before each report of the kernel. A report of the kernel that comes first is the detection, and the drop after it is not.
+  - The second view is the stamps of the program: from its `ping` line to its `drop` line. The steps are the later pings, each from the reference.
+  - The lines of a client name the socket by its local address (`local`), and the lines of a server by its peer (`peer`). For the server, the lines are the lines of the target.
+  - A heartbeat is a timer of the program. The retransmit timer of its ping fires in the same interval. Thus a run whose retransmit timer was two jiffies or more behind its wheel slot is void: the VM stopped a vCPU.
+- **The reconnect** (`reconnectOf`). A prediction with `reconnects` also reads what the client did after the detection.
+  - Each wait goes from a `reconnecting` line, where the program starts its timer, to its next `dial` line, where it makes the socket. A wait outside its band, widened by δ_abs, is a finding. A try that did not come is a finding too.
+  - The kernel gives the time from the detection to the first SYN of a new socket (`syn`). It also gives the time to the first new socket in ESTABLISHED (`established`).
+  - It also gives the time from each `dial` line to its SYN (`connects`): the work of the program before connect(2).
+- **A call in flight of a WebSocket client** (`callOf`). The run gives its error or its reply, and the time from the detection to its end.
 - **A stream.** In a stream (`probe.mode` is `stream`), the client sends `count` requests. The run keeps the time from each send to the last byte of its reply (`samples`). A record without `replied` lines gives the time to the first data.
 - **Reordering.** A measurement-only run also gives what reordering, duplicates and losses did (`reordering`). At the client, it counts the arrivals beyond a hole and the arrivals of data that it had already, against `rcv_nxt`. From the sender, it gives the most SACKed and lost segments, the DSACKs, the fast retransmissions, and the reordering degree and count of the kernel.
 - **An arrival is not always one segment.** The segments that arrive while the owner holds the socket wait in its backlog, and the kernel joins the contiguous ones. Thus the kernel counts out-of-order segments (`rcv_ooopack`), and the prober counts arrivals.
@@ -234,6 +254,8 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
   - The verdict also gives the median of each stage, the lost writes of each run, and the errors on the way.
 
 - **An HTTP client** (`Verdict.requests`). The verdict counts each outcome of the second request over the counted runs. A measurement-only cell also gives them in its reason.
+- **The reconnect** (`Verdict.reconnect`). A wait outside its band is a finding of its run, thus the cell fails. The verdict gives the spread of each wait, of the first SYN, of the first ESTABLISHED and of the work before each connect(2). Its reason says the medians.
+- **A call in flight** (`Verdict.calls`). The verdict counts each outcome of the call in flight of a WebSocket client, and its reason says them.
 
 The distribution test needs a simulator, which does not exist at this time.
 
@@ -255,6 +277,7 @@ The distribution test needs a simulator, which does not exist at this time.
   - A run of a group has no such pause. Its fault comes after the 20th accepted write of its stream, and each band of a group counts from the fault.
   - An HTTP client in a gap counts its gap from its own first reply, thus the pause does not change it. Its run ends at the end of its second request (`done`).
 - **An HTTP client.** A run of an HTTP client in flight ends at the end of its second request, after a new try of the client. The client waits one second after it (`LINGER_MS`), thus its own close comes after the window.
+- **A program with its own detector.** The wait for the detection also ends at a `drop` line of the client. After the harness removes the fault, the run waits for the tries that the prediction gives: one `dial` line for each.
 - **`judge(cell, runs)`** (`run.ts`) measures and judges the raw records of a cell with the code at this time. `runCell` uses it during a cell. A holder of raw records can judge them again after a change to `observe.ts` or to the verdict.
 - **Testcontainers loads when a lab first opens.** Code that only measures and judges does not load it.
 
@@ -274,7 +297,11 @@ The tests also measure a group run from test lines. They find the first accepted
 
 The tests of a replica set read the log of mongod, and they put its lines on the monotonic clock. They test the views that make a set healthy and the peers of each cut. They measure the stages of a set and the bands of a driver from test lines.
 
-The cells themselves need Docker and privileged containers. CI does not start them. `HARNESS_LAB=1` starts the lab tests on Docker. They start a client image and an agent, and they put a reset and netem at a router. They also fail a group of Valkey 9.1 over with a planned failover. Each HTTP client sends two requests on one connection to a Node server, from a script in the stock Node image.
+The tests of `application.ts` measure a heartbeat of a program from test lines and records. They find the first ping without an answer, the drop, the waits of the reconnect and the call in flight. They also test a report of the kernel before the drop, a VM that stopped, the heartbeat of a server, and an idle stall.
+
+The cells themselves need Docker and privileged containers. CI does not start them. `HARNESS_LAB=1` starts the lab tests on Docker. They start a client image and an agent, and they put a reset and netem at a router. They also fail a group of Valkey 9.1 over with a planned failover.
+
+In the lab tests, each HTTP client sends two requests on one connection to a Node server, from a script in the stock Node image. The procedures WebSocket client drops a silent connection on its heartbeat, and it connects again to the procedures server.
 
 The lab tests also step a replica set of three members of MongoDB 9.0.4 down, and they write the free memory of the machine. They also reset a write of the MongoDB driver in flight to a set of one member.
 

@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/harness",
-  "version": "0.7.0",
-  "description": "A fault-injection harness for connection timers: a cell runs a client against a stock target in Docker, through a topology of routers and proxies, a replicated group under Sentinels or a replica set, injects a fault, measures the kernel's own records and judges a prediction. HTTP clients of Go, Node and undici race the keep-alive of a Node server, and the MongoDB driver meets the faults of a replica set.",
+  "version": "0.8.0",
+  "description": "A fault-injection harness for connection timers: a cell runs a client against a stock target in Docker, through a topology of routers and proxies, a replicated group under Sentinels or a replica set, injects a fault, measures the kernel's own records and judges a prediction. HTTP clients of Go, Node and undici race the keep-alive of a Node server, and the MongoDB driver meets the faults of a replica set. The WebSocket client of @procedures/client drops a silent connection on its own heartbeat, and the harness times that detection and the reconnect from the program's lines and the kernel's stamps.",
   "keywords": [
     "fault-injection",
     "chaos-engineering",
@@ -58,6 +58,12 @@
     "image/mongo/stepdown-mongo.mjs",
     "image/mongo/package.json",
     "image/mongo/npm-lock.json",
+    "image/procedures/Dockerfile",
+    "image/procedures/package.json",
+    "image/procedures/npm-lock.json",
+    "image/procedures/lines.mjs",
+    "image/procedures/client-ws.mjs",
+    "image/procedures/server-ws.mjs",
     "image/router/Dockerfile",
     "image/router/mbx.sh",
     "image/router/ctwatch.py",

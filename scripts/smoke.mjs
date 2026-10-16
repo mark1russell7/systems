@@ -74,6 +74,12 @@ const NEEDS = {
     "image/mongo/stepdown-mongo.mjs",
     "image/mongo/package.json",
     "image/mongo/npm-lock.json",
+    "image/procedures/Dockerfile",
+    "image/procedures/package.json",
+    "image/procedures/npm-lock.json",
+    "image/procedures/lines.mjs",
+    "image/procedures/client-ws.mjs",
+    "image/procedures/server-ws.mjs",
     "image/router/Dockerfile",
     "image/router/mbx.sh",
     "image/router/ctwatch.py",
@@ -267,6 +273,8 @@ try {
       const permitted = replayEntry.replay(door, [{ instance: "d", from: "shut", on: "open", to: "open" }]);
       const refused = replayEntry.replay(door, [{ instance: "d", from: "open", on: "open", to: "open" }]);
       check(permitted.length === 0 && refused.length === 1, "algebra/replay replays a trace of a machine with its own names");
+      const wait = module.evaluate(doc, { expr: "min(500 * pow(1.5, fired), 4000)", unit: "ms" }, () => undefined, 3);
+      check(wait.value === 1687.5, "algebra raises to a whole power: the fourth wait of a backoff of 1.5");
     }
     if (name === "@mark1russell7/harness") {
       const verdict = module.verdictOf({ detects: false, window: s(1) }, []);
@@ -294,6 +302,11 @@ try {
       check(module.cutOf(set, parts.members, "10.0.0.9", "m1", "one-way").direction === "out", "harness cuts a member of a replica set from one member in one direction");
       const line = module.memberLineOf("m1", '{"t":{"$date":"2026-10-16T12:00:00.000+00:00"},"c":"REPL","id":21331,"msg":"Transition to primary complete"}');
       check(line?.id === 21331 && module.REPLICA_SET_STAGES.length === 9, "harness reads a log line of a member of a replica set");
+      // a program with its own detector: its first ping without an answer, and its drop, at the kernel's stamps of the writes
+      const writes = [1e9, 2e9].map((t) => ({ ev: "tx", mono: t + 1e4, cookie: 1, netns: 1, src: "a" }));
+      const pings = module.pingsOf([{ ev: "ping", t: 1e9, local: "a" }], writes, "a");
+      const drop = module.dropOf([{ ev: "drop", t: 2e9, local: "a" }], writes, "a");
+      check(module.firstUnanswered(pings, writes)?.at === 1e9 + 1e4 && drop?.at === 2e9 + 1e4, "harness reads the heartbeat and the drop of a program");
     }
     if (name === "@mark1russell7/kind") {
       const judgeEntry = await load("@mark1russell7/kind/judge");

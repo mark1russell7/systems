@@ -1,5 +1,7 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
+import type { CallReading, ReconnectReading } from "./application.ts";
+import { callOf, dropOf, firstUnanswered, pingsOf, programLines, reconnectFinding, reconnectOf } from "./application.ts";
 import type { Cell, KernelRecord, ProbeEvent, Reference, Run } from "./cell.ts";
 import type { DriverStepTime } from "./driver.ts";
 import { measureDriver } from "./driver.ts";
@@ -9,14 +11,16 @@ import { NOISE, requestWords } from "./verdict.ts";
 
 /**
  * An outcome tells how the wait of a run ended. The socket failed with an errno, or it read the
- * end of the file. Or nothing came, or the reply came back after a stall.
+ * end of the file. Or nothing came, or the reply came back after a stall. The observer can also
+ * close the connection itself (`closed`), or its program can drop it on its own timer (`dropped`).
  */
 export type Outcome =
   | { readonly kind: "error"; readonly errno: string }
   | { readonly kind: "eof" }
   | { readonly kind: "silent" }
   | { readonly kind: "answered" }
-  | { readonly kind: "closed" };
+  | { readonly kind: "closed" }
+  | { readonly kind: "dropped" };
 
 /**
  * A request reading is what the second request of an HTTP client met, from the lines of the
@@ -83,6 +87,10 @@ export interface Measured {
   readonly request?: RequestReading | null;
   /** This record is the time of each later band of a driver cell (`DriverBand.then`). */
   readonly driver?: { readonly steps: readonly DriverStepTime[] };
+  /** This record is what the client did after the detection, for a prediction that says when it reconnects. */
+  readonly reconnect?: ReconnectReading;
+  /** This record is what the call in flight of a WebSocket client met. */
+  readonly call?: CallReading;
   /** This text is the reason that the run cannot count, or null. A void run is not a pass and not a finding. */
   readonly void: string | null;
   /** This text tells what in the run disagrees with the prediction, other than its timing, or null. */
@@ -157,13 +165,13 @@ const socketVantage = (
   ready: ProbeEvent,
   request: ProbeEvent,
 ): Quantity | null => {
-  if (!cell.prediction.detects || cell.prediction.from === "peer-closed" || cell.prediction.from === "fault")
-    return null;
+  const { from } = cell.prediction.detects === true ? cell.prediction : { from: undefined };
+  if (from === undefined || from === "peer-closed" || from === "fault" || from === "ping-sent") return null;
   const ended = events.find((event) => event.ev === "error" || event.ev === "eof");
   const reference =
-    cell.prediction.from === "last-received"
+    from === "last-received"
       ? ready
-      : cell.prediction.from === "request-sent"
+      : from === "request-sent"
         ? request
         : events.find(
             (event) =>
@@ -538,8 +546,16 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     cell.prediction.detects === true && cell.prediction.errno === "CLOSED"
       ? socket.find((record) => record.ev === "state" && oldState(record) === 1 && newState(record) === 4)
       : undefined;
-  const outcome: Outcome =
-    reported !== undefined
+  // a drop by the program of the observer on its own timer: its `drop` line, at the kernel's stamp
+  // of its close frame or its close. It counts when it comes before each report of the kernel
+  const lines = programLines(cell, run);
+  const kernelEnded = reported?.mono ?? closeWait?.mono ?? own?.mono ?? seen?.t;
+  const first = dropOf(lines, socket, local);
+  const drop = first !== undefined && (kernelEnded === undefined || first.at <= kernelEnded) ? first : undefined;
+  const dropped = drop !== undefined;
+  const outcome: Outcome = dropped
+    ? { kind: "dropped" }
+    : reported !== undefined
       ? { kind: "error", errno: ERRNO[reported.err!] ?? `E${reported.err}` }
       : closeWait !== undefined || seen?.ev === "eof"
         ? { kind: "eof" }
@@ -548,19 +564,23 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
           : seen !== undefined
             ? { kind: "error", errno: String(seen["errno"]) }
             : { kind: "silent" };
-  const ended = reported?.mono ?? closeWait?.mono ?? own?.mono ?? seen?.t;
+  const ended = drop?.at ?? kernelEnded;
   const noticed =
-    reported !== undefined && seen !== undefined ? between(reported.mono, seen.t) : null;
+    reported !== undefined && seen !== undefined && !dropped ? between(reported.mono, seen.t) : null;
   const { prediction } = cell;
+  // the pings of a heartbeat of the program, at the kernel's stamps of their writes
+  const pings = pingsOf(lines, socket, local);
   // keepalive counts from the last segment received before the fault. The budget of the give-up
   // counts from the first retransmission of the RTO timer, not from the tail loss probe before it.
   // A reset counts from the send of the client. The kernel has no record of that send, thus the
-  // stamp is the stamp of the client. A toxic counts from the start of its commit
+  // stamp is the stamp of the client. A toxic counts from the start of its commit. A heartbeat
+  // counts from the write of its first ping that got no answer before the detection
   const before = run.fault?.t1 ?? ready.t;
   const referenceAt = (from: Reference): number | undefined => {
     if (from === "request-sent") return request.t;
     if (from === "fault") return run.fault?.t0;
     if (from === "client-start") return (events.find((event) => event.ev === "connecting") ?? events[0])?.t;
+    if (from === "ping-sent") return firstUnanswered(pings, socket, ended)?.at;
     const record: KernelRecord | undefined =
       from === "last-received"
         ? socket.filter((each) => each.ev === "rx" && each.mono <= before).at(-1)
@@ -636,14 +656,19 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
   }
 
   // a stall: nothing must detect it, and the connection must move again at the first
-  // retransmission after it stops, timed from the send of the request
+  // retransmission after it stops, timed from the send of the request, or of the first ping
   if (!prediction.detects && prediction.recovers !== undefined) {
     const { recovers } = prediction;
+    // an idle client sends only the pings of its heartbeat: its stall counts from its first ping into it
+    const start =
+      cell.probe.mode === "idle"
+        ? (lines.find((line) => line.ev === "ping" && line.t >= (run.fault?.t1 ?? 0)) ?? request)
+        : request;
     const heal = run.heal ?? null;
     if (voided === null && heal === null) voided = "the stall never ended";
     else if (voided === null && heal !== null) {
-      const from = between(request.t, heal.t0);
-      const to = between(request.t, heal.t1);
+      const from = between(start.t, heal.t0);
+      const to = between(start.t, heal.t1);
       if (
         valueIn(from, "s") <= valueIn(recovers.heal.low, "s") ||
         valueIn(to, "s") >= valueIn(recovers.heal.high, "s")
@@ -651,8 +676,8 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
         voided = `the stall ended ${from.value}–${to.value} s after the send, outside the ${recovers.heal.low.value}–${recovers.heal.high.value} s its prediction assumed`;
     }
     const steps = retransmitted
-      .filter((record) => record.mono > request.t)
-      .map((record) => between(request.t, record.mono));
+      .filter((record) => record.mono > start.t)
+      .map((record) => between(start.t, record.mono));
     if (ended !== undefined)
       return {
         ...base,
@@ -660,7 +685,7 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
         outcome,
         steps,
         void: voided,
-        finding: `detected after ${between(request.t, ended).value} s, where it should recover`,
+        finding: `detected after ${between(start.t, ended).value} s, where it should recover`,
       };
     // the first segment back after the stall stopped: the answer of the server to the
     // retransmission that got through, and the read of the reply by the client
@@ -676,13 +701,13 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
         void: voided,
         finding: "it never moved again: nothing came back after the stall ended",
       };
-    const reply = events.find((event) => event.ev === "data" && event.t > request.t);
-    voided ??= delayed(request.t, answer.mono, "retransmit");
+    const reply = events.find((event) => event.ev === "data" && event.t > start.t);
+    voided ??= delayed(start.t, answer.mono, "retransmit");
     return {
       ...base,
       outcome: { kind: "answered" },
-      elapsed: between(request.t, answer.mono),
-      socket: reply === undefined ? null : between(request.t, reply.t),
+      elapsed: between(start.t, answer.mono),
+      socket: reply === undefined ? null : between(start.t, reply.t),
       noticed: reply === undefined ? null : between(answer.mono, reply.t),
       steps,
       void: voided,
@@ -778,22 +803,37 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
       finding: `it ended without its reference event (${prediction.from})`,
     };
   }
-  const steps = (
-    prediction.from === "last-received"
-      ? keepalives
-      : prediction.from === "first-retransmission"
-        ? retransmitted.filter((record) => record.why === "rto" && record.mono > reference)
-        : []
-  ).map((record) => between(reference, record.mono));
+  // the steps of a heartbeat are its later pings, each from the first ping that got no answer
+  const steps =
+    prediction.from === "ping-sent"
+      ? pings.filter((ping) => ping.at > reference && ping.at <= ended).map((ping) => between(reference, ping.at))
+      : (prediction.from === "last-received"
+          ? keepalives
+          : prediction.from === "first-retransmission"
+            ? retransmitted.filter((record) => record.why === "rto" && record.mono > reference)
+            : []
+        ).map((record) => between(reference, record.mono));
   const matches =
     prediction.errno === "EOF"
       ? outcome.kind === "eof"
       : prediction.errno === "CLOSED"
         ? outcome.kind === "closed"
-        : outcome.kind === "error" && outcome.errno === prediction.errno;
-  const finding = matches
-    ? null
-    : `it ended with ${outcome.kind === "error" ? outcome.errno : outcome.kind === "closed" ? "its own close" : "end of file"}, not ${prediction.errno}`;
+        : prediction.errno === "DROPPED"
+          ? outcome.kind === "dropped"
+          : outcome.kind === "error" && outcome.errno === prediction.errno;
+  const words =
+    outcome.kind === "error"
+      ? outcome.errno
+      : outcome.kind === "closed"
+        ? "its own close"
+        : outcome.kind === "dropped"
+          ? "a drop by its own program"
+          : "end of file";
+  // the reconnect of the client after the detection, against the bands of its waits
+  const reconnect = prediction.reconnects === undefined ? undefined : reconnectOf(run, ended, cookie);
+  const late = reconnect === undefined || prediction.reconnects === undefined ? null : reconnectFinding(prediction.reconnects, reconnect);
+  const found = [matches ? null : `it ended with ${words}, not ${prediction.errno}`, late].filter((each) => each !== null);
+  const finding = found.length === 0 ? null : found.join(". ");
   // the timer of an HTTP client or server is a timer of the program, not of the kernel: the kernel
   // timers of its socket do not drive the measurement
   const programTimer = cell.probe.http !== undefined && prediction.from === "last-received" && prediction.timer !== "keepalive";
@@ -805,6 +845,9 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
       ended,
       prediction.from === "last-received" ? "keepalive" : "retransmit",
     );
+  // a heartbeat is a timer of the program. The retransmit timer of its ping fires in the same
+  // interval, thus a delay of that timer behind its wheel slot tells that the VM stopped a vCPU
+  if (prediction.from === "ping-sent") voided ??= delayed(reference, ended, "retransmit");
   // a timer of conntrack (expire_…) reaches its DESTROY through the listing of the router. A slow
   // listing between the expiry and the detection breaks the bound of its lag: the run measured the
   // pump, not the router. The expiry is at most the width of the band before the detection
@@ -824,14 +867,28 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
   const commit = run.fault === null ? 0 : (run.fault.t1 - run.fault.t0) / 1e6;
   if (prediction.from === "fault" && commit > valueIn(NOISE, "ms"))
     voided ??= `the commit of the fault took ${Math.round(commit * 10) / 10} ms, longer than the noise of the pipeline: its start is not known`;
+  // the view of the program of a heartbeat: from the line of its first ping without an answer to
+  // the line of its drop, or to the line of the error that it saw
+  const unanswered = prediction.from === "ping-sent" ? firstUnanswered(pings, socket, ended) : undefined;
+  const endLine = drop?.line ?? seen;
+  const view =
+    unanswered !== undefined
+      ? endLine === undefined
+        ? null
+        : between(unanswered.line.t, endLine.t)
+      : remote
+        ? null
+        : socketVantage(cell, events, ready, request);
   return {
     ...base,
     ...chain,
     outcome,
     elapsed: between(reference, ended),
-    socket: remote ? null : socketVantage(cell, events, ready, request),
+    socket: view,
     noticed,
     steps,
+    ...(reconnect === undefined ? {} : { reconnect }),
+    ...(cell.probe.ws !== undefined && inflight ? { call: callOf(events, request, ended) } : {}),
     void: voided,
     finding,
   };

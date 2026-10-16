@@ -55,6 +55,37 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
         ? valueIn(prediction.high, "s")
         : valueIn(prediction.window, "s")) + (cell.idleBefore === undefined ? 0 : valueIn(cell.idleBefore, "s"));
   const args = [lab.targetIp, String(lab.targetPort), "--mode", probe.mode];
+  if (probe.ws !== undefined) {
+    // a WebSocket client gets each of its settings as a flag, and it has no default
+    const { ws } = probe;
+    const reconnects = prediction.detects === true ? (prediction.reconnects?.waits ?? []) : [];
+    const waits = reconnects.reduce((sum, wait) => sum + valueIn(wait.high, "s"), 0);
+    args.push("--heartbeat", ws.heartbeat === null ? "off" : "on");
+    if (ws.heartbeat !== null)
+      args.push(
+        "--heartbeat-interval-ms",
+        String(valueIn(ws.heartbeat.interval, "ms")),
+        "--heartbeat-timeout-ms",
+        String(valueIn(ws.heartbeat.timeout, "ms")),
+      );
+    args.push("--reconnect", ws.reconnect === null ? "off" : "on");
+    if (ws.reconnect !== null)
+      args.push(
+        "--reconnect-initial-ms",
+        String(valueIn(ws.reconnect.initialDelay, "ms")),
+        "--reconnect-multiplier",
+        String(ws.reconnect.multiplier),
+        "--reconnect-max-ms",
+        String(valueIn(ws.reconnect.maxDelay, "ms")),
+        "--reconnect-attempts",
+        String(ws.reconnect.attempts),
+      );
+    args.push("--request-timeout-ms", String(valueIn(ws.requestTimeout, "ms")));
+    args.push("--connection-timeout-ms", String(valueIn(ws.connectionTimeout, "ms")));
+    if (ws.hold !== undefined) args.push("--hold-ms", String(valueIn(ws.hold, "ms")));
+    args.push("--max-s", String(Math.ceil((longest + waits) * 2 + 10)));
+    return args;
+  }
   if (probe.http !== undefined) {
     // an HTTP client sets its socket options from its own settings, and sends its own requests
     const { http } = probe;
@@ -223,6 +254,34 @@ const beforeOnce = async (lab: Lab, cell: Cell, environment: number, index: numb
     ...(lab.topology === null ? {} : { topology: lab.topology, middlebox: lab.middlebox.slice(middleboxFrom) }),
   };
 };
+/** This function waits for the first ping of the heartbeat of the client at the instant `after` or later: its first ping into a stall. */
+const pingSent = (probe: Probe, after: number, within: number): Promise<ProbeEvent> =>
+  new Promise((resolve, reject) => {
+    const started = Date.now();
+    const look = () => {
+      const ping = probe.events.find((event) => event.ev === "ping" && event.t >= after);
+      if (ping !== undefined) resolve(ping);
+      else if (Date.now() - started > within) reject(new Error(`the client sent no ping into the stall within ${within} ms`));
+      else setTimeout(look, 1);
+    };
+    look();
+  });
+
+/**
+ * This function waits until the client wrote `count` lines `dial`, one before each connection
+ * that it tries, or until its deadline. It resolves after `within` ms at the latest.
+ */
+const dials = (probe: Probe, count: number, within: number): Promise<void> =>
+  new Promise((resolve) => {
+    const started = Date.now();
+    const look = () => {
+      const tried = probe.events.filter((event) => event.ev === "dial").length;
+      const ended = probe.events.some((event) => event.ev === "deadline");
+      if (tried >= count || ended || Date.now() - started > within) resolve();
+      else setTimeout(look, 20);
+    };
+    look();
+  });
 
 /** This function gives the netem specification of a cell: its latency, then the netem of its fault when it has one. */
 const netemSpec = (cell: Cell, fault: string | undefined): string | null => {
@@ -442,11 +501,15 @@ const once = async (
           await probe.until(HTTP_DONE, (gap + window) * 2_000 + 10_000).catch(() => undefined);
         } else if (cell.fault === "stall") {
           if (cell.stall === undefined) throw new Error(`${cell.name} says no stall's length`);
-          // the injector holds the end in the VM until the length of the stall after the send
-          const sent = await requestSent(probe, 5_000);
-          heal = await lab.heal(faultAt, sent.t + valueIn(cell.stall, "s") * 1e9);
+          // the injector holds the end in the VM until the length of the stall after the send. An idle
+          // client sends only the pings of its heartbeat: the stall counts from its first ping into it
           const window = valueIn(prediction.detects ? prediction.high : prediction.window, "s");
-          await probe.until(["data", "error", "eof"], window * 1_000).catch(() => undefined);
+          const sent =
+            cell.probe.mode === "idle"
+              ? await pingSent(probe, fault?.t1 ?? 0, window * 1_000)
+              : await requestSent(probe, 5_000);
+          heal = await lab.heal(faultAt, sent.t + valueIn(cell.stall, "s") * 1e9);
+          await probe.until(["data", "error", "eof", "drop"], window * 1_000).catch(() => undefined);
         } else if (prediction.detects === null) {
           // a distribution: the stream ends by itself, or the connection does
           const window = valueIn(prediction.window, "s") * 1_000;
@@ -459,8 +522,9 @@ const once = async (
             // an HTTP client can send the request again on a new connection: its outcome ends the run
             await probe.until(HTTP_DONE, within).catch(() => undefined);
           } else {
-            // an HTTP client writes `closed` when its pool closes an idle connection by itself
-            await probe.until(["error", "eof", "deadline", ...(http ? ["closed"] : [])], within).catch(() => undefined);
+            // an HTTP client writes `closed` when its pool closes an idle connection by itself, and
+            // a program with its own detector writes `drop` when it drops the connection
+            await probe.until(["error", "eof", "deadline", "drop", ...(http ? ["closed"] : [])], within).catch(() => undefined);
           }
         } else {
           await sleep(valueIn(prediction.window, "s") * 1_000);
@@ -469,9 +533,16 @@ const once = async (
         await lift();
         if (toxicFirst) await lab.toxic(null);
       }
-      // a thawed target answers the request that it held: the client sees the late reply
-      if (cell.fault === "freeze-process" && !server)
+      // a thawed target answers the request that it held: the client sees the late reply. An idle
+      // client sent no request
+      if (cell.fault === "freeze-process" && !server && cell.probe.mode !== "idle")
         await probe.until(["data"], 5_000).catch(() => undefined);
+      // the client tries its new connections after the fault lifted: one `dial` line for each try
+      const expected = cell.prediction.detects === true ? cell.prediction.reconnects : undefined;
+      if (expected !== undefined) {
+        const waits = expected.waits.reduce((sum, wait) => sum + valueIn(wait.high, "s"), 0);
+        await dials(probe, 1 + expected.waits.length, waits * 2_000 + 5_000);
+      }
     }
   } finally {
     await probe.stop();

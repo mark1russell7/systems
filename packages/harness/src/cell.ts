@@ -243,6 +243,10 @@ export interface Toxic {
  *
  * A client that starts into a fault counts from its `connecting` line, or from its first line
  * without one (`client-start`).
+ *
+ * A heartbeat of a program counts from its first ping that got no answer (`ping-sent`). The
+ * program writes a `ping` line before each ping, and the kernel stamps the write (`tx`). No
+ * segment with data reaches the socket after that write, up to the detection.
  */
 export type Reference =
   | "last-received"
@@ -250,7 +254,8 @@ export type Reference =
   | "request-sent"
   | "peer-closed"
   | "fault"
-  | "client-start";
+  | "client-start"
+  | "ping-sent";
 
 /**
  * This prediction tells when a connection moves again after a stall. That occurs at the first
@@ -447,6 +452,16 @@ export interface DriverBand {
 }
 
 /**
+ * A reconnect prediction tells when the program of the client tries a new connection after the
+ * detection. Each wait counts from the start of the reconnect timer of the program (a
+ * `reconnecting` line) to the try (a `dial` line). The first wait follows the detection, and each
+ * next wait follows the failure of the try before it.
+ */
+export interface Reconnects {
+  readonly waits: ReadonlyArray<{ readonly low: Quantity; readonly high: Quantity }>;
+}
+
+/**
  * A prediction is what a cell predicts. Either a detection occurs in an interval [T_lo, T_hi]
  * after the reference event, or nothing detects the fault in a window. Nothing detects a stall
  * that is shorter than the give-up, and the connection recovers from it. The prediction then also
@@ -468,6 +483,10 @@ export interface DriverBand {
  * of the observer itself: its pool closes an idle connection, a FIN that it sends.
  *
  * A band of a driver (`driver`) counts from a socket of the driver to a line of the client.
+ *
+ * The errno `DROPPED` is a drop by the program of the observer itself. Its own timer gave up, and
+ * it closed its socket or wrote a close frame. A detection can also tell when the client tries a
+ * new connection (`reconnects`).
  */
 export type Prediction =
   | {
@@ -476,7 +495,8 @@ export type Prediction =
       readonly timer: string;
       /**
        * This name is the errno of the detection, or EOF for an end of file without an error. It is
-       * OK for a write that a primary accepts, and CLOSED for a close of the observer itself.
+       * OK for a write that a primary accepts, and CLOSED for a close of the observer itself. It is
+       * DROPPED for a drop by the program of the observer.
        */
       readonly errno: string;
       readonly from: Reference;
@@ -489,6 +509,7 @@ export type Prediction =
       readonly group?: GroupPrediction;
       readonly request?: RequestPrediction;
       readonly driver?: DriverBand;
+      readonly reconnects?: Reconnects;
     }
   | {
       readonly detects: false;
@@ -549,14 +570,53 @@ export interface Target {
    * stamps it. SIGCONT then thaws it. Without it, the freeze is the cgroup freezer, with no stamps.
    */
   readonly program?: string;
+  /**
+   * This name is an image of the harness that the target operates in place of `image`. An
+   * example is the image of the procedures client, which also holds the script of its server.
+   * `image` is then the stock base of that image, for the record.
+   */
+  readonly harness?: HarnessImage;
 }
+
+/**
+ * A harness image is an image of the harness that a target can operate. `procedures` is the
+ * image of `@procedures/client` on Node: its WebSocket client and its server script.
+ */
+export type HarnessImage = "procedures";
 
 /**
  * A client is what the runs of a cell use: the TCP client of the harness, or a driver on its
  * socket. The HTTP clients are the `http.Transport` of Go (`go-http`), the `http.Agent` of Node
- * (`http-agent`) and an HTTP/1.1 `Client` of undici (`undici`). The MongoDB driver is `mongodb`.
+ * (`http-agent`) and an HTTP/1.1 `Client` of undici (`undici`). The MongoDB driver is `mongodb`, and the WebSocket client of
+ * `@procedures/client` is `procedures-ws`.
  */
-export type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici" | "mongodb";
+export type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici" | "mongodb" | "procedures-ws";
+
+/**
+ * A WebSocket probe is the workload and the settings of the WebSocket client of
+ * `@procedures/client` (`procedures-ws`). The cell gives each setting, thus the client takes
+ * nothing from a default.
+ */
+export interface WsProbe {
+  /** These are the times of the heartbeat: a ping each interval, and the wait for its pong. Null turns the heartbeat off. */
+  readonly heartbeat: { readonly interval: Quantity; readonly timeout: Quantity } | null;
+  /**
+   * These are the settings of the reconnect: the first delay, the multiplier of each next delay,
+   * the longest delay, and the most tries. Null turns the reconnect off.
+   */
+  readonly reconnect: {
+    readonly initialDelay: Quantity;
+    readonly multiplier: number;
+    readonly maxDelay: Quantity;
+    readonly attempts: number;
+  } | null;
+  /** This time is how long a call waits for its first frame. */
+  readonly requestTimeout: Quantity;
+  /** This time is how long a call waits for a connection. */
+  readonly connectionTimeout: Quantity;
+  /** This time is how long the server holds the reply to the call in flight. Without it, the server replies at once. */
+  readonly hold?: Quantity;
+}
 
 /**
  * An HTTP probe is the workload of an HTTP client. The first request is a GET of the root. The
@@ -641,6 +701,8 @@ export interface Cell {
       | { readonly name: "mongodb"; readonly set: string; readonly op?: "write" | "read-long" };
     /** This workload is the workload of an HTTP client (`Cell.client` is an HTTP client). The client then ignores `keepalive` and `userTimeout`. */
     readonly http?: HttpProbe;
+    /** These are the settings of the WebSocket client (`Cell.client` is `procedures-ws`). The client then ignores `keepalive` and `userTimeout`. */
+    readonly ws?: WsProbe;
   };
   readonly fault: Fault;
   /** This time is the length of a stall, from the send of the request. */

@@ -11,7 +11,8 @@ import { runCell } from "./run.ts";
  * A lab on Docker, opt-in: `HARNESS_LAB=1`. It needs Docker and privileged containers. It starts a
  * client from an image that the caller gives, and an agent in the namespaces of the target. It
  * also puts a reset and netem at a router of a topology, and it fails a group of Valkey over. Each
- * HTTP client sends two requests to a Node server on one connection.
+ * HTTP client sends two requests to a Node server on one connection. The procedures WebSocket client
+ * drops a silent connection on its heartbeat, and it connects again.
  */
 const RUN = process.env["HARNESS_LAB"] === "1";
 const REDIS: Target = {
@@ -229,6 +230,49 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
       }
     }
   }, 900_000);
+
+  it("runs the procedures WebSocket client against the procedures server of one image, and reads its pings, its drop and its new try", async () => {
+    // the server script is in the image of the harness, as the client is: one release of the package
+    const target: Target = {
+      image: "node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1",
+      harness: "procedures",
+      port: 8080,
+      ready: '"ev":"listening"',
+      command: ["node", "/opt/harness/procedures/server-ws.mjs", "--port", "8080", "--tcp-keepalive", "off"],
+      lines: true,
+    };
+    const lab = await openLab(target, "procedures-ws");
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    try {
+      const settings = ["--heartbeat", "on", "--heartbeat-interval-ms", "300", "--heartbeat-timeout-ms", "200"];
+      const reconnect = ["--reconnect", "on", "--reconnect-initial-ms", "200", "--reconnect-multiplier", "2", "--reconnect-max-ms", "1000", "--reconnect-attempts", "5"];
+      const calls = ["--request-timeout-ms", "5000", "--connection-timeout-ms", "5000", "--max-s", "30"];
+      const probe = await lab.probe([lab.targetIp, String(lab.targetPort), "--mode", "idle", ...settings, ...reconnect, ...calls]);
+      await probe.until(["ready"], 30_000);
+      // a ping with its pong first, then a black hole: the heartbeat drops the connection after its next ping
+      await probe.until(["ping"], 5_000);
+      await sleep(100);
+      await lab.fault("blackhole");
+      const drop = await probe.until(["drop"], 5_000);
+      await lab.lift("blackhole");
+      for (let look = 0; look < 100 && probe.events.filter((event) => event.ev === "connected").length < 2; look += 1) await sleep(50);
+      await probe.stop();
+      const local = probe.events.find((event) => event.ev === "connected")?.["local"];
+      expect(drop).toMatchObject({ conn: 1, local });
+      expect(probe.events.filter((event) => event.ev === "connected").length).toBeGreaterThanOrEqual(2);
+      expect(probe.events.some((event) => event.ev === "reconnecting" && event["attempt"] === 1)).toBe(true);
+      // the kernel stamped the writes of the pings and of the close frame on the first socket
+      const writes = lab.kernel.filter((record) => record.ev === "tx" && record.netns === lab.netns.client && record.src === local);
+      expect(writes.some((record) => record.mono >= drop.t && record.mono - drop.t < 4e6)).toBe(true);
+      // the server wrote its own lines, and the manifest names the image of the harness
+      expect(lab.server.filter((line) => line.ev === "accepted").length).toBeGreaterThanOrEqual(2);
+      const manifest = await lab.manifest({});
+      expect(manifest.target).toMatchObject({ harness: "procedures", first: { ev: "listening", heartbeat: null } });
+      expect(manifest.client.kind).toBe("procedures-ws");
+    } finally {
+      await lab.close();
+    }
+  }, 600_000);
 
   it("puts a fault at a router in its FORWARD chain, and netem on its device toward one side", async () => {
     const lab = await openLab(REDIS, "tcp", {
