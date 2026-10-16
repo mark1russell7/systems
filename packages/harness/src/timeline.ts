@@ -2,7 +2,7 @@ import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 import type { Cell, KernelRecord, ProbeEvent, ReplicaSetStage, Run, SentinelEvent, SentinelStage, Stage } from "./cell.ts";
 import { socketsOf } from "./driver.ts";
-import { NOISE } from "./verdict.ts";
+import { INJECT, noiseOf } from "./verdict.ts";
 
 /**
  * This module measures a run of a group cell. It gives the first write that a primary accepted
@@ -345,7 +345,7 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
     if (heal === null) voided = "the fault never lifted";
     else {
       const late = (heal.t0 - t0) / 1e9 - valueIn(cell.hold, "s");
-      if (late > valueIn(NOISE, "s"))
+      if (late > valueIn(INJECT, "s"))
         voided = `the lift came ${Math.round(late * 1e4) / 10} ms after its hold: the injector was late, not the group`;
     }
   }
@@ -360,7 +360,7 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
   const rtt = first?.tcp?.srtt === undefined ? null : valueIn(first.tcp.srtt, "us") / 1000;
   if (voided === null && assumed !== undefined && rtt !== null && rtt > valueIn(assumed.high, "ms"))
     voided = `rtt-over-assumption: its first round trip was ${rtt} ms, above the ${valueIn(assumed.high, "ms")} ms that the prediction assumes`;
-  if (voided === null && prediction.detects === true && prediction.from === "fault" && (run.fault.t1 - run.fault.t0) / 1e6 > valueIn(NOISE, "ms"))
+  if (voided === null && prediction.detects === true && prediction.from === "fault" && (run.fault.t1 - run.fault.t0) / 1e6 > valueIn(INJECT, "ms"))
     voided = `the commit of the fault took ${Math.round((run.fault.t1 - run.fault.t0) / 1e5) / 10} ms, longer than the noise of the pipeline: its start is not known`;
 
   // the reference: the fault, or for a stall the first write into it
@@ -396,7 +396,7 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
     findings.push(`the client wrote to ${to ?? String(accepted["at"])}, where it should stay on ${primary}`);
   for (const error of expected?.errors ?? []) {
     const met = group.errors.find((each) => each.name === error.name);
-    const noise = valueIn(NOISE, "s");
+    const noise = valueIn(noiseOf(cell), "s");
     if (met === undefined) findings.push(`the client never met ${error.name}`);
     else if (met.first.value < valueIn(error.low, "s") - noise || met.first.value > valueIn(error.high, "s") + noise)
       findings.push(`the client met ${error.name} ${met.first.value} s after the fault, outside [${valueIn(error.low, "s")}, ${valueIn(error.high, "s")}] s`);

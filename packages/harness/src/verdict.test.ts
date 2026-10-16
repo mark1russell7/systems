@@ -1,8 +1,39 @@
 import { describe, expect, it } from "vitest";
 import type { Prediction } from "./cell.ts";
 import type { Measured } from "./observe.ts";
+import { hzOf } from "./lab.ts";
 import { spread } from "./run.ts";
-import { medianInterval, verdictOf } from "./verdict.ts";
+import { NOISE, delayVoids, medianInterval, noiseOf, verdictOf } from "./verdict.ts";
+
+describe("the environment of a cell (0.9.0)", () => {
+  const ms = (value: number) => ({ value, unit: "ms" });
+
+  it("gives a cell its own δ_abs, or NOISE when it gives none", () => {
+    expect(noiseOf({})).toEqual(NOISE);
+    expect(noiseOf({ noise: ms(1) })).toEqual(ms(1));
+  });
+
+  it("voids a run for a late timer in time when the run knows its HZ, and in jiffies when not", () => {
+    // one jiffy late never voids a run
+    expect(delayVoids(1, 1000, NOISE)).toBe(false);
+    // a run with no HZ keeps the rule of two jiffies
+    expect(delayVoids(2, undefined, NOISE)).toBe(true);
+    // at HZ 250 two jiffies are 8 ms, more than δ_abs: the rule does not change
+    expect(delayVoids(2, 250, NOISE)).toBe(true);
+    // at HZ 1000 two jiffies are 2 ms, inside a δ_abs of 4 ms: such a run counts
+    expect(delayVoids(2, 1000, NOISE)).toBe(false);
+    expect(delayVoids(4, 1000, NOISE)).toBe(true);
+    // the runner's own δ_abs of 1 ms keeps two jiffies as the rule
+    expect(delayVoids(2, 1000, ms(1))).toBe(true);
+  });
+
+  it("measures HZ from jiffies against the time of the kernel, to the nearest rate of Linux", () => {
+    expect(hzOf({ now: 0, jiffies: 0 }, { now: 1e9, jiffies: 1000 })).toBe("1000");
+    expect(hzOf({ now: 0, jiffies: 0 }, { now: 1.02e9, jiffies: 255 })).toBe("250");
+    expect(hzOf({ now: 0, jiffies: 0 }, { now: 1e9, jiffies: 500 })).toBeNull();
+    expect(hzOf({ now: 5, jiffies: 0 }, { now: 5, jiffies: 9 })).toBeNull();
+  });
+});
 
 const s = (value: number) => ({ value, unit: "s" });
 const KEEPALIVE: Prediction = {

@@ -534,6 +534,12 @@ export type Prediction =
       readonly window: Quantity;
       readonly why: string;
       readonly from?: Reference;
+      /**
+       * This choice ends the measured time at the close of the socket by the observer itself, the
+       * change from ESTABLISHED to FIN_WAIT1. Without it, the time ends at a report of the kernel or
+       * at the last data, and an idle pool that closes its own socket gives no end.
+       */
+      readonly ends?: "own-close";
       readonly group?: GroupPrediction;
       readonly request?: RequestPrediction;
     };
@@ -804,6 +810,12 @@ export interface Cell {
    * many environments the machine holds before its noise increases.
    */
   readonly concurrency?: number;
+  /**
+   * This time is δ_abs of the environment that the cell runs in: the noise of the pipeline that
+   * each band allows, and the least delay of a timer that voids a run. Stage 0 measures it in each
+   * environment. Without it, the cell gets `NOISE`, the δ_abs of the first environment (4 ms).
+   */
+  readonly noise?: Quantity;
 }
 
 /** A hop place is a hop of a topology, with the side that the rules of a fault face. */
@@ -865,6 +877,11 @@ export interface Run {
    * the run void. Null also makes the run void: no clock line came after the run to tell the count.
    */
   readonly lost: number | null;
+  /**
+   * This rate is the HZ of the kernel of the environment, from its manifest. With it, the rule of a
+   * late timer is in time. A run without it keeps the rule in jiffies, as the runs before 0.9.0.
+   */
+  readonly hz?: number;
   /** These are the addresses and the namespaces of a topology, which the measurement of a run reads. */
   readonly topology?: RunTopology;
   /** These are the lines of the routers of a topology from the start to the end of the run. */

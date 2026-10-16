@@ -9,7 +9,7 @@ import type { Measured } from "./observe.ts";
 import { measure, socketOf } from "./observe.ts";
 import { openReplicaSetLab, replicaSetOnce } from "./replset.ts";
 import type { Verdict } from "./verdict.ts";
-import { STEPS, verdictOf } from "./verdict.ts";
+import { STEPS, noiseOf, verdictOf } from "./verdict.ts";
 
 /** A cell result is a cell with its manifests, its runs, their measurements and its verdict. */
 export interface CellResult {
@@ -35,7 +35,7 @@ export const judge = (
 ): { measured: Measured[]; verdict: Verdict } => {
   // a warm-up run is a record, not a sample: the verdict never counts it
   const measured = runs.filter((run) => run.warmup !== true).map((run) => measure(cell, run));
-  return { measured, verdict: verdictOf(cell.prediction, measured) };
+  return { measured, verdict: verdictOf(cell.prediction, measured, noiseOf(cell)) };
 };
 
 /** This function gives the count of lost records in the latest clock line of the prober, since it began. */
@@ -725,8 +725,11 @@ export const runCell = async (
       );
       for (const each of done) {
         manifests.push(each.manifest);
-        runs.push(...each.runs);
-        warmups.push(each.warmup);
+        // each run carries the HZ of its environment, which the rule of a late timer reads
+        const hz = each.manifest.hz === null ? undefined : Number(each.manifest.hz);
+        const withHz = (run: Run): Run => (hz === undefined ? run : { ...run, hz });
+        runs.push(...each.runs.map(withHz));
+        warmups.push(withHz(each.warmup));
       }
     }
     const { measured, verdict } = judge(cell, runs);

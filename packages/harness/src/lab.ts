@@ -268,6 +268,11 @@ export interface Manifest {
   /** This text is the architecture of the machine, as uname -m gives it: x86_64. */
   readonly architecture: string;
   readonly hz: string | null;
+  /**
+   * This text tells where the HZ came from: the configuration of the kernel, or a measurement of
+   * jiffies against CLOCK_MONOTONIC on a host that has no /proc/config.gz (a hosted runner).
+   */
+  readonly hzFrom?: "config" | "measured";
   readonly boot_id: string;
   readonly docker: string;
   /** This record is the target, and its settings as it read them back. */
@@ -554,6 +559,31 @@ export const endpointAfter = (hops: readonly Pick<Hop, "kind">[], element: numbe
 
 // each container here is a holder, a probe or the prober: nothing drains, thus the stop is immediate
 export const STOP = { timeout: 0 };
+
+/** These are the values of CONFIG_HZ that Linux offers. */
+const RATES: readonly number[] = [100, 250, 300, 1000];
+
+/**
+ * This function gives HZ from two readings of /proc/timer_list, one second apart: its `now at`
+ * time in ns and its jiffies. It gives the nearest rate that Linux offers, or null when the
+ * measurement is more than 5 % from each of them.
+ */
+export const hzOf = (first: { now: number; jiffies: number }, second: { now: number; jiffies: number }): string | null => {
+  const seconds = (second.now - first.now) / 1e9;
+  if (!(seconds > 0)) return null;
+  const rate = (second.jiffies - first.jiffies) / seconds;
+  const nearest = RATES.reduce((best, each) => (Math.abs(each - rate) < Math.abs(best - rate) ? each : best));
+  return Math.abs(nearest - rate) / nearest <= 0.05 ? String(nearest) : null;
+};
+
+/** This function measures HZ in a privileged container: jiffies against the time of the kernel, one second apart. */
+const measuredHz = async (container: StartedTestContainer): Promise<string | null> => {
+  const read = "awk '/^now at/ {now=$3} /^jiffies:/ {print now, $2; exit}' /proc/timer_list";
+  const text = await output(container, ["sh", "-c", `${read}; sleep 1; ${read}`]).catch(() => "");
+  const values = text.split(/\s+/).filter((each) => each !== "").map(Number);
+  if (values.length !== 4 || values.some((each) => !Number.isFinite(each))) return null;
+  return hzOf({ now: values[0]!, jiffies: values[1]! }, { now: values[2]!, jiffies: values[3]! });
+};
 
 export const output = async (container: StartedTestContainer, argv: string[]): Promise<string> => {
   const result = await container.exec(argv);
@@ -1137,7 +1167,12 @@ export const openLab = async (
         return {
           kernel: await output(client, ["uname", "-r"]),
           architecture: await output(client, ["uname", "-m"]),
-          hz: /^CONFIG_HZ=(\d+)$/m.exec(config)?.[1] ?? null,
+          ...(await (async () => {
+            const configured = /^CONFIG_HZ=(\d+)$/m.exec(config)?.[1];
+            if (configured !== undefined) return { hz: configured, hzFrom: "config" as const };
+            const measured = await measuredHz(admin);
+            return measured === null ? { hz: null } : { hz: measured, hzFrom: "measured" as const };
+          })()),
           boot_id: await output(client, ["cat", "/proc/sys/kernel/random/boot_id"]),
           docker: `${runtime.info.containerRuntime.serverVersion} on ${runtime.info.containerRuntime.operatingSystem}`,
           target: {
