@@ -101,6 +101,12 @@ const MONGO: Image = {
   dockerfile: "harness/image/mongo/Dockerfile",
   from: ["harness/image/mongo"],
 };
+/** This image holds `@procedures/client` 0.3.0 on Node 24.21.0: its WebSocket client as a client of the harness, and the script of its server. */
+const PROCEDURES: Image = {
+  name: "loom-harness-procedures",
+  dockerfile: "harness/image/procedures/Dockerfile",
+  from: ["harness/image/procedures"],
+};
 /** This image is the router of a middlebox chain: NAT and conntrack, with a form for a forgotten flow. */
 const ROUTER: Image = {
   name: "loom-harness-router",
@@ -183,6 +189,12 @@ export const goHttpImage = (): Promise<string> => build(GO_HTTP);
 export const nodeHttpImage = (): Promise<string> => build(NODE_HTTP);
 /** This function gives the image of the MongoDB client. */
 export const mongoClientImage = (): Promise<string> => build(MONGO);
+/** This function gives the image of `@procedures/client`: its WebSocket client and its server. */
+export const proceduresImage = (): Promise<string> => build(PROCEDURES);
+
+/** This function gives the image that a target operates: its stock image, or an image of the harness (`Target.harness`). */
+export const targetImageOf = (target: Target): Promise<string> =>
+  target.harness === "procedures" ? proceduresImage() : Promise.resolve(target.image);
 
 /**
  * This time is the interval of the listing of a router, when its hop does not set one. A listing
@@ -261,6 +273,9 @@ export interface Manifest {
   /** This record is the target, and its settings as it read them back. */
   readonly target: {
     readonly image: string;
+    /** This name is the image of the harness that the target operates, with its stock base (`Target.harness`). */
+    readonly harness?: string;
+    readonly base?: string;
     readonly id: string;
     readonly settings: Readonly<Record<string, string>>;
     /** These are the sysctls of its namespace, as read back after the harness set them. */
@@ -580,6 +595,12 @@ export const clientOf = async (
       command: ["node", "/opt/harness/mongo/client-mongo.mjs"],
       clientKind: kind,
     };
+  if (kind === "procedures-ws")
+    return {
+      clientImage: await proceduresImage(),
+      command: ["node", "/opt/harness/procedures/client-ws.mjs"],
+      clientKind: kind,
+    };
   return { clientImage: image, command: ["/opt/harness/client"], clientKind: kind };
 };
 
@@ -668,7 +689,9 @@ export const openLab = async (
     // network j joins element j and element j + 1: 0 is the client, i + 1 is hop i, the last is the target
     for (let at = 0; at <= hops.length; at += 1) networks.push(await new Network().start());
     const last = networks[hops.length]!;
-    let stock = new GenericContainer(target.image)
+    // a stock image, or an image of the harness that holds the script of the server
+    const targetImage = await targetImageOf(target);
+    let stock = new GenericContainer(targetImage)
       .withNetwork(last)
       .withWaitStrategy(Wait.forLogMessage(target.ready));
     // the files of the target go in before it starts, for example the script of a server on a stock image
@@ -1118,7 +1141,8 @@ export const openLab = async (
           boot_id: await output(client, ["cat", "/proc/sys/kernel/random/boot_id"]),
           docker: `${runtime.info.containerRuntime.serverVersion} on ${runtime.info.containerRuntime.operatingSystem}`,
           target: {
-            image: target.image,
+            image: targetImage,
+            ...(target.harness === undefined ? {} : { harness: target.harness, base: target.image }),
             id: (await inspect(server)).Image,
             settings,
             sysctls: targetSysctls,

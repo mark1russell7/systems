@@ -75,9 +75,31 @@ export type Node =
   | { readonly op: "knob"; readonly name: string }
   | { readonly op: "+" | "-" | "*" | "/"; readonly a: Node; readonly b: Node }
   | { readonly op: "neg"; readonly a: Node }
-  | { readonly op: "min" | "max" | "floor" | "ceil"; readonly args: readonly Node[] };
+  | { readonly op: "min" | "max" | "floor" | "ceil" | "pow"; readonly args: readonly Node[] };
 
-const FUNCTIONS = { min: 2, max: 2, floor: 1, ceil: 1 } as const;
+const FUNCTIONS = { min: 2, max: 2, floor: 1, ceil: 1, pow: 2 } as const;
+
+/** This count is the largest exponent that `pow` takes. A larger one is a mistake in a document, not a timer. */
+const POW_LIMIT = 4096n;
+
+/**
+ * This function gives a value to a whole power: `pow(a, n)`. The exponent must be an exact whole
+ * number, for example the `fired` of a backoff. A negative exponent gives the reciprocal. No bound
+ * to the power 0 is 1, and to a positive power it keeps its sign when the power is odd.
+ */
+const power = (a: Value, b: Value): Value => {
+  if (b.kind !== "exact" || !r.isInteger(b.n)) return unknown("pow takes a whole exponent");
+  const k = b.n.n;
+  if (k > POW_LIMIT || k < -POW_LIMIT) return unknown(`pow takes an exponent of ${POW_LIMIT} or less`);
+  if (a.kind === "infinite") {
+    if (k === 0n) return exact(r.ONE);
+    if (k < 0n) return exact(r.ZERO);
+    return k % 2n === 0n ? INFINITE : a;
+  }
+  if (a.kind !== "exact") return unknown("not an amount");
+  if (k < 0n && a.n.n === 0n) return unknown("a division by zero");
+  return exact(r.pow(a.n, Number(k)));
+};
 
 /** This function parses the arithmetic of a document, or it throws an error that tells where the text stops making sense. */
 export const parseExpr = (text: string): Node => {
@@ -155,6 +177,7 @@ const run = (node: Node, valueOf: (name: string) => Value): Value => {
       return a.kind === "exact" ? exact(node.op === "floor" ? r.floor(a.n) : r.ceil(a.n)) : a;
     }
     const [a, b] = args as [Value, Value];
+    if (node.op === "pow") return power(a, b);
     if (a.kind === "infinite" || b.kind === "infinite") {
       // +∞ wins a max and loses a min, and −∞ loses a max and wins a min
       const above = (x: Value, y: Value): boolean =>

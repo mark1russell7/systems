@@ -2,7 +2,8 @@
 // its settings, a workload, a fault and a prediction. The harness runs it in new Docker
 // environments that code builds (Testcontainers), measures on the one monotonic clock of the VM,
 // and gives each cell a verdict. A topology is a chain of hops, a replicated group under its
-// Sentinels, or a replica set whose members elect their own primary.
+// Sentinels, or a replica set whose members elect their own primary. A program with its own
+// detector, a WebSocket heartbeat, writes lines that the kernel stamps.
 
 export type {
   Cell,
@@ -15,6 +16,7 @@ export type {
   GroupPlace,
   GroupPrediction,
   GroupRole,
+  HarnessImage,
   Hop,
   HopPlace,
   HttpProbe,
@@ -29,6 +31,7 @@ export type {
   ProbeEvent,
   ProxyHop,
   ProxyTime,
+  Reconnects,
   Recovers,
   Reference,
   Replies,
@@ -48,8 +51,11 @@ export type {
   Target,
   Topology,
   Toxic,
+  WsProbe,
 } from "./cell.ts";
 export { isHopPlace } from "./cell.ts";
+export type { CallReading, ProgramEvent, ReconnectReading } from "./application.ts";
+export { callOf, dropFinding, dropOf, firstUnanswered, leftAfter, pingsOf, programLines, reconnectFinding, reconnectOf } from "./application.ts";
 export type { Crossings, Measured, Outcome, Reordering, RequestReading, SocketPlace } from "./observe.ts";
 export { crossingsOf, measure, reorderingOf, requestOf, socketOf } from "./observe.ts";
 export type { DriverSocket, DriverStepTime } from "./driver.ts";
@@ -66,7 +72,7 @@ export {
   stagesOf,
   writesOf,
 } from "./timeline.ts";
-export type { Decision, GroupVerdict, Interval, Spread, StageVerdict, Verdict } from "./verdict.ts";
+export type { Decision, GroupVerdict, Interval, ReconnectVerdict, Spread, StageVerdict, Verdict } from "./verdict.ts";
 export { NOISE, RELATIVE, STEPS, groupVerdictOf, medianInterval, quantileOf, requestWords, spreadOf, verdictOf } from "./verdict.ts";
 export type { Agent, FaultSide, Lab, Manifest, ManifestHop, NetworkFault, Probe } from "./lab.ts";
 export {
@@ -80,8 +86,10 @@ export {
   nodeClientImage,
   nodeHttpImage,
   openLab,
+  proceduresImage,
   routerImage,
   routesOf,
+  targetImageOf,
   templated,
   toxicBody,
 } from "./lab.ts";

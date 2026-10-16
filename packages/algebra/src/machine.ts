@@ -20,7 +20,7 @@ export type Unit = string;
 export type Expr =
   | { readonly const: number; readonly unit: Unit }
   | { readonly knob: string; readonly unit: Unit }
-  /** This text is arithmetic over knob names: + - * / min max floor ceil ( ) */
+  /** This text is arithmetic over knob names: + - * / min max floor ceil pow ( ) */
   | { readonly expr: string; readonly unit: Unit }
   /** This name is a named model of the algebra over these knobs, for example the retransmission ladder. */
   | { readonly model: string; readonly knobs: readonly string[]; readonly unit: Unit };
@@ -320,7 +320,7 @@ const exprNames = (e: Expr): string[] => {
   if ("model" in e) return [...e.knobs];
   if ("expr" in e) {
     return (e.expr.match(/[A-Za-z_][A-Za-z0-9_.]*/g) ?? []).filter(
-      (word) => !["min", "max", "floor", "ceil"].includes(word),
+      (word) => !["min", "max", "floor", "ceil", "pow"].includes(word),
     );
   }
   return [];

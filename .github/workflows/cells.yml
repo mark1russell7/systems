@@ -9,7 +9,8 @@
 #           come from that JSON file at the ref (cells that jarvis compiles), not the catalogs.
 #
 # Start it with: gh workflow run cells.yml -R mark1russell7/systems -f only='^T12' -f shards=4
-# A pull request that changes this file runs the probe only.
+# A pull request that changes this file runs the probe only. Each night, the schedule runs the WS
+# cells on 4 shards: the heartbeat and the reconnect of @procedures/client under real faults.
 name: Cells
 
 on:
@@ -24,6 +25,8 @@ on:
       file:
         description: A JSON file of compiled cells at the ref, in place of the catalogs (empty for the catalogs)
         default: ""
+  schedule:
+    - cron: "40 3 * * *"
   pull_request:
     paths: [".github/workflows/cells.yml"]
 
@@ -79,7 +82,7 @@ jobs:
           sudo dmesg | tail -n 40 || true
 
   plan:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -87,7 +90,7 @@ jobs:
     steps:
       - id: shards
         env:
-          SHARDS: ${{ inputs.shards }}
+          SHARDS: ${{ inputs.shards || '4' }}
         run: |
           case "$SHARDS" in
             ''|*[!0-9]*) echo "::error::shards must be a whole number"; exit 1 ;;
@@ -99,7 +102,7 @@ jobs:
 
   cells:
     needs: [probe, plan]
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
@@ -132,8 +135,9 @@ jobs:
       - name: The cells
         env:
           CELLS: "1"
-          CELLS_ONLY: ${{ inputs.only }}
-          CELLS_SHARD: ${{ matrix.shard }}/${{ inputs.shards }}
+          # the nightly schedule has no inputs: it runs the WS cells
+          CELLS_ONLY: ${{ inputs.only || '^WS' }}
+          CELLS_SHARD: ${{ matrix.shard }}/${{ inputs.shards || '4' }}
           CELLS_OUT: ${{ runner.temp }}/cells
           CELLS_FILE_AT: ${{ inputs.file }}
         run: |
