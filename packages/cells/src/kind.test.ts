@@ -90,9 +90,15 @@ describe.skipIf(JUDGE === undefined)("the kind records, judged again", () => {
         )
         .join("\n") + "\n",
     );
-    console.log(cellsTable(judged));
-    for (const each of judged.filter((one) => one.cell.calibrates)) console.log(each.cell.mode, JSON.stringify(calibrationOf(each)));
-    for (const each of judged.filter((one) => one.verdict.decision === "fails")) console.log(`${each.cell.name}: ${each.verdict.why}`);
+    const report = [
+      cellsTable(judged),
+      "",
+      ...judged.filter((one) => one.cell.calibrates).map((each) => `${each.cell.mode} ${JSON.stringify(calibrationOf(each))}`),
+      "",
+      ...judged.filter((one) => one.verdict.decision === "fails").map((each) => `${each.cell.name}: ${each.verdict.why}`),
+    ].join("\n");
+    writeFileSync(join(JUDGE!, "report.md"), `${report}\n`);
+    console.log(report);
     expect(judged.length).toBeGreaterThan(0);
   });
 });

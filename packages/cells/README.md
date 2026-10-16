@@ -78,13 +78,14 @@ T07 is the endpoint lifecycle of a Service in kind (`src/t07.ts`, on `@systems/k
 - **The calibration** (`CAL.T07.<mode>`) deletes a pod with a preStop sleep of 10 s. Each node gives its propagation: the time from the deletion to the first poll of its rules without the pod. `PROPAGATION` in `src/kind.ts` holds the shortest and the longest time for each mode.
 - **The deletion pair**, in each mode. With the hold of the design (2 s), `lint()` finds that O04 holds, and nothing fails. With no hold, O04 is violated. Then a refused connection can start only between the stop of the intake and the propagation.
 - **The pause pair**, in each mode: kube-proxy on one node stops with SIGSTOP 0.5 s before a deletion, for 5 s. With the hold of 2 s, the clients of that node meet refused connections until that node syncs. With a hold of 8 s, nothing fails.
+- **A stale entry of a SYN.** After the pod is gone, the paused node sends each new connection to its address, and each one times out. Its conntrack entry stays for 120 s (SYN_SENT). A later connection from the same source port meets that entry and goes to the address of the pod again. Thus the pause cells fail after the window, a finding. In CI, each late failure used the port of a failure in a window 10 s to 84 s before.
 - **The other triggers** use the mode of their cell of the plan: a rolling update, a scale-in, a node drain and a crash. A liveness restart operates with and without the coupling of liveness to readiness.
 
 ## The T18 catalog
 
 T18 is a health-gated fleet in kind (`src/t18.ts`): 3 replicas behind a Service, and each one needs Redis 7.4. The round trip of the Redis client gates readiness.
 
-- **A fault of Redis** fails each replica, and the Service has no endpoint. The band is the latch (`failSpan`), then 3 probes of the kubelet 10 s apart, then the propagation: 28 s to 49 s at the defaults.
+- **A fault of Redis** fails each replica, and the Service has no endpoint. The band is the latch (`failSpan`), then 3 probes of the kubelet 10 s apart, then the propagation. At the defaults, that is 28 s to 48.1 s for a Redis that refuses, and to 50.1 s for a silent one.
 - **The faults** are a reset, a frozen Redis, a black hole, and a Redis that goes away without a close. A declaration whose round trip gates nothing stays ready, degraded.
 - **Liveness.** A liveness that the runtime couples to readiness restarts each replica 28 s to 50 s after a black hole. Without the coupling, no replica restarts.
 - **The stall** of the event loop of one replica removes that replica 21 s to 31 s after its start, and the propagation follows.
