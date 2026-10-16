@@ -1,12 +1,12 @@
 import type { Machine, TransitionDef } from "@mark1russell7/algebra";
-import { arr, fromStates } from "@mark1russell7/algebra";
 import type { ServiceDescription } from "./description.ts";
-import type { LifecycleEvent, MachineName } from "./events.ts";
+import type { MachineName } from "./events.ts";
 
 /**
  * The machines of the runtime as `mark1russell7.machine/1` documents. The documents are the
  * specification, and TypeScript implements them. A test records the transitions of the runtime
- * and replays them against each document, thus the code and the documents cannot disagree.
+ * and replays them against each document (`replay` of `@mark1russell7/algebra`), thus the code and
+ * the documents cannot disagree.
  */
 
 const SOURCE = [{ ref: "packages/service/src (the runtime implements this document)", rung: "implemented" as const }];
@@ -335,27 +335,4 @@ export const MACHINES: Readonly<Record<Exclude<MachineName, "drain" | "client">,
   poller: POLLER_MACHINE,
   exit: EXIT_MACHINE,
   watchdog: WATCHDOG_MACHINE,
-};
-
-/**
- * This function replays the transitions of one machine of the runtime against its document. Each
- * instance starts in the state that its first transition leaves. Each transition must leave the
- * state where the replay is. The document must have a transition from that state, on that event,
- * to that state. The function gives each disagreement.
- */
-export const replay = (doc: Machine, events: readonly LifecycleEvent[]): string[] => {
-  const problems: string[] = [];
-  const at = new Map<string, string>();
-  for (const event of events) {
-    const where = at.get(event.instance) ?? event.from;
-    if (doc.states[where] === undefined) problems.push(`${event.instance}: the state ${where} is not in ${doc.id}`);
-    if (event.from !== where)
-      problems.push(`${event.instance}: the runtime left ${event.from} on ${event.on}, but the replay is in ${where}`);
-    const allowed = doc.transitions.some(
-      (each) => fromStates(doc, each.from).includes(event.from) && arr(each.on).includes(event.on) && each.to === event.to,
-    );
-    if (!allowed) problems.push(`${event.instance}: ${doc.id} has no transition from ${event.from} on ${event.on} to ${event.to}`);
-    at.set(event.instance, event.to);
-  }
-  return problems;
 };

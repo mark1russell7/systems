@@ -216,6 +216,19 @@ try {
       });
       check(cache.declaration.knobs.heartbeat_detection_time.value === 2.4, "service/redis declares its client without ioredis installed");
       check(redis.unwatched(cache.meets).length === 0, "service/redis finds each manifestation with a detector");
+      // the timer entries, which a client in a browser imports without the rest of the package
+      const backoffEntry = await load("@mark1russell7/service/backoff");
+      const band = backoffEntry.backoffBand({ base: 50, factor: 2, cap: 400, jitter: { kind: "add", amount: 50 } });
+      check(band.low === 50 && band.high === 450, "service/backoff gives the band of the Redis retry strategy: 50 to 450 ms");
+      const heartbeatEntry = await load("@mark1russell7/service/heartbeat");
+      const beatClock = testing.fakeClock();
+      let dead = false;
+      const beat = heartbeatEntry.heartbeat({ interval: 1000, timeout: 400, misses: 2, clock: beatClock, ping: () => {}, onDead: () => (dead = true) });
+      await beatClock.advance(2400);
+      beat.stop();
+      check(dead && heartbeatEntry.detectionTime(1000, 400, 2) === 2400, "service/heartbeat finds a silent peer in 2.4 s");
+      const clockEntry = await load("@mark1russell7/service/clock");
+      check(typeof clockEntry.platformClock({ unref: true }).now() === "number", "service/clock gives the clock of the platform");
     }
     if (name === "@mark1russell7/prober")
       check(module.RECORD_KINDS.length === 15 && module.RECORD_KINDS.at(-1) === "tx", "prober has 15 record kinds, the write last");
@@ -228,6 +241,12 @@ try {
       const doc = { title: "t", knobs: { cap: { unit: "s" }, open: { unit: "s" } } };
       const cap = module.evaluate(doc, { expr: "max(cap - open, cap / 2)", unit: "s" }, (knob) => (knob === "cap" ? s(120) : { value: "infinite", unit: "s" }));
       check(cap.value === 60, "algebra gives max(cap - infinity, cap / 2) as cap / 2");
+      // the replay without zod, for a machine with its own names
+      const replayEntry = await load("@mark1russell7/algebra/replay");
+      const door = { id: "door", states: { shut: {}, open: {} }, transitions: [{ id: "open", from: "shut", on: "open", to: "open" }] };
+      const permitted = replayEntry.replay(door, [{ instance: "d", from: "shut", on: "open", to: "open" }]);
+      const refused = replayEntry.replay(door, [{ instance: "d", from: "open", on: "open", to: "open" }]);
+      check(permitted.length === 0 && refused.length === 1, "algebra/replay replays a trace of a machine with its own names");
     }
     if (name === "@mark1russell7/harness") {
       const verdict = module.verdictOf({ detects: false, window: s(1) }, []);

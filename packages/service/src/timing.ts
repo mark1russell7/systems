@@ -1,5 +1,6 @@
-import type { Quantity, Rational } from "@mark1russell7/quantity";
-import { convertExact, quantity, rationals as r } from "@mark1russell7/quantity";
+import type { Extent, Quantity, Rational } from "@mark1russell7/quantity";
+import { convertExact, quantity, rationals as r, valueIn } from "@mark1russell7/quantity";
+import { detectionTime } from "./heartbeat.ts";
 
 /**
  * All policies have the same timing shape. A timing is a count of polls (a debounce) or a
@@ -138,3 +139,12 @@ export const asDebounce = (timing: Timing, poll: Poll): Timing => {
     ),
   };
 };
+
+/**
+ * This function gives the most time that a heartbeat takes to find a silent peer, as an amount
+ * for the ordering law (`detectionTime`). An interval of "infinite" is a heartbeat that is off.
+ */
+export const heartbeatDetection = (interval: Extent, timeout: Quantity, misses: number): Extent =>
+  interval.value === "infinite"
+    ? { value: "infinite", unit: "s" }
+    : quantity(detectionTime(valueIn(interval as Quantity, "ms"), valueIn(timeout, "ms"), misses) / 1000, "s");
