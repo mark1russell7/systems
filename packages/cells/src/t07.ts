@@ -1,7 +1,7 @@
-import type { KindCell, KubeProxyMode, Prediction } from "@mark1russell7/kind";
+import type { KindCell, KubeProxyMode, Prediction, Propagation } from "@mark1russell7/kind";
 import { KUBE_PROXY_MODES, deletionWindow, pausedWindow } from "@mark1russell7/kind";
 import { valueIn } from "@mark1russell7/quantity";
-import { CHART_READINESS, DESIGN, KUBE_PROBE, PROPAGATION, WORKERS, WORKLOAD, kubeDefaults, s, say, withHold } from "./kind.ts";
+import { CHART_READINESS, DESIGN, KUBE_PROBE, PROPAGATION, SYN_SENT, T07_WORKLOAD, WORKERS, afterSync, kubeDefaults, s, say, withHold } from "./kind.ts";
 
 /**
  * The T07 catalog: the endpoint lifecycle of a Service. A client on each node sends requests on new
@@ -38,18 +38,22 @@ const base = (mode: KubeProxyMode): Omit<KindCell, "id" | "name" | "trigger" | "
   workers: WORKERS,
   pod: kubeDefaults(2),
   declaration: DESIGN,
-  workload: WORKLOAD,
+  workload: T07_WORKLOAD,
   calibrates: false,
   runs: 11,
 });
 
-/** This function gives the prediction of a deletion from O04 with the hold: no failure, or a window of refused connections. */
-const deletionPrediction = (cell: Pick<KindCell, "declaration" | "pod" | "mode">): Prediction => {
-  const window = deletionWindow(cell.declaration, cell.pod.preStop, PROPAGATION[cell.mode]);
+/**
+ * This function gives the prediction of a deletion from O04 with the hold: no failure, or a window
+ * of refused connections. The propagation is the calibration of the mode, or another bound for a
+ * deletion that comes immediately after a sync (`afterSync`).
+ */
+const deletionPrediction = (cell: Pick<KindCell, "declaration" | "pod" | "mode">, propagation: Propagation = PROPAGATION[cell.mode]): Prediction => {
+  const window = deletionWindow(cell.declaration, cell.pod.preStop, propagation);
   if (window.empty)
     return {
       kind: "none",
-      why: `the intake stops ${say(window.intake)} after the deletion at the earliest, after the propagation (${say(window.end.hi)} at the most)`,
+      why: `the intake stops ${say(window.intake)} after the deletion at the earliest, after the propagation (${say(window.end.hi)} at the most, ${propagation.from})`,
     };
   return {
     kind: "window",
@@ -61,21 +65,42 @@ const deletionPrediction = (cell: Pick<KindCell, "declaration" | "pod" | "mode">
   };
 };
 
-/** This function gives the prediction of a deletion while kube-proxy pauses on one node. */
-const pausePrediction = (cell: Pick<KindCell, "declaration" | "pod" | "mode">): Prediction => {
+/**
+ * This function gives how long a connection of the window can fail a later connection: the life of
+ * its stale entry. The last SYN of a connection comes before the timeout of its client, and the
+ * entry lives `SYN_SENT` after that SYN at the most. A later connection from the same port goes
+ * through the entry to the address of the pod. In CI, each late failure came 10.7 s to 84.1 s after
+ * a timeout of a window on its port.
+ */
+const staleLife = (cell: Pick<KindCell, "workload">): number => valueIn(SYN_SENT, "s") + valueIn(cell.workload.timeout, "s");
+
+/**
+ * This function gives the prediction of a deletion while kube-proxy pauses on one node. The window
+ * opens at the stop of the intake and closes when the paused node syncs. In it, a connection of the
+ * paused node goes to the pod. It is refused while the pod is alive, and it gets no answer when the
+ * address of the pod is gone.
+ *
+ * A connection with no answer leaves a stale entry. Thus a timeout from the same port can come
+ * later, up to `staleLife` after the window. The cluster keeps its entries from one run to the
+ * next. Thus a timeout can also come before the intake, from the window of an earlier run. The
+ * prediction still holds the failures to the paused node, at least one, and the last one after the sync.
+ */
+const pausePrediction = (cell: Pick<KindCell, "declaration" | "pod" | "mode" | "workload">): Prediction => {
   const window = pausedWindow(cell.declaration, cell.pod.preStop, PAUSE_LEAD, PAUSE_HOLD, PROPAGATION[cell.mode]);
   if (window.empty)
     return {
       kind: "none",
       why: `the intake stops ${say(window.intake)} after the deletion, after the paused node syncs (${say(window.resume)}, then up to ${say(window.end.hi)})`,
     };
+  const stale = staleLife(cell);
+  const sync = valueIn(window.resume, "s") + valueIn(window.end.hi, "s");
   return {
     kind: "window",
     nodes: "paused",
-    start: { from: "intake", band: { lo: s(0), hi: s(valueIn(window.resume, "s") + valueIn(window.end.hi, "s")) } },
-    end: { from: "resume", band: window.end },
+    start: { from: "intake", band: { lo: s(-stale), hi: s(sync) } },
+    end: { from: "resume", band: { lo: window.end.lo, hi: s(valueIn(window.end.hi, "s") + stale) } },
     certain: true,
-    why: `the intake stops ${say(window.intake)} after the deletion, and the paused node selects the pod until it syncs after ${say(window.resume)}: its connections are refused between the two`,
+    why: `the intake stops ${say(window.intake)} after the deletion, and the paused node selects the pod until it syncs after ${say(window.resume)}: its connections fail between the two. Each one with no answer leaves a SYN_SENT entry for up to ${say(s(stale))}, and a later connection from the same port meets it and times out, in this run or in the next runs of the cluster`,
   };
 };
 
@@ -140,7 +165,8 @@ export const T07_CELLS: readonly KindCell[] = [
     id: "T07.defaults.23",
     name: "T07 iptables, rolling update, the design's hold of 2 s",
     trigger: { kind: "rolling-update" },
-    prediction: deletionPrediction(iptables),
+    // each old pod goes some milliseconds after the sync for a new ready pod: its removal waits minSyncPeriod
+    prediction: deletionPrediction(iptables, afterSync("iptables")),
   },
   {
     ...base("nftables"),
