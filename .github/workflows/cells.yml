@@ -58,6 +58,18 @@ jobs:
         env:
           HARNESS_LAB: "1"
         run: pnpm --filter @mark1russell7/harness test
+      # what the kernel says when the prober cannot load: the verifier's log goes to its stderr
+      - name: The prober on its own, after a failure
+        if: failure()
+        run: |
+          image="$(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^loom-harness:' | head -n 1)"
+          echo "image: $image"
+          if [ -n "$image" ]; then
+            timeout 20 docker run --rm --privileged --network none "$image" /opt/harness/prober "$(stat -Lc %i /proc/self/ns/net)" 2>&1 | head -n 400 || true
+          fi
+          echo "lockdown: $(cat /sys/kernel/security/lockdown 2>/dev/null || echo unknown)"
+          sysctl kernel.unprivileged_bpf_disabled kernel.perf_event_paranoid kernel.kptr_restrict 2>&1 || true
+          sudo dmesg | tail -n 40 || true
 
   plan:
     if: github.event_name == 'workflow_dispatch'
