@@ -1,5 +1,8 @@
 import { unitSchema } from "@mark1russell7/quantity/schema";
 import { z } from "zod";
+import { arr } from "./states.ts";
+
+export { arr, fromStates } from "./states.ts";
 
 /**
  * `mark1russell7.machine/1` is a state machine as data.
@@ -311,10 +314,6 @@ export const machineSchema: z.ZodType<Machine> = z.strictObject({
   generated: z.strictObject({ from: z.string(), by: z.string() }).optional(),
 });
 
-/** This function gives one value or many values as an array. */
-export const arr = <T>(value: T | readonly T[]): readonly T[] =>
-  Array.isArray(value) ? (value as readonly T[]) : [value as T];
-
 /** This function gives the names that a duration reads: its knobs, by the names of the machine, and `fired`. */
 const exprNames = (e: Expr): string[] => {
   if ("knob" in e) return [e.knob];
@@ -332,16 +331,6 @@ export const exprKnobs = (e: Expr): string[] => exprNames(e).filter((name) => na
 
 /** This function tells if a duration reads the number of times that its timer fired, as the waits of a backoff do. */
 export const readsFired = (e: Expr): boolean => exprNames(e).includes(FIRED);
-
-/** This function gives the states that a transition leaves. The state "*" is each state that is not final. */
-export const fromStates = (m: Machine, from: string | readonly string[]): string[] => {
-  const out = new Set<string>();
-  for (const state of arr(from)) {
-    if (state !== "*") out.add(state);
-    else for (const [name, def] of Object.entries(m.states)) if (def.final !== true) out.add(name);
-  }
-  return [...out];
-};
 
 /**
  * This function gives the problems in the consistency of a document. Each state, event, timer and

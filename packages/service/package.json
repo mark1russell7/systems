@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/service",
-  "version": "0.2.0",
-  "description": "A service declared as data before it starts, and its runtime: checks on jittered loops, a latch for each policy, probes from the cache, the startup in its sequence, and a staged, capped drain. The timer-ordering law checks the declaration.",
+  "version": "0.4.0",
+  "description": "A service declared as data before it starts, and its runtime: checks on jittered loops, a latch for each policy, probes from the cache, the startup in its sequence, and a staged, capped drain. The timer-ordering law checks the declaration. Its clock, heartbeat and backoff also work alone, in a browser too.",
   "keywords": [
     "service",
     "readiness",
@@ -32,6 +32,9 @@
     ".": "./src/index.ts",
     "./testing": "./src/testing.ts",
     "./redis": "./src/redis.ts",
+    "./clock": "./src/clock.ts",
+    "./heartbeat": "./src/heartbeat.ts",
+    "./backoff": "./src/backoff.ts",
     "./package.json": "./package.json"
   },
   "files": [
@@ -89,6 +92,18 @@
       "./redis": {
         "types": "./build/redis.d.ts",
         "default": "./build/redis.js"
+      },
+      "./clock": {
+        "types": "./build/clock.d.ts",
+        "default": "./build/clock.js"
+      },
+      "./heartbeat": {
+        "types": "./build/heartbeat.d.ts",
+        "default": "./build/heartbeat.js"
+      },
+      "./backoff": {
+        "types": "./build/backoff.d.ts",
+        "default": "./build/backoff.js"
       },
       "./package.json": "./package.json"
     }

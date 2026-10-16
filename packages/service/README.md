@@ -14,6 +14,7 @@ This release has the declaration, its export, the law, the health runtime and th
 - **Keyed operations.** A keyed operation has the window that the server keeps its key for. `mayReissue` answers from the declaration of an operation. An operation without a declaration does not go again.
 - **The law.** `evaluate` and `verdictOf` decide one rule of the timer-ordering law on one binding. A rule is data: linear inequalities over `symbol@hop`, with a margin. A verdict is `holds`, `violated`, `unbounded` (it holds only because a timer is absent) or `depends` (nothing is bound).
 - **The linter.** `lint(description, scenario, rules)` applies the service rules (`SERVICE_RULES`) to a declaration. The declaration binds the symbols of the service: the polls of its checks, the windows of its policies, its drain. The scenario binds the symbols of the platform and of each dependency. A `depends` finding names the symbols that have no bound.
+- **The hold.** The cap of the `fail readiness` phase binds `readiness_hold@process`, and a service without that phase holds for zero. The hold keeps the listener open after the signal, as a preStop sleep does. Thus O04 can compare the sum of the two with the propagation of the endpoints.
 
 The format of a description is `mark1russell7.service/1`.
 
@@ -50,9 +51,48 @@ The format of a description is `mark1russell7.service/1`.
 
 ## The machines
 
-The machines of the runtime are `mark1russell7.machine/1` documents, which `@mark1russell7/algebra` reads. They are the gate, the latch (a debounce), the window, the poller, the exit manager and the watchdog. `drainMachine(description)` gives the drain of a declaration, with one state for each phase. Each machine gives its transitions to `run({ record })` or `start({ record })`. `replay(doc, events)` gives each transition that the document does not permit.
+The machines of the runtime are `mark1russell7.machine/1` documents, which `@mark1russell7/algebra` reads. They are the gate, the latch (a debounce), the window, the poller, the exit manager and the watchdog. `drainMachine(description)` gives the drain of a declaration, with one state for each phase. Each machine gives its transitions to `run({ record })` or `start({ record })`. `replay(doc, events)` gives each transition that the document does not permit. It is the replay of `@mark1russell7/algebra`, which reads a machine of any name.
 
 The tests replay the real runtime against each document. They also compare each timer of the documents, from the algebra, with the time that the runtime keeps.
+
+## The timers
+
+The clock, the heartbeat and the backoff have their own entries. Each entry imports no `node:` module, no zod and no other package. Thus a client in a browser can use them. Each entry is less than 1 kB of gzip. The root of the package also gives each function.
+
+| Entry | Exports |
+| --- | --- |
+| `@mark1russell7/service/clock` | `Clock`, `Cancel`, `realClock`, `platformClock` |
+| `@mark1russell7/service/heartbeat` | `heartbeat`, `detectionTime` |
+| `@mark1russell7/service/backoff` | `backoffDelay`, `backoffBand`, `backoffProblems` |
+
+- **The clock.** `platformClock({ unref })` gives a clock on `performance.now()` and `setTimeout`. With `unref: true`, its timers do not keep a Node process alive. `realClock` is that clock. Each cancel also has `unref`, for one timer.
+- **The heartbeat.** `heartbeat(options)` sends a ping each interval, and a timeout bounds each ping. A ping without an answer at its timeout is a miss. The last of `misses` misses in sequence starts `onDead`.
+- **Two kinds of ping.** A ping gives its answer as a promise, as a request and its reply do. Or the answer comes later through `answer()`, as a pong message does.
+- **The hooks of a heartbeat.** At each tick, `due` tells if the tick sends a ping. `live` tells if a miss counts. `turn` waits one turn of the event loop before the heartbeat counts. Without `overlap`, the heartbeat sends one ping at a time.
+- **The detection time.** `detectionTime(interval, timeout, misses)` gives the most time to find a silent peer: `misses` intervals plus a timeout. `heartbeatDetection` gives that time as an amount for the law.
+- **The backoff.** `backoffDelay(policy, attempt, random)` gives the delay before a try: `base × factor^(attempt − 1)`, at most `cap`, with a jitter. The first try is 1.
+- **The jitter.** The jitter `subtract` takes a random part of the delay away, and a fraction of 1 is the full jitter. The jitter `add` adds a random time up to an amount.
+- **The band.** `backoffBand(policy, attempt)` gives the least and the most delay of one try. Without a try, it covers each try. The law reads the most delay from it. `backoffProblems(policy)` names each value that the delays cannot use.
+- **Milliseconds.** These functions take times in milliseconds, as the clock does. The declaration and the law keep their amounts (`Quantity`).
+
+```ts
+import { backoffDelay } from "@mark1russell7/service/backoff";
+import { heartbeat } from "@mark1russell7/service/heartbeat";
+
+const beat = heartbeat({
+  interval: 30_000,
+  timeout: 10_000,
+  misses: 2,
+  ping: () => socket.send(JSON.stringify({ type: "ping" })),
+  onDead: () => socket.close(),
+});
+socket.addEventListener("message", (event) => {
+  if (JSON.parse(event.data).type === "pong") beat.answer();
+});
+
+// full jitter: a random time from 0 to the backoff
+const delay = backoffDelay({ base: 1000, factor: 1.5, cap: 30_000, jitter: { kind: "subtract", fraction: 1 } }, attempt);
+```
 
 ## The testing subpath
 
@@ -71,10 +111,11 @@ The tests replay the real runtime against each document. They also compare each 
 
 - **The declaration.** `redisClient(name, spec)` declares its knobs by the names of the ordering law: `connect_bound`, `request_timeout`, `driver_writeoff_time`, `heartbeat_interval`, `client_retry_window` and others. Each knob is necessary, and a bound that nobody gives is "infinite". The client derives `heartbeat_detection_time` from its watchdog. Thus `lint()` evaluates the rules of the client (O13, O15, O17, O21, O27) on the declaration.
 - **The settings of ioredis.** The client gives ioredis each timer from the declaration. It turns off the offline queue, and it does not let ioredis send a command again. Thus a command while the client is not ready fails at once, and the command did not leave the client.
+- **The retry strategy.** `retryBackoff(knobs)` gives the backoff of the tries to connect: from `retry_base`, doubling to `retry_cap`, each delay with a jitter up to the base. The tries stop at the end of `client_retry_window`.
 - **Three outcomes.** `send(command, args)` gives `ok`, `error` or `indeterminate`. An error is a reply of the server, or a command that did not leave the client. An indeterminate command can have reached the server. When its connection closes, each command in flight becomes indeterminate at once, not at its timeout.
 - **Idempotency for each command.** A table declares the idempotency of each common command, and a declaration can change it. The client sends an idempotent command again one time at most, in the bound of the request. It does not send again a command that is not idempotent, or that the table does not name.
 - **The join.** At each `ready`, the client records `CLIENT ID` and the socket of the connection (`joins`). The prober joins its kernel records to the view of the server with it.
-- **The watchdog.** A `PING` on the connection of the application, each interval. An error reply is an answer. After the misses of the declaration, the watchdog closes the connection, and the client connects again. The watchdog acts only on a ready connection, and it starts again a client whose retry window ended.
+- **The watchdog.** A `heartbeat` of `PING` commands on the connection of the application, each interval. An error reply is an answer. After the misses of the declaration, the watchdog closes the connection, and the client connects again. The watchdog acts only on a ready connection, and it starts again a client whose retry window ended.
 - **The checks.** `checks({ poll, steps })` gives a check for each step: `local-state`, `round-trip` (a `PING` on the connection of the application) and `dial` (a new connection). Each one controls readiness, liveness or nothing. `attach(svc, options)` declares the dependency, its handle and its checks.
 - **The close.** At the shutdown, the client sends `QUIT`, and it disconnects at its `close_bound`. Thus a silent server cannot hold the phase past its cap.
 - **The manifestations.** `meets` lists the manifestations that the client can meet, and the detectors of each, with their times from the knobs. `unwatched(meets)` lists each manifestation and situation that no detector finds.
@@ -171,6 +212,8 @@ const outcome = await life.request("orders", "POST /orders", (signal) => createO
 - **The contract.** The contract of a sample declaration passes. The contract also finds a blind dependency, a check whose timeout is too short, and a check that names the wrong dependency.
 - **The Redis client.** These tests use a fake ioredis and a fake clock. They cover the declaration, the three outcomes, and the commands that the client sends again or not. They also cover the join, the backoff, the watchdog, the close, the checks and the manifestations. Five scenarios replay against the document of the client.
 - **F6 for Redis.** The fault matrix crosses each manifestation (a refusal, a frozen process, a black hole, a death without a close, and an app stall), each gating posture, two timings and two jitters. That is 60 cases on the fake. Each case holds the trip and the release of its policy to `failSpan` and `recoverSpan`. Five more cases shut the service down during each manifestation, and each one exits 0.
+- **The timers.** These tests use a fake clock, and they cover the hooks of the heartbeat and its two kinds of ping. A property test holds the death of a silent peer to `detectionTime` in 300 seeded cases. Another one compares the heartbeat with a WebSocket heartbeat that sends one ping at a time, on 300 schedules of pongs. The backoff gives the delays of three earlier backoffs, number for number, and each delay is in its band.
+- **The entries.** The timer entries reach no other package, no `node:` module and no zod.
 - **Against a real Redis.** `REDIS_IT=1` starts the tests of the client against Redis 7.4. `REDIS_F6=1` starts the F6 matrix in the VM of Docker. The injector of `@mark1russell7/harness` makes the network faults, and an agent in the namespaces of Redis makes the process faults. All of them use one monotonic clock.
 
 `pnpm --filter @mark1russell7/service build` writes the package for npm into `build/`.

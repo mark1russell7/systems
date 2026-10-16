@@ -1,9 +1,11 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
+import { backoffBand } from "../backoff.ts";
 import type { Gate } from "../description.ts";
 import type { Poll, Timing } from "../timing.ts";
 import { failSpan, recoverSpan } from "../timing.ts";
 import type { RedisKnobs } from "./client.ts";
+import { retryBackoff } from "./client.ts";
 
 /**
  * The F6 matrix for the Redis client: each manifestation × the gating posture of its check. The
@@ -43,11 +45,11 @@ export const tripBand = (timing: Timing, poll: Poll): Band => ({
 /**
  * This function gives the most time that the client takes to be ready again after the server is
  * back. It adds four times: a try that waits for its connect bound, and a handshake that waits for
- * its request timeout. Then the longest delay of the retry strategy with its jitter, and the
- * watchdog that starts an ended client.
+ * its request timeout. Then the longest delay of the retry strategy with its jitter (`backoffBand`),
+ * and the watchdog that starts an ended client.
  */
 export const reconnectBound = (knobs: RedisKnobs): number =>
-  ms(knobs.connect_bound) + ms(knobs.request_timeout) + ms(knobs.retry_cap) + ms(knobs.retry_base) + ms(knobs.heartbeat_interval);
+  ms(knobs.connect_bound) + ms(knobs.request_timeout) + backoffBand(retryBackoff(knobs)).high + ms(knobs.heartbeat_interval);
 
 /** This function gives the band of the release of a policy after the server is back: recoverSpan, plus the reconnect bound. */
 export const recoverBand = (timing: Timing, poll: Poll, knobs: RedisKnobs): Band => ({

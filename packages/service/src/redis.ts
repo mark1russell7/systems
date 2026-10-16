@@ -15,7 +15,9 @@ export type {
   RedisKnobs,
   Sent,
 } from "./redis/client.ts";
-export { heartbeatDetection, redisClient, specProblems, tcpDial } from "./redis/client.ts";
+export { redisClient, retryBackoff, specProblems, tcpDial } from "./redis/client.ts";
+// the detection time of the watchdog moved to the root of the package: this entry keeps it for the users of 0.3
+export { heartbeatDetection } from "./timing.ts";
 export type { ConnectionFactory, RedisConnection, RedisConnectionOptions, RedisSocket } from "./redis/connection.ts";
 export { ioredis } from "./redis/connection.ts";
 export type { Detector, Meeting, Situation } from "./redis/meets.ts";
