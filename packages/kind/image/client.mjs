@@ -32,11 +32,13 @@ const outcomeOf = (error) => {
 const fire = () => {
   const t = now();
   let done = false;
+  // the local port of the connection: a failed request names it, to find a reuse of the port across connections
+  let lp = null;
   const finish = (o, extra = {}) => {
     if (done) return;
     done = true;
     clearTimeout(timer);
-    say({ ev: "req", t, d: Math.round((now() - t) * 1000) / 1000, o, ...extra });
+    say({ ev: "req", t, d: Math.round((now() - t) * 1000) / 1000, o, ...extra, ...(o === "ok" ? {} : { lp }) });
   };
   const req = http.request({ host, port: Number(port), path: "/work", agent: false, headers: { connection: "close" } }, (res) => {
     let body = "";
@@ -53,6 +55,12 @@ const fire = () => {
     finish("timeout", { e: "LAB_TIMEOUT" });
   }, timeout);
   req.on("error", (error) => finish(outcomeOf(error), { e: error.code ?? String(error) }));
+  req.on("socket", (socket) => {
+    // the kernel gives the port at connect(), which comes before the next turn of the loop
+    setImmediate(() => {
+      lp = socket.localPort ?? null;
+    });
+  });
   req.end();
 };
 

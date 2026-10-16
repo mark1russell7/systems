@@ -84,15 +84,19 @@ export const WORKLOAD: Workload = { every: ms(20), timeout: s(1) };
 
 /**
  * This table is the propagation of the endpoints for each kube-proxy mode, in seconds after a
- * deletion. The cluster has one control plane and 2 workers. Each bound is from the CAL cells of
- * T07: the shortest measured, and the longest measured. Before a calibration, it is the documented
- * bound, `minSyncPeriod`.
+ * deletion. The cluster has one control plane and 2 workers, on a runner of GitHub. Each bound is
+ * from the CAL cells of T07: 33 times for each mode, 3 nodes in 11 runs. The upper bound is the
+ * longest poll without the pod. The lower bound is the shortest such poll less the 50 ms of a
+ * poll, and not below zero. `DOCUMENTED` is the bound before a calibration, `minSyncPeriod`.
  */
 export const PROPAGATION: Readonly<Record<KubeProxyMode, Propagation>> = {
-  iptables: DOCUMENTED,
-  ipvs: DOCUMENTED,
-  nftables: DOCUMENTED,
+  iptables: { lo: 0, hi: 0.105, from: "CAL.T07.iptables: median 0.059 s, 33 times" },
+  ipvs: { lo: 0.073, hi: 0.309, from: "CAL.T07.ipvs: median 0.192 s, 33 times" },
+  nftables: { lo: 0, hi: 0.079, from: "CAL.T07.nftables: median 0.045 s, 33 times" },
 };
+
+/** This propagation is the bound of the documents, for a cell that a calibration does not cover. */
+export const UNCALIBRATED: Propagation = DOCUMENTED;
 
 /** This count is the workers of each kind cell: two, the fewest for a propagation across nodes and a drain to another node. */
 export const WORKERS = 2;
