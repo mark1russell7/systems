@@ -36,6 +36,14 @@ export type { KernelRecord };
  * A fault at a router of the topology (`Cell.faultAt`) acts on what the router forwards toward
  * one side. It is a black hole, a reset or an ICMP unreachable. It can also be a simplex drop, an
  * MTU drop or netem.
+ *
+ * These faults are of a replicated group (`Cell.group`), on the part that `Cell.faultAt` names:
+ * - `blackhole` drops each segment between the part and each of its peers. `rst` answers each
+ *   segment from a peer with a reset, thus the part refuses each connection.
+ * - `partition` is a black hole between the part and some of its peers only (`GroupPlace.cuts`).
+ * - `freeze-process` stops the server process of the part with SIGSTOP, and SIGCONT thaws it. Its
+ *   kernel stays up. `fin` stops the process with SIGKILL.
+ * - `planned-failover` asks a Sentinel for a failover: `SENTINEL FAILOVER <group>`.
  */
 export type Fault =
   | "blackhole"
@@ -51,6 +59,8 @@ export type Fault =
   | "proxy-idle"
   | "toxic"
   | "server-close"
+  | "partition"
+  | "planned-failover"
   | "none";
 
 /**
@@ -124,6 +134,53 @@ export type Hop = RouterHop | ProxyHop;
 export interface Topology {
   readonly name: string;
   readonly hops: readonly Hop[];
+}
+
+/**
+ * A group is a replicated group under an external failover authority, as data. It is a primary and
+ * its replicas, and the Sentinels that decide which member is the primary. Each member and each
+ * Sentinel is a container from the same stock image, pinned by digest. Each has its own network
+ * namespace, thus a fault can act on one part. The client finds the primary through the
+ * Sentinels, and the parts and the client share one network.
+ */
+export interface Group {
+  /** This name is the name of the group that the Sentinels monitor, for example `mymaster`. */
+  readonly name: string;
+  /** This image is the stock image of each member and each Sentinel, pinned by digest. */
+  readonly image: string;
+  /** These are the programs of the image: the server, the Sentinel and the command line client. */
+  readonly programs: { readonly server: string; readonly sentinel: string; readonly cli: string };
+  readonly port: number;
+  readonly sentinelPort: number;
+  /** These are the names of the members. The first one is the primary when the environment starts. */
+  readonly members: readonly string[];
+  readonly sentinels: readonly string[];
+  /** This count is how many Sentinels must agree that the primary is down. */
+  readonly quorum: number;
+  /** These are the settings of each member, as its configuration file spells them. The harness adds `replicaof` for each replica. */
+  readonly memberSettings: Readonly<Record<string, string>>;
+  /**
+   * These are the settings of each Sentinel for the group, as `sentinel <setting> <group> <value>`
+   * spells them: `down-after-milliseconds`, `failover-timeout` and `parallel-syncs`.
+   */
+  readonly sentinelSettings: Readonly<Record<string, string>>;
+  /** These lines tell that a member and a Sentinel serve. */
+  readonly ready: { readonly member: string; readonly sentinel: string };
+}
+
+/** A group role is a part of a group by its role at the start of a run: the primary, a replica, or a Sentinel. */
+export type GroupRole = "primary" | "replica" | "sentinel";
+
+/**
+ * A group place is the part of a group that a fault acts on. A network fault cuts the part from
+ * some of its peers:
+ * - `all`: each other part of the group, and each client. This is the default.
+ * - `group`: the other members and the Sentinels, but not the clients.
+ * - `clients`: the clients, but not the group.
+ */
+export interface GroupPlace {
+  readonly role: GroupRole;
+  readonly cuts?: "all" | "group" | "clients";
 }
 
 /** A toxic is one toxic of Toxiproxy, as its API takes it. Its toxicity is 1. */
@@ -210,11 +267,60 @@ export interface ProxyTime {
 }
 
 /**
+ * A stage is one step of the timeline of a group after a fault, by the event that a Sentinel
+ * publishes for it. The stages are the subjective down, the objective down, the start of a
+ * failover and the election. Then the selection of a replica, the promotion, the switch to the new
+ * primary, and the conversion of the old primary into a replica.
+ */
+export type Stage =
+  | "+sdown"
+  | "+odown"
+  | "+try-failover"
+  | "+elected-leader"
+  | "+selected-slave"
+  | "+promoted-slave"
+  | "+switch-master"
+  | "+convert-to-slave";
+
+/** A stage band is when the first Sentinel announces a stage, from the reference of the cell. */
+export interface StageBand {
+  readonly stage: Stage;
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
+/**
+ * A group prediction tells what a group does after the fault, beside the band of its cell:
+ * - `lands` is the primary that the first accepted write after the fault lands on: a new one, or the same one.
+ * - `failover` tells if a Sentinel announces a switch to a new primary in the window.
+ * - `stages` are the bands of the stages of the timeline. Each band includes the error of the
+ *   stamps of the observer (`stamps`).
+ * - `errors` are the errors that the client must meet on the way, each with the band of its
+ *   first occurrence. An example is the error of the offline queue when it gives up.
+ */
+export interface GroupPrediction {
+  readonly lands: "new" | "same";
+  readonly failover: boolean;
+  readonly stages: readonly StageBand[];
+  readonly stamps?: Quantity;
+  readonly errors?: ReadonlyArray<{ readonly name: string; readonly low: Quantity; readonly high: Quantity }>;
+}
+
+/**
+ * A middlebox expectation tells what the router of a topology does with the flow in the window of
+ * a silent prediction. Without it, the router keeps the flow. With `forgets`, the router forgets
+ * the flow in that band after the last segment of the client, and nothing detects it.
+ */
+export interface MiddleboxExpectation {
+  readonly forgets: { readonly low: Quantity; readonly high: Quantity };
+}
+
+/**
  * A prediction is what a cell predicts. Either a detection occurs in an interval [T_lo, T_hi]
  * after the reference event, or nothing detects the fault in a window. Nothing detects a stall
  * that is shorter than the give-up, and the connection recovers from it. The prediction then also
  * tells when. A silent prediction can also tell when the reply to the request comes back
- * (`replies`).
+ * (`replies`), and what a router does with the flow (`middlebox`).
  *
  * A band can name the first round trip that it assumes (`rtt`), and the proxy times that it
  * includes (`through`).
@@ -223,13 +329,16 @@ export interface ProxyTime {
  * prediction is `detects: null` with the reason, and its runs are measurements only. A
  * measurement-only cell that names a reference (`from`) also records the time from it to the end
  * of the connection, or to the last data.
+ *
+ * For a group cell, the band is the first write that a primary accepts after the fault, and its
+ * errno is `OK`. `group` tells which primary, and the stages of the group on the way.
  */
 export type Prediction =
   | {
       readonly detects: true;
       /** This name is the timer of the machine that fires first, or the event that detects the fault, with its errno. */
       readonly timer: string;
-      /** This name is the errno of the detection, or EOF for an end of file without an error. */
+      /** This name is the errno of the detection, or EOF for an end of file without an error. It is OK for a write that a primary accepts. */
       readonly errno: string;
       readonly from: Reference;
       /** This time is the closed form, less the most that the timer can fire early. */
@@ -238,20 +347,24 @@ export type Prediction =
       readonly high: Quantity;
       readonly rtt?: RttRange;
       readonly through?: readonly ProxyTime[];
+      readonly group?: GroupPrediction;
     }
   | {
       readonly detects: false;
       readonly window: Quantity;
       readonly recovers?: Recovers;
       readonly replies?: Replies;
+      readonly middlebox?: MiddleboxExpectation;
       readonly rtt?: RttRange;
       readonly through?: readonly ProxyTime[];
+      readonly group?: GroupPrediction;
     }
   | {
       readonly detects: null;
       readonly window: Quantity;
       readonly why: string;
       readonly from?: Reference;
+      readonly group?: GroupPrediction;
     };
 
 /** A target is the server that a cell connects to: a stock image. */
@@ -382,8 +495,23 @@ export interface Cell {
    * This name is the proxy hop whose own time a calibration cell measures. The time of a request
    * (`up`) starts at its arrival on the socket of the proxy toward the client. It stops at the
    * write on the socket toward the target. The time of its reply (`down`) goes the other way.
+   *
+   * For a group cell, `sentinels` makes the prober watch the namespace of each Sentinel too. Each
+   * stamp of the observer then gets the write of its Sentinel that it read (`lags`).
    */
   readonly calibrates?: string;
+  /**
+   * This group replaces the target: a replicated group under its Sentinels. The client is then
+   * ioredis in Sentinel mode, and it writes a stream of sequence numbers. `target` stays for the
+   * record, and the group does not read it.
+   */
+  readonly group?: Group;
+  /** This time is how long a fault on a group holds after its commit. The injector then lifts it at that instant, on the clock of the VM. */
+  readonly hold?: Quantity;
+  /** This flag makes a planned failover coordinated: `SENTINEL FAILOVER <group> COORDINATED`. */
+  readonly coordinated?: boolean;
+  /** These are options of ioredis over its defaults, for the client of a group. A cell at the defaults has none. */
+  readonly driverOptions?: Readonly<Record<string, unknown>>;
   /** This count is the number of runs of the cell (11), across new environments (two at least). */
   readonly runs: number;
   readonly environments: number;
@@ -395,16 +523,25 @@ export interface Cell {
   readonly concurrency?: number;
 }
 
+/** A hop place is a hop of a topology, with the side that the rules of a fault face. */
+export interface HopPlace {
+  readonly hop: string;
+  readonly toward: "client" | "target";
+}
+
 /**
  * A fault place is the namespace that gets the rules of a fault. "target" and "client" are the two
  * ends. A hop place is a hop, with the side that the rules face. That side is the next hop toward
  * the client, or the next hop toward the target. The rules of a proxy act on its sockets. The
  * rules of a router act on what it forwards, by its device toward that side: the FORWARD chain.
+ *
+ * A group place is a part of a group, by its role.
  */
-export type FaultPlace =
-  | "target"
-  | "client"
-  | { readonly hop: string; readonly toward: "client" | "target" };
+export type FaultPlace = "target" | "client" | HopPlace | GroupPlace;
+
+/** This function tells if a fault place is a hop of a topology. */
+export const isHopPlace = (place: FaultPlace | undefined): place is HopPlace =>
+  typeof place === "object" && "hop" in place;
 
 /** A middlebox event is one line of the router: a change of a conntrack entry, or a reset that it sent. `t` is CLOCK_MONOTONIC in nanoseconds. */
 export interface MiddleboxEvent {
@@ -449,6 +586,43 @@ export interface Run {
   readonly topology?: RunTopology;
   /** These are the lines of the routers of a topology from the start to the end of the run. */
   readonly middlebox?: readonly MiddleboxEvent[];
+  /** This record is the group of a group cell: its parts, and what it did in the run. */
+  readonly group?: RunGroup;
+}
+
+/** A Sentinel event is one line of the observer of a group: an event that a Sentinel published, on the clock of the VM. */
+export interface SentinelEvent {
+  readonly ev: string;
+  readonly t: number;
+  /** This text is the address and port of the Sentinel. */
+  readonly sentinel?: string;
+  /** This name is the event, for example `+switch-master`. */
+  readonly event?: string;
+  /** This text is the detail of the event, as the Sentinel wrote it. */
+  readonly detail?: string;
+  readonly [field: string]: unknown;
+}
+
+/** A part is one member or Sentinel of a group, as a run found it: its address and its network namespace. */
+export interface RunPart {
+  readonly ip: string;
+  readonly netns: number;
+}
+
+/** A run group is the group of a run: its parts, the primary before and after, the timeline, and the writes that it kept. */
+export interface RunGroup {
+  readonly members: Readonly<Record<string, RunPart>>;
+  readonly sentinels: Readonly<Record<string, RunPart>>;
+  /** This name is the member that was the primary at the start of the run. */
+  readonly primary: string;
+  /** This name is the part that got the fault, or null for a fault on the whole group. */
+  readonly at: string | null;
+  /** These are the lines of the observer of the Sentinels from the start to the end of the run. */
+  readonly timeline: readonly SentinelEvent[];
+  /** This name is the member that was the primary when the group converged after the run, or null when it did not converge. */
+  readonly after: string | null;
+  /** These are the sequence numbers that the group holds after the run, when it converged, or null. */
+  readonly holds: readonly number[] | null;
 }
 
 /**

@@ -27,6 +27,17 @@
 //!   toxic of Toxiproxy. The stamps bracket the request and its answer, after the connect, so the
 //!   commit of the toxic is known on the same clock as the kernel's records.
 //!
+//! - `signal NAME SIGNAL`: SIGNAL (KILL, STOP, CONT or TERM) to each process whose name is NAME,
+//!   in the process namespace this sidecar shares with a member of a group. STOP and CONT freeze
+//!   a server and thaw it while its kernel stays up; KILL stops it, and its kernel closes its
+//!   sockets. The stamps bracket the kill(2) calls.
+//! - `resp ADDR:PORT ARG...`: one command to a Redis-protocol server, for example
+//!   `SENTINEL FAILOVER mymaster` to a Sentinel. The stamps bracket the write of the command and
+//!   the first line of its reply, so a planned failover starts at a known instant.
+//!
+//! A filter rule's PEER can be a list, `A,B,C`: the rules for each peer go in the same commit, so
+//! a part of a group loses all of its peers at one instant.
+//!
 //! `--at NS` holds the commit until that instant on CLOCK_MONOTONIC, the clock every stamp is on.
 //! A stall's end is timed that way, from inside the VM: the exec only has to arrive before it, and
 //! its 190 ms never reach the stall's length.
@@ -234,11 +245,138 @@ fn http(args: &[String]) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// the number of a signal that `signal` sends, by its name
+fn signal_number(name: &str) -> Result<libc::c_int, Box<dyn Error>> {
+    Ok(match name {
+        "KILL" => libc::SIGKILL,
+        "STOP" => libc::SIGSTOP,
+        "CONT" => libc::SIGCONT,
+        "TERM" => libc::SIGTERM,
+        other => return Err(format!("not a signal this injector sends: {other}").into()),
+    })
+}
+
+/// a process name: letters, digits, dots, dashes and underscores, as /proc/PID/comm holds it
+fn process_name(name: &str) -> Result<&str, Box<dyn Error>> {
+    if !name.is_empty()
+        && name.len() <= 15
+        && name.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_'))
+    {
+        Ok(name)
+    } else {
+        Err(format!("not a process name: {name}").into())
+    }
+}
+
+/// tells if a line of /proc/PID/stat is a zombie's: its state, after the name in parentheses, is Z
+fn zombie(stat: &str) -> bool {
+    stat.rfind(')').and_then(|end| stat[end + 1..].split_whitespace().next()) == Some("Z")
+}
+
+/// the processes of this process namespace whose name is `name`
+fn processes(name: &str) -> Result<Vec<libc::pid_t>, Box<dyn Error>> {
+    let mut found = Vec::new();
+    for entry in std::fs::read_dir("/proc")? {
+        let entry = entry?;
+        let Some(pid) = entry.file_name().to_str().and_then(|text| text.parse::<libc::pid_t>().ok()) else {
+            continue;
+        };
+        // a process can end between the listing and the read. A zombie keeps its name until its
+        // parent reaps it: a server that a fin killed is one, and no signal reaches it
+        let Ok(comm) = std::fs::read_to_string(entry.path().join("comm")) else { continue };
+        let Ok(stat) = std::fs::read_to_string(entry.path().join("stat")) else { continue };
+        if comm.trim_end() == name && !zombie(&stat) {
+            found.push(pid);
+        }
+    }
+    found.sort_unstable();
+    Ok(found)
+}
+
+/// `signal NAME SIGNAL [--at NS]`: the signal to each process of that name, bracketed by stamps
+fn signal(args: &[String]) -> Result<(), Box<dyn Error>> {
+    let name = process_name(args.get(1).ok_or("signal NAME SIGNAL [--at NS]")?)?;
+    let sig = signal_number(args.get(2).ok_or("and the signal: KILL, STOP, CONT or TERM")?)?;
+    let opts = options(&args[3..])?;
+    let pids = processes(name)?;
+    if pids.is_empty() {
+        return Err(format!("no process {name} in this process namespace").into());
+    }
+    if let Some(at) = opts.at {
+        until(at)?;
+    }
+    let t0 = monotonic_ns();
+    for pid in &pids {
+        // SAFETY: kill(2) with a pid that this namespace listed, and a signal from the table above
+        if unsafe { libc::kill(*pid, sig) } != 0 {
+            return Err(format!("kill {pid} failed: {}", std::io::Error::last_os_error()).into());
+        }
+    }
+    let t1 = monotonic_ns();
+    println!("{}", json!({ "action": "signal", "name": name, "signal": args[2], "pids": pids, "t0": t0, "t1": t1 }));
+    Ok(())
+}
+
+/// a command in the Redis protocol: an array of bulk strings
+fn resp_command(args: &[String]) -> Vec<u8> {
+    let mut out = format!("*{}\r\n", args.len()).into_bytes();
+    for arg in args {
+        out.extend_from_slice(format!("${}\r\n", arg.len()).as_bytes());
+        out.extend_from_slice(arg.as_bytes());
+        out.extend_from_slice(b"\r\n");
+    }
+    out
+}
+
+/// `resp ADDR:PORT ARG...`: one command, and the first line of its reply, bracketed by stamps
+fn resp(args: &[String]) -> Result<(), Box<dyn Error>> {
+    use std::io::Read;
+    use std::net::{SocketAddrV4, TcpStream};
+    let addr: SocketAddrV4 = args.get(1).ok_or("resp ADDR:PORT ARG...")?.parse()?;
+    let command = &args[2..];
+    if command.is_empty() {
+        return Err("and the command".into());
+    }
+    let mut stream = TcpStream::connect(addr)?;
+    let t0 = monotonic_ns();
+    stream.write_all(&resp_command(command))?;
+    let mut line = Vec::new();
+    let mut byte = [0u8; 1];
+    while !line.ends_with(b"\r\n") {
+        if stream.read(&mut byte)? == 0 {
+            return Err("the server closed before its reply".into());
+        }
+        line.push(byte[0]);
+    }
+    let t1 = monotonic_ns();
+    let reply = String::from_utf8_lossy(&line[..line.len() - 2]).to_string();
+    if reply.starts_with('-') {
+        return Err(format!("{} answered {reply}", command.join(" ")).into());
+    }
+    println!("{}", json!({ "action": "resp", "command": command, "reply": reply, "t0": t0, "t1": t1 }));
+    Ok(())
+}
+
+/// the peers of a filter rule: one address, or a list `A,B,C`
+fn peers(text: &str) -> Result<Vec<Ipv4Addr>, Box<dyn Error>> {
+    let list: Vec<Ipv4Addr> = text.split(',').map(str::parse).collect::<Result<_, _>>()?;
+    if list.is_empty() {
+        return Err("no peer".into());
+    }
+    Ok(list)
+}
+
 fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let action = args.first().ok_or("say an action: blackhole, clear, rst, reject, mtu, netem, offload, http …")?.as_str();
     if action == "http" {
         return http(&args);
+    }
+    if action == "signal" {
+        return signal(&args);
+    }
+    if action == "resp" {
+        return resp(&args);
     }
     match action {
         "netem" | "clear-netem" | "offload" => {
@@ -279,10 +417,14 @@ fn run() -> Result<(), Box<dyn Error>> {
             Ok(())
         }
         _ => {
-            // parsed, never pasted: only an address reaches the rules
-            let peer: Ipv4Addr = args.get(1).ok_or("and the peer's address")?.parse()?;
+            // parsed, never pasted: only addresses reach the rules
+            let list = peers(args.get(1).ok_or("and the peer's address")?)?;
             let opts = options(&args[2..])?;
-            let script = format!("*filter\n{}COMMIT\n", rules(action, peer, &opts)?);
+            let mut body = String::new();
+            for peer in &list {
+                body.push_str(&rules(action, *peer, &opts)?);
+            }
+            let script = format!("*filter\n{body}COMMIT\n");
             if let Some(at) = opts.at {
                 until(at)?;
             }
@@ -295,7 +437,8 @@ fn run() -> Result<(), Box<dyn Error>> {
             if !status.success() {
                 return Err(format!("iptables-restore exited {status}").into());
             }
-            println!("{}", json!({ "action": action, "peer": peer.to_string(), "t0": t0, "t1": t1 }));
+            let named: Vec<String> = list.iter().map(ToString::to_string).collect();
+            println!("{}", json!({ "action": action, "peer": named.join(","), "t0": t0, "t1": t1 }));
             Ok(())
         }
     }
@@ -363,6 +506,41 @@ mod tests {
         // a device name is letters, digits, dots and dashes: nothing else reaches the rules
         assert!(options(&["--via".into(), "eth0;x".into()]).is_err());
         assert_eq!(options(&["--via".into(), "eth1".into()]).unwrap().via.as_deref(), Some("eth1"));
+    }
+
+    #[test]
+    fn a_list_of_peers_is_addresses_only() {
+        assert_eq!(peers("10.0.0.2").unwrap().len(), 1);
+        assert_eq!(peers("10.0.0.2,10.0.0.3,10.0.0.4").unwrap()[2].to_string(), "10.0.0.4");
+        for text in ["", "10.0.0.2,", "10.0.0.2;x", "a,b", "10.0.0.2 10.0.0.3"] {
+            assert!(peers(text).is_err(), "{text}");
+        }
+    }
+
+    #[test]
+    fn signals_and_process_names_come_from_a_short_list() {
+        assert_eq!(signal_number("STOP").unwrap(), libc::SIGSTOP);
+        assert_eq!(signal_number("CONT").unwrap(), libc::SIGCONT);
+        assert_eq!(signal_number("KILL").unwrap(), libc::SIGKILL);
+        assert!(signal_number("HUP").is_err());
+        assert!(process_name("valkey-server").is_ok());
+        assert!(process_name("valkey-sentinel").is_ok());
+        for name in ["", "a b", "x;y", "much-too-long-a-name"] {
+            assert!(process_name(name).is_err(), "{name}");
+        }
+        // the state is the field after the name, whose parentheses can hold spaces
+        assert!(zombie("812 (valkey-server) Z 1 812 812 0 -1"));
+        assert!(!zombie("813 (valkey-server) S 1 813 813 0 -1"));
+        assert!(!zombie("814 (a) Z) S 1"));
+    }
+
+    #[test]
+    fn a_resp_command_is_an_array_of_bulk_strings() {
+        let args: Vec<String> = ["SENTINEL", "FAILOVER", "mymaster"].iter().map(|a| a.to_string()).collect();
+        assert_eq!(
+            resp_command(&args),
+            b"*3\r\n$8\r\nSENTINEL\r\n$8\r\nFAILOVER\r\n$8\r\nmymaster\r\n".to_vec()
+        );
     }
 
     #[test]

@@ -55,6 +55,8 @@ const NEEDS = {
     "image/native/src/bin/inject.rs",
     "image/node/Dockerfile",
     "image/node/client-ioredis.mjs",
+    "image/node/client-sentinel.mjs",
+    "image/node/observer.mjs",
     "image/node/package.json",
     "image/node/npm-lock.json",
     "image/router/Dockerfile",
@@ -223,6 +225,10 @@ try {
       check(module.toxicBody({ type: "latency", stream: "downstream", attributes: { latency: 100 } }).includes("toxicity"), "harness writes a toxic for Toxiproxy");
       check(module.deviceOf("172.22.0.2 dev eth1 src 172.22.0.3 uid 0") === "eth1", "harness finds the device of a router toward a side");
       check(module.quantileOf([1, 2, 3, 4], 0.99) === 4 && module.spreadOf([s(0.001), s(0.003)]).median.value === 0.002, "harness gives the quantiles of a calibration");
+      // a group: the peers that a partition from the group cuts, never the client
+      const parts = { members: { m1: { ip: "10.0.0.2", netns: 1 }, m2: { ip: "10.0.0.3", netns: 2 } }, sentinels: { s1: { ip: "10.0.0.4", netns: 3 } } };
+      check(module.peersOf(parts, "10.0.0.9", "m1", "group").join(",") === "10.0.0.3,10.0.0.4", "harness cuts a part of a group from the group only");
+      check(module.STAGES.length === 8 && module.stagesOf([{ ev: "sentinel", t: 2e9, event: "+switch-master", detail: "mymaster" }], 1e9)["+switch-master"].value === 1, "harness reads the timeline of a group");
     }
   }
 } catch (error) {

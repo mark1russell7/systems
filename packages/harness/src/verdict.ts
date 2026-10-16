@@ -1,6 +1,6 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
-import type { Prediction } from "./cell.ts";
+import type { Prediction, Stage } from "./cell.ts";
 import type { Measured, Reordering } from "./observe.ts";
 
 /**
@@ -53,7 +53,42 @@ export interface Verdict {
   readonly reordering?: Reordering;
   /** This record is the time of the proxy of a calibration cell, in each direction. */
   readonly proxy?: { readonly hop: string; readonly up: Spread | null; readonly down: Spread | null };
+  /** This record is what the group of a group cell did over the counted runs: its stages, and its writes. */
+  readonly group?: GroupVerdict;
   readonly why: string;
+}
+
+/**
+ * A stage verdict is the test of one stage of the timeline of a group against its band. The band
+ * is [T_lo − δ_abs, T_hi + the error of the stamps + δ_abs]. A run that did not announce the stage
+ * is outside too.
+ */
+export interface StageVerdict {
+  readonly stage: Stage;
+  readonly band: Interval;
+  readonly median: Quantity | null;
+  readonly outside: ReadonlyArray<{ readonly run: string; readonly why: string }>;
+  readonly decision: "holds" | "fails";
+}
+
+/**
+ * A group verdict sums what the group of a group cell did in its counted runs:
+ * - `stages` tests each stage that the prediction gives a band.
+ * - `medians` is the median of each stage that a run announced, from the fault.
+ * - `lost` counts the writes that a primary accepted and the group did not keep, in each run.
+ * - `old` counts the writes that the old primary accepted after the fault, in each run.
+ * - `unknown` counts the writes whose outcome the client did not see, and how many the group kept.
+ * - `errors` are the errors on the way: the runs that met each, and the median of its first time.
+ * - `lags` is the spread of the delays of the stamps, for a calibration.
+ */
+export interface GroupVerdict {
+  readonly stages: readonly StageVerdict[];
+  readonly medians: Partial<Record<Stage, Quantity>>;
+  readonly lost: { readonly runs: number; readonly total: number; readonly median: number | null; readonly max: number | null };
+  readonly old: { readonly median: number | null; readonly max: number | null };
+  readonly unknown: { readonly total: number; readonly held: number };
+  readonly errors: ReadonlyArray<{ readonly name: string; readonly runs: number; readonly first: Quantity }>;
+  readonly lags?: Spread | null;
 }
 
 const s = (value: number): Quantity => quantity(Math.round(value * 1e6) / 1e6, "s");
@@ -158,6 +193,78 @@ const middle = (sorted: readonly number[]): number => {
  * which does not exist at this time.
  */
 export const verdictOf = (prediction: Prediction, runs: readonly Measured[]): Verdict => {
+  const verdict = verdictOfBand(prediction, runs);
+  const counted = runs.filter((run) => run.void === null);
+  if (prediction.group === undefined && !counted.some((run) => run.group !== undefined)) return verdict;
+  return { ...verdict, group: groupVerdictOf(prediction, counted) };
+};
+
+/** This function gives the median of some counts, or null for none. */
+const medianCount = (values: readonly number[]): number | null =>
+  values.length === 0 ? null : middle([...values].sort((a, b) => a - b));
+
+/** This function sums what the group of a group cell did in its counted runs, and tests each stage that has a band. */
+export const groupVerdictOf = (prediction: Prediction, counted: readonly Measured[]): GroupVerdict => {
+  const noise = valueIn(NOISE, "s");
+  const stamps = prediction.group?.stamps === undefined ? 0 : valueIn(prediction.group.stamps, "s");
+  const stages = (prediction.group?.stages ?? []).map((band): StageVerdict => {
+    const interval = { low: s(valueIn(band.low, "s") - noise), high: s(valueIn(band.high, "s") + stamps + noise) };
+    const outside: Array<{ run: string; why: string }> = [];
+    const values: number[] = [];
+    for (const run of counted) {
+      const at = run.group?.stages[band.stage];
+      if (at === undefined) {
+        outside.push({ run: name(run), why: `no Sentinel announced ${band.stage}` });
+        continue;
+      }
+      const value = valueIn(at, "s");
+      values.push(value);
+      if (value < valueIn(interval.low, "s") || value > valueIn(interval.high, "s"))
+        outside.push({ run: name(run), why: `${band.stage} at ${value} s is outside [${interval.low.value}, ${interval.high.value}] s` });
+    }
+    values.sort((a, b) => a - b);
+    return {
+      stage: band.stage,
+      band: interval,
+      median: values.length === 0 ? null : s(middle(values)),
+      outside,
+      decision: outside.length === 0 && values.length > 0 ? "holds" : "fails",
+    };
+  });
+  const medians: Partial<Record<Stage, Quantity>> = {};
+  const seen = new Set(counted.flatMap((run) => Object.keys(run.group?.stages ?? {}) as Stage[]));
+  for (const stage of seen) {
+    const values = counted.flatMap((run) => {
+      const at = run.group?.stages[stage];
+      return at === undefined ? [] : [valueIn(at, "s")];
+    });
+    medians[stage] = s(middle(values.sort((a, b) => a - b)));
+  }
+  const lostCounts = counted.flatMap((run) => (run.group?.writes.lost === null || run.group === undefined ? [] : [run.group.writes.lost.length]));
+  const oldCounts = counted.flatMap((run) => (run.group === undefined ? [] : [run.group.writes.old]));
+  const unknown = counted.flatMap((run) => run.group?.writes.unknown ?? []);
+  const errors = new Map<string, number[]>();
+  for (const run of counted)
+    for (const error of run.group?.errors ?? []) errors.set(error.name, [...(errors.get(error.name) ?? []), valueIn(error.first, "s")]);
+  const lags = counted.flatMap((run) => run.group?.lags ?? []);
+  return {
+    stages,
+    medians,
+    lost: {
+      runs: lostCounts.length,
+      total: lostCounts.reduce((sum, n) => sum + n, 0),
+      median: medianCount(lostCounts),
+      max: lostCounts.length === 0 ? null : Math.max(...lostCounts),
+    },
+    old: { median: medianCount(oldCounts), max: oldCounts.length === 0 ? null : Math.max(...oldCounts) },
+    unknown: { total: unknown.length, held: unknown.filter((each) => each.held === true).length },
+    errors: [...errors].map(([error, firsts]) => ({ name: error, runs: firsts.length, first: s(middle(firsts.sort((a, b) => a - b))) })),
+    ...(lags.length === 0 ? {} : { lags: spreadOf(lags) }),
+  };
+};
+
+/** This function gives the verdict of the band of a cell: its containment and the equivalence of its median. */
+const verdictOfBand = (prediction: Prediction, runs: readonly Measured[]): Verdict => {
   const counted = runs.filter((run) => run.void === null);
   const voided = runs.length - counted.length;
   const outside = counted

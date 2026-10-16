@@ -100,6 +100,31 @@ describe("a run in a topology, measured from the records of each namespace", () 
     );
   });
 
+  it("holds a silent cell whose router must forget the flow in its band, and nothing notices", () => {
+    // a reset-next router at 5 s, a client idle with no keepalive: the forget is the whole outcome
+    const forgets: Cell = {
+      ...ROUTER,
+      probe: { mode: "idle", keepalive: false },
+      prediction: { detects: false, window: s(15), middlebox: { forgets: { low: s(5), high: s(5.2) } } },
+    };
+    const kernel = [k("rx", T - 50_000)];
+    const inBand = measure(forgets, run({ kernel, middlebox: [destroy] }));
+    expect(inBand).toMatchObject({ outcome: { kind: "silent" }, forgot: s(5.04975), finding: null, void: null });
+    // the forget is missing, or it comes outside its band
+    expect(measure(forgets, run({ kernel })).finding).toBe(
+      "no router forgot the flow in the window, where it should forget it",
+    );
+    const late: MiddleboxEvent = { ...destroy, t: T + 6_000_000_000 };
+    expect(measure(forgets, run({ kernel, middlebox: [late] })).finding).toBe(
+      "a router forgot the flow 6.00005 s after the last segment, outside [4.996, 5.204] s",
+    );
+    // the verdict: each run silent with its forget in the band holds, and a missing forget fails
+    const held = Array.from({ length: 11 }, (_, index) => ({ ...inBand, index }));
+    expect(verdictOf(forgets.prediction, held).decision).toBe("holds");
+    const missed = measure(forgets, run({ kernel, index: 3 }));
+    expect(verdictOf(forgets.prediction, [...held.slice(1), missed]).decision).toBe("fails");
+  });
+
   it("finds the socket of the target by the address of the last hop, and only the one that the run opened", () => {
     const server: Cell = { ...ROUTER, observer: "server" };
     const kernel = [

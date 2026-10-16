@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { Target } from "./cell.ts";
+import type { Cell, Group, Target } from "./cell.ts";
+import { groupOnce, openGroupLab } from "./group.ts";
 import { nodeClientImage, openLab } from "./lab.ts";
+import { measure } from "./observe.ts";
 
 /**
  * A lab on Docker, opt-in: `HARNESS_LAB=1`. It needs Docker and privileged containers. It starts a
  * client from an image that the caller gives, and an agent in the namespaces of the target. It
- * also puts a reset and netem at a router of a topology.
+ * also puts a reset and netem at a router of a topology, and it fails a group of Valkey over.
  */
 const RUN = process.env["HARNESS_LAB"] === "1";
 const REDIS: Target = {
@@ -13,8 +15,59 @@ const REDIS: Target = {
   port: 6379,
   ready: "Ready to accept connections",
 };
+const VALKEY = "valkey/valkey:9.1@sha256:418652cfb58ef879d4978c33553735d7147016032d5aefaa14c828e611eb9dfd";
+const GROUP: Group = {
+  name: "mymaster",
+  image: VALKEY,
+  programs: { server: "valkey-server", sentinel: "valkey-sentinel", cli: "valkey-cli" },
+  port: 6379,
+  sentinelPort: 26379,
+  members: ["m1", "m2", "m3"],
+  sentinels: ["s1", "s2", "s3"],
+  quorum: 2,
+  memberSettings: { "protected-mode": "no", save: '""', appendonly: "no" },
+  sentinelSettings: { "down-after-milliseconds": "30000", "failover-timeout": "180000", "parallel-syncs": "1" },
+  ready: { member: "Ready to accept connections", sentinel: "+monitor master" },
+};
 
 describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
+  it("fails a group of Valkey over with a planned failover, and the client writes to the new primary", async () => {
+    const cell: Cell = {
+      name: "lab group, event:planned SENTINEL FAILOVER",
+      target: { image: VALKEY, port: 6379, ready: "Ready to accept connections" },
+      sysctls: {},
+      probe: { mode: "stream", keepalive: false, interval: { value: 50, unit: "ms" } },
+      fault: "planned-failover",
+      group: GROUP,
+      prediction: {
+        detects: null,
+        window: { value: 30, unit: "s" },
+        why: "a lab test",
+        from: "fault",
+        group: { lands: "new", failover: true, stages: [] },
+      },
+      runs: 1,
+      environments: 1,
+    };
+    const lab = await openGroupLab(GROUP);
+    try {
+      expect(Object.keys(lab.members)).toEqual(["m1", "m2", "m3"]);
+      expect((await lab.manifest({})).group?.sentinels[0]?.settings).toMatchObject({ "down-after-milliseconds": "30000", quorum: "2" });
+      const run = await groupOnce(lab, cell, 0, 0);
+      expect(run.group?.primary).toBe("m1");
+      expect(run.group?.after).not.toBe("m1");
+      expect(run.group?.timeline.some((line) => line.event === "+switch-master")).toBe(true);
+      const read = measure(cell, run);
+      expect(read).toMatchObject({ outcome: { kind: "answered" }, void: null });
+      expect(read.group?.to).toBe(run.group?.after);
+      // the old primary accepted writes until a Sentinel converted it: the group lost them
+      expect(read.group?.stages["+convert-to-slave"]).toBeDefined();
+      expect(read.group?.writes.lost).not.toBeNull();
+    } finally {
+      await lab.close();
+    }
+  }, 600_000);
+
   it("runs a client image in the namespace of the client, and an agent in the namespaces of the target", async () => {
     const node = await nodeClientImage();
     const lab = await openLab(REDIS, { image: node, command: ["node", "/opt/harness/node/client-ioredis.mjs"] });
