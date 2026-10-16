@@ -2,15 +2,16 @@ import { describe, expect, it } from "vitest";
 import type { KindCell } from "@mark1russell7/kind";
 import { clientObjects, describeCell, lintCell, namespaceOf, pausedWindow, planOf, serverObjects, verdictsOf } from "@mark1russell7/kind";
 import { valueIn } from "@mark1russell7/quantity";
-import { PROPAGATION, s } from "./kind.ts";
+import { PROPAGATION, SYN_SENT, afterSync, s } from "./kind.ts";
 import { T07_CELLS } from "./t07.ts";
 import { T18_CELLS } from "./t18.ts";
 
 const ALL: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS];
 
-/** the propagation that a cell meets: the pause of kube-proxy on one node, or the calibration of its mode */
+/** the propagation that a cell meets: the pause of kube-proxy on one node, the wait after a sync in a rolling update, or the calibration of its mode */
 const propagationOf = (cell: KindCell) => {
   const e = PROPAGATION[cell.mode];
+  if (cell.template === "T07" && cell.trigger.kind === "rolling-update") return afterSync(cell.mode);
   if (cell.template !== "T07" || cell.trigger.kind !== "freeze-process") return e;
   const window = pausedWindow(cell.declaration, cell.pod.preStop, cell.trigger.lead!, cell.trigger.hold!, e);
   return { ...e, hi: s(valueIn(window.resume, "s") + valueIn(e.hi, "s")) };
@@ -45,6 +46,32 @@ describe("the kind catalogs", () => {
       const verdicts = verdictsOf(lintCell(describeCell(cell), cell, propagationOf(cell)));
       expect(verdicts["O04"] === "holds", cell.name).toBe(cell.prediction.kind === "none");
     }
+  });
+
+  it("gives the clients of T07 a timeout longer than the first SYN retransmission, at 1 s and 64 ms of the wheel", () => {
+    for (const cell of T07_CELLS) expect(valueIn(cell.workload.timeout, "s"), cell.name).toBeGreaterThan(1.064);
+    for (const cell of T18_CELLS) expect(cell.workload.timeout, cell.name).toEqual(s(1));
+  });
+
+  it("lets a stale SYN_SENT entry fail the paused node up to its life after the window, and before the intake from an earlier run", () => {
+    const life = valueIn(SYN_SENT, "s") + 2;
+    for (const mode of ["iptables", "ipvs", "nftables"] as const) {
+      const paused = T07_CELLS.find((cell) => cell.mode === mode && cell.name.endsWith("pauses 5 s on one node, the design's hold of 2 s"))!;
+      const prediction = paused.prediction;
+      if (prediction.kind !== "window" || prediction.end === null) throw new Error(`${paused.name}: no window`);
+      expect([prediction.nodes, prediction.certain, prediction.start.from, prediction.end.from]).toEqual(["paused", true, "intake", "resume"]);
+      expect(prediction.start.band.lo).toEqual(s(-life));
+      expect(prediction.end.band).toEqual({ lo: PROPAGATION[mode].lo, hi: s(valueIn(PROPAGATION[mode].hi, "s") + life) });
+      const held = T07_CELLS.find((cell) => cell.mode === mode && cell.name.endsWith("pauses 5 s on one node, a hold of 8 s"))!;
+      expect(held.prediction.kind).toBe("none");
+    }
+  });
+
+  it("waits minSyncPeriod after a sync before the rules drop the old pod of a rolling update", () => {
+    expect(afterSync("iptables")).toMatchObject({ lo: s(0), hi: s(1.105) });
+    const update = T07_CELLS.find((cell) => cell.trigger.kind === "rolling-update")!;
+    expect(update.prediction.kind).toBe("none");
+    expect(update.prediction.why).toMatch(/1\.105 s at the most, minSyncPeriod/);
   });
 
   it("fits the drain of each declaration in its grace: O10 and O16 hold", () => {

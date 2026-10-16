@@ -1,6 +1,6 @@
 import type { Declaration, KubeletProbe, PodSettings, Workload } from "@mark1russell7/kind";
 import type { KubeProxyMode, Propagation } from "@mark1russell7/kind";
-import { DOCUMENTED } from "@mark1russell7/kind";
+import { DOCUMENTED, scenario } from "@mark1russell7/kind";
 import type { Quantity } from "@mark1russell7/quantity";
 import { format, valueIn } from "@mark1russell7/quantity";
 import type { RedisKnobs } from "@mark1russell7/service/redis";
@@ -90,6 +90,27 @@ export const DESIGN_REDIS: Declaration = { ...DESIGN, redis: { gates: "readiness
 export const WORKLOAD: Workload = { every: ms(20), timeout: s(1) };
 
 /**
+ * This workload is the clients of T07: a request each 20 ms on a new connection, and a timeout of
+ * 2 s. A SYN or a SYN-ACK that the path loses comes again after `TCP_TIMEOUT_INIT`, 1 s
+ * (`include/net/tcp.h` at 6.17, line 155). The timer wheel fires that timer up to 64 ms late at HZ
+ * 1000 (`calc_wheel_index` in `kernel/time/timer.c`). With a timeout of 1 s, the client stops
+ * before the retransmission, and one lost segment fails a request. With 2 s, the retransmission
+ * answers it. Thus the cells see the endpoints, and not the losses of the path.
+ */
+export const T07_WORKLOAD: Workload = { every: ms(20), timeout: s(2) };
+
+/**
+ * This time is how long a node keeps the entry of a connection to a pod address with no answer:
+ * SYN_SENT, 2 min. Conntrack, the path of iptables and nftables, gives it in
+ * `net/netfilter/nf_conntrack_proto_tcp.c` at 6.17, line 62. A new SYN from the same port goes
+ * through that entry and its NAT (lines 576–593), and it does not renew the timer (lines
+ * 1309–1316). IPVS gives it in `net/netfilter/ipvs/ip_vs_proto_tcp.c`, line 368, and each packet
+ * renews it (`ip_vs_conn.c`, line 472). kube-proxy v1.37.0 removes the stale entries of UDP only
+ * (`pkg/proxy/conntrack/cleanup.go`, lines 68 and 127).
+ */
+export const SYN_SENT: Quantity = s(120);
+
+/**
  * This table is the propagation of the endpoints for each kube-proxy mode, after a deletion. The
  * cluster has one control plane and 2 workers, on a runner of GitHub. Each bound is from the CAL
  * cells of T07: 33 times for each mode, 3 nodes in 11 runs. The upper bound is the
@@ -107,3 +128,17 @@ export const UNCALIBRATED: Propagation = DOCUMENTED;
 
 /** This count is the workers of each kind cell: two, the fewest for a propagation across nodes and a drain to another node. */
 export const WORKERS = 2;
+
+/**
+ * This function gives the propagation of a change that comes immediately after a sync of kube-proxy. The
+ * runner of kube-proxy waits `minSyncPeriod` from the end of one sync to the start of the next
+ * (`pkg/proxy/runner/bounded_frequency_runner.go` at v1.37.0, lines 48–50 and 132–142). In a
+ * rolling update, the deletion of an old pod comes some milliseconds after the sync for a new ready
+ * pod. Thus the rules drop the old pod up to `minSyncPeriod` later, and then in the time of an idle
+ * sync. In CI, the rules dropped each old pod of 13 rolling updates 0.215 s to 1.077 s after its deletion.
+ */
+export const afterSync = (mode: KubeProxyMode): Propagation => {
+  const wait = scenario("lab", mode, WORKERS).kubeProxy.minSyncPeriod;
+  const idle = PROPAGATION[mode];
+  return { lo: idle.lo, hi: s(valueIn(wait, "s") + valueIn(idle.hi, "s")), from: `minSyncPeriod (${say(wait)}) after a sync, then ${idle.from}` };
+};
