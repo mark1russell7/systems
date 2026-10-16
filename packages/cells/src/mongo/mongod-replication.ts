@@ -16,6 +16,11 @@ const AT = "mongodb r9.0.4 src/mongo/db/repl";
  * DOWN. A secondary starts an election when it hears nothing from the primary for the election
  * timeout and a random offset. A primary steps down when it cannot see a majority for the election
  * timeout.
+ *
+ * A secondary keeps a silent primary as its sync source until its oplog fetcher gives up. That is
+ * two timeouts and a restart: 17 s to 18 s at the defaults. Its reporter keeps a
+ * replSetUpdatePosition in flight to that primary for 30 s. Until then, a new primary learns the
+ * position of that secondary only from the response to each heartbeat.
  */
 export const MONGOD_REPL: Machine = machineSchema.parse({
   format: "mark1russell7.machine/1",
@@ -43,6 +48,17 @@ export const MONGOD_REPL: Machine = machineSchema.parse({
     { ref: `${AT}/replication_coordinator_impl_step_up_step_down.cpp:64-329 replSetStepDown: the wait for a caught-up secondary, the step-down and the hand-off`, rung: "implemented" },
     { ref: `${AT}/repl_set_commands.cpp:545-561 stepDownSecs 60 and secondaryCatchUpPeriodSecs 10`, rung: "implemented" },
     { ref: `${AT}/replication_coordinator_impl.idl:18-26 enableElectionHandoff true, and replication_coordinator_impl.cpp:2830-2873 the hand-off: replSetStepUp with skipDryRun`, rung: "implemented" },
+    { ref: `${AT}/replication_coordinator_impl.cpp:1516 the reconfig of the term, :4598 and :4750 a new config starts each heartbeat again`, rung: "implemented" },
+    { ref: `${AT}/replication_coordinator_impl_heartbeat.cpp:367-376 a heartbeat response that moves a member's optime forward moves the commit point and wakes the writes that wait`, rung: "implemented" },
+    { ref: `${AT}/oplog_fetcher.cpp:119-133 the awaitData timeout min(electionTimeoutMillis / 2, 30 s), :317-324 the socket timeout adds oplogNetworkTimeoutBufferSeconds, :640-647 the exhaust read`, rung: "implemented" },
+    { ref: `${AT}/oplog_fetcher.cpp:395-441 an error makes a new cursor while restarts remain, :596-611 the new cursor sets the retried find timeout, :1073-1113 one restart after 5 ms`, rung: "implemented" },
+    { ref: `${AT}/repl_server_parameters.idl:121-126 oplogRetriedFindMaxSeconds 2, :234-244 oplogFetcherSteadyStateMaxFetcherRestarts 1, :344-351 oplogNetworkTimeoutBufferSeconds 5`, rung: "implemented" },
+    { ref: "mongodb r9.0.4 src/mongo/transport/asio/asio_session_impl.cpp:500-527 the timeout of a synchronous session is SO_RCVTIMEO, and src/mongo/client/dbclient_session.cpp:345-349 its connect uses the same timeout", rung: "implemented" },
+    { ref: `${AT}/bgsync.cpp:395-447 a member without a sync source waits for new heartbeat data or 1 s (:971-976), and topology_coordinator.cpp:1124-1136 it sends its heartbeats each 500 ms`, rung: "implemented" },
+    { ref: `${AT}/replication_coordinator_impl.cpp:4947-4972 a member that loses its sync source starts each heartbeat again at once`, rung: "implemented" },
+    { ref: `${AT}/sync_source_feedback.cpp:37-47 the keepalive of the reporter min(electionTimeoutMillis / 2, 30 s), :39-40 the network timeout 30 s, :99-117 and :134-236 a new reporter only after the old one ends`, rung: "implemented" },
+    { ref: `${AT}/reporter.cpp:113-117 a reporter ends when its command in flight ends, :119-169 a trigger, :195-228 each replSetUpdatePosition has the network timeout`, rung: "implemented" },
+    { ref: "linux v6.6 net/core/sock.c:427-460 SO_RCVTIMEO in jiffies, and kernel/time/timer.c:516-528 the wheel rounds a timer up to the granularity of its level", rung: "implemented" },
   ],
   states: {
     startup: { initial: true, pseudo: true },
@@ -76,6 +92,13 @@ export const MONGOD_REPL: Machine = machineSchema.parse({
     "app.step-up": { kind: "app", note: "replSetStepUp, as a hand-off sends it with skipDryRun" },
     "timer.catchup-takeover": { kind: "timer" },
     "timer.step-down-hold": { kind: "timer" },
+    "rx.oplog-batch": { kind: "rx", note: "a batch of the exhaust stream of the sync source" },
+    "timer.oplog-read": { kind: "timer", note: "log 21275: Recreating cursor for oplog fetcher due to error (NetworkTimeout)" },
+    "local.oplog-restart": { kind: "local", note: "the fetcher makes a new cursor on the same sync source" },
+    "timer.oplog-refind": { kind: "timer", note: "log 21080: Clearing sync source to choose a new one" },
+    "tx.update-position": { kind: "tx", note: "a replSetUpdatePosition to the sync source" },
+    "rx.update-position": { kind: "rx", note: "the reply to a replSetUpdatePosition" },
+    "timer.update-position": { kind: "timer", note: "log 21760: SyncSourceFeedback error sending update" },
   },
   knobs: {
     heartbeatIntervalMillis: { key: "settings.heartbeatIntervalMillis", scope: "replica set", unit: "ms", default: 2000, note: "repl_set_config.idl:74-78" },
@@ -115,6 +138,32 @@ export const MONGOD_REPL: Machine = machineSchema.parse({
       note: "an assumption of this document, not a value of mongod: the durable vote, the reconfig of the term and the first oplog entry of a new primary are local writes",
     },
     rtt: { key: "the round trip between members", scope: "path", unit: "ms", default: null },
+    maximumAwaitDataTimeoutMS: { key: "maximumAwaitDataTimeoutMS", scope: "build", unit: "ms", default: 30000, note: "oplog_fetcher.cpp:119" },
+    oplogNetworkTimeoutBufferSeconds: { key: "oplogNetworkTimeoutBufferSeconds", scope: "process", unit: "s", default: 5, note: "repl_server_parameters.idl:344-351" },
+    oplogRetriedFindMaxSeconds: { key: "oplogRetriedFindMaxSeconds", scope: "process", unit: "s", default: 2, note: "repl_server_parameters.idl:121-126" },
+    oplogFetcherSteadyStateMaxFetcherRestarts: {
+      key: "oplogFetcherSteadyStateMaxFetcherRestarts",
+      scope: "process",
+      unit: "count",
+      default: 1,
+      note: "repl_server_parameters.idl:234-244: one new cursor after an error, then the fetcher stops",
+    },
+    oplog_read_timeout: {
+      key: "the receive timeout of the exhaust read of an oplog fetcher",
+      scope: "process",
+      unit: "ms",
+      default: 10000,
+      note: "the value of min(electionTimeoutMillis / 2, maximumAwaitDataTimeoutMS) + oplogNetworkTimeoutBufferSeconds × 1000 (oplog_fetcher.cpp:124-133, :317-324). The model gives it from the settings. The wheel reads it as a knob",
+    },
+    syncSourceFeedbackNetworkTimeoutSecs: { key: "syncSourceFeedbackNetworkTimeoutSecs", scope: "build", unit: "s", default: 30, note: "sync_source_feedback.cpp:39-40" },
+    maximumKeepAliveIntervalMS: { key: "maximumKeepAliveIntervalMS", scope: "build", unit: "ms", default: 30000, note: "sync_source_feedback.cpp:37" },
+    hz: {
+      key: "CONFIG_HZ",
+      scope: "global",
+      unit: "Hz",
+      default: null,
+      note: "the build option of the kernel: SO_RCVTIMEO of the fetcher's socket is a timer on its wheel",
+    },
   },
   timers: {
     heartbeat: {
@@ -192,6 +241,47 @@ export const MONGOD_REPL: Machine = machineSchema.parse({
       arms: ["app.step-down"],
       fires: "timer.step-down-hold",
       note: "the old primary cannot be elected in this time (step_up_step_down.cpp:313-315)",
+    },
+    oplog_read: {
+      // the exhaust stream reads with SO_RCVTIMEO: awaitData and the buffer (oplog_fetcher.cpp:640-647, asio_session_impl.cpp:500-527)
+      duration: { expr: "min(electionTimeoutMillis / 2, maximumAwaitDataTimeoutMS) + oplogNetworkTimeoutBufferSeconds * 1000", unit: "ms" },
+      early: { model: "linux.jiffy", knobs: ["hz"], unit: "s" },
+      lateness: { model: "linux.wheel", knobs: ["oplog_read_timeout", "hz"], unit: "s" },
+      arms: ["rx.oplog-batch"],
+      fires: "timer.oplog-read",
+      note: "a kernel timer in jiffies (sock.c:427-460), which the wheel rounds up at the level of its length: up to 512 ms late for 10 s at HZ 1000",
+    },
+    oplog_restart: {
+      duration: { const: 5, unit: "ms" },
+      lateness: { knob: "executor_slack", unit: "ms" },
+      arms: ["timer.oplog-read"],
+      fires: "local.oplog-restart",
+      note: "oplog_fetcher.cpp:1097-1112: the first restart sleeps 5 ms, and the fetcher has one restart",
+    },
+    oplog_refind: {
+      // the new cursor reads with the retried find timeout and the buffer, and the connect uses it too (oplog_fetcher.cpp:596-611, dbclient_session.cpp:345-349)
+      duration: { expr: "(oplogRetriedFindMaxSeconds + oplogNetworkTimeoutBufferSeconds) * 1000", unit: "ms" },
+      lateness: { model: "linux.wheel", knobs: ["oplog_read_timeout", "hz"], unit: "s" },
+      arms: ["local.oplog-restart"],
+      cancels: ["rx.oplog-batch"],
+      fires: "timer.oplog-refind",
+      note: "a cut source times out the connect, and a frozen source the read of the find, on the wheel. The wheel at the longer read timeout bounds both. Then the member clears its sync source",
+    },
+    feedback_keepalive: {
+      duration: { expr: "min(electionTimeoutMillis / 2, maximumKeepAliveIntervalMS)", unit: "ms" },
+      lateness: { knob: "executor_slack", unit: "ms" },
+      arms: ["rx.update-position"],
+      cancels: ["rx.oplog-batch"],
+      fires: "tx.update-position",
+      note: "sync_source_feedback.cpp:45-47: a reporter with no news sends its position again after this time",
+    },
+    feedback_update: {
+      duration: { knob: "syncSourceFeedbackNetworkTimeoutSecs", unit: "s" },
+      lateness: { knob: "executor_slack", unit: "ms" },
+      arms: ["tx.update-position"],
+      cancels: ["rx.update-position"],
+      fires: "timer.update-position",
+      note: "the network timeout of a replSetUpdatePosition (reporter.cpp:195-228). The reporter ends only when this command ends (reporter.cpp:113-117), and the feedback makes the reporter for a new sync source only then (sync_source_feedback.cpp:99-117)",
     },
   },
   realizes: {

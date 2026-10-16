@@ -16,8 +16,10 @@ import {
   linuxValues,
   lostOf,
   replTimes,
+  replValues,
   sessionKeepalive,
   sessionValues,
+  syncOf,
   timelineOf,
 } from "./model.ts";
 import { T01_MONGO, T01_MONGO_ALIASES, T01_MONGO_WAITING, wheelBoundary } from "./t01.ts";
@@ -83,6 +85,24 @@ describe("the machine documents of MongoDB", () => {
     expect(values("vote_request", MONGOD_REPL, known)).toEqual([10000, null, null]);
     expect(values("step_down_wait", MONGOD_REPL, known)).toEqual([10, null, 10]);
     expect(replTimes().catchup).toBe(Number.POSITIVE_INFINITY);
+    // the oplog fetcher's exhaust read and its new cursor are kernel timers on the wheel, at the level of 10 s
+    const set = given(replValues());
+    const wheel = (at250 ? 256 : 512) / 1000;
+    expect(values("oplog_read", MONGOD_REPL, set)).toEqual([10000, 1 / HZ, wheel]);
+    expect(values("oplog_restart", MONGOD_REPL, set)).toEqual([5, null, 10]);
+    expect(values("oplog_refind", MONGOD_REPL, set)).toEqual([7000, null, wheel]);
+    expect(values("feedback_keepalive", MONGOD_REPL, set)).toEqual([5000, null, 10]);
+    expect(values("feedback_update", MONGOD_REPL, set)).toEqual([30, null, 10]);
+    // a longer election timeout lengthens the read and the keepalive of the reporter
+    const slow = given(replValues({ electionTimeoutMillis: 40000 }));
+    expect(values("oplog_read", MONGOD_REPL, slow)[0]).toBe(25000);
+    expect(slow("oplog_read_timeout")).toEqual({ value: 25000, unit: "ms" });
+    expect(values("feedback_keepalive", MONGOD_REPL, slow)[0]).toBe(20000);
+  });
+
+  it("answers an awaitable hello after maxAwaitTimeMS", () => {
+    const known = given({ ...sessionValues(), maxAwaitTimeMS: { value: 10000, unit: "ms" } });
+    expect(values("hello_await", MONGOD_SESSION, known)).toEqual([10000, null, 20]);
   });
 });
 
@@ -109,7 +129,7 @@ describe("the composition of the driver over Linux TCP", () => {
     expect([interrupts("written-off"), interrupts("connect-timed-out"), interrupts("stream-ended")]).toEqual([true, true, false]);
   });
 
-  it("keeps the monitor when the server's replies still come, and ends it at once on a FIN", () => {
+  it("keeps the monitor while the server's replies come, and ends it at once on a FIN", () => {
     const replies = firstOn({ role: "monitor", inFlight: false, manifestation: { name: "unreachable", passes: ["rx.ack"] }, passes: ["rx.hello"] }, driver, linux);
     expect(replies.kind).toBe("silent");
     expect(firstOn({ role: "monitor", inFlight: false, manifestation: MANIFESTATIONS.fin }, driver, linux)).toEqual({ kind: "delivered", event: "rx.fin", name: "EOF" });
@@ -154,13 +174,39 @@ describe("the timeline of a replica set of three after a fault", () => {
     const t = timelineOf({ kind: "cut-from-group", w: "majority" }, {}, {}, 1);
     expect(round(t.steppedDown!.lo)).toBe(round(10 - 0.162));
     expect(t.first!.lo).toBeGreaterThanOrEqual(t.steppedDown!.lo);
-    expect(t.first!.hi).toBeLessThan(22);
+    // chained: the other secondary syncs from the new primary. Direct: it syncs from the old one, and
+    // the new primary learns its position at the response to a heartbeat
+    const [chained, direct] = t.firstModes;
+    expect(chained!.hi).toBeLessThan(22.1);
+    expect(direct!.lo).toBeGreaterThan(16.5);
+    expect(direct!.hi).toBeLessThan(27);
+    // with w 1, no write waits for the other secondary
+    expect(timelineOf({ kind: "cut-from-group", w: 1 }, {}, {}, 1).firstModes).toEqual([]);
   });
 
-  it("hands a step-down off in well under a second", () => {
+  it("hands a step-down off in under a second: the other secondary can wait one heartbeat of 500 ms", () => {
     const t = timelineOf({ kind: "step-down" }, {}, {}, 1);
-    expect(t.first!.hi).toBeLessThan(0.5);
+    const [chained, direct] = t.firstModes;
+    expect(chained!.hi).toBeLessThan(0.7);
+    expect(direct!.hi - chained!.hi).toBeGreaterThan(0.45);
+    expect(t.first!.hi).toBeLessThan(1.2);
     expect(t.down).toBeNull();
+  });
+
+  it("drops the old primary as a sync source after the fetcher's read and its new cursor time out, and holds the reporter for 30 s", () => {
+    const e = electionOf(repl, driver, 0.001);
+    const sync = syncOf(repl, driver, 0.001, e.writable);
+    // the last batch at most one write cycle before the fault, 10 s on the wheel, 5 ms, then 7 s
+    const wheel = at250 ? 0.256 : 0.512;
+    expect(round(repl.oplogRead.hi)).toBe(round(10 + wheel));
+    expect(round(repl.refind.lo)).toBe(7.005);
+    // the new primary can write before or after the drop: then the member takes it at a heartbeat of 500 ms
+    expect(round(sync.takes.lo)).toBe(round(-0.162 + 10 - 1 / HZ + 7.005));
+    expect(round(sync.takes.hi)).toBe(round(e.writable.hi + 0.5 + 0.001 + 0.01));
+    expect(round(sync.released.lo)).toBe(round(30 - 0.162));
+    expect(round(sync.released.hi)).toBe(35.02);
+    // an old primary that is back answers the command at once
+    expect(round(syncOf(repl, driver, 0.001, e.writable, 13).released.hi)).toBe(13.011);
   });
 
   it("fails the retry when the election comes after its selection timeout", () => {
@@ -233,6 +279,25 @@ describe("the MongoDB catalogs", () => {
     expect(short.bands[1]!.low.value).toBeGreaterThan(long.bands[1]!.high.value + 30);
     // the level of the timer wheel above 120 s, at the HZ of the kernel
     expect(wheelBoundary()).toBe(at250 ? 129.024 : 258.048);
+  });
+
+  it("writes the server off one reply after an ICMP unreachable: the stream stops behind the reply that has no ACK", () => {
+    for (const plan of ["T01.defaults.42", "T03.defaults.3"]) {
+      const p = [...T01_MONGO, ...T03_MONGO].find((each) => each.spec.plan === plan)!.prediction;
+      expect(p.quiet, plan).toEqual([]);
+      const [pool, monitor] = p.bands;
+      expect(pool, plan).toMatchObject({ name: "ETIMEDOUT", from: { socket: "pool", event: "last-received" } });
+      // one reply 10 s after the request, then the write-off 40 s after that reply
+      expect(monitor, plan).toMatchObject({ name: "MongoNetworkTimeoutError", from: { socket: "monitor", event: "last-received" }, low: { value: 49.999 } });
+      expect(monitor!.high.value, plan).toBeLessThan(50.04);
+    }
+  });
+
+  it("counts a forgotten flow from the client's delayed ACK of the last reply", () => {
+    const both = T03_MONGO.find((each) => each.spec.plan === "T03.border-off.8")!.prediction;
+    expect(both.bands[0]).toMatchObject({ name: "ECONNRESET", low: { value: 12 } });
+    // 12 s, the listing of the router, and an ACK at most 40 ms and a jiffy late
+    expect(both.bands[0]!.high.value).toBeCloseTo(12.09 + 0.04 + 1 / HZ, 6);
   });
 
   it("gives the group cells of T11 their stages, and no failover to a cut that keeps the majority", () => {

@@ -1,7 +1,7 @@
 import { realizationOf } from "@mark1russell7/algebra";
 import { transitionOn } from "@mark1russell7/algebra";
 import { valueIn } from "@mark1russell7/quantity";
-import { LINUX, RTT_MS, given, s, seconds } from "../catalog.ts";
+import { HZ, LINUX, RTT_MS, given, s, seconds } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
 import { CONNTRACK, LISTING, ROUTER_PUMP, o03 } from "../topologies.ts";
 import type { Alias, MongoCell, MongoPrediction, MongoRouter, MongoSpec, Waiting } from "./cells.ts";
@@ -145,6 +145,13 @@ export const T03_MONGO_SPECS: readonly MongoSpec[] = [
 ];
 
 /**
+ * This function gives the delay of the client's ACK of the last reply, in seconds. Linux delays an
+ * ACK by at most max(TCP_DELACK_MIN, srtt): 40 ms, as HZ/25 at each HZ (v6.6 net/ipv4/tcp_output.c:4004-4038,
+ * include/net/tcp.h:135-136). The timer counts from the jiffy, thus one jiffy more.
+ */
+export const delayedAck = (rtt: number): Span => span(0, Math.max(0.04, rtt) + 1 / HZ);
+
+/**
  * This function gives the prediction of a forgotten flow, at a round trip in ms. O03 decides it for
  * each flow of the driver against the router's idle timeout. The pool connection refreshes its flow
  * by its keepalive. The monitor refreshes its flow by its heartbeat or its keepalive, the first of
@@ -165,7 +172,8 @@ const predictForget = (spec: MongoSpec, rttMs: number): MongoPrediction => {
   const refresh = Math.min(heartbeat + rtt, pool.refresh === "inf" ? Number.POSITIVE_INFINITY : pool.refresh);
   if (!(refresh < pool.forget - pool.margin)) throw new Error(`${spec.name}: the router can forget the monitor's flow`);
   if (pool.holds) return { detects: false, bands: [], window, quiet: [WRITE_OFF, SOCKET_END, OP_ERROR, "the router forgets a flow"] };
-  const forget = spanOf(CONNTRACK, "expire_established", conntrack);
+  // the client's delayed ACK of the last reply is the last segment of the flow: the idle time counts from it
+  const forget = plus(delayedAck(rtt), spanOf(CONNTRACK, "expire_established", conntrack));
   const reset = transitionOn(LINUX, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET";
   if (router.form === "reset-both")
     return { detects: true, bands: [bandOf("the router forgets the flow and resets both ends", reset, POOL_RX, forget)], window, quiet: [WRITE_OFF] };
