@@ -32,6 +32,8 @@ export interface ProgramEvent {
   readonly at: number;
   /** This flag tells that the kernel stamped the event. */
   readonly kernel: boolean;
+  /** This name is the kind of the record of the kernel: a write, or a change of state. It is null without a record. */
+  readonly record: "write" | "state" | null;
 }
 
 /** This function gives the lines of the program of the observer: the client, or the target for the server. A proxy has no lines. */
@@ -45,11 +47,12 @@ export const programLines = (cell: Cell, run: Run): readonly ProbeEvent[] => {
 /**
  * This function tells if a line of the program is about the connection of the run. The client
  * names it by its local address, and a server by its peer. A line with neither is about the one
- * connection of its program.
+ * connection of its program. A line whose address is null is about a socket that did not open:
+ * a try that failed.
  */
 const onConnection = (line: ProbeEvent, local: unknown): boolean => {
-  const own = line["local"] ?? line["peer"];
-  return own === undefined || own === local;
+  if (!("local" in line) && !("peer" in line)) return true;
+  return (line["local"] ?? line["peer"]) === local;
 };
 
 /** This function gives the first record of a socket that matches, at the stamp of a line or in δ_abs after it. */
@@ -57,14 +60,45 @@ const kernelAt = (
   socket: readonly KernelRecord[],
   line: ProbeEvent,
   matches: (record: KernelRecord) => boolean,
-): number | undefined => {
+): KernelRecord | undefined => {
   const noise = valueIn(NOISE, "s") * 1e9;
-  return socket.find((record) => record.mono >= line.t && record.mono <= line.t + noise && matches(record))?.mono;
+  return socket.find((record) => record.mono >= line.t && record.mono <= line.t + noise && matches(record));
 };
 
 const eventOf = (socket: readonly KernelRecord[], line: ProbeEvent, matches: (record: KernelRecord) => boolean): ProgramEvent => {
-  const at = kernelAt(socket, line, matches);
-  return { line, at: at ?? line.t, kernel: at !== undefined };
+  const record = kernelAt(socket, line, matches);
+  return {
+    line,
+    at: record?.mono ?? line.t,
+    kernel: record !== undefined,
+    record: record === undefined ? null : record.ev === "tx" ? "write" : "state",
+  };
+};
+
+/**
+ * This function gives the time from a line of the program to the next change of the socket out
+ * of ESTABLISHED. That change is a close or an abort. It is null when the socket stayed
+ * ESTABLISHED to the end of the records.
+ */
+export const leftAfter = (socket: readonly KernelRecord[], line: ProbeEvent): Quantity | null => {
+  const left = socket.find((record) => record.ev === "state" && oldState(record) === 1 && record.mono >= line.t);
+  return left === undefined ? null : between(line.t, left.mono);
+};
+
+/**
+ * This function tells how a drop differs from the way that its prediction gives, or gives null.
+ * A close takes the socket out of ESTABLISHED in δ_abs. A close frame is a write, and the socket
+ * stays ESTABLISHED after it.
+ */
+export const dropFinding = (expected: "frame" | "close", drop: ProgramEvent, left: Quantity | null): string | null => {
+  const noise = valueIn(NOISE, "s");
+  const soon = left !== null && valueIn(left, "s") <= noise;
+  if (expected === "close") {
+    if (left === null) return "its socket stayed ESTABLISHED after the drop, where a close takes it out at once";
+    return soon ? null : `its socket left ESTABLISHED ${left.value} s after the drop, not at once`;
+  }
+  if (drop.record !== "write") return "the drop wrote no close frame on its socket";
+  return soon ? "its socket left ESTABLISHED at the drop, where a close frame leaves it open" : null;
 };
 
 const isWrite = (record: KernelRecord): boolean => record.ev === "tx";
@@ -113,9 +147,13 @@ export interface ReconnectReading {
   readonly connects: readonly Quantity[];
 }
 
-/** This function reads the reconnect of the client after the detection at `detected`. The socket of the run has the cookie `cookie`. */
-export const reconnectOf = (run: Run, detected: number, cookie: number | undefined): ReconnectReading => {
-  const after = run.events.filter((line) => line.t > detected);
+/**
+ * This function reads the reconnect of the client after the detection at `detected`. The socket of
+ * the run has the cookie `cookie`. The lines of the program count from `from`: the drop line of a
+ * drop, which comes before the kernel's stamp of it.
+ */
+export const reconnectOf = (run: Run, detected: number, cookie: number | undefined, from: number = detected): ReconnectReading => {
+  const after = run.events.filter((line) => line.t > from);
   const starts = after.filter((line) => line.ev === "reconnecting");
   const dials = after.filter((line) => line.ev === "dial");
   const waits = starts.flatMap((start, at) => {

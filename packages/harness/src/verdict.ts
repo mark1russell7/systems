@@ -74,6 +74,11 @@ export interface Verdict {
   readonly reconnect?: ReconnectVerdict;
   /** These are the outcomes of the call in flight of a WebSocket client over the counted runs, each with its count. */
   readonly calls?: Readonly<Record<string, number>>;
+  /**
+   * This record is the time from a drop of the program to the change of its socket out of
+   * ESTABLISHED, over the counted runs. It also counts the runs where the socket stayed ESTABLISHED.
+   */
+  readonly left?: { readonly spread: Spread | null; readonly stayed: number };
   readonly why: string;
 }
 
@@ -241,7 +246,8 @@ export const verdictOf = (prediction: Prediction, runs: readonly Measured[]): Ve
 const withProgram = (verdict: Verdict, counted: readonly Measured[]): Verdict => {
   const reconnects = counted.flatMap((run) => (run.reconnect === undefined ? [] : [run.reconnect]));
   const calls = counted.flatMap((run) => (run.call === undefined ? [] : [run.call]));
-  if (reconnects.length === 0 && calls.length === 0) return verdict;
+  const lefts = counted.flatMap((run) => (run.left === undefined ? [] : [run.left]));
+  if (reconnects.length === 0 && calls.length === 0 && lefts.length === 0) return verdict;
   const ms = (spread: Spread | null) => (spread === null ? "none" : `${Math.round(valueIn(spread.median, "s") * 1e6) / 1e3} ms`);
   const tries = Math.max(0, ...reconnects.map((each) => each.waits.length));
   const reconnect: ReconnectVerdict | undefined =
@@ -257,7 +263,14 @@ const withProgram = (verdict: Verdict, counted: readonly Measured[]): Verdict =>
         };
   const outcomes: Record<string, number> = {};
   for (const call of calls) outcomes[call.outcome] = (outcomes[call.outcome] ?? 0) + 1;
+  const gone = lefts.flatMap((each) => (each === null ? [] : [each]));
+  const left = lefts.length === 0 ? undefined : { spread: spreadOf(gone), stayed: lefts.length - gone.length };
   const said = [
+    ...(left === undefined
+      ? []
+      : [
+          `After the drop, the socket left ESTABLISHED in ${gone.length} runs, median ${ms(left.spread)} after its drop line${left.stayed === 0 ? "" : `, and it stayed ESTABLISHED in ${left.stayed}`}.`,
+        ]),
     ...(reconnect === undefined
       ? []
       : [
@@ -271,6 +284,7 @@ const withProgram = (verdict: Verdict, counted: readonly Measured[]): Verdict =>
     ...verdict,
     ...(reconnect === undefined ? {} : { reconnect }),
     ...(calls.length === 0 ? {} : { calls: outcomes }),
+    ...(left === undefined ? {} : { left }),
     why: `${verdict.why.endsWith(".") ? verdict.why : `${verdict.why}.`} ${said.join(" ")}`,
   };
 };

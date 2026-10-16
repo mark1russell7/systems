@@ -1,7 +1,7 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 import type { CallReading, ReconnectReading } from "./application.ts";
-import { callOf, dropOf, firstUnanswered, pingsOf, programLines, reconnectFinding, reconnectOf } from "./application.ts";
+import { callOf, dropFinding, dropOf, firstUnanswered, leftAfter, pingsOf, programLines, reconnectFinding, reconnectOf } from "./application.ts";
 import type { Cell, KernelRecord, ProbeEvent, Reference, Run } from "./cell.ts";
 import type { DriverStepTime } from "./driver.ts";
 import { measureDriver } from "./driver.ts";
@@ -91,6 +91,12 @@ export interface Measured {
   readonly reconnect?: ReconnectReading;
   /** This record is what the call in flight of a WebSocket client met. */
   readonly call?: CallReading;
+  /**
+   * This time is from the drop line of the program to the change of its socket out of ESTABLISHED.
+   * A prediction that says how the program drops (`drop`) gets it. It is null when the socket
+   * stayed ESTABLISHED to the end of the run.
+   */
+  readonly left?: Quantity | null;
   /** This text is the reason that the run cannot count, or null. A void run is not a pass and not a finding. */
   readonly void: string | null;
   /** This text tells what in the run disagrees with the prediction, other than its timing, or null. */
@@ -830,9 +836,12 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
           ? "a drop by its own program"
           : "end of file";
   // the reconnect of the client after the detection, against the bands of its waits
-  const reconnect = prediction.reconnects === undefined ? undefined : reconnectOf(run, ended, cookie);
+  const reconnect = prediction.reconnects === undefined ? undefined : reconnectOf(run, ended, cookie, drop?.line.t ?? ended);
   const late = reconnect === undefined || prediction.reconnects === undefined ? null : reconnectFinding(prediction.reconnects, reconnect);
-  const found = [matches ? null : `it ended with ${words}, not ${prediction.errno}`, late].filter((each) => each !== null);
+  // a drop of the program against the way that the prediction gives: a close frame or a close
+  const left = prediction.drop === undefined || drop === undefined ? undefined : leftAfter(socket, drop.line);
+  const how = prediction.drop === undefined || drop === undefined || left === undefined ? null : dropFinding(prediction.drop, drop, left);
+  const found = [matches ? null : `it ended with ${words}, not ${prediction.errno}`, late, how].filter((each) => each !== null);
   const finding = found.length === 0 ? null : found.join(". ");
   // the timer of an HTTP client or server is a timer of the program, not of the kernel: the kernel
   // timers of its socket do not drive the measurement
@@ -888,6 +897,7 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     noticed,
     steps,
     ...(reconnect === undefined ? {} : { reconnect }),
+    ...(left === undefined ? {} : { left }),
     ...(cell.probe.ws !== undefined && inflight ? { call: callOf(events, request, ended) } : {}),
     void: voided,
     finding,

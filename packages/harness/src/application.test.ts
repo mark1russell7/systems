@@ -22,8 +22,9 @@ const HEARTBEAT: Cell = {
     mode: "idle",
     keepalive: false,
     ws: {
-      heartbeat: { interval: ms(2000), timeout: ms(1000) },
-      reconnect: { initialDelay: ms(500), multiplier: 2, maxDelay: ms(4000), attempts: 10 },
+      socket: "global",
+      heartbeat: { interval: ms(2000), timeout: ms(1000), misses: 1 },
+      reconnect: { initialDelay: ms(500), multiplier: 2, maxDelay: ms(4000), attempts: 10, jitter: 0 },
       requestTimeout: ms(60_000),
       connectionTimeout: ms(10_000),
     },
@@ -163,6 +164,31 @@ describe("a detection by the program of the observer, from its lines and the ker
     expect(reconnectFinding({ waits: [{ low: s(0.5), high: s(0.5) }, { low: s(1), high: s(1) }] }, { waits: [s(0.5)], syn: null, established: null, connects: [] })).toBe(
       "the client made no try 2 after the detection",
     );
+  });
+
+  it("tells a close frame that leaves the socket ESTABLISHED from a close that takes it out at once", () => {
+    const frame: Cell = { ...HEARTBEAT, prediction: { ...HEARTBEAT.prediction, drop: "frame" } as Cell["prediction"] };
+    const close: Cell = { ...HEARTBEAT, prediction: { ...HEARTBEAT.prediction, drop: "close" } as Cell["prediction"] };
+    // the global WebSocket: a close frame, and the socket stays ESTABLISHED to the end of the run
+    expect(measure(frame, run(client, kernel))).toMatchObject({ outcome: { kind: "dropped" }, left: null, finding: null });
+    expect(measure(close, run(client, kernel)).finding).toBe(
+      "its socket stayed ESTABLISHED after the drop, where a close takes it out at once",
+    );
+    // the WebSocket of ws: terminate() destroys the socket, a FIN 0.3 ms after the drop line, and no write
+    const terminated = [...kernel.filter((record) => record.mono !== D + 30_000), state(D + 300_000, 1, 4)];
+    const read = measure(close, run(client, terminated));
+    expect(read).toMatchObject({ outcome: { kind: "dropped" }, elapsed: s(1.001775), left: s(0.0003), finding: null });
+    expect(measure(frame, run(client, terminated)).finding).toBe("the drop wrote no close frame on its socket");
+    expect(verdictOf(close.prediction, [read]).why).toContain("After the drop, the socket left ESTABLISHED in 1 runs, median 0.3 ms after its drop line.");
+    // a socket that left ESTABLISHED later than the noise did not leave at once
+    const late = [...kernel.filter((record) => record.mono !== D + 30_000), state(D + 520_000_000, 1, 4)];
+    expect(measure(close, run(client, late)).finding).toBe("its socket left ESTABLISHED 0.52 s after the drop, not at once");
+  });
+
+  it("does not take the drop of a try that never opened for the drop of the connection of the run", () => {
+    // a failed try: its socket has no local address, and its drop line says null
+    const failed = [...client.filter((line) => line.ev !== "drop"), { ev: "drop", t: D, conn: 2, local: null }];
+    expect(measure(HEARTBEAT, run(failed, kernel)).outcome).toEqual({ kind: "silent" });
   });
 
   it("voids a heartbeat whose ping's retransmit timer ran behind its wheel slot: the VM stopped", () => {

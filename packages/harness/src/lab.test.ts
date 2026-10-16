@@ -238,34 +238,41 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
       harness: "procedures",
       port: 8080,
       ready: '"ev":"listening"',
-      command: ["node", "/opt/harness/procedures/server-ws.mjs", "--port", "8080", "--tcp-keepalive", "off"],
+      command: ["node", "/opt/harness/procedures/server-ws.mjs", "--port", "8080", "--tcp-keepalive", "off", "--heartbeat", "off"],
       lines: true,
     };
     const lab = await openLab(target, "procedures-ws");
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     try {
-      const settings = ["--heartbeat", "on", "--heartbeat-interval-ms", "300", "--heartbeat-timeout-ms", "200"];
-      const reconnect = ["--reconnect", "on", "--reconnect-initial-ms", "200", "--reconnect-multiplier", "2", "--reconnect-max-ms", "1000", "--reconnect-attempts", "5"];
+      const settings = ["--heartbeat", "on", "--heartbeat-interval-ms", "300", "--heartbeat-timeout-ms", "200", "--heartbeat-misses", "1"];
+      const reconnect = ["--reconnect", "on", "--reconnect-initial-ms", "200", "--reconnect-multiplier", "2", "--reconnect-max-ms", "1000", "--reconnect-attempts", "5", "--reconnect-jitter", "0"];
       const calls = ["--request-timeout-ms", "5000", "--connection-timeout-ms", "5000", "--max-s", "30"];
-      const probe = await lab.probe([lab.targetIp, String(lab.targetPort), "--mode", "idle", ...settings, ...reconnect, ...calls]);
-      await probe.until(["ready"], 30_000);
-      // a ping with its pong first, then a black hole: the heartbeat drops the connection after its next ping
-      await probe.until(["ping"], 5_000);
-      await sleep(100);
-      await lab.fault("blackhole");
-      const drop = await probe.until(["drop"], 5_000);
-      await lab.lift("blackhole");
-      for (let look = 0; look < 100 && probe.events.filter((event) => event.ev === "connected").length < 2; look += 1) await sleep(50);
-      await probe.stop();
-      const local = probe.events.find((event) => event.ev === "connected")?.["local"];
-      expect(drop).toMatchObject({ conn: 1, local });
-      expect(probe.events.filter((event) => event.ev === "connected").length).toBeGreaterThanOrEqual(2);
-      expect(probe.events.some((event) => event.ev === "reconnecting" && event["attempt"] === 1)).toBe(true);
-      // the kernel stamped the writes of the pings and of the close frame on the first socket
-      const writes = lab.kernel.filter((record) => record.ev === "tx" && record.netns === lab.netns.client && record.src === local);
-      expect(writes.some((record) => record.mono >= drop.t && record.mono - drop.t < 4e6)).toBe(true);
+      // the global WebSocket of Node drops with a close frame, and the WebSocket of ws with terminate()
+      for (const socket of ["global", "ws"] as const) {
+        await lab.forget();
+        const probe = await lab.probe([lab.targetIp, String(lab.targetPort), "--mode", "idle", "--websocket", socket, ...settings, ...reconnect, ...calls]);
+        await probe.until(["ready"], 30_000);
+        // a ping with its pong first, then a black hole: the heartbeat drops the connection after its next ping
+        await probe.until(["ping"], 5_000);
+        await sleep(100);
+        await lab.fault("blackhole");
+        const drop = await probe.until(["drop"], 5_000);
+        await lab.lift("blackhole");
+        for (let look = 0; look < 100 && probe.events.filter((event) => event.ev === "connected").length < 2; look += 1) await sleep(50);
+        await probe.stop();
+        const local = probe.events.find((event) => event.ev === "connected")?.["local"];
+        expect(drop, socket).toMatchObject({ conn: 1, local, how: socket === "ws" ? "terminate" : "close" });
+        expect(probe.events.filter((event) => event.ev === "connected").length, socket).toBeGreaterThanOrEqual(2);
+        expect(probe.events.some((event) => event.ev === "reconnecting" && event["attempt"] === 1), socket).toBe(true);
+        // the kernel stamped the close frame on the first socket, or its change out of ESTABLISHED
+        const first = lab.kernel.filter((record) => record.netns === lab.netns.client && record.src === local);
+        const soon = (record: (typeof first)[number]) => record.mono >= drop.t && record.mono - drop.t < 4e6;
+        const left = first.some((record) => soon(record) && record.ev === "state" && (record as { readonly old?: number }).old === 1);
+        const wrote = first.some((record) => soon(record) && record.ev === "tx");
+        expect({ left, wrote }, socket).toEqual(socket === "ws" ? { left: true, wrote: false } : { left: false, wrote: true });
+      }
       // the server wrote its own lines, and the manifest names the image of the harness
-      expect(lab.server.filter((line) => line.ev === "accepted").length).toBeGreaterThanOrEqual(2);
+      expect(lab.server.filter((line) => line.ev === "accepted").length).toBeGreaterThanOrEqual(4);
       const manifest = await lab.manifest({});
       expect(manifest.target).toMatchObject({ harness: "procedures", first: { ev: "listening", heartbeat: null } });
       expect(manifest.client.kind).toBe("procedures-ws");

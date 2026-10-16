@@ -510,6 +510,12 @@ export type Prediction =
       readonly request?: RequestPrediction;
       readonly driver?: DriverBand;
       readonly reconnects?: Reconnects;
+      /**
+       * This name tells how the program drops the connection, for the errno DROPPED. A close frame
+       * leaves its socket ESTABLISHED below (`frame`). A close of its socket takes it out of
+       * ESTABLISHED at once (`close`).
+       */
+      readonly drop?: "frame" | "close";
     }
   | {
       readonly detects: false;
@@ -598,17 +604,27 @@ export type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici" | "
  * nothing from a default.
  */
 export interface WsProbe {
-  /** These are the times of the heartbeat: a ping each interval, and the wait for its pong. Null turns the heartbeat off. */
-  readonly heartbeat: { readonly interval: Quantity; readonly timeout: Quantity } | null;
+  /**
+   * This name is the class of the sockets of the client: the global `WebSocket` of Node (`global`),
+   * or the `WebSocket` of the `ws` package (`ws`, the option `webSocket`).
+   */
+  readonly socket: "global" | "ws";
+  /**
+   * These are the settings of the heartbeat: a ping each interval, the wait for its pong, and the
+   * misses in sequence that drop the connection. Null turns the heartbeat off.
+   */
+  readonly heartbeat: { readonly interval: Quantity; readonly timeout: Quantity; readonly misses: number } | null;
   /**
    * These are the settings of the reconnect: the first delay, the multiplier of each next delay,
-   * the longest delay, and the most tries. Null turns the reconnect off.
+   * the longest delay and the most tries. `jitter` is the random part of each delay, from 0 to 1.
+   * Null turns the reconnect off.
    */
   readonly reconnect: {
     readonly initialDelay: Quantity;
     readonly multiplier: number;
     readonly maxDelay: Quantity;
     readonly attempts: number;
+    readonly jitter: number;
   } | null;
   /** This time is how long a call waits for its first frame. */
   readonly requestTimeout: Quantity;

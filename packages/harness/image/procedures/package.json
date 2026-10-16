@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@procedures/client": "0.2.3"
+    "@procedures/client": "0.3.0",
+    "ws": "8.22.0"
   }
 }

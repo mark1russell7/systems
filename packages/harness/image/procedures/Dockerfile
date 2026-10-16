@@ -1,4 +1,4 @@
-# The procedures image of the harness: @procedures/client 0.2.3 on Node 24.21.0. Its WebSocket
+# The procedures image of the harness: @procedures/client 0.3.0 and ws 8.22.0 on Node 24.21.0. Its WebSocket
 # client runs as a container in the client's network namespace, as the harness's own TCP client
 # does, and prints the same JSON lines (client-ws.mjs). A target runs the same image with the
 # script of the procedures server (server-ws.mjs), thus the client and the server share one

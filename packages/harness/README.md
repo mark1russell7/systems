@@ -106,10 +106,11 @@ A fault names a member by its role at the start of a run: `primary`, or `replica
   - or by itself, a gap after its first reply (`gap`), for the keep-alive race.
 - **The lines of an HTTP client.** It writes the lines of the TCP client, with the number `i` of the request on each line of a request. It also writes the connection of each try of a request (`request`, then `retry`), with its local address and a flag for a reused connection. Each connection gets a `conn` line, and each end of a connection a line (`eof`, `conn-error`, `closed`). The end of the second request is a `done` line.
 - **A target with a script.** A target can take files before it starts (`Target.files`), for example the script of a Node server on the stock Node image. A target that writes JSON lines (`Target.lines`) gives them to each run (`Run.server`). The manifest holds the sha256 of each file and the first line of the target.
-- **The WebSocket client** (`Cell.client` is `procedures-ws`) is the `WebSocketTransport` of `@procedures/client` 0.2.3. The cell gives each of its settings (`probe.ws`): the heartbeat, the reconnect, and the times of a call.
+- **The WebSocket client** (`Cell.client` is `procedures-ws`) is the `WebSocketTransport` of `@procedures/client` 0.3.0. The cell gives each of its settings (`probe.ws`): the class of its sockets, the heartbeat, the reconnect, and the times of a call.
   - Its first request is `harness.echo`. In flight, its request into the fault is `harness.echo`, or `harness.hold` for a held reply.
   - It writes the lines of the TCP client. It also writes a line for each act of the program: `ping`, `drop`, `reconnecting` and `dial`.
-  - It puts a subclass of the global `WebSocket` class of Node in its place before the transport starts. The subclass writes a line, then gives the work to the class of Node. Thus the transport and undici operate as they do without it.
+  - The class of its sockets is the global `WebSocket` of Node, or the `WebSocket` of the `ws` package (the option `webSocket`). The transport gets a subclass of that class. The subclass writes a line, then gives the work to its class. Thus the transport, undici and ws operate as they do without it.
+  - The subclass has `terminate()` only when its class has it, because the transport drops a socket with `terminate()` when it exists.
 - **A target from an image of the harness** (`Target.harness`). The target operates an image of the harness in place of its stock image. The procedures server is a script in the image of the WebSocket client (`server-ws.mjs`). Thus the client and the server use one release of the package. `Target.image` is the stock base of that image, and the manifest names both.
 - **An agent** (`lab.agent(image, command, { pid })`) is a container in the network namespace of the target. With `pid`, it also shares the process namespace of the target, thus it can signal the server process. Its JSON lines and its `exec` stay available to the caller.
 
@@ -131,7 +132,7 @@ The harness builds six images. The tag of each image comes from the content of a
   - The events of the driver are `sdam` lines (the heartbeats and the changes of each server), `cmap` lines (the pools) and `command` lines (each try of an operation).
   - Each operation is a `sent` line, then an `ack` line or a `fail` line. An `ack` line has the server that accepted it. A `fail` line has the name and the labels of its error.
   - The same image holds `stepdown-mongo.mjs`, the sender of `replSetStepDown`.
-- **The procedures image** (`image/procedures`) holds `@procedures/client` 0.2.3 on Node 24.21.0, whose WebSocket is undici 7.29.1. The digest of the image and an npm lockfile pin them. It holds the WebSocket client (`client-ws.mjs`) and the script of the procedures server (`server-ws.mjs`). Each takes each of its settings as a flag, and it has no default.
+- **The procedures image** (`image/procedures`) holds `@procedures/client` 0.3.0 and `ws` 8.22.0 on Node 24.21.0, whose WebSocket is undici 7.29.1. The digest of the image and an npm lockfile pin them. It holds the WebSocket client (`client-ws.mjs`) and the script of the procedures server (`server-ws.mjs`). Each takes each of its settings as a flag, and it has no default.
 - **The router image** (`image/router`) is a digest-pinned Alpine with conntrack-tools, nftables, iproute2 and Python. `mbx.sh` sets the form of the router in one nftables table, `ctwatch.py` writes the conntrack events, and `resetter.py` sends the resets of the `reset-both` form. Each run records its packages in the manifest.
 
 The build does the `cargo test` of the two crates. Thus the record decoder passes its tests before an image exists. Each amount that the native programs print is a quantity in a canonical unit. For example, an RTO is in `jiffy`, a round trip in `us`, and a segment in `B`.
@@ -198,7 +199,8 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
   - The program writes `drop` before it drops the connection itself. The detection is the kernel's stamp of that drop: the write of its close frame, or the change of its socket out of ESTABLISHED. Without such a record in δ_abs, it is the stamp of the line.
   - A drop counts when it comes before each report of the kernel. A report of the kernel that comes first is the detection, and the drop after it is not.
   - The second view is the stamps of the program: from its `ping` line to its `drop` line. The steps are the later pings, each from the reference.
-  - The lines of a client name the socket by its local address (`local`), and the lines of a server by its peer (`peer`). For the server, the lines are the lines of the target.
+  - The lines of a client name the socket by its local address (`local`), and the lines of a server by its peer (`peer`). For the server, the lines are the lines of the target. A line whose address is null is about a try that did not open.
+  - A prediction can say how the program drops (`drop`). A close frame (`frame`) is a write, and the socket stays ESTABLISHED after it. A close (`close`) takes the socket out of ESTABLISHED in δ_abs. Another drop is a finding. The run gives the time from the `drop` line to the change of the socket out of ESTABLISHED (`left`).
   - A heartbeat is a timer of the program. The retransmit timer of its ping fires in the same interval. Thus a run whose retransmit timer was two jiffies or more behind its wheel slot is void: the VM stopped a vCPU.
 - **The reconnect** (`reconnectOf`). A prediction with `reconnects` also reads what the client did after the detection.
   - Each wait goes from a `reconnecting` line, where the program starts its timer, to its next `dial` line, where it makes the socket. A wait outside its band, widened by δ_abs, is a finding. A try that did not come is a finding too.
@@ -256,6 +258,7 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
 - **An HTTP client** (`Verdict.requests`). The verdict counts each outcome of the second request over the counted runs. A measurement-only cell also gives them in its reason.
 - **The reconnect** (`Verdict.reconnect`). A wait outside its band is a finding of its run, thus the cell fails. The verdict gives the spread of each wait, of the first SYN, of the first ESTABLISHED and of the work before each connect(2). Its reason says the medians.
 - **A call in flight** (`Verdict.calls`). The verdict counts each outcome of the call in flight of a WebSocket client, and its reason says them.
+- **The socket after a drop** (`Verdict.left`). The verdict gives the spread of the time from a drop to the change of its socket out of ESTABLISHED. It also counts the runs where the socket stayed.
 
 The distribution test needs a simulator, which does not exist at this time.
 
@@ -277,7 +280,7 @@ The distribution test needs a simulator, which does not exist at this time.
   - A run of a group has no such pause. Its fault comes after the 20th accepted write of its stream, and each band of a group counts from the fault.
   - An HTTP client in a gap counts its gap from its own first reply, thus the pause does not change it. Its run ends at the end of its second request (`done`).
 - **An HTTP client.** A run of an HTTP client in flight ends at the end of its second request, after a new try of the client. The client waits one second after it (`LINGER_MS`), thus its own close comes after the window.
-- **A program with its own detector.** The wait for the detection also ends at a `drop` line of the client. After the harness removes the fault, the run waits for the tries that the prediction gives: one `dial` line for each.
+- **A program with its own detector.** The wait for the detection also ends at a `drop` line of the client, or of a target that writes lines. After the harness removes the fault, the run waits for the tries that the prediction gives: one `dial` line for each.
 - **`judge(cell, runs)`** (`run.ts`) measures and judges the raw records of a cell with the code at this time. `runCell` uses it during a cell. A holder of raw records can judge them again after a change to `observe.ts` or to the verdict.
 - **Testcontainers loads when a lab first opens.** Code that only measures and judges does not load it.
 
@@ -301,7 +304,7 @@ The tests of `application.ts` measure a heartbeat of a program from test lines a
 
 The cells themselves need Docker and privileged containers. CI does not start them. `HARNESS_LAB=1` starts the lab tests on Docker. They start a client image and an agent, and they put a reset and netem at a router. They also fail a group of Valkey 9.1 over with a planned failover.
 
-In the lab tests, each HTTP client sends two requests on one connection to a Node server, from a script in the stock Node image. The procedures WebSocket client drops a silent connection on its heartbeat, and it connects again to the procedures server.
+In the lab tests, each HTTP client sends two requests on one connection to a Node server, from a script in the stock Node image. The procedures WebSocket client drops a silent connection on its heartbeat, and it connects again to the procedures server. With the global `WebSocket`, the drop writes a close frame. With the `WebSocket` of ws, the socket leaves ESTABLISHED at once.
 
 The lab tests also step a replica set of three members of MongoDB 9.0.4 down, and they write the free memory of the machine. They also reset a write of the MongoDB driver in flight to a set of one member.
 

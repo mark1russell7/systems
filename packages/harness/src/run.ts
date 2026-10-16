@@ -60,6 +60,7 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
     const { ws } = probe;
     const reconnects = prediction.detects === true ? (prediction.reconnects?.waits ?? []) : [];
     const waits = reconnects.reduce((sum, wait) => sum + valueIn(wait.high, "s"), 0);
+    args.push("--websocket", ws.socket);
     args.push("--heartbeat", ws.heartbeat === null ? "off" : "on");
     if (ws.heartbeat !== null)
       args.push(
@@ -67,6 +68,8 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
         String(valueIn(ws.heartbeat.interval, "ms")),
         "--heartbeat-timeout-ms",
         String(valueIn(ws.heartbeat.timeout, "ms")),
+        "--heartbeat-misses",
+        String(ws.heartbeat.misses),
       );
     args.push("--reconnect", ws.reconnect === null ? "off" : "on");
     if (ws.reconnect !== null)
@@ -79,6 +82,8 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
         String(valueIn(ws.reconnect.maxDelay, "ms")),
         "--reconnect-attempts",
         String(ws.reconnect.attempts),
+        "--reconnect-jitter",
+        String(ws.reconnect.jitter),
       );
     args.push("--request-timeout-ms", String(valueIn(ws.requestTimeout, "ms")));
     args.push("--connection-timeout-ms", String(valueIn(ws.connectionTimeout, "ms")));
@@ -129,12 +134,14 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
 /**
  * This function waits for an error on the socket of the observer, or for its end of file
  * (CLOSE_WAIT, state 8). The prober records both. A cell whose observer is the server, or a proxy
- * of a topology, waits for that. The promise resolves after `within` ms at the latest.
+ * of a topology, waits for that. A target with its own detector can also drop the connection
+ * itself (`dropped`). The promise resolves after `within` ms at the latest.
  */
 const observerError = (
   cell: Cell,
   partial: () => Run,
   within: number,
+  dropped: () => boolean = () => false,
 ): Promise<void> =>
   new Promise((resolve) => {
     const started = Date.now();
@@ -150,7 +157,7 @@ const observerError = (
             ((record.ev === "error" && (record.err ?? 0) !== 0) ||
               (record.ev === "state" && (record as { readonly new?: number }).new === 8)),
         );
-      if (seen || Date.now() - started > within) resolve();
+      if (seen || dropped() || Date.now() - started > within) resolve();
       else setTimeout(look, 50);
     };
     look();
@@ -517,7 +524,8 @@ const once = async (
         } else if (prediction.detects) {
           const within = valueIn(prediction.high, "s") * 2_000 + 10_000;
           if (cell.observer !== undefined && cell.observer !== "client") {
-            await observerError(cell, partial, within);
+            // a target with its own detector writes a drop line when it drops the connection itself
+            await observerError(cell, partial, within, () => lab.server.slice(serverFrom).some((line) => line.ev === "drop"));
           } else if (http && cell.probe.mode !== "idle") {
             // an HTTP client can send the request again on a new connection: its outcome ends the run
             await probe.until(HTTP_DONE, within).catch(() => undefined);

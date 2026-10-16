@@ -55,7 +55,7 @@ export type {
 } from "./cell.ts";
 export { isHopPlace } from "./cell.ts";
 export type { CallReading, ProgramEvent, ReconnectReading } from "./application.ts";
-export { callOf, dropOf, firstUnanswered, pingsOf, programLines, reconnectFinding, reconnectOf } from "./application.ts";
+export { callOf, dropFinding, dropOf, firstUnanswered, leftAfter, pingsOf, programLines, reconnectFinding, reconnectOf } from "./application.ts";
 export type { Crossings, Measured, Outcome, Reordering, RequestReading, SocketPlace } from "./observe.ts";
 export { crossingsOf, measure, reorderingOf, requestOf, socketOf } from "./observe.ts";
 export type { DriverSocket, DriverStepTime } from "./driver.ts";
