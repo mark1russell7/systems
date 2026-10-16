@@ -1,0 +1,6541 @@
+{
+  "source": "the prober's eBPF records, judged again by the harness. A rerun replaces the first run of its cell",
+  "topology": "T01",
+  "ranAt": "2026-10-14",
+  "units": "s",
+  "noise": 0.004,
+  "runs": 11,
+  "kernel": "6.6.87.2",
+  "hz": 250,
+  "target": "redis:7.4",
+  "cells": [
+    {
+      "name": "client idle, blackhole",
+      "manifestation": "blackhole",
+      "position": "client idle",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "keepalive",
+        "errno": "ETIMEDOUT",
+        "from": "last-received",
+        "low": 10.996,
+        "high": 11.352,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 10.992,
+          "high": 11.356
+        },
+        "median": 11.179075,
+        "why": "11 of 11 runs inside [10.992, 11.356] s; median 11.179075 s, its interval [11.09098, 11.284944] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.160095,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.179075,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.244182,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.284944,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.09098,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.083429,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.124332,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.268061,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.299778,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.164929,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.202451,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client idle, unreachable-host",
+      "manifestation": "unreachable-host",
+      "position": "client idle",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [
+          {
+            "name": "net.ipv4.icmp_ratelimit",
+            "value": "0"
+          }
+        ],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "keepalive",
+        "errno": "ETIMEDOUT",
+        "from": "last-received",
+        "low": 10.996,
+        "high": 11.352,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 10.992,
+          "high": 11.356
+        },
+        "median": 11.114431,
+        "why": "11 of 11 runs inside [10.992, 11.356] s; median 11.114431 s, its interval [11.059465, 11.158752] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.084318,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.059465,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.070191,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.137746,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.158752,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.227212,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.112668,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.054207,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.114431,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.156626,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.146176,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client idle, unreachable-net",
+      "manifestation": "unreachable-net",
+      "position": "client idle",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [
+          {
+            "name": "net.ipv4.icmp_ratelimit",
+            "value": "0"
+          }
+        ],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "keepalive",
+        "errno": "ETIMEDOUT",
+        "from": "last-received",
+        "low": 10.996,
+        "high": 11.352,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 10.992,
+          "high": 11.356
+        },
+        "median": 11.190703,
+        "why": "11 of 11 runs inside [10.992, 11.356] s; median 11.190703 s, its interval [11.11476, 11.250966] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.150593,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.165916,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.250966,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.246197,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.219635,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.216439,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.113873,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.11476,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.146045,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.190703,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.270294,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client idle, unreachable-port",
+      "manifestation": "unreachable-port",
+      "position": "client idle",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [
+          {
+            "name": "net.ipv4.icmp_ratelimit",
+            "value": "0"
+          }
+        ],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "keepalive",
+        "errno": "ETIMEDOUT",
+        "from": "last-received",
+        "low": 10.996,
+        "high": 11.352,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 10.992,
+          "high": 11.356
+        },
+        "median": 11.261083,
+        "why": "11 of 11 runs inside [10.992, 11.356] s; median 11.261083 s, its interval [11.090359, 11.286273] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.090359,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.203338,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.274014,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.292381,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.261083,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.272259,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.050639,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.188635,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.278611,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.286273,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.24838,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client idle, unreachable-admin",
+      "manifestation": "unreachable-admin",
+      "position": "client idle",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [
+          {
+            "name": "net.ipv4.icmp_ratelimit",
+            "value": "0"
+          }
+        ],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "keepalive",
+        "errno": "ETIMEDOUT",
+        "from": "last-received",
+        "low": 10.996,
+        "high": 11.352,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 10.992,
+          "high": 11.356
+        },
+        "median": 11.144183,
+        "why": "11 of 11 runs inside [10.992, 11.356] s; median 11.144183 s, its interval [11.078177, 11.234556] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.078177,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.060702,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.144183,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.123792,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.199325,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.205813,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.234556,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.270347,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.078512,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.102325,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.152986,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client idle, simplex-to-server",
+      "manifestation": "simplex-to-server",
+      "position": "client idle",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "keepalive",
+        "errno": "ETIMEDOUT",
+        "from": "last-received",
+        "low": 10.996,
+        "high": 11.352,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 10.992,
+          "high": 11.356
+        },
+        "median": 11.168449,
+        "why": "11 of 11 runs inside [10.992, 11.356] s; median 11.168449 s, its interval [11.07186, 11.283483] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.215357,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.150948,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.175707,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.245098,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.286512,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.051242,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.149063,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.283483,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.07186,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.121792,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.168449,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client idle, simplex-to-client",
+      "manifestation": "simplex-to-client",
+      "position": "client idle",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "keepalive",
+        "errno": "ETIMEDOUT",
+        "from": "last-received",
+        "low": 10.996,
+        "high": 11.352,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 10.992,
+          "high": 11.356
+        },
+        "median": 11.237265,
+        "why": "11 of 11 runs inside [10.992, 11.356] s; median 11.237265 s, its interval [11.075722, 11.269727] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.106487,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.237836,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.255771,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.269727,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.064706,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.094339,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.152603,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.237265,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.269307,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.075722,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 11.293049,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client idle, fin",
+      "manifestation": "fin",
+      "position": "client idle",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "rx.fin",
+        "errno": "EOF",
+        "from": "peer-closed",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": -0.004,
+          "high": 0.005
+        },
+        "median": 0.000065,
+        "why": "11 of 11 runs inside [-0.004, 0.005] s; median 0.000065 s, its interval [0.00006, 0.000075] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "EOF",
+          "elapsed": 0.00006,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EOF",
+          "elapsed": 0.000088,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 2,
+          "outcome": "EOF",
+          "elapsed": 0.000062,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 3,
+          "outcome": "EOF",
+          "elapsed": 0.00007,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 4,
+          "outcome": "EOF",
+          "elapsed": 0.00006,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 5,
+          "outcome": "EOF",
+          "elapsed": 0.000069,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 6,
+          "outcome": "EOF",
+          "elapsed": 0.000061,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 7,
+          "outcome": "EOF",
+          "elapsed": 0.00006,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 8,
+          "outcome": "EOF",
+          "elapsed": 0.000068,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 9,
+          "outcome": "EOF",
+          "elapsed": 0.000065,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 10,
+          "outcome": "EOF",
+          "elapsed": 0.000075,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client in flight, blackhole, tcp_retries2 = 3",
+      "manifestation": "blackhole",
+      "position": "client in flight",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_retries2",
+            "value": "3"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "retrans_giveup",
+        "errno": "ETIMEDOUT",
+        "from": "first-retransmission",
+        "low": 3,
+        "high": 6.616,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 2.996,
+          "high": 6.62
+        },
+        "median": 6.320082,
+        "why": "11 of 11 runs inside [2.996, 6.62] s; median 6.320082 s, its interval [6.231938, 6.388142] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.380091,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.364064,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.300076,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.228018,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.231938,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.388142,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.296089,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.392083,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.320082,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.347942,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.232153,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client in flight, unreachable-host, tcp_retries2 = 3",
+      "manifestation": "unreachable-host",
+      "position": "client in flight",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_retries2",
+            "value": "3"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [
+          {
+            "name": "net.ipv4.icmp_ratelimit",
+            "value": "0"
+          }
+        ],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "retrans_giveup",
+        "errno": "EHOSTUNREACH",
+        "from": "first-retransmission",
+        "low": 3,
+        "high": 3.268,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 2.996,
+          "high": 3.272
+        },
+        "median": 3.067951,
+        "why": "11 of 11 runs inside [2.996, 3.272] s; median 3.067951 s, its interval [3.06005, 3.072207] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.072207,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.07998,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.063986,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.064078,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.067951,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.06005,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.068023,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.072021,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.067976,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.064005,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.059918,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client in flight, unreachable-net, tcp_retries2 = 3",
+      "manifestation": "unreachable-net",
+      "position": "client in flight",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_retries2",
+            "value": "3"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [
+          {
+            "name": "net.ipv4.icmp_ratelimit",
+            "value": "0"
+          }
+        ],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "retrans_giveup",
+        "errno": "ENETUNREACH",
+        "from": "first-retransmission",
+        "low": 3,
+        "high": 3.268,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 2.996,
+          "high": 3.272
+        },
+        "median": 3.067951,
+        "why": "11 of 11 runs inside [2.996, 3.272] s; median 3.067951 s, its interval [3.063931, 3.068142] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ENETUNREACH",
+          "elapsed": 3.067951,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ENETUNREACH",
+          "elapsed": 3.068142,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ENETUNREACH",
+          "elapsed": 3.075983,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ENETUNREACH",
+          "elapsed": 3.060053,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ENETUNREACH",
+          "elapsed": 3.068092,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ENETUNREACH",
+          "elapsed": 3.063966,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ENETUNREACH",
+          "elapsed": 3.067963,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ENETUNREACH",
+          "elapsed": 3.068008,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ENETUNREACH",
+          "elapsed": 3.064087,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ENETUNREACH",
+          "elapsed": 3.064064,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ENETUNREACH",
+          "elapsed": 3.063931,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client in flight, unreachable-port, tcp_retries2 = 3",
+      "manifestation": "unreachable-port",
+      "position": "client in flight",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_retries2",
+            "value": "3"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [
+          {
+            "name": "net.ipv4.icmp_ratelimit",
+            "value": "0"
+          }
+        ],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "retrans_giveup",
+        "errno": "ECONNREFUSED",
+        "from": "first-retransmission",
+        "low": 3,
+        "high": 6.616,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 2.996,
+          "high": 6.62
+        },
+        "median": 6.320128,
+        "why": "11 of 11 runs inside [2.996, 6.62] s; median 6.320128 s, its interval [6.232137, 6.360043] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ECONNREFUSED",
+          "elapsed": 6.348035,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ECONNREFUSED",
+          "elapsed": 6.292004,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ECONNREFUSED",
+          "elapsed": 6.324019,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ECONNREFUSED",
+          "elapsed": 6.212037,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ECONNREFUSED",
+          "elapsed": 6.360043,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ECONNREFUSED",
+          "elapsed": 6.276056,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ECONNREFUSED",
+          "elapsed": 6.336104,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ECONNREFUSED",
+          "elapsed": 6.256144,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ECONNREFUSED",
+          "elapsed": 6.232137,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ECONNREFUSED",
+          "elapsed": 6.380174,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ECONNREFUSED",
+          "elapsed": 6.320128,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client in flight, unreachable-admin, tcp_retries2 = 3",
+      "manifestation": "unreachable-admin",
+      "position": "client in flight",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_retries2",
+            "value": "3"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [
+          {
+            "name": "net.ipv4.icmp_ratelimit",
+            "value": "0"
+          }
+        ],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "retrans_giveup",
+        "errno": "EHOSTUNREACH",
+        "from": "first-retransmission",
+        "low": 3,
+        "high": 6.616,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 2.996,
+          "high": 6.62
+        },
+        "median": 6.348004,
+        "why": "11 of 11 runs inside [2.996, 6.62] s; median 6.348004 s, its interval [6.235996, 6.447976] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 6.320004,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 6.363973,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 6.447976,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 6.283944,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 6.423958,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 6.324069,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 6.235996,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 6.348004,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 6.44808,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 6.228173,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 6.424151,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client in flight, simplex-to-server, tcp_retries2 = 3",
+      "manifestation": "simplex-to-server",
+      "position": "client in flight",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_retries2",
+            "value": "3"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "retrans_giveup",
+        "errno": "ETIMEDOUT",
+        "from": "first-retransmission",
+        "low": 3,
+        "high": 6.616,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 2.996,
+          "high": 6.62
+        },
+        "median": 6.300104,
+        "why": "11 of 11 runs inside [2.996, 6.62] s; median 6.300104 s, its interval [6.255994, 6.416174] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.255994,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.300104,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.371974,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.395978,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.416174,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.268065,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.432033,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.287946,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.216164,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.376041,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.288094,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client in flight, simplex-to-client, tcp_retries2 = 3",
+      "manifestation": "simplex-to-client",
+      "position": "client in flight",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_retries2",
+            "value": "3"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "retrans_giveup",
+        "errno": "ETIMEDOUT",
+        "from": "first-retransmission",
+        "low": 3,
+        "high": 6.616,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 2.996,
+          "high": 6.62
+        },
+        "median": 6.324078,
+        "why": "11 of 11 runs inside [2.996, 6.62] s; median 6.324078 s, its interval [6.26, 6.396113] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.324078,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.396113,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.39191,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.26,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.264012,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.411944,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.276107,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.376048,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.344,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.312019,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.21196,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client in flight, fin, tcp_retries2 = 3",
+      "manifestation": "fin",
+      "position": "client in flight",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_retries2",
+            "value": "3"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "rx.fin",
+        "errno": "EOF",
+        "from": "peer-closed",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": -0.004,
+          "high": 0.005
+        },
+        "median": 0.000066,
+        "why": "11 of 11 runs inside [-0.004, 0.005] s; median 0.000066 s, its interval [0.000057, 0.000096] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "EOF",
+          "elapsed": 0.000096,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EOF",
+          "elapsed": 0.000065,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 2,
+          "outcome": "EOF",
+          "elapsed": 0.000066,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 3,
+          "outcome": "EOF",
+          "elapsed": 0.000061,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 4,
+          "outcome": "EOF",
+          "elapsed": 0.000099,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 5,
+          "outcome": "EOF",
+          "elapsed": 0.000078,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 6,
+          "outcome": "EOF",
+          "elapsed": 0.00007,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 7,
+          "outcome": "EOF",
+          "elapsed": 0.000056,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 8,
+          "outcome": "EOF",
+          "elapsed": 0.000062,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 9,
+          "outcome": "EOF",
+          "elapsed": 0.000057,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 10,
+          "outcome": "EOF",
+          "elapsed": 0.000089,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client in flight, blackhole, tcp_retries2 = 5",
+      "manifestation": "blackhole",
+      "position": "client in flight",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_retries2",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "retrans_giveup",
+        "errno": "ETIMEDOUT",
+        "from": "first-retransmission",
+        "low": 12.6,
+        "high": 26.52,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 12.596,
+          "high": 26.524
+        },
+        "median": 12.920006,
+        "why": "11 of 11 runs inside [12.596, 26.524] s; median 12.920006 s, its interval [12.887988, 13.02011] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 13.012037,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 12.884014,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 12.90006,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 12.959975,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 12.887988,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 12.908063,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 13.076007,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 12.888021,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 13.02011,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 12.936043,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 12.920006,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client in flight, unreachable-host, tcp_retries2 = 5",
+      "manifestation": "unreachable-host",
+      "position": "client in flight",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_retries2",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [
+          {
+            "name": "net.ipv4.icmp_ratelimit",
+            "value": "0"
+          }
+        ],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "retrans_giveup",
+        "errno": "EHOSTUNREACH",
+        "from": "first-retransmission",
+        "low": 12.6,
+        "high": 13.056,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 12.596,
+          "high": 13.06
+        },
+        "median": 12.671953,
+        "why": "11 of 11 runs inside [12.596, 13.06] s; median 12.671953 s, its interval [12.659963, 12.692015] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 12.659963,
+          "retransmissions": 63,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 12.671953,
+          "retransmissions": 63,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 12.65198,
+          "retransmissions": 63,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 12.680026,
+          "retransmissions": 63,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 12.680003,
+          "retransmissions": 63,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 12.692015,
+          "retransmissions": 63,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 12.667961,
+          "retransmissions": 63,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 12.704104,
+          "retransmissions": 63,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 12.672064,
+          "retransmissions": 63,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 12.65997,
+          "retransmissions": 63,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 12.667941,
+          "retransmissions": 63,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client in flight, blackhole, tcp_retries2 = 3, 20 ms latency",
+      "manifestation": "blackhole",
+      "position": "client in flight",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_retries2",
+            "value": "3"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [],
+        "redis": [],
+        "latency": 0.02,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "retrans_giveup",
+        "errno": "ETIMEDOUT",
+        "from": "first-retransmission",
+        "low": 3,
+        "high": 6.936,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 2.996,
+          "high": 6.94
+        },
+        "median": 3.224214,
+        "why": "11 of 11 runs inside [2.996, 6.94] s; median 3.224214 s, its interval [3.208032, 3.231975] s"
+      },
+      "firstRun": "holds",
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 3.220005,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 3.219982,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 3.231975,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 3.204114,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 3.208032,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 3.228156,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 3.22404,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 3.232068,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 3.228002,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 3.224214,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 3.228034,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client in flight, unreachable-host, tcp_retries2 = 3, 20 ms latency",
+      "manifestation": "unreachable-host",
+      "position": "client in flight",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_retries2",
+            "value": "3"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [
+          {
+            "name": "net.ipv4.icmp_ratelimit",
+            "value": "0"
+          }
+        ],
+        "redis": [],
+        "latency": 0.02,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "retrans_giveup",
+        "errno": "EHOSTUNREACH",
+        "from": "first-retransmission",
+        "low": 3,
+        "high": 3.284,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 2.996,
+          "high": 3.288
+        },
+        "median": 3.139939,
+        "why": "11 of 11 runs inside [2.996, 3.288] s; median 3.139939 s, its interval [3.136048, 3.140054] s"
+      },
+      "firstRun": "holds",
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.140054,
+          "retransmissions": 15,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.136049,
+          "retransmissions": 15,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.136048,
+          "retransmissions": 15,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.136057,
+          "retransmissions": 15,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.136005,
+          "retransmissions": 15,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.137245,
+          "retransmissions": 15,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.140037,
+          "retransmissions": 15,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.140055,
+          "retransmissions": 15,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.140014,
+          "retransmissions": 15,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.139939,
+          "retransmissions": 15,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.139983,
+          "retransmissions": 15,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client in flight, blackhole, tcp_retries2 = 3, 100 ms latency",
+      "manifestation": "blackhole",
+      "position": "client in flight",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_retries2",
+            "value": "3"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [],
+        "redis": [],
+        "latency": 0.1,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "retrans_giveup",
+        "errno": "ETIMEDOUT",
+        "from": "first-retransmission",
+        "low": 3,
+        "high": 8.44,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 2.996,
+          "high": 8.444
+        },
+        "median": 4.416115,
+        "why": "11 of 11 runs inside [2.996, 8.444] s; median 4.416115 s, its interval [4.352221, 4.548023] s"
+      },
+      "firstRun": "holds",
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 4.512049,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 4.576031,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 4.51196,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 4.384065,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 4.543997,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 4.383974,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 4.548023,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 4.416115,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 4.411954,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 4.352038,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 4.352221,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client in flight, unreachable-host, tcp_retries2 = 3, 100 ms latency",
+      "manifestation": "unreachable-host",
+      "position": "client in flight",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_retries2",
+            "value": "3"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [
+          {
+            "name": "net.ipv4.icmp_ratelimit",
+            "value": "0"
+          }
+        ],
+        "redis": [],
+        "latency": 0.1,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "retrans_giveup",
+        "errno": "EHOSTUNREACH",
+        "from": "first-retransmission",
+        "low": 3,
+        "high": 3.656,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 2.996,
+          "high": 3.66
+        },
+        "median": 3.04014,
+        "why": "11 of 11 runs inside [2.996, 3.66] s; median 3.04014 s, its interval [3.039954, 3.044019] s"
+      },
+      "firstRun": "holds",
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.044013,
+          "retransmissions": 11,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.040143,
+          "retransmissions": 11,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.044068,
+          "retransmissions": 11,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.040111,
+          "retransmissions": 11,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.040404,
+          "retransmissions": 11,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.039954,
+          "retransmissions": 11,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.044019,
+          "retransmissions": 11,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.04014,
+          "retransmissions": 11,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.039653,
+          "retransmissions": 11,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.040025,
+          "retransmissions": 11,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.040007,
+          "retransmissions": 11,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client in flight, freeze-process",
+      "manifestation": "freeze-process",
+      "position": "client in flight",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_retries2",
+            "value": "3"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_time",
+            "value": "5"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_intvl",
+            "value": "2"
+          },
+          {
+            "name": "net.ipv4.tcp_keepalive_probes",
+            "value": "3"
+          }
+        ],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "silent",
+        "timer": null,
+        "errno": null,
+        "from": null,
+        "low": null,
+        "high": null,
+        "window": 20,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": null,
+        "median": null,
+        "why": "nothing detected it in 11 runs of 20 s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client in flight, a 1 s stall",
+      "manifestation": "stall",
+      "position": "client in flight",
+      "settings": {
+        "observer": [],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": 1,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "recovers",
+        "timer": null,
+        "errno": null,
+        "from": null,
+        "low": 1.616,
+        "high": 1.705,
+        "window": 20,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 1.612,
+          "high": 1.709
+        },
+        "median": 1.681265,
+        "why": "11 of 11 runs inside [1.612, 1.709] s; median 1.681265 s, its interval [1.6725, 1.68608] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 1.686855,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 1.673733,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 1.662992,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 1.681265,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 1.6725,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 1.681745,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 1.68608,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 1.676526,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 1.676232,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 1.684886,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 1.684901,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client in flight, a 1 s stall, 20 ms latency",
+      "manifestation": "stall",
+      "position": "client in flight",
+      "settings": {
+        "observer": [],
+        "peer": [],
+        "redis": [],
+        "latency": 0.02,
+        "stall": 1,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "recovers",
+        "timer": null,
+        "errno": null,
+        "from": null,
+        "low": 1.776,
+        "high": 1.885,
+        "window": 20,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 1.772,
+          "high": 1.889
+        },
+        "median": 1.863253,
+        "why": "11 of 11 runs inside [1.772, 1.889] s; median 1.863253 s, its interval [1.853933, 1.875421] s"
+      },
+      "firstRun": "fails",
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 1.862865,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 1.863271,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 1.875421,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 1.863253,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 1.854728,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 1.853271,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 1.857212,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 1.853933,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 1.876536,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 1.872093,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 1.868488,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client in flight, a 1 s stall, 100 ms latency",
+      "manifestation": "stall",
+      "position": "client in flight",
+      "settings": {
+        "observer": [],
+        "peer": [],
+        "redis": [],
+        "latency": 0.1,
+        "stall": 1,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "recovers",
+        "timer": null,
+        "errno": null,
+        "from": null,
+        "low": 1.204,
+        "high": 1.413,
+        "window": 20,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 1.2,
+          "high": 1.417
+        },
+        "median": 1.375213,
+        "why": "11 of 11 runs inside [1.2, 1.417] s; median 1.375213 s, its interval [1.365061, 1.386446] s"
+      },
+      "firstRun": "holds",
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 1.392882,
+          "retransmissions": 3,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 1.37645,
+          "retransmissions": 3,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 1.365821,
+          "retransmissions": 3,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 1.376757,
+          "retransmissions": 3,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 1.365061,
+          "retransmissions": 3,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 1.364867,
+          "retransmissions": 3,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 1.375213,
+          "retransmissions": 3,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 1.386446,
+          "retransmissions": 3,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 1.377196,
+          "retransmissions": 3,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 1.374067,
+          "retransmissions": 3,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 1.369464,
+          "retransmissions": 3,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client in flight, a 3.5 s stall",
+      "manifestation": "stall",
+      "position": "client in flight",
+      "settings": {
+        "observer": [],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": 3.5,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "recovers",
+        "timer": null,
+        "errno": null,
+        "from": null,
+        "low": 6.504,
+        "high": 6.889,
+        "window": 20,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 6.5,
+          "high": 6.893
+        },
+        "median": 6.713709,
+        "why": "11 of 11 runs inside [6.5, 6.893] s; median 6.713709 s, its interval [6.663753, 6.772604] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 6.77002,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 6.713709,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 6.684302,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 6.683202,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 6.772604,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 6.677676,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 6.663753,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 6.762532,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 6.740968,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 6.648525,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 6.838059,
+          "retransmissions": 6,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client in flight, a 3.5 s stall, 100 ms latency",
+      "manifestation": "stall",
+      "position": "client in flight",
+      "settings": {
+        "observer": [],
+        "peer": [],
+        "redis": [],
+        "latency": 0.1,
+        "stall": 3.5,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "recovers",
+        "timer": null,
+        "errno": null,
+        "from": null,
+        "low": 4.844,
+        "high": 5.349,
+        "window": 20,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 4.84,
+          "high": 5.353
+        },
+        "median": 5.270445,
+        "why": "11 of 11 runs inside [4.84, 5.353] s; median 5.270445 s, its interval [5.12606, 5.306094] s"
+      },
+      "firstRun": "holds",
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 5.24882,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 5.141806,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 5.312944,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 5.12606,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 5.270445,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": 5.273012,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 5.306094,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 5.194178,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 5.289616,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 5.289349,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": 5.112403,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "server idle, blackhole",
+      "manifestation": "blackhole",
+      "position": "server idle",
+      "settings": {
+        "observer": [],
+        "peer": [],
+        "redis": [
+          {
+            "name": "tcp-keepalive",
+            "value": "5"
+          },
+          {
+            "name": "timeout",
+            "value": "0"
+          }
+        ],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "keepalive",
+        "errno": "ETIMEDOUT",
+        "from": "last-received",
+        "low": 7.996,
+        "high": 8.352,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 7.992,
+          "high": 8.356
+        },
+        "median": 8.214532,
+        "why": "11 of 11 runs inside [7.992, 8.356] s; median 8.214532 s, its interval [8.077356, 8.305066] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.305066,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.072004,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.077356,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.242407,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.276376,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.113792,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.192739,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.114747,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.323972,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.278969,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.214532,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "server idle, unreachable-host",
+      "manifestation": "unreachable-host",
+      "position": "server idle",
+      "settings": {
+        "observer": [],
+        "peer": [
+          {
+            "name": "net.ipv4.icmp_ratelimit",
+            "value": "0"
+          }
+        ],
+        "redis": [
+          {
+            "name": "tcp-keepalive",
+            "value": "5"
+          },
+          {
+            "name": "timeout",
+            "value": "0"
+          }
+        ],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "keepalive",
+        "errno": "ETIMEDOUT",
+        "from": "last-received",
+        "low": 7.996,
+        "high": 8.352,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 7.992,
+          "high": 8.356
+        },
+        "median": 8.191096,
+        "why": "11 of 11 runs inside [7.992, 8.356] s; median 8.191096 s, its interval [8.114777, 8.303815] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.142092,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.191096,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.101493,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.324802,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.303815,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.24298,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.208937,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.181294,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.142557,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.114777,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.232961,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "server idle, simplex-to-server",
+      "manifestation": "simplex-to-server",
+      "position": "server idle",
+      "settings": {
+        "observer": [],
+        "peer": [],
+        "redis": [
+          {
+            "name": "tcp-keepalive",
+            "value": "5"
+          },
+          {
+            "name": "timeout",
+            "value": "0"
+          }
+        ],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "keepalive",
+        "errno": "ETIMEDOUT",
+        "from": "last-received",
+        "low": 7.996,
+        "high": 8.352,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 7.992,
+          "high": 8.356
+        },
+        "median": 8.140602,
+        "why": "11 of 11 runs inside [7.992, 8.356] s; median 8.140602 s, its interval [8.103552, 8.291202] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.140602,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.318738,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.107159,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.291202,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.270235,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.237936,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.13533,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.243757,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.137692,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.103552,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.081445,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "server idle, simplex-to-client",
+      "manifestation": "simplex-to-client",
+      "position": "server idle",
+      "settings": {
+        "observer": [],
+        "peer": [],
+        "redis": [
+          {
+            "name": "tcp-keepalive",
+            "value": "5"
+          },
+          {
+            "name": "timeout",
+            "value": "0"
+          }
+        ],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "keepalive",
+        "errno": "ETIMEDOUT",
+        "from": "last-received",
+        "low": 7.996,
+        "high": 8.352,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 7.992,
+          "high": 8.356
+        },
+        "median": 8.24768,
+        "why": "11 of 11 runs inside [7.992, 8.356] s; median 8.24768 s, its interval [8.118153, 8.264051] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.264051,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.118153,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.078023,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.257765,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.272173,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.251015,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.153902,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.250245,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.24768,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.162943,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 8.183986,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "server idle, fin",
+      "manifestation": "fin",
+      "position": "server idle",
+      "settings": {
+        "observer": [],
+        "peer": [],
+        "redis": [
+          {
+            "name": "tcp-keepalive",
+            "value": "5"
+          },
+          {
+            "name": "timeout",
+            "value": "0"
+          }
+        ],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "rx.fin",
+        "errno": "EOF",
+        "from": "peer-closed",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": -0.004,
+          "high": 0.005
+        },
+        "median": 0.000063,
+        "why": "11 of 11 runs inside [-0.004, 0.005] s; median 0.000063 s, its interval [0.000058, 0.000087] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "EOF",
+          "elapsed": 0.000067,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EOF",
+          "elapsed": 0.000058,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EOF",
+          "elapsed": 0.000091,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EOF",
+          "elapsed": 0.000067,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EOF",
+          "elapsed": 0.000058,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EOF",
+          "elapsed": 0.000058,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EOF",
+          "elapsed": 0.000076,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EOF",
+          "elapsed": 0.000063,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EOF",
+          "elapsed": 0.000059,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EOF",
+          "elapsed": 0.000062,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EOF",
+          "elapsed": 0.000087,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "server, a reply in flight, blackhole, tcp_retries2 = 3",
+      "manifestation": "blackhole",
+      "position": "server reply in flight",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_retries2",
+            "value": "3"
+          }
+        ],
+        "peer": [],
+        "redis": [
+          {
+            "name": "tcp-keepalive",
+            "value": "5"
+          },
+          {
+            "name": "timeout",
+            "value": "0"
+          }
+        ],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "retrans_giveup",
+        "errno": "ETIMEDOUT",
+        "from": "first-retransmission",
+        "low": 3,
+        "high": 6.616,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 2.996,
+          "high": 6.62
+        },
+        "median": 6.280069,
+        "why": "11 of 11 runs inside [2.996, 6.62] s; median 6.280069 s, its interval [6.247873, 6.32799] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.248026,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.304006,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.336052,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.280069,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.32799,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.320084,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.264073,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.247873,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.28803,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.227949,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.272048,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "server, a reply in flight, unreachable-host, tcp_retries2 = 3",
+      "manifestation": "unreachable-host",
+      "position": "server reply in flight",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_retries2",
+            "value": "3"
+          }
+        ],
+        "peer": [
+          {
+            "name": "net.ipv4.icmp_ratelimit",
+            "value": "0"
+          }
+        ],
+        "redis": [
+          {
+            "name": "tcp-keepalive",
+            "value": "5"
+          },
+          {
+            "name": "timeout",
+            "value": "0"
+          }
+        ],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "retrans_giveup",
+        "errno": "EHOSTUNREACH",
+        "from": "first-retransmission",
+        "low": 3,
+        "high": 3.268,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 2.996,
+          "high": 3.272
+        },
+        "median": 3.060195,
+        "why": "11 of 11 runs inside [2.996, 3.272] s; median 3.060195 s, its interval [3.05996, 3.068088] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.068053,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.063951,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.060032,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.060058,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.05996,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.05994,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.07194,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.059994,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.068088,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.060195,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.064144,
+          "retransmissions": 16,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "server, a reply in flight, simplex-to-server, tcp_retries2 = 3",
+      "manifestation": "simplex-to-server",
+      "position": "server reply in flight",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_retries2",
+            "value": "3"
+          }
+        ],
+        "peer": [],
+        "redis": [
+          {
+            "name": "tcp-keepalive",
+            "value": "5"
+          },
+          {
+            "name": "timeout",
+            "value": "0"
+          }
+        ],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "retrans_giveup",
+        "errno": "ETIMEDOUT",
+        "from": "first-retransmission",
+        "low": 3,
+        "high": 6.616,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 2.996,
+          "high": 6.62
+        },
+        "median": 6.272043,
+        "why": "11 of 11 runs inside [2.996, 6.62] s; median 6.272043 s, its interval [6.216017, 6.427947] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.272043,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.208078,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.35213,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.295978,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.235949,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.272074,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.451961,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.235931,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.427947,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.216017,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.255986,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "server, a reply in flight, simplex-to-client, tcp_retries2 = 3",
+      "manifestation": "simplex-to-client",
+      "position": "server reply in flight",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_retries2",
+            "value": "3"
+          }
+        ],
+        "peer": [],
+        "redis": [
+          {
+            "name": "tcp-keepalive",
+            "value": "5"
+          },
+          {
+            "name": "timeout",
+            "value": "0"
+          }
+        ],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "retrans_giveup",
+        "errno": "ETIMEDOUT",
+        "from": "first-retransmission",
+        "low": 3,
+        "high": 6.616,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 2.996,
+          "high": 6.62
+        },
+        "median": 6.316031,
+        "why": "11 of 11 runs inside [2.996, 6.62] s; median 6.316031 s, its interval [6.228063, 6.384096] s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.424025,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.247949,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.340016,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.228016,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.331914,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.368085,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.384096,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.279993,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.228063,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.272013,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.316031,
+          "retransmissions": 5,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "server idle, freeze-process",
+      "manifestation": "freeze-process",
+      "position": "server idle",
+      "settings": {
+        "observer": [],
+        "peer": [],
+        "redis": [
+          {
+            "name": "tcp-keepalive",
+            "value": "5"
+          },
+          {
+            "name": "timeout",
+            "value": "0"
+          }
+        ],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "silent",
+        "timer": null,
+        "errno": null,
+        "from": null,
+        "low": null,
+        "high": null,
+        "window": 20,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": null,
+        "median": null,
+        "why": "nothing detected it in 11 runs of 20 s"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "silent",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "server, a long reply, mtu-blackhole, tcp_retries2 = 3",
+      "manifestation": "mtu-blackhole",
+      "position": "server reply in flight",
+      "settings": {
+        "observer": [
+          {
+            "name": "net.ipv4.tcp_retries2",
+            "value": "3"
+          },
+          {
+            "name": "net.ipv4.tcp_mtu_probing",
+            "value": "0"
+          }
+        ],
+        "peer": [],
+        "redis": [
+          {
+            "name": "tcp-keepalive",
+            "value": "5"
+          },
+          {
+            "name": "timeout",
+            "value": "0"
+          }
+        ],
+        "latency": null,
+        "stall": null,
+        "mtu": 1200,
+        "netem": null
+      },
+      "prediction": {
+        "kind": "detects",
+        "timer": "retrans_giveup",
+        "errno": "ETIMEDOUT",
+        "from": "first-retransmission",
+        "low": 3,
+        "high": 6.616,
+        "window": null,
+        "why": null
+      },
+      "verdict": {
+        "decision": "holds",
+        "counted": 11,
+        "voided": 0,
+        "band": {
+          "low": 2.996,
+          "high": 6.62
+        },
+        "median": 6.380175,
+        "why": "11 of 11 runs inside [2.996, 6.62] s; median 6.380175 s, its interval [6.320187, 6.436538] s"
+      },
+      "firstRun": "fails",
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.448064,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.347999,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.380175,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.436538,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.204016,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.348058,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.32819,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.320187,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.416164,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.420008,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "ETIMEDOUT",
+          "elapsed": 6.408015,
+          "retransmissions": 4,
+          "replies": null,
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client stream, netem loss 5%",
+      "manifestation": "netem",
+      "position": "client stream",
+      "settings": {
+        "observer": [],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": "loss 5%"
+      },
+      "prediction": {
+        "kind": "measured",
+        "timer": null,
+        "errno": null,
+        "from": null,
+        "low": null,
+        "high": null,
+        "window": null,
+        "why": "a lost segment waits for a retransmission"
+      },
+      "verdict": {
+        "decision": "measured",
+        "counted": 11,
+        "voided": 0,
+        "band": null,
+        "median": 0.000226,
+        "why": "11 runs, 1100 replies: median 0.000226 s, slowest 0.422486 s, 50 retransmissions, 0 connections ended"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 5,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000103,
+            "median": 0.000247,
+            "slowest": 0.221629
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 4,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000133,
+            "median": 0.0002235,
+            "slowest": 0.221575
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 5,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000117,
+            "median": 0.000208,
+            "slowest": 0.422486
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 5,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000113,
+            "median": 0.000201,
+            "slowest": 0.218456
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 7,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000103,
+            "median": 0.0002095,
+            "slowest": 0.219284
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 2,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000119,
+            "median": 0.0002205,
+            "slowest": 0.212845
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 7,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000125,
+            "median": 0.0002265,
+            "slowest": 0.214415
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 5,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000122,
+            "median": 0.0002035,
+            "slowest": 0.214629
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 5,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000123,
+            "median": 0.0002305,
+            "slowest": 0.21935
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 2,
+          "replies": {
+            "count": 100,
+            "fastest": 0.00013,
+            "median": 0.000254,
+            "slowest": 0.213723
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 3,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000127,
+            "median": 0.000258,
+            "slowest": 0.215926
+          },
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client stream, netem loss 20%",
+      "manifestation": "netem",
+      "position": "client stream",
+      "settings": {
+        "observer": [],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": "loss 20%"
+      },
+      "prediction": {
+        "kind": "measured",
+        "timer": null,
+        "errno": null,
+        "from": null,
+        "low": null,
+        "high": null,
+        "window": null,
+        "why": "a lost segment waits for a retransmission"
+      },
+      "verdict": {
+        "decision": "measured",
+        "counted": 11,
+        "voided": 0,
+        "band": null,
+        "median": 0.000272,
+        "why": "11 runs, 1100 replies: median 0.000272 s, slowest 1.529651 s, 179 retransmissions, 0 connections ended"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 16,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000127,
+            "median": 0.0002455,
+            "slowest": 0.432039
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 17,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000124,
+            "median": 0.0002645,
+            "slowest": 0.43086
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 23,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000125,
+            "median": 0.0003065,
+            "slowest": 1.529651
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 16,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000123,
+            "median": 0.000289,
+            "slowest": 0.661611
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 8,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000127,
+            "median": 0.0002775,
+            "slowest": 0.858742
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 17,
+          "replies": {
+            "count": 100,
+            "fastest": 0.00012,
+            "median": 0.0002555,
+            "slowest": 0.673692
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 20,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000129,
+            "median": 0.000261,
+            "slowest": 0.866981
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 4,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000119,
+            "median": 0.0002555,
+            "slowest": 0.665384
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 18,
+          "replies": {
+            "count": 100,
+            "fastest": 0.0001,
+            "median": 0.000257,
+            "slowest": 0.887809
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 20,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000152,
+            "median": 0.000275,
+            "slowest": 0.430683
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 20,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000173,
+            "median": 0.00033,
+            "slowest": 0.432654
+          },
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client stream, netem duplicate 10%",
+      "manifestation": "netem",
+      "position": "client stream",
+      "settings": {
+        "observer": [],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": "duplicate 10%"
+      },
+      "prediction": {
+        "kind": "measured",
+        "timer": null,
+        "errno": null,
+        "from": null,
+        "low": null,
+        "high": null,
+        "window": null,
+        "why": "a duplicate costs nothing but a duplicate ACK"
+      },
+      "verdict": {
+        "decision": "measured",
+        "counted": 11,
+        "voided": 0,
+        "band": null,
+        "median": 0.000236,
+        "why": "11 runs, 1100 replies: median 0.000236 s, slowest 0.000679 s, 0 retransmissions, 0 connections ended"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000166,
+            "median": 0.0002385,
+            "slowest": 0.000471
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000141,
+            "median": 0.000265,
+            "slowest": 0.00066
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000153,
+            "median": 0.0002445,
+            "slowest": 0.000534
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000094,
+            "median": 0.000203,
+            "slowest": 0.000535
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000131,
+            "median": 0.000201,
+            "slowest": 0.000447
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000101,
+            "median": 0.000212,
+            "slowest": 0.000457
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000129,
+            "median": 0.000214,
+            "slowest": 0.000474
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000138,
+            "median": 0.00025,
+            "slowest": 0.000679
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000164,
+            "median": 0.0002395,
+            "slowest": 0.000518
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000148,
+            "median": 0.0002425,
+            "slowest": 0.000639
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.00012,
+            "median": 0.000242,
+            "slowest": 0.000448
+          },
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client stream, netem delay 10ms reorder 25% 50%",
+      "manifestation": "netem",
+      "position": "client stream",
+      "settings": {
+        "observer": [],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": "delay 10ms reorder 25% 50%"
+      },
+      "prediction": {
+        "kind": "measured",
+        "timer": null,
+        "errno": null,
+        "from": null,
+        "low": null,
+        "high": null,
+        "window": null,
+        "why": "a segment out of order can start a fast retransmission"
+      },
+      "verdict": {
+        "decision": "measured",
+        "counted": 11,
+        "voided": 0,
+        "band": null,
+        "median": 0.010307,
+        "why": "11 runs, 1100 replies: median 0.010307 s, slowest 0.010712 s, 0 retransmissions, 0 connections ended"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000134,
+            "median": 0.010228,
+            "slowest": 0.010449
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000143,
+            "median": 0.0103095,
+            "slowest": 0.010712
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000135,
+            "median": 0.010267,
+            "slowest": 0.010487
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000213,
+            "median": 0.0103525,
+            "slowest": 0.010594
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000204,
+            "median": 0.0103695,
+            "slowest": 0.010515
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000222,
+            "median": 0.010339,
+            "slowest": 0.010521
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000153,
+            "median": 0.0103685,
+            "slowest": 0.010609
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000187,
+            "median": 0.010272,
+            "slowest": 0.010443
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000168,
+            "median": 0.010279,
+            "slowest": 0.010521
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000182,
+            "median": 0.0102785,
+            "slowest": 0.010501
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000228,
+            "median": 0.0103185,
+            "slowest": 0.010577
+          },
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client stream, netem corrupt 5%",
+      "manifestation": "netem",
+      "position": "client stream",
+      "settings": {
+        "observer": [],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": "corrupt 5%"
+      },
+      "prediction": {
+        "kind": "measured",
+        "timer": null,
+        "errno": null,
+        "from": null,
+        "low": null,
+        "high": null,
+        "window": null,
+        "why": "a corrupt segment fails its checksum, as a lost one does"
+      },
+      "verdict": {
+        "decision": "measured",
+        "counted": 11,
+        "voided": 0,
+        "band": null,
+        "median": 0.000243,
+        "why": "11 runs, 1100 replies: median 0.000243 s, slowest 0.435978 s, 59 retransmissions, 0 connections ended"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 5,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000095,
+            "median": 0.0002335,
+            "slowest": 0.428815
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 3,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000105,
+            "median": 0.000191,
+            "slowest": 0.219809
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 6,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000126,
+            "median": 0.0002375,
+            "slowest": 0.430193
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 3,
+          "replies": {
+            "count": 100,
+            "fastest": 0.00012,
+            "median": 0.0002215,
+            "slowest": 0.214581
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 10,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000126,
+            "median": 0.000226,
+            "slowest": 0.43153
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 7,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000181,
+            "median": 0.000285,
+            "slowest": 0.22542
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 2,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000112,
+            "median": 0.000189,
+            "slowest": 0.21507
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 7,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000123,
+            "median": 0.000232,
+            "slowest": 0.435978
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 6,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000158,
+            "median": 0.0002915,
+            "slowest": 0.219247
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 3,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000135,
+            "median": 0.0002345,
+            "slowest": 0.21582
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 7,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000149,
+            "median": 0.0003105,
+            "slowest": 0.221571
+          },
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client stream, netem delay 20ms 10ms",
+      "manifestation": "netem",
+      "position": "client stream",
+      "settings": {
+        "observer": [],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": "delay 20ms 10ms"
+      },
+      "prediction": {
+        "kind": "measured",
+        "timer": null,
+        "errno": null,
+        "from": null,
+        "low": null,
+        "high": null,
+        "window": null,
+        "why": "a jitter moves the RTO, which the round trip of one sample does not give"
+      },
+      "verdict": {
+        "decision": "measured",
+        "counted": 11,
+        "voided": 0,
+        "band": null,
+        "median": 0.020018,
+        "why": "11 runs, 1100 replies: median 0.020018 s, slowest 0.030356 s, 0 retransmissions, 0 connections ended"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.010673,
+            "median": 0.0189245,
+            "slowest": 0.030097
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.010436,
+            "median": 0.020247,
+            "slowest": 0.03011
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.010425,
+            "median": 0.0191985,
+            "slowest": 0.030277
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.010322,
+            "median": 0.021663,
+            "slowest": 0.030324
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.010563,
+            "median": 0.0212155,
+            "slowest": 0.029111
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.010348,
+            "median": 0.019983,
+            "slowest": 0.030198
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.010772,
+            "median": 0.0203955,
+            "slowest": 0.030356
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.010627,
+            "median": 0.0206675,
+            "slowest": 0.030196
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.010403,
+            "median": 0.0198675,
+            "slowest": 0.029683
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.010452,
+            "median": 0.020731,
+            "slowest": 0.030218
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 100,
+            "fastest": 0.010494,
+            "median": 0.019353,
+            "slowest": 0.030351
+          },
+          "void": null
+        }
+      ]
+    }
+  ]
+}

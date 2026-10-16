@@ -1,0 +1,104 @@
+---
+title: Network failures on the direct pair
+sidebar:
+  label: The network failures
+description: Each network failure that the harness can inject, between a client and a stock Redis 7.4. Of 45 cells, 39 hold against their prediction, and 6 are measurements only.
+---
+
+import FaultResults from "../../../components/FaultResults.tsx";
+
+These are the results of the T01 cells, from 2026-10-14. T01 is the direct pair: the TCP client of the harness and a stock Redis 7.4 container. The kernel is Linux 6.6, with HZ 250. The harness injected each network failure that it can make. The cells put the failures at four positions: an idle client, a request in flight, an idle server and a reply in flight. Each cell has 11 runs in fresh environments.
+
+Of the 45 cells, 39 hold against the prediction of the algebra, and no cell fails. The other 6 cells are measurements only, because their outcome is a distribution. After two fixes, the harness repeated eight cells. This page shows the repeated result of each of them.
+
+## What the cells found
+
+- **An ICMP host or net unreachable ends a request sooner.** At `tcp_retries2 = 3`, the client gives up after approximately 3.07 s, not 6.32 s as in a black hole. Each ICMP of these two codes takes back one doubling of the backoff (RFC 6069). Thus each wait is one RTO, and the kernel sends 16 retransmissions, not 5.
+- **A port unreachable and an admin prohibited do not revert the backoff.** Their cells give up at the time of a black hole. They end with `ECONNREFUSED` and `EHOSTUNREACH`, where a black hole ends with `ETIMEDOUT`.
+- **An idle connection still ends with `ETIMEDOUT`.** Keepalive detects each ICMP cell at the time of a black hole. The sequence number of a keepalive probe is one less than `snd_una`, thus it is outside the window. Thus the kernel drops the ICMP that answers the probe, as an ICMP out of the window.
+- **A FIN arrives in approximately 65 µs.** The kernel of a process that stops with SIGKILL closes its socket with a FIN. The observer reads the end of the file approximately 65 µs after the close. No timer is in the path.
+- **Latency moves the RTO, and the give-up moves with it.** The give-up comes at the first firing of the RTO timer after the budget of 3 s. Thus a small change of the RTO can move the give-up by a full step. A black hole gave up after 6.32 s with no latency, 3.224 s at 20 ms and 4.416 s at 100 ms.
+- **Two fixes of the harness.** The first connection of each environment waited for ARP, and under a latency that wait was one more delayed round trip. Thus its RTO was longer, and a stall cell failed on the first connection of each environment. At this time, a ping resolves the neighbors before the first connection.
+- **The MTU rule is on INPUT.** Before the fix, the rule was on OUTPUT, in the namespace of the server. A drop there fails each send with `EPERM`, and no segment is lost on the way. Thus the server did not retransmit. At this time, the rule is in the namespace of the client, where the long segments arrive.
+
+## A black hole
+
+A black hole drops each segment in the two directions. Nothing comes back, thus a timer of the observer must detect the failure. An idle connection detects it by keepalive. A request or a reply in flight detects it by the give-up of its retransmissions.
+
+<FaultResults manifestation="blackhole" client:visible />
+
+## An ICMP unreachable
+
+The peer answers each segment from the observer with an ICMP unreachable. Linux keeps each ICMP as a soft error on an established socket, and it continues to retransmit. Then the give-up reports the errno of the ICMP, not `ETIMEDOUT`. The sender of the ICMP sets `icmp_ratelimit` to 0, thus each retransmission gets its own ICMP.
+
+### Host unreachable
+
+A host unreachable (code 1) reverts one doubling of the backoff for each retransmission. Thus the give-up comes at most one RTO after its budget. At `tcp_retries2 = 3`, the band is 3 s to 3.268 s, where a black hole has 3 s to 6.616 s.
+
+<FaultResults manifestation="unreachable-host" client:visible />
+
+### Net unreachable
+
+A net unreachable (code 0) reverts the backoff as a host unreachable does. Its give-up reports `ENETUNREACH`.
+
+<FaultResults manifestation="unreachable-net" client:visible />
+
+### Port unreachable
+
+A port unreachable (code 3) does not revert the backoff. Thus its give-up comes at the time of a black hole, and it reports `ECONNREFUSED`.
+
+<FaultResults manifestation="unreachable-port" client:visible />
+
+### Admin prohibited
+
+An admin prohibited (code 13) does not revert the backoff either. Its give-up comes at the time of a black hole, and it reports `EHOSTUNREACH`.
+
+<FaultResults manifestation="unreachable-admin" client:visible />
+
+## A simplex drop
+
+A simplex drop loses the segments in one direction only. In each direction, nothing that the observer can use comes back. Thus each cell gets the time of a black hole.
+
+### To the server
+
+<FaultResults manifestation="simplex-to-server" client:visible />
+
+### To the client
+
+<FaultResults manifestation="simplex-to-client" client:visible />
+
+## A FIN
+
+The process of the peer stops with SIGKILL, and its kernel stays up. The kernel closes the socket of the process with a FIN. The observer reads an end of file one way after the close, and no timer is in the path.
+
+<FaultResults manifestation="fin" client:visible />
+
+## A frozen process
+
+The cgroup freezer stops the process of the peer, and its kernel stays up. The frozen kernel acknowledges each segment, and it answers each keepalive probe. Thus no TCP timer fires. For the server, the frozen peer is the client.
+
+<FaultResults manifestation="freeze-process" client:visible />
+
+## A stall
+
+A stall is a black hole that stops by itself, at its length after the send of the request. The connection moves again at the first retransmission after the stall, and the reply comes back one round trip later. A latency moves each retransmission, thus it also moves the return of the reply.
+
+<FaultResults manifestation="stall" client:visible />
+
+## An MTU black hole
+
+The client drops each segment from the server that is longer than 1200 bytes. The server sends a value of 2 MB in long segments, and no long segment arrives. MTU probing is off on the server (`tcp_mtu_probing = 0`), and no ICMP comes back. Thus the server does not make its segments shorter, and its retransmissions give up as in a black hole.
+
+<FaultResults manifestation="mtu-blackhole" client:visible />
+
+## The netem cells
+
+These cells use `netem` on each segment that the target sends. It loses, duplicates, reorders, corrupts or delays the segments. The client sends a stream of 100 requests, each 10 ms after the reply before. The reply times are a distribution, thus these cells have no band. A prediction of a distribution needs a simulator, and the program has no simulator at this time.
+
+Each chart shows the fastest, the median and the slowest reply of each run. Under loss and corruption, the median reply of each run is shorter than 0.4 ms. The slowest reply of each run took 0.21 s or more, because a lost segment waits for its retransmission. A duplicate costs nothing. Under a reordering, most replies take the delay of 10 ms, and the fastest replies of each run do not.
+
+<FaultResults manifestation="netem" client:visible />
+
+## Where the data comes from
+
+The harness wrote a raw record of each cell: the cell, the manifests of its environments and each run with the records of the kernel. The script `packages/site/scripts/faults.ts` reads each record again with the code of the harness. It writes the copy that this page shows, and that copy names no machine. The cells and their predictions are in the [catalog](https://github.com/mark1russell7/systems/tree/main/packages/cells).

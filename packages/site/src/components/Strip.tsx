@@ -24,8 +24,10 @@ export interface StripProps {
 }
 
 const PAD = 14;
-/** the width of the names of the rows, at the left edge */
+/** the smallest width of the names of the rows, at the left edge */
 const GUTTER = 44;
+/** the width of one character of a name of a row, in the mono font at 12 px */
+const CHARACTER = 7.5;
 /** the space between two rows of runs */
 const ROW = 20;
 
@@ -54,7 +56,9 @@ export default function Strip(props: StripProps): ReactElement {
   const rowY = (row: number): number => (named ? 30 + row * ROW : row === 0 ? 36 : 56);
   const axis = named ? Math.max(92, 30 + (count - 1) * ROW + 30) : 92;
   const height = axis + 26;
-  const left = named ? PAD + GUTTER : PAD;
+  // a longer name of a row makes a wider gutter, thus the name does not meet the first run
+  const gutter = Math.max(GUTTER, ...(props.rows ?? []).map((name) => Math.ceil(name.length * CHARACTER) + 10));
+  const left = named ? PAD + gutter : PAD;
   const x = (t: number): number => left + ((width - left - PAD) * (t - from)) / (to - from);
   const inside = (t: number): boolean => t >= from && t <= to;
   const ticks = ticksBetween(from, to, Math.max(3, Math.floor((width - left) / 110)));
@@ -93,12 +97,19 @@ export default function Strip(props: StripProps): ReactElement {
           </circle>
         ))}
         <line className="sy-grid" x1={left} x2={width - PAD} y1={axis} y2={axis} />
-        {ticks.values.map((t) => (
-          <g key={t} className="sy-axis">
-            <line x1={x(t)} x2={x(t)} y1={axis} y2={axis + 5} />
-            <text x={x(t)} y={axis + 18} textAnchor="middle">{`${Number((t / ticks.unit.ms).toPrecision(6))} ${ticks.unit.name}`}</text>
-          </g>
-        ))}
+        {ticks.values.map((t) => {
+          const text = `${Number((t / ticks.unit.ms).toPrecision(6))} ${ticks.unit.name}`;
+          // a label at an edge of the chart ends at that edge, thus it stays in the chart
+          const half = (text.length * CHARACTER) / 2;
+          const anchor = x(t) + half > width ? "end" : x(t) - half < 0 ? "start" : "middle";
+          const at = anchor === "end" ? width : anchor === "start" ? 0 : x(t);
+          return (
+            <g key={t} className="sy-axis">
+              <line x1={x(t)} x2={x(t)} y1={axis} y2={axis + 5} />
+              <text x={at} y={axis + 18} textAnchor={anchor}>{text}</text>
+            </g>
+          );
+        })}
       </svg>
     </div>
   );
