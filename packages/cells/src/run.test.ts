@@ -1,4 +1,4 @@
-import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Cell } from "@mark1russell7/harness";
 import { measure, runCell } from "@mark1russell7/harness";
@@ -12,13 +12,18 @@ import { ALL } from "./all.ts";
  * catalog. Each cell writes its raw record (the cell, the manifests and every run with its kernel
  * records) to CELLS_OUT, in the format that jarvis lands, and one line of its verdict to
  * summary.ndjson there. A cell that fails is a finding to examine, not a failure of the runner.
+ * CELLS_FILE names a JSON file of cells that another repository compiles. Its cells then run in
+ * place of the catalogs, with the same selection and the same records.
  */
 const RUN = process.env["CELLS"] === "1";
 const ONLY = new RegExp(process.env["CELLS_ONLY"] ?? ".");
 const [shard, of] = (process.env["CELLS_SHARD"] ?? "0/1").split("/").map(Number) as [number, number];
 const OUT = process.env["CELLS_OUT"] ?? fileURLToPath(new URL("../out/", import.meta.url));
+const FILE = process.env["CELLS_FILE"] || undefined;
 
-const selected: Cell[] = ALL.filter((each) => ONLY.test(each.name)).filter((_, at) => at % of === shard);
+/** These cells are the cells of the file, or the catalogs when no file is given. */
+const source: readonly Cell[] = FILE === undefined ? ALL : (JSON.parse(readFileSync(FILE, "utf8")) as Cell[]);
+const selected: Cell[] = source.filter((each) => ONLY.test(each.name)).filter((_, at) => at % of === shard);
 
 /** This function gives a file name for a cell: its name in lower case, with a dash for each other character. */
 const slug = (name: string): string => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");

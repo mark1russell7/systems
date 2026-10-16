@@ -1,0 +1,146 @@
+# Runs the cell catalogs on GitHub's runners. Each shard gets a runner of its own, so no other work
+# on a machine loads the timers that the cells measure.
+#
+#   probe   Writes what the runner is: its kernel, CONFIG_HZ, BTF, CPUs and memory. The predictions
+#           read the kernel's facts. Then it runs the harness's opt-in lab test: privileged
+#           containers, the injector and the eBPF prober on this runner.
+#   cells   Runs the cells whose names match `only`, a shard on each runner, and uploads each raw
+#           record and summary.ndjson as an artifact, for jarvis to land. With `file`, the cells
+#           come from that JSON file at the ref (cells that jarvis compiles), not the catalogs.
+#
+# Start it with: gh workflow run cells.yml -R mark1russell7/systems -f only='^T12' -f shards=4
+# A pull request that changes this file runs the probe only.
+name: Cells
+
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: A regular expression of the cell names to run
+        default: "."
+      shards:
+        description: How many runners share the cells (1 to 20)
+        default: "4"
+      file:
+        description: A JSON file of compiled cells at the ref, in place of the catalogs (empty for the catalogs)
+        default: ""
+  pull_request:
+    paths: [".github/workflows/cells.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    # the lab builds the harness's images on the runner, the Rust one among them
+    timeout-minutes: 60
+    steps:
+      - name: The runner
+        run: |
+          echo "kernel: $(uname -r)"
+          echo "CONFIG_HZ: $(grep -E '^CONFIG_HZ=' "/boot/config-$(uname -r)" || echo unknown)"
+          if [ -e /sys/kernel/btf/vmlinux ]; then echo "BTF: yes"; else echo "BTF: no"; fi
+          echo "cpus: $(nproc)"
+          free -m
+          docker version --format 'docker: {{.Server.Version}}'
+      # a fresh network namespace starts at the kernel's compiled defaults, as each cell's does
+      - name: The defaults of a fresh network namespace
+        run: |
+          sudo unshare --net sh -c 'for knob in tcp_keepalive_time tcp_keepalive_intvl tcp_keepalive_probes tcp_retries1 tcp_retries2 tcp_syn_retries tcp_syn_linear_timeouts tcp_fin_timeout tcp_rto_min_us tcp_rto_max_ms tcp_mtu_probing; do echo "net.ipv4.$knob: $(sysctl -n net.ipv4.$knob 2>/dev/null || echo absent)"; done'
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The pnpm version comes from "packageManager" in package.json
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: The harness's lab test
+        env:
+          HARNESS_LAB: "1"
+        run: pnpm --filter @mark1russell7/harness test
+      # what the kernel says when the prober cannot load: the verifier's log goes to its stderr
+      - name: The prober on its own, after a failure
+        if: failure()
+        run: |
+          image="$(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^loom-harness:' | head -n 1)"
+          echo "image: $image"
+          if [ -n "$image" ]; then
+            timeout 20 docker run --rm --privileged --network none "$image" /opt/harness/prober "$(stat -Lc %i /proc/self/ns/net)" 2>&1 | head -n 400 || true
+          fi
+          echo "lockdown: $(cat /sys/kernel/security/lockdown 2>/dev/null || echo unknown)"
+          sysctl kernel.unprivileged_bpf_disabled kernel.perf_event_paranoid kernel.kptr_restrict 2>&1 || true
+          sudo dmesg | tail -n 40 || true
+
+  plan:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      shards: ${{ steps.shards.outputs.list }}
+    steps:
+      - id: shards
+        env:
+          SHARDS: ${{ inputs.shards }}
+        run: |
+          case "$SHARDS" in
+            ''|*[!0-9]*) echo "::error::shards must be a whole number"; exit 1 ;;
+          esac
+          if [ "$SHARDS" -lt 1 ] || [ "$SHARDS" -gt 20 ]; then
+            echo "::error::shards must be 1 to 20"; exit 1
+          fi
+          echo "list=$(seq -s, 0 $((SHARDS - 1)) | sed 's/^/[/; s/$/]/')" >> "$GITHUB_OUTPUT"
+
+  cells:
+    needs: [probe, plan]
+    if: github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 340
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: The runner, beside the records
+        run: |
+          mkdir -p "$RUNNER_TEMP/cells"
+          {
+            echo "kernel: $(uname -r)"
+            echo "CONFIG_HZ: $(grep -E '^CONFIG_HZ=' "/boot/config-$(uname -r)" || echo unknown)"
+            echo "cpus: $(nproc)"
+            echo "memory: $(free -m | awk '/^Mem:/ {print $2}') MiB"
+            echo "image: $ImageOS $ImageVersion"
+          } | tee "$RUNNER_TEMP/cells/runner.txt"
+      - name: The cells
+        env:
+          CELLS: "1"
+          CELLS_ONLY: ${{ inputs.only }}
+          CELLS_SHARD: ${{ matrix.shard }}/${{ inputs.shards }}
+          CELLS_OUT: ${{ runner.temp }}/cells
+          CELLS_FILE_AT: ${{ inputs.file }}
+        run: |
+          if [ -n "$CELLS_FILE_AT" ]; then export CELLS_FILE="$GITHUB_WORKSPACE/$CELLS_FILE_AT"; fi
+          # the catalogs' bands read the runner kernel's own HZ
+          CELLS_HZ="$(sed -n 's/^CONFIG_HZ=//p' "/boot/config-$(uname -r)")"
+          if [ -z "$CELLS_HZ" ]; then echo "::error::the runner's kernel config gives no CONFIG_HZ"; exit 1; fi
+          export CELLS_HZ
+          pnpm --filter @systems/cells test
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cells-${{ matrix.shard }}
+          path: ${{ runner.temp }}/cells/
+          if-no-files-found: warn
+          retention-days: 30
