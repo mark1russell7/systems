@@ -88,14 +88,15 @@ jobs:
           name: release
           path: release
       # packages.txt has one line for each tarball, "name version file", in the sequence of their
-      # dependencies. npm publishes each tarball as it is, with no package scripts.
+      # dependencies. npm publishes each tarball as it is, with no package scripts. The path starts
+      # with ./ because npm reads "release/x.tgz" as a GitHub repository (user/repo).
       - name: Publish
         run: |
           while read -r name version file; do
             if npm view "$name@$version" version >/dev/null 2>&1; then
               echo "$name $version is on npm."
             elif npm view "$name" name >/dev/null 2>&1; then
-              npm publish "release/$file" --access public --provenance
+              npm publish "./release/$file" --access public --provenance
             else
               echo "::warning::$name is not on npm. Publish its first version by hand, then add release.yml as its trusted publisher."
             fi
