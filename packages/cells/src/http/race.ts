@@ -28,6 +28,11 @@ import { UNDICI_CLIENT } from "./undici.ts";
  * - `crossed`: S - RTT < g < S. The request leaves before the FIN arrives, and it reaches a socket
  *   that the server closed. The kernel of the server answers with a reset (`net/ipv4/tcp_input.c:6713-6724`
  *   at Linux v6.6). The window is one round trip wide.
+ *
+ * At the client, each time counts from the last segment of the first reply that its kernel
+ * received: the reference of the measurement (`last-received`). A Node client handles the reply on
+ * its event loop after that segment. Its pool timer arms there, and its sleep of g starts there.
+ * Thus its gap and its pool expiry each get the handling time (`HANDLING`) on their high bound.
  */
 
 /** An interval is a closed range of seconds. */
@@ -44,11 +49,11 @@ export type Decision = { readonly ordering: Ordering } | { readonly border: stri
 
 /** A race is the bounds of each time of one race. */
 export interface Race {
-  /** This interval is the gap: from the end of the first reply at the client to the write of the second request. */
+  /** This interval is the gap: from the last segment of the first reply at the client to the write of the second request. */
   readonly gap: Interval;
   /** This interval is the close of the server after its response finished, or null for a server that does not close. */
   readonly server: Interval | null;
-  /** This interval is the expiry of the pool at its reuse decision, from the end of the reply, or null for no expiry. */
+  /** This interval is the expiry of the pool at its reuse decision, from the last segment of the reply, or null for no expiry. */
   readonly pool: Interval | null;
   readonly rtt: Interval;
   /**
@@ -176,8 +181,9 @@ export const serverClose = (settings: NodeServerSettings): Interval | null => {
 };
 
 /**
- * This function gives the expiry of the pool of a client at its reuse decision, from the end of
- * the reply. It reads the hint of the server. Null is no expiry, and [0, 0] is no reuse at all.
+ * This function gives the expiry of the pool of a client at its reuse decision, from the arm of
+ * its timer. It reads the hint of the server. Null is no expiry, and [0, 0] is no reuse at all.
+ * The race adds the handling time of the reply before the arm (`afterHandling`).
  * - Go compares the idle time with `IdleConnTimeout` by the wall clock when it takes a connection
  *   from the pool (`transport.go:1261-1283`). Thus its reuse has no lateness: [C, C].
  * - The agent has no free socket timer without a timeout, and then the hint does not apply
@@ -234,11 +240,57 @@ interface GoSettingsLike {
 export const DISPATCH = 0.001;
 
 /**
- * This function gives the gap of a client that sleeps `g` seconds after the reply. The gap is the
- * sleep of its runtime, late as its timers are, and the dispatch. Go sleeps with a Go timer, and
- * the Node clients with a Node timer (`timers.ts`).
+ * This function gives the gap of a client that sleeps `g` seconds after the reply, from the start
+ * of its sleep. The gap is the sleep of its runtime, late as its timers are, and the dispatch. Go
+ * sleeps with a Go timer, and the Node clients with a Node timer (`timers.ts`). The race adds the
+ * handling time of the reply before the sleep (`afterHandling`).
  */
 export const gapOf = (client: HttpClient, g: number, hz = HZ): Interval =>
   client === "go"
     ? { low: round(g), high: round(g + goLateSeconds(g) + DISPATCH) }
     : { low: round(g - nodeEarlySeconds(hz)), high: round(g + nodeLateSeconds(g, hz) + DISPATCH) };
+
+/**
+ * These times are the handling time of each Node client, in seconds. The kernel of the client
+ * receives the last segment of the first reply. The handling time goes from that segment to the
+ * arm of the pool timer. The sleep of the gap starts before the timer fires, thus in the same time.
+ *
+ * Each client arms its pool timer on its event loop, after the program read the whole reply:
+ * - The agent arms its free socket timer in its handler of the `free` event. The socket emits
+ *   `free` on the next tick after the end of the response. The response ends when the program has
+ *   read its body (`lib/_http_client.js:964`, `:986-1015`, `:1017-1051` and `:1074-1080`, then
+ *   `lib/_http_agent.js:201-265` and `:633-667`, at Node v24.21.0).
+ * - undici arms its keep-alive timer in `resumeH1`. A `setImmediate` after the parse of the reply
+ *   starts that function in the check phase of the same turn of the loop
+ *   (`lib/dispatcher/client-h1.js:842-846` and `:1151-1154`, `lib/dispatcher/client.js:646-676`, at
+ *   8.12.2).
+ *
+ * No source bounds the handling time: it is the time of the program. The first reply of a new
+ * process starts code for the first time. On 2026-10-16 it took from 1.5 ms to 9.7 ms to the
+ * `ready` line of the program, and the second reply took less than 1.3 ms. The calibration cells
+ * `CAL agent` and `CAL undici` bound it (`HANDLING_CAL_SPECS`).
+ *
+ * Each bound is the largest of 88 counted times of the calibration, from the two CI calibrations
+ * 38974653161 and 38975675034 of 2026-10-16. They went to eight runners for each client, with six
+ * types of CPU. The agent had a median of 4.977 ms and a maximum of 6.73 ms. undici had a median of
+ * 7.844 ms and a maximum of 11.182 ms. The calibration occurs again after each change to a client,
+ * the harness, the kernel or the runners.
+ *
+ * Go is compiled, and its first reply took less than 0.71 ms to its `ready` line in 110 runs. That
+ * is inside the noise of the harness, thus Go gets no handling time.
+ */
+export const HANDLING: Readonly<Record<Exclude<HttpClient, "go">, number>> = { agent: 0.00673, undici: 0.011182 };
+
+/** This function gives the handling time of a client: from 0 to its bound, or 0 for Go. */
+export const handlingOf = (client: HttpClient): Interval =>
+  client === "go" ? { low: 0, high: 0 } : { low: 0, high: HANDLING[client] };
+
+/**
+ * This function gives an interval from the last segment of the reply, for a time that starts at
+ * the end of the handling. A timer fires after its arm, thus the low bound is not before the
+ * handling.
+ */
+export const afterHandling = (client: HttpClient, interval: Interval): Interval => {
+  const handling = handlingOf(client);
+  return { low: round(Math.max(handling.low, interval.low + handling.low)), high: round(interval.high + handling.high) };
+};

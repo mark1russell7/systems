@@ -38,7 +38,7 @@ export const cellOf = (kind: TriggerKind, declaration: Declaration = DESIGN, tem
   substitutes: null,
   mode: "iptables",
   workers: 2,
-  trigger: { kind, hold: s(5), lead: s(0.5), cpuMax: { quota: 1000, period: 1_000_000 } },
+  trigger: { kind, hold: s(5), lead: s(0.5), cpuMax: { quota: { value: 1000, unit: "us" }, period: { value: 1, unit: "s" } } },
   pod: { replicas: 2, grace: s(30), preStop: s(0), readiness: PROBE, liveness: PROBE, startup: null },
   declaration,
   workload: { every: { value: 20, unit: "ms" }, timeout: s(1) },

@@ -1,16 +1,70 @@
-# @systems/kind
+# @mark1russell7/kind
 
-Kubernetes in Docker (kind) as an environment of the systems program. A scenario gives the cluster, and the lab puts the faults of the harness in the namespaces of its pods. Each observation is on the one monotonic clock of the VM. This package is private, and it does not go to npm.
+Kubernetes in Docker (kind) as a lab for connection timers. A scenario gives the cluster, and the lab puts the faults of the harness in the namespaces of its pods. Each observation is on the one monotonic clock of the VM, and the ordering law gives the predictions. The package also reads the raw record of a cell and judges it again, without Docker.
 
-## Why it is private
+```sh
+npm install @mark1russell7/kind zod
+```
 
-The package is the first environment of its kind, and only T07 and T18 use it. Its image holds the packages of this workspace as tarballs. Thus it builds from the workspace, not from npm. CI does not start a cluster, thus no test in CI examines its lab parts. When a second template uses it, its shape is known, and it can go to npm as `@mark1russell7/kind`.
+## The two entries
+
+| Entry | What it holds | What it loads |
+| --- | --- | --- |
+| `@mark1russell7/kind` | Each part: the cluster, the lab, the image, the faults, the predictions, the runner, and all of `./judge` | Testcontainers, Docker, `kind` and `kubectl` when a lab opens |
+| `@mark1russell7/kind/judge` | The types and the zod schemas of a record, `upgrade`, `judge`, the verdict, the readers of the lines and the report | `@mark1russell7/quantity` and zod only |
+
+The entry `./judge` loads no Docker, no Testcontainers, no child process and no `node:` module. Thus a program that only reads records can use it, in a browser too. Two tests hold it to that. One follows the imports of its source, and one imports it in a new Node process. The smoke test of a release does the same on the built tarball.
+
+```ts
+import { judge, readRecord } from "@mark1russell7/kind/judge";
+
+const record = readRecord(JSON.parse(text)); // a record of /1 or /2, as /2
+const verdict = judge(record); // the verdict of this version, from the cell and the runs
+```
+
+- `readRecord(data)` examines a record of either format with its zod schema, and gives it in the format `/2`.
+- `upgrade(record)` gives a record of `/1` in the format `/2`. It does not examine the record, and it changes nothing in it.
+- `judge(record)` judges a record of either format again, from its cell and its runs. For each of the 31 records of the kind workflow of 2026-10-16, it gives the verdict of the record.
+- `kindCellRecordSchema` and `kindCellRecordV1Schema` are the zod schemas of the two formats.
+- `judgeKind`, `checkRun`, `factsOf` and `unitOf` are the verdict. `cellsTable`, `predictionText`, `medianText`, `calibrationOf` and `timeSpread` are the report.
+
+The judge does not load the harness, because the harness loads its Docker lab. It has its own copy of the median interval, the quantile and δ_rel of the harness, and a test holds the copy to the harness.
+
+## The record formats
+
+The lab writes the raw record of each cell as JSON: `{ format, cell, runs, manifests, loads, verdict, at }`. A cell is all that the measurement needs, as data. A run keeps each line that its sources wrote, thus a holder of the record can judge it again.
+
+- **`systems.kind-cell-record/2`** is the format that the lab writes. Each amount in it is a quantity, `{ "value": 34.244, "unit": "s" }`, from `@mark1russell7/quantity`.
+- **`systems.kind-cell-record/1`** is the first format. Its bands, its medians and the times of its facts are numbers. The lab does not write it again, and a reader reads it through `upgrade`.
+
+These are the changes from `/1` to `/2`. Each value stays the same. Only its form changes.
+
+| Field | `/1` | `/2` |
+| --- | --- | --- |
+| `cell.prediction` bands (`band`, `start.band`, `end.band`) | `{ "lo": 28, "hi": 49 }`, in seconds | `{ "lo": { "value": 28, "unit": "s" }, "hi": { "value": 49, "unit": "s" } }` |
+| `cell.trigger.cpuMax` | `{ "quota": 1000, "period": 1000000 }`, in microseconds | Each part a quantity in `us` |
+| `verdict.median` and `verdict.checks[].value` | A number: seconds or a count, by the prediction | A quantity in the unit of the prediction (`unitOf`) |
+| The times of `verdict.checks[].facts` | Numbers of seconds | Quantities in `s` |
+
+The unit of the main value of a run comes from the prediction of its cell:
+
+- `s` for a time: `removal`, `leaves`, `stalls`, and `restarts` with a band.
+- `{request}` for the failed requests: `none`, `window`, `stays` and `measured`.
+- `{replica}` for the replicas that received SIGTERM: `restarts` without a band.
+
+These values stay numbers in the two formats:
+
+- **A stamp** is a reading of CLOCK_MONOTONIC in milliseconds, a point on a clock, not an amount. The stamps are `start`, `end` and `acts` of a run, `t` of each line, and `first`, `last` and `deletion` of the facts.
+- **A line** stays as its source wrote it. The image writes it, and the record keeps it.
+- **A count** or **a share**: the replicas, the thresholds, the runs and the counts of a verdict. The jitter of a poll and the idle share of a load sample are shares.
+
+The tests read three real records of `/1` (`test/records/`): a cell that holds, a cell that fails and a calibration. Each fixture is a whole record, without its load samples and without the kernel release of the runner. `KIND_RECORDS=<folder> pnpm test` judges each record under a folder again, and holds each verdict to the verdict of its record.
 
 ## The cluster
 
 - **The scenario** (`scenario.ts`) is the cluster as data: its nodes, its version, the mode and the sync periods of kube-proxy, its CNI and its subnets. `kindConfig(scenario)` generates the configuration of kind from it.
 - **The node image** is `kindest/node:v1.37.0`, pinned by digest, the default of kind v0.33.0. The research names v1.37.1 for some defaults. The patch release is the mismatch.
-- **The tools** (`tools.ts`) are kind v0.33.0 and kubectl v1.37.0. The lab downloads each one into `.cache/` in this package, and it compares the sha256 with the pinned value at each use. It installs nothing on the system. The same code works on Linux, macOS and Windows.
+- **The tools** (`tools.ts`) are kind v0.33.0 and kubectl v1.37.0. The lab downloads each one into `.cache/` in this package, and it compares the sha256 with the pinned value at each use. `KIND_CACHE` names another folder. The lab installs nothing on the system, and the same code works on Linux, macOS and Windows.
 - **The isolation.** Each cluster gets its own Docker network, its own kubeconfig and its own cache for kubectl, in its run folder. The lab refuses a pod or service subnet that overlaps a Docker network.
 
 ## The lab
@@ -27,8 +81,10 @@ Each pod of a cluster shares the kernel of the Docker VM. Thus each stamp of the
 
 ## The image
 
-The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`, its clients, the agent and the watcher, on Node 24.21.0. Its base is pinned by digest, and `npm-lock.json` pins the packages from npm. `image.ts` builds the packages of the workspace, packs them as npm gets them, and tags the image by its content.
+The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`, its clients, the agent and the watcher, on Node 24.21.0. Its base is pinned by digest, and `npm-lock.json` pins the packages from npm. `stageLabImage()` stages its context, and `labImage()` tags the image by its content.
 
+- **In the workspace** of this repository, the stage builds `@mark1russell7/quantity`, `@mark1russell7/algebra` and `@mark1russell7/service`, and packs each one as npm gets it.
+- **From npm**, the stage packs the installed versions of the same packages. The package holds the files of the image, and `src/compose.ts` and `src/backends.ts`, for that.
 - **The service** (`app.mjs`) is a Node HTTP server. Its one controller needs Redis when the cell has Redis. Its health server gives the probes, and it declares each stage of the shutdown. `compose.ts` composes the service from the declaration of the cell, and `lint()` reads the same composition.
 - **The seams** of the service are a flag file that fails its liveness check, and SIGUSR2. SIGUSR2 blocks its event loop for the time in a file.
 - **The clients** (`client.mjs`) send requests on new connections to the ClusterIP. Each request gives one line with its outcome: ok, 503, refused, reset, timeout or unreachable.
@@ -69,7 +125,7 @@ The plan's `event:clock-jump` has no trigger. A step of CLOCK_REALTIME in the VM
 
 ## Tests
 
-`pnpm --filter @systems/kind test` starts the tests of the configuration, the tools, the parser of the rules, the fault mapping, the arithmetic of the predictions and the verdict. They do not need Docker.
+`pnpm --filter @mark1russell7/kind test` starts the tests of the configuration, the tools, the parser of the rules and the fault mapping. It also starts the tests of the predictions, the verdict and the judge of the real records. They do not need Docker.
 
 The catalogs are in `@systems/cells` (`t07.ts`, `t18.ts`). `KIND_LAB=1` starts them in kind.
 
@@ -81,3 +137,7 @@ The cells operate on the runners of GitHub, and not on a machine that does other
 - **The shards.** `shardOf` gives each shard an equal share of the estimated time, and the cells of one mode stay together. Thus a shard makes few clusters.
 - **The output.** Each job uploads its raw records, `summary.ndjson`, and what the runner is. The run folder of each cluster stays out of the output, because a kubeconfig holds credentials.
 - **A pull request** that changes the workflow starts a smoke run: the calibration of each mode, with 2 runs on one cluster.
+
+## Releases
+
+CI publishes each new version of this package (`.github/workflows/release.yml`). npm trusts the workflow only for a package that exists. Thus the first version of a new package goes out by hand, and then the workflow becomes its trusted publisher. For a package that npm does not have, the workflow gives a warning and publishes nothing.

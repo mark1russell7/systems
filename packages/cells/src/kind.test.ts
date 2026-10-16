@@ -1,8 +1,8 @@
 import { appendFileSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Judged, KindCell, KindRun } from "@systems/kind";
-import { calibrationOf, cellsTable, judgeKind, runKindCells, shardOf } from "@systems/kind";
+import type { Judged, KindCell, KindCellRecord, KindCellRecordV1 } from "@mark1russell7/kind";
+import { FORMAT, FORMAT_V1, calibrationOf, cellsTable, judgeKind, runKindCells, shardOf, upgrade } from "@mark1russell7/kind";
 import { describe, expect, it } from "vitest";
 import { T07_CELLS } from "./t07.ts";
 import { T18_CELLS } from "./t18.ts";
@@ -22,7 +22,8 @@ import { T18_CELLS } from "./t18.ts";
  *
  * KIND_JUDGE=<folder> judges the raw records under a folder again with the cells as they are now,
  * by name, and prints the tables of a report. The calibration of the propagation changes the
- * bands, thus the records of a run are judged again after it.
+ * bands, thus the records of a run are judged again after it. A record of the format `/1` is read
+ * through `upgrade`.
  */
 const RUN = process.env["KIND_LAB"] === "1";
 const JUDGE = process.env["KIND_JUDGE"];
@@ -75,8 +76,9 @@ describe.skipIf(JUDGE === undefined)("the kind records, judged again", () => {
   it("judges each record with the cell of the catalog of the same name", () => {
     const judged: Judged[] = [];
     for (const file of recordsUnder(JUDGE!)) {
-      const record = JSON.parse(readFileSync(file, "utf8")) as { format?: string; cell: KindCell; runs: KindRun[] };
-      if (record.format !== "systems.kind-cell-record/1") continue;
+      const data = JSON.parse(readFileSync(file, "utf8")) as { format?: string };
+      if (data.format !== FORMAT && data.format !== FORMAT_V1) continue;
+      const record = upgrade(data as KindCellRecord | KindCellRecordV1);
       const cell = CATALOG.find((each) => each.name === record.cell.name);
       if (cell === undefined || !ONLY.test(cell.name)) continue;
       judged.push({ cell, runs: record.runs, verdict: judgeKind(cell, record.runs) });

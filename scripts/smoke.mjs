@@ -8,11 +8,12 @@
 // 3. Each package imports from the built JavaScript, and a few functions give their known results.
 
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { isDeepStrictEqual } from "node:util";
 import { gunzipSync } from "node:zlib";
 
 const folder = process.argv[2];
@@ -77,6 +78,20 @@ const NEEDS = {
     "image/router/mbx.sh",
     "image/router/ctwatch.py",
     "image/router/resetter.py",
+  ],
+  // the lab builds its image from these, and the judge is an entry of its own
+  "@mark1russell7/kind": [
+    "build/judge.js",
+    "build/judge.d.ts",
+    "image/Dockerfile",
+    "image/package.json",
+    "image/npm-lock.json",
+    "image/app.mjs",
+    "image/client.mjs",
+    "image/agent.mjs",
+    "image/watch.mjs",
+    "src/compose.ts",
+    "src/backends.ts",
   ],
 };
 /** the paths in a gzipped tar file, read with zlib: each entry has a 512-byte ustar header */
@@ -279,6 +294,97 @@ try {
       check(module.cutOf(set, parts.members, "10.0.0.9", "m1", "one-way").direction === "out", "harness cuts a member of a replica set from one member in one direction");
       const line = module.memberLineOf("m1", '{"t":{"$date":"2026-10-16T12:00:00.000+00:00"},"c":"REPL","id":21331,"msg":"Transition to primary complete"}');
       check(line?.id === 21331 && module.REPLICA_SET_STAGES.length === 9, "harness reads a log line of a member of a replica set");
+    }
+    if (name === "@mark1russell7/kind") {
+      const judgeEntry = await load("@mark1russell7/kind/judge");
+      // a record of the format /1: the Service is empty 35 s after the fault, in a band of 28 to 49 s
+      const probe = { period: s(10), threshold: 3, timeout: s(1) };
+      const cell = {
+        id: "T18.defaults.1",
+        name: "a smoke cell",
+        template: "T18",
+        substitutes: null,
+        mode: "iptables",
+        workers: 1,
+        trigger: { kind: "rst", hold: s(53) },
+        pod: { replicas: 1, grace: s(30), preStop: s(0), readiness: probe, liveness: probe, startup: null },
+        declaration: {
+          poll: { interval: s(5), jitter: 0.2, timeout: s(4) },
+          readiness: { type: "debounce", interval: s(5), failAfter: 3, recoverAfter: 1 },
+          liveness: { type: "window", failAfter: s(45) },
+          startup: s(60),
+          phases: [["fail readiness", s(2)], ["drain", s(15)]],
+          cooperativeWindow: s(5),
+          couplings: [],
+          redis: null,
+          flag: null,
+          watchdog: null,
+        },
+        workload: { every: { value: 20, unit: "ms" }, timeout: s(1) },
+        prediction: { kind: "removal", band: { lo: 28, hi: 49 }, why: "a smoke" },
+        calibrates: false,
+        runs: 1,
+      };
+      const run = {
+        env: 0,
+        index: 0,
+        warmup: false,
+        start: 0,
+        end: 60_000,
+        acts: { fault: 0, heal: 53_000, resume: null },
+        target: null,
+        paused: null,
+        replicas: [],
+        void: null,
+        dropped: {},
+        lines: [
+          { ev: "slice", t: 35_000, type: "MODIFIED", name: "lab-x", svc: "lab", eps: [{ ip: "10.244.1.3", r: false }] },
+          { ev: "rules", t: 35_100, prev: 35_050, node: "w1", b: [] },
+        ],
+      };
+      const facts = { failures: 0, outcomes: {}, byNode: {}, first: null, last: null, deletion: null, intakeAfterDeletion: null, sliceAfter: null, propagation: {} };
+      const record = {
+        format: "systems.kind-cell-record/1",
+        cell,
+        runs: [run],
+        manifests: [],
+        loads: [],
+        verdict: {
+          decision: "holds",
+          counted: 1,
+          voided: 0,
+          failed: 0,
+          median: 35,
+          why: "1 of 1 runs agree",
+          checks: [{ ok: true, why: "the Service was empty at 35 s", value: 35, facts: { ...facts, sliceEmpty: 35, rules: { w1: 35.1 } } }],
+        },
+        at: "2026-10-16T00:00:00.000Z",
+      };
+      const upgraded = judgeEntry.readRecord(record);
+      check(upgraded.format === "systems.kind-cell-record/2" && upgraded.cell.prediction.band.lo.unit === "s", "kind/judge reads a record of /1 with its band in seconds");
+      check(isDeepStrictEqual(judgeEntry.judge(record), upgraded.verdict) && upgraded.verdict.median.value === 35, "kind/judge judges a record as its own verdict says");
+      check(judgeEntry.kindCellRecordSchema.safeParse(upgraded).success, "kind/judge accepts its upgrade as a record of /2");
+      // a new process imports the judge, and a hook of the resolver writes each module that it loads
+      const hook = [
+        'import { registerHooks } from "node:module";',
+        "const seen = [];",
+        "registerHooks({ resolve(specifier, context, next) { const out = next(specifier, context); seen.push(out.url); return out; } });",
+        `await import(${JSON.stringify(pathToFileURL(resolveIn("@mark1russell7/kind/judge")).href)});`,
+        "process.stdout.write(JSON.stringify(seen));",
+      ].join("\n");
+      const seen = JSON.parse(execFileSync(process.execPath, ["--input-type=module", "-e", hook], { cwd: project, encoding: "utf8" }));
+      const heavy = seen.filter((url) => url.startsWith("node:") || /child_process|testcontainers|dockerode|docker-modem|ssh2|@mark1russell7[\\/+]harness/.test(url));
+      check(seen.length > 0 && heavy.length === 0, `kind/judge loads no Docker, no Testcontainers, no child process and no node: module${heavy.length === 0 ? "" : `: ${heavy.join(" ")}`}`);
+      check(typeof module.judge === "function" && typeof module.openKindLab === "function", "kind gives the judge and the lab in its root");
+      // the lab stages the context of its image from the installed packages, as npm installed them
+      const context = module.stageLabImage();
+      try {
+        const packed = readdirSync(join(context, "workspace")).filter((file) => file.endsWith(".tgz"));
+        const files = ["Dockerfile", "app.mjs", "client.mjs", "agent.mjs", "watch.mjs", "compose.ts", "backends.ts"];
+        check(packed.length === 3 && files.every((file) => existsSync(join(context, file))), "kind stages its lab image from an install");
+      } finally {
+        rmSync(context, { recursive: true, force: true });
+      }
     }
   }
 } catch (error) {

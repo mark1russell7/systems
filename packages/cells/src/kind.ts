@@ -1,8 +1,9 @@
+import type { Declaration, KubeletProbe, PodSettings, Workload } from "@mark1russell7/kind";
+import type { KubeProxyMode, Propagation } from "@mark1russell7/kind";
+import { DOCUMENTED } from "@mark1russell7/kind";
 import type { Quantity } from "@mark1russell7/quantity";
+import { format, valueIn } from "@mark1russell7/quantity";
 import type { RedisKnobs } from "@mark1russell7/service/redis";
-import type { Declaration, KubeletProbe, PodSettings, Workload } from "@systems/kind";
-import type { KubeProxyMode, Propagation } from "@systems/kind";
-import { DOCUMENTED } from "@systems/kind";
 
 /**
  * This module holds the defaults of the plan for the kind templates, T07 and T18, as explicit
@@ -13,6 +14,8 @@ import { DOCUMENTED } from "@systems/kind";
 
 export const s = (value: number): Quantity => ({ value, unit: "s" });
 export const ms = (value: number): Quantity => ({ value, unit: "ms" });
+/** This function prints an amount for the text of a prediction, to the microsecond: `0.105 s`. */
+export const say = (amount: Quantity): string => format(amount, { digits: 6 });
 
 /** This probe is the default of Kubernetes: a period of 10 s, a threshold of 3 and a timeout of 1 s. */
 export const KUBE_PROBE: KubeletProbe = { period: s(10), threshold: 3, timeout: s(1) };
@@ -41,9 +44,13 @@ export const DESIGN_PHASES: Declaration["phases"] = [
 ];
 
 /** This function gives the phases of the design with another hold of `fail readiness`, and the drain shorter by the same time. */
-export const withHold = (hold: number): Declaration["phases"] =>
+export const withHold = (hold: Quantity): Declaration["phases"] =>
   DESIGN_PHASES.map(([stage, cap]) =>
-    stage === "fail readiness" ? [stage, s(hold)] : stage === "drain" ? [stage, s(cap.value - (hold - 2))] : [stage, cap],
+    stage === "fail readiness"
+      ? [stage, hold]
+      : stage === "drain"
+        ? [stage, s(valueIn(cap, "s") - (valueIn(hold, "s") - 2))]
+        : [stage, cap],
   );
 
 /** These are the knobs of the Redis client of the service. Each command ends in 2 s, inside the 4 s timeout of a poll. */
@@ -83,16 +90,16 @@ export const DESIGN_REDIS: Declaration = { ...DESIGN, redis: { gates: "readiness
 export const WORKLOAD: Workload = { every: ms(20), timeout: s(1) };
 
 /**
- * This table is the propagation of the endpoints for each kube-proxy mode, in seconds after a
- * deletion. The cluster has one control plane and 2 workers, on a runner of GitHub. Each bound is
- * from the CAL cells of T07: 33 times for each mode, 3 nodes in 11 runs. The upper bound is the
+ * This table is the propagation of the endpoints for each kube-proxy mode, after a deletion. The
+ * cluster has one control plane and 2 workers, on a runner of GitHub. Each bound is from the CAL
+ * cells of T07: 33 times for each mode, 3 nodes in 11 runs. The upper bound is the
  * longest poll without the pod. The lower bound is the shortest such poll less the 50 ms of a
  * poll, and not below zero. `DOCUMENTED` is the bound before a calibration, `minSyncPeriod`.
  */
 export const PROPAGATION: Readonly<Record<KubeProxyMode, Propagation>> = {
-  iptables: { lo: 0, hi: 0.105, from: "CAL.T07.iptables: median 0.059 s, 33 times" },
-  ipvs: { lo: 0.073, hi: 0.309, from: "CAL.T07.ipvs: median 0.192 s, 33 times" },
-  nftables: { lo: 0, hi: 0.079, from: "CAL.T07.nftables: median 0.045 s, 33 times" },
+  iptables: { lo: s(0), hi: s(0.105), from: "CAL.T07.iptables: median 0.059 s, 33 times" },
+  ipvs: { lo: s(0.073), hi: s(0.309), from: "CAL.T07.ipvs: median 0.192 s, 33 times" },
+  nftables: { lo: s(0), hi: s(0.079), from: "CAL.T07.nftables: median 0.045 s, 33 times" },
 };
 
 /** This propagation is the bound of the documents, for a cell that a calibration does not cover. */

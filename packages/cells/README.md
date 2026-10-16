@@ -118,7 +118,27 @@ In a crossing, each client does a different thing. Go sends a GET again on a new
 
 - **The width of the window.** The crossing window is one round trip wide. On the Docker bridge, the round trip is narrower than the bounds of S. Thus a cell with the gap at S is measurement-only. A cell with 100 ms of latency has a window that holds the bounds of S.
 - **Only Go races.** The agent and undici take C from the hint of the server, less a buffer. The hint is S in whole seconds or less, thus their C stays below S. Go ignores the hint, and its C is 90 s.
-- **The border of O01.** The plan gives O01 a margin of 0.26 s at S = 6 s. The documents give a margin of a few milliseconds: the lateness of C, the early bound of S and the round trip. Thus the cells on each side of the border of the plan predict no race.
+- **The border of O01.** The plan gives O01 a margin of 0.26 s at S = 6 s. The documents give a margin of a few milliseconds: the lateness of C, the handling time, the early bound of S and the round trip. Thus the cells on each side of the border of the plan predict no race.
+
+### The handling time
+
+Each band of a client counts from the last segment of the reply that the kernel of the client received (`last-received`). A Node client arms its pool timer later, on its event loop, after the program read the whole reply. The time between them is the handling time (`HANDLING` in `race.ts`).
+
+- **Where each client arms its timer.** The agent arms its free socket timer in its handler of the `free` event. The socket emits `free` on the next tick after the end of the response (`lib/_http_client.js:1017-1051`, `lib/_http_agent.js:201-265`). undici arms its keep-alive timer in `resumeH1`. A `setImmediate` after the parse of the reply starts that function (`lib/dispatcher/client-h1.js:842-846`, `:1151-1154`).
+- **No source bounds it.** It is the time of the program. Each run of a cell starts a new client process, thus each race meets the first reply of a process. That reply starts code for the first time. In run 38931350785, the first reply took 1.5 ms to 9.7 ms to the `ready` line of the program. The second reply took less than 1.3 ms.
+- **The calibration.** The cells `CAL agent` and `CAL undici` give the client a pool timer of 1 ms against a hint of 6. The timer fires after its arm. Thus each time from the last segment to the FIN of the client is more than the handling time of its run. Four copies of each cell go to four runners, because the CPU of a runner changes the handling time.
+- **The bound.** `HANDLING` is the largest time that the calibration counted. The two CI calibrations 38974653161 and 38975675034 gave 88 counted times for each client, on eight runners with six types of CPU. The agent had a median of 4.977 ms and a maximum of 6.73 ms. undici had a median of 7.844 ms and a maximum of 11.182 ms. The reader `handling.test.ts` reads the records of a calibration and gives the spread.
+- **What it changes.** The handling time goes on the high bound of the pool expiry and of the gap of a Node client. A client with no reuse closes at its decision, in the handling time. The orderings of the race stay the same. Go handles its first reply in less than 0.71 ms, thus it gets no handling time.
+- **The bands that it repairs.** The CI run 38931350785 refuted four bands, each by the handling time:
+
+| Cell | The band before | What the runs showed | The band with the handling time (HZ 1000) |
+| --- | --- | --- | --- |
+| `T01.border-off.124` undici, a GET 5.95 s after the reply | [5.898, 5.9079] s | 8 of 11 runs above the band and δ_abs, by up to 0.95 ms. The `ready` line came 5.9 ms to 6.5 ms after the last segment, and the timer arms after it. | [5.898, 5.919082] s |
+| `T01` undici, a GET 4 s after the reply | [2.998, 3.005] s | 4 of 11 runs above the band and δ_abs, by up to 1.4 ms. | [2.998, 3.016182] s |
+| `T01` undici, a hint of 2 (no reuse) | [0, 0.001] s | 1 run at 5.7 ms. undici closes in the parse of the reply, 4.2 ms to 5.7 ms after the last segment. | [0, 0.011182] s |
+| `T01` agent, a hint of 1 (no reuse) | [0, 0.001] s | Each run inside the band and δ_abs. But the interval of the median, [4.19, 4.76] ms, is above the band, thus the verdict fails. | [0, 0.00673] s |
+
+The CI run 38976874040 tested the 13 race cells of the Node clients and the 8 CAL cells with these bands, and each one holds. Its CAL cells stay below `HANDLING`: 6.263 ms for the agent, and 9.022 ms for undici.
 
 ### The faults
 
@@ -168,7 +188,7 @@ The client of these cells is the MongoDB client of the harness (`image/mongo/cli
 
 ## The T07 catalog
 
-T07 is the endpoint lifecycle of a Service in kind (`src/t07.ts`, on `@systems/kind`). A client on each node sends a request each 20 ms, each on a new connection to the ClusterIP. The server is the service of this repository, as a Deployment of 2 replicas on 2 workers.
+T07 is the endpoint lifecycle of a Service in kind (`src/t07.ts`, on `@mark1russell7/kind`). A client on each node sends a request each 20 ms, each on a new connection to the ClusterIP. The server is the service of this repository, as a Deployment of 2 replicas on 2 workers.
 
 - **The question** is O04 with the hold of the service. The listener of a leaving pod stays open for its preStop sleep and its hold of `fail readiness`. A connection fails when the rules of its node select the pod after that.
 - **The calibration** (`CAL.T07.<mode>`) deletes a pod with a preStop sleep of 10 s. Each node gives its propagation: the time from the deletion to the first poll of its rules without the pod. `PROPAGATION` in `src/kind.ts` holds the shortest and the longest time for each mode.

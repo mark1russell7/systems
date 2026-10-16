@@ -4,12 +4,21 @@ import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import { HZ, LINUX, LINUX_66, given } from "../catalog.ts";
 import type { HttpCell } from "./catalog.ts";
-import { HTTP_CELLS, HTTP_LATER, HTTP_OUT_OF_SCOPE, HTTP_SPECS, HTTP_WAITING, raceOf } from "./catalog.ts";
+import {
+  HANDLING_COPIES,
+  HTTP_CAL,
+  HTTP_CELLS,
+  HTTP_LATER,
+  HTTP_OUT_OF_SCOPE,
+  HTTP_SPECS,
+  HTTP_WAITING,
+  raceOf,
+} from "./catalog.ts";
 import { GO_TRANSPORT } from "./go-transport.ts";
 import { NODE_HTTP_AGENT } from "./node-agent.ts";
 import { NODE_HTTP_SERVER, hintOf } from "./node-server.ts";
 import type { Race } from "./race.ts";
-import { decide, gapOf, outcomeOf, poolExpiry, serverClose, timerInterval, valuesOf } from "./race.ts";
+import { HANDLING, afterHandling, decide, gapOf, handlingOf, outcomeOf, poolExpiry, serverClose, timerInterval, valuesOf } from "./race.ts";
 import { goLateSeconds, goTimerLateness, nodeLateSeconds, nodeTimerLateness } from "./timers.ts";
 import { UNDICI_CLIENT } from "./undici.ts";
 
@@ -285,5 +294,75 @@ describe("the HTTP catalog", () => {
     expect(cell("T03.defaults.62 go, a GET 25 s after the reply, all timers scaled by 15")).toMatchObject({ ordering: "fin-first", request: { connection: "new" } });
     expect(cell("T03.defaults.24 agent, a GET 14 s after the reply, the router idle 12 s")).toMatchObject({ ordering: "dropped", request: { connection: "new" } });
     expect(raceOf(HTTP_SPECS.find((each) => each.plan === "T03.defaults.62")!).server).toEqual({ low: 0.399, high: 0.4014 });
+  });
+});
+
+describe("the handling time of the Node clients", () => {
+  const at = (n: number) => Math.round(n * 1e9) / 1e9;
+  const AGENT = HANDLING.agent;
+  const UNDICI = HANDLING.undici;
+
+  it("gives the agent and undici their calibrated handling time, and Go none", () => {
+    expect(handlingOf("go")).toEqual({ low: 0, high: 0 });
+    expect(handlingOf("agent")).toEqual({ low: 0, high: AGENT });
+    expect(handlingOf("undici")).toEqual({ low: 0, high: UNDICI });
+    expect(afterHandling("undici", { low: 2.999, high: 3.004 })).toEqual({ low: 2.999, high: at(3.004 + UNDICI) });
+    expect(afterHandling("go", { low: 90, high: 90 })).toEqual({ low: 90, high: 90 });
+  });
+
+  it("counts the gap and the pool expiry of a Node client from the last segment of the reply", () => {
+    const spec = HTTP_SPECS.find((each) => each.name === "undici, a GET 4 s after the reply, between C (3 s) and S (6 s)")!;
+    const race = raceOf(spec);
+    expect(race.pool).toEqual({ low: 2.999, high: at(3.004 + UNDICI) });
+    expect(race.gap).toEqual({ low: gapOf("undici", 4).low, high: at(gapOf("undici", 4).high + UNDICI) });
+    // Go gets no handling time
+    const go = raceOf(HTTP_SPECS.find((each) => each.name === "go, a GET 3 s after the reply")!);
+    expect(go.gap).toEqual(gapOf("go", 3));
+  });
+
+  it("gives the refuted cells of run 38931350785 the handling time on their high bound", () => {
+    expect(band(cell("T01.border-off.124 undici, keepAliveTimeoutThreshold 100 ms against a hint of 6 (outside O01), a GET 5.95 s after the reply"))).toEqual({
+      timer: "keep_alive",
+      errno: "CLOSED",
+      from: "last-received",
+      low: 5.899,
+      high: at(5.9069 + UNDICI),
+    });
+    expect(band(cell("T01 undici, a GET 4 s after the reply, between C (3 s) and S (6 s)"))).toMatchObject({ low: 2.999, high: at(3.004 + UNDICI) });
+    // no reuse: the client closes at its reuse decision, in the handling time
+    expect(band(cell("T01 undici, keepAliveTimeout 2500 ms (a hint of 2), a GET 1 s after the reply"))).toMatchObject({ low: 0, high: UNDICI });
+    expect(band(cell("T01 agent, keepAliveTimeout 1500 ms (a hint of 1), a GET 1 s after the reply"))).toMatchObject({ low: 0, high: AGENT });
+  });
+
+  it("keeps each ordering of the Node race cells", () => {
+    const node = HTTP_CELLS.filter((each) => each.spec.workload.mode === "gap" && each.spec.client !== "go");
+    expect(node.map((each) => [each.name, each.ordering])).toEqual(
+      node.map((each) => [each.name, each.name.includes("5.45 s") || each.name.includes("5.85 s") ? "kept" : "dropped"]),
+    );
+  });
+
+  it("calibrates the handling time with a pool timer of 1 ms, four times for each Node client", () => {
+    expect(HTTP_CAL).toHaveLength(2 * HANDLING_COPIES);
+    for (const each of HTTP_CAL) {
+      const { spec } = each;
+      const handling = HANDLING[spec.client as "agent" | "undici"];
+      expect(each.name, each.name).toMatch(/^CAL (agent|undici), the handling of the first reply: /);
+      expect(each.ordering, each.name).toBe("dropped");
+      expect(each.request, each.name).toEqual({ connection: "new", retried: false, error: null });
+      // the harness measures the close of the client for a band with the errno CLOSED: 1 ms after the handling, at HZ 250
+      expect(band(each), each.name).toEqual({
+        timer: spec.client === "agent" ? "free_socket" : "keep_alive",
+        errno: "CLOSED",
+        from: "last-received",
+        low: 0,
+        high: at(0.00205 + handling),
+      });
+      const doc = spec.client === "agent" ? NODE_HTTP_AGENT : UNDICI_CLIENT;
+      const settings = spec.client === "agent" ? spec.agent! : spec.undici!;
+      expect(timerOf(doc, spec.client === "agent" ? "free_socket" : "keep_alive", valuesOf(doc, { ...settings, hint: hintOf(spec.server)! })).duration).toEqual({
+        value: 1,
+        unit: "ms",
+      });
+    }
   });
 });

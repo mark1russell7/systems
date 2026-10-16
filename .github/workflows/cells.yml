@@ -124,6 +124,8 @@ jobs:
             echo "CONFIG_HZ: $(grep -E '^CONFIG_HZ=' "/boot/config-$(uname -r)" || echo unknown)"
             echo "CLOCK_MONOTONIC_COARSE: $(python3 -c 'import time; print(time.clock_getres(6))') s"
             echo "cpus: $(nproc)"
+            # the speed of the CPU moves the time of a program on its first reply (the HTTP calibration)
+            echo "cpu: $(lscpu | sed -n 's/^Model name: *//p' | head -n 1)"
             echo "memory: $(free -m | awk '/^Mem:/ {print $2}') MiB"
             echo "image: $ImageOS $ImageVersion"
           } | tee "$RUNNER_TEMP/cells/runner.txt"

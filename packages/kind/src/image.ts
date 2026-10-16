@@ -1,15 +1,17 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync } from "node:fs";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /** This folder is the root of the package, and its `image/` folder has the files of the image. */
 const PACKAGE = fileURLToPath(new URL("../", import.meta.url));
+/** This folder is the root of the repository, when the package is in the workspace of the repository. */
 const REPO = fileURLToPath(new URL("../../../", import.meta.url));
-/** These are the packages of the workspace that the image holds, in the sequence of their dependencies. */
-export const WORKSPACE_PACKAGES = ["quantity", "algebra", "service"] as const;
+/** These are the packages of this repository that the image holds, in the sequence of their dependencies. */
+export const WORKSPACE_PACKAGES: readonly ["quantity", "algebra", "service"] = ["quantity", "algebra", "service"];
 /** These are the files of the image, by their name in the context and their source in the package. */
 const FILES: ReadonlyArray<readonly [string, string]> = [
   ["Dockerfile", "image/Dockerfile"],
@@ -41,21 +43,49 @@ export const contentTag = (name: string, root: string): string => {
   return `${name}:${hash.digest("hex").slice(0, 12)}`;
 };
 
+/** This function tells if the package is in the workspace of its repository. From npm, it is not. */
+const inWorkspace = (): boolean =>
+  existsSync(join(REPO, "pnpm-workspace.yaml")) && WORKSPACE_PACKAGES.every((name) => existsSync(join(REPO, "packages", name, "package.json")));
+
 /**
- * This function stages the build context of the lab image. It builds the packages of the
- * workspace, packs each one as npm gets it, and copies the files of the image.
+ * This function gives the folder of each installed package that the image holds. Node finds a
+ * package from the folder of a package that depends on it. The service depends on the algebra,
+ * thus the search starts with the service.
+ */
+const installedFolders = (): Map<string, string> => {
+  const folders = new Map<string, string>();
+  for (const name of [...WORKSPACE_PACKAGES].reverse()) {
+    const found = [PACKAGE, ...folders.values()].flatMap((from) => {
+      try {
+        return [dirname(realpathSync(createRequire(join(from, "package.json")).resolve(`@mark1russell7/${name}/package.json`)))];
+      } catch {
+        return [];
+      }
+    })[0];
+    if (found === undefined) throw new Error(`@mark1russell7/${name} is not installed with @mark1russell7/kind`);
+    folders.set(name, found);
+  }
+  return folders;
+};
+
+/**
+ * This function stages the build context of the lab image. In the workspace, it builds the packages
+ * of the repository and packs each one as npm gets it. From npm, it packs the installed packages.
+ * Then it copies the files of the image.
  */
 export const stageLabImage = (): string => {
   const context = mkdtempSync(join(tmpdir(), "systems-kind-lab-"));
-  const filters = WORKSPACE_PACKAGES.flatMap((name) => ["--filter", `@mark1russell7/${name}`]);
-  execFileSync("pnpm", [...filters, "build"], { cwd: REPO, shell, stdio: "ignore" });
-  mkdirSync(join(context, "workspace"));
-  for (const name of WORKSPACE_PACKAGES)
-    execFileSync("pnpm", ["pack", "--pack-destination", join(context, "workspace")], {
-      cwd: join(REPO, "packages", name),
-      shell,
-      stdio: "ignore",
-    });
+  const packed = join(context, "workspace");
+  mkdirSync(packed);
+  if (inWorkspace()) {
+    const filters = WORKSPACE_PACKAGES.flatMap((name) => ["--filter", `@mark1russell7/${name}`]);
+    execFileSync("pnpm", [...filters, "build"], { cwd: REPO, shell, stdio: "ignore" });
+    for (const name of WORKSPACE_PACKAGES)
+      execFileSync("pnpm", ["pack", "--pack-destination", packed], { cwd: join(REPO, "packages", name), shell, stdio: "ignore" });
+  } else {
+    for (const folder of installedFolders().values())
+      execFileSync("npm", ["pack", "--pack-destination", packed, "--ignore-scripts"], { cwd: folder, shell, stdio: "ignore" });
+  }
   for (const [at, from] of FILES) copyFileSync(join(PACKAGE, from), join(context, at));
   return context;
 };

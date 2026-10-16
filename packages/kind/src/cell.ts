@@ -34,15 +34,18 @@ export type TriggerKind =
   | "rollout"
   | "cpu-throttle";
 
-/** A trigger is its kind and the settings of its fault. */
-export interface Trigger {
+/**
+ * A trigger is its kind and the settings of its fault. The parameter `A` is the form of an amount:
+ * a quantity in the format `/2`, a number in the format `/1`.
+ */
+export interface Trigger<A = Quantity> {
   readonly kind: TriggerKind;
   /** This time is how long a fault holds before it ends: a stall, a pause of kube-proxy, a black hole on Redis. */
   readonly hold?: Quantity | undefined;
   /** This time is how long before the deletion a pause of kube-proxy starts (T07 `freeze-process`). */
   readonly lead?: Quantity | undefined;
-  /** This value is the `cpu.max` of a throttle: the quota and the period in microseconds. */
-  readonly cpuMax?: { readonly quota: number; readonly period: number } | undefined;
+  /** This value is the `cpu.max` of a throttle: the quota and the period. The format `/1` gives each one in microseconds. */
+  readonly cpuMax?: { readonly quota: A; readonly period: A } | undefined;
 }
 
 /** A kubelet probe is the period, the failure threshold and the timeout of one probe of the pod. */
@@ -102,10 +105,13 @@ export interface Workload {
   readonly timeout: Quantity;
 }
 
-/** A band is a range of times, in seconds after a reference event of the run. */
-export interface Band {
-  readonly lo: number;
-  readonly hi: number;
+/**
+ * A band is a range of times after a reference event of the run. The format `/1` gives each end
+ * in seconds, as a number.
+ */
+export interface Band<A = Quantity> {
+  readonly lo: A;
+  readonly hi: A;
 }
 
 /**
@@ -129,7 +135,7 @@ export type Reference = "deletion" | "intake" | "fault" | "resume";
  * - `stalls`: the rollout does not continue while Redis is down, and it ends after Redis is back.
  * - `measured`: no document bounds the outcome. The run keeps the measurement.
  */
-export type Prediction =
+export type Prediction<A = Quantity> =
   | {
       readonly kind: "none";
       /** These outcomes are the failures that the prediction excludes. Without them, it excludes each outcome but `ok`. */
@@ -139,14 +145,14 @@ export type Prediction =
   | {
       readonly kind: "window";
       readonly nodes: "all" | "paused";
-      readonly start: { readonly from: Reference; readonly band: Band };
-      readonly end: { readonly from: Reference; readonly band: Band } | null;
+      readonly start: { readonly from: Reference; readonly band: Band<A> };
+      readonly end: { readonly from: Reference; readonly band: Band<A> } | null;
       readonly certain: boolean;
       readonly why: string;
     }
-  | { readonly kind: "removal"; readonly band: Band; readonly why: string }
-  | { readonly kind: "leaves"; readonly band: Band; readonly why: string }
-  | { readonly kind: "restarts"; readonly band: Band | null; readonly why: string }
+  | { readonly kind: "removal"; readonly band: Band<A>; readonly why: string }
+  | { readonly kind: "leaves"; readonly band: Band<A>; readonly why: string }
+  | { readonly kind: "restarts"; readonly band: Band<A> | null; readonly why: string }
   | { readonly kind: "stays"; readonly why: string }
   | { readonly kind: "stalls"; readonly why: string }
   | { readonly kind: "measured"; readonly why: string };
@@ -163,12 +169,15 @@ export interface Replica {
  * A kind run is one run of a cell: its lines, the stamps of its acts, and the replicas at its
  * start. The judge derives each other reference from the lines, thus a holder of the raw record
  * can judge it again.
+ *
+ * A stamp is a reading of CLOCK_MONOTONIC in milliseconds. It is a point on a clock, not an
+ * amount, thus it stays a number, as in each line.
  */
 export interface KindRun {
   readonly env: number;
   readonly index: number;
   readonly warmup: boolean;
-  /** These times are the start and the end of the run, in milliseconds on CLOCK_MONOTONIC. */
+  /** These stamps are the start and the end of the run. */
   readonly start: number;
   readonly end: number;
   /** These are the stamps of the acts: the start of the fault, its heal, and the end of a pause of kube-proxy. */
@@ -186,8 +195,8 @@ export interface KindRun {
   readonly notes?: readonly string[] | undefined;
 }
 
-/** A kind cell is all that one measurement in kind needs, as data. */
-export interface KindCell {
+/** A kind cell is all that one measurement in kind needs, as data. The parameter `A` is the form of an amount. */
+export interface KindCell<A = Quantity> {
   /** This identifier is the cell of the plan that the cell stands for. */
   readonly id: string;
   readonly name: string;
@@ -196,11 +205,11 @@ export interface KindCell {
   readonly substitutes: string | null;
   readonly mode: KubeProxyMode;
   readonly workers: number;
-  readonly trigger: Trigger;
+  readonly trigger: Trigger<A>;
   readonly pod: PodSettings;
   readonly declaration: Declaration;
   readonly workload: Workload;
-  readonly prediction: Prediction;
+  readonly prediction: Prediction<A>;
   /** This flag marks a calibration: its runs measure the propagation of the endpoints, and nothing fails. */
   readonly calibrates: boolean;
   readonly runs: number;

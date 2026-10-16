@@ -1,6 +1,7 @@
-import type { KindCell, KubeProxyMode, Prediction } from "@systems/kind";
-import { KUBE_PROXY_MODES, deletionWindow, pausedWindow } from "@systems/kind";
-import { CHART_READINESS, DESIGN, KUBE_PROBE, PROPAGATION, WORKERS, WORKLOAD, kubeDefaults, s, withHold } from "./kind.ts";
+import type { KindCell, KubeProxyMode, Prediction } from "@mark1russell7/kind";
+import { KUBE_PROXY_MODES, deletionWindow, pausedWindow } from "@mark1russell7/kind";
+import { valueIn } from "@mark1russell7/quantity";
+import { CHART_READINESS, DESIGN, KUBE_PROBE, PROPAGATION, WORKERS, WORKLOAD, kubeDefaults, s, say, withHold } from "./kind.ts";
 
 /**
  * The T07 catalog: the endpoint lifecycle of a Service. A client on each node sends requests on new
@@ -48,15 +49,15 @@ const deletionPrediction = (cell: Pick<KindCell, "declaration" | "pod" | "mode">
   if (window.empty)
     return {
       kind: "none",
-      why: `the intake stops ${window.intake} s after the deletion at the earliest, after the propagation (${window.end.hi} s at the most)`,
+      why: `the intake stops ${say(window.intake)} after the deletion at the earliest, after the propagation (${say(window.end.hi)} at the most)`,
     };
   return {
     kind: "window",
     nodes: "all",
-    start: { from: "intake", band: { lo: 0, hi: window.end.hi } },
+    start: { from: "intake", band: { lo: s(0), hi: window.end.hi } },
     end: { from: "deletion", band: window.end },
     certain: false,
-    why: `the intake can stop ${window.intake} s after the deletion, before the propagation (up to ${window.end.hi} s): a connection between the two is refused`,
+    why: `the intake can stop ${say(window.intake)} after the deletion, before the propagation (up to ${say(window.end.hi)}): a connection between the two is refused`,
   };
 };
 
@@ -66,15 +67,15 @@ const pausePrediction = (cell: Pick<KindCell, "declaration" | "pod" | "mode">): 
   if (window.empty)
     return {
       kind: "none",
-      why: `the intake stops ${window.intake} s after the deletion, after the paused node syncs (${window.resume} s, then up to ${window.end.hi} s)`,
+      why: `the intake stops ${say(window.intake)} after the deletion, after the paused node syncs (${say(window.resume)}, then up to ${say(window.end.hi)})`,
     };
   return {
     kind: "window",
     nodes: "paused",
-    start: { from: "intake", band: { lo: 0, hi: window.resume + window.end.hi } },
+    start: { from: "intake", band: { lo: s(0), hi: s(valueIn(window.resume, "s") + valueIn(window.end.hi, "s")) } },
     end: { from: "resume", band: window.end },
     certain: true,
-    why: `the intake stops ${window.intake} s after the deletion, and the paused node selects the pod until it syncs after ${window.resume} s: its connections are refused between the two`,
+    why: `the intake stops ${say(window.intake)} after the deletion, and the paused node selects the pod until it syncs after ${say(window.resume)}: its connections are refused between the two`,
   };
 };
 
@@ -99,7 +100,7 @@ const modeCells = (mode: KubeProxyMode): KindCell[] => {
     trigger: { kind: "pod-deletion" },
     prediction: deletionPrediction(defaults),
   });
-  const noHold = { ...base(mode), declaration: { ...DESIGN, phases: withHold(0) } };
+  const noHold = { ...base(mode), declaration: { ...DESIGN, phases: withHold(s(0)) } };
   cells.push({
     ...noHold,
     id: "T07.border-off.68",
@@ -116,7 +117,7 @@ const modeCells = (mode: KubeProxyMode): KindCell[] => {
     trigger: { kind: "freeze-process", hold: PAUSE_HOLD, lead: PAUSE_LEAD },
     prediction: pausePrediction(defaults),
   });
-  const longHold = { ...base(mode), declaration: { ...DESIGN, phases: withHold(8) } };
+  const longHold = { ...base(mode), declaration: { ...DESIGN, phases: withHold(s(8)) } };
   cells.push({
     ...longHold,
     id: "T07.border-off.1",
@@ -194,7 +195,7 @@ export const T07_CELLS: readonly KindCell[] = [
     prediction: {
       kind: "window",
       nodes: "all",
-      start: { from: "intake", band: { lo: 0, hi: 10 } },
+      start: { from: "intake", band: { lo: s(0), hi: s(10) } },
       end: null,
       certain: true,
       why: "W8: the endpoint stays ready until the kill, and the intake stops after the hold: each connection until the removal is refused, and no document bounds that removal",
