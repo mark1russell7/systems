@@ -356,6 +356,9 @@ const requestFinding = (expected: NonNullable<Cell["prediction"]["request"]>, re
  * This function reads the second request of an HTTP client from its lines. Its first try is its
  * first `request` line, and each `retry` line is a new try. Its end is its `error` line, or its
  * `replied` line. A request with neither is pending. It gives null when the client wrote no try.
+ *
+ * A new try that gets no connection writes no `retry` line. Its dial writes a `dial-error` line.
+ * Thus a `dial-error` line after the first try and before the end is also a new try.
  */
 export const requestOf = (events: readonly ProbeEvent[]): RequestReading | null => {
   const of = (event: ProbeEvent) => Number(event["i"]) === 2;
@@ -366,9 +369,13 @@ export const requestOf = (events: readonly ProbeEvent[]): RequestReading | null 
   const replied = events.some((event) => event.ev === "replied" && of(event));
   const ready = events.find((event) => event.ev === "ready");
   const sent = events.find((event) => event.ev === "sent" && of(event));
+  const end = failed ?? events.find((event) => event.ev === "done" && of(event));
+  const dialed = events.some(
+    (event) => event.ev === "dial-error" && event.t > first.t && (end === undefined || event.t <= end.t),
+  );
   return {
     connection: first["reused"] === true ? "reused" : "new",
-    retried: tries.some((each) => each.ev === "retry"),
+    retried: dialed || tries.some((each) => each.ev === "retry"),
     error: failed === undefined ? null : String(failed["errno"]),
     pending: failed === undefined && !replied,
     gap: ready === undefined || sent === undefined ? null : between(ready.t, sent.t),

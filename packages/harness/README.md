@@ -166,6 +166,7 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
 - **A proxy's own time.** A calibration cell (`Cell.calibrates`) gives the time of its proxy for each request and its reply (`crossings`). Each time goes from an arrival on one socket of the proxy to its next write on the other socket (a `tx` record).
 - **An HTTP client** (`requestOf`). The run gives what the second request met (`request`): the connection of its first try, a new try, and its error or its reply. The prediction gives the same (`Prediction.request`), and another outcome is a finding.
   - In a gap, the idle connection counts from the first reply, and the run gives the gap from the lines of the client.
+  - A new try that gets no connection writes only its failed dial (`dial-error`). That line counts as a new try.
   - A close of the observer itself (errno `CLOSED`) is the change of its socket from ESTABLISHED to FIN_WAIT1: its pool closed an idle connection.
   - A timer of the client or the server is not a timer of the kernel. Thus a delayed keepalive timer of the socket does not make such a run void.
 - **A router that forgets in silence.** A silent prediction can say that the router forgets the flow in a band after the last segment (`Prediction.middlebox`). The run then holds when the forget is in that band and nothing detects it. A missing forget, or one outside its band, is a finding. Without it, the router must keep the flow.

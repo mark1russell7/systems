@@ -85,6 +85,23 @@ describe("an HTTP client measured against its cell", () => {
     expect(requestOf(first)).toBeNull();
   });
 
+  it("counts a failed dial after the first try as a new try, because that try gets no connection", () => {
+    // Go after a reset on a reused connection: its new try dials, and the dial is refused
+    const refused: ProbeEvent[] = [
+      ...first,
+      { ev: "sent", t: T + 300_000_000, i: 2 },
+      { ev: "request", t: T + 300_100_000, i: 2, local: LOCAL, reused: true },
+      { ev: "conn-error", t: T + 300_300_000, local: LOCAL, errno: "ECONNRESET" },
+      { ev: "dial-error", t: T + 300_500_000, errno: "ECONNREFUSED" },
+      { ev: "error", t: T + 300_600_000, i: 2, errno: "ECONNREFUSED" },
+      { ev: "done", t: T + 300_700_000, i: 2 },
+    ];
+    expect(requestOf(refused)).toMatchObject({ connection: "reused", retried: true, error: "ECONNREFUSED" });
+    // a failed dial before the second request is not a try of it
+    const before: ProbeEvent = { ev: "dial-error", t: T - 3_000_000, errno: "ECONNREFUSED" };
+    expect(requestOf([before, ...first, ...second(true, false, "EOF")])).toMatchObject({ retried: false });
+  });
+
   it("times the FIN of the server from the last segment of the first reply, in a gap", () => {
     const kernel = [...reply, k("state", T + 6_003_000_000, { old: 1, new: 8 })];
     const read = measure(RACE, run([...first, { ev: "eof", t: T + 6_003_100_000, local: LOCAL }, ...second(false)], kernel));
