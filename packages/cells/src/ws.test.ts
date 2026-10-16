@@ -1,0 +1,115 @@
+import { algebraProblems, machineProblems } from "@mark1russell7/algebra";
+import { describe, expect, it } from "vitest";
+import { HZ } from "./catalog.ts";
+import { nodeEarlySeconds, nodeLateSeconds } from "./http/timers.ts";
+import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER, PROCEDURES_WS_SERVER_MAIN } from "./procedures-ws.ts";
+import { WS_CELLS, WS_SPECS, WS_WAITING } from "./ws.ts";
+
+const round = (value: number) => Math.round(value * 1e9) / 1e9;
+const cell = (name: string) => {
+  const found = WS_CELLS.find((each) => each.name === `WS ${name}`);
+  if (found === undefined) throw new Error(`no cell ${name}`);
+  return found;
+};
+const band = (name: string) => {
+  const p = cell(name).prediction;
+  if (p.detects === true) return { timer: p.timer, errno: p.errno, from: p.from, low: p.low.value, high: p.high.value };
+  if (p.detects === false && p.recovers !== undefined)
+    return { firing: p.recovers.firing, low: p.recovers.low.value, high: p.recovers.high.value, window: p.window.value };
+  return p.detects === false ? { silent: p.window.value } : "measured";
+};
+const waits = (name: string) => {
+  const p = cell(name).prediction;
+  return p.detects === true ? (p.reconnects?.waits ?? []).map((wait) => [wait.low.value, wait.high.value]) : [];
+};
+/** the band of a Node timer of `seconds`, at the HZ of the cells */
+const nodeBand = (seconds: number) => [round(seconds - nodeEarlySeconds(HZ)), round(seconds + nodeLateSeconds(seconds, HZ))];
+
+describe("the WS catalog", () => {
+  it("reads three documents that the algebra accepts", () => {
+    for (const doc of [PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER, PROCEDURES_WS_SERVER_MAIN]) {
+      expect(machineProblems(doc), doc.id).toEqual([]);
+      expect(algebraProblems(doc), doc.id).toEqual([]);
+    }
+  });
+
+  it("gives each cell a prediction, and each cell a name of its catalog", () => {
+    expect(WS_CELLS).toHaveLength(WS_SPECS.length);
+    expect(new Set(WS_CELLS.map((each) => each.name)).size).toBe(WS_CELLS.length);
+    for (const each of WS_CELLS) {
+      expect(each.name.startsWith("WS ")).toBe(true);
+      expect(each.client).toBe("procedures-ws");
+      expect(each.target).toMatchObject({ harness: "procedures", lines: true });
+      if (each.prediction.detects === true) expect(each.prediction.high.value, each.name).toBeGreaterThanOrEqual(each.prediction.low.value);
+    }
+  });
+
+  it("predicts the drop by the heartbeat one pong timeout after the ping that got no answer, where the kernel waits", () => {
+    const [low, high] = nodeBand(1);
+    for (const name of [
+      "client idle, blackhole, heartbeat 2 s and 1 s",
+      "client, a call in flight, blackhole, heartbeat 2 s and 1 s",
+      // the kernel of a frozen server acknowledges the ping: only the heartbeat finds it
+      "client idle, freeze-process of the server, heartbeat 2 s and 1 s",
+    ])
+      expect(band(name), name).toEqual({ timer: "pong", errno: "DROPPED", from: "ping-sent", low, high });
+    // the band does not read the round trip
+    expect(cell("client idle, blackhole, heartbeat 2 s and 1 s").prediction).not.toHaveProperty("rtt");
+  });
+
+  it("predicts each wait of the reconnect from its backoff: 0.5 s, then 1 s and 2 s after each refusal", () => {
+    expect(waits("client idle, blackhole, heartbeat 2 s and 1 s")).toEqual([nodeBand(0.5)]);
+    expect(waits("client idle, fin of the server, three tries refused")).toEqual([nodeBand(0.5), nodeBand(1), nodeBand(2)]);
+    // a cell on the server side has a client that does not reconnect
+    expect(waits("server, a reply in flight, blackhole, tcp_retries2 = 3")).toEqual([]);
+  });
+
+  it("lets the kernel win where its timer is shorter: the give-up at tcp_retries2 = 3, and the keepalive of undici without a heartbeat", () => {
+    expect(band("client idle, blackhole, tcp_retries2 = 3, heartbeat 2 s and 10 s")).toMatchObject({
+      timer: "retrans_giveup",
+      errno: "ETIMEDOUT",
+      from: "first-retransmission",
+      low: 3,
+    });
+    // undici sets 60 s on the socket, and libuv 10 probes 1 s apart: 70 s from the last segment
+    expect(band("client idle, blackhole, heartbeat off")).toMatchObject({ timer: "keepalive", errno: "ETIMEDOUT", from: "last-received" });
+    const keepalive = band("client idle, blackhole, heartbeat off") as { low: number; high: number };
+    expect(keepalive.low).toBeCloseTo(70, 1);
+    expect(keepalive.high).toBeGreaterThan(70);
+  });
+
+  it("predicts a reset and a FIN at once, and a stall that the heartbeat outlasts", () => {
+    expect(band("client idle, rst, heartbeat 2 s and 1 s")).toEqual({ timer: "rx.rst", errno: "ECONNRESET", from: "ping-sent", low: 0, high: 0.001 });
+    expect(band("client idle, fin of the server, three tries refused")).toEqual({ timer: "rx.fin", errno: "EOF", from: "peer-closed", low: 0, high: 0.001 });
+    // the ping goes into a 1 s stall: its third firing gets through, and the pong comes back before the 3 s timeout
+    expect(band("client idle, a 1 s stall, heartbeat 2 s and 3 s")).toMatchObject({ firing: 3, window: 5 });
+    expect(cell("client idle, a 1 s stall, heartbeat 2 s and 3 s").stall).toEqual({ value: 1, unit: "s" });
+  });
+
+  it("finds that the server of 0.2.3 has no heartbeat: silence idle, and the give-up of its kernel with a reply in flight", () => {
+    expect(band("server idle, blackhole")).toEqual({ silent: 20 });
+    expect(band("server, a reply in flight, blackhole, tcp_retries2 = 3")).toMatchObject({ timer: "retrans_giveup", errno: "ETIMEDOUT", low: 3 });
+    // the heartbeat of the server on the main branch of the client waits for a release: two beats of 1 s
+    const [waiting] = WS_WAITING;
+    expect(waiting?.prediction).toMatchObject({ errno: "DROPPED", from: "ping-sent", low: { value: round(2 - 2 * nodeEarlySeconds(HZ)) } });
+    expect(waiting?.waits).toContain("roadmap R3");
+  });
+
+  it("gives each setting of the client and each knob of Linux TCP at the observer", () => {
+    const idle = cell("client idle, blackhole, heartbeat 2 s and 1 s");
+    expect(idle.probe.ws).toEqual({
+      heartbeat: { interval: { value: 2000, unit: "ms" }, timeout: { value: 1000, unit: "ms" } },
+      reconnect: { initialDelay: { value: 500, unit: "ms" }, multiplier: 2, maxDelay: { value: 4000, unit: "ms" }, attempts: 10 },
+      requestTimeout: { value: 60_000, unit: "ms" },
+      connectionTimeout: { value: 10_000, unit: "ms" },
+    });
+    expect(idle.sysctls).toMatchObject({ "net.ipv4.tcp_retries2": "8" });
+    const server = cell("server, a reply in flight, blackhole, tcp_retries2 = 3");
+    expect(server).toMatchObject({ observer: "server", targetSysctls: { "net.ipv4.tcp_retries2": "3" }, sysctls: {} });
+    expect(server.probe.ws).toMatchObject({ heartbeat: null, reconnect: null, hold: { value: 2000, unit: "ms" } });
+    // a FIN of the server ends its environment: each run has its own, and a shell holds the server
+    const fin = cell("client idle, fin of the server, three tries refused");
+    expect(fin.environments).toBe(11);
+    expect(fin.target.kill).toBeDefined();
+  });
+});
