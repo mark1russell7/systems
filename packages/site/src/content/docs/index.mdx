@@ -51,5 +51,9 @@ The lab below computes these times from the rules of the kernel. Select a harnes
 - [The S1 cells](results/cells/) show each harness cell against its prediction. The observers are the kernel of the client, the ioredis driver and the server.
 - [The network failures](results/faults/) show each network failure that the harness can inject on the direct pair, against its prediction.
 - [The failures through a middlebox and a proxy](results/topologies/) show the cells with a NAT router, HAProxy or Toxiproxy between the client and Redis.
+- [A Valkey group under three Sentinels](results/sentinel/) shows each failover of T12, its stages, and the writes that the group lost.
+- [HTTP/1.1 keep-alive](results/http/) shows the server of Node against the agent of Node, undici and the transport of Go.
+- [A MongoDB replica set](results/mongodb/) shows the Node driver of MongoDB against one member, through a NAT router, and in an election.
+- [Kubernetes endpoints in kind](results/kind/) shows the deletion of a pod in three modes of kube-proxy, and a fleet whose readiness needs Redis.
 - [The calibration](results/calibration/) shows the noise of the harness itself.
 - [The timers behind their slot](results/timers/) show how the prober tells a delay of the VM from a delay of the kernel.
