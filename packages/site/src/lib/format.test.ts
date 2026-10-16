@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { duration, ticks, ticksBetween } from "./format.ts";
+import { count, duration, reading, ticks, ticksBetween } from "./format.ts";
 
 describe("the formats of the site", () => {
   it("writes a time with the units of its size, and no zeros at the end", () => {
@@ -13,6 +13,15 @@ describe("the formats of the site", () => {
     expect(duration(Infinity)).toBe("never");
     expect(duration(-4)).toBe("−4 ms");
     expect(duration(0)).toBe("0 s");
+  });
+
+  it("keeps 4 decimals in a readout from 1 s to 120 s, and the units of its size elsewhere", () => {
+    expect(reading(3008.6)).toBe("3.0086 s");
+    expect(reading(52_855.355)).toBe("52.8554 s");
+    expect(reading(5000)).toBe("5 s");
+    expect(reading(0.828)).toBe("828 µs");
+    expect(reading(7_875_000)).toBe("2 h 11 min 15 s");
+    expect(count(11_462)).toBe("11,462");
   });
 
   it("puts the ticks of an axis on round values", () => {

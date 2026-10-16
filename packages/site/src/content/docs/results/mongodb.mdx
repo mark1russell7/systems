@@ -6,6 +6,9 @@ description: The MongoDB cells on the runners of GitHub, with the Node driver of
 ---
 
 import RunResults, { WritesTable } from "../../../components/RunResults.tsx";
+import { Summary } from "../../../components/Ledger.tsx";
+
+<Summary of="mongodb" />
 
 These are the results of the MongoDB cells, from 2026-10-16. The client is the driver `mongodb` 7.7.0 on Node 24.21.0, and the server is mongod 9.0.4. T01 is the direct pair, with a replica set of one member. T03 puts a NAT router between the client and that member. T11 is a replica set of three members that elect their own primary.
 

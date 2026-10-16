@@ -27,38 +27,38 @@ export default function TimerTable(): ReactElement {
         <thead>
           <tr>
             <th>Cell</th>
-            <th>Firings</th>
-            <th>On the slot</th>
-            <th>1 jiffy late</th>
-            <th>2 jiffies or more</th>
-            <th>Socket held</th>
-            <th>Void runs</th>
+            <th className="num">Firings</th>
+            <th className="num">On the slot</th>
+            <th className="num">1 jiffy late</th>
+            <th className="num">2 jiffies or more</th>
+            <th className="num">Socket held</th>
+            <th className="num">Void runs</th>
           </tr>
         </thead>
         <tbody>
           {cells.map((cell) => (
             <tr key={cell.name}>
-              <td>{cell.name}</td>
-              <td>{cell.timers.firings}</td>
-              <td>{cell.timers.onSlot}</td>
-              <td>{cell.timers.oneBehind}</td>
-              <td>{cell.timers.twoOrMore}</td>
-              <td>{cell.timers.owned}</td>
-              <td>
+              <td className="sy-text">{cell.name}</td>
+              <td className="num">{cell.timers.firings}</td>
+              <td className="num">{cell.timers.onSlot}</td>
+              <td className="num">{cell.timers.oneBehind}</td>
+              <td className="num">{cell.timers.twoOrMore}</td>
+              <td className="num">{cell.timers.owned}</td>
+              <td className="num">
                 {cell.verdict.voided} of {cell.runs.length}
               </td>
             </tr>
           ))}
-          <tr>
+          <tr className="sy-total">
             <th scope="row">All {cells.length} cells</th>
-            <th>{total.firings}</th>
-            <th>{total.onSlot}</th>
-            <th>{total.oneBehind}</th>
-            <th>{total.twoOrMore}</th>
-            <th>{total.owned}</th>
-            <th>
+            <td className="num">{total.firings}</td>
+            <td className="num">{total.onSlot}</td>
+            <td className="num">{total.oneBehind}</td>
+            <td className="num">{total.twoOrMore}</td>
+            <td className="num">{total.owned}</td>
+            <td className="num">
               {total.voided} of {total.runs}
-            </th>
+            </td>
           </tr>
         </tbody>
       </table>

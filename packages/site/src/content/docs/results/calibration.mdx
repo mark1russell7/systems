@@ -4,6 +4,9 @@ description: Stage 0. The noise of the harness itself, and how many environments
 ---
 
 import Calibration from "../../../components/Calibration.tsx";
+import { Summary } from "../../../components/Ledger.tsx";
+
+<Summary of="calibration" />
 
 The harness must know its own noise before it can tell a finding from noise. Stage 0 measures that noise with two reference cells. Each cell has 30 runs at 1, 4 and 8 environments at the same time, and each environment has its own prober.
 

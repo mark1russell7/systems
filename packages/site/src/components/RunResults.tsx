@@ -5,15 +5,17 @@
  * of a group also has the stages of the failover. A kind cell has a frame with its verdict, and a
  * strip chart when its main value is a time.
  */
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import http from "../data/http-2026-10-16.json";
 import kind from "../data/kind-2026-10-16.json";
 import mongodb from "../data/mongodb-2026-10-16.json";
 import sentinel from "../data/sentinel-2026-10-16.json";
-import { duration } from "../lib/format.ts";
-import { code, joined } from "./CellFrame.tsx";
-import Legend from "./Legend.tsx";
-import Strip from "./Strip.tsx";
+import { count as digits, duration, reading } from "../lib/format.ts";
+import { axisOf, code, joined, predictionText, runsText } from "./CellFrame.tsx";
+import Frame, { type ReadoutItem } from "./Frame.tsx";
+import Legend, { keysOf } from "./Legend.tsx";
+import Strip, { type StripData } from "./Strip.tsx";
+import Verdict from "./Verdict.tsx";
 
 interface Band {
   readonly low: number;
@@ -70,43 +72,17 @@ const COPIES: Readonly<Record<string, readonly RunCell[]>> = {
 const ms = (s: number): number => s * 1000;
 const time = (s: number): string => duration(ms(s));
 /** This function writes a time with 4 decimals at 1 s or more, for a band of the HTTP borders that is a few milliseconds wide. */
-const fine = (s: number): string => (s >= 1 ? `${Number(s.toFixed(4))} s` : time(s));
+const fine = (s: number): string => reading(ms(s));
 
-/** This function writes a number with a comma in each group of three digits: 11,462. */
-const number = (n: number): string => n.toLocaleString("en-US");
 /** This function writes the count of a noun: "1 run", "2 runs". */
-const count = (n: number, noun: string): string => `${number(n)} ${n === 1 ? noun : `${noun}s`}`;
+const count = (n: number, noun: string): string => `${digits(n)} ${n === 1 ? noun : `${noun}s`}`;
 
-/** This component is the chip of a decision: holds, fails, a measurement or a calibration. */
-export function Chip(props: { readonly decision: string; readonly text?: string }): ReactElement {
-  const text = props.text === undefined ? "" : ` ${props.text}`;
-  if (props.decision === "measured") return <span className="sy-chip">∿ measured{text}</span>;
-  if (props.decision === "calibration") return <span className="sy-chip">◇ calibration{text}</span>;
-  const holds = props.decision === "holds";
-  return (
-    <span className="sy-chip" data-state={holds ? "pass" : "fail"}>
-      {holds ? "✓ holds" : `✗ ${props.decision}`}
-      {text}
-    </span>
-  );
-}
-
-/** A plot is what the strip of one cell shows. Each time is in milliseconds. */
-interface Plot {
+/** A plot is what the strip of one cell shows, with its axis and its accessible label. Each time is in milliseconds. */
+interface Plot extends StripData {
   readonly from: number;
   readonly to: number;
-  readonly band: Band | undefined;
-  readonly runs: ReadonlyArray<{ readonly t: number; readonly row: number; readonly label: string }>;
-  readonly warmups: ReadonlyArray<{ readonly t: number; readonly row: number; readonly label: string }>;
-  readonly lines: ReadonlyArray<{ readonly t: number; readonly label: string }>;
   readonly label: string;
 }
-
-/** This function gives the axis of a strip: the times that it must show, and 12 % of their span on each side. */
-const axisOf = (times: readonly number[]): { readonly from: number; readonly to: number } => {
-  const span = Math.max(...times) - Math.min(...times) || Math.max(...times) || 1;
-  return { from: Math.max(0, Math.min(...times) - span * 0.12), to: Math.max(...times) + span * 0.12 };
-};
 
 /** This function gives the plot of a harness cell, or null for a cell whose runs have no time. */
 const plotOf = (cell: RunCell): Plot | null => {
@@ -114,18 +90,61 @@ const plotOf = (cell: RunCell): Plot | null => {
   const runs = cell.runs.flatMap((times, environment) =>
     times.flatMap((t) => {
       n += 1;
-      return t === null ? [] : [{ t: ms(t), row: environment % 2, label: `Run ${n}, environment ${environment + 1}` }];
+      return t === null ? [] : [{ t: ms(t), row: 0, label: `Run ${n}, environment ${environment + 1}` }];
     }),
   );
   if (runs.length === 0) return null;
-  const warmups = cell.warmups.flatMap((t, environment) => (t === null ? [] : [{ t: ms(t), row: environment % 2, label: `Warm-up, environment ${environment + 1}` }]));
+  const warmups = cell.warmups.flatMap((t, environment) => (t === null ? [] : [{ t: ms(t), row: 0, label: `Warm-up, environment ${environment + 1}` }]));
   const p = cell.prediction;
   const band = p.low === null || p.high === null ? undefined : { low: ms(p.low), high: ms(p.high) };
-  const axis = axisOf([...runs, ...warmups].map((run) => run.t).concat(band === undefined ? [] : [band.low, band.high]));
+  const data: StripData = { band, runs, warmups, lines: cell.median === null ? [] : [{ t: ms(cell.median), label: "The median" }] };
   const span = `The counted runs measured ${duration(Math.min(...runs.map((run) => run.t)))} to ${duration(Math.max(...runs.map((run) => run.t)))}.`;
   const label = band === undefined ? `${cell.name}: no band. ${span}` : `${cell.name}: the prediction is ${duration(band.low)} to ${duration(band.high)}. ${span}`;
-  return { ...axis, band, runs, warmups, lines: cell.median === null ? [] : [{ t: ms(cell.median), label: "The median" }], label };
+  return { ...axisOf([data]), ...data, label };
 };
+
+/** This component is the table of the counted runs and the warm-ups of a harness cell, by environment. */
+function TimeTable(props: { readonly cell: RunCell }): ReactElement {
+  const { cell } = props;
+  let n = 0;
+  const rows = cell.runs.flatMap((times, environment) =>
+    times.map((t) => {
+      n += 1;
+      return { key: `${n}`, run: `${n}`, environment, t };
+    }),
+  );
+  return (
+    <div className="sy-scroll">
+      <table className="sy-table">
+        <thead>
+          <tr>
+            <th className="num">Run</th>
+            <th className="num">Environment</th>
+            <th className="num">Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {cell.warmups.map((t, environment) =>
+            t === null ? null : (
+              <tr key={`warm-up ${environment}`} className="sy-warm-row">
+                <td className="num">Warm-up</td>
+                <td className="num">{environment + 1}</td>
+                <td className="num">{fine(t)}</td>
+              </tr>
+            ),
+          )}
+          {rows.map((row) => (
+            <tr key={row.key}>
+              <td className="num">{row.run}</td>
+              <td className="num">{row.environment + 1}</td>
+              <td className="num">{row.t === null ? "no time" : fine(row.t)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 /** This component is the table of the stages of a group in one cell. It gives the band of each stage, and its median over the counted runs. */
 function StageTable(props: { readonly stages: readonly Stage[] }): ReactElement {
@@ -135,24 +154,18 @@ function StageTable(props: { readonly stages: readonly Stage[] }): ReactElement 
         <thead>
           <tr>
             <th>Stage</th>
-            <th>Prediction</th>
-            <th>Median</th>
+            <th className="num">Prediction</th>
+            <th className="num">Median</th>
+            <th>Verdict</th>
           </tr>
         </thead>
         <tbody>
           {props.stages.map((stage) => (
             <tr key={stage.stage}>
               <td>{code(stage.stage)}</td>
-              <td>{stage.low === null || stage.high === null ? <span className="sy-muted">no band</span> : `${time(stage.low)} to ${time(stage.high)}`}</td>
-              <td>
-                {stage.median === null ? "" : time(stage.median)}
-                {stage.decision === null ? null : (
-                  <>
-                    {" "}
-                    <Chip decision={stage.decision} />
-                  </>
-                )}
-              </td>
+              <td className="num">{stage.low === null || stage.high === null ? <span className="sy-muted">no band</span> : `${time(stage.low)} to ${time(stage.high)}`}</td>
+              <td className="num">{stage.median === null ? "" : time(stage.median)}</td>
+              <td>{stage.decision === null ? null : <Verdict decision={stage.decision} />}</td>
             </tr>
           ))}
         </tbody>
@@ -174,7 +187,7 @@ function WritesText(props: { readonly cell: RunCell; readonly writes: Writes }):
       <span>
         {lost.total === 0
           ? "The group kept each write that a primary accepted. "
-          : `The group lost ${count(lost.total, "accepted write")} in all: ${number(lost.median ?? 0)} in the median run, and ${number(lost.max ?? 0)} at most. `}
+          : `The group lost ${count(lost.total, "accepted write")} in all: ${digits(lost.median ?? 0)} in the median run, and ${digits(lost.max ?? 0)} at most. `}
       </span>
       {old.median === null || old.median === 0 ? null : <span>The old primary accepted {count(old.median, "write")} after the fault in the median run. </span>}
       {errors.map((each) => (
@@ -204,53 +217,63 @@ function RequestText(props: { readonly cell: RunCell }): ReactElement | null {
   );
 }
 
-/** This component is the frame of one cell: its name and verdict, its strip, its prediction and the text of its verdict. */
-function Frame(props: { readonly name: string; readonly plan: string | null; readonly decision: string; readonly plot: Plot | null; readonly children: ReactNode }): ReactElement {
-  const { plot } = props;
+const FIRST: Readonly<Record<string, string>> = { holds: "held", fails: "failed", measured: "was a measurement only" };
+
+/** The frame of one harness cell of a CI run: its readout, its strip or its table of runs, and its text. */
+function RunFrame(props: { readonly cell: RunCell }): ReactElement {
+  const { cell } = props;
+  const plot = plotOf(cell);
+  const warmups = cell.warmups.filter((t) => t !== null).length;
+  const readout: ReadoutItem[] = [
+    { label: "Prediction", value: predictionText(cell.prediction) },
+    { label: "Median", value: cell.median === null ? "none" : fine(cell.median) },
+    { label: "Runs", value: runsText(cell.counted, cell.voided, warmups) },
+  ];
   return (
-    <section className="sy-frame not-content" aria-label={props.name}>
-      <header>
-        <strong>{props.name}</strong>
-        <span className="sy-row">
-          {props.plan === null ? null : <code>{props.plan}</code>}
-          <Chip decision={props.decision} />
-        </span>
-      </header>
-      <div className="sy-body">
-        {plot === null ? null : <Strip from={plot.from} to={plot.to} band={plot.band} runs={plot.runs} warmups={plot.warmups} lines={plot.lines} label={plot.label} />}
-        {props.children}
-      </div>
-    </section>
+    <Frame
+      name={cell.name}
+      label={cell.name}
+      tag={cell.plan ?? cell.catalog}
+      decision={cell.decision}
+      verdicts={<Verdict decision={cell.decision} />}
+      readout={readout}
+      views={plot === null ? ["table"] : ["chart", "table"]}
+      render={(view) =>
+        view === "table" ? (
+          <TimeTable cell={cell} />
+        ) : plot === null ? null : (
+          <>
+            <Strip {...plot} />
+            <Legend {...keysOf([plot])} />
+          </>
+        )
+      }
+    >
+      <p>{cell.prediction.text}</p>
+      <RequestText cell={cell} />
+      {cell.stages === null || cell.stages === undefined || cell.stages.length === 0 ? null : <StageTable stages={cell.stages} />}
+      {cell.writes === null || cell.writes === undefined ? null : <WritesText cell={cell} writes={cell.writes} />}
+      <p className="sy-muted">
+        {cell.why}
+        {cell.voids === null ? "" : ` ${cell.voids}`}
+      </p>
+      {cell.repeated === null || cell.repeated === undefined ? null : (
+        <p className="sy-muted">
+          {cell.repeated} Before the fix, the cell {FIRST[cell.first ?? ""] ?? cell.first}.
+        </p>
+      )}
+    </Frame>
   );
 }
-
-const FIRST: Readonly<Record<string, string>> = { holds: "held", fails: "failed", measured: "was a measurement only" };
 
 /** The cells of one group of a copy, in the sequence of the catalog. `stage` selects the defaults or the borders of the plan. */
 export default function RunResults(props: { readonly copy: "sentinel" | "http" | "mongodb"; readonly group: string; readonly stage?: string }): ReactElement {
   const cells = (COPIES[props.copy] ?? []).filter((cell) => cell.group === props.group && (props.stage === undefined || cell.stage === props.stage));
   if (cells.length === 0) throw new Error(`no cell of ${props.copy} has the group ${props.group}`);
-  const timed = cells.some((cell) => cell.prediction.low !== null);
-  const warm = cells.some((cell) => cell.warmups.some((t) => t !== null));
   return (
-    <div className="not-content">
-      <Legend band={timed} runs warmups={warm} line="Median" />
+    <div className="not-content sy-cells">
       {cells.map((cell) => (
-        <Frame key={`${cell.plan ?? cell.catalog} ${cell.name}`} name={cell.name} plan={cell.plan ?? cell.catalog} decision={cell.decision} plot={plotOf(cell)}>
-          <p>{cell.prediction.text}</p>
-          <RequestText cell={cell} />
-          {cell.stages === null || cell.stages === undefined || cell.stages.length === 0 ? null : <StageTable stages={cell.stages} />}
-          {cell.writes === null || cell.writes === undefined ? null : <WritesText cell={cell} writes={cell.writes} />}
-          <p className="sy-muted">
-            {cell.why}
-            {cell.voids === null ? "" : ` ${cell.voids}`}
-          </p>
-          {cell.repeated === null || cell.repeated === undefined ? null : (
-            <p className="sy-muted">
-              {cell.repeated} Before the fix, the cell {FIRST[cell.first ?? ""] ?? cell.first}.
-            </p>
-          )}
-        </Frame>
+        <RunFrame key={`${cell.plan ?? cell.catalog} ${cell.name}`} cell={cell} />
       ))}
     </div>
   );
@@ -265,9 +288,9 @@ export function WritesTable(props: { readonly copy: "sentinel" | "mongodb"; read
         <thead>
           <tr>
             <th>Cell</th>
-            <th>New primary</th>
-            <th>Lost writes in a run</th>
-            <th>Writes to the old primary</th>
+            <th className="num">New primary</th>
+            <th className="num">Lost writes in a run</th>
+            <th className="num">Writes to the old primary</th>
           </tr>
         </thead>
         <tbody>
@@ -275,16 +298,16 @@ export function WritesTable(props: { readonly copy: "sentinel" | "mongodb"; read
             const writes = cell.writes!;
             return (
               <tr key={`${cell.plan ?? cell.catalog} ${cell.name}`}>
-                <td>
+                <td className="sy-text">
                   {cell.name}
                   <br />
-                  <span className="sy-muted">{cell.plan ?? cell.catalog}</span>
+                  <code className="sy-tag">{cell.plan ?? cell.catalog}</code>
                 </td>
-                <td>
+                <td className="num">
                   {writes.moved} of {cell.counted}
                 </td>
-                <td>{writes.lost.total === 0 ? "none" : `${number(writes.lost.median ?? 0)}, at most ${number(writes.lost.max ?? 0)}`}</td>
-                <td>{writes.old.max === 0 || writes.old.median === null ? "none" : `${number(writes.old.median)}, at most ${number(writes.old.max ?? 0)}`}</td>
+                <td className="num">{writes.lost.total === 0 ? "none" : `${digits(writes.lost.median ?? 0)}, at most ${digits(writes.lost.max ?? 0)}`}</td>
+                <td className="num">{writes.old.max === 0 || writes.old.median === null ? "none" : `${digits(writes.old.median)}, at most ${digits(writes.old.max ?? 0)}`}</td>
               </tr>
             );
           })}
@@ -320,18 +343,18 @@ export function RaceBorder(): ReactElement {
             const gap = (cell: RunCell): string => /a GET ([\d.]+ s) after the reply$/.exec(cell.name)?.[1] ?? "";
             return (
               <tr key={plan}>
-                <td>
+                <td className="sy-text">
                   {setting}
                   <br />
-                  <span className="sy-muted">{plan}</span>
+                  <code className="sy-tag">{plan}</code>
                 </td>
                 <td>
-                  <Chip decision={before.decision} text="kept" />
+                  <Verdict decision={before.decision} text="kept" />
                   <br />
                   <span className="sy-muted">at {gap(before)}</span>
                 </td>
                 <td>
-                  <Chip decision={after.decision} text={after.median === null ? "" : fine(after.median)} />
+                  <Verdict decision={after.decision} text={after.median === null ? "" : fine(after.median)} />
                   <br />
                   <span className="sy-muted">
                     at {gap(after)}, the band {after.prediction.low === null ? "" : fine(after.prediction.low)} to {after.prediction.high === null ? "" : fine(after.prediction.high)}
@@ -354,7 +377,7 @@ type KindCell = (typeof kind.cells)[number];
 
 /** This function writes the main value of a kind cell: a count of failed requests, of replicas, or a time. */
 const valueOf = (cell: KindCell, value: number): string =>
-  cell.unit === "requests" ? count(value, "failed request") : cell.unit === "replicas" ? count(value, "replica") : time(value);
+  cell.unit === "requests" ? count(value, "failed request") : cell.unit === "replicas" ? count(value, "replica") : fine(value);
 
 /** This function gives the plot of a kind cell whose main value is a time, or null. */
 const kindPlotOf = (cell: KindCell): Plot | null => {
@@ -362,28 +385,80 @@ const kindPlotOf = (cell: KindCell): Plot | null => {
   const runs = cell.values.map((t, n) => ({ t: ms(t), row: 0, label: `Run ${n + 1}` }));
   const p = cell.prediction.band;
   const band = p === null ? undefined : { low: ms(p.low), high: ms(p.high) };
-  const axis = axisOf(runs.map((run) => run.t).concat(band === undefined ? [] : [band.low, band.high]));
+  const data: StripData = { band, runs, lines: cell.median === null ? [] : [{ t: ms(cell.median), label: "The median" }] };
   const label = `${cell.name}: ${band === undefined ? "no band" : `the prediction is ${duration(band.low)} to ${duration(band.high)}`}. The counted runs measured ${duration(Math.min(...runs.map((run) => run.t)))} to ${duration(Math.max(...runs.map((run) => run.t)))}.`;
-  return { ...axis, band, runs, warmups: [], lines: cell.median === null ? [] : [{ t: ms(cell.median), label: "The median" }], label };
+  return { ...axisOf([data]), ...data, label };
 };
+
+/** This component is the table of the main value of each counted run of a kind cell. */
+function ValueTable(props: { readonly cell: KindCell }): ReactElement {
+  const { cell } = props;
+  const head = cell.unit === "requests" ? "Failed requests" : cell.unit === "replicas" ? "Replicas" : "Time";
+  return (
+    <div className="sy-scroll">
+      <table className="sy-table">
+        <thead>
+          <tr>
+            <th className="num">Run</th>
+            <th className="num">{head}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {cell.values.map((value, n) => (
+            <tr key={n}>
+              <td className="num">{n + 1}</td>
+              <td className="num">{cell.unit === "s" ? fine(value) : digits(value)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 /** The cells of one group of a kind catalog, in the sequence of the catalog. */
 export function KindResults(props: { readonly template: "T07" | "T18"; readonly group: string }): ReactElement {
   const cells = kind.cells.filter((cell) => cell.template === props.template && cell.group === props.group);
   if (cells.length === 0) throw new Error(`no cell of ${props.template} has the group ${props.group}`);
-  const timed = cells.some((cell) => kindPlotOf(cell) !== null);
   return (
-    <div className="not-content">
-      {timed ? <Legend band runs line="Median" /> : null}
-      {cells.map((cell) => (
-        <Frame key={cell.name} name={cell.name} plan={cell.id} decision={cell.decision} plot={kindPlotOf(cell)}>
-          <p>{cell.prediction.text}</p>
-          {cell.unit === "requests" && cell.values.some((value) => value > 0) ? (
-            <p className="sy-muted">The failed requests of each counted run: {cell.values.map(number).join(", ")}.</p>
-          ) : null}
-          <p className="sy-muted">{cell.why}</p>
-        </Frame>
-      ))}
+    <div className="not-content sy-cells">
+      {cells.map((cell) => {
+        const plot = kindPlotOf(cell);
+        const band = cell.prediction.band;
+        const readout: ReadoutItem[] = [
+          ...(band === null ? [] : [{ label: "Prediction", value: `${fine(band.low)} to ${fine(band.high)}` }]),
+          { label: "Median", value: cell.median === null ? "none" : valueOf(cell, cell.median) },
+          { label: "Runs", value: `${cell.counted} counted${cell.failed === 0 ? "" : ` · ${cell.failed} disagree`}` },
+        ];
+        return (
+          <Frame
+            key={cell.name}
+            name={cell.name}
+            label={cell.name}
+            tag={cell.id}
+            decision={cell.decision}
+            verdicts={<Verdict decision={cell.decision} />}
+            readout={readout}
+            views={plot === null ? ["table"] : ["chart", "table"]}
+            render={(view) =>
+              view === "table" ? (
+                <ValueTable cell={cell} />
+              ) : plot === null ? null : (
+                <>
+                  <Strip {...plot} />
+                  <Legend {...keysOf([plot])} />
+                </>
+              )
+            }
+          >
+            <p>{cell.prediction.text}</p>
+            {cell.unit === "requests" && cell.values.some((value) => value > 0) ? (
+              <p className="sy-muted">The failed requests of each counted run: {cell.values.map(digits).join(", ")}.</p>
+            ) : null}
+            <p className="sy-muted">{cell.why}</p>
+          </Frame>
+        );
+      })}
     </div>
   );
 }
@@ -423,7 +498,7 @@ export function ModeTable(): ReactElement {
                 const cell = find(mode, name);
                 return (
                   <td key={mode}>
-                    <Chip decision={cell.decision} />
+                    <Verdict decision={cell.decision} />
                     <br />
                     <span className="sy-muted">
                       {cell.median === null ? "" : `${valueOf(cell, cell.median)} in the median run`}
@@ -448,41 +523,44 @@ export function Propagation(): ReactElement {
     return { mode, spread };
   });
   const runs = modes.flatMap(({ spread }, row) => spread.values.map((t, n) => ({ t: ms(t), row, label: `${MODES[row]}, value ${n + 1}` })));
-  const axis = axisOf(runs.map((run) => run.t));
+  const axis = axisOf([{ runs }]);
   const label = `The propagation of a deletion to the rules of each node, by mode: ${modes.map(({ mode, spread }) => `${mode} ${duration(ms(spread.all?.median ?? 0))}`).join(", ")} at the median.`;
   return (
-    <div className="not-content">
-      <Strip from={0} to={axis.to} runs={runs} rows={[...MODES]} label={label} />
-      <div className="sy-scroll">
-        <table className="sy-table">
-          <thead>
-            <tr>
-              <th>Mode</th>
-              <th>Median</th>
-              <th>99th percentile</th>
-              <th>Slowest</th>
-              <th>EndpointSlice</th>
-              <th>Intake stops</th>
-            </tr>
-          </thead>
-          <tbody>
-            {modes.map(({ mode, spread }) => (
-              <tr key={mode}>
-                <td>{code(mode)}</td>
-                <td>{spread.all === null ? "" : time(spread.all.median)}</td>
-                <td>{spread.all === null ? "" : time(spread.all.p99)}</td>
-                <td>{spread.all === null ? "" : time(spread.all.max)}</td>
-                <td>{spread.slice === null ? "" : time(spread.slice.median)}</td>
-                <td>{spread.intake === null ? "" : time(spread.intake.median)}</td>
+    <section className="sy-panel not-content" aria-label="The propagation of a deletion">
+      <div className="sy-body">
+        <Strip from={0} to={axis.to} runs={runs} rows={[...MODES]} label={label} />
+        <Legend runs />
+        <div className="sy-scroll">
+          <table className="sy-table">
+            <thead>
+              <tr>
+                <th>Mode</th>
+                <th className="num">Median</th>
+                <th className="num">99th percentile</th>
+                <th className="num">Slowest</th>
+                <th className="num">EndpointSlice</th>
+                <th className="num">Intake stops</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {modes.map(({ mode, spread }) => (
+                <tr key={mode}>
+                  <td>{code(mode)}</td>
+                  <td className="num">{spread.all === null ? "" : time(spread.all.median)}</td>
+                  <td className="num">{spread.all === null ? "" : time(spread.all.p99)}</td>
+                  <td className="num">{spread.all === null ? "" : time(spread.all.max)}</td>
+                  <td className="num">{spread.slice === null ? "" : time(spread.slice.median)}</td>
+                  <td className="num">{spread.intake === null ? "" : time(spread.intake.median)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="sy-muted">
+          Each dot is the propagation to one node in one counted run: {modes[0]?.spread.all?.count ?? 0} values for each mode. The EndpointSlice and the stop of the intake give their median time after
+          the deletion.
+        </p>
       </div>
-      <p className="sy-muted">
-        Each dot is the propagation to one node in one counted run: {modes[0]?.spread.all?.count ?? 0} values for each mode. The EndpointSlice and the stop of the intake give their median time after the
-        deletion.
-      </p>
-    </div>
+    </section>
   );
 }

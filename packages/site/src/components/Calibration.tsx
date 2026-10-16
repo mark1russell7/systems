@@ -3,11 +3,14 @@
  * One chart shows each reset (the noise of the pipeline itself), and one shows each scaled keepalive
  * against its band. Each row is one level of concurrency.
  */
-import { useState, type ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import harness from "../data/harness-2026-10-13.json";
-import { duration } from "../lib/format.ts";
+import { duration, reading } from "../lib/format.ts";
+import { axisOf } from "./CellFrame.tsx";
+import Frame from "./Frame.tsx";
 import Legend from "./Legend.tsx";
 import Strip from "./Strip.tsx";
+import Verdict from "./Verdict.tsx";
 
 type Cell = (typeof harness.cells)[number];
 
@@ -35,11 +38,11 @@ function Table(props: { readonly cells: readonly Cell[] }): ReactElement {
         <thead>
           <tr>
             <th>Environments at the same time</th>
-            <th>Counted</th>
-            <th>Void</th>
-            <th>Fastest</th>
-            <th>Median</th>
-            <th>Slowest</th>
+            <th className="num">Counted</th>
+            <th className="num">Void</th>
+            <th className="num">Fastest</th>
+            <th className="num">Median</th>
+            <th className="num">Slowest</th>
             <th>Verdict</th>
           </tr>
         </thead>
@@ -49,12 +52,14 @@ function Table(props: { readonly cells: readonly Cell[] }): ReactElement {
             return (
               <tr key={cell.name}>
                 <td>{ROWS[row]}</td>
-                <td>{cell.verdict.counted}</td>
-                <td>{cell.verdict.voided}</td>
-                <td>{duration(Math.min(...times))}</td>
-                <td>{cell.verdict.median === null ? "" : duration(cell.verdict.median * 1000)}</td>
-                <td>{duration(Math.max(...times))}</td>
-                <td>{cell.verdict.decision}</td>
+                <td className="num">{cell.verdict.counted}</td>
+                <td className="num">{cell.verdict.voided}</td>
+                <td className="num">{duration(Math.min(...times))}</td>
+                <td className="num">{cell.verdict.median === null ? "" : duration(cell.verdict.median * 1000)}</td>
+                <td className="num">{duration(Math.max(...times))}</td>
+                <td>
+                  <Verdict decision={cell.verdict.decision} />
+                </td>
               </tr>
             );
           })}
@@ -64,24 +69,25 @@ function Table(props: { readonly cells: readonly Cell[] }): ReactElement {
   );
 }
 
-function Frame(props: { readonly title: string; readonly cells: readonly Cell[]; readonly children: ReactElement }): ReactElement {
-  const [table, setTable] = useState(false);
+function Level(props: { readonly title: string; readonly cells: readonly Cell[]; readonly prediction: string; readonly chart: ReactNode; readonly children: ReactNode }): ReactElement {
   const holds = props.cells.every((cell) => cell.verdict.decision === "holds");
+  const counted = props.cells.reduce((sum, cell) => sum + cell.verdict.counted, 0);
   return (
-    <section className="sy-frame not-content" aria-label={props.title}>
-      <header>
-        <strong>{props.title}</strong>
-        <span className="sy-row">
-          <span className="sy-chip" data-state={holds ? "pass" : "fail"}>
-            {holds ? "✓ holds at each level" : "✗ fails at a level"}
-          </span>
-          <button type="button" className="sy-button" aria-pressed={table} onClick={() => setTable(!table)}>
-            Table
-          </button>
-        </span>
-      </header>
-      <div className="sy-body">{table ? <Table cells={props.cells} /> : props.children}</div>
-    </section>
+    <Frame
+      name={props.title}
+      label={props.title}
+      decision={holds ? "holds" : "fails"}
+      verdicts={<Verdict decision={holds ? "holds" : "fails"} text={holds ? "at each level" : "at a level"} />}
+      readout={[
+        { label: "Prediction", value: props.prediction },
+        { label: "Levels", value: ROWS.join(" · ") },
+        { label: "Runs", value: `${counted} counted` },
+      ]}
+      views={["chart", "table"]}
+      render={(view) => (view === "table" ? <Table cells={props.cells} /> : props.chart)}
+    >
+      {props.children}
+    </Frame>
   );
 }
 
@@ -94,23 +100,36 @@ export default function Calibration(): ReactElement {
   const low = ("low" in band ? band.low : 0) * 1000;
   const high = ("high" in band ? band.high : 0) * 1000;
   const keepaliveRuns = runsOf(keepalives);
-  const near = [low, high, ...keepaliveRuns.map((run) => run.t)];
-  const span = Math.max(...near) - Math.min(...near);
+  const axis = axisOf([{ band: { low, high }, runs: keepaliveRuns }]);
+  const reset = resets[0]!.prediction;
   return (
-    <div className="not-content">
-      <Legend band runs />
-      <Frame title="Reset on the next send: the noise of the harness" cells={resets}>
-        <>
-          <Strip from={0} to={worst * 1.15} runs={resetRuns} rows={ROWS} label={`Each reset at 1, 4 and 8 environments at the same time. The slowest of ${resetRuns.length} took ${duration(worst)}.`} />
-          <p className="sy-muted">The slowest of {resetRuns.length} resets took {duration(worst)}. The noise of the pipeline, δ_abs, has one jiffy (4 ms) as its minimum, thus δ_abs is 4 ms.</p>
-        </>
-      </Frame>
-      <Frame title="Scaled keepalive: the spread of a timer" cells={keepalives}>
-        <>
-          <Strip from={Math.max(0, Math.min(...near) - span * 0.12)} to={Math.max(...near) + span * 0.12} band={{ low, high }} runs={keepaliveRuns} rows={ROWS} label={`Each scaled keepalive at 1, 4 and 8 environments at the same time, against the prediction of ${duration(low)} to ${duration(high)}.`} />
-          <p className="sy-muted">The prediction is {duration(low)} to {duration(high)}, for an idle time of 5 s and 3 probes 2 s apart.</p>
-        </>
-      </Frame>
+    <div className="not-content sy-cells">
+      <Level
+        title="Reset on the next send: the noise of the harness"
+        cells={resets}
+        prediction={`${reading(("low" in reset ? reset.low : 0) * 1000)} to ${reading(("high" in reset ? reset.high : 0) * 1000)}`}
+        chart={
+          <>
+            <Strip from={0} to={worst * 1.15} runs={resetRuns} rows={ROWS} label={`Each reset at 1, 4 and 8 environments at the same time. The slowest of ${resetRuns.length} took ${duration(worst)}.`} />
+            <Legend runs />
+          </>
+        }
+      >
+        <p className="sy-muted">The slowest of {resetRuns.length} resets took {duration(worst)}. The noise of the pipeline, δ_abs, has one jiffy (4 ms) as its minimum, thus δ_abs is 4 ms.</p>
+      </Level>
+      <Level
+        title="Scaled keepalive: the spread of a timer"
+        cells={keepalives}
+        prediction={`${reading(low)} to ${reading(high)}`}
+        chart={
+          <>
+            <Strip from={axis.from} to={axis.to} band={{ low, high }} runs={keepaliveRuns} rows={ROWS} label={`Each scaled keepalive at 1, 4 and 8 environments at the same time, against the prediction of ${duration(low)} to ${duration(high)}.`} />
+            <Legend band runs />
+          </>
+        }
+      >
+        <p className="sy-muted">The prediction is {duration(low)} to {duration(high)}, for an idle time of 5 s and 3 probes 2 s apart.</p>
+      </Level>
     </div>
   );
 }

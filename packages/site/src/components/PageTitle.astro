@@ -1,0 +1,9 @@
+---
+// The title of a page, with the name of its section above it, as a notebook labels each page.
+const { entry } = Astro.locals.starlightRoute;
+const SECTIONS: Record<string, string> = { results: "Results", lab: "Lab" };
+const section = SECTIONS[entry.id.split("/")[0] ?? ""] ?? "The program";
+---
+
+<p class="sy-eyebrow">{section}</p>
+<h1 id="_top">{entry.data.title}</h1>

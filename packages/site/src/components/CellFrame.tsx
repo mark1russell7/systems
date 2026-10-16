@@ -1,16 +1,18 @@
 /**
  * The frame of one result cell. It has a chart of the runs of the cell against the band that the algebra
  * predicted, and a table of the same runs. It also tells the prediction, the settings and the verdict. The
- * chart has a dot for each counted run, on one row for each environment. A cell without a band is a
- * measurement only. Its chart shows the fastest, the median and the slowest reply of each run, or the time
- * of each run from its reference.
+ * chart has a dot for each counted run. A cell without a band is a measurement only. Its chart shows the
+ * fastest, the median and the slowest reply of each run, or the time of each run from its reference.
  *
  * The page of the network failures and the page of the topologies show their cells in this frame. A cell
  * of the topologies can also have a re-run, warm-ups, and the times when a router forgot the flow.
  */
-import { useState, type ReactElement, type ReactNode } from "react";
-import { duration } from "../lib/format.ts";
-import Strip from "./Strip.tsx";
+import type { ReactElement, ReactNode } from "react";
+import { duration, reading } from "../lib/format.ts";
+import Frame, { type ReadoutItem } from "./Frame.tsx";
+import Legend, { keysOf } from "./Legend.tsx";
+import Strip, { type StripData } from "./Strip.tsx";
+import Verdict, { VerdictIcon } from "./Verdict.tsx";
 
 /** These are the fastest, the median and the slowest reply of one run of a distribution cell. */
 interface Replies {
@@ -94,17 +96,6 @@ const FROM: Readonly<Record<string, string>> = {
 /** These rows show the replies of each run of a measurement-only cell. */
 const REPLIES = ["fastest", "median", "slowest"] as const;
 
-function Chip(props: { readonly decision: string; readonly prefix?: string }): ReactElement {
-  const prefix = props.prefix === undefined ? "" : `${props.prefix} `;
-  if (props.decision === "measured") return <span className="sy-chip">∿ {prefix}measured</span>;
-  const holds = props.decision === "holds";
-  return (
-    <span className="sy-chip" data-state={holds ? "pass" : "fail"}>
-      {holds ? `✓ ${prefix}holds` : `✗ ${prefix}${props.decision}`}
-    </span>
-  );
-}
-
 /** This function joins a list of nodes into the text of a sentence: "a", "a and b", "a, b and c". */
 export const joined = (items: readonly ReactNode[]): ReactNode[] =>
   items.flatMap((item, n) => (n === 0 ? [item] : [n === items.length - 1 ? " and " : ", ", item]));
@@ -123,6 +114,17 @@ const by = (timer: string): ReactNode => (timer.startsWith("toxic ") ? <>the tox
 /** This function gives a sysctl in code font, without its prefix `net.ipv4.`. */
 export const sysctl = ({ name, value }: { readonly name: string; readonly value: string }): ReactElement =>
   setting(`${name.replace(/^net\.ipv4\./, "")} = ${value}`);
+
+/** This function gives the value of the prediction of a cell for the readout. */
+export const predictionText = (p: { readonly kind: string; readonly low: number | null; readonly high: number | null; readonly window: number | null }): string => {
+  if (p.kind === "silent") return `silent for ${duration(ms(p.window ?? 0))}`;
+  if (p.low === null || p.high === null || p.kind === "measured") return "no band";
+  return `${reading(ms(p.low))} to ${reading(ms(p.high))}`;
+};
+
+/** This function gives the text of the count of runs of a result, with its void runs and its warm-ups: "11 counted · 1 void · 2 warm-ups". */
+export const runsText = (counted: number, voided: number, warmups: number): string =>
+  [`${counted} counted`, ...(voided === 0 ? [] : [`${voided} void`]), ...(warmups === 0 ? [] : [`${warmups} warm-up${warmups === 1 ? "" : "s"}`])].join(" · ");
 
 /** This function tells the outcome of each counted run of a result. */
 const endedOf = (result: Result): ReactNode => {
@@ -183,6 +185,19 @@ function Prediction(props: { readonly cell: ResultCell }): ReactElement {
   );
 }
 
+/** This component is the cell of a void run in a table: the void chip and the reason. */
+export function VoidCell(props: { readonly reason: string | null }): ReactElement {
+  return (
+    <td className="sy-text">
+      {props.reason === null ? null : (
+        <span className="sy-note" data-status="warning">
+          <VerdictIcon decision="void" /> {props.reason}
+        </span>
+      )}
+    </td>
+  );
+}
+
 function RunTable(props: { readonly cell: ResultCell; readonly result: Result; readonly forget: boolean }): ReactElement {
   const { cell, result, forget } = props;
   const replies = cell.prediction.kind === "measured" && cell.prediction.from === null;
@@ -192,45 +207,47 @@ function RunTable(props: { readonly cell: ResultCell; readonly result: Result; r
   const timeCells = (run: ResultRun) =>
     replies ? (
       <>
-        <td>{run.replies?.count ?? ""}</td>
+        <td className="num">{run.replies?.count ?? ""}</td>
         {REPLIES.map((key) => (
-          <td key={key}>{time(run.replies?.[key] ?? null)}</td>
+          <td key={key} className="num">
+            {time(run.replies?.[key] ?? null)}
+          </td>
         ))}
       </>
     ) : (
-      <td>{time(run.elapsed)}</td>
+      <td className="num">{time(run.elapsed)}</td>
     );
   return (
     <div className="sy-scroll">
       <table className="sy-table">
         <thead>
           <tr>
-            <th>Run</th>
-            <th>Environment</th>
+            <th className="num">Run</th>
+            <th className="num">Environment</th>
             <th>Outcome</th>
             {replies ? (
               <>
-                <th>Replies</th>
-                <th>Fastest</th>
-                <th>Median</th>
-                <th>Slowest</th>
+                <th className="num">Replies</th>
+                <th className="num">Fastest</th>
+                <th className="num">Median</th>
+                <th className="num">Slowest</th>
               </>
             ) : (
-              <th>Time</th>
+              <th className="num">Time</th>
             )}
-            {forget ? <th>Forget</th> : null}
-            {retransmissions ? <th>Retransmissions</th> : null}
+            {forget ? <th className="num">Forget</th> : null}
+            {retransmissions ? <th className="num">Retransmissions</th> : null}
             <th>Void</th>
             {finding ? <th>Finding</th> : null}
           </tr>
         </thead>
         <tbody>
           {(result.warmups ?? []).map((run, n) => (
-            <tr key={`warm-up ${n}`} className="sy-muted">
-              <td>Warm-up</td>
-              <td>{run.environment + 1}</td>
+            <tr key={`warm-up ${n}`} className="sy-warm-row">
+              <td className="num">Warm-up</td>
+              <td className="num">{run.environment + 1}</td>
               <td>{run.outcome}</td>
-              {replies ? <td colSpan={4} /> : <td>{time(run.elapsed)}</td>}
+              {replies ? <td colSpan={4} /> : <td className="num">{time(run.elapsed)}</td>}
               {forget ? <td /> : null}
               {retransmissions ? <td /> : null}
               <td>Not counted</td>
@@ -239,14 +256,22 @@ function RunTable(props: { readonly cell: ResultCell; readonly result: Result; r
           ))}
           {result.runs.map((run, n) => (
             <tr key={n}>
-              <td>{n + 1}</td>
-              <td>{run.environment + 1}</td>
+              <td className="num">{n + 1}</td>
+              <td className="num">{run.environment + 1}</td>
               <td>{run.outcome}</td>
               {timeCells(run)}
-              {forget ? <td>{run.forgot === null || run.forgot === undefined ? "kept" : time(run.forgot)}</td> : null}
-              {retransmissions ? <td>{run.retransmissions}</td> : null}
-              <td>{run.void ?? ""}</td>
-              {finding ? <td>{run.finding ?? ""}</td> : null}
+              {forget ? <td className="num">{run.forgot === null || run.forgot === undefined ? "kept" : time(run.forgot)}</td> : null}
+              {retransmissions ? <td className="num">{run.retransmissions}</td> : null}
+              <VoidCell reason={run.void} />
+              {finding ? (
+                <td className="sy-text">
+                  {(run.finding ?? null) === null ? null : (
+                    <span className="sy-note" data-status="critical">
+                      <VerdictIcon decision="fails" /> {run.finding}
+                    </span>
+                  )}
+                </td>
+              ) : null}
             </tr>
           ))}
         </tbody>
@@ -255,14 +280,8 @@ function RunTable(props: { readonly cell: ResultCell; readonly result: Result; r
   );
 }
 
-/** A plot is what the strip of one result shows, before its axis. Each time is in milliseconds. */
-interface Plot {
-  readonly band?: { readonly low: number; readonly high: number };
-  readonly runs: ReadonlyArray<{ readonly t: number; readonly row: number; readonly label: string }>;
-  readonly warmups: ReadonlyArray<{ readonly t: number; readonly row: number; readonly label: string }>;
-  readonly marks: ReadonlyArray<{ readonly t: number; readonly label: string }>;
-  readonly lines: ReadonlyArray<{ readonly t: number; readonly label: string }>;
-  readonly rows?: readonly string[];
+/** A plot is what the strip of one result shows, before its axis, with the accessible label of the strip. Each time is in milliseconds. */
+interface Plot extends StripData {
   readonly label: string;
 }
 
@@ -279,15 +298,15 @@ const plotOf = (cell: ResultCell, result: Result, forget: boolean): Plot | null 
       }),
     );
     if (runs.length === 0) return null;
-    return { runs, warmups: [], marks: [], lines: [], rows: [...REPLIES], label: `${cell.name}: no band. The replies of the counted runs took ${span(runs.map((r) => r.t))}.` };
+    return { runs, rows: [...REPLIES], label: `${cell.name}: no band. The replies of the counted runs took ${span(runs.map((r) => r.t))}.` };
   }
   const timed = p.kind !== "measured" && p.low !== null && p.high !== null;
   if (!timed && p.kind !== "measured") return null;
   const runs = counted.flatMap(({ run, n }) =>
-    run.elapsed === null ? [] : [{ t: ms(run.elapsed), row: run.environment % 2, label: `Run ${n + 1}, environment ${run.environment + 1}` }],
+    run.elapsed === null ? [] : [{ t: ms(run.elapsed), row: 0, label: `Run ${n + 1}, environment ${run.environment + 1}` }],
   );
   const warmups = (result.warmups ?? []).flatMap((run, n) =>
-    run.elapsed === null ? [] : [{ t: ms(run.elapsed), row: run.environment % 2, label: `Warm-up ${n + 1}, environment ${run.environment + 1}` }],
+    run.elapsed === null ? [] : [{ t: ms(run.elapsed), row: 0, label: `Warm-up ${n + 1}, environment ${run.environment + 1}` }],
   );
   // the forget counts from the last segment that the client received: it shares the axis of a detection from that segment
   const marks =
@@ -304,10 +323,10 @@ const plotOf = (cell: ResultCell, result: Result, forget: boolean): Plot | null 
 };
 
 /** This function gives the axis of the charts of a cell: the times that they must show, and 12 % of their span on each side. */
-const axisOf = (plots: readonly Plot[]): { from: number; to: number } => {
+export const axisOf = (plots: readonly StripData[]): { from: number; to: number } => {
   const times = plots.flatMap((plot) => [
     ...(plot.band === undefined ? [] : [plot.band.low, plot.band.high]),
-    ...[...plot.runs, ...plot.warmups, ...plot.marks].map((each) => each.t),
+    ...[...(plot.runs ?? []), ...(plot.warmups ?? []), ...(plot.marks ?? [])].map((each) => each.t),
   ]);
   const span = Math.max(...times) - Math.min(...times) || Math.max(...times) || 1;
   return { from: Math.max(0, Math.min(...times) - span * 0.12), to: Math.max(...times) + span * 0.12 };
@@ -332,48 +351,61 @@ const verdictText = (result: Result): string => {
 export default function CellFrame(props: { readonly cell: ResultCell; readonly details: ReactNode; readonly forget?: boolean }): ReactElement {
   const { cell } = props;
   const forget = props.forget === true;
-  const [table, setTable] = useState(false);
   const results: Result[] = cell.rerun === null || cell.rerun === undefined ? [cell] : [cell, cell.rerun];
   const plots = results.map((result) => plotOf(cell, result, forget));
   const drawn = plots.filter((plot): plot is Plot => plot !== null);
   const axis = drawn.length === 0 ? null : axisOf(drawn);
   const again = results.length > 1;
+  const medians: ReadoutItem[] = results.map((result, n) => ({
+    label: n === 0 ? (again ? "Median, first run" : "Median") : "Median, re-run",
+    value: result.verdict.median === null ? "none" : reading(ms(result.verdict.median)),
+  }));
+  const readout: ReadoutItem[] = [
+    { label: "Prediction", value: predictionText(cell.prediction) },
+    ...medians,
+    { label: "Runs", value: runsText(cell.verdict.counted, cell.verdict.voided, cell.warmups?.length ?? 0) },
+  ];
   return (
-    <section className="sy-frame not-content" aria-label={cell.name}>
-      <header>
-        <strong>{cell.name}</strong>
-        <span className="sy-row">
-          <Chip decision={cell.verdict.decision} />
-          {cell.rerun === null || cell.rerun === undefined ? null : <Chip decision={cell.rerun.verdict.decision} prefix="re-run" />}
-          <button type="button" className="sy-button" aria-pressed={table} onClick={() => setTable(!table)}>
-            Table
-          </button>
-        </span>
-      </header>
-      <div className="sy-body">
-        {results.map((result, n) => {
-          const plot = plots[n] ?? null;
-          return (
-            <div key={n} className={again ? "sy-result" : undefined}>
-              {again ? <p className="sy-caption">{n === 0 ? "First run" : "Re-run"}</p> : null}
-              {table ? (
-                <RunTable cell={cell} result={result} forget={forget} />
-              ) : plot === null || axis === null ? null : (
-                <Strip from={axis.from} to={axis.to} band={plot.band} runs={plot.runs} warmups={plot.warmups} marks={plot.marks} lines={plot.lines} rows={plot.rows} label={plot.label} />
-              )}
-              {again ? <p className="sy-muted">{verdictText(result)}</p> : null}
-            </div>
-          );
-        })}
-        <Prediction cell={cell} />
-        {props.details}
-        {again ? null : <p className="sy-muted">{verdictText(cell)}</p>}
-        {cell.firstRun === null || cell.firstRun === undefined ? null : (
-          <p className="sy-muted">
-            The harness repeated this cell after two fixes. Before the fixes, the cell {cell.firstRun === "holds" ? "held" : "failed"}.
-          </p>
-        )}
-      </div>
-    </section>
+    <Frame
+      name={cell.name}
+      label={cell.name}
+      decision={cell.verdict.decision}
+      verdicts={
+        <>
+          <Verdict decision={cell.verdict.decision} />
+          {cell.rerun === null || cell.rerun === undefined ? null : <Verdict decision={cell.rerun.verdict.decision} prefix="re-run" />}
+        </>
+      }
+      readout={readout}
+      views={axis === null ? ["table"] : ["chart", "table"]}
+      render={(view) => (
+        <>
+          {results.map((result, n) => {
+            const plot = plots[n] ?? null;
+            return (
+              <div key={n} className={again ? "sy-result" : undefined}>
+                {again ? <p className="sy-caption">{n === 0 ? "First run" : "Re-run"}</p> : null}
+                {view === "table" ? (
+                  <RunTable cell={cell} result={result} forget={forget} />
+                ) : plot === null || axis === null ? null : (
+                  <Strip from={axis.from} to={axis.to} {...plot} />
+                )}
+                {again ? <p className="sy-muted">{verdictText(result)}</p> : null}
+              </div>
+            );
+          })}
+          {view === "chart" ? <Legend {...keysOf(drawn, { marks: "The router forgets the flow" })} /> : null}
+        </>
+      )}
+    >
+      <Prediction cell={cell} />
+      {props.details}
+      {again ? null : <p className="sy-muted">{verdictText(cell)}</p>}
+      {cell.firstRun === null || cell.firstRun === undefined ? null : (
+        <p className="sy-muted">
+          The harness repeated this cell after two fixes. Before the fixes, the cell {cell.firstRun === "holds" ? "held" : "failed"}.
+        </p>
+      )}
+    </Frame>
   );
 }

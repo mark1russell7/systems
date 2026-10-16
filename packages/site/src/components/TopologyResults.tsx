@@ -11,7 +11,7 @@ import topologies from "../data/topologies-2026-10-16.json";
 import { duration } from "../lib/format.ts";
 import CellFrame, { code, joined, setting, sysctl } from "./CellFrame.tsx";
 import { hopName } from "./Chain.tsx";
-import Legend from "./Legend.tsx";
+import Verdict from "./Verdict.tsx";
 
 type Cell = (typeof topologies.cells)[number];
 type Place = Cell["fault"]["at"];
@@ -179,13 +179,8 @@ function Details(props: { readonly cell: Cell }): ReactElement {
 export default function TopologyResults(props: { readonly catalog: string; readonly group: string }): ReactElement {
   const cells = topologies.cells.filter((cell) => cell.catalog === props.catalog && cell.group === props.group);
   if (cells.length === 0) throw new Error(`no cell of ${props.catalog} has the group ${props.group}`);
-  const timed = cells.some((cell) => ["detects", "recovers", "replies"].includes(cell.prediction.kind));
-  const measured = cells.some((cell) => cell.prediction.kind === "measured");
-  const forget = cells.some((cell) => routed(cell) && cell.prediction.from === "last-received" && cell.runs.some((run) => run.forgot !== null));
-  const warm = cells.some((cell) => cell.warmups.some((run) => run.elapsed !== null));
   return (
-    <div className="not-content">
-      {timed || measured ? <Legend band={timed} marks={forget ? "The router forgets the flow" : undefined} runs warmups={warm} line="Median" /> : null}
+    <div className="not-content sy-cells">
       {cells.map((cell) => (
         <CellFrame key={cell.name} cell={cell} details={<Details cell={cell} />} forget={routed(cell)} />
       ))}
@@ -198,16 +193,6 @@ const find = (catalog: string, name: string): Cell => {
   if (found === undefined) throw new Error(`no cell ${catalog} ${name}`);
   return found;
 };
-
-function Verdict(props: { readonly decision: string; readonly text: string }): ReactElement {
-  if (props.decision === "measured") return <span className="sy-chip">∿ {props.text}</span>;
-  const holds = props.decision === "holds";
-  return (
-    <span className="sy-chip" data-state={holds ? "pass" : "fail"}>
-      {holds ? "✓" : "✗"} {props.text}
-    </span>
-  );
-}
 
 /** This function gives the median of a set of numbers. */
 const middle = (values: readonly number[]): number | null => {

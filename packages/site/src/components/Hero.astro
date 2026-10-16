@@ -1,0 +1,10 @@
+---
+// The hero of the home page: the first screen of the site (Overview.tsx). Each other page with a hero, for
+// example the page of a missing path, keeps the hero of Starlight.
+import Default from "@astrojs/starlight/components/Hero.astro";
+import Overview from "./Overview.tsx";
+
+const home = ["", "index"].includes(Astro.locals.starlightRoute.entry.id);
+---
+
+{home ? <Overview /> : <Default />}

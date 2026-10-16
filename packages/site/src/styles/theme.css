@@ -1,7 +1,8 @@
 /*
- * The family tokens (tokens.css, from lag and Vex) mapped to the variables of Starlight. Starlight and the
- * tokens both use the attribute data-theme on the html element, so both themes follow the same switch.
- * In Starlight, "white" is the text with the most contrast and "black" is the page, in both themes.
+ * The tokens (tokens.css) mapped to the variables of Starlight, and the chrome and prose of each page.
+ * Starlight and the tokens both use the attribute data-theme on the html element, thus both themes follow
+ * the same switch. In Starlight, "white" is the text with the most contrast and "black" is the page, in
+ * both themes. This file is not in a cascade layer, thus it overrides the layers of Starlight.
  */
 :root,
 :root[data-theme="light"],
@@ -20,322 +21,281 @@
   --sl-color-gray-6: var(--color-surface-sunken);
   --sl-color-gray-7: var(--color-surface);
   --sl-color-black: var(--color-page);
-  --sl-color-bg-nav: color-mix(in srgb, var(--color-page) 92%, transparent);
+  --sl-color-text: var(--color-ink-body);
+  --sl-color-text-accent: var(--color-accent);
+  --sl-color-text-invert: var(--color-surface);
+  --sl-color-bg: var(--color-page);
+  --sl-color-bg-nav: color-mix(in srgb, var(--color-page) 90%, transparent);
   --sl-color-bg-sidebar: var(--color-page);
+  --sl-color-bg-inline-code: var(--color-surface-sunken);
   --sl-color-hairline: var(--color-rule);
   --sl-color-hairline-light: var(--color-rule);
-  --sl-color-hairline-shade: var(--color-rule-strong);
+  --sl-color-hairline-shade: var(--color-rule);
   --sl-color-red: var(--color-mark);
   --sl-color-red-low: var(--color-mark-wash);
   --sl-color-red-high: var(--color-mark);
+  --sl-shadow-sm: none;
+  --sl-shadow-md: none;
+
+  --sl-text-body: var(--text-base);
+  --sl-text-code: var(--text-sm);
+  --sl-text-code-sm: 0.875em;
+  --sl-text-h1: var(--text-3xl);
+  --sl-text-h2: var(--text-xl);
+  --sl-text-h3: var(--text-lg);
+  --sl-text-h4: var(--text-base);
+  --sl-text-h5: var(--text-base);
+  --sl-line-height: var(--leading-body);
+  --sl-line-height-headings: var(--leading-tight);
 }
+
+body {
+  font-kerning: normal;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--series-1) 28%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ the header and the site title */
 
 header.header {
-  backdrop-filter: blur(6px);
-}
-
-/* ---------------------------------------------------------------- the widgets of the site */
-
-.sy-frame {
-  margin-block: var(--space-5);
-  border: 1px solid var(--color-rule);
-  border-top: 3px solid var(--color-ink);
-  border-radius: 0 0 var(--radius) var(--radius);
-  background: var(--color-surface);
-  overflow: hidden;
-}
-
-.sy-frame > header {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
-  align-items: baseline;
-  justify-content: space-between;
-  padding: var(--space-2) var(--space-4);
+  backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--color-rule);
-  font-size: var(--text-sm);
-  color: var(--color-ink-secondary);
 }
 
-.sy-frame > header strong {
+.site-title {
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: 600;
+  letter-spacing: -0.01em;
   color: var(--color-ink);
 }
 
-.sy-body {
-  padding: var(--space-4);
+.site-title img {
+  height: 1.75rem;
 }
 
-.sy-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-4);
-  align-items: center;
-}
-
-.sy-button {
-  min-height: 2.25rem;
-  padding: var(--space-1) var(--space-3);
-  border: 1px solid var(--color-control-border);
+site-search button[data-open-modal] {
+  border-color: var(--color-rule);
   border-radius: var(--radius);
   background: var(--color-surface);
-  color: var(--color-ink);
-  font: inherit;
+}
+
+/* ------------------------------------------------------------------ the sidebar: an index of the notebook */
+
+.sidebar-content summary .large {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+
+.sidebar-content ul ul {
+  border-inline-start-color: var(--color-rule);
+}
+
+.sidebar-content a {
+  border-radius: var(--radius-small);
   font-size: var(--text-sm);
-  cursor: pointer;
+  color: var(--color-ink-secondary);
 }
 
-.sy-button:hover {
-  background: var(--color-surface-sunken);
+.sidebar-content a:hover {
+  color: var(--color-ink);
 }
 
-.sy-button[aria-pressed="true"] {
-  border-color: var(--color-accent);
+.sidebar-content a[aria-current="page"],
+.sidebar-content a[aria-current="page"]:hover,
+.sidebar-content a[aria-current="page"]:focus {
+  position: relative;
+  font-weight: 600;
+  color: var(--color-ink);
+  background: var(--color-accent-wash);
+}
+
+/* The mark of the current page sits on the rule of its group. */
+.sidebar-content a[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  inset-block: 0.35rem;
+  inset-inline-start: calc(-1 * var(--sl-sidebar-item-padding-inline, 0.5rem) - 1px);
+  width: 2px;
   background: var(--color-accent);
-  color: var(--color-surface);
 }
 
-.sy-knobs {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  gap: var(--space-3) var(--space-5);
+/* ------------------------------------------------------------------ the table of contents */
+
+.right-sidebar-panel h2,
+#starlight__on-this-page--mobile .toggle {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+
+starlight-toc a {
+  font-size: var(--text-xs);
+  color: var(--color-ink-muted);
+}
+
+starlight-toc a:hover {
+  color: var(--color-ink);
+}
+
+starlight-toc a[aria-current="true"] {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------------ the title of a page */
+
+.sy-eyebrow {
   margin: 0;
-  padding: var(--space-4);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+.content-panel h1#_top {
+  margin-top: var(--space-2);
+  font-size: var(--text-3xl);
+  font-weight: 600;
+  letter-spacing: -0.022em;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+@media (max-width: 50rem) {
+  .content-panel h1#_top {
+    font-size: var(--text-2xl);
+  }
+}
+
+/* ------------------------------------------------------------------ the prose */
+
+.sl-markdown-content {
+  font-size: var(--text-base);
+}
+
+.sl-markdown-content :is(h2, h3, h4):not(:where(.not-content *)) {
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+/* Each section of a long page starts under a hairline, as a new section of a notebook. */
+.sl-markdown-content .sl-heading-wrapper.level-h2 {
+  margin-top: var(--space-8);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-rule);
+}
+
+.sl-markdown-content .sl-heading-wrapper.level-h3 {
+  margin-top: var(--space-6);
+}
+
+.sl-markdown-content h2:not(:where(.not-content *)) {
+  letter-spacing: -0.015em;
+}
+
+.sl-markdown-content h3:not(:where(.not-content *)) {
+  letter-spacing: -0.01em;
+}
+
+.sl-markdown-content a:not(:where(.not-content *)) {
+  color: var(--color-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  text-decoration-color: color-mix(in srgb, var(--color-accent) 45%, transparent);
+}
+
+.sl-markdown-content a:hover:not(:where(.not-content *)) {
+  color: var(--color-accent-strong);
+  text-decoration-color: currentColor;
+}
+
+.sl-markdown-content strong {
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.sl-markdown-content code:not(:where(.not-content *)) {
+  border-radius: var(--radius-small);
+  padding: 0.08em 0.32em;
+  color: var(--color-ink);
+}
+
+.sl-markdown-content :is(ul, ol):not(.not-content):not(:where(.not-content *)) {
+  padding-inline-start: 1.25rem;
+}
+
+.sl-markdown-content ul > li:not(:where(.not-content *))::marker {
+  color: var(--color-ink-muted);
+}
+
+.sl-markdown-content ol > li:not(:where(.not-content *))::marker {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-ink-muted);
+}
+
+/* A table of the prose: a hairline under each row, and small labels in the head. */
+.sl-markdown-content table:not(:where(.not-content *)) {
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  font-variant-numeric: tabular-nums;
+}
+
+.sl-markdown-content :is(th, td):not(:where(.not-content *)) {
+  padding: var(--space-2) var(--space-4);
   border-bottom: 1px solid var(--color-rule);
 }
 
-.sy-knob {
-  display: grid;
-  gap: var(--space-1);
-  font-size: var(--text-sm);
-  color: var(--color-ink-secondary);
-}
-
-.sy-knob output {
-  font-family: var(--font-mono);
-  color: var(--color-ink);
-  font-variant-numeric: tabular-nums;
-}
-
-.sy-knob input[type="range"] {
-  width: 100%;
-  accent-color: var(--color-accent);
-}
-
-.sy-readout {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-6);
-  margin: 0;
-  padding: var(--space-3) var(--space-4);
-  font-variant-numeric: tabular-nums;
-}
-
-.sy-readout div {
-  display: grid;
-  gap: 0;
-  margin: 0;
-}
-
-.sy-readout dt {
+.sl-markdown-content th:not(:where(.not-content *)) {
+  border-bottom-color: var(--color-rule-strong);
   font-size: var(--text-xs);
-  color: var(--color-ink-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.sy-readout dd {
-  margin: 0;
-  font-family: var(--font-mono);
-  font-size: var(--text-lg);
-  color: var(--color-ink);
-}
-
-.sy-wide {
-  grid-column: 1 / -1;
-}
-
-.sy-body > p {
-  margin: 0 0 var(--space-2);
-}
-
-/* The first run and the re-run of a cell, each with its chart and its verdict */
-.sy-result {
-  margin-bottom: var(--space-4);
-}
-
-/* The verdict of a re-run in a table, on its own line under the verdict of the first run */
-.sy-again {
-  display: block;
-  margin-top: var(--space-1);
-  color: var(--color-ink-muted);
-}
-
-.sy-caption {
-  margin: var(--space-3) 0 0;
-  font-size: var(--text-xs);
-  color: var(--color-ink-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
-
-.sy-strip {
-  width: 100%;
-}
-
-/* Before hydration a chart has a guessed width. Its viewBox then scales it into the column. After
-   hydration the chart draws at the real width, and the scale is 1. */
-.sy-strip svg {
-  display: block;
-  overflow: visible;
-  max-width: 100%;
-  height: auto;
-}
-
-.sy-strip text {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  fill: var(--color-ink-secondary);
-}
-
-.sy-strip .sy-axis line {
-  stroke: var(--chart-axis);
-}
-
-.sy-strip .sy-grid {
-  stroke: var(--chart-axis);
-}
-
-/* The diagram of a chain: a box for each end and each hop, a line for each link, and a red pencil mark at
-   each place of a fault. The hop is the subject of its catalog, thus it has the wash of the accent. */
-.sy-chain .sy-node rect {
-  fill: var(--color-surface);
-  stroke: var(--color-rule-strong);
-}
-
-.sy-chain .sy-hop rect {
-  fill: var(--color-accent-wash);
-  stroke: var(--color-accent);
-}
-
-.sy-chain .sy-node-name {
-  fill: var(--color-ink);
-  font-weight: 700;
-}
-
-.sy-chain .sy-link {
-  stroke: var(--color-ink-secondary);
-  stroke-width: 1.5;
-}
-
-.sy-mark circle {
-  fill: var(--color-mark-wash);
-  stroke: var(--color-mark);
-  stroke-width: 1.5;
-}
-
-.sy-strip .sy-mark text,
-.sy-mark text {
-  fill: var(--color-mark);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.sy-places {
-  display: grid;
-  gap: var(--space-2);
-  margin: var(--space-3) 0 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--text-sm);
+  font-weight: 600;
   color: var(--color-ink-secondary);
+  vertical-align: bottom;
 }
 
-.sy-places li {
-  display: flex;
-  gap: var(--space-2);
-  align-items: flex-start;
-  margin: 0;
-}
-
-.sy-places svg {
-  flex: none;
-}
-
-.sy-places strong {
-  color: var(--color-ink);
-}
-
-.sy-legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-4);
-  margin: var(--space-2) 0;
-  padding: 0;
-  list-style: none;
-  font-size: var(--text-sm);
-  color: var(--color-ink-secondary);
-}
-
-.sy-legend li {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.sy-legend svg {
-  display: inline-block;
-  flex: none;
-}
-
-.sy-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35em;
-  padding: 0.05em 0.5em;
-  border: 1px solid var(--color-rule-strong);
-  border-radius: 999px;
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  line-height: 1.6;
+.sl-markdown-content td code:not(:where(.not-content *)) {
   white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ the end of a page */
+
+.pagination-links a {
+  border-color: var(--color-rule);
+  border-radius: var(--radius);
   background: var(--color-surface);
-  color: var(--color-ink);
-}
-
-.sy-chip[data-state="pass"] {
-  border-color: var(--status-good);
-  color: var(--status-good-ink);
-}
-
-.sy-chip[data-state="fail"] {
-  border-color: var(--color-mark);
-  background: var(--color-mark-wash);
-  color: var(--color-mark);
-}
-
-.sy-muted {
   color: var(--color-ink-muted);
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
 }
 
-.sy-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--text-sm);
-  font-variant-numeric: tabular-nums;
+.pagination-links a:hover {
+  border-color: var(--color-accent);
 }
 
-.sy-table th,
-.sy-table td {
-  padding: var(--space-1) var(--space-2);
-  border-bottom: 1px solid var(--color-rule);
-  text-align: left;
-  vertical-align: top;
-}
-
-.sy-scroll {
-  overflow-x: auto;
+.pagination-links .link-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--color-ink);
 }
 
 @media (prefers-reduced-motion: reduce) {

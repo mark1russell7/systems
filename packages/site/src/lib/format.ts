@@ -17,6 +17,18 @@ export const duration = (ms: number): string => {
   return parts.filter((part) => part !== "").join(" ");
 };
 
+/**
+ * This function writes a time in milliseconds for a readout. From 1 s to 120 s it keeps 4 decimals. Thus a
+ * median that is a fraction of a millisecond outside its band looks different from the edge of the band.
+ */
+export const reading = (ms: number): string => {
+  const s = ms / 1000;
+  return Number.isFinite(ms) && s >= 1 && s < 120 ? `${trim(s.toFixed(4))} s` : duration(ms);
+};
+
+/** This function writes a whole number with a comma in each group of three digits: 11,462. */
+export const count = (n: number): string => n.toLocaleString("en-US");
+
 /** The unit that the ticks of an axis use, for the span of the axis. */
 export interface TickUnit {
   readonly ms: number;

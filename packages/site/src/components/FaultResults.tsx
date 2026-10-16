@@ -8,7 +8,6 @@ import type { ReactElement } from "react";
 import faults from "../data/faults-2026-10-14.json";
 import { duration } from "../lib/format.ts";
 import CellFrame, { code, joined, setting, sysctl } from "./CellFrame.tsx";
-import Legend from "./Legend.tsx";
 
 type Cell = (typeof faults.cells)[number];
 
@@ -33,11 +32,8 @@ function Settings(props: { readonly cell: Cell }): ReactElement {
 export default function FaultResults(props: { readonly manifestation: string }): ReactElement {
   const cells = faults.cells.filter((cell) => cell.manifestation === props.manifestation);
   if (cells.length === 0) throw new Error(`no cell has the manifestation ${props.manifestation}`);
-  const timed = cells.some((cell) => cell.prediction.kind === "detects" || cell.prediction.kind === "recovers");
-  const measured = cells.some((cell) => cell.prediction.kind === "measured");
   return (
-    <div className="not-content">
-      {timed ? <Legend band runs line="Median" /> : measured ? <Legend runs /> : null}
+    <div className="not-content sy-cells">
       {cells.map((cell) => (
         <CellFrame key={cell.name} cell={cell} details={<Settings cell={cell} />} />
       ))}

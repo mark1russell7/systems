@@ -4,6 +4,9 @@ description: Q1 to Q4 against Redis 7.4, from three observers, the kernel of the
 ---
 
 import CellResults from "../../../components/CellResults.tsx";
+import { Summary } from "../../../components/Ledger.tsx";
+
+<Summary of="cells" />
 
 These are the latest results of the twelve S1 cells, from 2026-10-13. The target is a stock Redis 7.4 container on Linux 6.6, with HZ 250. Each cell has 11 runs in two fresh environments. The prober measures each interval from the records of the kernel.
 

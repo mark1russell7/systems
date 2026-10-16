@@ -4,56 +4,30 @@ description: How long until a client knows that its peer is gone. The algebra co
 template: splash
 hero:
   tagline: A client holds a connection, and its peer goes silent. When does the client know? This site computes the answer, and then it measures the answer.
-  actions:
-    - text: Open the lab
-      link: lab/detection/
-      icon: right-arrow
-    - text: Read the thesis
-      link: thesis/
-      variant: minimal
-    - text: See the results
-      link: results/cells/
-      variant: minimal
 ---
 
-import { Card, CardGrid } from "@astrojs/starlight/components";
 import DetectionLab from "../../components/DetectionLab.tsx";
+import Findings, { Parts } from "../../components/Findings.tsx";
+import { Answers } from "../../components/Overview.tsx";
 
 ## One question, three answers
 
-Linux 6.6 has default settings for each TCP timer. With these settings, an idle connection learns of a black hole after 2 h 11 min 15 s. A connection with a request in flight learns after 924.6 s. A connection to a frozen process does not learn of the failure at the TCP level.
+Linux 6.6 has default settings for each TCP timer. With these settings, the client learns of a black hole or a frozen peer at these times. The model of the lab computes each time from the rules of the kernel.
 
-The lab below computes these times from the rules of the kernel. Select a harness cell to see the runs that the harness measured. Change a setting to see the new prediction.
+<Answers />
+
+The lab below computes these times for your settings. Select a harness cell to see the runs that the harness measured. Change a setting to see the new prediction.
 
 <DetectionLab client:visible />
 
+## What the cells found
+
+Each card is a finding of a page of results. The page gives the numbers, the runs and the prediction.
+
+<Findings />
+
 ## The parts of the program
 
-<CardGrid>
-  <Card title="A corpus" icon="open-book">
-    Each fact about a system is a claim. A claim has a unit, the conditions where it is true, its sources and its grade of evidence.
-  </Card>
-  <Card title="An algebra" icon="seti:config">
-    The algebra reads the state machines and the settings. It gives each timer a closed form, and a band for how late the timer fires.
-  </Card>
-  <Card title="A harness" icon="rocket">
-    The harness starts each cell in fresh containers. It injects a fault, measures the result on one clock, and compares the result with the prediction.
-  </Card>
-  <Card title="A prober" icon="magnifier">
-    The prober is an eBPF program. It records what the kernel does to each socket, to the nanosecond.
-  </Card>
-</CardGrid>
+<Parts />
 
-## Where to go next
-
-- [The thesis](thesis/) tells why a connection is a chain of state machines.
-- [The detection lab](lab/detection/) computes the first detector for your settings.
-- [The S1 cells](results/cells/) show each harness cell against its prediction. The observers are the kernel of the client, the ioredis driver and the server.
-- [The network failures](results/faults/) show each network failure that the harness can inject on the direct pair, against its prediction.
-- [The failures through a middlebox and a proxy](results/topologies/) show the cells with a NAT router, HAProxy or Toxiproxy between the client and Redis.
-- [A Valkey group under three Sentinels](results/sentinel/) shows each failover of T12, its stages, and the writes that the group lost.
-- [HTTP/1.1 keep-alive](results/http/) shows the server of Node against the agent of Node, undici and the transport of Go.
-- [A MongoDB replica set](results/mongodb/) shows the Node driver of MongoDB against one member, through a NAT router, and in an election.
-- [Kubernetes endpoints in kind](results/kind/) shows the deletion of a pod in three modes of kube-proxy, and a fleet whose readiness needs Redis.
-- [The calibration](results/calibration/) shows the noise of the harness itself.
-- [The timers behind their slot](results/timers/) show how the prober tells a delay of the VM from a delay of the kernel.
+The [thesis](thesis/) tells why a connection is a chain of state machines. The [timers behind their slot](results/timers/) show how the prober tells a delay of the VM from a delay of the kernel. The [first harness cells](results/harness/) stay on their own page.

@@ -6,6 +6,9 @@ description: The T12 cells on the runners of GitHub, with ioredis against a grou
 ---
 
 import RunResults, { WritesTable } from "../../../components/RunResults.tsx";
+import { Summary } from "../../../components/Ledger.tsx";
+
+<Summary of="sentinel" />
 
 These are the results of the T12 cells, from 2026-10-16. T12 is a replicated group under an external failover authority. The group has a primary and two replicas of Valkey 9.1.2, and three Sentinels with a quorum of 2. The client is ioredis 6.0.0 in Sentinel mode, at its defaults. It writes a stream of `SET` commands, with a pause of 50 ms after each reply.
 

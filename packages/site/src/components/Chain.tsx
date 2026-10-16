@@ -150,7 +150,7 @@ function Diagram(props: { readonly nodes: readonly Node[]; readonly marks: Reado
     return slot === "hop" ? hop + box / 2 : slot === "hop toward client" ? hop + MARK + 6 : hop + box - MARK - 6;
   };
   return (
-    <div ref={ref} className="sy-strip sy-chain">
+    <div ref={ref} className="sy-chain">
       <svg width={width} height={total} viewBox={`0 0 ${width} ${total}`} role="img" aria-label={props.label}>
         {nodes.slice(1).map((node, n) => (
           <line key={`link ${node.key}`} className="sy-link" x1={left(n) + box} x2={left(n + 1)} y1={middle} y2={middle} />
@@ -197,7 +197,7 @@ export default function Chain(props: { readonly catalog: string }): ReactElement
     return { chain, hops, nodes, marks, label };
   });
   return (
-    <section className="sy-frame not-content" aria-label={`The chain of ${props.catalog}`}>
+    <section className="sy-panel not-content" aria-label={`The chain of ${props.catalog}`}>
       <div className="sy-body">
         {drawn.map(({ chain, hops, nodes, marks, label }) => (
           <div key={chain}>
