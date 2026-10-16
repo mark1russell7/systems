@@ -158,6 +158,18 @@ header.header {
   margin: 0 0 var(--space-2);
 }
 
+/* The first run and the re-run of a cell, each with its chart and its verdict */
+.sy-result {
+  margin-bottom: var(--space-4);
+}
+
+/* The verdict of a re-run in a table, on its own line under the verdict of the first run */
+.sy-again {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--color-ink-muted);
+}
+
 .sy-caption {
   margin: var(--space-3) 0 0;
   font-size: var(--text-xs);
@@ -191,6 +203,67 @@ header.header {
 
 .sy-strip .sy-grid {
   stroke: var(--chart-axis);
+}
+
+/* The diagram of a chain: a box for each end and each hop, a line for each link, and a red pencil mark at
+   each place of a fault. The hop is the subject of its catalog, thus it has the wash of the accent. */
+.sy-chain .sy-node rect {
+  fill: var(--color-surface);
+  stroke: var(--color-rule-strong);
+}
+
+.sy-chain .sy-hop rect {
+  fill: var(--color-accent-wash);
+  stroke: var(--color-accent);
+}
+
+.sy-chain .sy-node-name {
+  fill: var(--color-ink);
+  font-weight: 700;
+}
+
+.sy-chain .sy-link {
+  stroke: var(--color-ink-secondary);
+  stroke-width: 1.5;
+}
+
+.sy-mark circle {
+  fill: var(--color-mark-wash);
+  stroke: var(--color-mark);
+  stroke-width: 1.5;
+}
+
+.sy-strip .sy-mark text,
+.sy-mark text {
+  fill: var(--color-mark);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.sy-places {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--color-ink-secondary);
+}
+
+.sy-places li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin: 0;
+}
+
+.sy-places svg {
+  flex: none;
+}
+
+.sy-places strong {
+  color: var(--color-ink);
 }
 
 .sy-legend {

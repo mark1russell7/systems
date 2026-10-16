@@ -1,9 +1,11 @@
 /** This function removes the zeros at the end of a decimal: 5.000 becomes 5, and 6.340 becomes 6.34. */
 const trim = (text: string): string => (text.includes(".") ? text.replace(/0+$/, "").replace(/\.$/, "") : text);
 
-/** This function writes a time in milliseconds with the units that a reader expects for its size. */
+/** This function writes a time in milliseconds with the units that a reader expects for its size. A negative time gets a minus sign, and zero is 0 s. */
 export const duration = (ms: number): string => {
   if (!Number.isFinite(ms)) return "never";
+  if (ms === 0) return "0 s";
+  if (ms < 0) return `−${duration(-ms)}`;
   if (ms < 1) return `${trim((ms * 1000).toFixed(0))} µs`;
   if (ms < 1000) return `${trim(ms.toFixed(ms < 10 ? 2 : 1))} ms`;
   const s = ms / 1000;

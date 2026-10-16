@@ -11,6 +11,8 @@ describe("the formats of the site", () => {
     expect(duration(11_352)).toBe("11.352 s");
     expect(duration(7_875_000)).toBe("2 h 11 min 15 s");
     expect(duration(Infinity)).toBe("never");
+    expect(duration(-4)).toBe("−4 ms");
+    expect(duration(0)).toBe("0 s");
   });
 
   it("puts the ticks of an axis on round values", () => {

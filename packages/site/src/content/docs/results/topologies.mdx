@@ -1,0 +1,117 @@
+---
+title: Failures through a middlebox and a proxy
+sidebar:
+  label: Middleboxes and proxies
+description: The cells of step 3, with a NAT router, HAProxy or Toxiproxy between the client and a stock Redis 7.4. Of 42 cells, 29 hold, 8 are measurements only, and 5 fail.
+---
+
+import Chain from "../../../components/Chain.tsx";
+import TopologyResults, { Border, Slice } from "../../../components/TopologyResults.tsx";
+
+These are the results of step 3 of the testing program, from 2026-10-16. In step 3, the harness puts a chain of hops between the client and a stock Redis 7.4. A hop is a router or a proxy. Three new catalogs use the chain: T03 through a NAT router, T02 through HAProxy, and TOX with Toxiproxy as the subject. Each cell has 11 runs in 2 fresh environments, and each environment starts with one warm-up run that the verdict does not count. The kernel is Linux 6.6, with HZ 250.
+
+Of the 42 cells, 29 hold against the prediction of the algebra, and 8 are measurements only. Seven of these 8 cells measure what HAProxy or Toxiproxy does. The program has no machine document for these two proxies yet, thus the algebra cannot predict them. Three cells failed on one outlier run each, and each cell held on a re-run. Two cells fail on all of their runs, and they are findings about Toxiproxy.
+
+The harness did the cells of T03 one at a time, because the listing of a router reads the conntrack table of the whole kernel. The cells of T02 and TOX went in a second process at the same time. Another job loaded the host for all of that time.
+
+## What the cells found
+
+- **O03 decides all three forms.** A keepalive at 4 s keeps the flow in a router that forgets at 5 s, thus nothing detects anything in 15 s. At 6 s, the router forgets the flow 4.999 s to 5.05 s after the last segment. Then a `reset-both` router resets the flow at the forget, with a median of 5.021 s. A `reset-next` router resets the first probe (6.134 s), and a `silent-drop` router lets the keepalive give up (9.205 s). These are the times of the algebra.
+- **The server side obeys the same border.** At `tcp-keepalive 6`, a `reset-both` router resets the two ends at 5.025 s. A `reset-next` router drops the probe of Redis, and Redis gets `ETIMEDOUT` at 12.136 s. Under `none`, the stack of the router resets the probe at 6.158 s. After 8 s idle, a request under `recreate` starts the flow again, and each run got its reply.
+- **The idle timeouts of HAProxy ignore TCP keepalive.** With a client keepalive of 2 s, `timeout client 5s` closes the connection at 5.003 s. With a probe from Redis each 2 s, `timeout server 5s` also closes at 5.003 s. Thus a keepalive that satisfies O03 for a middlebox at layer 4 does nothing for a proxy at layer 7. O03 has no clause for the idle timer of a proxy yet.
+- **The client learns of a dead server only through HAProxy.** A black hole at Redis reaches the client as an EOF at 6.232 s. That is when the keepalive of HAProxy gave up on Redis, and its socket gave up at 6.247 s. On the leg of the client, the socket of HAProxy gave up at 6.178 s, and the keepalive of the client took 11.122 s.
+- **Toxiproxy changes resets and timeouts into normal closes.** A reset at the server reaches the client through Toxiproxy as an EOF at 0.94 ms. On the direct pair, the same reset is `ECONNRESET` at 0.18 ms, as the algebra predicts. A black hole at the server reaches the client as an EOF at 6.788 s. That is the give-up of the retransmissions of Toxiproxy itself, at `tcp_retries2 = 3` in its namespace. Thus a client behind Toxiproxy gets no reset and no timeout from the far end.
+- **`reset_peer` on a live connection sends a FIN, not a reset.** Each of the 11 runs ended with EOF, with a median of 828 µs. One run took 25.7 ms, outside the band as well. The documentation says "Simulate TCP RESET", but the close with linger 0 applies only to a connection that starts after the toxic.
+- **Toxiproxy adds a processing time that its documentation does not give.** `limit_data` closes 1.307 ms to 4.777 ms after the request, with a median of 2.518 ms, thus its band of "immediately" fails. The prober shows 0.5 ms in Toxiproxy before it sends the request to Redis. Then 1 ms passes from the first segment of the reply to the 1000 bytes of the client. The 51 slices of `slicer`, 10 ms apart, take 657 ms: approximately 2.9 ms more for each slice than its delay. The toxic `bandwidth` at 100 KB/s moves 500,011 bytes in 5.029 s.
+- **Three cells failed on one outlier run each.** The prober explains each outlier, and no outlier came back on a re-run.
+  - The T01 stall: the first round trip of one run took 4.25 ms, where the others took 0.14 ms to 1.3 ms. Thus its RTO was 52 jiffies, not 51, and the reply came back at 1.736 s, after the band that ends at 1.709 s. The prediction reads `rtt = 1 ms`.
+  - The T03 cell `recreate`: one reply took 11.5 ms. The request reached Redis at 1.4 ms, and no side sent a retransmission. Thus 10 ms passed in Redis or in the forward path of the router, and no record tells which.
+  - The TOX cell `timeout 2000`: in one run, the client got the close at 2.017 s. The prober shows why in its state record, in the namespace of Toxiproxy. Toxiproxy closed its own socket 15.7 ms late, after an API commit of 1 ms.
+- **The warm-up earns its place.** Three warm-up runs landed outside their bands: 2.018 s, 2.027 s and 2.00503 s, where each band ends at 2.005 s. Each was the first toxic of an environment, and one had a first API commit of 16.9 ms. The verdict does not count a warm-up. As counted runs, these three make `slow_close` and `timeout 2000` fail.
+- **A slow listing of the router voids a run.** The router lists its table each 50 ms, and a `reset-both` router sends its resets after the listing that finds the expired flow. Over 1,571 s of router time, at approximately 18 listings each second, 3,201 listings took longer than the bound of 20 ms (`LISTING`). The worst took 100.5 ms, where the worst of 500 listings on an idle host took 19.4 ms. A slow listing in the last band width before a `reset-both` detection voids the run. That voided 1 of 11 and 4 of 11 runs in the two `reset-both` cells.
+- **A slow commit of a toxic voids a run.** A commit of a toxic through the API of Toxiproxy can take 13 ms to 17 ms. This occurs on the first commits of an environment, and one time in a run. The toxic starts somewhere in the commit. Thus a run that counts from the fault is void when its commit is longer than δ<sub>abs</sub>, 4 ms. That voided 1 run of `timeout 2000`.
+- **Four void runs are delays of the VM.** In each of them, a timer of the kernel was two jiffies or more behind its wheel slot. The page of [the timers behind their slot](../timers/) tells how the prober finds such a delay.
+
+## T03: through a NAT router
+
+<Chain catalog="T03" client:visible />
+
+The router is the router image of the harness: a NAT with conntrack. It forgets an established flow when the flow is idle for 5 s, the 350 s of a cloud NAT divided by 70. Its form tells what a late packet meets after the forget. The prediction of each cell comes from the machine documents of conntrack and of Linux TCP. The law O03 decides if the forget occurs at all: each idle flow must get a refresh before each middlebox on its path forgets it.
+
+On a chart of T03, a dot on the bottom row is the time when the router forgot the flow. It counts from the last segment that the client received, as each detection of an idle cell does.
+
+### DV-12 on the two sides of O03
+
+DV-12 is the case of a broken O03: the client holds a connection that the router forgot. Its window is the time from the forget to the detection. The table puts a keepalive of the client on each side of the border of O03, for each of the three forms. The router forgets at 5 s.
+
+<Border />
+
+### The client idle
+
+<TopologyResults catalog="T03" group="client idle" client:visible />
+
+### A request after an idle time
+
+The client has no keepalive. It stays idle for 8 s, after the latest forget, and then it sends its request into a forgotten flow.
+
+<TopologyResults catalog="T03" group="client inflight" client:visible />
+
+### The server idle
+
+The observer is the socket of Redis. Its keepalive comes from `tcp-keepalive` of Redis, thus each probe comes to the router from the outside of the NAT.
+
+<TopologyResults catalog="T03" group="server idle" client:visible />
+
+## T02: through HAProxy
+
+<Chain catalog="T02" client:visible />
+
+HAProxy 3.2.25 runs in TCP mode between the client and Redis. It ends each connection of the client and opens its own connection to Redis, thus each leg has its own sockets and its own timers. Each socket of HAProxy has kernel keepalive (`option clitcpka` and `option srvtcpka`), at 3 s idle and 3 probes 1 s apart. Its namespace sets `tcp_retries2 = 3`.
+
+### The idle timeouts of HAProxy
+
+There is no machine document for HAProxy yet. Thus the harness measures these cells, and the algebra does not predict them.
+
+<TopologyResults catalog="T02" group="proxy-idle" client:visible />
+
+### A black hole on each leg
+
+Linux TCP predicts each socket that detects the black hole with its own keepalive. A client behind a black hole at Redis gets only what HAProxy sends, thus that cell is a measurement only.
+
+<TopologyResults catalog="T02" group="blackhole" client:visible />
+
+## TOX: Toxiproxy as the subject
+
+<Chain catalog="TOX" client:visible />
+
+Toxiproxy 2.12.0 is between the client and Redis, with one proxy and its HTTP API. The injector adds a toxic through the API, and it records the start and the end of the commit. Each toxic gets a cell. The prediction of a toxic comes from its documentation. A toxic whose documentation gives no time is a measurement only.
+
+### The toxics
+
+<TopologyResults catalog="TOX" group="toxic" client:visible />
+
+### What reaches the client when Redis fails
+
+There is no machine document for Toxiproxy yet. Its documentation tells what each toxic does, but not what Toxiproxy sends to the client when its upstream connection fails. Thus the harness measures these two cells, and the algebra does not predict them.
+
+<TopologyResults catalog="TOX" group="close" client:visible />
+
+### The direct pair
+
+These two cells have no Toxiproxy. They are the reference for the cells above: a reset, and a delay of 100 ms with netem.
+
+<TopologyResults catalog="TOX" group="direct" client:visible />
+
+## The T01 slice
+
+The slice is 10 of the 45 T01 cells, on the generalized lab. It checks that a direct pair behaves as before. A direct pair is a topology with no hops. The slice has one cell of each family of manifestations, the two observers, the stall, the MTU black hole and one netem distribution. The table compares each cell with [the network failures](../faults/), from 2026-10-14.
+
+Each cell gives the verdict of that page, and the stall gives it on its re-run. The medians of the timed cells of 1 s or more move by less than 0.1 s. The fast cells are slower on the loaded host. The FIN took 94 µs, where it took 65 µs, and the median reply under loss took 447 µs, where it took 226 µs.
+
+<Slice />
+
+<TopologyResults catalog="T01" group="slice" client:visible />
+
+## Where the data comes from
+
+The runner of the cells wrote a raw record of each cell. A record has the cell, the manifests of its environments, each warm-up run and each run with its kernel records. The final measure of the harness then judged each record again. The script `packages/site/scripts/topologies.ts` reads each record with the code of the harness, and it stops when a verdict disagrees. It writes the copy that this page shows, and that copy names no machine. The cells and their predictions are in the [catalogs](https://github.com/mark1russell7/systems/tree/main/packages/cells).

@@ -5,6 +5,7 @@ export default function Legend(props: {
   readonly band?: boolean;
   readonly marks?: string | undefined;
   readonly runs?: boolean;
+  readonly warmups?: boolean;
   readonly line?: string | undefined;
 }): ReactElement {
   return (
@@ -31,6 +32,14 @@ export default function Legend(props: {
             <circle cx="5" cy="5" r="4" fill="var(--series-2)" />
           </svg>
           Measured runs
+        </li>
+      ) : null}
+      {props.warmups === true ? (
+        <li>
+          <svg width="10" height="10" aria-hidden="true">
+            <circle cx="5" cy="5" r="3.5" fill="var(--color-surface)" stroke="var(--series-2)" strokeWidth="2" />
+          </svg>
+          Warm-up runs, not counted
         </li>
       ) : null}
       {props.line === undefined ? null : (

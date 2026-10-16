@@ -16,6 +16,8 @@ export interface StripProps {
   readonly marks?: ReadonlyArray<{ readonly t: number; readonly label: string }>;
   /** the measured runs, on one row for each environment, or for each named row */
   readonly runs?: ReadonlyArray<{ readonly t: number; readonly row: number; readonly label: string }>;
+  /** the warm-up runs, which the verdict does not count, as open dots on the rows of the runs */
+  readonly warmups?: ReadonlyArray<{ readonly t: number; readonly row: number; readonly label: string }>;
   /** the names of the rows of runs, at the left edge. Without names, the runs have two rows. */
   readonly rows?: readonly string[] | undefined;
   /** dashed lines with a label, for example the median */
@@ -32,7 +34,7 @@ const CHARACTER = 7.5;
 const ROW = 20;
 
 /** This hook gives the width of an element in pixels, and follows each change of the width. */
-const useWidth = (): [React.RefObject<HTMLDivElement | null>, number] => {
+export const useWidth = (): [React.RefObject<HTMLDivElement | null>, number] => {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(640);
   useEffect(() => {
@@ -89,6 +91,11 @@ export default function Strip(props: StripProps): ReactElement {
         {(props.marks ?? []).filter((mark) => inside(mark.t)).map((mark) => (
           <circle key={mark.label} cx={x(mark.t)} cy={axis - 12} r={4} fill="var(--series-1)" stroke="var(--color-surface)" strokeWidth={2}>
             <title>{`${mark.label}: ${duration(mark.t)}`}</title>
+          </circle>
+        ))}
+        {(props.warmups ?? []).filter((run) => inside(run.t)).map((run, n) => (
+          <circle key={`warm-up ${n}`} cx={x(run.t)} cy={rowY(run.row)} r={3.5} fill="var(--color-surface)" stroke="var(--series-2)" strokeWidth={2}>
+            <title>{`${run.label}: ${duration(run.t)}`}</title>
           </circle>
         ))}
         {(props.runs ?? []).filter((run) => inside(run.t)).map((run, n) => (
