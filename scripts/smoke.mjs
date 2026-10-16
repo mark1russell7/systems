@@ -57,6 +57,10 @@ const NEEDS = {
     "image/node/client-ioredis.mjs",
     "image/node/package.json",
     "image/node/npm-lock.json",
+    "image/router/Dockerfile",
+    "image/router/mbx.sh",
+    "image/router/ctwatch.py",
+    "image/router/resetter.py",
   ],
 };
 /** the paths in a gzipped tar file, read with zlib: each entry has a 512-byte ustar header */
@@ -207,10 +211,16 @@ try {
       check(typeof node === "object" && node !== null, "algebra parses an expression of a timer");
       const old = module.machineSchema.safeParse({ format: "jarvis.machine/1" });
       check(old.success === false, "algebra refuses a machine document of another format");
+      // a window that nothing bounds: the cap less it is no bound below, which a max discards
+      const doc = { title: "t", knobs: { cap: { unit: "s" }, open: { unit: "s" } } };
+      const cap = module.evaluate(doc, { expr: "max(cap - open, cap / 2)", unit: "s" }, (knob) => (knob === "cap" ? s(120) : { value: "infinite", unit: "s" }));
+      check(cap.value === 60, "algebra gives max(cap - infinity, cap / 2) as cap / 2");
     }
     if (name === "@mark1russell7/harness") {
       const verdict = module.verdictOf({ detects: false, window: s(1) }, []);
       check(verdict.decision === "inconclusive", "harness judges no runs as inconclusive");
+      check(module.routesOf([{ kind: "router" }])[0].networks[0] === 1, "harness routes the network after a router through it");
+      check(module.toxicBody({ type: "latency", stream: "downstream", attributes: { latency: 100 } }).includes("toxicity"), "harness writes a toxic for Toxiproxy");
     }
   }
 } catch (error) {

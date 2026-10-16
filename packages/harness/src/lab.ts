@@ -15,7 +15,22 @@ import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { StartedNetwork, StartedTestContainer } from "testcontainers";
 import type * as Testcontainers from "testcontainers";
-import type { Client, KernelRecord, ProbeEvent, Target } from "./cell.ts";
+import type { Quantity } from "@mark1russell7/quantity";
+import { valueIn } from "@mark1russell7/quantity";
+import type {
+  Client,
+  ClientImage,
+  FaultPlace,
+  Hop,
+  KernelRecord,
+  MiddleboxEvent,
+  ProbeEvent,
+  ProxyHop,
+  RunTopology,
+  Target,
+  Topology,
+  Toxic,
+} from "./cell.ts";
 
 /**
  * These are the roots of the two packages that the images read: this package, and the prober
@@ -39,7 +54,7 @@ const pathOf = (part: string): string => {
 };
 
 /** This function loads Testcontainers when a lab first opens. Code that only measures and judges does not load it. */
-const containers = (): Promise<typeof Testcontainers> => import("testcontainers");
+export const containers = (): Promise<typeof Testcontainers> => import("testcontainers");
 
 /** An image is an image that the harness builds: its Dockerfile, and each file or folder that the Dockerfile reads. */
 interface Image {
@@ -65,6 +80,12 @@ const NODE: Image = {
   name: "loom-harness-node",
   dockerfile: "harness/image/node/Dockerfile",
   from: ["harness/image/node"],
+};
+/** This image is the router of a middlebox chain: NAT and conntrack, with a form for a forgotten flow. */
+const ROUTER: Image = {
+  name: "loom-harness-router",
+  dockerfile: "harness/image/router/Dockerfile",
+  from: ["harness/image/router"],
 };
 
 /** This function gives each file under a path, in a stable sequence, but not the output of a local build. */
@@ -134,6 +155,21 @@ const build = (image: Image): Promise<string> => {
 export const harnessImage = (): Promise<string> => build(HARNESS);
 /** This function gives the image of the Node client. */
 export const nodeClientImage = (): Promise<string> => build(NODE);
+/** This function gives the image of the router. */
+export const routerImage = (): Promise<string> => build(ROUTER);
+
+/**
+ * This time is the interval of the listing of a router, when its hop does not set one. A listing
+ * evicts each expired flow that it walks past, and the DESTROY event of that flow follows.
+ */
+export const PUMP: Quantity = { value: 0.1, unit: "s" };
+/**
+ * This time is the longest listing of the conntrack table of a router that a prediction assumes.
+ * A DESTROY follows an expiry within the interval of the pump and two listings. On 2026-10-15,
+ * the slowest of 500 listings in an idle router took 19.4 ms, and the median took 5.5 ms. A
+ * longer listing writes a `pump-slow` line, and a run with one near its detection is void.
+ */
+export const LISTING: Quantity = { value: 20, unit: "ms" };
 
 /**
  * A network fault is a fault that the injector applies as a filter rule. It is a black hole (both
@@ -152,14 +188,14 @@ export interface FaultOptions {
 }
 
 /** This function gives the arguments of the injector for the options of a fault. */
-const optionArgs = (options: FaultOptions): string[] => [
+export const optionArgs = (options: FaultOptions): string[] => [
   ...(options.direction === undefined ? [] : ["--direction", options.direction]),
   ...(options.code === undefined ? [] : ["--code", options.code]),
   ...(options.above === undefined ? [] : ["--above", String(options.above)]),
 ];
 
 /** These are the actions of the injector that lift each network fault. */
-const LIFT: Readonly<Record<NetworkFault, string>> = {
+export const LIFT: Readonly<Record<NetworkFault, string>> = {
   blackhole: "clear",
   rst: "clear-rst",
   reject: "clear-reject",
@@ -175,6 +211,18 @@ const LIFT: Readonly<Record<NetworkFault, string>> = {
  * because it fires only for a retransmission that went out.
  */
 export type FaultSide = "target" | "client";
+
+/** A hop of a manifest is one hop of a topology, as the lab started it. */
+export interface ManifestHop {
+  readonly name: string;
+  readonly kind: "router" | "proxy";
+  readonly image: string;
+  readonly id: string;
+  /** These are the settings of the hop: the form and the idle timeout of a router, the files and settings of a proxy. */
+  readonly settings: Readonly<Record<string, string>>;
+  /** These are the sysctls of the namespace of the hop, as read back after the harness set them. */
+  readonly sysctls: Readonly<Record<string, string>>;
+}
 
 /** A manifest is what a lab records about its machine, its images and its settings. */
 export interface Manifest {
@@ -193,16 +241,22 @@ export interface Manifest {
     readonly sysctls: Readonly<Record<string, string>>;
   };
   readonly harness: { readonly image: string; readonly id: string; readonly packages: string[] };
-  /** This record is the client of each run: the TCP client of the harness, or a driver from its own image. */
-  readonly client: { readonly kind: Client; readonly image: string };
+  /** This record is the client of each run: the TCP client of the harness, a driver, or an image that the cell gives. */
+  readonly client: { readonly kind: Client | "image"; readonly image: string };
   /** These are the namespaces that the prober watched, by inode. */
-  readonly netns: { readonly client: number; readonly target: number };
+  readonly netns: {
+    readonly client: number;
+    readonly target: number;
+    readonly hops?: Readonly<Record<string, number>>;
+  };
   /** These are the sysctls of the client namespace, as read back after the harness set them. */
   readonly sysctls: Readonly<Record<string, string>>;
+  /** These are the hops of a topology, in sequence from the client. */
+  readonly hops?: readonly ManifestHop[];
 }
 
 /** These are the JSON lines of a program, as they arrive. */
-interface Lines<T extends { readonly ev: string }> {
+export interface Lines<T extends { readonly ev: string }> {
   readonly seen: T[];
   /** These are the other lines that it wrote, for example an error. They explain a program that stopped its output. */
   readonly other: string[];
@@ -211,7 +265,8 @@ interface Lines<T extends { readonly ev: string }> {
   until(kinds: readonly string[], within: number, who: string): Promise<T>;
 }
 
-const lines = <T extends { readonly ev: string }>(): Lines<T> => {
+/** This function collects the JSON lines of a program. It gives each line to `also` too, when the caller gives it. */
+export const lines = <T extends { readonly ev: string }>(also?: (line: T) => void): Lines<T> => {
   const seen: T[] = [];
   const other: string[] = [];
   const waiting: Array<{ kinds: readonly string[]; resolve: (line: T) => void }> = [];
@@ -223,6 +278,7 @@ const lines = <T extends { readonly ev: string }>(): Lines<T> => {
     }
     const line = JSON.parse(text) as T;
     seen.push(line);
+    also?.(line);
     for (const wait of waiting.splice(0)) {
       if (wait.kinds.includes(line.ev)) wait.resolve(line);
       else waiting.push(wait);
@@ -273,11 +329,40 @@ export interface Probe {
   stop(): Promise<void>;
 }
 
-/** A lab is one environment: the target, the client, the injector and the prober. */
+/** An agent is a container that a lab starts in the namespaces of the target, for example a Node process that signals the server. */
+export interface Agent {
+  /** These are the JSON lines that it wrote, as they arrive. */
+  readonly lines: Lines<{ readonly ev: string }>;
+  /** This method starts a command in the agent, and gives its standard output. */
+  exec(argv: readonly string[]): Promise<string>;
+  stop(): Promise<void>;
+}
+
+/** A lab is one environment: the target, the client, the hops of a topology, the injectors and the prober. */
 export interface Lab {
+  /** This address is the address that the client connects to: the target, or the first proxy of a topology. */
   readonly targetIp: string;
+  /** This port is the port that the client connects to. */
+  readonly targetPort: number;
   readonly clientIp: string;
-  readonly netns: { readonly client: number; readonly target: number };
+  readonly netns: {
+    readonly client: number;
+    readonly target: number;
+    readonly hops?: Readonly<Record<string, number>>;
+  };
+  /** This record is where each socket of a topology is, or null for a direct pair. */
+  readonly topology: RunTopology | null;
+  /** These are the lines of the routers of a topology, in sequence, each with the name of its hop. A direct pair has none. */
+  readonly middlebox: readonly MiddleboxEvent[];
+  /** This method adds a toxic to the Toxiproxy hop of a topology, or removes it with null. The stamps of the injector bracket it. */
+  toxic(toxic: Toxic | null): Promise<{ t0: number; t1: number }>;
+  /** This method makes the target close the connection of each client, with the command of the target. */
+  serverClose(): Promise<void>;
+  /**
+   * This method starts an agent in the network namespace of the target, and in its process
+   * namespace with `pid`. Its command keeps it up, for example `sleep infinity`.
+   */
+  agent(image: string, command: readonly string[], options?: { readonly pid?: boolean }): Promise<Agent>;
   /** These are all the records that the prober wrote, in sequence. */
   readonly kernel: readonly KernelRecord[];
   /** This method sets the sysctls of the client namespace through its privileged sidecar, and reads them back. */
@@ -287,17 +372,18 @@ export interface Lab {
   /** This method sets the sysctls of the target namespace through a privileged sidecar there, and reads them back. */
   targetSysctl(values: Readonly<Record<string, string>>): Promise<Record<string, string>>;
   /**
-   * This method applies a fault between the client and the target, from the namespace of the
-   * target. The fault is a black hole, or a reset that answers the next segment of the client. The stamps of
-   * the injector bracket it.
+   * This method applies a fault between the client and the target, by default from the namespace
+   * of the target. The fault is a black hole, or a reset that answers the next segment of the
+   * client. At a proxy of a topology, the rules face the peer of the proxy on one side. The stamps
+   * of the injector bracket it.
    */
   fault(
     kind: NetworkFault,
-    at?: FaultSide,
+    at?: FaultPlace,
     options?: FaultOptions,
   ): Promise<{ t0: number; t1: number }>;
   /** This method removes a fault. */
-  lift(kind: NetworkFault, at?: FaultSide, options?: FaultOptions): Promise<void>;
+  lift(kind: NetworkFault, at?: FaultPlace, options?: FaultOptions): Promise<void>;
   /**
    * This method puts tc netem on the egress of a namespace, for example "delay 20ms" or "loss 5%",
    * or removes it with null. The stamps of the injector bracket it.
@@ -323,7 +409,7 @@ export interface Lab {
    * waits for that instant in the VM, thus the length of a stall does not include the latency of
    * a docker exec. Stamps bracket it, as for a fault.
    */
-  heal(at: FaultSide, when: number): Promise<{ t0: number; t1: number }>;
+  heal(at: FaultPlace, when: number): Promise<{ t0: number; t1: number }>;
   /**
    * This method removes what the two kernels learned from their earlier connections. These are
    * the TCP metrics that each kernel keeps for a peer address when a connection closes. These metrics set the
@@ -348,10 +434,62 @@ export interface Lab {
   close(): Promise<void>;
 }
 
-// each container here is a holder, a probe or the prober: nothing drains, thus the stop is immediate
-const STOP = { timeout: 0 };
+/** This container class can share the process namespace of another container. */
+const shared = (Base: typeof Testcontainers.GenericContainer) =>
+  class extends Base {
+    withPidMode(mode: string): this {
+      (this as unknown as { hostConfig: { PidMode?: string } }).hostConfig.PidMode = mode;
+      return this;
+    }
+  };
 
-const output = async (container: StartedTestContainer, argv: string[]): Promise<string> => {
+/** This function gives the content of a file of a proxy, with the address of the next hop for each {{next}}. */
+export const templated = (content: string, next: string): string => content.replaceAll("{{next}}", next);
+
+/** This function gives the JSON body of a toxic for the API of Toxiproxy. Each toxic of a cell has the name `fault`. */
+export const toxicBody = (toxic: Toxic): string =>
+  JSON.stringify({
+    name: "fault",
+    type: toxic.type,
+    stream: toxic.stream,
+    toxicity: 1,
+    attributes: toxic.attributes,
+  });
+
+/**
+ * This function gives the routes of a chain: for each router, the networks after it, which the
+ * element before it reaches through it. Element 0 is the client, and element k is hop k - 1. Network
+ * j is the network between element j and element j + 1.
+ */
+export const routesOf = (
+  hops: readonly Pick<Hop, "kind">[],
+): Array<{ readonly from: number; readonly via: number; readonly networks: readonly number[] }> =>
+  hops.flatMap((hop, at) =>
+    hop.kind === "router"
+      ? [
+          {
+            from: at,
+            via: at + 1,
+            networks: Array.from({ length: hops.length - at }, (_, k) => at + 1 + k),
+          },
+        ]
+      : [],
+  );
+
+/**
+ * This function gives the endpoint that an element connects to: the first element after it that
+ * is not a router. Element 0 is the client, element k is hop k - 1, and the last element is the target.
+ */
+export const endpointAfter = (hops: readonly Pick<Hop, "kind">[], element: number): number => {
+  let at = element + 1;
+  while (at <= hops.length && hops[at - 1]!.kind === "router") at += 1;
+  return at;
+};
+
+// each container here is a holder, a probe or the prober: nothing drains, thus the stop is immediate
+export const STOP = { timeout: 0 };
+
+export const output = async (container: StartedTestContainer, argv: string[]): Promise<string> => {
   const result = await container.exec(argv);
   if (result.exitCode !== 0)
     throw new Error(`${argv.join(" ")} exited ${result.exitCode}: ${result.output.trim()}`);
@@ -359,49 +497,182 @@ const output = async (container: StartedTestContainer, argv: string[]): Promise<
 };
 
 /** This function gives the inode of the network namespace of a container: net:[4026532583]. */
-const netnsOf = async (container: StartedTestContainer): Promise<number> => {
+export const netnsOf = async (container: StartedTestContainer): Promise<number> => {
   const link = await output(container, ["readlink", "/proc/self/ns/net"]);
   const inode = /^net:\[(\d+)\]$/.exec(link)?.[1];
   if (inode === undefined) throw new Error(`not a network namespace: ${link}`);
   return Number(inode);
 };
 
+/** This function gives the image and the command of the client of each run, and its kind for the manifest. */
+export const clientOf = async (
+  kind: Client | ClientImage,
+  image: string,
+): Promise<{ clientImage: string; command: readonly string[]; clientKind: Client | "image" }> => {
+  if (typeof kind === "object") return { clientImage: kind.image, command: kind.command, clientKind: "image" };
+  if (kind === "ioredis")
+    return {
+      clientImage: await nodeClientImage(),
+      command: ["node", "/opt/harness/node/client-ioredis.mjs"],
+      clientKind: kind,
+    };
+  return { clientImage: image, command: ["/opt/harness/client"], clientKind: kind };
+};
+
+/** These are the containers of one hop of a lab, and the addresses that its rules and the measurement read. */
+interface HopIn {
+  readonly hop: Hop;
+  /** This container is the hop itself: the router, or the stock proxy. */
+  readonly box: StartedTestContainer;
+  /** This sidecar shares the namespace of the hop: the injector of its faults and its toxics. */
+  readonly injector: StartedTestContainer;
+  /** This record is the address of the hop on the network of each of its sides. */
+  readonly ip: { readonly client: string; readonly target: string };
+  /** These are the peers of the hop: an address on the side of the client, and an address with its port toward the target. */
+  readonly peer: { readonly client: string; readonly target: string };
+  readonly netns: number;
+  sysctls: Record<string, string>;
+}
+
 /**
  * This function opens one environment:
- * - a new network and the stock target.
+ * - a chain of new networks, and the stock target on the last one. A direct pair has one network.
  * - a client that holds its own network namespace, with a privileged sidecar in it for its
- *   sysctls. Docker Desktop keeps /proc/sys read-only in a container that operates.
+ *   sysctls and its routes. Docker Desktop keeps /proc/sys read-only in a container that operates
+ *   without privileges.
+ * - each hop of the topology, on the network of each of its sides. A hop is a router, or a stock
+ *   proxy with an injector sidecar in its namespace.
  * - an injector sidecar in the namespace of the target.
- * - the prober, a privileged container that loads the kernel program and watches the two
- *   namespaces.
+ * - the prober, a privileged container that loads the kernel program and watches the namespace of
+ *   the client, of the target and of each hop.
  *
  * The client of each run is its own container in the namespace of the client. It is the TCP
- * client of the harness, or a driver from its own image (ioredis on Node). The two print the same
- * lines.
+ * client of the harness, a driver from its own image (ioredis on Node), or an image that the
+ * caller gives. Each prints the same lines.
+ *
+ * The client reaches the networks after a router through that router, by a route that its
+ * privileged sidecar adds. A router translates the address of the side of the client, thus the
+ * target and each later hop see the router as the peer.
  */
-export const openLab = async (target: Target, kind: Client = "tcp"): Promise<Lab> => {
+export const openLab = async (
+  target: Target,
+  kind: Client | ClientImage = "tcp",
+  topology?: Topology,
+): Promise<Lab> => {
   const image = await harnessImage();
-  const clientImage = kind === "ioredis" ? await nodeClientImage() : image;
-  const command =
-    kind === "ioredis" ? ["node", "/opt/harness/node/client-ioredis.mjs"] : ["/opt/harness/client"];
+  const { clientImage, command, clientKind } = await clientOf(kind, image);
+  const hops = topology?.hops ?? [];
   const { GenericContainer, Network, Wait, getContainerRuntimeClient } = await containers();
+  const runtime = await getContainerRuntimeClient();
   const opened: StartedTestContainer[] = [];
-  let network: StartedNetwork | undefined;
+  const networks: StartedNetwork[] = [];
   const close = async () => {
     for (const container of opened.reverse()) await container.stop(STOP).catch(() => undefined);
-    await network?.stop().catch(() => undefined);
+    for (const network of networks.reverse()) await network.stop().catch(() => undefined);
+  };
+  /** This function gives the address of a container on a network, as Docker has it at this time. A container can join a network after its start. */
+  const ipOn = async (container: StartedTestContainer, network: StartedNetwork): Promise<string> => {
+    const info = await runtime.container.inspect(runtime.container.getById(container.getId()));
+    const ip = info.NetworkSettings.Networks[network.getName()]?.IPAddress;
+    if (ip === undefined || ip === "") throw new Error(`${container.getName()} has no address on ${network.getName()}`);
+    return ip;
+  };
+  const join = (container: StartedTestContainer, network: StartedNetwork) =>
+    runtime.container.connectToNetwork(
+      runtime.container.getById(container.getId()),
+      runtime.network.getById(network.getId()),
+      [],
+    );
+  const subnetOf = async (network: StartedNetwork): Promise<string> => {
+    const info = await runtime.network.getById(network.getId()).inspect();
+    const subnet = (info as { IPAM?: { Config?: Array<{ Subnet?: string }> } }).IPAM?.Config?.[0]?.Subnet;
+    if (subnet === undefined) throw new Error(`${network.getName()} has no subnet`);
+    return subnet;
   };
   try {
-    network = await new Network().start();
+    // network j joins element j and element j + 1: 0 is the client, i + 1 is hop i, the last is the target
+    for (let at = 0; at <= hops.length; at += 1) networks.push(await new Network().start());
+    const last = networks[hops.length]!;
     const stock = new GenericContainer(target.image)
-      .withNetwork(network)
+      .withNetwork(last)
       .withWaitStrategy(Wait.forLogMessage(target.ready));
     // a holder command keeps the container up when a fin fault kills the server process
     const server = await (
       target.command === undefined ? stock : stock.withCommand([...target.command])
     ).start();
     opened.push(server);
-    const client = await new GenericContainer(image).withNetwork(network).start();
+    const serverIp = await ipOn(server, last);
+
+    // the hops, from the target to the client: each proxy gets the address of the endpoint after it
+    const middlebox: MiddleboxEvent[] = [];
+    const inChain: HopIn[] = [];
+    const endpointOf = (element: number): string => {
+      const at = endpointAfter(hops, element);
+      if (at === hops.length + 1) return `${serverIp}:${target.port}`;
+      const proxy = inChain[at - 1]!;
+      return `${proxy.ip.client}:${(proxy.hop as ProxyHop).port}`;
+    };
+    for (let at = hops.length - 1; at >= 0; at -= 1) {
+      const hop = hops[at]!;
+      const [clientSide, targetSide] = [networks[at]!, networks[at + 1]!];
+      if (hop.kind === "router") {
+        const seen = lines<MiddleboxEvent>((line) => middlebox.push({ ...line, hop: hop.name }));
+        // the router is privileged: it sets the sysctls of its own namespace, conntrack's among them
+        const box = await new GenericContainer(await routerImage())
+          .withNetwork(clientSide)
+          .withPrivilegedMode()
+          .withEnvironment({
+            FORM: hop.form,
+            IDLE: String(valueIn(hop.idle, "s")),
+            PUMP: String(valueIn(hop.pump ?? PUMP, "s")),
+            SLOW: String(valueIn(LISTING, "s")),
+          })
+          .withLogConsumer(seen.consume)
+          .start();
+        opened.push(box);
+        // the router waits for the network of the side of the target, its eth1
+        await join(box, targetSide);
+        const ready = await seen.until(["mbx-ready"], 30_000, `router ${hop.name}`);
+        await seen.until(hop.form === "reset-both" ? ["resetter"] : ["ct-watch"], 30_000, `router ${hop.name}`);
+        inChain[at] = {
+          hop,
+          box,
+          injector: box,
+          ip: { client: await ipOn(box, clientSide), target: await ipOn(box, targetSide) },
+          peer: { client: "", target: endpointOf(at + 1) },
+          netns: await netnsOf(box),
+          sysctls: { "net.netfilter.nf_conntrack_tcp_timeout_established": String(ready["idle"]) },
+        };
+        continue;
+      }
+      const next = endpointOf(at + 1);
+      let proxy = new GenericContainer(hop.image).withNetwork(targetSide);
+      if (hop.command !== undefined) proxy = proxy.withCommand([...hop.command]);
+      if (hop.files !== undefined)
+        proxy = proxy.withCopyContentToContainer(
+          Object.entries(hop.files).map(([path, content]) => ({ content: templated(content, next), target: path })),
+        );
+      if (hop.ready !== undefined) proxy = proxy.withWaitStrategy(Wait.forLogMessage(hop.ready));
+      const box = await proxy.start();
+      opened.push(box);
+      await join(box, clientSide);
+      const injector = await new GenericContainer(image)
+        .withNetworkMode(`container:${box.getId()}`)
+        .withAddedCapabilities("NET_ADMIN", "NET_RAW")
+        .start();
+      opened.push(injector);
+      inChain[at] = {
+        hop,
+        box,
+        injector,
+        ip: { client: await ipOn(box, clientSide), target: await ipOn(box, targetSide) },
+        peer: { client: "", target: next },
+        netns: await netnsOf(injector),
+        sysctls: {},
+      };
+    }
+
+    const client = await new GenericContainer(image).withNetwork(networks[0]!).start();
     opened.push(client);
     const admin = await new GenericContainer(image)
       .withNetworkMode(`container:${client.getId()}`)
@@ -413,27 +684,114 @@ export const openLab = async (target: Target, kind: Client = "tcp"): Promise<Lab
       .withAddedCapabilities("NET_ADMIN", "NET_RAW")
       .start();
     opened.push(injector);
-    const netns = { client: await netnsOf(admin), target: await netnsOf(injector) };
+    const clientIp = await ipOn(client, networks[0]!);
+    // the peer of each hop on the side of the client: the element before it, on the network between them
+    for (let at = 0; at < inChain.length; at += 1) {
+      const before = at === 0 ? clientIp : inChain[at - 1]!.ip.target;
+      inChain[at] = { ...inChain[at]!, peer: { ...inChain[at]!.peer, client: before } };
+    }
+
+    // a privileged sidecar for each proxy that needs one, for its sysctls and its routes
+    const admins = new Map<number, StartedTestContainer>();
+    const adminOf = async (element: number): Promise<StartedTestContainer> => {
+      if (element === 0) return admin;
+      const hop = inChain[element - 1]!;
+      if (hop.hop.kind === "router") return hop.box;
+      let found = admins.get(element);
+      if (found === undefined) {
+        found = await new GenericContainer(image)
+          .withNetworkMode(`container:${hop.box.getId()}`)
+          .withPrivilegedMode()
+          .start();
+        opened.push(found);
+        admins.set(element, found);
+      }
+      return found;
+    };
+    for (const route of routesOf(hops)) {
+      const where = await adminOf(route.from);
+      const via = inChain[route.via - 1]!.ip.client;
+      for (const network of route.networks)
+        await output(where, ["ip", "route", "replace", await subnetOf(networks[network]!), "via", via]);
+    }
+    for (let at = 0; at < inChain.length; at += 1) {
+      const hop = inChain[at]!;
+      if (hop.hop.kind !== "proxy" || hop.hop.sysctls === undefined) continue;
+      const where = await adminOf(at + 1);
+      const settings = Object.entries(hop.hop.sysctls).map(([key, value]) => `${key}=${value}`);
+      await output(where, ["sysctl", "-q", "-w", ...settings]);
+      for (const key of Object.keys(hop.hop.sysctls)) hop.sysctls[key] = await output(where, ["sysctl", "-n", key]);
+    }
+
+    const netns = {
+      client: await netnsOf(admin),
+      target: await netnsOf(injector),
+      ...(inChain.length === 0
+        ? {}
+        : { hops: Object.fromEntries(inChain.map((hop) => [hop.hop.name, hop.netns])) }),
+    };
     const records = lines<KernelRecord>();
     const prober = await new GenericContainer(image)
       .withPrivilegedMode()
       .withNetworkMode("none")
-      .withCommand(["/opt/harness/prober", String(netns.client), String(netns.target)])
+      .withCommand([
+        "/opt/harness/prober",
+        String(netns.client),
+        String(netns.target),
+        ...inChain.map((hop) => String(hop.netns)),
+      ])
       .withLogConsumer(records.consume)
       .start();
     opened.push(prober);
     const begun = await records.until(["begin", "fail"], 30_000, "prober");
     if (begun.ev === "fail") throw new Error(`the prober failed: ${String(begun["why"])}`);
-    const targetIp = server.getIpAddress(network.getName());
-    const clientIp = client.getIpAddress(network.getName());
-    const runtime = await getContainerRuntimeClient();
+    const first = endpointAfter(hops, 0);
+    const targetIp = first === hops.length + 1 ? serverIp : inChain[first - 1]!.ip.client;
+    const targetPort = first === hops.length + 1 ? target.port : (inChain[first - 1]!.hop as ProxyHop).port;
+    const targetPeer = inChain.length === 0 ? clientIp : inChain.at(-1)!.ip.target;
+    const placed: RunTopology | null =
+      inChain.length === 0
+        ? null
+        : {
+            targetPeer,
+            hops: Object.fromEntries(
+              inChain.map((hop) => [hop.hop.name, { netns: hop.netns, client: hop.peer.client, target: hop.peer.target }]),
+            ),
+          };
     const paused = runtime.container.getById(server.getId());
     let targetAdmin: StartedTestContainer | undefined;
+    const hopNamed = (name: string): HopIn => {
+      const found = inChain.find((hop) => hop.hop.name === name);
+      if (found === undefined) throw new Error(`the topology has no hop ${name}`);
+      return found;
+    };
+    /** This function gives the namespace and the peer of the rules of a fault at a place. */
+    const placeOf = (at: FaultPlace): [StartedTestContainer, string] => {
+      if (at === "client") return [admin, targetIp];
+      if (at === "target") return [injector, targetPeer];
+      const hop = hopNamed(at.hop);
+      // the injector writes INPUT and OUTPUT rules: they act on the sockets of a proxy, not on what a router forwards
+      if (hop.hop.kind !== "proxy") throw new Error(`a fault at ${at.hop} needs a proxy: a router forwards past INPUT and OUTPUT`);
+      return [hop.injector, at.toward === "client" ? hop.peer.client : hop.peer.target.split(":")[0]!];
+    };
+    const toxiproxy = (): HopIn & { hop: ProxyHop & { api: { port: number; proxy: string } } } => {
+      const found = inChain.find((hop) => hop.hop.kind === "proxy" && hop.hop.api !== undefined);
+      if (found === undefined) throw new Error("the topology has no hop with the API of Toxiproxy");
+      return found as HopIn & { hop: ProxyHop & { api: { port: number; proxy: string } } };
+    };
+    const stamped = async (where: StartedTestContainer, argv: string[]) => {
+      const stamp = JSON.parse((await output(where, argv)).split("\n").at(-1)!) as { t0: number; t1: number };
+      return { t0: stamp.t0, t1: stamp.t1 };
+    };
+    const proxies = inChain.filter((hop) => hop.hop.kind === "proxy");
 
     return {
       targetIp,
+      targetPort,
       clientIp,
       netns,
+      topology: placed,
+      middlebox,
       kernel: records.seen,
       async sysctl(values) {
         const settings = Object.entries(values).map(([key, value]) => `${key}=${value}`);
@@ -470,13 +828,11 @@ export const openLab = async (target: Target, kind: Client = "tcp"): Promise<Lab
         return read;
       },
       async fault(kind, at = "target", options = {}) {
-        const [where, peer] = at === "client" ? [admin, targetIp] : [injector, clientIp];
-        const args = ["/opt/harness/inject", kind, peer, ...optionArgs(options)];
-        const stamp = JSON.parse(await output(where, args)) as { t0: number; t1: number };
-        return { t0: stamp.t0, t1: stamp.t1 };
+        const [where, peer] = placeOf(at);
+        return stamped(where, ["/opt/harness/inject", kind, peer, ...optionArgs(options)]);
       },
       async lift(kind, at = "target", options = {}) {
-        const [where, peer] = at === "client" ? [admin, targetIp] : [injector, clientIp];
+        const [where, peer] = placeOf(at);
         await output(where, ["/opt/harness/inject", LIFT[kind], peer, ...optionArgs(options)]);
       },
       async netem(spec, at = "target") {
@@ -485,12 +841,46 @@ export const openLab = async (target: Target, kind: Client = "tcp"): Promise<Lab
           spec === null
             ? ["/opt/harness/inject", "clear-netem", "eth0"]
             : ["/opt/harness/inject", "netem", "eth0", ...spec.split(/\s+/)];
-        const stamp = JSON.parse(await output(where, args)) as { t0: number; t1: number };
-        return { t0: stamp.t0, t1: stamp.t1 };
+        return stamped(where, args);
       },
       async offload(on, at = "target") {
         const where = at === "client" ? admin : injector;
         await output(where, ["/opt/harness/inject", "offload", "eth0", on ? "on" : "off"]);
+      },
+      async toxic(toxic) {
+        const hop = toxiproxy();
+        const api = `127.0.0.1:${hop.hop.api.port}`;
+        const path = `/proxies/${hop.hop.api.proxy}/toxics`;
+        return stamped(
+          hop.injector,
+          toxic === null
+            ? ["/opt/harness/inject", "http", "DELETE", api, `${path}/fault`]
+            : ["/opt/harness/inject", "http", "POST", api, path, toxicBody(toxic)],
+        );
+      },
+      async serverClose() {
+        if (target.close === undefined) throw new Error(`${target.image} names no way to close its clients`);
+        await output(server, [...target.close]);
+      },
+      async agent(agentImage, argv, options = {}) {
+        const Shared = shared(GenericContainer);
+        const seen = lines<{ readonly ev: string }>();
+        let started = new Shared(agentImage)
+          .withNetworkMode(`container:${server.getId()}`)
+          .withCommand([...argv])
+          .withLogConsumer(seen.consume);
+        if (options.pid === true) started = started.withPidMode(`container:${server.getId()}`);
+        const container = await started.start();
+        opened.push(container);
+        return {
+          lines: seen,
+          exec: (args) => output(container, [...args]),
+          stop: () =>
+            container
+              .stop(STOP)
+              .then(() => undefined)
+              .catch(() => undefined),
+        };
       },
       async kill() {
         if (target.kill === undefined) throw new Error(`${target.image} names no way to kill its server`);
@@ -498,20 +888,21 @@ export const openLab = async (target: Target, kind: Client = "tcp"): Promise<Lab
       },
       async warm() {
         await output(admin, ["ping", "-c", "2", "-W", "2", targetIp]);
-        await output(injector, ["ping", "-c", "2", "-W", "2", clientIp]);
+        await output(injector, ["ping", "-c", "2", "-W", "2", targetPeer]);
+        for (const hop of proxies)
+          await output(hop.injector, ["ping", "-c", "2", "-W", "2", hop.peer.target.split(":")[0]!]);
       },
       async setup(commands) {
         for (const argv of commands) await output(server, [...argv]);
       },
       async heal(at, when) {
-        const [where, peer] = at === "client" ? [admin, targetIp] : [injector, clientIp];
-        const args = ["/opt/harness/inject", "clear", peer, "--at", String(Math.round(when))];
-        const stamp = JSON.parse(await output(where, args)) as { t0: number; t1: number };
-        return { t0: stamp.t0, t1: stamp.t1 };
+        const [where, peer] = placeOf(at);
+        return stamped(where, ["/opt/harness/inject", "clear", peer, "--at", String(Math.round(when))]);
       },
       async forget() {
         await output(admin, ["ip", "tcp_metrics", "flush", "all"]);
         await output(injector, ["ip", "tcp_metrics", "flush", "all"]);
+        for (const hop of proxies) await output(hop.injector, ["ip", "tcp_metrics", "flush", "all"]);
       },
       freeze: () => paused.pause().then(() => undefined),
       thaw: () => paused.unpause().then(() => undefined),
@@ -568,6 +959,30 @@ export const openLab = async (target: Target, kind: Client = "tcp"): Promise<Lab
         const config = await output(admin, ["zcat", "/proc/config.gz"]).catch(() => "");
         const inspect = async (container: StartedTestContainer) =>
           runtime.container.inspect(runtime.container.getById(container.getId()));
+        const hopsOf = async (): Promise<ManifestHop[]> => {
+          const out: ManifestHop[] = [];
+          for (const hop of inChain) {
+            const box = hop.hop;
+            out.push({
+              name: box.name,
+              kind: box.kind,
+              image: box.kind === "router" ? await routerImage() : box.image,
+              id: (await inspect(hop.box)).Image,
+              settings:
+                box.kind === "router"
+                  ? {
+                      form: box.form,
+                      idle: String(valueIn(box.idle, "s")),
+                      pump: String(valueIn(box.pump ?? PUMP, "s")),
+                      slow: String(valueIn(LISTING, "s")),
+                      packages: (await output(hop.box, ["apk", "info", "-v"])).split("\n").sort().join(" "),
+                    }
+                  : { ...box.settings, ...box.files },
+              sysctls: hop.sysctls,
+            });
+          }
+          return out;
+        };
         return {
           kernel: await output(client, ["uname", "-r"]),
           architecture: await output(client, ["uname", "-m"]),
@@ -585,9 +1000,10 @@ export const openLab = async (target: Target, kind: Client = "tcp"): Promise<Lab
             id: (await inspect(client)).Image,
             packages: (await output(client, ["apk", "info", "-v"])).split("\n").sort(),
           },
-          client: { kind, image: clientImage },
+          client: { kind: clientKind, image: clientImage },
           netns,
           sysctls,
+          ...(inChain.length === 0 ? {} : { hops: await hopsOf() }),
         };
       },
       close,

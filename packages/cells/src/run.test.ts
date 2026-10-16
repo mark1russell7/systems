@@ -1,9 +1,9 @@
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Cell } from "@mark1russell7/harness";
-import { runCell } from "@mark1russell7/harness";
+import { measure, runCell } from "@mark1russell7/harness";
 import { describe, expect, it } from "vitest";
-import { CELLS } from "./catalog.ts";
+import { ALL } from "./all.ts";
 
 /**
  * The runner of the catalog. It starts only with CELLS=1, because it needs Docker and privileged
@@ -18,12 +18,12 @@ const ONLY = new RegExp(process.env["CELLS_ONLY"] ?? ".");
 const [shard, of] = (process.env["CELLS_SHARD"] ?? "0/1").split("/").map(Number) as [number, number];
 const OUT = process.env["CELLS_OUT"] ?? fileURLToPath(new URL("../out/", import.meta.url));
 
-const selected: Cell[] = CELLS.filter((each) => ONLY.test(each.name)).filter((_, at) => at % of === shard);
+const selected: Cell[] = ALL.filter((each) => ONLY.test(each.name)).filter((_, at) => at % of === shard);
 
 /** This function gives a file name for a cell: its name in lower case, with a dash for each other character. */
 const slug = (name: string): string => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-describe.skipIf(!RUN)("the T01 catalog, on the harness", () => {
+describe.skipIf(!RUN)("the catalogs, on the harness", () => {
   mkdirSync(OUT, { recursive: true });
   for (const cell of selected) {
     it(cell.name, async () => {
@@ -36,6 +36,7 @@ describe.skipIf(!RUN)("the T01 catalog, on the harness", () => {
           case: null,
           manifests: result.manifests,
           runs: result.runs,
+          warmups: result.warmups,
           at: result.at,
         }),
       );
@@ -52,6 +53,10 @@ describe.skipIf(!RUN)("the T01 catalog, on the harness", () => {
           outside: verdict.outside,
           why: verdict.why,
           void: result.measured.filter((run) => run.void !== null).map((run) => run.void),
+          warmups: result.warmups.map((run) => {
+            const read = measure(cell, run);
+            return read.elapsed?.value ?? read.outcome.kind;
+          }),
         })}\n`,
       );
       console.log(`${cell.name}: ${verdict.decision}, ${verdict.why}`);

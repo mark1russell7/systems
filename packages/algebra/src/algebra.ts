@@ -34,13 +34,30 @@ export interface TimerBounds {
   readonly early?: Extent | Unknown | undefined;
 }
 
+/**
+ * A value is an exact rational, no bound, or unknown with its reason. No bound has a sign. A
+ * duration is not negative, but a step of the arithmetic can be: cap − ∞ is −∞, and
+ * max(cap − ∞, cap / 2) is cap / 2.
+ */
 type Value =
   | { readonly kind: "exact"; readonly n: Rational }
-  | { readonly kind: "infinite" }
+  | { readonly kind: "infinite"; readonly negative?: true }
   | { readonly kind: "unknown"; readonly why: string };
 
 const exact = (n: Rational): Value => ({ kind: "exact", n });
 const INFINITE: Value = { kind: "infinite" };
+const NEGATIVE_INFINITE: Value = { kind: "infinite", negative: true };
+/** This function gives the sign of a value that is not unknown: −1, 0 or 1. */
+const signOf = (value: Value): number =>
+  value.kind === "infinite"
+    ? value.negative === true
+      ? -1
+      : 1
+    : value.kind === "exact"
+      ? r.cmp(value.n, r.ZERO)
+      : 0;
+/** This function gives no bound with a sign. */
+const unboundedOf = (sign: number): Value => (sign < 0 ? NEGATIVE_INFINITE : INFINITE);
 const unknown = (why: string): Value => ({ kind: "unknown", why });
 const whole = (n: bigint): Rational => r.rational(n);
 
@@ -127,11 +144,7 @@ const run = (node: Node, valueOf: (name: string) => Value): Value => {
   if (node.op === "knob") return valueOf(node.name);
   if (node.op === "neg") {
     const a = run(node.a, valueOf);
-    return a.kind === "exact"
-      ? exact(r.neg(a.n))
-      : a.kind === "infinite"
-        ? unknown("a negative unbounded time")
-        : a;
+    return a.kind === "exact" ? exact(r.neg(a.n)) : a.kind === "infinite" ? unboundedOf(-signOf(a)) : a;
   }
   if ("args" in node) {
     const args = node.args.map((arg) => run(arg, valueOf));
@@ -143,8 +156,12 @@ const run = (node: Node, valueOf: (name: string) => Value): Value => {
     }
     const [a, b] = args as [Value, Value];
     if (a.kind === "infinite" || b.kind === "infinite") {
-      // no bound loses a min and wins a max
-      return node.op === "max" ? INFINITE : a.kind === "infinite" ? b : a;
+      // +∞ wins a max and loses a min, and −∞ loses a max and wins a min
+      const above = (x: Value, y: Value): boolean =>
+        x.kind === "infinite" ? signOf(x) > 0 || (y.kind === "infinite" && signOf(y) < 0) : signOf(y) < 0;
+      const larger = above(a, b) ? a : b;
+      const smaller = larger === a ? b : a;
+      return node.op === "max" ? larger : smaller;
     }
     if (a.kind !== "exact" || b.kind !== "exact") return unknown("not an amount");
     const aFirst = r.cmp(a.n, b.n) <= 0;
@@ -160,19 +177,23 @@ const run = (node: Node, valueOf: (name: string) => Value): Value => {
     const op = { "+": r.add, "-": r.sub, "*": r.mul, "/": r.div }[node.op];
     return exact(op(a.n, b.n));
   }
-  // a timer that nothing sets: it is longer than each sum and each positive multiple
-  const zero = (value: Value): boolean => value.kind === "exact" && value.n.n === 0n;
-  if (node.op === "+") return INFINITE;
-  if (node.op === "*") return zero(a) || zero(b) ? unknown("zero times no bound") : INFINITE;
-  if (node.op === "-")
-    return a.kind === "infinite" && b.kind !== "infinite"
-      ? INFINITE
-      : unknown("no bound less no bound");
-  return a.kind === "infinite"
-    ? b.kind === "infinite"
-      ? unknown("no bound over no bound")
-      : INFINITE
-    : exact(r.ZERO);
+  // a timer that nothing sets is longer than each sum, and each positive multiple. Its sign
+  // follows the arithmetic: cap − ∞ is −∞, which a max then discards
+  if (node.op === "+" || node.op === "-") {
+    const sa = signOf(a);
+    const sb = node.op === "-" ? -signOf(b) : signOf(b);
+    if (a.kind === "infinite" && b.kind === "infinite" && sa !== sb)
+      return unknown("no bound less no bound");
+    return unboundedOf(a.kind === "infinite" ? sa : sb);
+  }
+  if (node.op === "*") {
+    const sign = signOf(a) * signOf(b);
+    return sign === 0 ? unknown("zero times no bound") : unboundedOf(sign);
+  }
+  if (a.kind === "infinite" && b.kind === "infinite") return unknown("no bound over no bound");
+  if (b.kind === "infinite") return exact(r.ZERO);
+  const sign = signOf(a) * signOf(b);
+  return sign === 0 ? unknown("no bound over zero") : unboundedOf(sign);
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -437,7 +458,9 @@ const out = (value: Value, unit: string): Extent | Unknown =>
   value.kind === "exact"
     ? quantity(r.toNumber(value.n), unit)
     : value.kind === "infinite"
-      ? unbounded(unit)
+      ? value.negative === true
+        ? { unknown: "a negative unbounded time", unit }
+        : unbounded(unit)
       : { unknown: value.why, unit };
 
 /**

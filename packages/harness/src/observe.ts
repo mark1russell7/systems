@@ -1,6 +1,7 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
-import type { Cell, KernelRecord, ProbeEvent, Run } from "./cell.ts";
+import type { Cell, KernelRecord, ProbeEvent, Reference, Run } from "./cell.ts";
+import { NOISE } from "./verdict.ts";
 
 /**
  * An outcome tells how the wait of a run ended. The socket failed with an errno, or it read the
@@ -42,6 +43,13 @@ export interface Measured {
   readonly retransmissions: number;
   /** This count is the number of segments that the socket received after the request. */
   readonly acks: number;
+  /** This count is the number of bytes that the client read after the request. */
+  readonly bytes?: number;
+  /**
+   * This time is when a router of the topology forgot the flow of the client. It counts from the
+   * last segment that the client received before the fault. It is null when no router forgot the flow.
+   */
+  readonly forgot?: Quantity | null;
   /** This text is the reason that the run cannot count, or null. A void run is not a pass and not a finding. */
   readonly void: string | null;
   /** This text tells what in the run disagrees with the prediction, other than its timing, or null. */
@@ -77,7 +85,8 @@ const socketVantage = (
   ready: ProbeEvent,
   request: ProbeEvent,
 ): Quantity | null => {
-  if (!cell.prediction.detects || cell.prediction.from === "peer-closed") return null;
+  if (!cell.prediction.detects || cell.prediction.from === "peer-closed" || cell.prediction.from === "fault")
+    return null;
   const ended = events.find((event) => event.ev === "error" || event.ev === "eof");
   const reference =
     cell.prediction.from === "last-received"
@@ -91,9 +100,88 @@ const socketVantage = (
   return ended === undefined || reference === undefined ? null : between(reference.t, ended.t);
 };
 
+/** A socket place is a socket of a run: its namespace and its cookie. */
+export interface SocketPlace {
+  readonly netns: number;
+  readonly cookie: number;
+}
+
+const ipOf = (address: string): string => address.split(":")[0]!;
+
+/**
+ * This function finds the socket that became ESTABLISHED in a run, in a namespace, whose peer
+ * matches. In a topology, an address of a hop serves each run, thus only the socket that the
+ * run opened is the socket of the run.
+ */
+const opened = (
+  run: Run,
+  netns: number,
+  peer: (dst: string) => boolean,
+): SocketPlace | undefined => {
+  const record = run.kernel.find(
+    (each) =>
+      each.netns === netns &&
+      each.ev === "state" &&
+      newState(each) === 1 &&
+      each.dst !== undefined &&
+      peer(each.dst),
+  );
+  return record?.cookie === undefined ? undefined : { netns, cookie: record.cookie };
+};
+
+/** This function finds the socket of the target for the connection of a run. In a topology, its peer is the last hop. */
+const targetSocket = (run: Run, local: unknown): SocketPlace | undefined => {
+  if (run.topology === undefined) {
+    const cookie = run.kernel.find(
+      (record) => record.netns === run.targetNetns && record.dst === local,
+    )?.cookie;
+    return cookie === undefined ? undefined : { netns: run.targetNetns, cookie };
+  }
+  const peer = run.topology.targetPeer;
+  return opened(run, run.targetNetns, (dst) => ipOf(dst) === peer);
+};
+
+/**
+ * This function finds the socket of the observer of a cell in a run:
+ * - the client socket, by the address that it connected from, in its namespace.
+ * - the socket of the target for the same connection, in its namespace.
+ * - a socket of a proxy of the topology, toward the client or toward the target.
+ */
+export const socketOf = (cell: Cell, run: Run): SocketPlace | undefined => {
+  const local = run.events.find((event) => event.ev === "connected")?.["local"];
+  const observer = cell.observer ?? "client";
+  if (observer === "client") {
+    const cookie = run.kernel.find((record) => record.netns === run.netns && record.src === local)?.cookie;
+    return cookie === undefined ? undefined : { netns: run.netns, cookie };
+  }
+  if (observer === "server") return targetSocket(run, local);
+  const hop = run.topology?.hops[observer.hop];
+  if (hop === undefined) return undefined;
+  return observer.toward === "client"
+    ? opened(run, hop.netns, (dst) => ipOf(dst) === hop.client)
+    : opened(run, hop.netns, (dst) => dst === hop.target);
+};
+
+/**
+ * This function finds the socket of the peer of the observer: its close is the reference of a FIN.
+ * In a direct pair, it is the other end of the connection. In a topology, it is the socket of the
+ * target, for the client.
+ */
+const peerOf = (cell: Cell, run: Run): SocketPlace | undefined => {
+  const local = run.events.find((event) => event.ev === "connected")?.["local"];
+  const server = cell.observer === "server";
+  if (run.topology !== undefined) return server ? undefined : targetSocket(run, local);
+  const netns = server ? run.netns : run.targetNetns;
+  const cookie = run.kernel.find(
+    (record) => record.netns === netns && (server ? record.src : record.dst) === local,
+  )?.cookie;
+  return cookie === undefined ? undefined : { netns, cookie };
+};
+
 /**
  * This function reads one run against its cell, from the records of the kernel first.
- * - The socket of the run is the socket that the client connected from, in its namespace.
+ * - The socket of the run is the socket of its observer. It is the socket that the client connected
+ *   from, in its namespace, or the socket of the target or of a proxy for that connection.
  * - The fault must hold before the event that it must meet. That is before the request goes into
  *   it, and before the first keepalive probe. A live peer answers that probe, and the answer
  *   starts the idle time again. A run where the fault was late is void. A run whose records the
@@ -105,20 +193,26 @@ export const measure = (cell: Cell, run: Run): Measured => {
   const local = events.find((event) => event.ev === "connected")?.["local"];
   const inflight = cell.probe.mode !== "idle";
   const request = inflight ? events.filter((event) => event.ev === "sent")[1] : ready;
-  // the socket of the observer: the client socket, by the address that it connected from, or the
-  // socket of the target for the same connection, in its namespace, whose peer is that address
   const server = cell.observer === "server";
-  const netns = server ? run.targetNetns : run.netns;
-  const cookie = kernel.find(
-    (record) => record.netns === netns && (server ? record.dst : record.src) === local,
-  )?.cookie;
+  const place = socketOf(cell, run);
+  const netns = place?.netns;
+  const cookie = place?.cookie;
   const socket = kernel.filter((record) => record.netns === netns && record.cookie === cookie);
-  // the socket of the peer for the same connection, in the other namespace: a FIN counts from the
-  // change of state that its close makes
-  const peerNetns = server ? run.netns : run.targetNetns;
-  const peerCookie = kernel.find(
-    (record) => record.netns === peerNetns && (server ? record.src : record.dst) === local,
-  )?.cookie;
+  // the socket of the peer for the same connection: a FIN counts from the change of state that its close makes
+  const peerPlace = peerOf(cell, run);
+  const peerNetns = peerPlace?.netns;
+  const peerCookie = peerPlace?.cookie;
+  // the bytes that the client read after its request, and the first and last time that data came
+  const after = request === undefined ? [] : events.filter((event) => event.ev === "data" && event.t > request.t);
+  const bytes = after.reduce((sum, event) => sum + Number(event["n"] ?? 0), 0);
+  // the end of the flow in a router of the topology: its DESTROY line, by the address of the client
+  const forgotten = (run.middlebox ?? []).find(
+    (line) =>
+      line.ev === "ct" &&
+      line["type"] === "DESTROY" &&
+      typeof line["orig"] === "string" &&
+      (line["orig"] as string).startsWith(`${String(local)}>`),
+  );
   const keepalives = socket.filter(
     (record) => record.ev === "probe" && record.what === "keepalive",
   );
@@ -200,9 +294,10 @@ export const measure = (cell: Cell, run: Run): Measured => {
   }
 
   // the detection as the kernel reported it to the owner of the socket, and as the client saw it.
-  // The process of a server tells nothing that the harness reads, thus its kernel tells all
+  // The process of a server or of a proxy tells nothing that the harness reads, thus its kernel tells all
+  const remote = cell.observer !== undefined && cell.observer !== "client";
   const reported = socket.find((record) => record.ev === "error" && (record.err ?? 0) !== 0);
-  const seen = server
+  const seen = remote
     ? undefined
     : events.find((event) => event.ev === "error" || event.ev === "eof");
   // an end of file without an error is the change of state that the FIN of the peer makes, from
@@ -220,8 +315,40 @@ export const measure = (cell: Cell, run: Run): Measured => {
   const noticed =
     reported !== undefined && seen !== undefined ? between(reported.mono, seen.t) : null;
   const { prediction } = cell;
+  // keepalive counts from the last segment received before the fault. The budget of the give-up
+  // counts from the first retransmission of the RTO timer, not from the tail loss probe before it.
+  // A reset counts from the send of the client. The kernel has no record of that send, thus the
+  // stamp is the stamp of the client. A toxic counts from the start of its commit
+  const before = run.fault?.t1 ?? ready.t;
+  const referenceAt = (from: Reference): number | undefined => {
+    if (from === "request-sent") return request.t;
+    if (from === "fault") return run.fault?.t0;
+    const record: KernelRecord | undefined =
+      from === "last-received"
+        ? socket.filter((each) => each.ev === "rx" && each.mono <= before).at(-1)
+        : from === "first-retransmission"
+          ? retransmitted.find((each) => each.why === "rto")
+          : kernel.find(
+              (each) =>
+                each.netns === peerNetns &&
+                each.cookie === peerCookie &&
+                each.ev === "state" &&
+                oldState(each) === 1,
+            );
+    return record?.mono;
+  };
+  // in a topology, the bytes after the request and the instant that a router forgot the flow
+  const lastRx =
+    kernel
+      .filter((each) => each.netns === run.netns && each.src === local && each.ev === "rx" && each.mono <= before)
+      .at(-1)?.mono ?? ready.t;
+  const chain =
+    run.topology === undefined
+      ? {}
+      : { bytes, forgot: forgotten === undefined ? null : between(lastRx, forgotten.t) };
 
-  // a cell whose outcome is a distribution: each request of the run, and the time to its reply
+  // a measurement-only cell: each request of the run and the time to its reply, and the time from
+  // its reference to the end of the connection, or to the last data
   if (prediction.detects === null) {
     const sends = events.filter((event) => event.ev === "sent").slice(1);
     const samples = sends.flatMap((send, n) => {
@@ -229,10 +356,15 @@ export const measure = (cell: Cell, run: Run): Measured => {
       const reply = events.find((event) => event.ev === "data" && event.t > send.t && event.t < next);
       return reply === undefined ? [] : [between(send.t, reply.t)];
     });
+    const from = prediction.from === undefined ? undefined : referenceAt(prediction.from);
+    const until = ended ?? after.at(-1)?.t;
     return {
       ...base,
       ...nothing,
+      ...chain,
       outcome: ended !== undefined ? outcome : { kind: "answered" },
+      ...(from === undefined || until === undefined ? {} : { elapsed: between(from, until) }),
+      noticed: prediction.from === undefined ? null : noticed,
       steps: retransmitted
         .filter((record) => record.mono > request.t)
         .map((record) => between(request.t, record.mono)),
@@ -296,14 +428,55 @@ export const measure = (cell: Cell, run: Run): Measured => {
     };
   }
 
+  // a reply in a band: nothing must detect the fault, and the reply must come back in its time,
+  // from the send of the request to the first segment that the socket receives after it
+  if (!prediction.detects && prediction.replies !== undefined) {
+    const window = valueIn(prediction.window, "s") * 1e9;
+    if (ended !== undefined && ended - request.t <= window)
+      return {
+        ...base,
+        ...nothing,
+        ...chain,
+        outcome,
+        elapsed: between(request.t, ended),
+        void: voided,
+        finding: `detected after ${between(request.t, ended).value} s, where the reply should come`,
+      };
+    // the first segment with data: a proxy can acknowledge the request first, with no data
+    const answer = socket.find(
+      (record) => record.ev === "rx" && record.mono > request.t && (record.seg?.len.value ?? 0) > 0,
+    );
+    const reply = after[0];
+    if (answer === undefined)
+      return { ...base, ...nothing, ...chain, void: voided, finding: "the reply never came" };
+    return {
+      ...base,
+      ...chain,
+      outcome: { kind: "answered" },
+      elapsed: between(request.t, answer.mono),
+      socket: reply === undefined ? null : between(request.t, reply.t),
+      noticed: reply === undefined ? null : between(answer.mono, reply.t),
+      steps: [],
+      void: voided,
+      finding: null,
+    };
+  }
+
   if (!prediction.detects) {
     // the test of silence covers the window from the send of the request
     const window = valueIn(prediction.window, "s") * 1e9;
-    if (ended === undefined || ended - request.t > window)
-      return { ...base, ...nothing, void: voided };
+    if (ended === undefined || ended - request.t > window) {
+      // a router that forgot the flow in the window broke the silence, though nothing detected it yet
+      const forgot =
+        forgotten !== undefined && forgotten.t - request.t <= window
+          ? `a router forgot the flow ${between(lastRx, forgotten.t).value} s after the last segment, where it should keep it`
+          : null;
+      return { ...base, ...nothing, ...chain, void: voided, finding: forgot };
+    }
     return {
       ...base,
       ...nothing,
+      ...chain,
       outcome,
       elapsed: between(request.t, ended),
       void: voided,
@@ -315,34 +488,16 @@ export const measure = (cell: Cell, run: Run): Measured => {
     return {
       ...base,
       ...nothing,
+      ...chain,
       void: voided,
       finding: `nothing detected it: ${prediction.timer} never fired`,
     };
-  // keepalive counts from the last segment received before the fault. The budget of the give-up
-  // counts from the first retransmission of the RTO timer, not from the tail loss probe before it.
-  // A reset counts from the send of the client. The kernel has no record of that send, thus the
-  // stamp is the stamp of the client
-  const before = run.fault?.t1 ?? ready.t;
-  const kernelReference: KernelRecord | undefined =
-    prediction.from === "last-received"
-      ? socket.filter((record) => record.ev === "rx" && record.mono <= before).at(-1)
-      : prediction.from === "first-retransmission"
-        ? retransmitted.find((record) => record.why === "rto")
-        : prediction.from === "peer-closed"
-          ? kernel.find(
-              (record) =>
-                record.netns === peerNetns &&
-                record.cookie === peerCookie &&
-                record.ev === "state" &&
-                oldState(record) === 1,
-            )
-          : undefined;
-  const reference: number | undefined =
-    prediction.from === "request-sent" ? request.t : kernelReference?.mono;
+  const reference = referenceAt(prediction.from);
   if (reference === undefined) {
     return {
       ...base,
       ...nothing,
+      ...chain,
       outcome,
       noticed,
       void: voided,
@@ -364,18 +519,38 @@ export const measure = (cell: Cell, run: Run): Measured => {
     ? null
     : `it ended with ${outcome.kind === "error" ? outcome.errno : "end of file"}, not ${prediction.errno}`;
   // a firing at the reference itself only moves the start of the interval. A reset meets the send
-  // with no timer, and a FIN arrives with none
-  if (prediction.from !== "request-sent" && prediction.from !== "peer-closed")
+  // with no timer, a FIN arrives with none, and a toxic has its own clock
+  if (prediction.from === "last-received" || prediction.from === "first-retransmission")
     voided ??= delayed(
       reference,
       ended,
       prediction.from === "last-received" ? "keepalive" : "retransmit",
     );
+  // a timer of conntrack (expire_…) reaches its DESTROY through the listing of the router. A slow
+  // listing between the expiry and the detection breaks the bound of its lag: the run measured the
+  // pump, not the router. The expiry is at most the width of the band before the detection
+  const lag = (valueIn(prediction.high, "s") - valueIn(prediction.low, "s")) * 1e9;
+  const slow = prediction.timer.startsWith("expire_")
+    ? (run.middlebox ?? []).find(
+        (line) =>
+          line.ev === "pump-slow" &&
+          line.t <= ended &&
+          line.t + Number(line["took"]) * 1e9 >= ended - lag,
+      )
+    : undefined;
+  if (slow !== undefined)
+    voided ??= `a listing of the router took ${Math.round(Number(slow["took"]) * 1e4) / 10} ms, longer than the bound of its prediction`;
+  // a toxic starts somewhere in the commit of its request. A commit longer than the noise of the
+  // pipeline leaves its start unknown within δ_abs
+  const commit = run.fault === null ? 0 : (run.fault.t1 - run.fault.t0) / 1e6;
+  if (prediction.from === "fault" && commit > valueIn(NOISE, "ms"))
+    voided ??= `the commit of the fault took ${Math.round(commit * 10) / 10} ms, longer than the noise of the pipeline: its start is not known`;
   return {
     ...base,
+    ...chain,
     outcome,
     elapsed: between(reference, ended),
-    socket: server ? null : socketVantage(cell, events, ready, request),
+    socket: remote ? null : socketVantage(cell, events, ready, request),
     noticed,
     steps,
     void: voided,

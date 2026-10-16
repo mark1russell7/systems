@@ -306,6 +306,33 @@ describe("the algebra's first closed forms", () => {
     });
   });
 
+  it("gives no bound a sign: max(cap − ∞, cap / 2) is cap / 2, and a negative time is unknown", async () => {
+    const tcp = await machine("systems.machine.linux-tcp");
+    // a window that nothing bounds: the cap less it is −∞, which a max discards and a min keeps
+    const values = given({ ...LINUX_66, tcp_user_timeout: { value: "infinite", unit: "ms" } });
+    const at = (expr: string) => evaluate(tcp, { expr, unit: "ms" }, values);
+    expect(at("max(tcp_rto_max - tcp_user_timeout, tcp_rto_max / 2)")).toEqual({
+      value: 60_000,
+      unit: "ms",
+    });
+    expect(at("max(tcp_rto_max / 2, tcp_rto_max - tcp_user_timeout)")).toEqual({
+      value: 60_000,
+      unit: "ms",
+    });
+    expect(at("min(tcp_rto_max - tcp_user_timeout, tcp_rto_max)")).toEqual({
+      unknown: "a negative unbounded time",
+      unit: "ms",
+    });
+    expect(at("min(tcp_user_timeout, tcp_rto_max)")).toEqual({ value: 120_000, unit: "ms" });
+    expect(at("max(tcp_user_timeout, tcp_rto_max)")).toEqual({ value: "infinite", unit: "ms" });
+    expect(at("tcp_rto_max - (0 - tcp_user_timeout)")).toEqual({ value: "infinite", unit: "ms" });
+    expect(at("tcp_user_timeout - tcp_user_timeout")).toEqual({
+      unknown: "no bound less no bound",
+      unit: "ms",
+    });
+    expect(at("tcp_rto_max / tcp_user_timeout")).toEqual({ value: 0, unit: "ms" });
+  });
+
   it("reads every timer of the four documents, and refuses arithmetic it cannot parse", async () => {
     for (const id of [
       "systems.machine.linux-tcp",

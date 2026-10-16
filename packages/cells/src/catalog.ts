@@ -16,7 +16,7 @@ import type { ManifestationName } from "./manifestations.ts";
 import { MANIFESTATIONS } from "./manifestations.ts";
 
 /** This function reads a machine document from the fixtures of the algebra in this repository. */
-const fixture = (name: string): Machine =>
+export const fixture = (name: string): Machine =>
   machineSchema.parse(
     JSON.parse(
       readFileSync(new URL(`../../algebra/src/fixtures/${name}.json`, import.meta.url), "utf8"),
@@ -28,12 +28,12 @@ export const LINUX: Machine = fixture("linux-tcp");
 /** This document is the hold of Redis on one client, over its socket. */
 export const REDIS_CLIENT: Machine = fixture("redis-client");
 
-const s = (value: number): Quantity => ({ value, unit: "s" });
-const ms = (value: number): Quantity => ({ value, unit: "ms" });
-const count = (value: number): Quantity => ({ value, unit: "count" });
+export const s = (value: number): Quantity => ({ value, unit: "s" });
+export const ms = (value: number): Quantity => ({ value, unit: "ms" });
+export const count = (value: number): Quantity => ({ value, unit: "count" });
 
 /** This image is the target of each cell: a stock Redis 7.4, pinned by digest. */
-const IMAGE = "redis:7.4@sha256:c6eabf748fc7a61dbb5a705c78bcf3d6377b1127a97d0ce965c11c44ba46896f";
+export const IMAGE = "redis:7.4@sha256:c6eabf748fc7a61dbb5a705c78bcf3d6377b1127a97d0ce965c11c44ba46896f";
 /** This target is Redis as its image starts it. */
 export const REDIS: Target = {
   image: IMAGE,
@@ -56,12 +56,12 @@ export const RUNS = 11;
 /** This time is the window in which a silent cell must stay silent. */
 export const WINDOW = 20;
 /** This time is the round trip of the Docker network that the models read, without a latency. */
-const RTT_MS = 1;
+export const RTT_MS = 1;
 /** The kernel of the VM counts time at HZ 250. */
-const HZ = 250;
+export const HZ = 250;
 
 /** These are the Linux 6.6 values of the knobs of Linux TCP. A cell gives each knob, thus nothing is left to a default. */
-const LINUX_66: Readonly<Record<string, Extent>> = {
+export const LINUX_66: Readonly<Record<string, Extent>> = {
   tcp_syn_retries: count(6),
   tcp_syn_linear_timeouts: count(4),
   tcp_retries2: count(15),
@@ -74,9 +74,9 @@ const LINUX_66: Readonly<Record<string, Extent>> = {
   tcp_fin_timeout: s(60),
 };
 /** These are the keepalive settings of the cells: 5 s idle, then 3 probes 2 s apart, 11 s in all. */
-const KEEPALIVE = { keepidle: s(5), keepintvl: s(2), keepcnt: count(3) };
+export const KEEPALIVE = { keepidle: s(5), keepintvl: s(2), keepcnt: count(3) };
 /** Redis sets the keepalive of each client from tcp-keepalive: at 5 s, 5 s idle and 3 probes 1 s apart. */
-const SERVER_KEEPALIVE = { tcp_keepalive: s(5), timeout: s(0) };
+export const SERVER_KEEPALIVE = { tcp_keepalive: s(5), timeout: s(0) };
 /** A BLPOP with a timeout of 2 s holds the request in the server, thus a reply or a close can come while it waits. */
 const HELD_REQUEST = "BLPOP nothing 2";
 
@@ -309,19 +309,19 @@ const linuxValues = (spec: Spec): Record<string, Extent> => ({
   hz: { value: HZ, unit: "Hz" },
   rtt: ms(RTT_MS + (spec.latency ?? 0)),
 });
-const given =
+export const given =
   (values: Readonly<Record<string, Extent>>): KnobValues =>
   (name) =>
     values[name];
 
 /** This function gives the number of seconds of an extent, or fails when nothing gives it. */
-const seconds = (extent: Extent | Unknown | undefined, what: string): number => {
+export const seconds = (extent: Extent | Unknown | undefined, what: string): number => {
   if (extent === undefined) return 0;
   if ("unknown" in extent) throw new Error(`${what}: ${extent.unknown}`);
   if (extent.value === "infinite") throw new Error(`${what} has no bound`);
   return valueIn(extent as Quantity, "s");
 };
-const q = (value: number): Quantity => ({ value: Math.round(value * 1e9) / 1e9, unit: "s" });
+export const q = (value: number): Quantity => ({ value: Math.round(value * 1e9) / 1e9, unit: "s" });
 
 /** This function gives the event that arms a timer, as the reference event of a measurement. */
 const referenceOf = (timer: string): Reference => {
@@ -404,7 +404,7 @@ export const predict = (spec: Spec): Prediction => {
 };
 
 /** This function gives the sysctls of the namespace knobs of Linux TCP, by their keys. */
-const sysctlsOf = (values: Readonly<Record<string, Extent>>): Record<string, string> => {
+export const sysctlsOf = (values: Readonly<Record<string, Extent>>): Record<string, string> => {
   const out: Record<string, string> = {};
   for (const [name, knob] of Object.entries(LINUX.knobs)) {
     if (knob.scope !== "netns") continue;
