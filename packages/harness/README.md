@@ -77,7 +77,7 @@ Each run of a group cell starts from a group that converged:
 
 The harness then removes each key from the group. After the run, the group converges again, and the keys that it holds tell which writes it kept.
 
-A Sentinel that aborted a failover does not try again for 2 × `failover-timeout`. Thus after a run with an aborted failover, each Sentinel forgets the state of the group (`SENTINEL RESET`), and the next run starts from a group that it knows again.
+A Sentinel that aborted a failover does not try again for 2 × `failover-timeout`. Thus after a run with an aborted failover, each Sentinel forgets the state of the group (`SENTINEL RESET`). The next run then starts from a group that each Sentinel knows again.
 
 ## The clients and the agents
 
@@ -163,7 +163,7 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
   - **The timeline.** Each stage is the first announcement of its event by any Sentinel, from the fault. The stages are `+sdown` and `+odown` of the primary, `+try-failover` and `+elected-leader`. Then `+selected-slave`, `+promoted-slave`, `+switch-master` and `+convert-to-slave`.
   - **The writes.** The run gives the writes that the old primary accepted after the fault, and the writes that a primary accepted and the group lost. It also gives each write whose outcome the client did not see. The lost writes are the cost of a split brain.
   - **The errors on the way.** The run gives each kind of error that the client met after the fault, with its first time and its count.
-  - **Void runs.** A run is void when a Sentinel entered its TILT mode, or when the election split its votes. Both measured another path than the band assumes. A run whose Sentinels reached `+odown` and started no failover is void: the hold-off of an earlier attempt stopped them. A band whose hold lifted more than δ_abs late is void too. The rules of the RTT and of a slow commit apply.
+  - **Void runs.** A run is void when a Sentinel entered its TILT mode, or when the election split its votes. Both measured another path than the band assumes. A run whose Sentinels reached `+odown` and started no failover is void: the hold-off of an earlier failover stopped them. A band whose hold lifted more than δ_abs late is void too. The rules of the RTT and of a slow commit apply.
   - **The stamps.** A calibration gives the delay of each stamp of the observer after the write of its Sentinel that it read (`lags`).
 
 ## The verdict

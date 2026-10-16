@@ -58,7 +58,7 @@ export interface GroupLab {
   converge(within?: number): Promise<string>;
   /** This method removes each key from the group, and waits until each replica has the removal. */
   flush(primary: string): Promise<void>;
-  /** This method makes each Sentinel forget the state of the group (`SENTINEL RESET`): an aborted failover then holds off no later attempt. */
+  /** This method makes each Sentinel forget the state of the group (`SENTINEL RESET`): an aborted failover then holds off no later failover. */
   reset(): Promise<void>;
   /** This method gives the sequence numbers that the group holds, from its primary. */
   holds(primary: string): Promise<number[]>;
