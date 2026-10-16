@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/harness",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "A fault-injection harness for connection timers: a cell runs a client against a stock target in Docker, through a topology of routers and proxies, injects a fault, measures the kernel's own records and judges a prediction.",
   "keywords": [
     "fault-injection",

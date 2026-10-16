@@ -97,6 +97,12 @@ const observerError = (
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
+ * This time is the pause between the client's first reply and the fault. It is more than Linux's
+ * TCP_DELACK_MAX of 200 ms. Thus the delayed ACK of the reply is out before the fault.
+ */
+export const QUIET_MS = 250;
+
+/**
  * This function waits for the request that an in-flight client sends on the signal: its second
  * send, after the PING that made it ready. Its stamp is when the request first met the fault.
  */
@@ -190,6 +196,11 @@ const once = async (
         // in the pause, and the reply waits for the timeout of the request
         await go();
         await sleep(200);
+      } else {
+        // The client acknowledges its first reply with a delayed ACK, 40 to 200 ms later
+        // (TCP_DELACK_MIN to TCP_DELACK_MAX). A fault that comes first meets that ACK, not the
+        // request or the idle time that the cell measures. So the fault waits until the ACK is out.
+        await sleep(QUIET_MS);
       }
       const faultAt: FaultPlace = cell.faultAt ?? (server ? "client" : "target");
       // the direction of a simplex drop, relative to the namespace of the rule: in the target, or at
