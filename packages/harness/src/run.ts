@@ -97,8 +97,8 @@ const observerError = (
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
- * This time is the pause between the client's first reply and the fault: more than Linux's
- * TCP_DELACK_MAX of 200 ms, so the delayed ACK of the reply is out before the fault.
+ * This time is the pause between the client's first reply and the fault. It is more than Linux's
+ * TCP_DELACK_MAX of 200 ms. Thus the delayed ACK of the reply is out before the fault.
  */
 export const QUIET_MS = 250;
 
