@@ -14,6 +14,7 @@ import type { Extent, Quantity, Unknown } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { ManifestationName } from "./manifestations.ts";
 import { MANIFESTATIONS } from "./manifestations.ts";
+import { assuming } from "./rtt.ts";
 
 /** This function reads a machine document from the fixtures of the algebra in this repository. */
 export const fixture = (name: string): Machine =>
@@ -99,9 +100,17 @@ export interface Spec {
   readonly netem?: string;
   /** This time is the length of a stall, in seconds. */
   readonly stall?: number;
+  /**
+   * This length is the value that each request of a stream reads, in bytes, with `GET big`.
+   * Thus each reply has many segments in flight. Without it, each request is a PING.
+   */
+  readonly bulk?: number;
   /** This text is the reason that a cell is measurement only: its outcome is a distribution. */
   readonly why?: string;
 }
+
+/** This length is the reply of a stream with many segments in flight: 256 KiB, 182 segments of 1448 bytes. */
+const BULK = 262_144;
 
 /**
  * The T01 catalog: the direct pair, a client and a stock Redis, crossed over its manifestations,
@@ -284,8 +293,6 @@ export const SPECS: readonly Spec[] = [
     [
       ["loss 5%", "a lost segment waits for a retransmission"],
       ["loss 20%", "a lost segment waits for a retransmission"],
-      ["duplicate 10%", "a duplicate costs nothing but a duplicate ACK"],
-      ["delay 10ms reorder 25% 50%", "a segment out of order can start a fast retransmission"],
       ["corrupt 5%", "a corrupt segment fails its checksum, as a lost one does"],
       ["delay 20ms 10ms", "a jitter moves the RTO, which the round trip of one sample does not give"],
     ] as const
@@ -300,14 +307,41 @@ export const SPECS: readonly Spec[] = [
       why: `its reply times are a distribution: ${reason}. A simulator predicts it, and the algebra does not`,
     }),
   ),
+  // ---- the same with many segments in flight: a reply of 256 KiB to each request. A reorder or a
+  // duplicate needs segments in flight to act on. One PING has one segment
+  ...(
+    [
+      ["delay 10ms reorder 25% 50%", "a segment out of order gets a SACK, and three can start a fast retransmission"],
+      ["duplicate 10%", "a duplicate gets a DSACK, and costs nothing but its ACK"],
+      ["loss 5%", "a lost segment gets a SACK recovery, with segments in flight after it"],
+      ["corrupt 5%", "a corrupt segment fails its checksum, as a lost one does"],
+    ] as const
+  ).map(
+    ([netem, reason]): Spec => ({
+      name: `client stream, a 256 KiB reply, netem ${netem}`,
+      fault: "netem",
+      manifestation: "blackhole",
+      observer: "client",
+      mode: "stream",
+      netem,
+      bulk: BULK,
+      why: `its reply times are a distribution: ${reason}. A simulator predicts it, and the algebra does not`,
+    }),
+  ),
 ];
 
-/** This function gives the values of a cell's knobs: Linux 6.6, then the knobs that the cell sets, then the environment. */
-const linuxValues = (spec: Spec): Record<string, Extent> => ({
+/** This function gives the round trip that the models of a cell read, in ms: the Docker network and the latency of the cell. */
+const nominalRtt = (spec: Spec): number => RTT_MS + (spec.latency ?? 0);
+
+/**
+ * This function gives the values of a cell's knobs: Linux 6.6, then the knobs that the cell sets,
+ * then the environment. The round trip is in ms, and its default is the nominal one.
+ */
+const linuxValues = (spec: Spec, rtt = nominalRtt(spec)): Record<string, Extent> => ({
   ...LINUX_66,
   ...spec.linux,
   hz: { value: HZ, unit: "Hz" },
-  rtt: ms(RTT_MS + (spec.latency ?? 0)),
+  rtt: ms(rtt),
 });
 export const given =
   (values: Readonly<Record<string, Extent>>): KnobValues =>
@@ -331,10 +365,16 @@ const referenceOf = (timer: string): Reference => {
   throw new Error(`no reference for ${timer}: it is armed by ${arms.join(", ")}`);
 };
 
-/** This function gives the prediction of a cell from the algebra. */
-export const predict = (spec: Spec): Prediction => {
+/**
+ * This function gives the prediction of a cell from the algebra, with the range of first round
+ * trips that its band assumes (`rtt.ts`).
+ */
+export const predict = (spec: Spec): Prediction => assuming((rtt) => predictAt(spec, rtt), nominalRtt(spec));
+
+/** This function gives the prediction of a cell from the algebra, at a round trip in ms. */
+export const predictAt = (spec: Spec, rttMs: number): Prediction => {
   if (spec.why !== undefined) return { detects: null, window: q(30), why: spec.why };
-  const linux = linuxValues(spec);
+  const linux = linuxValues(spec, rttMs);
   const rtt = seconds(linux["rtt"], "rtt");
   const manifestation: Manifestation = MANIFESTATIONS[spec.manifestation];
 
@@ -436,14 +476,21 @@ export const cellOf = (spec: Spec): Cell => {
       )
     : {};
   const request =
-    spec.fault === "mtu-blackhole" ? "GET big" : server || spec.fault === "fin" ? HELD_REQUEST : undefined;
+    spec.fault === "mtu-blackhole" || spec.bulk !== undefined
+      ? "GET big"
+      : server || spec.fault === "fin"
+        ? HELD_REQUEST
+        : undefined;
   const probe: Cell["probe"] = {
     mode: spec.mode,
     // the server must notice first, thus its client has no keepalive of its own
     keepalive: !server,
     ...(spec.mode !== "idle" && request !== undefined ? { request } : {}),
-    ...(spec.mode === "stream" ? { count: 100, interval: ms(10) } : {}),
+    // a stream of long replies is shorter: each reply is many segments
+    ...(spec.mode === "stream" ? { count: spec.bulk === undefined ? 100 : 10, interval: ms(10) } : {}),
   };
+  // the value that a long reply reads: 2 MB for the MTU black hole, or the length of a stream's replies
+  const big = spec.fault === "mtu-blackhole" ? 2_000_000 : spec.bulk;
   // a killed server cannot serve the next run: each run of a client fin cell has its own environment
   const killsServer = spec.fault === "fin" && !server;
   return {
@@ -462,13 +509,13 @@ export const cellOf = (spec: Spec): Cell => {
     ...(spec.mtu === undefined ? {} : { mtu: spec.mtu }),
     ...(spec.netem === undefined ? {} : { netem: spec.netem }),
     ...(spec.latency === undefined ? {} : { latency: ms(spec.latency) }),
-    ...(spec.fault === "mtu-blackhole"
-      ? {
+    ...(big === undefined
+      ? {}
+      : {
           targetSetup: [
-            ["sh", "-c", "head -c 2000000 /dev/zero | tr '\\000' x | redis-cli -x SET big > /dev/null"],
+            ["sh", "-c", `head -c ${big} /dev/zero | tr '\\000' x | redis-cli -x SET big > /dev/null`],
           ],
-        }
-      : {}),
+        }),
     runs: RUNS,
     environments: killsServer ? RUNS : 2,
   };

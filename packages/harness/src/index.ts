@@ -17,24 +17,27 @@ export type {
   Prediction,
   ProbeEvent,
   ProxyHop,
+  ProxyTime,
   Recovers,
   Reference,
   Replies,
   RouterHop,
+  RttRange,
   Run,
   RunTopology,
   Target,
   Topology,
   Toxic,
 } from "./cell.ts";
-export type { Measured, Outcome, SocketPlace } from "./observe.ts";
-export { measure, socketOf } from "./observe.ts";
-export type { Decision, Interval, Verdict } from "./verdict.ts";
-export { NOISE, RELATIVE, STEPS, medianInterval, verdictOf } from "./verdict.ts";
+export type { Crossings, Measured, Outcome, Reordering, SocketPlace } from "./observe.ts";
+export { crossingsOf, measure, reorderingOf, socketOf } from "./observe.ts";
+export type { Decision, Interval, Spread, Verdict } from "./verdict.ts";
+export { NOISE, RELATIVE, STEPS, medianInterval, quantileOf, spreadOf, verdictOf } from "./verdict.ts";
 export type { Agent, FaultSide, Lab, Manifest, ManifestHop, NetworkFault, Probe } from "./lab.ts";
 export {
   LISTING,
   PUMP,
+  deviceOf,
   endpointAfter,
   harnessImage,
   nodeClientImage,

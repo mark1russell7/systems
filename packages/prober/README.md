@@ -17,10 +17,20 @@ The kernel program records these events:
 - TIME_WAIT sockets and request sockets.
 - Each keepalive probe or zero-window probe that `tcp_write_wakeup` sends.
 - Each segment that an established socket receives (`tcp_probe`).
+- Each write of the owner of a socket (`tx`, at the entry of `tcp_sendmsg`), with the first sequence number of the bytes and their length. The time of a proxy is from an arrival on one of its sockets to a write on the other.
 - The state of the retransmit timer at each retransmission.
 - Each time that the timer wheel fires the keepalive timer or the retransmit timer of a socket (`timer`).
 
 The state of the retransmit timer tells the tail loss probe from the retransmissions of the RTO timer. Only the RTO timer counts toward `tcp_retries2`.
+
+Each record with TCP state (`tcp`) also has the SACK scoreboard and the reordering state of the socket, by the names of `tcp_info`:
+
+- **`sacked`** and **`lost`** are the segments that the peer SACKed and that the kernel marked lost.
+- **`reordering`** is the reordering degree of the kernel, in segments. It starts at `tcp_reordering`, and it increases when the kernel detects reordering. **`reord_seen`** counts those detections.
+- **`dsack_dups`** counts the DSACK blocks that arrived: segments that the peer got two times.
+- **`rcv_ooopack`** counts the segments that arrived out of order.
+
+A record of version 0.1 does not have these fields, and it has no `tx` records.
 
 A `timer` record has three more fields:
 
@@ -64,7 +74,7 @@ The Go and C collectors are in the repository for the comparison. They are not i
 
 Each collector has a `--decode FILE` mode, which reads raw records from a file and not from the kernel. This mode holds the three to one contract:
 
-- `fixtures/records.bin` has 46 raw records, and one record that is cut short. The records have each kind, each optional field, the extremes of each integer, the escapes of JSON and each way to break UTF-8. `src/fixture.ts` makes the file, and its test keeps the committed bytes the same as the output.
+- `fixtures/records.bin` has 48 raw records, and one record that is cut short. The records have each kind, each optional field, the extremes of each integer, the escapes of JSON and each way to break UTF-8. `src/fixture.ts` makes the file, and its test keeps the committed bytes the same as the output.
 - The Rust test compares the writer of the crate with the output of serde, record by record. It also compares the names with the lossy decoder of the standard library.
 - The comparison image (`image/Dockerfile`) decodes the fixture with the three collectors. The build stops unless each line is the same, byte for byte.
 

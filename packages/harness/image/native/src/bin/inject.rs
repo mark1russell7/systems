@@ -30,6 +30,12 @@
 //! `--at NS` holds the commit until that instant on CLOCK_MONOTONIC, the clock every stamp is on.
 //! A stall's end is timed that way, from inside the VM: the exec only has to arrive before it, and
 //! its 190 ms never reach the stall's length.
+//!
+//! `--via DEV` puts a filter rule in the FORWARD chain, for a router: its INPUT and OUTPUT see only
+//! what the router itself sends and receives. The rule faces one side by the device toward it:
+//! what comes from the peer arrives on DEV (`-i DEV -s PEER`), and what goes to it leaves on DEV
+//! (`-o DEV -d PEER`). A REJECT then answers from the router: a reset spoofs the address the
+//! segment was going to, and an ICMP error comes from the router's own address on DEV.
 
 use prober::monotonic_ns;
 use serde_json::json;
@@ -63,13 +69,15 @@ fn until(at: u64) -> Result<(), Box<dyn Error>> {
     }
 }
 
-/// The options after the positional arguments: `--at NS`, `--direction D`, `--code C`, `--above N`.
+/// The options after the positional arguments: `--at NS`, `--direction D`, `--code C`, `--above N`,
+/// `--via DEV`.
 #[derive(Default)]
 struct Options {
     at: Option<u64>,
     direction: Option<String>,
     code: Option<String>,
     above: Option<u32>,
+    via: Option<String>,
 }
 
 fn options(args: &[String]) -> Result<Options, Box<dyn Error>> {
@@ -82,6 +90,7 @@ fn options(args: &[String]) -> Result<Options, Box<dyn Error>> {
             "--direction" => out.direction = Some(value.clone()),
             "--code" => out.code = Some(value.clone()),
             "--above" => out.above = Some(value.parse()?),
+            "--via" => out.via = Some(device(value)?.to_string()),
             other => return Err(format!("unknown option {other}").into()),
         }
     }
@@ -91,12 +100,18 @@ fn options(args: &[String]) -> Result<Options, Box<dyn Error>> {
 /// The iptables rules of an action that is a filter rule, or None for an action that is not.
 fn rules(action: &str, peer: Ipv4Addr, opts: &Options) -> Result<String, Box<dyn Error>> {
     let op = |set: &str| if action == set { "-I" } else { "-D" };
+    // what comes from the peer, and what goes to it: at an end, the INPUT and OUTPUT of its own
+    // sockets; at a router, what it forwards in and out of the device toward the peer
+    let (from, to) = match opts.via.as_deref() {
+        None => (format!("INPUT -s {peer}/32"), format!("OUTPUT -d {peer}/32")),
+        Some(dev) => (format!("FORWARD -i {dev} -s {peer}/32"), format!("FORWARD -o {dev} -d {peer}/32")),
+    };
     Ok(match action {
         "blackhole" | "clear" => {
             let op = op("blackhole");
             let direction = opts.direction.as_deref().unwrap_or("both");
-            let input = format!("{op} INPUT -s {peer}/32 -j DROP\n");
-            let output = format!("{op} OUTPUT -d {peer}/32 -j DROP\n");
+            let input = format!("{op} {from} -j DROP\n");
+            let output = format!("{op} {to} -j DROP\n");
             match direction {
                 "both" => format!("{input}{output}"),
                 "in" => input,
@@ -106,7 +121,7 @@ fn rules(action: &str, peer: Ipv4Addr, opts: &Options) -> Result<String, Box<dyn
         }
         "rst" | "clear-rst" => {
             let op = op("rst");
-            format!("{op} INPUT -s {peer}/32 -p tcp -j REJECT --reject-with tcp-reset\n")
+            format!("{op} {from} -p tcp -j REJECT --reject-with tcp-reset\n")
         }
         "reject" | "clear-reject" => {
             let op = op("reject");
@@ -117,14 +132,14 @@ fn rules(action: &str, peer: Ipv4Addr, opts: &Options) -> Result<String, Box<dyn
                 "admin" => "icmp-admin-prohibited",
                 other => return Err(format!("unknown code {other}").into()),
             };
-            format!("{op} INPUT -s {peer}/32 -p tcp -j REJECT --reject-with {with}\n")
+            format!("{op} {from} -p tcp -j REJECT --reject-with {with}\n")
         }
         // the long segments drop where they arrive: in the sender's own namespace, an OUTPUT drop
         // would fail its sends with EPERM rather than lose them on the way
         "mtu" | "clear-mtu" => {
             let op = op("mtu");
             let above = opts.above.ok_or("--above N")?;
-            format!("{op} INPUT -s {peer}/32 -p tcp -m length --length {}:65535 -j DROP\n", above + 1)
+            format!("{op} {from} -p tcp -m length --length {}:65535 -j DROP\n", above + 1)
         }
         other => return Err(format!("unknown action {other}").into()),
     })
@@ -321,6 +336,33 @@ mod tests {
             "-I INPUT -s 10.0.0.2/32 -p tcp -m length --length 1201:65535 -j DROP\n"
         );
         assert!(rules("reject", peer, &Options::default()).is_err());
+    }
+
+    #[test]
+    fn a_router_gets_forward_rules_that_face_one_device() {
+        let peer: Ipv4Addr = "10.0.0.2".parse().unwrap();
+        let via = |direction: Option<&str>| Options {
+            direction: direction.map(Into::into),
+            via: Some("eth0".into()),
+            ..Options::default()
+        };
+        assert_eq!(
+            rules("blackhole", peer, &via(None)).unwrap(),
+            "-I FORWARD -i eth0 -s 10.0.0.2/32 -j DROP\n-I FORWARD -o eth0 -d 10.0.0.2/32 -j DROP\n"
+        );
+        assert_eq!(rules("clear", peer, &via(Some("out"))).unwrap(), "-D FORWARD -o eth0 -d 10.0.0.2/32 -j DROP\n");
+        assert_eq!(
+            rules("rst", peer, &via(None)).unwrap(),
+            "-I FORWARD -i eth0 -s 10.0.0.2/32 -p tcp -j REJECT --reject-with tcp-reset\n"
+        );
+        let host = Options { code: Some("host".into()), ..via(None) };
+        assert_eq!(
+            rules("clear-reject", peer, &host).unwrap(),
+            "-D FORWARD -i eth0 -s 10.0.0.2/32 -p tcp -j REJECT --reject-with icmp-host-unreachable\n"
+        );
+        // a device name is letters, digits, dots and dashes: nothing else reaches the rules
+        assert!(options(&["--via".into(), "eth0;x".into()]).is_err());
+        assert_eq!(options(&["--via".into(), "eth1".into()]).unwrap().via.as_deref(), Some("eth1"));
     }
 
     #[test]

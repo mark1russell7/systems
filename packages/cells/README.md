@@ -7,7 +7,7 @@ The cells of the systems program. A cell is one point of a topology: a fault, a 
 T01 is the direct pair: a client and a stock Redis 7.4. The catalog (`src/catalog.ts`) crosses these axes, and each axis moves a prediction or tests one:
 
 - **The manifestation.** A black hole, an ICMP unreachable (host, net, port, admin), a simplex drop in each direction, and a FIN. The FIN comes from a process that stopped with SIGKILL. Also a frozen process, a stall, an MTU black hole, and netem on each segment (loss, duplication, reordering, corruption, jitter).
-- **The workload.** An idle connection, a request in flight, or a stream of requests.
+- **The workload.** An idle connection, a request in flight, or a stream of requests. A stream of PINGs has one segment in flight. A stream of `GET` requests for a 256 KiB value has many, thus reordering and duplicates have segments to act on.
 - **The observer.** The kernel of the client, or the server: the socket of Redis for the connection of the client.
 - **The timers.** Keepalive at 5 s idle and 3 probes 2 s apart, `tcp_retries2` at 3 and 5, and the keepalive of Redis from `tcp-keepalive` 5.
 - **The latency.** 0, 20 and 100 ms on the egress of the target. A longer round trip is a longer RTO, thus each step of the retransmission ladder moves.
@@ -23,7 +23,8 @@ Each cell gives each knob that its prediction reads. The namespace of the observ
 - **The revert of RFC 6069.** A host or net unreachable for each retransmission takes back one doubling of the backoff. Thus the give-up comes at most one RTO after its budget: 3.0 s to 3.268 s at `tcp_retries2 = 3`, where a black hole takes 3.0 s to 6.616 s. The cells set the ICMP rate limit of the sender of the ICMP to 0, thus each retransmission gets one ICMP.
 - **A delivered event.** The kernel of a process that stopped with SIGKILL closes its socket with a FIN. The FIN comes one way after the close, with no errno: an end of file.
 - **A recovery.** After a stall, the connection moves at the first retransmission after the stall, and the reply comes back one round trip later.
-- **A distribution.** Under netem loss, duplication, reordering, corruption or jitter, the reply times are a distribution. These cells have no band. Their runs are measurements, and they keep each reply time for a simulator.
+- **A distribution.** Under netem loss, duplication, reordering, corruption or jitter, the reply times are a distribution. These cells have no band. Their runs are measurements, and they keep each reply time for a simulator. They also keep what reordering did at the two ends: arrivals out of order, duplicates, SACKs, DSACKs, and the reordering degree of the kernel.
+- **The first round trip.** Each band names the range of first round trips that it assumes (`rtt.ts`). The models read a round trip of 1 ms, and the latency of the cell. The range holds each round trip where the band stays within δ_abs of itself, with the same timer. A ladder of the RTO at HZ 250 holds up to 4 ms: above it, each RTO is one jiffy longer. A keepalive band does not read the round trip, thus it names no range.
 
 ## The T03 catalog
 
@@ -34,6 +35,14 @@ T03 is the stateful middlebox chain: client → NAT router (conntrack) → Redis
 - **DV-12's three cases**, when O03 does not hold. A router that resets both ends does it at the forget: the `expire_established` timer of conntrack, late by the pump and two listings at most. A router that resets the next packet answers the first keepalive probe. A router that drops silently leaves the endpoint to its whole keepalive window.
 - **The next packet is a request.** After 8 s of idle time, the request meets a reset, the retransmissions to their give-up, or a flow that conntrack picks up again (`ct.none.established`).
 - **The server.** The keepalive of Redis (`tcp-keepalive`) meets the reset of both ends, a dropped probe from outside, or the reset of the router's own stack (`none`).
+
+A fault at the router (`T03_FAULT_SPECS`) is a set of FORWARD rules on its device toward one side. Its router is a plain NAT (`none`), and the client meets the manifestation of the direct pair with the same knobs:
+
+- **A black hole at the router**, idle, gets the band of the direct pair's black hole. In flight, it gets the band of the give-up.
+- **A reset from the router** comes at once after the request.
+- **The ICMP unreachables of the router** come from the address of the router, not from the peer. The revert of RFC 6069 does not examine where an ICMP comes from. Thus host and net unreachable give the reverted band: 3.0 s to 3.268 s at `tcp_retries2 = 3`.
+- **A simplex partition at the router** in each direction, and **netem delay** on the device toward each side.
+- **The router forgets the flow behind its own black hole.** Conntrack sees each packet before the FORWARD rules drop it. A plain NAT then passes a late packet into the black hole, and the forget changes nothing. A router that resets both ends does it from its own stack, past its black hole: at the forget when idle. In flight, each retransmission refreshes the flow. The forget then comes one idle timeout after the last retransmission before a wait longer than 5 s: 6.528 s after the send, at `tcp_retries2 = 8`.
 
 The cells of T03 go one at a time: the listing of a router evicts the expired flows of each namespace.
 
@@ -50,11 +59,20 @@ T02 is the pooled request chain: client → HAProxy 3.2 in TCP mode → Redis 7.
 The TOX catalog has Toxiproxy 2.12.0 as the subject, between the client and Redis 7.4 (`src/toxiproxy.ts`).
 
 - **Each toxic** gets a cell: latency, timeout, reset_peer, slow_close, bandwidth, limit_data and slicer. Each prediction comes from the semantics that the documentation of Toxiproxy states. A toxic whose documentation gives no time is measurement-only.
+- **The time of Toxiproxy.** The documentation states no time of its own. Thus each band adds the time of Toxiproxy for each crossing (`through`). A request crosses toward the target, and a reply or a close toward the client. Each time is the 99th percentile of its calibration cell.
 - **The close translation.** A reset and a black hole on the upstream connection of Toxiproxy are measurement-only, because Toxiproxy documents no close. The same faults on the direct pair, with iptables or netem, have predictions from the algebra.
+
+## The calibration of the proxies
+
+The CAL catalog (`src/calibration.ts`) measures the own time of each proxy: HAProxy as T02 has it, and Toxiproxy with no toxic. Stage 0 measures δ_abs in the same way, on a path with no timer.
+
+- A stream of 100 PINGs goes through the proxy to Redis, with nothing injected (`none`). The concurrency is 1, as for the cells through the proxy.
+- Each request gives a time toward the target. It starts at the arrival on the socket of the proxy toward the client. It stops at the write on the socket toward the target. Each reply gives a time toward the client, the other way. The writes are the `tx` records of the prober.
+- `PROXY_TIMES` holds the 99th percentile of each direction, by nearest rank. A band through a proxy adds it for each crossing.
 
 ## The runner
 
-`CELLS=1 pnpm --filter @systems/cells test` starts the catalogs on `@mark1russell7/harness`. It needs Docker and privileged containers. The names of the cells start with their catalog: `T01`, `T03`, `T02` or `TOX`.
+`CELLS=1 pnpm --filter @systems/cells test` starts the catalogs on `@mark1russell7/harness`. It needs Docker and privileged containers. The names of the cells start with their catalog: `T01`, `T03`, `T02`, `TOX` or `CAL`.
 
 - `CELLS_ONLY` selects the cells whose names match a regular expression.
 - `CELLS_SHARD=i/n` takes every n-th cell from the i-th. Thus two processes can share the catalog.

@@ -21,6 +21,7 @@ export const RECORD_KINDS = [
   "probe",
   "rx",
   "timer",
+  "tx",
 ] as const;
 
 /** A record kind is one kind of record that the kernel side writes. */
@@ -63,7 +64,32 @@ export interface KernelRecord {
     readonly probes_out: number;
     readonly rto: Quantity;
     readonly srtt: Quantity;
+    readonly snd_una?: number;
+    readonly snd_nxt?: number;
+    readonly rcv_nxt?: number;
+    /**
+     * These counts are the SACK scoreboard and the reordering state, as `tcp_info` names them. A
+     * record of version 0.1 does not have them. `sacked` and `lost` are the segments that the peer
+     * SACKed and that the kernel marked lost. `reordering` is the reordering degree of the kernel,
+     * in segments, and `reord_seen` counts the reorderings that it detected. `dsack_dups` counts
+     * the DSACK blocks that arrived, and `rcv_ooopack` the segments that arrived out of order.
+     */
+    readonly sacked?: number;
+    readonly lost?: number;
+    readonly reordering?: number;
+    readonly reord_seen?: number;
+    readonly dsack_dups?: number;
+    readonly rcv_ooopack?: number;
   };
-  readonly seg?: { readonly seq: number; readonly ack?: number; readonly len: Quantity };
+  /**
+   * This record is the segment of a record. For `rx`, it has the acknowledgment and the flags. For
+   * `tx`, it is the write: its first sequence number and its length.
+   */
+  readonly seg?: {
+    readonly seq: number;
+    readonly ack?: number;
+    readonly flags?: number;
+    readonly len: Quantity;
+  };
   readonly [field: string]: unknown;
 }

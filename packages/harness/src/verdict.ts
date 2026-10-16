@@ -1,7 +1,7 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 import type { Prediction } from "./cell.ts";
-import type { Measured } from "./observe.ts";
+import type { Measured, Reordering } from "./observe.ts";
 
 /**
  * This amount is the noise of the pipeline itself, δ_abs, as the calibration measured it. It is
@@ -28,6 +28,15 @@ export interface Interval {
   readonly high: Quantity;
 }
 
+/** A spread is the distribution of a set of times: its count, its median and its upper quantiles by nearest rank. */
+export interface Spread {
+  readonly count: number;
+  readonly median: Quantity;
+  readonly p99: Quantity;
+  readonly p999: Quantity;
+  readonly max: Quantity;
+}
+
 /** A verdict is the judgement of a cell on its runs. */
 export interface Verdict {
   readonly decision: Decision;
@@ -40,11 +49,73 @@ export interface Verdict {
   readonly median: Quantity | null;
   /** This interval is the order-statistic interval of the median at 95 %, or the whole range for fewer than six runs. */
   readonly medianInterval: Interval | null;
+  /** This record is the sum of what reordering did in each counted run of a measurement-only cell. */
+  readonly reordering?: Reordering;
+  /** This record is the time of the proxy of a calibration cell, in each direction. */
+  readonly proxy?: { readonly hop: string; readonly up: Spread | null; readonly down: Spread | null };
   readonly why: string;
 }
 
 const s = (value: number): Quantity => quantity(Math.round(value * 1e6) / 1e6, "s");
 const name = (run: Measured): string => `env ${run.environment} run ${run.index}`;
+
+/** This function gives the value at quantile p of sorted values, by nearest rank: x_(⌈p·n⌉). */
+export const quantileOf = (sorted: readonly number[], p: number): number =>
+  sorted[Math.min(sorted.length, Math.max(1, Math.ceil(p * sorted.length))) - 1]!;
+
+/** This function gives the spread of a set of times, or null for none. */
+export const spreadOf = (times: readonly Quantity[]): Spread | null => {
+  if (times.length === 0) return null;
+  const sorted = times.map((time) => valueIn(time, "s")).sort((a, b) => a - b);
+  return {
+    count: sorted.length,
+    median: s(middle(sorted)),
+    p99: s(quantileOf(sorted, 0.99)),
+    p999: s(quantileOf(sorted, 0.999)),
+    max: s(sorted.at(-1)!),
+  };
+};
+
+/** This function adds the reordering records of runs: the counts add, and each largest value is the largest of all. */
+const reorderingTotal = (runs: readonly Measured[]): Reordering | undefined => {
+  const each = runs.flatMap((run) => (run.reordering === undefined ? [] : [run.reordering]));
+  if (each.length === 0) return undefined;
+  const sum = (key: "outOfOrder" | "duplicates" | "fast") => each.reduce((total, one) => total + one[key], 0);
+  const add = (key: "ooo" | "dsacks" | "seen") =>
+    each.some((one) => one[key] !== null) ? each.reduce((total, one) => total + (one[key] ?? 0), 0) : null;
+  const top = (key: "sacked" | "lost" | "degree") =>
+    each.some((one) => one[key] !== null) ? Math.max(...each.map((one) => one[key] ?? 0)) : null;
+  return {
+    outOfOrder: sum("outOfOrder"),
+    duplicates: sum("duplicates"),
+    ooo: add("ooo"),
+    sacked: top("sacked"),
+    lost: top("lost"),
+    dsacks: add("dsacks"),
+    fast: sum("fast"),
+    degree: top("degree"),
+    seen: add("seen"),
+  };
+};
+
+/** This function says a reordering record in words. */
+const reorderingWords = (total: Reordering): string =>
+  [
+    `${total.outOfOrder} arrivals out of order and ${total.duplicates} duplicate arrivals at the client`,
+    ...(total.ooo === null ? [] : [`its kernel counted ${total.ooo} segments out of order`]),
+    ...(total.sacked === null ? [] : [`the server held up to ${total.sacked} segments SACKed`]),
+    ...(total.dsacks === null ? [] : [`got ${total.dsacks} DSACKs`]),
+    `sent ${total.fast} fast retransmissions`,
+    ...(total.seen === null ? [] : [`saw ${total.seen} reorderings`]),
+    ...(total.degree === null ? [] : [`and its reordering degree went to ${total.degree}`]),
+  ].join(", ");
+
+/** This function says a spread in words, in milliseconds. */
+const spreadWords = (spread: Spread | null): string => {
+  if (spread === null) return "no time";
+  const ms = (time: Quantity) => Math.round(valueIn(time, "s") * 1e6) / 1e3;
+  return `median ${ms(spread.median)} ms, p99 ${ms(spread.p99)} ms, p99.9 ${ms(spread.p999)} ms, max ${ms(spread.max)} ms of ${spread.count}`;
+};
 
 /** This function gives P(X ≤ j) for X ~ Binomial(n, 1/2), exactly. */
 const below = (n: number, j: number): number => {
@@ -97,6 +168,22 @@ export const verdictOf = (prediction: Prediction, runs: readonly Measured[]): Ve
     return { ...empty, decision: "inconclusive", band: null, outside, why: "no run counted" };
 
   if (prediction.detects === null) {
+    // a calibration of a proxy: its time in each direction, over all the requests of the runs
+    const crossed = counted.flatMap((run) => (run.crossings === undefined ? [] : [run.crossings]));
+    if (crossed.length > 0) {
+      const hop = crossed[0]!.hop;
+      const up = spreadOf(crossed.flatMap((each) => each.up));
+      const down = spreadOf(crossed.flatMap((each) => each.down));
+      return {
+        ...empty,
+        decision: "measured",
+        band: null,
+        outside: [],
+        median: up?.median ?? null,
+        proxy: { hop, up, down },
+        why: `${counted.length} runs measured ${hop}: toward the target ${spreadWords(up)}; toward the client ${spreadWords(down)}. ${prediction.why}`,
+      };
+    }
     // a measurement-only cell with a reference: the outcomes, and the times from the reference
     if (prediction.from !== undefined) {
       const times = counted
@@ -126,16 +213,25 @@ export const verdictOf = (prediction: Prediction, runs: readonly Measured[]): Ve
       .sort((a, b) => a - b);
     const retransmissions = counted.reduce((sum, run) => sum + run.retransmissions, 0);
     const ended = counted.filter((run) => run.outcome.kind === "error" || run.outcome.kind === "eof");
+    const reordering = reorderingTotal(counted);
+    // a run in which nothing came out of order, twice or SACKed says nothing about reordering
+    const anything =
+      reordering !== undefined &&
+      [reordering.outOfOrder, reordering.duplicates, reordering.ooo, reordering.sacked, reordering.dsacks, reordering.fast, reordering.seen].some(
+        (count) => (count ?? 0) > 0,
+      );
+    const reordered = anything ? ` Reordering: ${reorderingWords(reordering)}.` : "";
     const why =
       samples.length === 0
         ? `${counted.length} runs measured, with no reply: ${prediction.why}`
-        : `${counted.length} runs, ${samples.length} replies: median ${s(middle(samples)).value} s, slowest ${s(samples.at(-1)!).value} s, ${retransmissions} retransmissions, ${ended.length} connections ended. ${prediction.why}`;
+        : `${counted.length} runs, ${samples.length} replies: median ${s(middle(samples)).value} s, p99 ${s(quantileOf(samples, 0.99)).value} s, slowest ${s(samples.at(-1)!).value} s, ${retransmissions} retransmissions, ${ended.length} connections ended.${reordered} ${prediction.why}`;
     return {
       ...empty,
       decision: "measured",
       band: null,
       outside: [],
       median: samples.length === 0 ? null : s(middle(samples)),
+      ...(reordering === undefined ? {} : { reordering }),
       why,
     };
   }

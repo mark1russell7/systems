@@ -35,6 +35,7 @@ describe("the record contract, the same in C, in Rust and here", () => {
       "probe",
       "rx",
       "timer",
+      "tx",
     ]);
   });
 });

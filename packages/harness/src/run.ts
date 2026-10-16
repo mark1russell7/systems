@@ -210,6 +210,10 @@ const once = async (
       // a toxic of a cell whose fault is another one goes first: a slow close, then the close
       const toxicFirst = cell.toxic !== undefined && cell.fault !== "toxic";
       if (toxicFirst) await lab.toxic(cell.toxic!);
+      // netem at the target shares its qdisc with the latency of the cell. At a hop, it is alone
+      const netemAt: FaultPlace = cell.faultAt ?? "target";
+      const netemOn = (fault: string | undefined) =>
+        netemAt === "target" ? lab.netem(netemSpec(cell, fault), "target") : lab.netem(fault ?? null, netemAt);
       // an MTU drop goes where the long reply arrives: the namespace of the client
       const apply = async (): Promise<Run["fault"]> => {
         switch (cell.fault) {
@@ -226,12 +230,13 @@ const once = async (
           case "mtu-blackhole":
             return lab.fault("mtu", "client", { above: cell.mtu ?? 1200 });
           case "netem":
-            return lab.netem(netemSpec(cell, cell.netem), "target");
+            return netemOn(cell.netem);
           case "rst":
             return lab.fault("rst", faultAt);
-          // the router or the proxy of the topology is the fault: nothing to inject
+          // the router or the proxy of the topology is the fault, or a calibration has none: nothing to inject
           case "middlebox-forget":
           case "proxy-idle":
+          case "none":
             return null;
           case "toxic":
             if (cell.toxic === undefined) throw new Error(`${cell.name} names no toxic`);
@@ -252,6 +257,7 @@ const once = async (
           case "middlebox-forget":
           case "proxy-idle":
           case "server-close":
+          case "none":
             return undefined;
           case "unreachable":
             return lab.lift("reject", faultAt, { code: cell.icmp ?? "host" });
@@ -260,7 +266,7 @@ const once = async (
           case "mtu-blackhole":
             return lab.lift("mtu", "client", { above: cell.mtu ?? 1200 });
           case "netem":
-            await lab.netem(netemSpec(cell, undefined), "target");
+            await netemOn(undefined);
             return undefined;
           case "rst":
             return lab.lift("rst", faultAt);
@@ -363,10 +369,12 @@ const inEnvironment = async (
     const settings = await lab.configure(cell.targetSettings ?? {});
     const targetSysctls = await lab.targetSysctl(cell.targetSysctls ?? {});
     if (cell.targetSetup !== undefined) await lab.setup(cell.targetSetup);
-    // netem and a length match act on segments only when TSO, GSO and GRO are off on the two ends
+    // netem and a length match act on segments only when TSO, GSO and GRO are off on the two ends,
+    // and on the hop that the fault is at
     if (cell.fault === "mtu-blackhole" || cell.fault === "netem") {
       await lab.offload(false, "target");
       await lab.offload(false, "client");
+      if (typeof cell.faultAt === "object") await lab.offload(false, cell.faultAt);
     }
     // a latency is on the path before the client connects, thus its round trip and RTO include it
     const latency = netemSpec(cell, undefined);

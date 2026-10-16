@@ -30,6 +30,12 @@ export type { KernelRecord };
  * - `toxic` adds a toxic of Toxiproxy (`Cell.toxic`) through its HTTP API.
  * - `server-close` makes the server close the connection of its peer, with the command of the
  *   target (`Target.close`): `CLIENT KILL` in Redis.
+ * - `none` injects nothing. A calibration cell measures the path itself: for example the time of a
+ *   proxy between its two sockets (`Cell.calibrates`).
+ *
+ * A fault at a router of the topology (`Cell.faultAt`) acts on what the router forwards toward
+ * one side. It is a black hole, a reset or an ICMP unreachable. It can also be a simplex drop, an
+ * MTU drop or netem.
  */
 export type Fault =
   | "blackhole"
@@ -44,7 +50,8 @@ export type Fault =
   | "middlebox-forget"
   | "proxy-idle"
   | "toxic"
-  | "server-close";
+  | "server-close"
+  | "none";
 
 /**
  * A middlebox form tells what a router does with a flow that it forgot, when a late packet comes:
@@ -74,6 +81,11 @@ export interface RouterHop {
    * interval is 0.1 s. The DESTROY event of an expired flow waits for that listing.
    */
   readonly pump?: Quantity;
+  /**
+   * These are the sysctls of the namespace of the router, which the router sets itself: it is
+   * privileged. An example is `net.ipv4.icmp_ratelimit` for the ICMP errors of a fault at the router.
+   */
+  readonly sysctls?: Readonly<Record<string, string>>;
 }
 
 /**
@@ -174,11 +186,38 @@ export interface Replies {
 }
 
 /**
+ * An RTT range is the range of the first round trip of the observer that a band assumes. The
+ * models read a round trip, for example 1 ms. The band at that value holds within the noise for
+ * each round trip in the range. A run whose first round trip is above the range is void.
+ */
+export interface RttRange {
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
+/**
+ * A proxy time is the time of one proxy in one direction that a band includes. It is an upper
+ * quantile of the times that a calibration cell of the proxy measured. Each time goes from an
+ * arrival on one socket of the proxy to its write on the other. `up` goes toward the target, and
+ * `down` toward the client.
+ */
+export interface ProxyTime {
+  readonly hop: string;
+  readonly direction: "up" | "down";
+  /** This fraction is the quantile of the calibration, for example 0.99. */
+  readonly quantile: number;
+  readonly time: Quantity;
+}
+
+/**
  * A prediction is what a cell predicts. Either a detection occurs in an interval [T_lo, T_hi]
  * after the reference event, or nothing detects the fault in a window. Nothing detects a stall
  * that is shorter than the give-up, and the connection recovers from it. The prediction then also
  * tells when. A silent prediction can also tell when the reply to the request comes back
  * (`replies`).
+ *
+ * A band can name the first round trip that it assumes (`rtt`), and the proxy times that it
+ * includes (`through`).
  *
  * A cell whose outcome is a distribution, for example under netem loss, has no band. Its
  * prediction is `detects: null` with the reason, and its runs are measurements only. A
@@ -195,14 +234,18 @@ export type Prediction =
       readonly from: Reference;
       /** This time is the closed form, less the most that the timer can fire early. */
       readonly low: Quantity;
-      /** This time is the closed form, plus the most that the timer can fire late. */
+      /** This time is the closed form, plus the most that the timer can fire late, plus each proxy time. */
       readonly high: Quantity;
+      readonly rtt?: RttRange;
+      readonly through?: readonly ProxyTime[];
     }
   | {
       readonly detects: false;
       readonly window: Quantity;
       readonly recovers?: Recovers;
       readonly replies?: Replies;
+      readonly rtt?: RttRange;
+      readonly through?: readonly ProxyTime[];
     }
   | {
       readonly detects: null;
@@ -306,7 +349,10 @@ export interface Cell {
   readonly drops?: "to-server" | "to-client";
   /** This length is the longest segment, in bytes, that an `mtu-blackhole` fault lets through to the observer. */
   readonly mtu?: number;
-  /** This specification is the tc netem of a `netem` fault, on the egress of the target: for example "loss 5%". */
+  /**
+   * This specification is the tc netem of a `netem` fault, for example "loss 5%". It is on the
+   * egress of the target, or at a hop (`faultAt`) on the egress of its device toward one side.
+   */
   readonly netem?: string;
   /**
    * This delay goes on the egress of the target before the client connects, with tc netem. Thus
@@ -324,7 +370,7 @@ export interface Cell {
   readonly targetSysctls?: Readonly<Record<string, string>>;
   /** This topology puts hops between the client and the target. Without it, the client and the target are a direct pair. */
   readonly topology?: Topology;
-  /** This place is where the fault goes, when it is not the peer of the observer: for example one side of a proxy. */
+  /** This place is where the fault goes, when it is not the peer of the observer: for example one side of a hop. */
   readonly faultAt?: FaultPlace;
   /** This time is how long an in-flight client stays idle after the fault holds, before it sends its request. */
   readonly idleBefore?: Quantity;
@@ -332,6 +378,12 @@ export interface Cell {
   readonly toxic?: Toxic;
   /** This image replaces the TCP client of the harness for each run. */
   readonly client?: ClientImage;
+  /**
+   * This name is the proxy hop whose own time a calibration cell measures. The time of a request
+   * (`up`) starts at its arrival on the socket of the proxy toward the client. It stops at the
+   * write on the socket toward the target. The time of its reply (`down`) goes the other way.
+   */
+  readonly calibrates?: string;
   /** This count is the number of runs of the cell (11), across new environments (two at least). */
   readonly runs: number;
   readonly environments: number;
@@ -346,7 +398,8 @@ export interface Cell {
 /**
  * A fault place is the namespace that gets the rules of a fault. "target" and "client" are the two
  * ends. A hop place is a hop, with the side that the rules face. That side is the next hop toward
- * the client, or the next hop toward the target.
+ * the client, or the next hop toward the target. The rules of a proxy act on its sockets. The
+ * rules of a router act on what it forwards, by its device toward that side: the FORWARD chain.
  */
 export type FaultPlace =
   | "target"

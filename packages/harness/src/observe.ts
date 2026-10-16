@@ -50,10 +50,58 @@ export interface Measured {
    * last segment that the client received before the fault. It is null when no router forgot the flow.
    */
   readonly forgot?: Quantity | null;
+  /**
+   * This time is the first round trip of the socket of the observer. It is the smoothed round trip
+   * in its first record, which is the sample of the handshake. It is null when no record has it.
+   */
+  readonly rtt?: Quantity | null;
+  /** This record tells what reordering did in a run of a measurement-only cell, from the records of its two ends. */
+  readonly reordering?: Reordering;
+  /** These are the times of the proxy of a calibration cell, one for each request and its reply. */
+  readonly crossings?: Crossings;
   /** This text is the reason that the run cannot count, or null. A void run is not a pass and not a finding. */
   readonly void: string | null;
   /** This text tells what in the run disagrees with the prediction, other than its timing, or null. */
   readonly finding: string | null;
+}
+
+/**
+ * A reordering record is what reordering, duplicates and losses did to the data of a run. The
+ * receiver is the client, and the sender is the socket of its peer.
+ * - `outOfOrder` counts the arrivals at the client beyond a hole, and `duplicates` counts the
+ *   arrivals whose data the client had. The prober reads the two from each arrival, against `rcv_nxt`.
+ * - An arrival can hold more than one segment. The kernel joins the segments that wait in the
+ *   backlog of a socket while its owner holds it.
+ * - `ooo` is the count of the kernel of the client in segments (`rcv_ooopack`).
+ * - `sacked` and `lost` are the most segments that the sender held as SACKed and as lost.
+ * - `dsacks` is the DSACK blocks that the sender received, and `fast` its fast retransmissions.
+ * - `degree` is the highest reordering degree of the sender (`tp->reordering`), and `seen` the
+ *   reorderings that it detected (`reord_seen`).
+ *
+ * The counts of the kernel are null for a record of the prober before version 0.2.
+ */
+export interface Reordering {
+  readonly outOfOrder: number;
+  readonly duplicates: number;
+  readonly ooo: number | null;
+  readonly sacked: number | null;
+  readonly lost: number | null;
+  readonly dsacks: number | null;
+  readonly fast: number;
+  readonly degree: number | null;
+  readonly seen: number | null;
+}
+
+/**
+ * A crossings record is the time of a proxy for each request (`up`) and for each reply (`down`).
+ * The time of a request starts at its arrival on the socket toward the client. It stops at the
+ * write on the socket toward the target. The time of a reply goes the other way. A write is a
+ * `tx` record of the prober.
+ */
+export interface Crossings {
+  readonly hop: string;
+  readonly up: readonly Quantity[];
+  readonly down: readonly Quantity[];
 }
 
 /** These are the errno numbers that the kernel reports to a socket, by the names that predictions use. */
@@ -178,6 +226,79 @@ const peerOf = (cell: Cell, run: Run): SocketPlace | undefined => {
   return cookie === undefined ? undefined : { netns, cookie };
 };
 
+/** This function tells if sequence number a is after b, in the 32-bit space of TCP (`after` in include/net/tcp.h). */
+const after32 = (a: number, b: number): boolean => ((a - b) | 0) > 0;
+
+/** This function gives the largest value of a count of the kernel in records, or null when no record has it. */
+const most = (records: readonly KernelRecord[], count: (record: KernelRecord) => number | undefined): number | null =>
+  records.reduce<number | null>((top, record) => {
+    const value = count(record);
+    return value === undefined ? top : Math.max(top ?? 0, value);
+  }, null);
+
+/** This function gives what reordering did in a run, from the records of the receiver and of the sender. */
+export const reorderingOf = (
+  receiver: readonly KernelRecord[],
+  sender: readonly KernelRecord[],
+): Reordering => {
+  const arrivals = receiver.filter(
+    (record) => record.ev === "rx" && (record.seg?.len.value ?? 0) > 0 && record.tcp?.rcv_nxt !== undefined,
+  );
+  const outOfOrder = arrivals.filter((record) => after32(record.seg!.seq, record.tcp!.rcv_nxt!)).length;
+  const duplicates = arrivals.filter(
+    (record) => !after32(record.seg!.seq + record.seg!.len.value, record.tcp!.rcv_nxt!),
+  ).length;
+  return {
+    outOfOrder,
+    duplicates,
+    ooo: most(receiver, (record) => record.tcp?.rcv_ooopack),
+    sacked: most(sender, (record) => record.tcp?.sacked),
+    lost: most(sender, (record) => record.tcp?.lost),
+    dsacks: most(sender, (record) => record.tcp?.dsack_dups),
+    fast: sender.filter((record) => record.ev === "retrans" && record.why === "fast").length,
+    degree: most(sender, (record) => record.tcp?.reordering),
+    seen: most(sender, (record) => record.tcp?.reord_seen),
+  };
+};
+
+/**
+ * This function gives the times of a proxy in a run, for each request after the first. The time
+ * of a request starts at its arrival on the socket of the proxy toward the client. It stops at the
+ * next write on the socket toward the target. The time of its reply starts at its arrival on the
+ * socket toward the target, and it stops at the next write toward the client. A request without
+ * each record gives no time.
+ */
+export const crossingsOf = (
+  run: Run,
+  hop: string,
+  toClient: SocketPlace | undefined,
+  toTarget: SocketPlace | undefined,
+): Crossings => {
+  const up: Quantity[] = [];
+  const down: Quantity[] = [];
+  if (toClient === undefined || toTarget === undefined) return { hop, up, down };
+  const of = (place: SocketPlace) =>
+    run.kernel.filter((record) => record.netns === place.netns && record.cookie === place.cookie);
+  const near = of(toClient);
+  const far = of(toTarget);
+  const arrival = (records: readonly KernelRecord[], from: number, to: number) =>
+    records.find((record) => record.ev === "rx" && (record.seg?.len.value ?? 0) > 0 && record.mono > from && record.mono < to);
+  const write = (records: readonly KernelRecord[], from: number, to: number) =>
+    records.find((record) => record.ev === "tx" && record.mono >= from && record.mono < to);
+  const sends = run.events.filter((event) => event.ev === "sent").slice(1);
+  sends.forEach((send, n) => {
+    const next = sends[n + 1]?.t ?? Infinity;
+    const request = arrival(near, send.t, next);
+    const relayed = request === undefined ? undefined : write(far, request.mono, next);
+    if (request === undefined || relayed === undefined) return;
+    up.push(between(request.mono, relayed.mono));
+    const reply = arrival(far, relayed.mono, next);
+    const answered = reply === undefined ? undefined : write(near, reply.mono, next);
+    if (reply !== undefined && answered !== undefined) down.push(between(reply.mono, answered.mono));
+  });
+  return { hop, up, down };
+};
+
 /**
  * This function reads one run against its cell, from the records of the kernel first.
  * - The socket of the run is the socket of its observer. It is the socket that the client connected
@@ -246,12 +367,16 @@ export const measure = (cell: Cell, run: Run): Measured => {
     request === undefined
       ? 0
       : socket.filter((record) => record.ev === "rx" && record.mono > request.t).length;
+  // the first round trip of the observer: the smoothed round trip in its first record, the sample of the handshake
+  const srtt = socket.find((record) => record.tcp?.srtt !== undefined)?.tcp?.srtt;
+  const rtt = srtt === undefined ? null : quantity(valueIn(srtt, "us") / 1000, "ms");
   const base = {
     environment: run.environment,
     index: run.index,
     probes: keepalives.length,
     retransmissions: retransmitted.length,
     acks,
+    rtt,
   };
   const nothing = {
     outcome: { kind: "silent" } as const,
@@ -292,6 +417,10 @@ export const measure = (cell: Cell, run: Run): Measured => {
     else if (keepalives[0] !== undefined && keepalives[0].mono < run.fault.t1)
       voided = "a keepalive probe went out before the fault held";
   }
+  // a band holds for the first round trips that its prediction assumes. Above them, the run measured another path
+  const assumed = cell.prediction.detects === null ? undefined : cell.prediction.rtt;
+  if (voided === null && assumed !== undefined && rtt !== null && valueIn(rtt, "ms") > valueIn(assumed.high, "ms"))
+    voided = `rtt-over-assumption: its first round trip was ${rtt.value} ms, above the ${valueIn(assumed.high, "ms")} ms that the prediction assumes`;
 
   // the detection as the kernel reported it to the owner of the socket, and as the client saw it.
   // The process of a server or of a proxy tells nothing that the harness reads, thus its kernel tells all
@@ -351,13 +480,32 @@ export const measure = (cell: Cell, run: Run): Measured => {
   // its reference to the end of the connection, or to the last data
   if (prediction.detects === null) {
     const sends = events.filter((event) => event.ev === "sent").slice(1);
+    // a reply ends at its last byte when the client says so (`replied`), and at its first data otherwise
+    const answers = events.some((event) => event.ev === "replied") ? "replied" : "data";
     const samples = sends.flatMap((send, n) => {
       const next = sends[n + 1]?.t ?? Infinity;
-      const reply = events.find((event) => event.ev === "data" && event.t > send.t && event.t < next);
+      const reply = events.find((event) => event.ev === answers && event.t > send.t && event.t < next);
       return reply === undefined ? [] : [between(send.t, reply.t)];
     });
     const from = prediction.from === undefined ? undefined : referenceAt(prediction.from);
     const until = ended ?? after.at(-1)?.t;
+    // the data of the client comes from its peer: the receiver and the sender of each reply
+    const peerRecords =
+      peerCookie === undefined
+        ? []
+        : kernel.filter((record) => record.netns === peerNetns && record.cookie === peerCookie);
+    const proxy = cell.calibrates === undefined ? undefined : run.topology?.hops[cell.calibrates];
+    const crossings =
+      cell.calibrates === undefined
+        ? {}
+        : {
+            crossings: crossingsOf(
+              run,
+              cell.calibrates,
+              proxy === undefined ? undefined : socketOf({ ...cell, observer: { hop: cell.calibrates, toward: "client" } }, run),
+              proxy === undefined ? undefined : socketOf({ ...cell, observer: { hop: cell.calibrates, toward: "target" } }, run),
+            ),
+          };
     return {
       ...base,
       ...nothing,
@@ -369,6 +517,11 @@ export const measure = (cell: Cell, run: Run): Measured => {
         .filter((record) => record.mono > request.t)
         .map((record) => between(request.t, record.mono)),
       samples,
+      reordering: reorderingOf(
+        socket.filter((record) => record.mono > request.t),
+        peerRecords.filter((record) => record.mono > request.t),
+      ),
+      ...crossings,
       void: voided,
     };
   }

@@ -12,14 +12,14 @@ import (
 )
 
 // Size is struct ev's size in bytes: seven u64, five u32, seven i32, two u16, two u32, struct
-// tcp_now (nine u32), struct seg (four u32), two u32 for a timer and a 16-byte comm, with no
+// tcp_now (fifteen u32), struct seg (four u32), two u32 for a timer and a 16-byte comm, with no
 // padding.
-const Size = 192
+const Size = 216
 
 // kinds are the event kinds, in prober.h's order, from 1.
 var kinds = [...]string{
 	"state", "accept", "retrans", "rst_tx", "rst_rx", "error", "destroy", "tw_enter", "tw_kill",
-	"req_new", "rst_v4", "probe", "rx", "timer",
+	"req_new", "rst_v4", "probe", "rx", "timer", "tx",
 }
 
 // icskTimeLossProbe is ICSK_TIME_LOSS_PROBE: the tail loss probe is armed.
@@ -30,6 +30,9 @@ const timerOwned = 0x100
 
 type tcpNow struct {
 	retransmits, pending, backoff, probesOut, rto, srttUs, sndUna, sndNxt, rcvNxt uint32
+
+	// the SACK scoreboard and the reordering state, as tcp_info names them
+	sackedOut, lostOut, reordering, reordSeen, dsackDups, rcvOoopack uint32
 }
 
 type seg struct{ seq, ack, len, flags uint32 }
@@ -67,7 +70,10 @@ func decode(b []byte) (*ev, error) {
 	e.pid, e.fd, e.oldst, e.newst, e.state, e.err, e.owner = i32(), i32(), i32(), i32(), i32(), i32(), i32()
 	e.sport, e.dport = u16(), u16()
 	hasTCP, hasSeg := u32(), u32()
-	t := tcpNow{u32(), u32(), u32(), u32(), u32(), u32(), u32(), u32(), u32()}
+	t := tcpNow{
+		u32(), u32(), u32(), u32(), u32(), u32(), u32(), u32(), u32(),
+		u32(), u32(), u32(), u32(), u32(), u32(),
+	}
 	s := seg{u32(), u32(), u32(), u32()}
 	e.behind, e.late = u32(), u32()
 	comm := b[at : at+16]
@@ -345,16 +351,28 @@ func (e *ev) appendLine(b []byte) []byte {
 	if t := e.tcp; t != nil {
 		b = append(b, `,"tcp":{"backoff":`...)
 		b = appendU32(b, t.backoff)
+		b = append(b, `,"dsack_dups":`...)
+		b = appendU32(b, t.dsackDups)
+		b = append(b, `,"lost":`...)
+		b = appendU32(b, t.lostOut)
 		b = append(b, `,"pending":`...)
 		b = appendU32(b, t.pending)
 		b = append(b, `,"probes_out":`...)
 		b = appendU32(b, t.probesOut)
 		b = append(b, `,"rcv_nxt":`...)
 		b = appendU32(b, t.rcvNxt)
+		b = append(b, `,"rcv_ooopack":`...)
+		b = appendU32(b, t.rcvOoopack)
+		b = append(b, `,"reord_seen":`...)
+		b = appendU32(b, t.reordSeen)
+		b = append(b, `,"reordering":`...)
+		b = appendU32(b, t.reordering)
 		b = append(b, `,"retransmits":`...)
 		b = appendU32(b, t.retransmits)
 		b = append(b, `,"rto":`...)
 		b = appendQuantity(b, t.rto, "jiffy")
+		b = append(b, `,"sacked":`...)
+		b = appendU32(b, t.sackedOut)
 		b = append(b, `,"snd_nxt":`...)
 		b = appendU32(b, t.sndNxt)
 		b = append(b, `,"snd_una":`...)

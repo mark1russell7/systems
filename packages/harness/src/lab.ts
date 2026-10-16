@@ -386,14 +386,15 @@ export interface Lab {
   lift(kind: NetworkFault, at?: FaultPlace, options?: FaultOptions): Promise<void>;
   /**
    * This method puts tc netem on the egress of a namespace, for example "delay 20ms" or "loss 5%",
-   * or removes it with null. The stamps of the injector bracket it.
+   * or removes it with null. At a hop, it is the egress of the device of the hop toward one side.
+   * The stamps of the injector bracket it.
    */
-  netem(spec: string | null, at?: FaultSide): Promise<{ t0: number; t1: number }>;
+  netem(spec: string | null, at?: FaultPlace): Promise<{ t0: number; t1: number }>;
   /**
    * This method sets the TSO, GSO and GRO of a namespace. With them off, netem and a length match
-   * act on segments, not on GSO super-packets of up to 64 KB.
+   * act on segments, not on GSO super-packets of up to 64 KB. At a hop, it sets the two devices of the hop.
    */
-  offload(on: boolean, at?: FaultSide): Promise<void>;
+  offload(on: boolean, at?: FaultPlace): Promise<void>;
   /** This method stops the server process in the target with SIGKILL, with the command of the target. */
   kill(): Promise<void>;
   /**
@@ -530,9 +531,18 @@ interface HopIn {
   readonly ip: { readonly client: string; readonly target: string };
   /** These are the peers of the hop: an address on the side of the client, and an address with its port toward the target. */
   readonly peer: { readonly client: string; readonly target: string };
+  /** These are the devices of the hop toward each side, as its routes give them. The rules of a router and netem at a hop face one. */
+  readonly devices: { readonly client: string; readonly target: string };
   readonly netns: number;
   sysctls: Record<string, string>;
 }
+
+/** This function gives the device of a route from its line in `ip -o route get`: "10.0.0.2 dev eth0 src …". */
+export const deviceOf = (route: string): string => {
+  const device = /\bdev (\S+)/.exec(route)?.[1];
+  if (device === undefined) throw new Error(`no device in the route: ${route}`);
+  return device;
+};
 
 /**
  * This function opens one environment:
@@ -634,12 +644,19 @@ export const openLab = async (
         await join(box, targetSide);
         const ready = await seen.until(["mbx-ready"], 30_000, `router ${hop.name}`);
         await seen.until(hop.form === "reset-both" ? ["resetter"] : ["ct-watch"], 30_000, `router ${hop.name}`);
+        // the injector of a fault at the router: FORWARD rules and netem in its namespace
+        const injector = await new GenericContainer(image)
+          .withNetworkMode(`container:${box.getId()}`)
+          .withAddedCapabilities("NET_ADMIN", "NET_RAW")
+          .start();
+        opened.push(injector);
         inChain[at] = {
           hop,
           box,
-          injector: box,
+          injector,
           ip: { client: await ipOn(box, clientSide), target: await ipOn(box, targetSide) },
           peer: { client: "", target: endpointOf(at + 1) },
+          devices: { client: "", target: "" },
           netns: await netnsOf(box),
           sysctls: { "net.netfilter.nf_conntrack_tcp_timeout_established": String(ready["idle"]) },
         };
@@ -667,6 +684,7 @@ export const openLab = async (
         injector,
         ip: { client: await ipOn(box, clientSide), target: await ipOn(box, targetSide) },
         peer: { client: "", target: next },
+        devices: { client: "", target: "" },
         netns: await netnsOf(injector),
         sysctls: {},
       };
@@ -716,7 +734,12 @@ export const openLab = async (
     }
     for (let at = 0; at < inChain.length; at += 1) {
       const hop = inChain[at]!;
-      if (hop.hop.kind !== "proxy" || hop.hop.sysctls === undefined) continue;
+      // the device toward each side, as the routes of the hop give it
+      const toward = async (address: string) =>
+        deviceOf(await output(hop.injector, ["ip", "-o", "route", "get", address.split(":")[0]!]));
+      inChain[at] = { ...hop, devices: { client: await toward(hop.peer.client), target: await toward(hop.peer.target) } };
+      if (hop.hop.sysctls === undefined) continue;
+      // a router is privileged and sets its own sysctls. A proxy has a privileged sidecar for them
       const where = await adminOf(at + 1);
       const settings = Object.entries(hop.hop.sysctls).map(([key, value]) => `${key}=${value}`);
       await output(where, ["sysctl", "-q", "-w", ...settings]);
@@ -765,14 +788,26 @@ export const openLab = async (
       if (found === undefined) throw new Error(`the topology has no hop ${name}`);
       return found;
     };
-    /** This function gives the namespace and the peer of the rules of a fault at a place. */
-    const placeOf = (at: FaultPlace): [StartedTestContainer, string] => {
-      if (at === "client") return [admin, targetIp];
-      if (at === "target") return [injector, targetPeer];
+    /**
+     * This function gives the namespace and the peer of the rules of a fault at a place, and the
+     * other arguments of the injector. At a proxy, the rules are INPUT and OUTPUT rules, which act
+     * on its sockets. A router forwards past INPUT and OUTPUT, thus its rules are FORWARD rules on
+     * its device toward the side (`--via`).
+     */
+    const placeOf = (at: FaultPlace): [StartedTestContainer, string, string[]] => {
+      if (at === "client") return [admin, targetIp, []];
+      if (at === "target") return [injector, targetPeer, []];
       const hop = hopNamed(at.hop);
-      // the injector writes INPUT and OUTPUT rules: they act on the sockets of a proxy, not on what a router forwards
-      if (hop.hop.kind !== "proxy") throw new Error(`a fault at ${at.hop} needs a proxy: a router forwards past INPUT and OUTPUT`);
-      return [hop.injector, at.toward === "client" ? hop.peer.client : hop.peer.target.split(":")[0]!];
+      const peer = at.toward === "client" ? hop.peer.client : hop.peer.target.split(":")[0]!;
+      const via = hop.hop.kind === "router" ? ["--via", hop.devices[at.toward]] : [];
+      return [hop.injector, peer, via];
+    };
+    /** This function gives the namespace and the device of netem at a place: an end, or the device of a hop toward a side. */
+    const deviceAt = (at: FaultPlace): [StartedTestContainer, string] => {
+      if (at === "client") return [admin, "eth0"];
+      if (at === "target") return [injector, "eth0"];
+      const hop = hopNamed(at.hop);
+      return [hop.injector, hop.devices[at.toward]];
     };
     const toxiproxy = (): HopIn & { hop: ProxyHop & { api: { port: number; proxy: string } } } => {
       const found = inChain.find((hop) => hop.hop.kind === "proxy" && hop.hop.api !== undefined);
@@ -828,24 +863,28 @@ export const openLab = async (
         return read;
       },
       async fault(kind, at = "target", options = {}) {
-        const [where, peer] = placeOf(at);
-        return stamped(where, ["/opt/harness/inject", kind, peer, ...optionArgs(options)]);
+        const [where, peer, via] = placeOf(at);
+        return stamped(where, ["/opt/harness/inject", kind, peer, ...optionArgs(options), ...via]);
       },
       async lift(kind, at = "target", options = {}) {
-        const [where, peer] = placeOf(at);
-        await output(where, ["/opt/harness/inject", LIFT[kind], peer, ...optionArgs(options)]);
+        const [where, peer, via] = placeOf(at);
+        await output(where, ["/opt/harness/inject", LIFT[kind], peer, ...optionArgs(options), ...via]);
       },
       async netem(spec, at = "target") {
-        const where = at === "client" ? admin : injector;
+        const [where, device] = deviceAt(at);
         const args =
           spec === null
-            ? ["/opt/harness/inject", "clear-netem", "eth0"]
-            : ["/opt/harness/inject", "netem", "eth0", ...spec.split(/\s+/)];
+            ? ["/opt/harness/inject", "clear-netem", device]
+            : ["/opt/harness/inject", "netem", device, ...spec.split(/\s+/)];
         return stamped(where, args);
       },
       async offload(on, at = "target") {
-        const where = at === "client" ? admin : injector;
-        await output(where, ["/opt/harness/inject", "offload", "eth0", on ? "on" : "off"]);
+        // at a hop, the two devices: a router merges what it receives (GRO) and forwards it whole
+        const devices =
+          typeof at === "object" ? Object.values(hopNamed(at.hop).devices) : [deviceAt(at)[1]];
+        const [where] = deviceAt(at);
+        for (const device of devices)
+          await output(where, ["/opt/harness/inject", "offload", device, on ? "on" : "off"]);
       },
       async toxic(toxic) {
         const hop = toxiproxy();
@@ -896,8 +935,8 @@ export const openLab = async (
         for (const argv of commands) await output(server, [...argv]);
       },
       async heal(at, when) {
-        const [where, peer] = placeOf(at);
-        return stamped(where, ["/opt/harness/inject", "clear", peer, "--at", String(Math.round(when))]);
+        const [where, peer, via] = placeOf(at);
+        return stamped(where, ["/opt/harness/inject", "clear", peer, "--at", String(Math.round(when)), ...via]);
       },
       async forget() {
         await output(admin, ["ip", "tcp_metrics", "flush", "all"]);

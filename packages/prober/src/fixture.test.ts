@@ -15,7 +15,7 @@ describe("the identity fixture every collector decodes", () => {
     const kinds = new Set(
       CASES.map((_, index) => new DataView(bytes.buffer).getUint32(index * RECORD_SIZE + 56, true)),
     );
-    for (let kind = 1; kind <= 14; kind += 1) expect(kinds.has(kind), `kind ${kind}`).toBe(true);
+    for (let kind = 1; kind <= 15; kind += 1) expect(kinds.has(kind), `kind ${kind}`).toBe(true);
     expect(kinds.has(0) && kinds.has(99)).toBe(true);
   });
 });
