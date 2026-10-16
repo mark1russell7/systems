@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { Cell, Group, Run, SentinelEvent } from "./cell.ts";
-import { deadlineOf, fieldsOf, infoOf, memberConfig, peersOf, sentinelConfig, viewOf } from "./group.ts";
+import { deadlineOf, fieldsOf, infoOf, memberConfig, peersOf, sentinelConfig, subscriptionsOf, viewOf } from "./group.ts";
 import { measure } from "./observe.ts";
 import { judge } from "./run.ts";
-import { errorsOf, writesOf } from "./timeline.ts";
+import { errorsOf, lagsOf, writesOf } from "./timeline.ts";
 import { verdictOf } from "./verdict.ts";
 
 const s = (value: number) => ({ value, unit: "s" });
@@ -244,5 +244,22 @@ describe("a run of a group cell, measured", () => {
   it("waits for the outcome of a group cell up to its band, or its window, and 10 s more", () => {
     expect(deadlineOf(CELL)).toBe(49_000);
     expect(deadlineOf({ ...CELL, prediction: { detects: null, window: s(90), why: "measured", from: "fault" } })).toBe(100_000);
+  });
+
+  it("calibrates each stamp of the observer against the write of its Sentinel, from the subscription before the run", () => {
+    // the observer subscribed when the environment opened, and once more after a lost connection
+    const before: SentinelEvent[] = [
+      { ev: "subscribed", t: ms(-90_000), sentinel: "10.0.0.5:26379", local: "10.0.0.9:40000" },
+      { ev: "subscribed", t: ms(-60_000), sentinel: "10.0.0.5:26379", local: "10.0.0.9:40002" },
+      { ev: "sentinel", t: ms(-50_000), sentinel: "10.0.0.5:26379", event: "+sdown", detail: "slave" },
+    ];
+    const subscribed = subscriptionsOf(before);
+    expect(subscribed.map((line) => line["local"])).toEqual(["10.0.0.9:40002"]);
+    const run = groupRun();
+    const timeline = [...subscribed, sentinelLine(1_000, "+try-failover", "master mymaster 10.0.0.2 6379")];
+    const tx = (at: number, dst: string) => ({ ev: "tx", mono: ms(at), netns: 4, cookie: 9, src: "10.0.0.5:26379", dst });
+    const kernel = [tx(999.5, "10.0.0.9:40002"), tx(999.9, "10.0.0.8:50000"), tx(1_000.4, "10.0.0.9:40002")];
+    // the write before the stamp, on the socket toward the observer: 0.5 ms
+    expect(lagsOf({ ...run, group: { ...run.group!, timeline } }, kernel)).toEqual([s(0.0005)]);
   });
 });

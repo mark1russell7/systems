@@ -73,6 +73,7 @@ export {
   openGroupLab,
   peersOf,
   sentinelConfig,
+  subscriptionsOf,
   viewOf,
 } from "./group.ts";
 export type { CellResult } from "./run.ts";

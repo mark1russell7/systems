@@ -563,6 +563,13 @@ const waitFor = (
     look();
   });
 
+/** This function gives the latest subscription of the observer to each Sentinel, in some lines of the observer. */
+export const subscriptionsOf = (timeline: readonly SentinelEvent[]): SentinelEvent[] => {
+  const latest = new Map<string, SentinelEvent>();
+  for (const line of timeline) if (line.ev === "subscribed") latest.set(String(line.sentinel), line);
+  return [...latest.values()];
+};
+
 /** This function gives the count of lost records in the latest clock line of the prober. */
 const droppedSoFar = (records: readonly KernelRecord[]): number => {
   for (let at = records.length - 1; at >= 0; at -= 1)
@@ -700,7 +707,9 @@ export const groupOnce = async (lab: GroupLab, cell: Cell, environment: number, 
       sentinels: lab.sentinels,
       primary,
       at,
-      timeline: lab.timeline.slice(timelineFrom),
+      // the subscription of the observer to each Sentinel came before the run: its address names
+      // the socket of each Sentinel's writes, which a calibration reads
+      timeline: [...subscriptionsOf(lab.timeline.slice(0, timelineFrom)), ...lab.timeline.slice(timelineFrom)],
       after,
       holds,
     },
