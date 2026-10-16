@@ -433,8 +433,10 @@ export interface DriverStep {
  * - `quiet` are the lines that must not occur after the fault, in the window of the prediction.
  * - `then` are the later bands, each one a test of its own.
  *
- * A band whose line ends it counts from the last segment with data on its socket. A band of the
- * kernel counts from the last segment of any kind.
+ * A band whose line ends it is a timer of the driver. Its `last-received` is the last segment with
+ * data that its socket received or sent. The idle timer of a Node socket starts again at each read
+ * and each write. A band of the kernel counts from the last segment of any kind that the socket
+ * received.
  */
 export interface DriverBand {
   readonly socket: string;

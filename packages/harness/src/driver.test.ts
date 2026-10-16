@@ -118,6 +118,13 @@ describe("a band of a driver with more than one socket", () => {
     expect(settled(CELL, run({ events: run().events.slice(0, 10) }))).toBe(false);
   });
 
+  it("starts the idle timer of a Node socket again at a write of data, as at a read", () => {
+    // the monitor's awaited hello, 0.5 s after its first check: the write-off counts from that write
+    const hello = { ...rx(-3.0, MONITOR, 1, 232), ev: "tx", dst: "10.0.0.2:27017" };
+    const read = measure(CELL, run({ kernel: [...run().kernel.slice(0, 3), hello, { ev: "clock", mono: at(70), lost: 0 }] }));
+    expect(read.elapsed).toEqual(s(39.004));
+  });
+
   it("finds a later band outside its band, an error of another name, and a quiet line", () => {
     const late = run({
       events: run().events.map((event) => (event.ev === "fail" ? { ...event, t: at(67), name: "MongoNetworkError" } : event)),

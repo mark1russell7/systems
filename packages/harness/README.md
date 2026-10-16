@@ -93,6 +93,8 @@ A replica set (`ReplicaSet`, `Cell.replicaSet`) is a replicated group with no ex
 
 Each run of a replica set cell starts from a set that converged. The member that answers is the one primary, and it accepts writes. Each other member is a healthy secondary at the optime of the primary. The harness then removes each write from the set, with a write concern of each member. After the run, the set converges again, and the writes that it holds tell which writes it kept.
 
+A step-down holds its old primary out of the elections for 60 s. Thus before each run, each secondary can stand for election again (`rs.freeze(0)`), and no run inherits that hold.
+
 A fault names a member by its role at the start of a run: `primary`, or `replica` for a secondary. A cut from one member (`one`, `one-way`) cuts the first other member in the sequence of the set.
 
 ## The clients and the agents
@@ -208,7 +210,8 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
   - A stage that the prediction names as quiet (`GroupPrediction.quiet`) is a finding when a run shows it. An election that another member wins is a failover.
 - **A driver band** (`measureDriver`, `driver.ts`). A driver with more than one socket names the socket of its band (`DriverBand.socket`).
   - The band counts from its reference on that socket. It ends at a line of the client (`ends`), or at the report of the kernel on the socket.
-  - A band that a line ends counts from the last segment with data. The idle timer of a Node socket starts again only at its data.
+  - A band that a line ends is a timer of the driver. It counts from the last segment with data that the socket received or sent. The idle timer of a Node socket starts again at each read and each write of data.
+  - The MongoDB client is ready when its first write has its reply and its monitor streams. The monitor sends its first awaited hello `minHeartbeatFrequencyMS` (500 ms) after its first check. A fault before that hello meets the start of the stream, not the stream that a cell measures.
   - Each later band (`then`) has its own reference and line. A later band outside its band, or absent, is a finding. So is a line that the prediction names as quiet, after the fault.
   - For a silent prediction, a flow of an open socket of the driver that a router forgot is a finding.
 

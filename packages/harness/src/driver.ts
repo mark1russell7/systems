@@ -126,9 +126,9 @@ const outsetOf = (run: Run): number => {
 
 /**
  * This function gives the instant of a reference in a run, on a socket of the driver:
- * - `last-received`: the last segment that the socket received before the fault held. A band
- *   that a line ends counts from the last segment with data. A band of the kernel counts from
- *   the last segment of any kind.
+ * - `last-received`: the last segment that the socket received before the fault held. A band of
+ *   the kernel counts from the last segment of any kind. A band that a line ends is a timer of
+ *   the driver. It counts from the last segment with data that the socket received or sent.
  * - `request-sent`: the send of the operation into the fault, the second `sent` line.
  * - `first-retransmission`: the first retransmission of the RTO timer on the socket.
  * - `peer-closed`: the change of state of the socket of the target, when its process dies.
@@ -142,8 +142,12 @@ export const referenceOf = (run: Run, from: Reference, role: string, data: boole
   if (from === "request-sent") return run.events.filter((event) => event.ev === "sent")[1]?.t;
   const { socket, place } = kernelOf(run, role, before);
   if (place === undefined) return undefined;
-  if (from === "last-received")
-    return place.records.filter((record) => record.ev === "rx" && record.mono <= before && (!data || (record.seg?.len.value ?? 0) > 0)).at(-1)?.mono;
+  if (from === "last-received") {
+    // the idle timer of a Node socket starts again at each read and at each write of data
+    const counts = (record: KernelRecord) =>
+      data ? (record.ev === "rx" || record.ev === "tx") && (record.seg?.len.value ?? 0) > 0 : record.ev === "rx";
+    return place.records.filter((record) => record.mono <= before && counts(record)).at(-1)?.mono;
+  }
   if (from === "first-retransmission") {
     const request = run.events.filter((event) => event.ev === "sent")[1]?.t ?? before;
     return place.records.find((record) => record.ev === "retrans" && record.why === "rto" && record.mono > request)?.mono;

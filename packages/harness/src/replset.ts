@@ -153,6 +153,11 @@ export interface ReplicaSetLab {
   converge(within?: number): Promise<string>;
   /** This method removes each write from the set, and waits until each member has the removal. */
   flush(primary: string): Promise<void>;
+  /**
+   * This method lets each secondary stand for election again (`rs.freeze(0)`). A step-down holds its
+   * old primary out of the elections for `STEP_DOWN.seconds`. Without it, a run inherits that hold.
+   */
+  unfreeze(primary: string): Promise<void>;
   /** This method gives the sequence numbers that the set holds, from its primary. */
   holds(primary: string): Promise<number[]>;
   /** This method gives the member that has a role in the set, when `primary` is the primary. */
@@ -351,6 +356,13 @@ export const openReplicaSetLab = async (set: ReplicaSet): Promise<ReplicaSetLab>
         const reply = lastLine(await shell(primary, script));
         if (!reply.includes('"ok":true')) throw new Error(`the flush failed: ${reply}`);
       },
+      async unfreeze(primary) {
+        for (const name of set.members) {
+          if (name === primary) continue;
+          const reply = lastLine(await shell(name, "print(JSON.stringify(rs.freeze(0)))"));
+          if (!reply.includes('"ok":1')) throw new Error(`${name} did not unfreeze: ${reply}`);
+        }
+      },
       async holds(primary) {
         const script = 'print(JSON.stringify(db.getSiblingDB("cells").w.find({}, { n: 1, _id: 0 }).toArray().map((d) => d.n)))';
         const held = JSON.parse(lastLine(await shell(primary, script))) as unknown[];
@@ -536,6 +548,8 @@ export const replicaSetOnce = async (lab: ReplicaSetLab, cell: Cell, environment
   const set = cell.replicaSet!;
   const primary = await lab.converge();
   await lab.flush(primary);
+  // each secondary can win an election: no hold of a step-down in an earlier run is left
+  await lab.unfreeze(primary);
   await lab.forget();
   const from = lab.kernel.length;
   const logFrom = lab.log.length;

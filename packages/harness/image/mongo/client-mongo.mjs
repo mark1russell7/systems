@@ -17,7 +17,8 @@
 // - cmap: each event of a connection pool, and each clear with its interruption of connections in use.
 // - command: each try of an operation, with its server. A retry is a second try with the same number.
 // - connecting: the start of the selection of the first server.
-// - ready: the reply to the first write (idle, inflight), or the connection of the client (stream).
+// - ready: the reply to the first write once the monitor streams (idle, inflight), or the
+//   connection of the client (stream).
 // - sent, ack, fail: each operation by its sequence number, with its server or its error and labels.
 // - data, error: the end of the operation in flight, as the TCP client of the harness tells it.
 //   In idle mode, an error of the socket of the first pool connection is an error line too.
@@ -122,7 +123,15 @@ const failure = (error) =>
     : { name: error.name, code: error.code ?? null, labels: [...(error.errorLabelSet ?? [])], message: error.message };
 const describe = (d) =>
   d === undefined ? null : { type: d.type, setName: d.setName ?? null, electionId: d.electionId?.toHexString?.() ?? null, error: failure(d.error) };
-client.on("serverHeartbeatStarted", (e) => emit("sdam", { event: "heartbeat-started", address: e.connectionId, awaited: e.awaited }));
+/** This promise resolves at the first awaited hello of a monitor: the stream of the monitor has begun. */
+let streamed = () => undefined;
+const streaming = new Promise((resolve) => {
+  streamed = resolve;
+});
+client.on("serverHeartbeatStarted", (e) => {
+  emit("sdam", { event: "heartbeat-started", address: e.connectionId, awaited: e.awaited });
+  if (e.awaited) streamed();
+});
 client.on("serverHeartbeatSucceeded", (e) =>
   emit("sdam", { event: "heartbeat-succeeded", address: e.connectionId, awaited: e.awaited, duration: e.duration, primary: e.reply?.isWritablePrimary ?? null }),
 );
@@ -244,7 +253,10 @@ if (mode === "stream") {
     emit("error", { errno: failed.name, message: failed.message });
     stop(1);
   } else {
-    emit("ready", { reply: "ack" });
+    // the monitor sends its first awaited hello minHeartbeatFrequencyMS after its first check. A
+    // fault before that hello meets the start of the stream, not the stream that a cell measures
+    const awaited = await Promise.race([streaming.then(() => true), sleep(5000).then(() => false)]);
+    emit("ready", { reply: "ack", streaming: awaited });
     if (mode === "inflight") {
       await new Promise((resolve) => {
         const wait = setInterval(() => {
