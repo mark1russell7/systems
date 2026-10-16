@@ -7,6 +7,9 @@ description: The cells of step 3, with a NAT router, HAProxy or Toxiproxy betwee
 
 import Chain from "../../../components/Chain.tsx";
 import TopologyResults, { Border, Slice } from "../../../components/TopologyResults.tsx";
+import { Summary } from "../../../components/Ledger.tsx";
+
+<Summary of="topologies" />
 
 These are the results of step 3 of the testing program, from 2026-10-16. In step 3, the harness puts a chain of hops between the client and a stock Redis 7.4. A hop is a router or a proxy. Three new catalogs use the chain: T03 through a NAT router, T02 through HAProxy, and TOX with Toxiproxy as the subject. Each cell has 11 runs in 2 fresh environments, and each environment starts with one warm-up run that the verdict does not count. The kernel is Linux 6.6, with HZ 250.
 
@@ -38,7 +41,7 @@ The harness did the cells of T03 one at a time, because the listing of a router 
 
 The router is the router image of the harness: a NAT with conntrack. It forgets an established flow when the flow is idle for 5 s, the 350 s of a cloud NAT divided by 70. Its form tells what a late packet meets after the forget. The prediction of each cell comes from the machine documents of conntrack and of Linux TCP. The law O03 decides if the forget occurs at all: each idle flow must get a refresh before each middlebox on its path forgets it.
 
-On a chart of T03, a dot on the bottom row is the time when the router forgot the flow. It counts from the last segment that the client received, as each detection of an idle cell does.
+On a chart of T03, a diamond on the bottom row is the time when the router forgot the flow. It counts from the last segment that the client received, as each detection of an idle cell does.
 
 ### DV-12 on the two sides of O03
 

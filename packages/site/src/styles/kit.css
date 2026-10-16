@@ -1,0 +1,675 @@
+/*
+ * The widgets of the site: the frame of a result, its readout, the chips of the verdicts, the strip chart,
+ * the legend, the tables, the lab and the diagram of a chain. Each page of results uses these classes, thus
+ * a result has one look on the whole site.
+ */
+
+/* ------------------------------------------------------------------ the frame of a result */
+
+.sy-cells {
+  display: grid;
+  gap: var(--space-5);
+  margin-block: var(--space-5);
+}
+
+.sy-frame,
+.sy-panel {
+  position: relative;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  overflow: hidden;
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  color: var(--color-ink-body);
+}
+
+.sy-panel {
+  margin-block: var(--space-5);
+}
+
+/* A rule at the edge of a frame repeats the status of its chip, for a reader who scans a long page. */
+.sy-frame[data-status]::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  width: 3px;
+  background: var(--status-neutral);
+}
+
+.sy-frame[data-status="good"]::before {
+  background: var(--status-good);
+}
+
+.sy-frame[data-status="critical"]::before {
+  background: var(--status-critical);
+}
+
+.sy-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+}
+
+.sy-title {
+  display: grid;
+  gap: 0.15rem;
+  min-width: min(100%, 16rem);
+  flex: 1 1 18rem;
+}
+
+.sy-title strong {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  line-height: var(--leading-snug);
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+code.sy-tag {
+  padding: 0;
+  background: none;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--color-ink-muted);
+}
+
+.sy-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.sy-between {
+  justify-content: space-between;
+}
+
+.sy-body {
+  padding: var(--space-4);
+}
+
+.sy-body > *,
+.sy-result > * {
+  margin: 0;
+}
+
+.sy-body > * + * {
+  margin-top: var(--space-3);
+}
+
+.sy-body > .sy-legend {
+  margin-top: var(--space-2);
+}
+
+/* The text of a frame starts a little lower than its chart. */
+.sy-body > .sy-legend + *,
+.sy-body > .sy-result + p {
+  margin-top: var(--space-4);
+}
+
+.sy-body > p + p {
+  margin-top: var(--space-2);
+}
+
+.sy-muted {
+  color: var(--color-ink-muted);
+  font-size: var(--text-sm);
+}
+
+.sy-lede {
+  font-size: var(--text-base);
+  color: var(--color-ink);
+}
+
+.sy-caption {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+
+/* The first run and the re-run of a cell, each with its chart and its verdict */
+.sy-result + .sy-result {
+  margin-top: var(--space-4);
+}
+
+.sy-result > * + * {
+  margin-top: var(--space-2);
+}
+
+/* The verdict of a re-run in a table, on its own line under the verdict of the first run */
+.sy-again {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  align-items: center;
+  margin-top: var(--space-1);
+  color: var(--color-ink-muted);
+}
+
+/* ------------------------------------------------------------------ the readout: the numbers of a result in one row */
+
+.sy-readout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  border-block: 1px solid var(--color-rule);
+  background: var(--color-surface-sunken);
+}
+
+.sy-readout div {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.sy-readout dt {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+
+.sy-readout dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--color-ink);
+}
+
+.sy-lab .sy-readout dd {
+  font-size: var(--text-lg);
+}
+
+/* ------------------------------------------------------------------ the chips of the verdicts */
+
+.sy-verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4em;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--status-neutral);
+  border-radius: var(--radius-small);
+  background: var(--status-neutral-wash);
+  color: var(--status-neutral-ink);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.sy-verdict[data-status="good"] {
+  border-color: color-mix(in srgb, var(--status-good) 55%, transparent);
+  background: var(--status-good-wash);
+  color: var(--status-good-ink);
+}
+
+.sy-verdict[data-status="critical"] {
+  border-color: color-mix(in srgb, var(--status-critical) 60%, transparent);
+  background: var(--status-critical-wash);
+  color: var(--status-critical-ink);
+}
+
+.sy-verdict[data-status="warning"] {
+  border-color: color-mix(in srgb, var(--status-warning) 70%, transparent);
+  background: var(--status-warning-wash);
+  color: var(--status-warning-ink);
+}
+
+.sy-verdict-value {
+  padding-inline-start: 0.4em;
+  border-inline-start: 1px solid currentColor;
+  color: var(--color-ink);
+  font-weight: 400;
+}
+
+.sy-icon {
+  flex: none;
+}
+
+/* A note in a table: a void run or a run that disagrees, with its icon */
+.sy-note {
+  display: inline;
+}
+
+.sy-note .sy-icon {
+  display: inline-block;
+  vertical-align: -0.05em;
+  margin-inline-end: 0.15em;
+}
+
+.sy-note[data-status="warning"] .sy-icon {
+  color: var(--status-warning-ink);
+}
+
+.sy-note[data-status="critical"] {
+  color: var(--status-critical-ink);
+}
+
+/* ------------------------------------------------------------------ the switches and the buttons */
+
+.sy-switch {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--color-control-border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.sy-switch button,
+.sy-button {
+  min-height: 2rem;
+  padding: 0.2rem 0.65rem;
+  border: 0;
+  background: var(--color-surface);
+  color: var(--color-ink-secondary);
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.sy-switch button + button {
+  border-inline-start: 1px solid var(--color-control-border);
+}
+
+.sy-button {
+  border: 1px solid var(--color-control-border);
+  border-radius: var(--radius);
+}
+
+.sy-switch button:hover,
+.sy-button:hover {
+  background: var(--color-surface-sunken);
+  color: var(--color-ink);
+}
+
+.sy-switch button[aria-pressed="true"],
+.sy-button[aria-pressed="true"] {
+  background: var(--color-ink);
+  color: var(--color-surface);
+}
+
+.sy-switch button:focus-visible,
+.sy-button:focus-visible {
+  outline-offset: -2px;
+}
+
+/* ------------------------------------------------------------------ the strip chart */
+
+.sy-strip {
+  position: relative;
+  width: 100%;
+  border-radius: var(--radius-small);
+}
+
+.sy-strip:focus-visible {
+  outline-offset: 4px;
+}
+
+/* Before hydration a chart has a guessed width. Its viewBox then scales it into the column. After
+   hydration the chart draws at the real width, and the scale is 1. */
+.sy-strip svg,
+.sy-chain svg {
+  display: block;
+  overflow: visible;
+  max-width: 100%;
+  height: auto;
+}
+
+.sy-strip text,
+.sy-chain text {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  fill: var(--color-ink-muted);
+}
+
+.sy-strip .sy-row-name {
+  fill: var(--color-ink-secondary);
+}
+
+.sy-grid {
+  stroke: var(--chart-grid);
+  stroke-width: 1;
+}
+
+.sy-axis-line,
+.sy-tick line {
+  stroke: var(--chart-axis);
+  stroke-width: 1;
+}
+
+.sy-band rect,
+.sy-band-fill {
+  fill: var(--chart-band);
+}
+
+.sy-band line,
+.sy-band-edge {
+  stroke: var(--series-1);
+  stroke-width: 1.5;
+}
+
+.sy-band[data-active] rect {
+  fill: color-mix(in srgb, var(--series-1) 22%, transparent);
+}
+
+.sy-closed line,
+.sy-closed-line {
+  stroke: var(--color-ink);
+  stroke-width: 1.5;
+}
+
+.sy-strip .sy-closed text {
+  fill: var(--color-ink-secondary);
+}
+
+.sy-median {
+  stroke: var(--color-ink);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+}
+
+.sy-run {
+  fill: var(--series-2);
+  stroke: var(--color-surface);
+  stroke-width: 2;
+}
+
+.sy-warmup {
+  fill: var(--color-surface);
+  stroke: var(--series-2);
+  stroke-width: 2;
+}
+
+.sy-event {
+  fill: var(--series-3);
+  stroke: var(--color-surface);
+  stroke-width: 1.5;
+}
+
+.sy-focus {
+  fill: none;
+  stroke: var(--color-ink);
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+/* The tooltip: the value first, then its label. */
+.sy-tip {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  gap: 0.05rem;
+  width: max-content;
+  max-width: 14rem;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  white-space: normal;
+}
+
+.sy-tip strong {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.sy-tip span {
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+  color: var(--color-ink-secondary);
+}
+
+/* ------------------------------------------------------------------ the legend */
+
+.sy-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-xs);
+  color: var(--color-ink-secondary);
+}
+
+.sy-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.sy-legend svg {
+  display: inline-block;
+  flex: none;
+  overflow: visible;
+}
+
+/* ------------------------------------------------------------------ the tables */
+
+.sy-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.sy-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  font-variant-numeric: tabular-nums;
+}
+
+.sy-table th,
+.sy-table td {
+  padding: 0.4rem var(--space-3);
+  border-bottom: 1px solid var(--color-rule);
+  text-align: left;
+  vertical-align: top;
+}
+
+.sy-table th:first-child,
+.sy-table td:first-child {
+  padding-inline-start: 0;
+}
+
+.sy-table th:last-child,
+.sy-table td:last-child {
+  padding-inline-end: 0;
+}
+
+.sy-table thead th {
+  border-bottom-color: var(--color-rule-strong);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-ink-secondary);
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+.sy-table .num {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.sy-table thead .num {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+}
+
+.sy-table .sy-text {
+  min-width: 10rem;
+}
+
+.sy-table tbody tr:hover {
+  background: color-mix(in srgb, var(--color-surface-sunken) 60%, transparent);
+}
+
+.sy-table .sy-warm-row td {
+  color: var(--color-ink-muted);
+}
+
+.sy-table .sy-total th,
+.sy-table .sy-total td {
+  border-top: 1px solid var(--color-rule-strong);
+  border-bottom: 0;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.sy-table code {
+  font-size: 0.875em;
+}
+
+/* ------------------------------------------------------------------ the detection lab */
+
+.sy-lab {
+  margin-block: var(--space-6);
+}
+
+.sy-knobs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  gap: var(--space-4) var(--space-6);
+  margin: 0;
+  padding: var(--space-4);
+  border-top: 1px solid var(--color-rule);
+}
+
+.sy-knob {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  font-size: var(--text-xs);
+  color: var(--color-ink-secondary);
+}
+
+.sy-knob > span:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.sy-knob output {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--color-ink);
+}
+
+.sy-knob input[type="range"] {
+  width: 100%;
+  accent-color: var(--color-ink);
+}
+
+.sy-knob .sy-switch {
+  justify-self: start;
+  flex-wrap: nowrap;
+}
+
+.sy-wide {
+  grid-column: 1 / -1;
+}
+
+/* ------------------------------------------------------------------ the diagram of a chain */
+
+.sy-chain .sy-node rect {
+  fill: var(--color-surface);
+  stroke: var(--color-rule-strong);
+}
+
+.sy-chain .sy-hop rect {
+  fill: var(--color-accent-wash);
+  stroke: var(--color-accent);
+}
+
+.sy-chain .sy-node-name {
+  fill: var(--color-ink);
+  font-weight: 600;
+}
+
+.sy-chain .sy-link {
+  stroke: var(--color-ink-secondary);
+  stroke-width: 1.5;
+}
+
+.sy-mark circle {
+  fill: var(--color-mark-wash);
+  stroke: var(--color-mark);
+  stroke-width: 1.5;
+}
+
+.sy-chain .sy-mark text,
+.sy-mark text {
+  fill: var(--color-mark);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.sy-places {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--color-ink-secondary);
+}
+
+.sy-places li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+  margin: 0;
+}
+
+.sy-places svg {
+  flex: none;
+}
+
+.sy-places strong {
+  color: var(--color-ink);
+}
+
+/* ------------------------------------------------------------------ a narrow page */
+
+@media (max-width: 30rem) {
+  .sy-head,
+  .sy-body,
+  .sy-knobs {
+    padding-inline: var(--space-3);
+  }
+
+  .sy-readout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    padding-inline: var(--space-3);
+  }
+
+  .sy-readout div:first-child {
+    grid-column: 1 / -1;
+  }
+}

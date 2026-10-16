@@ -7,6 +7,7 @@ import { useMemo, useState, type ReactElement } from "react";
 import harness from "../data/harness-2026-10-08.json";
 import { duration } from "../lib/format.ts";
 import { LINUX_66, detection, keepalive, retransmission, type Knobs, type Situation } from "../model/linux.ts";
+import { Readout, type View } from "./Frame.tsx";
 import Legend from "./Legend.tsx";
 import Strip from "./Strip.tsx";
 
@@ -43,6 +44,7 @@ export default function DetectionLab(): ReactElement {
   const [situation, setSituation] = useState<Situation>("idle");
   const [keepaliveOn, setKeepaliveOn] = useState(true);
   const [cell, setCell] = useState<string | null>("Q1 idle, black hole");
+  const [view, setView] = useState<View>("chart");
 
   const change = (next: Partial<Knobs>): void => {
     setKnobs((now) => ({ ...now, ...next }));
@@ -58,7 +60,7 @@ export default function DetectionLab(): ReactElement {
   const found = useMemo(() => detection(knobs, situation, keepaliveOn), [knobs, situation, keepaliveOn]);
   const measured = harness.cells.find((c) => c.name === cell);
   const runs = (measured?.runs ?? []).flatMap((run, n) =>
-    run.elapsed === null ? [] : [{ t: run.elapsed * 1000, row: run.environment, label: `Run ${n + 1}, environment ${run.environment + 1}` }],
+    run.elapsed === null ? [] : [{ t: run.elapsed * 1000, row: 0, label: `Run ${n + 1}, environment ${run.environment + 1}` }],
   );
 
   const bounds = found.bounds;
@@ -77,35 +79,76 @@ export default function DetectionLab(): ReactElement {
   const span = Math.max(...near) - Math.min(...near);
   const zoom = { from: Math.max(0, Math.min(...near) - span * 0.15), to: Math.max(...near) + span * 0.15 };
   const lines = giveUp === undefined ? [] : [{ t: giveUp, label: "The give-up without the rounding of the wheel" }];
+  const events = found.timer === "keepalive" ? "Keepalive probes" : "RTO firings";
 
   const summary =
     bounds === null
       ? "No TCP timer can tell the client. The failure is silent at the TCP level."
       : `${found.timer === "keepalive" ? "Keepalive" : "The retransmission give-up"} tells the client after ${duration(bounds.duration)}, at most ${duration(bounds.late)} late.`;
 
+  const readout = [
+    { label: "First detector", value: found.timer === null ? "none" : found.timer },
+    { label: "Closed form", value: bounds === null ? "never" : duration(bounds.duration) },
+    { label: "Lands in", value: bounds === null ? "never" : `${duration(low)} to ${duration(high)}` },
+    ...(measured === undefined
+      ? []
+      : [{ label: "Measured", value: runs.length === 0 ? `silent in ${measured.runs.length} runs` : `${duration(Math.min(...runs.map((r) => r.t)))} to ${duration(Math.max(...runs.map((r) => r.t)))}` }]),
+  ];
+
+  // the timeline as rows of a table: each event of the kernel, the band, the closed form and each run
+  const timeline = [
+    ...marks.map((mark) => ({ what: mark.label, t: mark.t })),
+    ...lines.map((line) => ({ what: line.label, t: line.t })),
+    { what: "The closed form", t: bounds?.duration ?? Infinity },
+    { what: "The start of the band", t: low },
+    { what: "The end of the band", t: high },
+    ...runs.map((run) => ({ what: run.label, t: run.t })),
+  ].sort((a, b) => a.t - b.t);
+
   return (
-    <section className="sy-frame not-content" aria-label="The detection lab">
-      <header>
-        <strong>When does the client know?</strong>
-        <span className="sy-row">
+    <section className="sy-frame sy-lab not-content" aria-label="The detection lab">
+      <header className="sy-head">
+        <div className="sy-title">
+          <strong>When does the client know?</strong>
+        </div>
+        <div className="sy-row" role="group" aria-label="Presets">
           {PRESETS.map((preset) => (
             <button key={preset.id} type="button" className="sy-button" aria-pressed={cell === preset.cell && preset.cell !== null} onClick={() => load(preset)}>
               {preset.label}
             </button>
           ))}
-        </span>
+        </div>
       </header>
 
       <div className="sy-knobs">
-        <div className="sy-row sy-wide" role="group" aria-label="What the connection does">
-          {SITUATIONS.map((s) => (
-            <button key={s.id} type="button" className="sy-button" aria-pressed={situation === s.id} onClick={() => { setSituation(s.id); setCell(null); }}>
-              {s.label}
+        <div className="sy-row sy-wide">
+          <span className="sy-switch" role="group" aria-label="What the connection does">
+            {SITUATIONS.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                aria-pressed={situation === s.id}
+                onClick={() => {
+                  setSituation(s.id);
+                  setCell(null);
+                }}
+              >
+                {s.label}
+              </button>
+            ))}
+          </span>
+          <span className="sy-switch">
+            <button
+              type="button"
+              aria-pressed={keepaliveOn}
+              onClick={() => {
+                setKeepaliveOn(!keepaliveOn);
+                setCell(null);
+              }}
+            >
+              SO_KEEPALIVE
             </button>
-          ))}
-          <button type="button" className="sy-button" aria-pressed={keepaliveOn} onClick={() => { setKeepaliveOn(!keepaliveOn); setCell(null); }}>
-            SO_KEEPALIVE
-          </button>
+          </span>
         </div>
         <label className="sy-knob">
           <span>
@@ -141,9 +184,9 @@ export default function DetectionLab(): ReactElement {
           <span>
             Kernel clock <output>HZ {knobs.hz}</output>
           </span>
-          <span className="sy-row">
+          <span className="sy-switch" role="group" aria-label="Kernel clock">
             {HZ.map((hz) => (
-              <button key={hz} type="button" className="sy-button" aria-pressed={knobs.hz === hz} onClick={() => change({ hz })}>
+              <button key={hz} type="button" aria-pressed={knobs.hz === hz} onClick={() => change({ hz })}>
                 {hz}
               </button>
             ))}
@@ -151,29 +194,10 @@ export default function DetectionLab(): ReactElement {
         </div>
       </div>
 
-      <dl className="sy-readout">
-        <div>
-          <dt>First detector</dt>
-          <dd>{found.timer === null ? "none" : found.timer}</dd>
-        </div>
-        <div>
-          <dt>Closed form</dt>
-          <dd>{bounds === null ? "never" : duration(bounds.duration)}</dd>
-        </div>
-        <div>
-          <dt>Lands in</dt>
-          <dd>{bounds === null ? "never" : `${duration(low)} to ${duration(high)}`}</dd>
-        </div>
-        {measured === undefined ? null : (
-          <div>
-            <dt>Measured</dt>
-            <dd>{runs.length === 0 ? `silent in ${measured.runs.length} runs` : `${duration(Math.min(...runs.map((r) => r.t)))} to ${duration(Math.max(...runs.map((r) => r.t)))}`}</dd>
-          </div>
-        )}
-      </dl>
+      <Readout items={readout} />
 
       <div className="sy-body">
-        <p className="sy-muted">{summary}</p>
+        <p className="sy-lede">{summary}</p>
         {found.held.length === 0 ? null : (
           <ul className="sy-muted">
             {found.held.map((why) => (
@@ -183,11 +207,44 @@ export default function DetectionLab(): ReactElement {
         )}
         {bounds === null ? null : (
           <>
-            <Legend band marks={found.timer === "keepalive" ? "Keepalive probes" : "RTO firings"} runs={runs.length > 0} line={lines.length > 0 ? "Give-up without the wheel" : undefined} />
-            <p className="sy-caption">The whole timeline</p>
-            <Strip from={0} to={end} band={{ low, high }} closed={bounds.duration} marks={marks} runs={runs} lines={lines} label={summary} />
-            <p className="sy-caption">Near the prediction</p>
-            <Strip from={zoom.from} to={zoom.to} band={{ low, high }} closed={bounds.duration} marks={marks} runs={runs} lines={lines} label={`Near the prediction: ${duration(low)} to ${duration(high)}`} />
+            <div className="sy-row sy-between">
+              <p className="sy-caption">{view === "chart" ? "The whole timeline" : "The timeline"}</p>
+              <span className="sy-switch" role="group" aria-label="View">
+                <button type="button" aria-pressed={view === "chart"} onClick={() => setView("chart")}>
+                  Chart
+                </button>
+                <button type="button" aria-pressed={view === "table"} onClick={() => setView("table")}>
+                  Table
+                </button>
+              </span>
+            </div>
+            {view === "table" ? (
+              <div className="sy-scroll">
+                <table className="sy-table">
+                  <thead>
+                    <tr>
+                      <th>Event</th>
+                      <th className="num">Time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {timeline.map((row, n) => (
+                      <tr key={n}>
+                        <td>{row.what}</td>
+                        <td className="num">{duration(row.t)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <>
+                <Strip from={0} to={end} band={{ low, high }} closed={bounds.duration} marks={marks} runs={runs} lines={lines} label={summary} />
+                <p className="sy-caption">Near the prediction</p>
+                <Strip from={zoom.from} to={zoom.to} band={{ low, high }} closed={bounds.duration} marks={marks} runs={runs} lines={lines} label={`Near the prediction: ${duration(low)} to ${duration(high)}`} />
+                <Legend band closed marks={events} runs={runs.length > 0} line={lines.length > 0 ? "Give-up without the wheel" : undefined} />
+              </>
+            )}
           </>
         )}
       </div>

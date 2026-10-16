@@ -6,6 +6,9 @@ description: The T07 and T18 cells in kind on the runners of GitHub, with the se
 ---
 
 import { KindResults, ModeTable, Propagation } from "../../../components/RunResults.tsx";
+import { Summary } from "../../../components/Ledger.tsx";
+
+<Summary of="kind" />
 
 These are the results of the T07 and T18 cells, from 2026-10-16. Each cell operates in kind: Kubernetes 1.37.0 in Docker, with one control plane and two workers. The server is the service of this repository, `@mark1russell7/service`, as a Deployment behind a Service. A client on each node sends a request each 20 ms, each on a new connection to the ClusterIP.
 

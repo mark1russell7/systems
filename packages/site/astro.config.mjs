@@ -17,18 +17,28 @@ export default defineConfig({
       favicon: "/favicon.svg",
       social: [{ icon: "github", label: "GitHub", href: "https://github.com/mark1russell7/systems" }],
       editLink: { baseUrl: "https://github.com/mark1russell7/systems/edit/main/packages/site/" },
+      // IBM Plex Sans and IBM Plex Mono: the files of Google Fonts, from Fontsource, served by the site itself
       customCss: [
-        "@fontsource-variable/atkinson-hyperlegible-next",
-        "@fontsource-variable/atkinson-hyperlegible-mono",
+        "@fontsource-variable/ibm-plex-sans",
+        "@fontsource/ibm-plex-mono/400.css",
+        "@fontsource/ibm-plex-mono/500.css",
+        "@fontsource/ibm-plex-mono/600.css",
         "./src/styles/tokens.css",
         "./src/styles/theme.css",
+        "./src/styles/kit.css",
+        "./src/styles/home.css",
       ],
+      components: {
+        Hero: "./src/components/Hero.astro",
+        PageTitle: "./src/components/PageTitle.astro",
+      },
       sidebar: [
         { label: "Thesis", items: ["thesis"] },
         { label: "Lab", items: ["lab/detection"] },
         {
           label: "Results",
           items: [
+            "results/calibration",
             "results/cells",
             "results/faults",
             "results/topologies",
@@ -36,7 +46,6 @@ export default defineConfig({
             "results/http",
             "results/mongodb",
             "results/kind",
-            "results/calibration",
             "results/timers",
             "results/harness",
           ],

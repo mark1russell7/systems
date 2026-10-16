@@ -6,6 +6,9 @@ description: Each network failure that the harness can inject, between a client 
 ---
 
 import FaultResults from "../../../components/FaultResults.tsx";
+import { Summary } from "../../../components/Ledger.tsx";
+
+<Summary of="faults" />
 
 These are the results of the T01 cells, from 2026-10-14. T01 is the direct pair: the TCP client of the harness and a stock Redis 7.4 container. The kernel is Linux 6.6, with HZ 250. The harness injected each network failure that it can make. The cells put the failures at four positions: an idle client, a request in flight, an idle server and a reply in flight. Each cell has 11 runs in fresh environments.
 
