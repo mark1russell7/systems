@@ -1,6 +1,7 @@
 import { algebraProblems, machineProblems, timerOf } from "@mark1russell7/algebra";
 import { describe, expect, it } from "vitest";
 import { ALL } from "./all.ts";
+import { HZ } from "./catalog.ts";
 import { IOREDIS_SENTINEL } from "./ioredis-sentinel.ts";
 import { SENTINEL } from "./sentinel.ts";
 import {
@@ -99,7 +100,11 @@ describe("the T12 catalog", () => {
     expect(band("T12.defaults.10 rst at the primary: each peer refused")).toEqual([31.35, 39.397]);
     expect(band("T12.defaults.7 freeze-process at the primary, 40 s")).toEqual([50.05, 50.403]);
     expect(band("T12.defaults.9 event:planned, SENTINEL FAILOVER")).toEqual([10.154, 12.013]);
-    expect(band("T12.defaults.1 partition:partial, the primary cut from the clients, a 40 s stall")).toEqual([52.188, 55.145]);
+    // the stall reads the RTO ladder of the kernel, rounded on its timer wheel: it moves with HZ.
+    // The bands of the Sentinels and of ioredis read no HZ of the kernel
+    const stall = band("T12.defaults.1 partition:partial, the primary cut from the clients, a 40 s stall");
+    if (HZ === 250) expect(stall).toEqual([52.188, 55.145]);
+    if (HZ === 1000) expect(stall).toEqual([51.447, 53.209]);
     expect(band("T12.defaults.6 blackhole at the primary, 40 s")).toMatch(/^the client stays on the old primary/);
     expect(band("T12.defaults.1 partition:partial, the primary cut from the Sentinels and the replicas, its clients with it, 40 s")).toMatch(/^a split brain/);
     // the partition from the clients does not fail over, and the client stays on the same primary
