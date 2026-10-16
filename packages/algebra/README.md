@@ -36,6 +36,22 @@ A machine document has the format `mark1russell7.machine/1`, and `machineSchema`
   - the durations that the failure changes, by timer (`replaces`). `timerUnder` gives the bounds of a timer under the failure.
 - **Recovery.** `recovery` tells when a backoff timer moves a connection again after a stall. The connection moves at the first firing at the end of the stall or after it. A stall of 3.5 s on Linux TCP holds a request for approximately 6.5 s.
 
+## The replay
+
+`replay(doc, trace, options)` replays a trace against a machine document, and gives each disagreement. A trace is a list of transitions. Each transition has an instance, the state that it leaves, an event and the state that it enters.
+
+- **Each instance on its own.** Each instance starts in the state that its first transition leaves. Each transition must leave the state where the replay of its instance is.
+- **The document permits each transition.** The document must have a transition from that state, on that event, to that state. The state `"*"` is each state that is not final.
+- **Open names.** Each program names its own machines, states and events. `options.machine` selects the transitions of one machine in a trace of many machines.
+- **A small entry.** `@mark1russell7/algebra/replay` gives only the replay, in less than 0.5 kB of gzip. It does not import zod, thus a client in a browser can replay its own transitions.
+
+```ts
+import { replay } from "@mark1russell7/algebra/replay";
+
+const problems = replay(CONNECTION_MACHINE, recorded, { machine: CONNECTION_MACHINE.id });
+// for example ["c1: app.machine.connection has no transition from OPEN on open to OPEN"]
+```
+
 ## Installation
 
 ```sh
@@ -65,6 +81,6 @@ detection(tcp, idle, { name: "blackhole", passes: [] }, values).first?.timer; //
 
 ## Tests
 
-`pnpm --filter @mark1russell7/algebra test` starts the tests. Four machine documents are their fixtures: Linux TCP, conntrack TCP, the Redis server and ioredis. The tests compute the defaults of Linux 6.6 and the rounding of the timer wheel. They also compute the scaled cells of the harness, the backoff waits, recovery after a stall, and detection for each fault.
+`pnpm --filter @mark1russell7/algebra test` starts the tests. Four machine documents are their fixtures: Linux TCP, conntrack TCP, the Redis server and ioredis. The tests compute the defaults of Linux 6.6 and the rounding of the timer wheel. They also compute the scaled cells of the harness, the backoff waits, recovery after a stall, and detection for each fault. The replay tests use a machine with its own names, and they hold the entry of the replay without zod.
 
 `pnpm --filter @mark1russell7/algebra build` writes the package for npm into `build/`.

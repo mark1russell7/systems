@@ -7,7 +7,7 @@
 // test of a declaration, are in `@mark1russell7/service/testing`.
 
 export type { Timing, Poll, Span, FailsBy } from "./timing.ts";
-export { asDebounce, asWindow, failSpan, recoverSpan } from "./timing.ts";
+export { asDebounce, asWindow, failSpan, heartbeatDetection, recoverSpan } from "./timing.ts";
 export type {
   Check,
   Controller,
@@ -28,8 +28,12 @@ export type { Binding, Bound, Evaluated, Inequality, Rule, Side, Term, Verdict }
 export { evaluate, inequalities, symbolsOf, verdictOf } from "./law.ts";
 export type { Finding, Scenario } from "./lint.ts";
 export { SERVICE_RULES, lint, serviceBindings } from "./lint.ts";
-export type { Cancel, Clock } from "./clock.ts";
-export { realClock } from "./clock.ts";
+export type { Cancel, Clock, PlatformClockOptions } from "./clock.ts";
+export { platformClock, realClock } from "./clock.ts";
+export type { Heartbeat, HeartbeatOptions } from "./heartbeat.ts";
+export { detectionTime, heartbeat } from "./heartbeat.ts";
+export type { Backoff, DelayBand, Jitter } from "./backoff.ts";
+export { backoffBand, backoffDelay, backoffProblems } from "./backoff.ts";
 export type { Outcome, Result } from "./latch.ts";
 export type { CheckFn } from "./poller.ts";
 export type {
@@ -68,5 +72,6 @@ export {
   WINDOW_MACHINE,
   capKnob,
   drainMachine,
-  replay,
 } from "./machines.ts";
+// the replay of a trace moved to @mark1russell7/algebra, with open machine names: this export keeps it for the users of 0.3
+export { replay } from "@mark1russell7/algebra/replay";

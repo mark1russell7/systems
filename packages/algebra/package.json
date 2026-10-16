@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/algebra",
-  "version": "0.4.0",
-  "description": "State machines as data, and the timer algebra over them: closed forms for a machine's timers in exact rationals, detection as the first live timer, and recovery after a stall.",
+  "version": "0.5.0",
+  "description": "State machines as data, and the timer algebra over them: closed forms for a machine's timers in exact rationals, detection as the first live timer, recovery after a stall, and the replay of a trace.",
   "keywords": [
     "state-machine",
     "timers",
@@ -30,6 +30,7 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./replay": "./src/replay.ts",
     "./package.json": "./package.json"
   },
   "files": [
@@ -69,6 +70,10 @@
       ".": {
         "types": "./build/index.d.ts",
         "default": "./build/index.js"
+      },
+      "./replay": {
+        "types": "./build/replay.d.ts",
+        "default": "./build/replay.js"
       },
       "./package.json": "./package.json"
     }

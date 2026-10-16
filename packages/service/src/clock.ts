@@ -1,5 +1,11 @@
-/** This function stops a timer that `Clock.after` started. A second use does nothing. */
-export type Cancel = () => void;
+// @mark1russell7/service/clock: the clock of the runtime, with no other part of the package. It
+// imports no `node:` module and no zod. Thus a client in a browser can use it.
+
+/**
+ * This function stops a timer that `Clock.after` started. A second use does nothing. A clock of
+ * the platform also gives `unref`: after it, the timer does not keep a Node process alive.
+ */
+export type Cancel = (() => void) & { readonly unref?: (() => void) | undefined };
 
 /**
  * A clock gives the monotonic time in milliseconds, and it starts a function after a delay. The
@@ -13,15 +19,36 @@ export interface Clock {
   after(ms: number, run: () => void): Cancel;
 }
 
+/** These options make a clock of the platform. */
+export interface PlatformClockOptions {
+  /** True makes each timer not keep a Node process alive. The default is false, as with `setTimeout`. */
+  readonly unref?: boolean | undefined;
+}
+
+/** This function gives the monotonic time: `performance.now()`, or `Date.now()` on a platform without `performance`. */
+const monotonic = (): number => {
+  const performance = (globalThis as { performance?: { now(): number } }).performance;
+  return performance === undefined ? Date.now() : performance.now();
+};
+
+/**
+ * This function makes a clock of the platform: `performance.now()` and `setTimeout`. Each cancel
+ * that it gives also has `unref`.
+ */
+export const platformClock = (options: PlatformClockOptions = {}): Clock => ({
+  now: monotonic,
+  after(ms, run) {
+    const timer = setTimeout(run, Math.max(0, ms));
+    const unref = (): void => {
+      (timer as { unref?: () => void }).unref?.();
+    };
+    if (options.unref === true) unref();
+    return Object.assign(() => clearTimeout(timer), { unref });
+  },
+});
+
 /**
  * This clock reads `performance.now()` and uses `setTimeout`. Its timers do not keep a Node
  * process alive, thus a timer that is not stopped cannot stop the exit of the process.
  */
-export const realClock: Clock = {
-  now: () => performance.now(),
-  after(ms, run) {
-    const timer = setTimeout(run, Math.max(0, ms));
-    (timer as { unref?: () => void }).unref?.();
-    return () => clearTimeout(timer);
-  },
-};
+export const realClock: Clock = /* @__PURE__ */ platformClock({ unref: true });

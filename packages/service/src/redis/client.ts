@@ -1,17 +1,22 @@
 import { connect as dialTcp } from "node:net";
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
+import type { Backoff } from "../backoff.ts";
+import { backoffDelay } from "../backoff.ts";
 import type { ServiceBuilder } from "../builder.ts";
 import type { Cancel, Clock } from "../clock.ts";
 import { realClock } from "../clock.ts";
 import type { Check, Dependency, Gate, ServiceDescription, Step } from "../description.ts";
 import type { Recorder } from "../events.ts";
+import type { Heartbeat } from "../heartbeat.ts";
+import { heartbeat } from "../heartbeat.ts";
 import type { Outcome } from "../latch.ts";
 import type { DependencyHandle } from "../lifecycle.ts";
 import type { Operation } from "../operation.ts";
 import { mayReissue } from "../operation.ts";
 import type { CheckFn } from "../poller.ts";
 import type { Poll } from "../timing.ts";
+import { heartbeatDetection } from "../timing.ts";
 import type { ConnectionFactory, RedisConnection, RedisConnectionOptions } from "./connection.ts";
 import { ioredis } from "./connection.ts";
 import type { Meeting } from "./meets.ts";
@@ -175,14 +180,15 @@ const finite = (amount: Extent): number | undefined => {
 const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 /**
- * This function gives the time that the watchdog takes to find a silent server, at the most. A PING
- * starts each interval, from the start of the one before. Each one fails at its timeout, and the
- * last of `misses` failures in sequence closes the connection: `misses` intervals plus a timeout.
+ * This function gives the backoff of the tries to connect: from `retry_base`, doubling to
+ * `retry_cap`, each with a jitter up to the base. The client rounds each delay to a whole millisecond.
  */
-export const heartbeatDetection = (interval: Extent, timeout: Quantity, misses: number): Extent =>
-  interval.value === "infinite"
-    ? { value: "infinite", unit: "s" }
-    : quantity((misses * ms(interval) + ms(timeout)) / 1000, "s");
+export const retryBackoff = (knobs: RedisKnobs): Backoff => ({
+  base: ms(knobs.retry_base),
+  factor: 2,
+  cap: ms(knobs.retry_cap),
+  jitter: { kind: "add", amount: ms(knobs.retry_base) },
+});
 
 /** This function gives the problems of a spec: the knobs that the client cannot use. */
 export const specProblems = (name: string, spec: RedisClientSpec): string[] => {
@@ -250,6 +256,7 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
   const operations: Readonly<Record<string, Operation>> = { ...REDIS_OPERATIONS, ...spec.operations };
   const requestTimeout = ms(knobs.request_timeout);
   const detection = heartbeatDetection(knobs.heartbeat_interval, knobs.heartbeat_timeout, spec.heartbeatMisses);
+  const backoff = retryBackoff(knobs);
 
   let connection: RedisConnection | null = null;
   let status = "none";
@@ -263,8 +270,8 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
   const record = (from: string, to: string, on: string, detail?: string): void =>
     options.record?.({ at: clock.now(), machine: "client", instance: name, from, to, on, ...(detail === undefined ? {} : { detail }) });
 
-  // the delays of the connection attempts: doubling from the base to the cap, each with a jitter up
-  // to the base, and none after the retry window. The watchdog starts the client again after that
+  // the delays of the tries to connect (`retryBackoff`), and none after the retry window. The
+  // watchdog starts the client again after that
   let retrySince: number | null = null;
   const retryStrategy = (times: number): number | null => {
     const now = clock.now();
@@ -273,8 +280,7 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
       record(status, status, "retry.window-ended");
       return null;
     }
-    const delay = Math.min(ms(knobs.retry_base) * 2 ** (times - 1), ms(knobs.retry_cap));
-    return Math.round(delay + random() * ms(knobs.retry_base));
+    return Math.round(backoffDelay(backoff, times, random));
   };
 
   const connectionOptions: RedisConnectionOptions = {
@@ -429,45 +435,41 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
     return second.outcome === "ok" ? { outcome: "ok", value: second.value as T, attempts: 2 } : { ...second, attempts: 2 };
   };
 
-  // the watchdog: a PING each interval from the start of the one before, on the connection of the
-  // application. A reply, an error reply too, is an answer. It waits one turn of the event loop
-  // before it counts a miss, thus a slow loop is not a silent server. It acts only on a ready
-  // connection, thus it never closes a connection in the middle of a new attempt
-  let misses = 0;
-  let nextPing: Cancel | null = null;
-  const heartbeatInterval = ms(knobs.heartbeat_interval);
-  const ping = (): void => {
-    nextPing = clock.after(heartbeatInterval, ping);
-    const c = connection;
-    if (c === null || closing) return;
-    if (c.status === "end") {
-      // the retry window ended: the watchdog starts the client again
-      record(status, status, "watchdog.revive");
-      retrySince = null;
-      c.connect().catch(() => {});
-      return;
-    }
-    if (c.status !== "ready") return;
-    const controller = new AbortController();
-    const timer = clock.after(ms(knobs.heartbeat_timeout), () => controller.abort());
-    void attempt("PING", [], controller.signal).then(async (result) => {
-      timer();
-      const answered = result.outcome === "ok" || (result.outcome === "error" && result.reply);
-      await turn();
-      if (answered) {
-        misses = 0;
-        return;
-      }
-      if (connection?.status !== "ready" || closing) return;
-      misses += 1;
-      record(status, status, "watchdog.miss", `${misses} of ${spec.heartbeatMisses}`);
-      if (misses >= spec.heartbeatMisses) {
-        misses = 0;
+  // the watchdog: a heartbeat of PINGs on the connection of the application, each interval from the
+  // start of the one before. A reply, an error reply too, is an answer. It waits one turn of the
+  // event loop before it counts a miss, thus a slow loop is not a silent server. It acts only on a
+  // ready connection, thus it never closes a connection in the middle of a new attempt
+  let watchdog: Heartbeat | null = null;
+  const startWatchdog = (): Heartbeat =>
+    heartbeat({
+      interval: ms(knobs.heartbeat_interval),
+      timeout: ms(knobs.heartbeat_timeout),
+      misses: spec.heartbeatMisses,
+      clock,
+      turn,
+      // a PING starts at each tick, also while an earlier PING waits
+      overlap: true,
+      due: () => {
+        const c = connection;
+        if (c === null || closing) return false;
+        if (c.status === "end") {
+          // the retry window ended: the watchdog starts the client again
+          record(status, status, "watchdog.revive");
+          retrySince = null;
+          c.connect().catch(() => {});
+          return false;
+        }
+        return c.status === "ready";
+      },
+      ping: (signal) =>
+        attempt("PING", [], signal).then((result) => result.outcome === "ok" || (result.outcome === "error" && result.reply)),
+      live: () => connection?.status === "ready" && !closing,
+      onMiss: (misses) => record(status, status, "watchdog.miss", `${misses} of ${spec.heartbeatMisses}`),
+      onDead: () => {
         record(status, status, "watchdog.reconnect");
-        connection.disconnect(true);
-      }
+        connection?.disconnect(true);
+      },
     });
-  };
 
   const handle: DependencyHandle = {
     async connect(signal) {
@@ -479,12 +481,13 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
       // a server that is down at the start does not stop the startup: the client connects again in
       // the background, and its checks keep readiness tripped until it is ready (readiness is earned)
       await c.connect().catch((error: unknown) => record(status, status, "connect.failed", message(error)));
-      if (Number.isFinite(heartbeatInterval)) nextPing = clock.after(heartbeatInterval, ping);
+      watchdog?.stop();
+      watchdog = startWatchdog();
     },
     async close() {
       closing = true;
-      nextPing?.();
-      nextPing = null;
+      watchdog?.stop();
+      watchdog = null;
       const c = connection;
       if (c === null) return;
       // a QUIT lets the replies in flight arrive. A silent server never answers it, thus the close has its bound
