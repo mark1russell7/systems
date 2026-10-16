@@ -493,6 +493,48 @@ const T03_SPECS: readonly HttpSpec[] = [
 export const HTTP_SPECS: readonly HttpSpec[] = [...T01_RACE, ...T01_FAULTS, ...T03_SPECS];
 
 // ---------------------------------------------------------------------------------------------
+// the calibration of the handling time of the Node clients
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * This count is the number of copies of each calibration of the handling time. The speed of a
+ * runner changes the handling time. Thus each copy goes to a runner of its own when the cells have
+ * as many shards.
+ */
+export const HANDLING_COPIES = 4;
+
+/** This text tells what a calibration cell of the handling time measures. */
+const HANDLING_WHY =
+  "a calibration: the time from the last segment of the first reply to the close by a pool timer of 1 ms. The timer fires after its arm, thus this time is more than the handling time";
+
+/**
+ * These are the calibration specs of the handling time of the agent and undici (`race.ts`). The
+ * server gives a hint of 6, and the client takes 5999 ms off it. Thus the pool timer of the client
+ * is 1 ms. The timer fires after its arm. Thus the time from the last segment to the close is the
+ * handling time of the reply and a part of the timer.
+ */
+export const HANDLING_CAL_SPECS: readonly HttpSpec[] = (["agent", "undici"] as const).flatMap((client) =>
+  Array.from(
+    { length: HANDLING_COPIES },
+    (_, at): HttpSpec => ({
+      template: "T01",
+      plan: "CAL",
+      name:
+        client === "agent"
+          ? `agent, the handling of the first reply: a free socket timer of 1 ms (${at + 1} of ${HANDLING_COPIES})`
+          : `undici, the handling of the first reply: a keep-alive timer of 1 ms (${at + 1} of ${HANDLING_COPIES})`,
+      client,
+      server: SERVER_HINT_6,
+      ...(client === "agent"
+        ? { agent: { timeout: 10_000, agentKeepAliveTimeoutBuffer: 5999 } }
+        : { undici: { keepAliveTimeoutThreshold: 5999 } }),
+      workload: { mode: "gap", gap: 1, method: "GET" },
+      fault: "none",
+    }),
+  ),
+);
+
+// ---------------------------------------------------------------------------------------------
 // the predictions
 // ---------------------------------------------------------------------------------------------
 
@@ -802,6 +844,16 @@ export const httpCellOf = (spec: HttpSpec): HttpCell => {
 
 /** These are the cells of the HTTP catalog. */
 export const HTTP_CELLS: readonly HttpCell[] = HTTP_SPECS.map(httpCellOf);
+
+/**
+ * These are the calibration cells of the handling time. Each one is the race of its spec, with a
+ * measurement in place of its band. It measures the time from the last received segment to the
+ * close.
+ */
+export const HTTP_CAL: readonly HttpCell[] = HANDLING_CAL_SPECS.map((spec) => ({
+  ...httpCellOf(spec),
+  prediction: { detects: null, window: q((spec.workload as { gap: number }).gap + 2), why: HANDLING_WHY, from: "last-received" },
+}));
 
 // ---------------------------------------------------------------------------------------------
 // the plan cells with the Node HTTP server that the catalog does not run
