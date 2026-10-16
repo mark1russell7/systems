@@ -4,7 +4,7 @@ import type { Extent } from "@mark1russell7/quantity";
 import { HZ, LINUX_66, RUNS, ms, s, sysctlsOf } from "../catalog.ts";
 import { router } from "../topologies.ts";
 import type { HttpCell, HttpSpec } from "./catalog.ts";
-import { HTTP_CELLS } from "./catalog.ts";
+import { HTTP_CAL, HTTP_CELLS } from "./catalog.ts";
 import type { GoSettings } from "./go-transport.ts";
 import type { AgentSettings } from "./node-agent.ts";
 import type { NodeServerSettings } from "./node-server.ts";
@@ -173,3 +173,6 @@ export const harnessCellOf = (http: HttpCell): Cell => {
 
 /** These are the cells of the HTTP catalog for the harness: T01, then T03. */
 export const HTTP_HARNESS_CELLS: readonly Cell[] = HTTP_CELLS.map(harnessCellOf);
+
+/** These are the calibration cells of the handling time of the Node clients, for the harness. */
+export const HTTP_CAL_CELLS: readonly Cell[] = HTTP_CAL.map(harnessCellOf);

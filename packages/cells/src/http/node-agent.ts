@@ -9,6 +9,11 @@ import { NODE_TIMER_EARLY, nodeTimerLateness } from "./timers.ts";
  * A free socket keeps its connection until the smaller of the timeout of the agent and the hint of
  * the server less a buffer. An agent without a timeout keeps it with no limit, and then the hint
  * changes nothing.
+ *
+ * The free socket timer arms on the event loop of the program, when the program has read the
+ * whole response. The time from the last segment that the kernel received to that arm is the time
+ * of the program. No source bounds it, and this document does not hold it. The race adds it from a
+ * calibration (`HANDLING` in `race.ts`).
  */
 export const NODE_HTTP_AGENT: Machine = {
   format: "mark1russell7.machine/1",
@@ -28,6 +33,14 @@ export const NODE_HTTP_AGENT: Machine = {
     },
     {
       ref: "node v24.21.0 lib/_http_agent.js:201-265 the free event, and :633-667 keepSocketAlive: setKeepAlive(true, keepAliveMsecs), and the free socket timeout is min(timeout, hint * 1000 - agentKeepAliveTimeoutBuffer), or no reuse when that is 0 or less",
+      rung: "implemented",
+    },
+    {
+      ref: "node v24.21.0 lib/_http_client.js:964 and :1017-1051 responseOnEnd at the end of the response, :986-1015 responseKeepAlive and :1074-1080 emitFreeNT: the socket emits free on the next tick, on the event loop",
+      rung: "implemented",
+    },
+    {
+      ref: "node v24.21.0 lib/_http_agent.js:662-664: keepSocketAlive sets the timeout only when it changes. Else the timeout of the socket from its connect (:452-456, lib/net.js:257-258) counts from its last read or write (lib/net.js:738-745, lib/internal/stream_base_commons.js:164-170)",
       rung: "implemented",
     },
     {
@@ -57,7 +70,10 @@ export const NODE_HTTP_AGENT: Machine = {
   events: {
     "req.dispatch": { kind: "app", note: "agent.addRequest" },
     "socket.connect": { kind: "local" },
-    "resp.end": { kind: "local", note: "the response ended: the socket emits free on the next tick" },
+    "resp.end": {
+      kind: "local",
+      note: "the program read the whole response: the socket emits free on the next tick. It comes after the last segment by the handling time of the program",
+    },
     "rx.fin": { kind: "peer" },
     "rx.rst": { kind: "peer" },
     "rx.data": { kind: "peer", note: "bytes that nothing asked for" },
@@ -110,7 +126,7 @@ export const NODE_HTTP_AGENT: Machine = {
       arms: ["resp.end", "enter:FREE"],
       cancels: ["req.dispatch"],
       fires: "timer.free-socket",
-      note: "socket.setTimeout(agentTimeout) in keepSocketAlive; the Node timer of the socket",
+      note: "socket.setTimeout(agentTimeout) in keepSocketAlive: the Node timer of the socket. It arms in the free handler, or at the last read of the reply when its duration stays the same. Both come in the handling time of the program after the last segment (race.ts)",
     },
   },
   realizes: {

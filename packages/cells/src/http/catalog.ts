@@ -16,7 +16,18 @@ import { NODE_HTTP_AGENT } from "./node-agent.ts";
 import type { NodeServerSettings } from "./node-server.ts";
 import { NODE_HTTP_SERVER, hintOf } from "./node-server.ts";
 import type { Decision, HttpClient, Interval, Ordering, Race, RequestOutcome } from "./race.ts";
-import { DISPATCH, decide, gapOf, outcomeOf, poolExpiry, serverClose, timerInterval, valuesOf } from "./race.ts";
+import {
+  DISPATCH,
+  afterHandling,
+  decide,
+  gapOf,
+  handlingOf,
+  outcomeOf,
+  poolExpiry,
+  serverClose,
+  timerInterval,
+  valuesOf,
+} from "./race.ts";
 import type { UndiciSettings } from "./undici.ts";
 import { UNDICI_CLIENT } from "./undici.ts";
 
@@ -493,6 +504,45 @@ const T03_SPECS: readonly HttpSpec[] = [
 export const HTTP_SPECS: readonly HttpSpec[] = [...T01_RACE, ...T01_FAULTS, ...T03_SPECS];
 
 // ---------------------------------------------------------------------------------------------
+// the calibration of the handling time of the Node clients
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * This count is the number of copies of each calibration of the handling time. The speed of a
+ * runner changes the handling time. Thus each copy goes to a runner of its own when the cells have
+ * as many shards.
+ */
+export const HANDLING_COPIES = 4;
+
+/**
+ * These are the calibration specs of the handling time of the agent and undici (`race.ts`). The
+ * server gives a hint of 6, and the client takes 5999 ms off it. Thus the pool timer of the client
+ * is 1 ms. The timer fires after its arm. Thus the time from the last segment to the close is the
+ * handling time of the reply and a part of the timer. In each run, it is a bound of the handling
+ * time.
+ */
+export const HANDLING_CAL_SPECS: readonly HttpSpec[] = (["agent", "undici"] as const).flatMap((client) =>
+  Array.from(
+    { length: HANDLING_COPIES },
+    (_, at): HttpSpec => ({
+      template: "T01",
+      plan: "CAL",
+      name:
+        client === "agent"
+          ? `agent, the handling of the first reply: a free socket timer of 1 ms (${at + 1} of ${HANDLING_COPIES})`
+          : `undici, the handling of the first reply: a keep-alive timer of 1 ms (${at + 1} of ${HANDLING_COPIES})`,
+      client,
+      server: SERVER_HINT_6,
+      ...(client === "agent"
+        ? { agent: { timeout: 10_000, agentKeepAliveTimeoutBuffer: 5999 } }
+        : { undici: { keepAliveTimeoutThreshold: 5999 } }),
+      workload: { mode: "gap", gap: 1, method: "GET" },
+      fault: "none",
+    }),
+  ),
+);
+
+// ---------------------------------------------------------------------------------------------
 // the predictions
 // ---------------------------------------------------------------------------------------------
 
@@ -654,15 +704,20 @@ const faultOutcome = (spec: HttpSpec, prediction: Prediction): RequestOutcome | 
 const rttInterval = (spec: HttpSpec, rttMs: number): Interval =>
   spec.latency === undefined ? { low: 0, high: rttMs / 1000 } : { low: spec.latency / 1000, high: rttMs / 1000 };
 
-/** This function gives the race of a gap cell at a round trip in ms. */
+/**
+ * This function gives the race of a gap cell at a round trip in ms. The gap and the pool expiry
+ * of a Node client count from the last segment of the reply. Each one is the handling time, then
+ * the sleep or the timer (`afterHandling`).
+ */
 export const raceOf = (spec: HttpSpec, rttMs = nominalRtt(spec)): Race => {
   if (spec.workload.mode !== "gap") throw new Error(`${spec.name} is not a race`);
   const hint = hintOf(spec.server);
   const settings = spec.client === "go" ? (spec.go ?? {}) : spec.client === "agent" ? (spec.agent ?? {}) : (spec.undici ?? {});
+  const pool = poolExpiry(spec.client, settings, hint);
   return {
-    gap: gapOf(spec.client, spec.workload.gap),
+    gap: afterHandling(spec.client, gapOf(spec.client, spec.workload.gap)),
     server: serverClose(spec.server),
-    pool: poolExpiry(spec.client, settings, hint),
+    pool: pool === null ? null : afterHandling(spec.client, pool),
     rtt: rttInterval(spec, rttMs),
     notice: NOTICE,
   };
@@ -676,7 +731,12 @@ const POOL_TIMER: Readonly<Record<HttpClient, string>> = { go: "idle_conn", agen
  * trip in ms. That socket meets one end first:
  * - `kept`: nothing in the window. The second request goes on it.
  * - `fin-first` and `crossed`: the FIN of the server at S, an end of file from the last received segment.
- * - `dropped`: the close of the client itself at C, from the last received segment.
+ * - `dropped`: the close of the client itself at C, from the last received segment. Go closes at
+ *   its idle timer, which its reuse check does not read. A Node client closes at its pool expiry:
+ *   the handling time, then its timer.
+ * - `dropped` with no reuse: the close of a Node client at its reuse decision. The agent decides
+ *   in the handler where it arms its timer (`_http_agent.js:249-255`). undici decides in the parse
+ *   of the reply, before the arm (`client-h1.js:835-841`). Thus each close comes in the handling time.
  */
 const predictRaceAt = (spec: HttpSpec, rttMs: number): { prediction: Prediction; decision: Decision } => {
   const race = raceOf(spec, rttMs);
@@ -696,12 +756,7 @@ const predictRaceAt = (spec: HttpSpec, rttMs: number): { prediction: Prediction;
   if (decision.ordering === "kept") return { decision, prediction: { detects: false, window: q(gap + KEPT_AFTER) } };
   if (decision.ordering === "dropped") {
     const { doc, values } = clientSide(spec);
-    const band =
-      race.pool !== null && race.pool.high === 0
-        ? { low: 0, high: DISPATCH }
-        : spec.client === "go"
-          ? timerInterval(doc, POOL_TIMER.go, values)
-          : race.pool!;
+    const band = spec.client === "go" ? timerInterval(doc, POOL_TIMER.go, values) : race.pool!;
     return {
       decision,
       prediction: { detects: true, timer: POOL_TIMER[spec.client], errno: "CLOSED", from: "last-received", low: q(band.low), high: q(band.high) },
@@ -775,6 +830,9 @@ export const httpCellOf = (spec: HttpSpec): HttpCell => {
       `the client takes at most ${DISPATCH * 1000} ms from its call to the write of the request`,
       `the client acts on a FIN within ${NOTICE * 1000} ms`,
     );
+    const handling = handlingOf(spec.client).high;
+    if (handling > 0)
+      assumes.push(`the client handles its first reply within ${round3(handling * 1000)} ms of its last segment, as its calibration measured`);
     if (range !== null) assumes.push(`the round trip is in [${range.low}, ${range.high}] ms`);
     const ordering = "ordering" in decision ? decision.ordering : null;
     const request = ordering === null ? null : outcomeOf(spec.client, ordering, spec.workload.method);
@@ -802,6 +860,15 @@ export const httpCellOf = (spec: HttpSpec): HttpCell => {
 
 /** These are the cells of the HTTP catalog. */
 export const HTTP_CELLS: readonly HttpCell[] = HTTP_SPECS.map(httpCellOf);
+
+/**
+ * These are the calibration cells of the handling time. Each one is the race of its spec, with its
+ * band: the close of the client comes in the handling time and 1 ms. The harness measures the
+ * close of the client only for a band that says it (errno `CLOSED`). Thus the band stays, and a
+ * later run tests the calibration on new runners. The largest time of the counted runs is the bound
+ * (`HANDLING`, and the reader `handling.test.ts`).
+ */
+export const HTTP_CAL: readonly HttpCell[] = HANDLING_CAL_SPECS.map(httpCellOf);
 
 // ---------------------------------------------------------------------------------------------
 // the plan cells with the Node HTTP server that the catalog does not run
