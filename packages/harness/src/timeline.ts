@@ -1,16 +1,18 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
-import type { Cell, KernelRecord, ProbeEvent, Run, SentinelEvent, Stage } from "./cell.ts";
+import type { Cell, KernelRecord, ProbeEvent, ReplicaSetStage, Run, SentinelEvent, SentinelStage, Stage } from "./cell.ts";
+import { socketsOf } from "./driver.ts";
 import { NOISE } from "./verdict.ts";
 
 /**
  * This module measures a run of a group cell. It gives the first write that a primary accepted
- * after the fault, and the timeline of the group as its Sentinels announced it. It also gives what
+ * after the fault, and the timeline of the group. The Sentinels of a group announce its timeline.
+ * The logs of the members of a replica set and its client tell it. The module also gives what
  * became of each write.
  */
 
-/** These are the stages of a timeline, in their sequence after a fault. */
-export const STAGES: readonly Stage[] = [
+/** These are the stages of a timeline under Sentinels, in their sequence after a fault. */
+export const STAGES: readonly SentinelStage[] = [
   "+sdown",
   "+odown",
   "+try-failover",
@@ -78,6 +80,104 @@ export const stagesOf = (timeline: readonly SentinelEvent[], from: number): Part
     out[stage] = between(from, line.t);
   }
   return out;
+};
+
+/** These are the stages of the timeline of a replica set, in their usual sequence after a fault. */
+export const REPLICA_SET_STAGES: readonly ReplicaSetStage[] = [
+  "member-down",
+  "election-start",
+  "elected",
+  "caught-up",
+  "writable",
+  "old-primary-steps-down",
+  "discovered",
+  "written-off",
+  "first-write",
+];
+
+/**
+ * A member mark is how a log line of mongod marks a stage: by its id, or by its message. The
+ * message is the fallback for a version whose ids differ. `at` tells where the line comes from:
+ * the old primary, or another member.
+ */
+interface MemberMark {
+  readonly ids: readonly number[];
+  readonly message: RegExp;
+  readonly at: "old" | "other";
+}
+
+/** These are the log lines of mongod that mark each stage of a member. */
+export const MEMBER_MARKS: Readonly<Record<Exclude<ReplicaSetStage, "discovered" | "written-off" | "first-write">, MemberMark>> = {
+  "member-down": { ids: [21216], message: /now in state DOWN/, at: "other" },
+  "election-start": { ids: [4615652, 21437], message: /^Starting an election|Skipping dry run|Conducting a dry run/, at: "other" },
+  elected: { ids: [21450], message: /^Election succeeded/, at: "other" },
+  "caught-up": { ids: [21363], message: /^Exited primary catch-up mode/, at: "other" },
+  writable: { ids: [21331], message: /^Transition to primary complete/, at: "other" },
+  "old-primary-steps-down": { ids: [21809, 21475, 962660], message: /relinquishing primary|Stepping down from primary/, at: "old" },
+};
+
+/** This function tells if a log line of a member marks a stage, with the old primary of the run. */
+const marks = (line: SentinelEvent, stage: keyof typeof MEMBER_MARKS, old: string, oldAddress: string): boolean => {
+  const mark = MEMBER_MARKS[stage];
+  const member = String(line["member"] ?? "");
+  if ((mark.at === "old") !== (member === old)) return false;
+  const attr = (line["attr"] ?? {}) as Record<string, unknown>;
+  // the DOWN state counts for the old primary only, as another member sees it
+  if (stage === "member-down" && !JSON.stringify(attr).includes(oldAddress)) return false;
+  // the generic state change of the old primary: PRIMARY to another state
+  if (stage === "old-primary-steps-down" && Number(line["id"]) === 21358 && attr["oldState"] === "PRIMARY") return true;
+  return mark.ids.includes(Number(line["id"])) || mark.message.test(String(line["msg"] ?? ""));
+};
+
+/**
+ * This function gives the time of each stage of a replica set from an instant, in a run. The stages
+ * of the members come from their log lines (`ev` "mongod"), whose times the lab puts on the
+ * monotonic clock. The stages of the client come from its lines:
+ * - `discovered`: a member other than the old primary becomes RSPrimary in the view of the client.
+ * - `written-off`: the first heartbeat of the client to the old primary that fails.
+ * - `first-write`: the first write that a primary accepts, of a write that the client sent after
+ *   the commit of the fault (`sentAfter`). It is on a new primary when `lands` is `new`.
+ */
+export const replicaSetStagesOf = (
+  run: Run,
+  from: number,
+  sentAfter: number,
+  lands: "new" | "same",
+): Partial<Record<Stage, Quantity>> => {
+  const out: Partial<Record<Stage, Quantity>> = {};
+  const old = run.group?.primary ?? "";
+  const oldIp = run.group?.members[old]?.ip ?? "";
+  const oldAddress = `${oldIp}:`;
+  for (const line of run.group?.timeline ?? []) {
+    if (line.ev !== "mongod" || line.t < from) continue;
+    for (const stage of Object.keys(MEMBER_MARKS) as Array<keyof typeof MEMBER_MARKS>)
+      if (out[stage] === undefined && marks(line, stage, old, oldAddress)) out[stage] = between(from, line.t);
+  }
+  const isOld = (address: unknown): boolean => typeof address === "string" && address.startsWith(oldAddress);
+  for (const event of run.events) {
+    if (event.t < from) continue;
+    if (out.discovered === undefined && event.ev === "sdam" && event["event"] === "server-changed" && !isOld(event["address"])) {
+      const next = event["next"] as { readonly type?: string } | null;
+      if (next?.type === "RSPrimary") out.discovered = between(from, event.t);
+    }
+    if (out["written-off"] === undefined && event.ev === "sdam" && event["event"] === "heartbeat-failed" && isOld(event["address"]))
+      out["written-off"] = between(from, event.t);
+  }
+  const accepted = acceptedAfter(run, sentAfter, lands);
+  if (accepted !== undefined) out["first-write"] = between(from, accepted.t);
+  return out;
+};
+
+/** This function gives the first write that a primary accepted, of a write sent after an instant. It is on a new primary for `new`. */
+const acceptedAfter = (run: Run, sentAfter: number, lands: "new" | "same"): ProbeEvent | undefined => {
+  const sent = new Map<number, number>();
+  for (const event of run.events) if (event.ev === "sent") sent.set(Number(event["n"]), event.t);
+  const primary = run.group?.primary ?? "";
+  return run.events.find((event) => {
+    if (event.ev !== "ack" || (sent.get(Number(event["n"])) ?? -Infinity) <= sentAfter) return false;
+    const member = memberAt(run, event["at"]);
+    return member !== null && (lands === "new" ? member !== primary : true);
+  });
 };
 
 /** This function gives what became of each write of a run, from the lines of the client and the keys that the group kept. */
@@ -163,7 +263,10 @@ export interface GroupReading {
  * - The reference is the start of the commit of the fault, as the injector stamped it. For a
  *   stall, it is the first write into the fault, as for the stall of a direct pair.
  * - The outcome is the first write that a primary accepted after the fault. The prediction says
- *   which primary: a new one, or the same one after the lift.
+ *   which primary: a new one, or the same one after the lift. In a replica set, it is the first
+ *   accepted write of a write that the client sent after the commit of the fault.
+ * - The stages come from the Sentinels, or from the logs of the members of a replica set and the
+ *   lines of its client (`replicaSetStagesOf`).
  * - Its time is the last segment with data that the client's socket to that primary received
  *   before the client saw the acceptance. The stamp of the client is the fallback.
  * - A run is void when the prober lost records, or when the client did not become ready. It is
@@ -192,17 +295,30 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
     return { ...silent, void: "the prober wrote no clock line after the run, so nothing says what it dropped", group: empty };
   if (run.lost > 0) return { ...silent, void: `the prober dropped ${run.lost} records`, group: empty };
   const timeline = run.group?.timeline ?? [];
-  const stages = stagesOf(timeline, t0);
   const heal = run.heal ?? null;
   const lands = expected?.lands ?? "new";
-  // the first write that a primary accepted after the fault: on a new primary, or on the same one after the lift
-  const after = lands === "same" && heal !== null ? heal.t0 : t0;
+  // a replica set has no authority: its members and the client tell its stages
+  const replica = cell.replicaSet !== undefined;
+  const stall = prediction.detects === false && prediction.recovers !== undefined;
+  const stages = replica ? replicaSetStagesOf(run, t0, run.fault.t1, lands) : stagesOf(timeline, t0);
+  // the first write that a primary accepted after the fault: on a new primary, or on the same one
+  // after the lift. In a replica set, it is the first write sent after the commit of the fault
+  // that a primary accepts: a partial cut leaves the old primary its writes
+  const after = lands === "same" && heal !== null && (!replica || stall) ? heal.t0 : t0;
+  const sentAt = new Map<number, number>();
+  for (const event of events) if (event.ev === "sent") sentAt.set(Number(event["n"]), event.t);
   const accepted = events.find((event) => {
     if (event.ev !== "ack" || event.t <= after) return false;
+    if (replica && (sentAt.get(Number(event["n"])) ?? -Infinity) <= run.fault!.t1) return false;
     const member = memberAt(run, event["at"]);
     return member !== null && (lands === "new" ? member !== primary : true);
   });
   const to = accepted === undefined ? null : memberAt(run, accepted["at"]);
+  // the first write of a replica set is the outcome itself: a stall's first write is the write into it
+  if (replica) {
+    delete stages["first-write"];
+    if (accepted !== undefined) stages["first-write"] = between(t0, accepted.t);
+  }
   const group: GroupMeasured = {
     from: primary,
     to,
@@ -236,7 +352,10 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
   // a band holds for the round trips that it assumes: the first one of the client's socket to the old primary
   const assumed = prediction.detects === null ? undefined : prediction.rtt;
   const first = kernel.find(
-    (record) => record.netns === run.netns && record.dst === `${run.group?.members[primary]?.ip}:${cell.group?.port}` && record.tcp?.srtt !== undefined,
+    (record) =>
+      record.netns === run.netns &&
+      record.dst === `${run.group?.members[primary]?.ip}:${(cell.group ?? cell.replicaSet)?.port}` &&
+      record.tcp?.srtt !== undefined,
   );
   const rtt = first?.tcp?.srtt === undefined ? null : valueIn(first.tcp.srtt, "us") / 1000;
   if (voided === null && assumed !== undefined && rtt !== null && rtt > valueIn(assumed.high, "ms"))
@@ -265,9 +384,14 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
 
   // findings: a failover where none should be, a client on the wrong primary, an error out of its band
   const findings: string[] = [];
-  const switched = stages["+switch-master"];
+  // a failover: a Sentinel switches the primary, or another member of a replica set wins an election
+  const switched = replica ? stages["elected"] : stages["+switch-master"];
   if (expected?.failover === false && switched !== undefined)
     findings.push(`the group failed over ${switched.value} s after the fault, where it should not`);
+  for (const stage of expected?.quiet ?? []) {
+    const at = stages[stage];
+    if (at !== undefined) findings.push(`${stage} came ${at.value} s after the fault, where it should not`);
+  }
   if (accepted !== undefined && lands === "same" && to !== primary)
     findings.push(`the client wrote to ${to ?? String(accepted["at"])}, where it should stay on ${primary}`);
   for (const error of expected?.errors ?? []) {
@@ -282,14 +406,18 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
       findings.push(lands === "new" ? "the client never wrote to a new primary in the window" : "the client never wrote again in the window");
     return { ...silent, void: voided, finding: findings[0] ?? null, group };
   }
-  // the kernel's time of the acceptance: the last segment with data from that primary at the client's stamp or before it
+  // the kernel's time of the acceptance: the last segment with data from that primary at the
+  // client's stamp or before it. The monitor and the pinger of a driver have their own sockets to
+  // each member, thus only the sockets of the pool count
   const address = String(accepted["at"]);
+  const others = new Set(socketsOf(events).filter((socket) => socket.role !== "pool").map((socket) => socket.local));
   const segment = kernel
     .filter(
       (record) =>
         record.netns === run.netns &&
         record.ev === "rx" &&
         record.dst === address &&
+        !others.has(String(record.src)) &&
         (record.seg?.len.value ?? 0) > 0 &&
         record.mono <= accepted.t &&
         record.mono > after,

@@ -137,6 +137,35 @@ The CAL catalog (`src/calibration.ts`) measures the own time of each proxy: HAPr
 - Each request gives a time toward the target. It starts at the arrival on the socket of the proxy toward the client. It stops at the write on the socket toward the target. Each reply gives a time toward the client, the other way. The writes are the `tx` records of the prober.
 - `PROXY_TIMES` holds the 99th percentile of each direction, by nearest rank. A band through a proxy adds it for each crossing.
 
+## The MongoDB catalogs
+
+The MongoDB catalogs (`src/mongo/`) put the Node driver `mongodb` 7.7.0 on Node 24.21.0 against replica sets of mongod 9.0.4 (`mongo:9.0.4`, pinned by digest). T01 and T03 use a set of one member, because the monitor of the driver needs a set. T11 uses a set of three members. Each cell has the identifier of the cell of the plan that it stands for.
+
+The machine documents come from the source at the pinned versions, and each fact names its file and line:
+
+- **The driver** (`mongodb-node.ts`). The monitor streams `hello` and writes a silent server off after `connectTimeoutMS + heartbeatFrequencyMS`: 40 s at the defaults. A timeout of the monitor clears the pool and interrupts each operation in flight. An end of the stream by the kernel does not interrupt it. A retryable operation retries one time, after a new selection of `serverSelectionTimeoutMS`. Each socket gets `setKeepAlive(true, 120000)`, thus keepalive at 120 s and 10 probes 1 s apart.
+- **The replication of mongod** (`mongod-replication.ts`). A member sends a heartbeat each 2 s, and a window of 10 s without an answer marks the target DOWN. A secondary starts an election 10 s after its last contact with the primary, plus an offset of less than 1.5 s. A primary steps down when it cannot see a majority for 10 s. A new primary waits in its catch-up for an answer or a failure from each other member.
+- **The connections of mongod** (`mongod-session.ts`). `mongod` lowers the keepalive idle time of each socket to 300 s and its interval to 1 s. Thus its window is 309 s at the Linux defaults.
+
+The predictions compose these documents:
+
+- **T01 and T03** (`single.ts`). The driver's document goes over Linux TCP on each socket: the monitor's socket and the pool's socket. The first detection on the monitor's socket is the write-off, or the kernel's keepalive when its delay is shorter. The operation in flight then fails, and its retry selects again. With one member, the selection times out while the fault holds. Each band counts from an event of one socket, the fault, or the start of the client.
+- **T03, a forgotten flow** (`t03.ts`). O03 decides each flow of the driver against the router: the pool connection by its keepalive, the monitor by its heartbeat or its keepalive. The border cells divide each timer of the chain by 20. The defaults stage keeps each preset at its own idle timeout.
+- **T11, the timeline** (`model.ts`, `t11.ts`). The stages are the first member that marks the primary DOWN, the start of the election and the win. Then come the end of the catch-up and the first write of the new primary. Then the client finds the new primary, and its first write lands. When the old primary is silent to the client, that write lands at the driver's write-off. The catch-up has two modes: the window to the old primary that is open at the win, or a new window of 10 s.
+
+The defaults stage starts in real time. A cell whose trigger the harness cannot do, or whose breakpoint names another system, waits with its reason (`*_WAITING`). A cell of the plan that is the same as another cell is an alias (`*_ALIASES`).
+
+The client of these cells is the MongoDB client of the harness (`image/mongo/client-mongo.mjs`), with its npm lockfile. It writes the lines of the TCP client of the harness. It also writes each socket of the driver by its role, and the events of the driver's monitor and pool. Each try of an operation gets a line, with its server.
+
+`harness.ts` gives each MongoDB cell as a cell of the harness (`MONGO_CELLS`):
+
+- **T01 and T03.** The target is a set of one member (`MONGO_ONE`). Its setup starts the set with the address of the member and waits until it accepts writes. A freeze stops `mongod` with SIGSTOP, with stamps, and a hold thaws it.
+- **The bands of the driver.** Each band names the socket of its reference and the line of the client that ends it. The first band is the band of the cell, and each other band is a later band of the driver (`then`). A band of an errno ends at the report of the kernel on its socket.
+- **A stall** is the stall of Linux TCP, from the catalog of T01. The pool's socket carries the write through it.
+- **T11.** The cell has a replica set of three members (`replicaSetOf`), at the defaults of mongod 9.0.4 with the settings of the cell. The stages of a member include an error of 2 ms in their stamps. The wall clock of mongod and of the client is in whole ms.
+- **A partial cut** holds for 40 s. Its prediction names the stages that must not come (`quiet`): an election of another member, and the write-off of the old primary.
+- **The cache.** Each member starts with a cache of 0.25 GB for WiredTiger (`SERVER_ARGS`), thus three members fit on one runner. No timer reads the cache.
+
 ## The T07 catalog
 
 T07 is the endpoint lifecycle of a Service in kind (`src/t07.ts`, on `@systems/kind`). A client on each node sends a request each 20 ms, each on a new connection to the ClusterIP. The server is the service of this repository, as a Deployment of 2 replicas on 2 workers.
@@ -163,7 +192,7 @@ Kubernetes keeps its timers in real time, thus these cells are not compressed.
 
 ## The runner
 
-`CELLS=1 pnpm --filter @systems/cells test` starts the catalogs on `@mark1russell7/harness`. It needs Docker and privileged containers. The names of the cells start with their catalog: `T01`, `T03`, `T02`, `TOX`, `T12` or `CAL`.
+`CELLS=1 pnpm --filter @systems/cells test` starts the catalogs on `@mark1russell7/harness`. It needs Docker and privileged containers. The names of the cells start with their catalog: `T01`, `T03`, `T02`, `TOX`, `T12` or `CAL`. The name of a MongoDB cell starts with its cell of the plan, for example `T11.defaults.9`, and it names `mongodb-node-7.7`.
 
 - `CELLS_ONLY` selects the cells whose names match a regular expression.
 - `CELLS_SHARD=i/n` takes every n-th cell from the i-th. Thus two processes can share the catalog.

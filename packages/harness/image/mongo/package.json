@@ -1,0 +1,8 @@
+{
+  "name": "loom-harness-mongo-client",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "mongodb": "7.7.0"
+  }
+}

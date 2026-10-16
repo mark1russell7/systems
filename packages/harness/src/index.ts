@@ -1,13 +1,15 @@
 // @mark1russell7/harness: a fault-injection harness for connection timers. A cell is a topology,
 // its settings, a workload, a fault and a prediction. The harness runs it in new Docker
 // environments that code builds (Testcontainers), measures on the one monotonic clock of the VM,
-// and gives each cell a verdict. A topology is a chain of hops, or a replicated group under its
-// Sentinels.
+// and gives each cell a verdict. A topology is a chain of hops, a replicated group under its
+// Sentinels, or a replica set whose members elect their own primary.
 
 export type {
   Cell,
   Client,
   ClientImage,
+  DriverBand,
+  DriverStep,
   FaultPlace,
   Group,
   GroupPlace,
@@ -16,6 +18,7 @@ export type {
   Hop,
   HopPlace,
   HttpProbe,
+  LineMatch,
   MiddleboxEvent,
   MiddleboxExpectation,
   MiddleboxForm,
@@ -29,6 +32,8 @@ export type {
   Recovers,
   Reference,
   Replies,
+  ReplicaSet,
+  ReplicaSetStage,
   RouterHop,
   RequestPrediction,
   RttRange,
@@ -37,6 +42,7 @@ export type {
   RunPart,
   RunTopology,
   SentinelEvent,
+  SentinelStage,
   Stage,
   StageBand,
   Target,
@@ -46,8 +52,20 @@ export type {
 export { isHopPlace } from "./cell.ts";
 export type { Crossings, Measured, Outcome, Reordering, RequestReading, SocketPlace } from "./observe.ts";
 export { crossingsOf, measure, reorderingOf, requestOf, socketOf } from "./observe.ts";
+export type { DriverSocket, DriverStepTime } from "./driver.ts";
+export { fieldOf, matches, measureDriver, referenceOf, socketAt, socketsOf } from "./driver.ts";
 export type { ErrorOnTheWay, GroupMeasured, GroupReading, Writes } from "./timeline.ts";
-export { STAGES, errorsOf, lagsOf, measureGroup, stagesOf, writesOf } from "./timeline.ts";
+export {
+  MEMBER_MARKS,
+  REPLICA_SET_STAGES,
+  STAGES,
+  errorsOf,
+  lagsOf,
+  measureGroup,
+  replicaSetStagesOf,
+  stagesOf,
+  writesOf,
+} from "./timeline.ts";
 export type { Decision, GroupVerdict, Interval, Spread, StageVerdict, Verdict } from "./verdict.ts";
 export { NOISE, RELATIVE, STEPS, groupVerdictOf, medianInterval, quantileOf, requestWords, spreadOf, verdictOf } from "./verdict.ts";
 export type { Agent, FaultSide, Lab, Manifest, ManifestHop, NetworkFault, Probe } from "./lab.ts";
@@ -58,6 +76,7 @@ export {
   endpointAfter,
   goHttpImage,
   harnessImage,
+  mongoClientImage,
   nodeClientImage,
   nodeHttpImage,
   openLab,
@@ -80,5 +99,21 @@ export {
   subscriptionsOf,
   viewOf,
 } from "./group.ts";
+export type { Cut, MemberLine, ReplicaSetLab, Status } from "./replset.ts";
+export {
+  KEPT,
+  STATUS_SCRIPT,
+  STEP_DOWN,
+  clockOffsetOf,
+  cutOf,
+  initiateScript,
+  memberCommand,
+  memberLineOf,
+  onMonotonic,
+  openReplicaSetLab,
+  replicaSetArgs,
+  replicaSetOnce,
+  statusViewOf,
+} from "./replset.ts";
 export type { CellResult } from "./run.ts";
 export { LINGER_MS, QUIET_MS, judge, runCell, spread } from "./run.ts";

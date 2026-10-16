@@ -37,7 +37,7 @@ export type { KernelRecord };
  * one side. It is a black hole, a reset or an ICMP unreachable. It can also be a simplex drop, an
  * MTU drop or netem.
  *
- * These faults are of a replicated group (`Cell.group`), on the part that `Cell.faultAt` names:
+ * These faults are of a replicated group (`Cell.group` or `Cell.replicaSet`), on the part that `Cell.faultAt` names:
  * - `blackhole` drops each segment between the part and each of its peers. `rst` answers each
  *   segment from a peer with a reset, thus the part refuses each connection.
  * - `partition` is a black hole between the part and some of its peers only (`GroupPlace.cuts`).
@@ -48,6 +48,9 @@ export type { KernelRecord };
  * This fault is of an HTTP server:
  * - `app-stall` injects nothing. The server process holds the reply to the request, because the
  *   request asks for that (`HttpProbe.hold`), while its kernel stays up.
+ *
+ * This fault is of a replica set (`Cell.replicaSet`):
+ * - `step-down` sends `replSetStepDown` to the primary, as a client sends a command.
  */
 export type Fault =
   | "blackhole"
@@ -66,6 +69,7 @@ export type Fault =
   | "partition"
   | "planned-failover"
   | "app-stall"
+  | "step-down"
   | "none";
 
 /**
@@ -173,6 +177,30 @@ export interface Group {
   readonly ready: { readonly member: string; readonly sentinel: string };
 }
 
+/**
+ * A replica set is a replicated group with no external authority, as data: its members elect their
+ * own primary. Each member is a container from the same stock image, pinned by digest, in its own
+ * network namespace. The client finds the primary by its own monitors. The harness starts the set
+ * with the address of each member, and it waits for a primary.
+ */
+export interface ReplicaSet {
+  /** This name is the name of the set, for example `rs0`. */
+  readonly name: string;
+  /** This image is the stock image of each member, pinned by digest. */
+  readonly image: string;
+  /** These are the programs of the image: the server and its shell. */
+  readonly programs: { readonly server: string; readonly shell: string };
+  /** These are the options of the server of each member, after the name of the set: for example the size of its cache. */
+  readonly args?: readonly string[];
+  readonly port: number;
+  /** These are the names of the members. The first one starts the set. */
+  readonly members: readonly string[];
+  /** These are the settings of the configuration of the set, as `rs.initiate` takes them: for example `electionTimeoutMillis`. */
+  readonly settings: Readonly<Record<string, number>>;
+  /** This line tells that a member serves. */
+  readonly ready: string;
+}
+
 /** A group role is a part of a group by its role at the start of a run: the primary, a replica, or a Sentinel. */
 export type GroupRole = "primary" | "replica" | "sentinel";
 
@@ -182,10 +210,12 @@ export type GroupRole = "primary" | "replica" | "sentinel";
  * - `all`: each other part of the group, and each client. This is the default.
  * - `group`: the other members and the Sentinels, but not the clients.
  * - `clients`: the clients, but not the group.
+ * - `one`: one other member, in both directions.
+ * - `one-way`: one other member, for the segments from the part only.
  */
 export interface GroupPlace {
   readonly role: GroupRole;
-  readonly cuts?: "all" | "group" | "clients";
+  readonly cuts?: "all" | "group" | "clients" | "one" | "one-way";
 }
 
 /** A toxic is one toxic of Toxiproxy, as its API takes it. Its toxicity is 1. */
@@ -210,13 +240,17 @@ export interface Toxic {
  * send of the client. A FIN counts from the change of state of the socket of the peer when its
  * process dies (`peer-closed`). A toxic of Toxiproxy counts from the start of its commit, as the
  * injector stamps it (`fault`).
+ *
+ * A client that starts into a fault counts from its `connecting` line, or from its first line
+ * without one (`client-start`).
  */
 export type Reference =
   | "last-received"
   | "first-retransmission"
   | "request-sent"
   | "peer-closed"
-  | "fault";
+  | "fault"
+  | "client-start";
 
 /**
  * This prediction tells when a connection moves again after a stall. That occurs at the first
@@ -277,7 +311,7 @@ export interface ProxyTime {
  * failover and the election. Then the selection of a replica, the promotion, the switch to the new
  * primary, and the conversion of the old primary into a replica.
  */
-export type Stage =
+export type SentinelStage =
   | "+sdown"
   | "+odown"
   | "+try-failover"
@@ -287,7 +321,28 @@ export type Stage =
   | "+switch-master"
   | "+convert-to-slave";
 
-/** A stage band is when the first Sentinel announces a stage, from the reference of the cell. */
+/**
+ * A replica set stage is one step of the timeline of a replica set after a fault. A line of the log
+ * of a member marks it, or a line of the client. The stages are a member that marks the primary
+ * DOWN, the start of an election and its win, and the end of the catch-up. Then come the first
+ * write of the new primary and the step-down of the old one. The client's lines give its discovery
+ * of the new primary, the write-off of the old one, and the first write that a primary accepts.
+ */
+export type ReplicaSetStage =
+  | "member-down"
+  | "election-start"
+  | "elected"
+  | "caught-up"
+  | "writable"
+  | "old-primary-steps-down"
+  | "discovered"
+  | "written-off"
+  | "first-write";
+
+/** A stage is one step of the timeline of a group: of a group under Sentinels, or of a replica set. */
+export type Stage = SentinelStage | ReplicaSetStage;
+
+/** A stage band is when the first part announces a stage, from the reference of the cell. */
 export interface StageBand {
   readonly stage: Stage;
   readonly low: Quantity;
@@ -302,6 +357,7 @@ export interface StageBand {
  *   stamps of the observer (`stamps`).
  * - `errors` are the errors that the client must meet on the way, each with the band of its
  *   first occurrence. An example is the error of the offline queue when it gives up.
+ * - `quiet` are the stages that must not occur after the fault. Each one that a run shows is a finding.
  */
 export interface GroupPrediction {
   readonly lands: "new" | "same";
@@ -309,6 +365,7 @@ export interface GroupPrediction {
   readonly stages: readonly StageBand[];
   readonly stamps?: Quantity;
   readonly errors?: ReadonlyArray<{ readonly name: string; readonly low: Quantity; readonly high: Quantity }>;
+  readonly quiet?: readonly Stage[];
 }
 
 /**
@@ -337,6 +394,59 @@ export interface RequestPrediction {
 }
 
 /**
+ * A line match is a line of the client that a driver band waits for. It has the `ev` of the line,
+ * and the value of each field that it names. A dotted name is a field in a field, for example
+ * `failure.name`. `name` is the field that names the error of the line, for its outcome.
+ */
+export interface LineMatch {
+  readonly ev: string;
+  readonly where?: Readonly<Record<string, string | number | boolean>>;
+  readonly name?: string;
+}
+
+/**
+ * A driver step is one more band of a driver after the band of its cell. An example is the error
+ * of the retry after the interruption. It has its own reference on a socket of the driver, its
+ * line, and its band. A run whose step is outside its band, or absent, has a finding.
+ */
+export interface DriverStep {
+  readonly what: string;
+  /** This name is the name of the error of the line, or OK. */
+  readonly name: string;
+  /** This role is the socket of the reference. Without it, the socket is the socket of the band of the cell. */
+  readonly socket?: string;
+  readonly from: Reference;
+  readonly ends: LineMatch;
+  readonly low: Quantity;
+  readonly high: Quantity;
+}
+
+/**
+ * A driver band is a band of a cell whose client is a driver with more than one socket, for
+ * example the MongoDB driver. It names the socket of the reference, and the line that ends the
+ * band:
+ * - `socket` is the role of the socket, as the client names it in its `socket` lines. The socket
+ *   `server` is the socket of the target for the first connection of the pool.
+ * - `ends` is the line of the client that marks the detection. Without it, the detection is the
+ *   report of the kernel on the socket: an error, or the end of the file.
+ * - `reply` is the line of a reply that a silent prediction times (`replies`), with its reference.
+ * - `quiet` are the lines that must not occur after the fault, in the window of the prediction.
+ * - `then` are the later bands, each one a test of its own.
+ *
+ * A band whose line ends it is a timer of the driver. Its `last-received` is the last segment with
+ * data that its socket received or sent. The idle timer of a Node socket starts again at each read
+ * and each write. A band of the kernel counts from the last segment of any kind that the socket
+ * received.
+ */
+export interface DriverBand {
+  readonly socket: string;
+  readonly ends?: LineMatch;
+  readonly reply?: { readonly from: Reference; readonly ends: LineMatch };
+  readonly quiet?: readonly LineMatch[];
+  readonly then?: readonly DriverStep[];
+}
+
+/**
  * A prediction is what a cell predicts. Either a detection occurs in an interval [T_lo, T_hi]
  * after the reference event, or nothing detects the fault in a window. Nothing detects a stall
  * that is shorter than the give-up, and the connection recovers from it. The prediction then also
@@ -356,6 +466,8 @@ export interface RequestPrediction {
  *
  * For an HTTP cell, `request` tells what the second request meets. The errno `CLOSED` is a close
  * of the observer itself: its pool closes an idle connection, a FIN that it sends.
+ *
+ * A band of a driver (`driver`) counts from a socket of the driver to a line of the client.
  */
 export type Prediction =
   | {
@@ -376,6 +488,7 @@ export type Prediction =
       readonly through?: readonly ProxyTime[];
       readonly group?: GroupPrediction;
       readonly request?: RequestPrediction;
+      readonly driver?: DriverBand;
     }
   | {
       readonly detects: false;
@@ -387,6 +500,7 @@ export type Prediction =
       readonly through?: readonly ProxyTime[];
       readonly group?: GroupPrediction;
       readonly request?: RequestPrediction;
+      readonly driver?: DriverBand;
     }
   | {
       readonly detects: null;
@@ -429,14 +543,20 @@ export interface Target {
    * output, on CLOCK_MONOTONIC. Each run then keeps its lines (`Run.server`).
    */
   readonly lines?: true;
+  /**
+   * This name is the server process, as /proc/PID/comm holds it. With it, a freeze of the target
+   * stops this process with SIGSTOP from a sidecar in its process namespace, and the injector
+   * stamps it. SIGCONT then thaws it. Without it, the freeze is the cgroup freezer, with no stamps.
+   */
+  readonly program?: string;
 }
 
 /**
  * A client is what the runs of a cell use: the TCP client of the harness, or a driver on its
  * socket. The HTTP clients are the `http.Transport` of Go (`go-http`), the `http.Agent` of Node
- * (`http-agent`) and an HTTP/1.1 `Client` of undici (`undici`).
+ * (`http-agent`) and an HTTP/1.1 `Client` of undici (`undici`). The MongoDB driver is `mongodb`.
  */
-export type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici";
+export type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici" | "mongodb";
 
 /**
  * An HTTP probe is the workload of an HTTP client. The first request is a GET of the root. The
@@ -510,11 +630,15 @@ export interface Cell {
      */
     readonly request?: string;
     /**
-     * This driver replaces the TCP client of the harness, with its own options. It is ioredis 6 on
-     * Node, whose keepAlive is the keepalive delay of the socket. The driver then ignores `keepalive`
-     * and `userTimeout`.
+     * This driver replaces the TCP client of the harness, with its own options. The driver then
+     * ignores `keepalive` and `userTimeout`:
+     * - ioredis 6 on Node, whose keepAlive is the keepalive delay of the socket.
+     * - the MongoDB driver on Node, against the replica set `set`. Its operation is a write, or
+     *   the read of a long document (`read-long`). `Cell.driverOptions` are its options.
      */
-    readonly driver?: { readonly name: "ioredis"; readonly keepAlive: Quantity };
+    readonly driver?:
+      | { readonly name: "ioredis"; readonly keepAlive: Quantity }
+      | { readonly name: "mongodb"; readonly set: string; readonly op?: "write" | "read-long" };
     /** This workload is the workload of an HTTP client (`Cell.client` is an HTTP client). The client then ignores `keepalive` and `userTimeout`. */
     readonly http?: HttpProbe;
   };
@@ -571,12 +695,28 @@ export interface Cell {
    * record, and the group does not read it.
    */
   readonly group?: Group;
-  /** This time is how long a fault on a group holds after its commit. The injector then lifts it at that instant, on the clock of the VM. */
+  /**
+   * This replica set replaces the target: a replicated group whose members elect their own
+   * primary. The client is then the MongoDB driver, and it writes a stream of sequence numbers.
+   * `target` stays for the record, and the set does not read it.
+   */
+  readonly replicaSet?: ReplicaSet;
+  /**
+   * This time is how long a fault on a group holds after its commit. The injector then lifts it at
+   * that instant, on the clock of the VM. On a direct pair, a frozen target thaws after it.
+   */
   readonly hold?: Quantity;
   /** This flag makes a planned failover coordinated: `SENTINEL FAILOVER <group> COORDINATED`. */
   readonly coordinated?: boolean;
-  /** These are options of ioredis over its defaults, for the client of a group. A cell at the defaults has none. */
+  /**
+   * These are options of the driver over its defaults: of ioredis for the client of a group, or of
+   * the MongoDB driver for its client. A cell at the defaults has none.
+   */
   readonly driverOptions?: Readonly<Record<string, unknown>>;
+  /** This write concern is the w of each write of the MongoDB client. Without it, it is majority. */
+  readonly writeConcern?: "majority" | 1;
+  /** This flag makes the fault hold before the client starts. The client then meets it at its first selection. */
+  readonly before?: boolean;
   /** This count is the number of runs of the cell (11), across new environments (two at least). */
   readonly runs: number;
   readonly environments: number;
@@ -684,7 +824,11 @@ export interface RunGroup {
   readonly primary: string;
   /** This name is the part that got the fault, or null for a fault on the whole group. */
   readonly at: string | null;
-  /** These are the lines of the observer of the Sentinels from the start to the end of the run. */
+  /**
+   * These are the lines of the timeline from the start to the end of the run. For a group under
+   * Sentinels, they are the lines of the observer of the Sentinels. For a replica set, they are
+   * the log lines of the members (`ev` "mongod"), with their times on the monotonic clock.
+   */
   readonly timeline: readonly SentinelEvent[];
   /** This name is the member that was the primary when the group converged after the run, or null when it did not converge. */
   readonly after: string | null;
