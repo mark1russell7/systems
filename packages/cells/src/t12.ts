@@ -55,9 +55,11 @@ export const GROUP_TARGET: Target = { image: VALKEY_IMAGE, port: 6379, ready: "R
 /**
  * This time is the error of the stamps of the observer. It is the 99.9th percentile of the delay
  * from the write of a Sentinel to the stamp of the observer that read it. The calibration cell of
- * the Sentinels measured it on 2026-10-16 (`T12_CAL`). Each stage band includes it.
+ * the Sentinels measured it on 2026-10-16 (`T12_CAL`), on a runner of GitHub with Linux 6.17. Its
+ * 397 stamps had a median of 0.208 ms, a 99th percentile of 0.552 ms and a maximum of 0.705 ms.
+ * Each stage band includes it.
  */
-export const STAMPS: Quantity = { value: 2, unit: "ms" };
+export const STAMPS: Quantity = { value: 0.705, unit: "ms" };
 
 /** This interval is the pause of the stream of writes after each reply: 50 ms. */
 const INTERVAL_MS = 50;
