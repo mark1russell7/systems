@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/quantity",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Amounts in typed units: an exponent vector over six bases, exact rational conversion factors, canonical spellings, zod schemas and one way to print an amount.",
   "keywords": [
     "quantity",
@@ -32,6 +32,7 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./schema": "./src/schema.ts",
     "./package.json": "./package.json"
   },
   "files": [
@@ -52,6 +53,11 @@
   "peerDependencies": {
     "zod": "^4.1.0"
   },
+  "peerDependenciesMeta": {
+    "zod": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue",
     "@types/node": "^26.6.4",
@@ -68,6 +74,10 @@
       ".": {
         "types": "./build/index.d.ts",
         "default": "./build/index.js"
+      },
+      "./schema": {
+        "types": "./build/schema.d.ts",
+        "default": "./build/schema.js"
       },
       "./package.json": "./package.json"
     }

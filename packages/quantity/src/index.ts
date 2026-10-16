@@ -4,6 +4,9 @@
 // temperature, data, money), an exact rational factor, and what it counts. A kind names a
 // dimension that a schema can ask for. Conversions are exact for decimal inputs, so money adds to
 // the cent and 7875 s is exactly 131.25 min.
+//
+// This entry does not import zod. The schemas are in the entry "@mark1russell7/quantity/schema":
+// a bundle that uses only the amounts does not get zod (approximately 95 kB of gzip).
 
 export type { Rational } from "./rational.ts";
 // the exact arithmetic itself, for an engine that computes with amounts
@@ -46,12 +49,3 @@ export {
 } from "./quantity.ts";
 export type { FormatOptions } from "./format.ts";
 export { format, formatDuration, formatUnit } from "./format.ts";
-export type { KindOrDerived, QuantityOptions } from "./schema.ts";
-export {
-  extentSchema,
-  isQuantitySchema,
-  quantitySchema,
-  statisticSchema,
-  unitSchema,
-  unknownSchema,
-} from "./schema.ts";

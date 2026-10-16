@@ -1,4 +1,4 @@
-import { unitSchema } from "@mark1russell7/quantity";
+import { unitSchema } from "@mark1russell7/quantity/schema";
 import { z } from "zod";
 
 /**

@@ -6,24 +6,21 @@ import {
   canonicalUnit,
   compare,
   convert,
-  extentSchema,
   format,
   formatDuration,
   isCanonicalUnit,
-  isQuantitySchema,
   kindOf,
   mean,
   min,
   quantity,
-  quantitySchema,
   round,
   sum,
   toNanoseconds,
   unbounded,
-  unitSchema,
   valueIn,
   whyNotConvertible,
 } from "./index.ts";
+import { extentSchema, isQuantitySchema, quantitySchema, unitSchema } from "./schema.ts";
 
 describe("units", () => {
   it("converts exactly by rational factors (SYSTEMS.md §9)", () => {

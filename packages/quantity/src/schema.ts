@@ -1,3 +1,5 @@
+// The entry "@mark1russell7/quantity/schema": the zod schemas of the amounts. The root entry of
+// the package does not import zod.
 import { z } from "zod";
 import { tryParseUnit } from "./parse.ts";
 import type { Extent, Quantity, Unknown } from "./quantity.ts";
