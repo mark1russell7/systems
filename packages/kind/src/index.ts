@@ -49,7 +49,7 @@ export {
 export type { Verdicts } from "./rules.ts";
 export { DRAIN_RULES, O04, O09, O10, O16, describeCell, lintCell, scenarioOf, verdictsOf } from "./rules.ts";
 export type { KindCellResult, LoadSample, RunOptions } from "./run.ts";
-export { RULES_EVERY, runKindCells, writeResult } from "./run.ts";
+export { RULES_EVERY, estimateSeconds, runKindCells, shardOf, writeResult } from "./run.ts";
 export type { KindConfig, KindScenario, KubeProxyMode, NodeImage } from "./scenario.ts";
 export {
   KUBE_PROXY_MODES,

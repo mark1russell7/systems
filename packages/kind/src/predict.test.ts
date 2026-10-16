@@ -15,6 +15,7 @@ import {
   stallRemovalBand,
 } from "./predict.ts";
 import { describeCell, lintCell, verdictsOf } from "./rules.ts";
+import { estimateSeconds, shardOf } from "./run.ts";
 
 const s = (value: number) => ({ value, unit: "s" });
 const PROBE = KUBE_PROBE;
@@ -58,6 +59,21 @@ describe("the arithmetic of the predictions", () => {
     expect(verdictsOf(lintCell(describeCell(noHold), noHold, E))).toMatchObject({ O04: "violated", O10: "holds" });
     const late = { ...cell, pod: { ...cell.pod, preStop: s(5) } };
     expect(verdictsOf(lintCell(describeCell(late), late, E))["O10"]).toBe("violated");
+  });
+});
+
+describe("the shards of a catalog", () => {
+  it("puts each cell in one shard, with the cells of one mode together, in shares of the estimated time", () => {
+    const modes = ["iptables", "ipvs", "nftables"] as const;
+    const cells = Array.from({ length: 21 }, (_, at) => ({ ...cellOf("pod-deletion"), name: `cell ${at}`, mode: modes[at % 3]! }));
+    const shards = Array.from({ length: 4 }, (_, index) => shardOf(cells, index, 4));
+    expect(shards.flat().map((cell) => cell.name).sort()).toEqual(cells.map((cell) => cell.name).sort());
+    for (const shard of shards) expect(shard.length).toBeGreaterThanOrEqual(5);
+    // the cells are in sequence by mode, thus a shard holds two modes at the most
+    for (const shard of shards) expect(new Set(shard.map((cell) => cell.mode)).size).toBeLessThanOrEqual(2);
+    expect(shardOf(cells, 0, 1)).toHaveLength(21);
+    expect(() => shardOf(cells, 4, 4)).toThrow(/not a shard/);
+    expect(estimateSeconds(cells[0]!)).toBe(120 + 13 * 40);
   });
 });
 

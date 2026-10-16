@@ -1,4 +1,5 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { StartedTestContainer } from "testcontainers";
 import type { KindCell, KindRun, Replica } from "./cell.ts";
@@ -46,6 +47,11 @@ export interface RunOptions {
   readonly environments?: number;
   /** This share of the CPUs of the VM must be idle before a run starts. */
   readonly idle?: number;
+  /**
+   * This folder holds the run folder of each cluster: its config, its kubeconfig and the cache of
+   * kubectl. It is not the output, because a kubeconfig holds credentials.
+   */
+  readonly work?: string;
 }
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -432,7 +438,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
     const partial = new Map<string, { runs: KindRun[]; manifests: KindCellResult["manifests"]; loads: LoadSample[] }>();
     for (let env = 0; env < environments; env += 1) {
       const s = scenario(`lab-${key}-${env}`, group[0]!.mode, group[0]!.workers);
-      const dir = join(options.out, "clusters", s.name);
+      const dir = join(options.work ?? join(tmpdir(), "systems-kind-work"), s.name);
       options.log(`cluster ${s.name}: ${s.kubeProxy.mode}, ${s.workers} workers`);
       const cluster = await createCluster(s, dir);
       let lab: KindLab | null = null;
@@ -469,7 +475,8 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
             entry.manifests.push({ env, scenario: s, cluster: manifest, images: { lab: image, redis: redisImage } });
             entry.loads.push(...loads);
             partial.set(cell.name, entry);
-            writeFileSync(join(dir, `${slug(cell.name)}.env${env}.json`), JSON.stringify({ cell, runs, manifest, loads }));
+            mkdirSync(join(options.out, "partial"), { recursive: true });
+            writeFileSync(join(options.out, "partial", `${slug(cell.name)}.env${env}.json`), JSON.stringify({ cell, runs, manifest, loads }));
           } finally {
             off();
             await lab.rules(null).catch(() => undefined);
@@ -489,9 +496,48 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
       if (entry === undefined) continue;
       const result: KindCellResult = { cell, ...entry, verdict: judgeKind(cell, entry.runs), at: new Date().toISOString() };
       writeResult(options.out, result);
+      rmSync(join(options.out, "partial", `${slug(cell.name)}.env0.json`), { force: true });
+      for (let env = 1; env < environments; env += 1) rmSync(join(options.out, "partial", `${slug(cell.name)}.env${env}.json`), { force: true });
       options.log(`${cell.name}: ${result.verdict.decision}, ${result.verdict.why}`);
       results.push(result);
     }
   }
   return results;
+};
+
+/**
+ * This function gives an estimate of the time of a cell in seconds: its setup, then each run and
+ * each warm-up. A run waits for the cell at rest, samples the load, does the trigger and waits
+ * until the cell is at rest again.
+ */
+export const estimateSeconds = (cell: KindCell, environments = 2): number => {
+  const hold = cell.trigger.hold === undefined ? 0 : cell.trigger.hold.value;
+  const trigger: Record<string, number> = {
+    "liveness-restart": 100,
+    crash: 30,
+    "app-stall": hold + 40,
+    "cpu-throttle": hold + 40,
+    rollout: hold + 50,
+  };
+  const each = 25 + (trigger[cell.trigger.kind] ?? (cell.template === "T18" ? hold + 35 : 15 + cell.pod.preStop.value));
+  return 60 * environments + (cell.runs + environments) * each;
+};
+
+/**
+ * This function gives the share of a shard of a catalog: cells in sequence. Thus the cells of one
+ * mode stay together and share clusters. Each shard gets an equal share of the estimated time.
+ */
+export const shardOf = <T extends KindCell>(cells: readonly T[], index: number, count: number): T[] => {
+  if (!(Number.isInteger(index) && Number.isInteger(count) && count >= 1 && index >= 0 && index < count))
+    throw new RangeError(`shard ${index} of ${count} is not a shard`);
+  const ordered = [...cells].sort((a, b) => (a.mode === b.mode ? 0 : a.mode < b.mode ? -1 : 1));
+  const total = ordered.reduce((sum, cell) => sum + estimateSeconds(cell), 0);
+  const out: T[] = [];
+  let before = 0;
+  for (const cell of ordered) {
+    const middle = before + estimateSeconds(cell) / 2;
+    if (Math.min(count - 1, Math.floor((middle / total) * count)) === index) out.push(cell);
+    before += estimateSeconds(cell);
+  }
+  return out;
 };

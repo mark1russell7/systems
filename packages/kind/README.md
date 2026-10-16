@@ -72,3 +72,12 @@ The plan's `event:clock-jump` has no trigger. A step of CLOCK_REALTIME in the VM
 `pnpm --filter @systems/kind test` starts the tests of the configuration, the tools, the parser of the rules, the fault mapping, the arithmetic of the predictions and the verdict. They do not need Docker.
 
 The catalogs are in `@systems/cells` (`t07.ts`, `t18.ts`). `KIND_LAB=1` starts them in kind.
+
+## CI
+
+The cells operate on the runners of GitHub, and not on a machine that does other work (`.github/workflows/kind.yml`). Each shard gets a runner, and each job makes its own clusters and deletes them.
+
+- **The modes of the kernel.** kube-proxy in a node container uses the modules of the host kernel. Thus the job loads `ip_vs` and `nf_tables` first. A cell of a mode that the kernel cannot do waits, and `summary.ndjson` tells why.
+- **The shards.** `shardOf` gives each shard an equal share of the estimated time, and the cells of one mode stay together. Thus a shard makes few clusters.
+- **The output.** Each job uploads its raw records, `summary.ndjson`, and what the runner is. The run folder of each cluster stays out of the output, because a kubeconfig holds credentials.
+- **A pull request** that changes the workflow starts a smoke run: the calibration of each mode, with 2 runs on one cluster.
