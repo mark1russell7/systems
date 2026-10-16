@@ -5,9 +5,11 @@ import {
   asWindow,
   evaluate,
   failSpan,
+  lint,
   mayReissue,
   recoverSpan,
   service,
+  serviceBindings,
   verdictOf,
 } from "./index.ts";
 import { fakeClock } from "./testing.ts";
@@ -209,5 +211,42 @@ describe("the ordering law's evaluator", () => {
       verdict({ "ready@pod": 30, "propagation@cluster": 1, "live@pod": "inf", "prestop@pod": 0 }),
     ).toBe("unbounded");
     expect(verdict({ "ready@pod": 30 })).toBe("depends");
+  });
+
+  // O04 with the service's own hold: the preStop sleep and the hold of "fail readiness" both keep the
+  // listener open while the endpoints update
+  const O04: Rule = {
+    id: "O04",
+    rule: "the preStop sleep plus the hold of fail readiness is at least the endpoint propagation",
+    expr: {
+      lhs: {
+        terms: [
+          { knob: "prestop_sleep", coef: 1, at: "pod" },
+          { knob: "readiness_hold", coef: 1, at: "process" },
+        ],
+      },
+      op: ">=",
+      rhs: { terms: [{ knob: "propagation_bound", coef: 1, at: "cluster" }] },
+    },
+  };
+  const drained = (hold: number | null) => {
+    const svc = service("svc")
+      .readiness({ type: "debounce", interval: s(5), failAfter: 3, recoverAfter: 1 })
+      .liveness({ type: "window", failAfter: s(45) })
+      .startup(s(60))
+      .cooperativeWindow(s(1));
+    if (hold !== null) svc.phase("fail readiness", s(hold));
+    return svc.phase("stop the poller", s(1)).describe();
+  };
+  const platform = (prestop: number) => ({
+    platform: { "prestop_sleep@pod": s(prestop), "propagation_bound@cluster": s(1) },
+    probes: { readiness: s(30), liveness: s(30) },
+  });
+  it("binds the hold of fail readiness for O04, and a service without that phase holds for zero", () => {
+    expect(serviceBindings(drained(2), platform(0)).bind["readiness_hold@process"]).toBe(2);
+    expect(serviceBindings(drained(null), platform(0)).bind["readiness_hold@process"]).toBe(0);
+    expect(lint(drained(2), platform(0), [O04])[0]?.verdict).toBe("holds");
+    expect(lint(drained(0), platform(0), [O04])[0]?.verdict).toBe("violated");
+    expect(lint(drained(0), platform(1), [O04])[0]?.verdict).toBe("holds");
   });
 });

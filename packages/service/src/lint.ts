@@ -42,6 +42,7 @@ export interface Finding {
 
 /** These are the identifiers of the rules that each declaration gets. */
 export const SERVICE_RULES: readonly string[] = [
+  "O04",
   "O09",
   "O10",
   "O11",
@@ -136,6 +137,15 @@ export const serviceBindings = (
     "cooperative_window@process",
     boundOf(svc.shutdown.cooperativeWindow),
     "the declared cooperative window",
+  );
+  // the hold of "fail readiness" keeps the listener open after the signal, as a preStop sleep does
+  const hold = svc.shutdown.phases.find((phase) => phase.name === "fail readiness");
+  set(
+    "readiness_hold@process",
+    hold === undefined ? 0 : secondsOf(hold.cap),
+    hold === undefined
+      ? "no fail readiness phase: the intake stops at once after the signal"
+      : "the cap of the fail readiness phase, which holds while the endpoints update",
   );
   for (const [symbol, amount] of Object.entries(scenario.platform))
     set(symbol, boundOf(amount), "the scenario");

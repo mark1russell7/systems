@@ -1,0 +1,139 @@
+# Runs the kind catalogs, T07 and T18, on GitHub's runners. Each shard gets a runner of its own, and
+# each job makes its own kind clusters with the pinned kind and node image, then deletes them.
+#
+#   plan    The shards: the input for a dispatch, one for a pull request.
+#   kind    Writes what the runner is, and which kube-proxy modes its kernel can do. Then it runs
+#           the cells whose names match `only` (KIND_LAB=1), a shard on each runner, and uploads each
+#           raw record and summary.ndjson as an artifact. A cell of a mode that the kernel cannot do
+#           waits, with its reason in summary.ndjson.
+#
+# Start it with: gh workflow run kind.yml -R mark1russell7/systems --ref <branch> -f only='^T07' -f shards=10
+# A pull request that changes this file runs a smoke: the calibration of each mode, 2 runs, one cluster.
+#
+# A runner has 4 CPUs and 16 GB. A cluster of one control plane and 2 workers idles at about 1.2 GB
+# and a quarter of a CPU, thus each job makes one cluster at a time.
+name: Kind
+
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: A regular expression of the cell names to run
+        default: "."
+      shards:
+        description: How many runners share the cells (1 to 20)
+        default: "10"
+      runs:
+        description: The runs of each cell (empty for the count of the catalog)
+        default: ""
+      environments:
+        description: How many new clusters each group of cells gets, in sequence
+        default: "2"
+  pull_request:
+    paths: [".github/workflows/kind.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      shards: ${{ steps.shards.outputs.list }}
+      count: ${{ steps.shards.outputs.count }}
+    steps:
+      - id: shards
+        env:
+          SHARDS: ${{ github.event_name == 'workflow_dispatch' && inputs.shards || '1' }}
+        run: |
+          case "$SHARDS" in
+            ''|*[!0-9]*) echo "::error::shards must be a whole number"; exit 1 ;;
+          esac
+          if [ "$SHARDS" -lt 1 ] || [ "$SHARDS" -gt 20 ]; then
+            echo "::error::shards must be 1 to 20"; exit 1
+          fi
+          echo "count=$SHARDS" >> "$GITHUB_OUTPUT"
+          echo "list=$(seq -s, 0 $((SHARDS - 1)) | sed 's/^/[/; s/$/]/')" >> "$GITHUB_OUTPUT"
+
+  kind:
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJSON(needs.plan.outputs.shards) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 340
+    env:
+      KIND_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.only || '^T07 (iptables|ipvs|nftables), the propagation' }}
+      # an empty count of a dispatch keeps the count of the catalog
+      KIND_RUNS: ${{ github.event_name == 'workflow_dispatch' && inputs.runs || (github.event_name != 'workflow_dispatch' && '2' || '') }}
+      KIND_ENVIRONMENTS: ${{ github.event_name == 'workflow_dispatch' && inputs.environments || '1' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The pnpm version comes from "packageManager" in package.json
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: The runner, beside the records
+        run: |
+          mkdir -p "$RUNNER_TEMP/kindcells"
+          {
+            echo "kernel: $(uname -r)"
+            echo "CONFIG_HZ: $(grep -E '^CONFIG_HZ=' "/boot/config-$(uname -r)" || echo unknown)"
+            echo "cpus: $(nproc)"
+            echo "memory: $(free -m | awk '/^Mem:/ {print $2}') MiB"
+            echo "cgroup: $(stat -fc %T /sys/fs/cgroup)"
+            echo "docker: $(docker version --format '{{.Server.Version}}')"
+            echo "image: $ImageOS $ImageVersion"
+          } | tee "$RUNNER_TEMP/kindcells/runner.txt"
+      # kube-proxy in a node container uses the modules of the host kernel: load them here
+      - name: The kube-proxy modes of this kernel
+        run: |
+          modes="iptables"
+          waiting=""
+          if sudo modprobe -a ip_vs ip_vs_rr ip_vs_wrr ip_vs_sh nf_conntrack; then
+            modes="$modes,ipvs"
+          else
+            waiting="the kernel $(uname -r) of the runner has no ip_vs module for IPVS mode"
+          fi
+          if sudo modprobe nf_tables; then
+            modes="$modes,nftables"
+          else
+            waiting="${waiting:+$waiting; }the kernel $(uname -r) of the runner has no nf_tables module"
+          fi
+          {
+            echo "modes: $modes"
+            echo "waiting: ${waiting:-none}"
+            lsmod | grep -E '^(ip_vs|nf_tables|nf_conntrack|br_netfilter)' || true
+          } | tee "$RUNNER_TEMP/kindcells/modes.txt"
+          echo "KIND_MODES=$modes" >> "$GITHUB_ENV"
+          echo "KIND_WAITING=$waiting" >> "$GITHUB_ENV"
+      - name: The cells
+        env:
+          KIND_LAB: "1"
+          KIND_SHARD: ${{ matrix.shard }}/${{ needs.plan.outputs.count }}
+          KIND_OUT: ${{ runner.temp }}/kindcells
+          KIND_WORK: ${{ runner.temp }}/kind-work
+        run: pnpm --filter @systems/cells test
+      # a job that stopped in the middle leaves its clusters: the pinned kind deletes them
+      - name: Delete each cluster
+        if: always()
+        run: |
+          kind="packages/kind/.cache/tools/kind-v0.33.0-linux-x64/kind"
+          if [ -x "$kind" ]; then
+            for cluster in $("$kind" get clusters 2>/dev/null); do "$kind" delete cluster --name "$cluster" || true; done
+          fi
+          docker network ls --format '{{.Name}}' | grep '^systems-lab-' | xargs -r docker network rm || true
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: kind-${{ matrix.shard }}
+          path: ${{ runner.temp }}/kindcells/
+          if-no-files-found: warn
+          retention-days: 30

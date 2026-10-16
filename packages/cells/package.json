@@ -15,6 +15,7 @@
     "@mark1russell7/harness": "workspace:^",
     "@mark1russell7/quantity": "workspace:^",
     "@mark1russell7/service": "workspace:^",
+    "@systems/kind": "workspace:^",
     "zod": "^4.6.6"
   },
   "devDependencies": {
