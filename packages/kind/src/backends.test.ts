@@ -63,6 +63,32 @@ describe("the backends of a Service in the rules of kube-proxy", () => {
     expect(backendsOf("nftables", quoted, RULE)).toEqual(["10.244.1.3:8080", "10.244.2.4:8080"]);
   });
 
+  it("reads the DNAT of the service chain, as kube-proxy 1.37 writes it, for one backend and for more", () => {
+    const v137 = (map: string) =>
+      [
+        "table ip kube-proxy {",
+        "\tset hairpin-connections {",
+        "\t\ttype ipv4_addr . ipv4_addr . inet_proto . inet_service",
+        "\t\telements = { 10.244.1.3 . 10.244.1.3 . tcp . 8080 }",
+        "\t}",
+        "\tmap service-ips {",
+        "\t\telements = { 10.96.12.34 . tcp . 80 : goto service-V6P4GONM-lab-x/lab/tcp/http }",
+        "\t}",
+        "\tchain service-AS2KJYAD-kube-system/kube-dns/tcp/metrics {",
+        "\t\tmeta l4proto tcp dnat ip to numgen random mod 2 map { 0 : 10.244.0.2 . 9153, 1 : 10.244.0.4 . 9153 }",
+        "\t}",
+        "\tchain service-V6P4GONM-lab-x/lab/tcp/http {",
+        `\t\t${map}`,
+        "\t}",
+        "}",
+      ].join("\n");
+    expect(backendsOf("nftables", v137("meta l4proto tcp dnat ip to numgen random mod 2 map { 0 : 10.244.1.3 . 8080, 1 : 10.244.2.4 . 8080 }"), RULE)).toEqual([
+      "10.244.1.3:8080",
+      "10.244.2.4:8080",
+    ]);
+    expect(backendsOf("nftables", v137("meta l4proto tcp dnat to 10.244.2.4:8080"), RULE)).toEqual(["10.244.2.4:8080"]);
+  });
+
   it("gives no backend for a Service without rules", () => {
     for (const mode of ["iptables", "nftables", "ipvs"] as const) expect(backendsOf(mode, "", RULE)).toEqual([]);
   });

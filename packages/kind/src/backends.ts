@@ -18,7 +18,7 @@ const hexIp = (hex: string): string =>
  * `ip:port`, sorted. A backend of IPVS with the weight zero takes no new connection, thus it is
  * not a backend.
  * - iptables: the `KUBE-SVC` chain of the Service jumps to a `KUBE-SEP` chain for each backend, and that chain does the DNAT.
- * - nftables: the `service-` chain of the Service names an `endpoint-` chain for each backend, with its address in the name.
+ * - nftables: the `service-` chain of the Service does the DNAT to each backend, or it names an `endpoint-` chain for each one.
  * - IPVS: `/proc/net/ip_vs` has the line of the virtual service, then a line for each real server.
  */
 export const backendsOf = (mode: ServiceRule["mode"], text: string, rule: Pick<ServiceRule, "ns" | "svc" | "ip" | "port">): string[] => {
@@ -44,9 +44,14 @@ export const backendsOf = (mode: ServiceRule["mode"], text: string, rule: Pick<S
     for (const line of lines) {
       const head = /^\s*chain\s+"?([^"\s{]+)"?\s*\{/.exec(line);
       if (head !== null) inside = head[1]!.startsWith("service-") && head[1]!.includes(ours);
+      else if (/^\s*(set|map)\s/.test(line)) inside = false;
       if (!inside) continue;
+      // one chain for each endpoint, as kube-proxy 1.31 writes it
       for (const match of line.matchAll(/(?:goto|jump)\s+"?endpoint-[0-9A-Za-z]+(-[^\s,}"]+)__([0-9.]+)\/(\d+)"?/g))
         if (match[1]!.startsWith(ours)) out.add(`${match[2]}:${match[3]}`);
+      // a DNAT in the service chain, as kube-proxy 1.37 writes it: `numgen random mod 2 map { 0 : IP . PORT, … }`, or `dnat to IP:PORT`
+      for (const match of line.matchAll(/(?:^|[\s{,:])(\d+\.\d+\.\d+\.\d+) \. (\d+)(?=\s*[,}]|\s*$)/g)) out.add(`${match[1]}:${match[2]}`);
+      for (const match of line.matchAll(/\bdnat (?:ip )?to (\d+\.\d+\.\d+\.\d+):(\d+)/g)) out.add(`${match[1]}:${match[2]}`);
     }
   } else {
     let inside = false;
