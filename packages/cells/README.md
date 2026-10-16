@@ -118,7 +118,25 @@ In a crossing, each client does a different thing. Go sends a GET again on a new
 
 - **The width of the window.** The crossing window is one round trip wide. On the Docker bridge, the round trip is narrower than the bounds of S. Thus a cell with the gap at S is measurement-only. A cell with 100 ms of latency has a window that holds the bounds of S.
 - **Only Go races.** The agent and undici take C from the hint of the server, less a buffer. The hint is S in whole seconds or less, thus their C stays below S. Go ignores the hint, and its C is 90 s.
-- **The border of O01.** The plan gives O01 a margin of 0.26 s at S = 6 s. The documents give a margin of a few milliseconds: the lateness of C, the early bound of S and the round trip. Thus the cells on each side of the border of the plan predict no race.
+- **The border of O01.** The plan gives O01 a margin of 0.26 s at S = 6 s. The documents give a margin of a few milliseconds: the lateness of C, the handling time, the early bound of S and the round trip. Thus the cells on each side of the border of the plan predict no race.
+
+### The handling time
+
+Each band of a client counts from the last segment of the reply that the kernel of the client received (`last-received`). A Node client arms its pool timer later, on its event loop, after the program read the whole reply. The time between them is the handling time (`HANDLING` in `race.ts`).
+
+- **Where each client arms its timer.** The agent arms its free socket timer in its handler of the `free` event. The socket emits `free` on the next tick after the end of the response (`lib/_http_client.js:1017-1051`, `lib/_http_agent.js:201-265`). undici arms its keep-alive timer in `resumeH1`. A `setImmediate` after the parse of the reply starts that function (`lib/dispatcher/client-h1.js:842-846`, `:1151-1154`).
+- **No source bounds it.** It is the time of the program. Each run of a cell starts a new client process, thus each race meets the first reply of a process. That reply starts code for the first time. In run 38931350785, the first reply took 1.5 ms to 9.7 ms to the `ready` line of the program. The second reply took less than 1.3 ms.
+- **The calibration.** The cells `CAL agent` and `CAL undici` give the client a pool timer of 1 ms against a hint of 6. The timer fires after its arm. Thus each time from the last segment to the FIN of the client is more than the handling time of its run. Four copies of each cell go to four runners, because the CPU of a runner changes the handling time.
+- **The bound.** `HANDLING` is the largest time that the calibration counted. The two CI calibrations 38974653161 and 38975675034 gave 88 counted times for each client, on eight runners with six types of CPU. The agent had a median of 4.977 ms and a maximum of 6.73 ms. undici had a median of 7.844 ms and a maximum of 11.182 ms. The reader `handling.test.ts` reads the records of a calibration and gives the spread.
+- **What it changes.** The handling time goes on the high bound of the pool expiry and of the gap of a Node client. A client with no reuse closes at its decision, in the handling time. The orderings of the race stay the same. Go handles its first reply in less than 0.71 ms, thus it gets no handling time.
+- **The bands that it repairs.** The CI run 38931350785 refuted four bands, each by the handling time:
+
+| Cell | The band before | What the runs showed |
+| --- | --- | --- |
+| `T01.border-off.124` undici, a GET 5.95 s after the reply | [5.898, 5.9079] s | 8 of 11 runs above the band and δ_abs, by up to 0.95 ms. The `ready` line came 5.9 ms to 6.5 ms after the last segment, and the timer arms after it. |
+| `T01` undici, a GET 4 s after the reply | [2.998, 3.005] s | 4 of 11 runs above the band and δ_abs, by up to 1.4 ms. |
+| `T01` undici, a hint of 2 (no reuse) | [0, 0.001] s | 1 run at 5.7 ms. undici closes in the parse of the reply, 4.2 ms to 5.7 ms after the last segment. |
+| `T01` agent, a hint of 1 (no reuse) | [0, 0.001] s | Each run inside the band and δ_abs. But the interval of the median, [4.19, 4.76] ms, is above the band, thus the verdict fails. |
 
 ### The faults
 

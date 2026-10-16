@@ -9,6 +9,11 @@ import { NODE_TIMER_EARLY, nodeTimerLateness, undiciFastEarly, undiciFastLatenes
  * The headers and body timeouts use the fast timers of undici, which count in ticks of 499 ms. The
  * client sends no request again by itself. A request that it did not write yet goes on the next
  * connection.
+ *
+ * The keep-alive timer arms on the event loop of the program, in the check phase after the parse
+ * of the reply. The time from the last segment that the kernel received to that arm is the time of
+ * the program. No source bounds it, and this document does not hold it. The race adds it from a
+ * calibration (`HANDLING` in `race.ts`).
  */
 export const UNDICI_CLIENT: Machine = {
   format: "mark1russell7.machine/1",
@@ -31,7 +36,7 @@ export const UNDICI_CLIENT: Machine = {
       rung: "implemented",
     },
     {
-      ref: "undici 8.12.2 lib/dispatcher/client-h1.js:832-846 and :1111-1163: after a reply, one setImmediate, then the keep-alive timer; after the write of a request, the headers timer",
+      ref: "undici 8.12.2 lib/dispatcher/client-h1.js:785-852 onMessageComplete: a reply that ends the connection destroys the socket in the parse (:827-841), else one setImmediate (:842-846). Then lib/dispatcher/client.js:646-676 and client-h1.js:1111-1163 resumeH1 arm the keep-alive timer (:1151-1154). After the write of a request, the headers timer",
       rung: "implemented",
     },
     {
@@ -64,7 +69,10 @@ export const UNDICI_CLIENT: Machine = {
     "tx.request": { kind: "tx", note: "the client wrote the request and resumes" },
     "rx.headers": { kind: "rx" },
     "rx.body": { kind: "rx", note: "a chunk of the body: it refreshes the body timer" },
-    "resp.complete": { kind: "local", note: "onMessageComplete" },
+    "resp.complete": {
+      kind: "local",
+      note: "onMessageComplete, in the parse of the reply on the event loop. It comes after the last segment by the handling time of the program",
+    },
     "rx.fin": { kind: "peer" },
     "rx.rst": { kind: "peer" },
     "timer.keep-alive": { kind: "timer" },
@@ -114,7 +122,7 @@ export const UNDICI_CLIENT: Machine = {
       arms: ["resp.complete", "enter:IDLE"],
       cancels: ["req.dispatch"],
       fires: "timer.keep-alive",
-      note: "setTimeout(onParserTimeout, delay) with unref: a native Node timer",
+      note: "setTimeout(onParserTimeout, delay) with unref: a native Node timer. It arms in resumeH1, in the check phase after the parse of the reply. That comes in the handling time of the program after the last segment (race.ts)",
     },
     headers: {
       duration: { knob: "headersTimeout", unit: "ms" },
