@@ -1,8 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/harness",
-  "version": "0.2.0",
-  "description": "A fault-injection harness for connection timers: a cell runs a client against a stock target in Docker, injects a fault, measures the kernel's own records and judges a prediction.",
+  "version": "0.3.0",
+  "description": "A fault-injection harness for connection timers: a cell runs a client against a stock target in Docker, through a topology of routers and proxies, injects a fault, measures the kernel's own records and judges a prediction.",
   "keywords": [
     "fault-injection",
     "chaos-engineering",
@@ -42,6 +42,10 @@
     "image/node/client-ioredis.mjs",
     "image/node/package.json",
     "image/node/npm-lock.json",
+    "image/router/Dockerfile",
+    "image/router/mbx.sh",
+    "image/router/ctwatch.py",
+    "image/router/resetter.py",
     "README.md",
     "LICENSE"
   ],

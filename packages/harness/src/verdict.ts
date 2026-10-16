@@ -97,6 +97,30 @@ export const verdictOf = (prediction: Prediction, runs: readonly Measured[]): Ve
     return { ...empty, decision: "inconclusive", band: null, outside, why: "no run counted" };
 
   if (prediction.detects === null) {
+    // a measurement-only cell with a reference: the outcomes, and the times from the reference
+    if (prediction.from !== undefined) {
+      const times = counted
+        .flatMap((run) => (run.elapsed === null ? [] : [valueIn(run.elapsed, "s")]))
+        .sort((a, b) => a - b);
+      const kinds = new Map<string, number>();
+      for (const run of counted) {
+        const kind = run.outcome.kind === "error" ? run.outcome.errno : run.outcome.kind;
+        kinds.set(kind, (kinds.get(kind) ?? 0) + 1);
+      }
+      const outcomes = [...kinds].map(([kind, n]) => `${n} ${kind}`).join(", ");
+      const timed =
+        times.length === 0
+          ? "no time"
+          : `median ${s(middle(times)).value} s from ${prediction.from}, range [${s(times[0]!).value}, ${s(times.at(-1)!).value}] s`;
+      return {
+        ...empty,
+        decision: "measured",
+        band: null,
+        outside: [],
+        median: times.length === 0 ? null : s(middle(times)),
+        why: `${counted.length} runs measured: ${outcomes}; ${timed}. ${prediction.why}`,
+      };
+    }
     const samples = counted
       .flatMap((run) => (run.samples ?? []).map((sample) => valueIn(sample, "s")))
       .sort((a, b) => a - b);
@@ -116,7 +140,7 @@ export const verdictOf = (prediction: Prediction, runs: readonly Measured[]): Ve
     };
   }
 
-  if (!prediction.detects && prediction.recovers === undefined) {
+  if (!prediction.detects && prediction.recovers === undefined && prediction.replies === undefined) {
     const decision = outside.length === 0 ? "holds" : "fails";
     const why =
       decision === "holds"
@@ -125,8 +149,8 @@ export const verdictOf = (prediction: Prediction, runs: readonly Measured[]): Ve
     return { ...empty, decision, band: null, outside, why };
   }
 
-  // the interval of a detection, or of the return of the reply after a stall
-  const timed = prediction.detects ? prediction : prediction.recovers!;
+  // the interval of a detection, of the return of the reply after a stall, or of a reply in its band
+  const timed = prediction.detects ? prediction : (prediction.recovers ?? prediction.replies)!;
   const noise = valueIn(NOISE, "s");
   const low = valueIn(timed.low, "s");
   const high = valueIn(timed.high, "s");
@@ -151,7 +175,9 @@ export const verdictOf = (prediction: Prediction, runs: readonly Measured[]): Ve
   const wide = { low: low * (1 - RELATIVE), high: high * (1 + RELATIVE) };
   const inside = from >= wide.low && to <= wide.high;
   const disjoint = to < wide.low || from > wide.high;
-  const counts = `${counted.length - outside.length} of ${counted.length} runs inside [${band.low.value}, ${band.high.value}] s`;
+  // a run can be outside for its time and for a finding: it counts once
+  const off = new Set(outside.map((each) => each.run)).size;
+  const counts = `${counted.length - off} of ${counted.length} runs inside [${band.low.value}, ${band.high.value}] s`;
   const centre = `median ${median.value} s, its interval [${interval.low.value}, ${interval.high.value}] s`;
   const result = {
     counted: counted.length,

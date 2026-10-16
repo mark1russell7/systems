@@ -19,6 +19,8 @@ A machine document has the format `mark1russell7.machine/1`, and `machineSchema`
 ## The algebra
 
 - **Exact values.** `evaluate` and `timerOf` give a duration in the unit of its document, with exact rational arithmetic. Thus 0.2 s × 1023 is 204.6 s. A knob without a value gives an unknown result that names the knob. A knob that nothing sets gives a duration without an end.
+- **No bound has a sign.** A step of the arithmetic can be no bound below. For example, a cap less a timer that nothing sets is −∞. Thus `max(cap − ∞, cap / 2)` is cap / 2, and `min` keeps −∞.
+- **Results without a value.** A finite time over no bound is 0. A result that is no bound below is unknown, because a duration is not negative. No bound less no bound is unknown too.
 - **Models.** A model is the formula of an implementation. The package has these models:
   - `linux.retrans-budget`: the retransmission give-up of the kernel (`tcp_model_timeout`). At the defaults it is 924.6 s.
   - `linux.retrans-step`: how late the give-up comes after its budget, at the real RTO of the path.

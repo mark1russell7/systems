@@ -23,6 +23,9 @@
 //!   `netem eth0 delay 100ms 10ms` or `netem eth0 loss 5%`.
 //! - `offload DEV on|off`: the device's TSO, GSO and GRO, so that netem and length matches act on
 //!   segments rather than on GSO super-packets of up to 64 KB.
+//! - `http METHOD ADDR:PORT PATH [BODY]`: one HTTP/1.1 request to an API in the VM, for example a
+//!   toxic of Toxiproxy. The stamps bracket the request and its answer, after the connect, so the
+//!   commit of the toxic is known on the same clock as the kernel's records.
 //!
 //! `--at NS` holds the commit until that instant on CLOCK_MONOTONIC, the clock every stamp is on.
 //! A stall's end is timed that way, from inside the VM: the exec only has to arrive before it, and
@@ -165,9 +168,63 @@ fn command(program: &str, args: &[&str]) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// an HTTP path: a slash, then letters, digits and `/ - _ .` only
+fn http_path(path: &str) -> Result<&str, Box<dyn Error>> {
+    if path.starts_with('/')
+        && path.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '/' | '-' | '_' | '.'))
+    {
+        Ok(path)
+    } else {
+        Err(format!("not an HTTP path: {path}").into())
+    }
+}
+
+/// the head of one HTTP/1.1 request, with its body
+fn http_request(method: &str, host: &str, path: &str, body: &str) -> Result<String, Box<dyn Error>> {
+    if !matches!(method, "GET" | "POST" | "DELETE") {
+        return Err(format!("not a method: {method}").into());
+    }
+    Ok(format!(
+        "{method} {path} HTTP/1.1\r\nHost: {host}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+        body.len()
+    ))
+}
+
+/// one request to an API: the status, and the stamps around the request and its answer
+fn http(args: &[String]) -> Result<(), Box<dyn Error>> {
+    use std::io::Read;
+    use std::net::{SocketAddrV4, TcpStream};
+    let method = args.get(1).ok_or("http METHOD ADDR:PORT PATH [BODY]")?.as_str();
+    let addr: SocketAddrV4 = args.get(2).ok_or("and the address and port")?.parse()?;
+    let path = http_path(args.get(3).ok_or("and the path")?)?;
+    let body = args.get(4).map_or("", String::as_str);
+    let request = http_request(method, &addr.to_string(), path, body)?;
+    let mut stream = TcpStream::connect(addr)?;
+    let t0 = monotonic_ns();
+    stream.write_all(request.as_bytes())?;
+    let mut answer = Vec::new();
+    stream.read_to_end(&mut answer)?;
+    let t1 = monotonic_ns();
+    let text = String::from_utf8_lossy(&answer);
+    let status: u16 = text
+        .split_whitespace()
+        .nth(1)
+        .ok_or("no status in the answer")?
+        .parse()?;
+    if !(200..300).contains(&status) {
+        let detail = text.split("\r\n\r\n").nth(1).unwrap_or("").trim();
+        return Err(format!("{method} {path} answered {status}: {detail}").into());
+    }
+    println!("{}", json!({ "action": "http", "method": method, "path": path, "status": status, "t0": t0, "t1": t1 }));
+    Ok(())
+}
+
 fn run() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let action = args.first().ok_or("say an action: blackhole, clear, rst, reject, mtu, netem, offload …")?.as_str();
+    let action = args.first().ok_or("say an action: blackhole, clear, rst, reject, mtu, netem, offload, http …")?.as_str();
+    if action == "http" {
+        return http(&args);
+    }
     match action {
         "netem" | "clear-netem" | "offload" => {
             let dev = device(args.get(1).ok_or("and a device")?)?;
@@ -264,5 +321,18 @@ mod tests {
             "-I INPUT -s 10.0.0.2/32 -p tcp -m length --length 1201:65535 -j DROP\n"
         );
         assert!(rules("reject", peer, &Options::default()).is_err());
+    }
+
+    #[test]
+    fn http_requests_take_only_a_method_a_path_and_a_length() {
+        assert!(http_path("/proxies/redis/toxics").is_ok());
+        for path in ["proxies", "/a b", "/a;b", "/a?b=1", "/$(x)"] {
+            assert!(http_path(path).is_err(), "{path}");
+        }
+        let request = http_request("POST", "10.0.0.3:8474", "/proxies/redis/toxics", "{}").unwrap();
+        assert!(request.starts_with("POST /proxies/redis/toxics HTTP/1.1\r\n"));
+        assert!(request.contains("Content-Length: 2\r\n"));
+        assert!(request.ends_with("\r\n\r\n{}"));
+        assert!(http_request("PUT", "h", "/", "").is_err());
     }
 }

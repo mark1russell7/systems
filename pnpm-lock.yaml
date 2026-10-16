@@ -215,6 +215,9 @@ importers:
       '@mark1russell7/quantity':
         specifier: workspace:^
         version: link:../quantity
+      '@mark1russell7/service':
+        specifier: workspace:^
+        version: link:../service
       zod:
         specifier: ^4.6.6
         version: 4.6.6
