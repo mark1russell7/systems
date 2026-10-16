@@ -95,7 +95,8 @@ export const WORKLOAD: Workload = { every: ms(20), timeout: s(1) };
  * (`include/net/tcp.h` at 6.17, line 155). The timer wheel fires that timer up to 64 ms late at HZ
  * 1000 (`calc_wheel_index` in `kernel/time/timer.c`). With a timeout of 1 s, the client stops
  * before the retransmission, and one lost segment fails a request. With 2 s, the retransmission
- * answers it. Thus the cells see the endpoints, and not the losses of the path.
+ * comes first, and a kernel record shows it with its port. A stale entry of IPVS drops the first
+ * SYN only, thus its retransmission gets a live pod.
  */
 export const T07_WORKLOAD: Workload = { every: ms(20), timeout: s(2) };
 
