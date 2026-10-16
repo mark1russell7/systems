@@ -40,6 +40,8 @@ const IPVS = [
   "TCP  0A600C22:0050 rr",
   "  -> 0AF40103:1F90      Masq    1      0          3",
   "  -> 0AF40204:1F90      Masq    0      0          1",
+  "UDP  0A60000A:0035 rr",
+  "  -> 0AF40002:0035      Masq    1      0          0",
   "TCP  0A600001:01BB rr",
   "  -> AC120002:192B      Masq    1      0          0",
 ].join("\n");

@@ -120,8 +120,12 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
   const prediction = cell.prediction;
   const done = (ok: boolean, why: string, value: number | null): RunCheck => ({ ok, why, value, facts });
   switch (prediction.kind) {
-    case "none":
-      return done(failures.length === 0, failures.length === 0 ? "no request failed" : `${failures.length} requests failed: ${JSON.stringify(facts["outcomes"])}`, failures.length);
+    case "none": {
+      const excluded = prediction.outcomes;
+      const counted = excluded === undefined ? failures : failures.filter((request) => excluded.includes(request.o));
+      const what = excluded === undefined ? "requests failed" : `requests ended ${excluded.join(", ")}`;
+      return done(counted.length === 0, counted.length === 0 ? `no ${excluded === undefined ? "request failed" : `request ended ${excluded.join(", ")}`}` : `${counted.length} ${what}: ${JSON.stringify(facts["outcomes"])}`, counted.length);
+    }
     case "window": {
       const start = referenceOf(run, prediction.start.from);
       const end = prediction.end === null ? null : referenceOf(run, prediction.end.from);
@@ -216,15 +220,20 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
       const heal = run.acts.heal;
       if (fault === null || heal === null) return done(false, "the run has no fault or heal stamp", null);
       const old = new Set(run.replicas.map((replica) => replica.pod));
-      const pods = podsOf(lines).filter((pod) => pod.t >= fault && pod.t <= heal);
+      // only the replicas of the service: the pod of Redis is not a part of the rollout
+      const servers = podsOf(lines).filter((pod) => pod.labels["app"] === SERVER);
+      const pods = servers.filter((pod) => pod.t >= fault && pod.t <= heal);
       const deleted = pods.filter((pod) => old.has(pod.name) && pod.del);
       const newReady = pods.filter((pod) => !old.has(pod.name) && pod.ready);
-      const after = podsOf(lines).filter((pod) => pod.t > heal);
-      const finished = after.some((pod) => !old.has(pod.name) && pod.ready) && after.some((pod) => old.has(pod.name) && pod.type === "DELETED");
+      const after = servers.filter((pod) => pod.t > heal);
+      const firstReady = after.find((pod) => !old.has(pod.name) && pod.ready);
+      const finished = firstReady !== undefined && after.some((pod) => old.has(pod.name) && pod.type === "DELETED");
       const problems: string[] = [];
       if (deleted.length > 0) problems.push(`${new Set(deleted.map((pod) => pod.name)).size} old pods were deleted while Redis was down`);
       if (newReady.length > 0) problems.push("a new pod became ready while Redis was down");
       if (!finished) problems.push("the rollout did not continue after Redis came back");
+      if (problems.length === 0)
+        return { ok: true, why: `the rollout waited for Redis, and its first new pod was ready ${sec(firstReady!.t - heal)} s after Redis came back`, value: sec(firstReady!.t - heal), facts };
       return done(problems.length === 0, problems.length === 0 ? "the rollout waited for Redis, and continued after it" : problems.join("; "), null);
     }
     case "measured":

@@ -56,9 +56,10 @@ export const backendsOf = (mode: ServiceRule["mode"], text: string, rule: Pick<S
   } else {
     let inside = false;
     for (const line of lines) {
-      const service = /^TCP\s+([0-9A-F]{8}):([0-9A-F]{4})\s/.exec(line);
+      // each virtual service starts a block: a UDP or an SCTP one ends the block of the TCP service before it
+      const service = /^(TCP|UDP|SCTP)\s+([0-9A-F]{8}):([0-9A-F]{4})\s/.exec(line);
       if (service !== null) {
-        inside = hexIp(service[1]!) === rule.ip && parseInt(service[2]!, 16) === rule.port;
+        inside = service[1] === "TCP" && hexIp(service[2]!) === rule.ip && parseInt(service[3]!, 16) === rule.port;
         continue;
       }
       const real = /^\s+->\s+([0-9A-F]{8}):([0-9A-F]{4})\s+\S+\s+(\d+)/.exec(line);

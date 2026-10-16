@@ -32,7 +32,7 @@ export const timeSpread = (values: readonly number[]): TimeSpread | null => {
 export const predictionText = (prediction: Prediction): string => {
   switch (prediction.kind) {
     case "none":
-      return "no failure";
+      return prediction.outcomes === undefined ? "no failure" : `no ${prediction.outcomes.join(", ")}`;
     case "window":
       return `failures only from the ${prediction.start.from}${prediction.end === null ? "" : ` to the ${prediction.end.from} + [${prediction.end.band.lo}, ${prediction.end.band.hi}] s`}${prediction.nodes === "paused" ? ", on the paused node" : ""}${prediction.certain ? ", at least one" : ""}`;
     case "removal":

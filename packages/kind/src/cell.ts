@@ -130,7 +130,12 @@ export type Reference = "deletion" | "intake" | "fault" | "resume";
  * - `measured`: no document bounds the outcome. The run keeps the measurement.
  */
 export type Prediction =
-  | { readonly kind: "none"; readonly why: string }
+  | {
+      readonly kind: "none";
+      /** These outcomes are the failures that the prediction excludes. Without them, it excludes each outcome but `ok`. */
+      readonly outcomes?: readonly string[] | undefined;
+      readonly why: string;
+    }
   | {
       readonly kind: "window";
       readonly nodes: "all" | "paused";

@@ -178,7 +178,9 @@ export const T07_CELLS: readonly KindCell[] = [
     trigger: { kind: "liveness-restart" },
     prediction: {
       kind: "none",
-      why: "liveness fails readiness: the readiness probes remove the pod within 6 s and the propagation, before the liveness probes kill it at 20 s at the earliest",
+      // the service answers 503 while its readiness fails and the pod is still in the rules: an answer, not a lost connection
+      outcomes: ["refused", "reset", "timeout", "unreachable", "error"],
+      why: "liveness fails readiness: the readiness probes remove the pod within 6 s and the propagation, before the liveness probes kill it at 20 s at the earliest. No connection fails, and the service answers 503 until the removal",
     },
   },
   {
