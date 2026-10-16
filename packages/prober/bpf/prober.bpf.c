@@ -169,6 +169,9 @@ int on_accept_exit(struct trace_event_raw_sys_exit *ctx) { return accept_exit(ct
 
 static __always_inline struct ev *sk_record(const struct sock *sk, __u32 kind, __u32 extra)
 {
+	/* a reset to a packet with no socket has no sk: newer kernels mark the argument nullable,
+	 * and their verifier refuses arithmetic on it before this check (6.17's does) */
+	if (!sk) return 0;
 	if (!ok_ns(BPF_CORE_READ(sk, __sk_common.skc_net.net, ns.inum)))
 		return 0;
 	struct ev *e = reserve();

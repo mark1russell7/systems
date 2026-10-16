@@ -44,6 +44,10 @@ jobs:
           echo "cpus: $(nproc)"
           free -m
           docker version --format 'docker: {{.Server.Version}}'
+      # a fresh network namespace starts at the kernel's compiled defaults, as each cell's does
+      - name: The defaults of a fresh network namespace
+        run: |
+          sudo unshare --net sh -c 'for knob in tcp_keepalive_time tcp_keepalive_intvl tcp_keepalive_probes tcp_retries1 tcp_retries2 tcp_syn_retries tcp_syn_linear_timeouts tcp_fin_timeout tcp_rto_min_us tcp_rto_max_ms tcp_mtu_probing; do echo "net.ipv4.$knob: $(sysctl -n net.ipv4.$knob 2>/dev/null || echo absent)"; done'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
