@@ -14,6 +14,9 @@ const AT = "mongodb r9.0.4 src/mongo";
  *
  * `mongod` writes no warning about keepalive. A failure to read or to set an option goes to the
  * log at debug level 3 in a release build.
+ *
+ * An awaitable hello of an exhaust stream waits for a change of the topology or `maxAwaitTimeMS`.
+ * Then `mongod` sends the reply, and it starts the next hello of the stream at once.
  */
 export const MONGOD_SESSION: Machine = machineSchema.parse({
   format: "mark1russell7.machine/1",
@@ -28,6 +31,7 @@ export const MONGOD_SESSION: Machine = machineSchema.parse({
     { ref: `${AT}/util/net/socket_utils.cpp:165-196 applyMax: read the option, and set the maximum only when the value is higher, :199-220 TCP_KEEPIDLE and TCP_KEEPINTVL, never TCP_KEEPCNT`, rung: "implemented" },
     { ref: `${AT}/util/net/socket_utils.cpp:176-181 and :190-194 the log of a failed read or set, at the severity of the caller`, rung: "implemented" },
     { ref: `${AT}/util/net/sock.cpp:135-142 the older socket path: SO_KEEPALIVE, then the same maximums, failures as errors`, rung: "implemented" },
+    { ref: `${AT}/db/repl/replication_info.cpp:131-143 an awaitable hello waits until now + maxAwaitTimeMS on the precise clock, or a change of the topology`, rung: "implemented" },
   ],
   states: {
     ABSENT: { initial: true, pseudo: true },
@@ -39,6 +43,8 @@ export const MONGOD_SESSION: Machine = machineSchema.parse({
     "peer.fin": { kind: "peer", note: "a read gives 0 bytes: the client closed" },
     "peer.rst": { kind: "peer" },
     "socket.error": { kind: "local", note: "a read fails with the error of the socket: the kernel gave up, by keepalive or by its retransmissions" },
+    "rx.hello": { kind: "rx", note: "an awaitable hello with exhaustAllowed: the start of a stream" },
+    "tx.hello-reply": { kind: "tx", note: "a reply of the stream, after which mongod runs the next hello" },
   },
   knobs: {
     tcp_keepalive_time: { key: "net.ipv4.tcp_keepalive_time", scope: "netns", unit: "s", default: 7200, note: "the value of a new socket, which mongod lowers to max_keep_idle" },
@@ -47,8 +53,24 @@ export const MONGOD_SESSION: Machine = machineSchema.parse({
     max_keep_idle: { key: "kMaxKeepIdleSecs", scope: "build", unit: "s", default: 300, note: "socket_utils.h:15" },
     max_keep_intvl: { key: "kMaxKeepIntvlSecs", scope: "build", unit: "s", default: 1, note: "socket_utils.h:16" },
     hz: { key: "CONFIG_HZ", scope: "global", unit: "Hz", default: null, note: "the kernel's build option: the timer wheel rounds the keepalive of mongod" },
+    maxAwaitTimeMS: { key: "hello maxAwaitTimeMS", scope: "command", unit: "ms", default: null, note: "the field of an awaitable hello: the driver sends its heartbeatFrequencyMS (mongodb monitor.ts:338-371)" },
+    wait_slack: {
+      key: "the lateness of a wait of a command of mongod",
+      scope: "process",
+      unit: "ms",
+      default: 20,
+      note: "an assumption of this document, not a value of mongod. In CI, the first reply of a stream after a fault came 1 ms to 10.6 ms after maxAwaitTimeMS (T01.defaults.42, T03.defaults.3)",
+    },
   },
-  timers: {},
+  timers: {
+    hello_await: {
+      duration: { knob: "maxAwaitTimeMS", unit: "ms" },
+      lateness: { knob: "wait_slack", unit: "ms" },
+      arms: ["rx.hello", "tx.hello-reply"],
+      fires: "tx.hello-reply",
+      note: "replication_info.cpp:131-143: with no change of the topology, each reply of the stream comes maxAwaitTimeMS after the last reply, or after the request",
+    },
+  },
   realizes: {
     "systems.mechanism.idle-refresh-interval": {
       duration: { expr: "min(tcp_keepalive_time, max_keep_idle)", unit: "s" },

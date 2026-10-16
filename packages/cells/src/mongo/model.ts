@@ -1,5 +1,5 @@
 import type { Detector, KnobValues, Machine, Manifestation } from "@mark1russell7/algebra";
-import { detection, errnoOf, overValues, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
+import { detection, errnoOf, evaluate, overValues, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import { HZ, LINUX, LINUX_66, RTT_MS, given, ms, seconds } from "../catalog.ts";
@@ -67,13 +67,21 @@ export const driverValues = (options: DriverOptions = {}, rttMs = RTT_MS): Recor
 /** These are the settings of a replica set, by the names of mongod, in the unit of each knob. */
 export type ReplSettings = Readonly<Record<string, number>>;
 
-/** This function gives the values of mongod's replication: the defaults of 9.0.4, then the settings. A catch-up timeout of -1 is no bound. */
+/**
+ * This function gives the values of mongod's replication: the defaults of 9.0.4, then the settings.
+ * A catch-up timeout of -1 is no bound. The receive timeout of the oplog fetcher comes from the
+ * expression of its timer, because the timer wheel reads it as a knob.
+ */
 export const replValues = (settings: ReplSettings = {}, rttMs = RTT_MS): Record<string, Extent> => {
   const out = defaultsOf(MONGOD_REPL);
   out["catchUpTimeoutMillis"] = { value: "infinite", unit: "ms" };
   for (const [name, value] of Object.entries(settings))
     out[name] = name === "catchUpTimeoutMillis" && value === -1 ? { value: "infinite", unit: "ms" } : inUnit(MONGOD_REPL, name, value);
   out["rtt"] = ms(rttMs);
+  out["hz"] = { value: HZ, unit: "Hz" };
+  const read = evaluate(MONGOD_REPL, MONGOD_REPL.timers["oplog_read"]!.duration, given(out));
+  if ("unknown" in read) throw new Error(`the oplog read timeout: ${read.unknown}`);
+  out["oplog_read_timeout"] = read;
   return out;
 };
 
@@ -201,6 +209,14 @@ export interface ReplTimes {
   readonly stepDownWait: number;
   readonly slack: number;
   readonly work: number;
+  /** This span is the receive timeout of the exhaust read of an oplog fetcher, on the timer wheel. */
+  readonly oplogRead: Span;
+  /** This span is the restart of the fetcher: its sleep, then the timeout of its new cursor on the same source. */
+  readonly refind: Span;
+  /** This time is the network timeout of a replSetUpdatePosition. */
+  readonly feedbackTimeout: number;
+  /** This time is the keepalive of a reporter with no news. */
+  readonly feedbackKeepalive: number;
 }
 
 /** This function gives the times of mongod's replication at its settings. */
@@ -218,6 +234,10 @@ export const replTimes = (settings: ReplSettings = {}, rttMs = RTT_MS): ReplTime
     stepDownWait: seconds(timerOf(MONGOD_REPL, "step_down_wait", known).duration, "step_down_wait"),
     slack,
     work: secondsOf(values, "election_work"),
+    oplogRead: spanOf(MONGOD_REPL, "oplog_read", known),
+    refind: plus(spanOf(MONGOD_REPL, "oplog_restart", known), spanOf(MONGOD_REPL, "oplog_refind", known)),
+    feedbackTimeout: seconds(timerOf(MONGOD_REPL, "feedback_update", known).duration, "feedback_update"),
+    feedbackKeepalive: seconds(timerOf(MONGOD_REPL, "feedback_keepalive", known).duration, "feedback_keepalive"),
   };
 };
 
@@ -262,6 +282,8 @@ export interface Timeline {
   readonly discovered: Span | null;
   readonly writtenOff: Span | null;
   readonly first: Span | null;
+  /** These are the parts of `first` that can occur, when there is more than one (`landingOf`). */
+  readonly firstModes: readonly Span[];
   readonly lands: "new" | "same";
   /** This span is when the client's write fails to the application, when it does. */
   readonly fails: Span | null;
@@ -276,6 +298,94 @@ const gapOf = (rtt: number, repl: ReplTimes, driver: DriverTimes): number => INT
 
 /** This function gives the write of the client on a new connection to a primary: the connect, the hello, and the write with its majority. */
 const writeOnNew = (rtt: number, repl: ReplTimes, driver: DriverTimes): Span => span(3 * rtt, 4 * rtt + repl.work + 2 * driver.slack);
+
+/** This function gives the next write of the stream after a reply: the pause, then the write on the same connection with its majority. */
+const nextWrite = (reply: Span, rtt: number, repl: ReplTimes, driver: DriverTimes): Span =>
+  plus(reply, span(INTERVAL + rtt, INTERVAL + 2 * rtt + repl.work + 3 * driver.slack));
+
+/**
+ * A sync is how the other secondary sends its position to a new primary, when it syncs from the old
+ * primary (`direct`). The other mode is `chained`: it syncs from the new primary already, and its
+ * reporter sends each new position at once.
+ * - `takes`: the other secondary takes the new primary as its sync source.
+ * - `released`: its reporter ends its replSetUpdatePosition to the old primary. Until then, no
+ *   position goes to the new primary, which learns it from the response to each heartbeat.
+ */
+export interface Sync {
+  readonly takes: Span;
+  readonly released: Span;
+}
+
+/**
+ * This function gives the sync of a secondary whose sync source goes silent at 0, from the other
+ * members. The old primary answers again at `back`: a thaw, or the end of a cut.
+ * - Its oplog fetcher reads the last batch at `contact`. The read times out on the wheel, and its
+ *   one new cursor times out too: then the member clears its sync source (`drops`).
+ * - It takes the new primary at once when the new primary wrote before the drop: the loss of a
+ *   source starts each heartbeat again (replication_coordinator_impl.cpp:4947-4972). Otherwise it
+ *   takes it at a heartbeat after the first write of the term, each 500 ms without a source.
+ * - Its reporter sent its last replSetUpdatePosition at the last batch, or at the keepalive after
+ *   it. That command ends at the network timeout, or at the answer of the old primary when it is back.
+ */
+export const syncOf = (repl: ReplTimes, driver: DriverTimes, rtt: number, writable: Span, back: number | null = null): Sync => {
+  const gap = gapOf(rtt, repl, driver);
+  const contact = span(-gap, rtt);
+  let drops = plus(plus(contact, repl.oplogRead), repl.refind);
+  // a source that is back answers the new cursor, and its step-down on the newer term ends the fetch
+  if (back !== null) drops = span(Math.min(drops.lo, back), Math.min(drops.hi, back + 2 * rtt + repl.work + 2 * repl.slack));
+  const takes =
+    writable.hi < drops.lo
+      ? plus(drops, span(0, rtt + repl.slack))
+      : span(Math.max(drops.lo, writable.lo), Math.max(drops.hi, writable.hi) + repl.fast + rtt + repl.slack);
+  let released = span(contact.lo + repl.feedbackTimeout, repl.feedbackKeepalive + repl.slack + repl.feedbackTimeout + repl.slack);
+  if (back !== null) released = span(Math.min(released.lo, back), Math.min(released.hi, back + rtt + repl.slack));
+  return { takes, released };
+};
+
+/**
+ * This function gives the sync after replSetStepDown. The step-up of the new primary ends the
+ * cursor of a secondary on it. The new primary is not ahead of that secondary until its next write.
+ * The secondary then takes it at a heartbeat, each 500 ms without a source
+ * (topology_coordinator.cpp:1124-1136). No command to the old primary waits.
+ */
+export const handOffSyncOf = (repl: ReplTimes, rtt: number, writable: Span): Sync => ({
+  takes: span(writable.lo, writable.hi + repl.fast + rtt + repl.slack),
+  released: at(Number.NEGATIVE_INFINITY),
+});
+
+/**
+ * This function gives when the first counted write of the client lands on a new primary. The client
+ * starts the write on a new connection at `start`. The harness counts the first write that the
+ * client sends after the commit of the fault. The write in flight at the commit can go out before
+ * it, thus the counted write can be the next one. Each mode is the span of the two:
+ * - `chained`: the write lands on its majority in a round trip of the other secondary.
+ * - `direct` (with w majority and a `sync`): the other secondary has the write only after it takes
+ *   the new primary. The new primary learns that at the next response to its heartbeat. It sends
+ *   each heartbeat heartbeatIntervalMillis after the last response (topology_coordinator.cpp:1124-1147),
+ *   and a response moves its commit point (replication_coordinator_impl_heartbeat.cpp:367-376).
+ */
+export const landingOf = (
+  start: Span,
+  repl: ReplTimes,
+  driver: DriverTimes,
+  rtt: number,
+  sync: Sync | null,
+): { readonly first: Span; readonly modes: readonly Span[] } => {
+  const chained1 = plus(start, writeOnNew(rtt, repl, driver));
+  const chained = span(chained1.lo, nextWrite(chained1, rtt, repl, driver).hi);
+  if (sync === null) return { first: chained, modes: [chained] };
+  const cycle = repl.heartbeat + rtt + repl.slack;
+  // a write that reaches the new primary at `reach` is on the other secondary at `durable`, and its reply comes back after the acknowledgement
+  const lands = (reach: Span): Span => {
+    const durable = plus(later(reach, sync.takes), span(rtt / 2, rtt + repl.work));
+    const acknowledged = span(durable.lo, Math.min(durable.hi + cycle, Math.max(durable.hi, sync.released.hi) + rtt + repl.slack));
+    return plus(acknowledged, span(rtt / 2, rtt / 2 + driver.slack));
+  };
+  const direct1 = lands(plus(start, span(2 * rtt, 3 * rtt + driver.slack)));
+  const direct2 = lands(plus(direct1, span(INTERVAL + rtt / 2, INTERVAL + rtt / 2 + driver.slack)));
+  const direct = span(direct1.lo, direct2.hi);
+  return { first: span(Math.min(chained.lo, direct.lo), Math.max(chained.hi, direct.hi)), modes: [chained, direct] };
+};
 
 /**
  * This function gives the election and the catch-up of a new primary. The primary goes silent to
@@ -356,7 +466,10 @@ export const timelineOf = (
   const repl = replTimes(settings, rttMs);
   const driver = driverTimes(options, rttMs);
   const heartbeatFrequency = secondsOf(driverValues(options, rttMs), "heartbeatFrequencyMS");
-  const onNew = writeOnNew(rtt, repl, driver);
+  const land = (from: Span, sync: Sync | null) => {
+    const { first, modes } = landingOf(from, repl, driver, rtt, sync);
+    return { first, firstModes: modes.length < 2 ? [] : modes };
+  };
 
   if (cause.kind === "step-down") {
     // the wait for a caught-up secondary: one write's replication. Then the hand-off skips the dry run
@@ -365,27 +478,29 @@ export const timelineOf = (
     const caughtUp = plus(elected, span(rtt, rtt + repl.slack));
     const writable = plus(caughtUp, span(0, repl.work + repl.slack));
     const discovered = plus(writable, span(0, rtt + driver.slack));
-    const first = plus(discovered, onNew);
-    return { down: null, start: elected, elected, caughtUp, modes: [caughtUp], writable, steppedDown: stepped, discovered, writtenOff: null, first, lands: "new", fails: null };
+    const landed = land(discovered, handOffSyncOf(repl, rtt, writable));
+    return { down: null, start: elected, elected, caughtUp, modes: [caughtUp], writable, steppedDown: stepped, discovered, writtenOff: null, ...landed, lands: "new", fails: null };
   }
 
   if (cause.kind === "silent") {
     const e = electionOf(repl, driver, rtt, cause.back);
     const writtenOff = writeOffOf(driver, heartbeatFrequency);
     const back = cause.back;
+    const sync = syncOf(repl, driver, rtt, e.writable, back);
     // a primary that comes back before the client's write-off: its kernel or the thaw ends the wait
     if (back !== null && back < writtenOff.lo) {
       if (back < e.start.lo) {
-        // no election: the primary answers the write in flight when it is back
-        const first = span(back, back + 2 * rtt + repl.work + driver.slack);
-        return { down: back > e.down.hi ? e.down : null, start: null, elected: null, caughtUp: null, modes: [], writable: null, steppedDown: null, discovered: null, writtenOff: null, first, lands: "same", fails: null };
+        // no election: the primary answers the write in flight when it is back, and the next write follows
+        const reply = span(back, back + 2 * rtt + repl.work + driver.slack);
+        const first = span(reply.lo, nextWrite(reply, rtt, repl, driver).hi);
+        return { down: back > e.down.hi ? e.down : null, start: null, elected: null, caughtUp: null, modes: [], writable: null, steppedDown: null, discovered: null, writtenOff: null, first, firstModes: [], lands: "same", fails: null };
       }
       if (!(back > e.start.hi)) throw new Error("the primary can be back before or after the election starts");
       if (!(e.discovered.hi < writtenOff.lo)) throw new Error("the new primary can come after the write-off");
       // the old primary is back and steps down on the newer term: the write fails, and the retry finds the new primary
       const fails = span(back, back + 2 * rtt + repl.work + 2 * repl.slack);
-      const first = plus(later(fails, e.discovered), onNew);
-      return { down: e.down, start: e.start, elected: e.elected, caughtUp: e.caughtUp, modes: e.modes, writable: e.writable, steppedDown: null, discovered: e.discovered, writtenOff: null, first, lands: "new", fails: null };
+      const landed = land(later(fails, e.discovered), sync);
+      return { down: e.down, start: e.start, elected: e.elected, caughtUp: e.caughtUp, modes: e.modes, writable: e.writable, steppedDown: null, discovered: e.discovered, writtenOff: null, ...landed, lands: "new", fails: null };
     }
     const steppedDown = cause.alive ? stepDownOf(repl, driver, rtt) : null;
     // the write-off interrupts the write in flight, or the kernel gives up on it first, and its retry selects again
@@ -395,12 +510,13 @@ export const timelineOf = (
     const retry = plus(ended, span(0, driver.slack));
     const deadline = plus(retry, driver.selection);
     if (e.discovered.hi < deadline.lo) {
-      const first = plus(later(retry, e.discovered), onNew);
-      return { down: e.down, start: e.start, elected: e.elected, caughtUp: e.caughtUp, modes: e.modes, writable: e.writable, steppedDown, discovered: e.discovered, writtenOff, first, lands: "new", fails: null };
+      const landed = land(later(retry, e.discovered), sync);
+      return { down: e.down, start: e.start, elected: e.elected, caughtUp: e.caughtUp, modes: e.modes, writable: e.writable, steppedDown, discovered: e.discovered, writtenOff, ...landed, lands: "new", fails: null };
     }
     if (!(e.discovered.lo > deadline.hi)) throw new Error("the new primary can come on either side of the retry's selection timeout");
     // the retry's selection times out first: the write fails to the application
-    return { down: e.down, start: e.start, elected: e.elected, caughtUp: e.caughtUp, modes: e.modes, writable: e.writable, steppedDown, discovered: e.discovered, writtenOff, first: plus(e.discovered, onNew), lands: "new", fails: deadline };
+    const landed = land(e.discovered, sync);
+    return { down: e.down, start: e.start, elected: e.elected, caughtUp: e.caughtUp, modes: e.modes, writable: e.writable, steppedDown, discovered: e.discovered, writtenOff, ...landed, lands: "new", fails: deadline };
   }
 
   // the primary is cut from the group, and the client reaches it
@@ -408,8 +524,10 @@ export const timelineOf = (
   const steppedDown = stepDownOf(repl, driver, rtt);
   // with w: majority, the write waits for the replication and fails at the step-down. With w: 1, each write is acknowledged until then
   const fails = plus(steppedDown, span(rtt / 2, rtt + driver.slack));
-  const first = plus(later(fails, e.discovered), onNew);
-  return { down: e.down, start: e.start, elected: e.elected, caughtUp: e.caughtUp, modes: e.modes, writable: e.writable, steppedDown, discovered: e.discovered, writtenOff: null, first, lands: "new", fails: null };
+  // a write with w: 1 does not wait for the other secondary
+  const sync = cause.w === "majority" ? syncOf(repl, driver, rtt, e.writable) : null;
+  const landed = land(later(fails, e.discovered), sync);
+  return { down: e.down, start: e.start, elected: e.elected, caughtUp: e.caughtUp, modes: e.modes, writable: e.writable, steppedDown, discovered: e.discovered, writtenOff: null, ...landed, lands: "new", fails: null };
 };
 
 /**

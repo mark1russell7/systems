@@ -176,7 +176,7 @@ const stagesOf = (t: Timeline): StageBand[] => {
   add("old-primary-steps-down", t.steppedDown);
   add("discovered", t.discovered);
   add("written-off", t.writtenOff);
-  add("first-write", t.first);
+  add("first-write", t.first, t.firstModes);
   return out;
 };
 

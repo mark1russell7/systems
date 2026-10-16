@@ -145,13 +145,23 @@ The machine documents come from the source at the pinned versions, and each fact
 
 - **The driver** (`mongodb-node.ts`). The monitor streams `hello` and writes a silent server off after `connectTimeoutMS + heartbeatFrequencyMS`: 40 s at the defaults. A timeout of the monitor clears the pool and interrupts each operation in flight. An end of the stream by the kernel does not interrupt it. A retryable operation retries one time, after a new selection of `serverSelectionTimeoutMS`. Each socket gets `setKeepAlive(true, 120000)`, thus keepalive at 120 s and 10 probes 1 s apart.
 - **The replication of mongod** (`mongod-replication.ts`). A member sends a heartbeat each 2 s, and a window of 10 s without an answer marks the target DOWN. A secondary starts an election 10 s after its last contact with the primary, plus an offset of less than 1.5 s. A primary steps down when it cannot see a majority for 10 s. A new primary waits in its catch-up for an answer or a failure from each other member.
-- **The connections of mongod** (`mongod-session.ts`). `mongod` lowers the keepalive idle time of each socket to 300 s and its interval to 1 s. Thus its window is 309 s at the Linux defaults.
+- **The sync source of a secondary** (`mongod-replication.ts`). A secondary keeps a silent primary as its sync source until its oplog fetcher gives up, 17 s to 18 s after the fault:
+  - The exhaust read times out at 10 s. This timeout is `SO_RCVTIMEO`, a kernel timer, thus the timer wheel makes it up to 512 ms late at HZ 1000.
+  - The fetcher makes one new cursor after 5 ms, and that cursor times out at 7 s.
+  - The reporter of the secondary keeps a `replSetUpdatePosition` to the silent primary for its network timeout of 30 s. It sent it at the last batch, or at its keepalive 5 s later. Until the command ends, a new primary learns the position of that secondary only from the response to each heartbeat, each 2 s.
+- **The connections of mongod** (`mongod-session.ts`). `mongod` lowers the keepalive idle time of each socket to 300 s and its interval to 1 s. Thus its window is 309 s at the Linux defaults. An awaitable `hello` answers after `maxAwaitTimeMS`, which the driver sets to `heartbeatFrequencyMS`. The source gives no bound for the lateness of that wait, thus the document assumes 20 ms. In CI, it was 1 ms to 10.6 ms.
 
 The predictions compose these documents:
 
 - **T01 and T03** (`single.ts`). The driver's document goes over Linux TCP on each socket: the monitor's socket and the pool's socket. The first detection on the monitor's socket is the write-off, or the kernel's keepalive when its delay is shorter. The operation in flight then fails, and its retry selects again. With one member, the selection times out while the fault holds. Each band counts from an event of one socket, the fault, or the start of the client.
-- **T03, a forgotten flow** (`t03.ts`). O03 decides each flow of the driver against the router: the pool connection by its keepalive, the monitor by its heartbeat or its keepalive. The border cells divide each timer of the chain by 20. The defaults stage keeps each preset at its own idle timeout.
+- **An ICMP unreachable stops the monitor's stream** (`single.ts`). The client's ACKs do not get to the server, and each ICMP is only a soft error on the client's socket. The RTO of the server fires before its next reply, and its window of one segment holds that reply. Thus one reply gets to the driver, `heartbeatFrequencyMS` after the monitor's request. The write-off comes 40 s after that reply: 50 s after the request.
+- **T03, a forgotten flow** (`t03.ts`). O03 decides each flow of the driver against the router: the pool connection by its keepalive, the monitor by its heartbeat or its keepalive. The border cells divide each timer of the chain by 20. The defaults stage keeps each preset at its own idle timeout. The idle time of the router counts from the last segment of the flow. That segment is the client's delayed ACK of the last reply, at most 40 ms after it (`TCP_DELACK_MIN`).
 - **T11, the timeline** (`model.ts`, `t11.ts`). The stages are the first member that marks the primary DOWN, the start of the election and the win. Then come the end of the catch-up and the first write of the new primary. Then the client finds the new primary, and its first write lands. When the old primary is silent to the client, that write lands at the driver's write-off. The catch-up has two modes: the window to the old primary that is open at the win, or a new window of 10 s.
+- **T11, the first write** (`landingOf`). A write with w majority on the new primary waits for the other secondary. The first write has two modes:
+  - `chained`: the other secondary syncs from the new primary already, and the write lands in a round trip.
+  - `direct`: the other secondary syncs from the old primary. It takes the new primary only when its fetcher gives up, and the new primary learns its position at the response to a heartbeat. Thus each write waits up to 2 s, until the reporter of that secondary ends its command at 30 s to 35 s.
+  - The harness counts the first write that the client sends after the commit of the fault. The write in flight at the commit can go out before it, thus the counted write can be the second write.
+- **A step-down** can make the other secondary wait one heartbeat. The step-up of the new primary ends the cursor of a secondary on it. The new primary is not ahead of that secondary until the next write. A member with no sync source sends its heartbeats each 500 ms, and it takes the new primary at the next one.
 
 The defaults stage starts in real time. A cell whose trigger the harness cannot do, or whose breakpoint names another system, waits with its reason (`*_WAITING`). A cell of the plan that is the same as another cell is an alias (`*_ALIASES`).
 
@@ -165,6 +175,17 @@ The client of these cells is the MongoDB client of the harness (`image/mongo/cli
 - **T11.** The cell has a replica set of three members (`replicaSetOf`), at the defaults of mongod 9.0.4 with the settings of the cell. The stages of a member include an error of 2 ms in their stamps. The wall clock of mongod and of the client is in whole ms.
 - **A partial cut** holds for 40 s. Its prediction names the stages that must not come (`quiet`): an election of another member, and the write-off of the old primary.
 - **The cache.** Each member starts with a cache of 0.25 GB for WiredTiger (`SERVER_ARGS`), thus three members fit on one runner. No timer reads the cache.
+
+### What the runs in CI showed
+
+The first CI pass of the 58 cells refuted 7 of them. The log lines of the members and the kernel records of the client gave each cause:
+
+- **No election took a second round.** In each run of T11, the dry run won, and the real vote won at once. The late first writes came after the election.
+- **The other secondary.** In 5 to 11 runs of each 11, it synced from the old primary. Its first write on the new primary then waited 6 s to 8 s, and each later write approximately 2 s, until 35 s.
+- **`catchUpTimeoutMillis` 0** ends the catch-up at the win. It does not shorten the wait for the other secondary.
+- **An unreachable host.** In each run, the monitor wrote the server off 50.004 s to 50.015 s after its request.
+- **A step-down.** In one run of 11, the other secondary had no sync source for 500 ms, and the first write waited for it.
+- **A forgotten flow.** The router reset the flow 42 ms to 95 ms after the last reply, thus each run had the delayed ACK in it.
 
 ## The T07 catalog
 

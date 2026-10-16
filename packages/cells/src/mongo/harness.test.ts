@@ -27,11 +27,13 @@ describe("the MongoDB cells, for the harness", () => {
       ["PoolClearedOnNetworkError", "command"],
       ["MongoServerSelectionError", "fail"],
     ]);
-    // the kernel ends the band of an idle pool, and the monitor must stay quiet
+    // the kernel ends the band of an idle pool. An ICMP unreachable stops the monitor's stream after one reply: its write-off is a later band
     const idle = named("T01.defaults.42").prediction;
-    expect(idle).toMatchObject({ errno: "ETIMEDOUT", driver: { socket: "pool", quiet: [{ ev: "sdam" }] } });
+    expect(idle).toMatchObject({ errno: "ETIMEDOUT", driver: { socket: "pool" } });
     if (idle.detects !== true) throw new Error("a detection");
     expect(idle.driver?.ends).toBeUndefined();
+    expect(idle.driver?.quiet).toBeUndefined();
+    expect(idle.driver?.then?.map((step) => [step.name, step.socket, step.from, step.low.value])).toEqual([["MongoNetworkTimeoutError", "monitor", "last-received", 49.999]]);
     // a fault before the client: the first selection counts from the start of the client
     expect(named("T01.defaults.47")).toMatchObject({ before: true, prediction: { from: "client-start", driver: { ends: { ev: "fail", where: { why: "connect" } } } } });
     // mongod's own socket of the pool connection, behind the router

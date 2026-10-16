@@ -6,7 +6,7 @@ import { MANIFESTATIONS } from "../manifestations.ts";
 import type { MongoBand, MongoPrediction, MongoReference, MongoSpec } from "./cells.ts";
 import { sec } from "./cells.ts";
 import type { First, Span } from "./model.ts";
-import { driverSpan, driverValues, firstOn, interrupts, linuxValues, plus, replTimes, secondsOf, span } from "./model.ts";
+import { MONGOD_SESSION, driverSpan, driverValues, firstOn, interrupts, linuxValues, plus, replTimes, secondsOf, sessionValues, span, spanOf } from "./model.ts";
 
 /**
  * This module predicts a cell of the driver against a replica set of one member: T01 and T03.
@@ -40,16 +40,37 @@ export const bandOf = (what: string, name: string, from: MongoReference, s: Span
   high: sec(s.hi),
 });
 
-/** This function gives the manifestation of a fault to the kernel of the client, and what reaches the monitor. */
-const faultAt = (spec: MongoSpec): { manifestation: Manifestation; monitor: Manifestation; passes: readonly string[] } => {
-  if (spec.fault === "freeze-process") return { manifestation: MANIFESTATIONS["freeze-process"], monitor: MANIFESTATIONS["freeze-process"], passes: [] };
+/**
+ * This function gives the manifestation of a fault to the kernel of the client, and what reaches
+ * the monitor. `replies` is the count of replies of the monitor's stream that still reach the
+ * driver after the fault.
+ */
+const faultAt = (spec: MongoSpec): { manifestation: Manifestation; monitor: Manifestation; passes: readonly string[]; replies: number } => {
+  if (spec.fault === "freeze-process") return { manifestation: MANIFESTATIONS["freeze-process"], monitor: MANIFESTATIONS["freeze-process"], passes: [], replies: 0 };
   if (spec.fault === "unreachable" || (spec.fault === "simplex" && spec.drops === "to-server")) {
-    // the replies of the server still come: the monitor reads them, and the kernel acknowledges them
+    // The client's ACKs do not reach the server, and each ICMP is a soft error on the monitor's
+    // socket (Linux v6.6 tcp_ipv4.c:628-633). The server's RTO fires before its next reply, and
+    // its window of one segment holds that reply behind the one without an ACK (tcp_input.c:2154-2176,
+    // tcp_output.c:2044-2064). Thus one reply reaches the driver, then only its retransmissions.
     const name = spec.fault === "unreachable" ? `unreachable-${spec.icmp ?? "host"}` : "simplex-to-server";
-    return { manifestation: MANIFESTATIONS[name as keyof typeof MANIFESTATIONS], monitor: { name, passes: ["rx.ack"] }, passes: ["rx.hello"] };
+    return { manifestation: MANIFESTATIONS[name as keyof typeof MANIFESTATIONS], monitor: { name, passes: ["rx.ack"] }, passes: [], replies: 1 };
   }
-  if (spec.fault === "fin") return { manifestation: MANIFESTATIONS.fin, monitor: MANIFESTATIONS.fin, passes: [] };
-  return { manifestation: MANIFESTATIONS.blackhole, monitor: MANIFESTATIONS.blackhole, passes: [] };
+  if (spec.fault === "fin") return { manifestation: MANIFESTATIONS.fin, monitor: MANIFESTATIONS.fin, passes: [], replies: 0 };
+  return { manifestation: MANIFESTATIONS.blackhole, monitor: MANIFESTATIONS.blackhole, passes: [], replies: 0 };
+};
+
+/**
+ * This function gives when the replies of the monitor's stream that still come end, from the
+ * monitor's last segment with data before the fault. That segment is its awaitable request or a
+ * reply. `mongod` sends each reply `heartbeatFrequencyMS` after it (the `hello_await` of mongod's
+ * session document). The harness commits the fault 250 ms after the client's `ready` line, thus the
+ * client acknowledged each earlier reply before the fault.
+ */
+const repliesAfter = (replies: number, heartbeatFrequencyMS: number, rtt: number): Span => {
+  if (replies === 0) return span(0, 0);
+  const values = given({ ...sessionValues(), maxAwaitTimeMS: { value: heartbeatFrequencyMS, unit: "ms" } });
+  const wait = spanOf(MONGOD_SESSION, "hello_await", values);
+  return span(replies * wait.lo, replies * (wait.hi + rtt));
 };
 
 /** This function gives the interruption of the operation in flight after the first detection on the monitor socket. Its span counts from that socket's last segment. */
@@ -134,7 +155,9 @@ export const predictSingle = (spec: MongoSpec, rttMs = RTT_MS): MongoPrediction 
     return { detects: false, bands: [], window: sec(spec.hold ?? 60), quiet: [WRITE_OFF, SOCKET_END, OP_ERROR] };
   }
 
-  const { manifestation, monitor, passes } = faultAt(spec);
+  const { manifestation, monitor, passes, replies } = faultAt(spec);
+  // the replies of the stream that still come move the monitor's last data after the fault
+  const after = repliesAfter(replies, h * 1000, rtt);
 
   // a reset answers the request at once
   if (spec.fault === "rst") {
@@ -168,7 +191,7 @@ export const predictSingle = (spec: MongoSpec, rttMs = RTT_MS): MongoPrediction 
   if (spec.mode === "idle") {
     const bands: MongoBand[] = [];
     if (onPool.kind === "timer") bands.push(bandOf(`the ${onPool.layer} ends the idle pool socket: ${onPool.timer}`, onPool.name, POOL_RX, onPool.band));
-    if (onMonitor.kind === "timer") bands.push(bandOf(`${WRITE_OFF}: ${onMonitor.timer}`, onMonitor.name, MONITOR_RX, onMonitor.band));
+    if (onMonitor.kind === "timer") bands.push(bandOf(`${WRITE_OFF}: ${onMonitor.timer}`, onMonitor.name, MONITOR_RX, plus(after, onMonitor.band)));
     const quiet = onMonitor.kind === "silent" ? [WRITE_OFF] : [];
     if (bands.length === 0) return { detects: false, bands, window: sec(spec.hold ?? 200), quiet: [WRITE_OFF, SOCKET_END] };
     return { detects: true, bands, window: sec(Math.max(...bands.map((b) => valueIn(b.high, "s"))) + 5), quiet };
@@ -178,7 +201,8 @@ export const predictSingle = (spec: MongoSpec, rttMs = RTT_MS): MongoPrediction 
   // the clock of the fault: the monitor's last reply came up to one heartbeat before the fault, and
   // the request goes into the fault, its first retransmission two RTOs later
   const rto = seconds(timerOf(LINUX, "retransmit", linux, 0).duration, "the RTO");
-  const interrupt = interruptionAfter(onMonitor, spec, driver);
+  const fromLast = interruptionAfter(onMonitor, spec, driver);
+  const interrupt = fromLast === null ? null : plus(after, fromLast);
   const monitorOnFault = interrupt === null ? null : plus(span(-h, 0), interrupt);
   const poolOffset = onPool.kind === "timer" && onPool.timer === "retrans_giveup" ? span(0, 2 * rto + 0.01) : span(0, 0.01);
   const poolOnFault = onPool.kind === "timer" ? plus(poolOffset, onPool.band) : null;
@@ -195,7 +219,7 @@ export const predictSingle = (spec: MongoSpec, rttMs = RTT_MS): MongoPrediction 
       return { detects: false, bands: [bandOf("the reply comes when the fault lifts", "OK", FAULT, reply)], window: sec(hold + 10), quiet: [WRITE_OFF, OP_ERROR] };
     }
     if (hold !== undefined && !(hold > monitorOnFault.hi)) throw new Error(`${spec.name}: the fault can lift before or after the write-off`);
-    bands.push(bandOf(`${WRITE_OFF}: ${onMonitor.timer}`, onMonitor.name, MONITOR_RX, onMonitor.band));
+    bands.push(bandOf(`${WRITE_OFF}: ${onMonitor.timer}`, onMonitor.name, MONITOR_RX, plus(after, onMonitor.band)));
     bands.push(bandOf("the pool interrupts the operation in flight", "PoolClearedOnNetworkError", MONITOR_RX, interrupt, ["PoolRequestedRetry"]));
     failed = { at: interrupt, from: MONITOR_RX };
   } else if (poolOnFault !== null && (monitorOnFault === null || poolOnFault.hi < monitorOnFault.lo)) {
