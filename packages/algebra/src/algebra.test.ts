@@ -333,6 +333,25 @@ describe("the algebra's first closed forms", () => {
     expect(at("tcp_rto_max / tcp_user_timeout")).toEqual({ value: 0, unit: "ms" });
   });
 
+  it("raises to a whole power, as a backoff with any multiplier does", async () => {
+    const tcp = await machine("systems.machine.linux-tcp");
+    const values = given({ ...LINUX_66, tcp_user_timeout: { value: "infinite", unit: "ms" } });
+    const at = (expr: string, fired?: number) => evaluate(tcp, { expr, unit: "ms" }, values, fired);
+    // a reconnect of 500 ms × 1.5^fired, capped at 4 s: exact, wait by wait
+    const wait = "min(500 * pow(1.5, fired), 4000)";
+    expect(at(wait, 0)).toEqual({ value: 500, unit: "ms" });
+    expect(at(wait, 3)).toEqual({ value: 1687.5, unit: "ms" });
+    expect(at(wait, 9)).toEqual({ value: 4000, unit: "ms" });
+    expect(at("tcp_rto_min * pow(2, -1)")).toEqual({ value: 100, unit: "ms" });
+    // no bound to the power 0 is 1, and to a positive power it stays no bound
+    expect(at("pow(tcp_user_timeout, 0)")).toEqual({ value: 1, unit: "ms" });
+    expect(at("pow(tcp_user_timeout, 3)")).toEqual({ value: "infinite", unit: "ms" });
+    expect(at("pow(2, 0.5)")).toEqual({ unknown: "pow takes a whole exponent", unit: "ms" });
+    expect(at("pow(0, -1)")).toEqual({ unknown: "a division by zero", unit: "ms" });
+    expect(at("pow(2, fired)")).toMatchObject({ unknown: expect.stringContaining("by how many times it has fired") });
+    expect(() => parseExpr("pow(2)")).toThrow("pow takes 2, not 1");
+  });
+
   it("reads every timer of the four documents, and refuses arithmetic it cannot parse", async () => {
     for (const id of [
       "systems.machine.linux-tcp",
