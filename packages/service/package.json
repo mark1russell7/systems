@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/service",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A service declared as data before it starts, and its runtime: checks on jittered loops, a latch for each policy, probes from the cache, the startup in its sequence, and a staged, capped drain. The timer-ordering law checks the declaration.",
   "keywords": [
     "service",

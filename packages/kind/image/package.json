@@ -1,0 +1,9 @@
+{
+  "name": "systems-kind-lab",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "ioredis": "6.0.0",
+    "zod": "4.6.6"
+  }
+}

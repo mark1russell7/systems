@@ -140,6 +140,8 @@ try {
         .phase("drain", s(15))
         .cooperativeWindow(s(5));
       check(svc.describe().format === module.FORMAT, "service describes a declaration");
+      const bound = module.serviceBindings(svc.describe(), { platform: {}, probes: { readiness: s(30), liveness: s(30) } }).bind;
+      check(bound["readiness_hold@process"] === 0 && module.SERVICE_RULES.includes("O04"), "service binds the hold of fail readiness for O04");
       const latch = { type: "debounce", interval: s(5), failAfter: 3, recoverAfter: 1 };
       const span = module.failSpan(latch, { interval: s(5), jitter: 0.2, timeout: s(4) });
       check(span.min.value === 8 && span.max.value === 18, "service gives a latch 8–18 s to fail");

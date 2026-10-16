@@ -70,6 +70,29 @@ The CAL catalog (`src/calibration.ts`) measures the own time of each proxy: HAPr
 - Each request gives a time toward the target. It starts at the arrival on the socket of the proxy toward the client. It stops at the write on the socket toward the target. Each reply gives a time toward the client, the other way. The writes are the `tx` records of the prober.
 - `PROXY_TIMES` holds the 99th percentile of each direction, by nearest rank. A band through a proxy adds it for each crossing.
 
+## The T07 catalog
+
+T07 is the endpoint lifecycle of a Service in kind (`src/t07.ts`, on `@systems/kind`). A client on each node sends a request each 20 ms, each on a new connection to the ClusterIP. The server is the service of this repository, as a Deployment of 2 replicas on 2 workers.
+
+- **The question** is O04 with the hold of the service. The listener of a leaving pod stays open for its preStop sleep and its hold of `fail readiness`. A connection fails when the rules of its node select the pod after that.
+- **The calibration** (`CAL.T07.<mode>`) deletes a pod with a preStop sleep of 10 s. Each node gives its propagation: the time from the deletion to the first poll of its rules without the pod. `PROPAGATION` in `src/kind.ts` holds the shortest and the longest time for each mode.
+- **The deletion pair**, in each mode. With the hold of the design (2 s), `lint()` finds that O04 holds, and nothing fails. With no hold, O04 is violated. Then a refused connection can start only between the stop of the intake and the propagation.
+- **The pause pair**, in each mode: kube-proxy on one node stops with SIGSTOP 0.5 s before a deletion, for 5 s. With the hold of 2 s, the clients of that node meet refused connections until that node syncs. With a hold of 8 s, nothing fails.
+- **The other triggers** use the mode of their cell of the plan: a rolling update, a scale-in, a node drain and a crash. A liveness restart operates with and without the coupling of liveness to readiness.
+
+## The T18 catalog
+
+T18 is a health-gated fleet in kind (`src/t18.ts`): 3 replicas behind a Service, and each one needs Redis 7.4. The round trip of the Redis client gates readiness.
+
+- **A fault of Redis** fails each replica, and the Service has no endpoint. The band is the latch (`failSpan`), then 3 probes of the kubelet 10 s apart, then the propagation: 28 s to 49 s at the defaults.
+- **The faults** are a reset, a frozen Redis, a black hole, and a Redis that goes away without a close. A declaration whose round trip gates nothing stays ready, degraded.
+- **Liveness.** A liveness that the runtime couples to readiness restarts each replica 28 s to 50 s after a black hole. Without the coupling, no replica restarts.
+- **The stall** of the event loop of one replica removes that replica 21 s to 31 s after its start, and the propagation follows.
+- **A rolling update while Redis has no endpoint** does not continue until Redis is back.
+- **A throttle** of `cpu.max` is measured: the quota bounds the stall in each period, not the CPU that the replica needs.
+
+Kubernetes keeps its timers in real time, thus these cells are not compressed.
+
 ## The runner
 
 `CELLS=1 pnpm --filter @systems/cells test` starts the catalogs on `@mark1russell7/harness`. It needs Docker and privileged containers. The names of the cells start with their catalog: `T01`, `T03`, `T02`, `TOX` or `CAL`.
@@ -77,5 +100,7 @@ The CAL catalog (`src/calibration.ts`) measures the own time of each proxy: HAPr
 - `CELLS_ONLY` selects the cells whose names match a regular expression.
 - `CELLS_SHARD=i/n` takes every n-th cell from the i-th. Thus two processes can share the catalog.
 - `CELLS_OUT` is the folder of the output (the default is `out/`). Each cell writes its raw record there, in the format that jarvis lands, and one line of its verdict to `summary.ndjson`. The record keeps the warm-up run of each environment apart from the counted runs.
+
+`KIND_LAB=1 pnpm --filter @systems/cells test` starts the T07 and T18 catalogs in kind. Each group of cells with one kube-proxy mode gets two new clusters in sequence. Each cluster does its share of the 11 runs of each cell. `KIND_ONLY` selects cells by their names, and `KIND_OUT` is the folder of the output (the default is `out/kind/`).
 
 Without `CELLS=1`, only the tests of the catalog start. Each cell has a prediction or the reason that it has none, and the bands agree with the algebra.

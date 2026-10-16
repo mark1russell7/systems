@@ -14,6 +14,7 @@ This release has the declaration, its export, the law, the health runtime and th
 - **Keyed operations.** A keyed operation has the window that the server keeps its key for. `mayReissue` answers from the declaration of an operation. An operation without a declaration does not go again.
 - **The law.** `evaluate` and `verdictOf` decide one rule of the timer-ordering law on one binding. A rule is data: linear inequalities over `symbol@hop`, with a margin. A verdict is `holds`, `violated`, `unbounded` (it holds only because a timer is absent) or `depends` (nothing is bound).
 - **The linter.** `lint(description, scenario, rules)` applies the service rules (`SERVICE_RULES`) to a declaration. The declaration binds the symbols of the service: the polls of its checks, the windows of its policies, its drain. The scenario binds the symbols of the platform and of each dependency. A `depends` finding names the symbols that have no bound.
+- **The hold.** The cap of the `fail readiness` phase binds `readiness_hold@process`, and a service without that phase holds for zero. The hold keeps the listener open after the signal, as a preStop sleep does. Thus O04 can compare the sum of the two with the propagation of the endpoints.
 
 The format of a description is `mark1russell7.service/1`.
 

@@ -1,0 +1,105 @@
+import { describe, expect, it } from "vitest";
+import type { KindCell, KindRun, Prediction } from "./cell.ts";
+import type { Line } from "./lab.ts";
+import { cellOf } from "./cells.fixture.ts";
+import { checkRun, judgeKind, propagationOf } from "./verdict.ts";
+
+const TARGET = { pod: "lab-a", node: "w1", ip: "10.244.1.3", version: "h1" };
+const OTHER = { pod: "lab-b", node: "w2", ip: "10.244.2.4", version: "h1" };
+
+/** a run with a deletion at 1000 ms, the stop of the intake at 3000 ms, and the backend gone from w1 at 1100 ms */
+const runWith = (extra: Line[], acts: Partial<KindRun["acts"]> = {}): KindRun => ({
+  env: 0,
+  index: 0,
+  warmup: false,
+  start: 0,
+  end: 60_000,
+  acts: { fault: null, heal: null, resume: null, ...acts },
+  target: TARGET,
+  paused: "w1",
+  replicas: [TARGET, OTHER],
+  void: null,
+  dropped: {},
+  lines: [
+    { ev: "pod", t: 1000, type: "MODIFIED", name: "lab-a", node: "w1", ip: TARGET.ip, del: true, ready: true, phase: "Running", cs: [], labels: {} },
+    { ev: "rules", t: 1100, prev: 1050, node: "w1", b: ["10.244.2.4:8080"] },
+    { ev: "rules", t: 1080, prev: 1030, node: "w2", b: ["10.244.2.4:8080"] },
+    { ev: "rec", t: 3000, at: 3000, p: "lab-a", m: "drain", i: "lab", from: "fail readiness", to: "stop intake", on: "phase.done", d: null },
+    ...extra,
+  ],
+});
+
+const request = (t: number, o: string, n = "w1"): Line => ({ ev: "req", t, d: 1, o, p: `client-${n}`, n });
+const cell = (prediction: Prediction): KindCell => ({ ...cellOf("pod-deletion"), prediction });
+
+describe("the judgement of a kind run", () => {
+  it("measures the propagation of each node from the deletion, between two polls", () => {
+    expect(propagationOf(runWith([]), 1000)).toEqual({ w1: { after: 0.05, by: 0.1 }, w2: { after: 0.03, by: 0.08 } });
+  });
+
+  it("holds a prediction of no failure only when each request succeeds", () => {
+    const none = cell({ kind: "none", why: "a test" });
+    expect(checkRun(none, runWith([request(2000, "ok")])).ok).toBe(true);
+    const failed = checkRun(none, runWith([request(2000, "refused")]));
+    expect(failed.ok).toBe(false);
+    expect(failed.why).toMatch(/1 requests failed/);
+  });
+
+  it("holds the failures of a window between the stop of the intake and the end of the propagation", () => {
+    const window = cell({
+      kind: "window",
+      nodes: "all",
+      start: { from: "intake", band: { lo: 0, hi: 1 } },
+      end: { from: "deletion", band: { lo: 0, hi: 2.5 } },
+      certain: false,
+      why: "a test",
+    });
+    expect(checkRun(window, runWith([request(3010, "refused"), request(3400, "reset")])).ok).toBe(true);
+    // a refusal before the intake stopped, or after the end of the window, is a finding
+    expect(checkRun(window, runWith([request(2500, "refused")])).ok).toBe(false);
+    expect(checkRun(window, runWith([request(3700, "refused")])).ok).toBe(false);
+  });
+
+  it("holds a window on the paused node only, with its end after the resume", () => {
+    const paused = cell({
+      kind: "window",
+      nodes: "paused",
+      start: { from: "intake", band: { lo: 0, hi: 5 } },
+      end: { from: "resume", band: { lo: 0.05, hi: 0.4 } },
+      certain: true,
+      why: "a test",
+    });
+    const acts = { resume: 5500 };
+    expect(checkRun(paused, runWith([request(3020, "refused"), request(5600, "refused")], acts)).ok).toBe(true);
+    // the last failure long before the resume: the node synced early
+    expect(checkRun(paused, runWith([request(3020, "refused")], acts)).ok).toBe(false);
+    // a failure on a node that did not pause
+    expect(checkRun(paused, runWith([request(3020, "refused"), request(5600, "refused"), request(4000, "refused", "w2")], acts)).ok).toBe(false);
+    // a certain window with no failure
+    expect(checkRun(paused, runWith([], acts)).ok).toBe(false);
+  });
+
+  it("times the empty Service from the fault, in the EndpointSlice and in the rules of each node", () => {
+    const removal = cell({ kind: "removal", band: { lo: 28, hi: 49 }, why: "a test" });
+    const lines: Line[] = [
+      { ev: "slice", t: 40_000, type: "MODIFIED", name: "lab-x", svc: "lab", eps: [{ ip: TARGET.ip, r: false }, { ip: OTHER.ip, r: false }] },
+      { ev: "rules", t: 40_200, prev: 40_150, node: "w1", b: [] },
+      { ev: "rules", t: 40_100, prev: 40_050, node: "w2", b: [] },
+    ];
+    const run = { ...runWith([]), lines: lines.map((line) => line), acts: { fault: 5000, heal: 60_000, resume: null } };
+    const check = checkRun(removal, run);
+    expect(check).toMatchObject({ ok: true, value: 35 });
+    const late = { ...run, acts: { ...run.acts, fault: -20_000 } };
+    expect(checkRun(removal, late).ok).toBe(false);
+  });
+
+  it("decides a cell on its counted runs: a disagreeing run fails it, and a warm-up does not count", () => {
+    const none = cell({ kind: "none", why: "a test" });
+    const good = runWith([request(2000, "ok")]);
+    const bad = { ...runWith([request(2000, "refused")]), warmup: true };
+    expect(judgeKind(none, [bad, good, good]).decision).toBe("holds");
+    expect(judgeKind(none, [good, { ...bad, warmup: false }]).decision).toBe("fails");
+    expect(judgeKind(none, [{ ...good, void: "not at rest" }]).decision).toBe("void");
+    expect(judgeKind({ ...none, calibrates: true }, [good]).decision).toBe("calibration");
+  });
+});
