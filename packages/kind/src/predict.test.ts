@@ -15,39 +15,40 @@ import {
   stallRemovalBand,
 } from "./predict.ts";
 import { describeCell, lintCell, verdictsOf } from "./rules.ts";
-import { estimateSeconds, shardOf } from "./run.ts";
+import { estimatedTime, shardOf } from "./run.ts";
 
 const s = (value: number) => ({ value, unit: "s" });
+const b = (lo: number, hi: number) => ({ lo: s(lo), hi: s(hi) });
 const PROBE = KUBE_PROBE;
-const E = { lo: 0.05, hi: 0.4, from: "a test" };
+const E = { ...b(0.05, 0.4), from: "a test" };
 
 describe("the arithmetic of the predictions", () => {
   it("gives the kubelet's decision after a flip: the next probe, then threshold − 1 periods, and the timeout of a hang", () => {
-    expect(kubeletBand(PROBE, false)).toEqual({ lo: 20, hi: 30 });
-    expect(kubeletBand(PROBE, true)).toEqual({ lo: 21, hi: 31 });
+    expect(kubeletBand(PROBE, false)).toEqual(b(20, 30));
+    expect(kubeletBand(PROBE, true)).toEqual(b(21, 31));
   });
 
   it("trips the latch of 3 polls of 5 s ± 20 % in 8–18 s on a refusal, and to 20 s on a request timeout of 2 s", () => {
-    expect(latchBand(DESIGN.readiness, DESIGN.poll, "refuses")).toEqual({ lo: 8, hi: 18 });
-    expect(latchBand(DESIGN.readiness, DESIGN.poll, "silent", s(2))).toEqual({ lo: 8, hi: 20 });
-    expect(latchBand(DESIGN.readiness, DESIGN.poll, "silent")).toEqual({ lo: 8, hi: 22 });
+    expect(latchBand(DESIGN.readiness, DESIGN.poll, "refuses")).toEqual(b(8, 18));
+    expect(latchBand(DESIGN.readiness, DESIGN.poll, "silent", s(2))).toEqual(b(8, 20));
+    expect(latchBand(DESIGN.readiness, DESIGN.poll, "silent")).toEqual(b(8, 22));
   });
 
   it("empties the Service at the latch, the kubelet and the propagation: 28–48 s at the defaults, as the research has it", () => {
-    expect(removalBand({ lo: 8, hi: 18 }, PROBE, DOCUMENTED)).toEqual({ lo: 28, hi: 49 });
-    expect(removalBand({ lo: 8, hi: 20 }, PROBE, E)).toEqual({ lo: 28.05, hi: 50.4 });
-    expect(restartBand({ lo: 8, hi: 20 }, PROBE, s(0))).toEqual({ lo: 28, hi: 50 });
-    expect(stallRemovalBand(PROBE, E)).toEqual({ lo: 21.05, hi: 31.4 });
+    expect(removalBand(b(8, 18), PROBE, DOCUMENTED)).toEqual(b(28, 49));
+    expect(removalBand(b(8, 20), PROBE, E)).toEqual(b(28.05, 50.4));
+    expect(restartBand(b(8, 20), PROBE, s(0))).toEqual(b(28, 50));
+    expect(stallRemovalBand(PROBE, E)).toEqual(b(21.05, 31.4));
   });
 
   it("opens a deletion window only when the preStop sleep and the hold end before the propagation", () => {
-    expect(intakeAfter(DESIGN, s(0))).toBe(2);
+    expect(intakeAfter(DESIGN, s(0))).toEqual(s(2));
     expect(deletionWindow(DESIGN, s(0), E).empty).toBe(true);
     const noHold: Declaration = { ...DESIGN, phases: DESIGN.phases.map(([stage, cap]) => [stage, stage === "fail readiness" ? s(0) : cap]) };
-    expect(deletionWindow(noHold, s(0), E)).toEqual({ empty: false, end: { lo: 0.05, hi: 0.4 }, intake: 0 });
+    expect(deletionWindow(noHold, s(0), E)).toEqual({ empty: false, end: b(0.05, 0.4), intake: s(0) });
     expect(deletionWindow(noHold, s(1), E).empty).toBe(true);
     // a pause of 5 s from 0.5 s before the deletion: the paused node syncs 4.5 s after it
-    expect(pausedWindow(DESIGN, s(0), s(0.5), s(5), E)).toMatchObject({ empty: false, resume: 4.5, intake: 2 });
+    expect(pausedWindow(DESIGN, s(0), s(0.5), s(5), E)).toMatchObject({ empty: false, resume: s(4.5), intake: s(2) });
     const hold8: Declaration = { ...DESIGN, phases: DESIGN.phases.map(([stage, cap]) => [stage, stage === "fail readiness" ? s(8) : cap]) };
     expect(pausedWindow(hold8, s(0), s(0.5), s(5), E).empty).toBe(true);
   });
@@ -73,7 +74,7 @@ describe("the shards of a catalog", () => {
     for (const shard of shards) expect(new Set(shard.map((cell) => cell.mode)).size).toBeLessThanOrEqual(2);
     expect(shardOf(cells, 0, 1)).toHaveLength(21);
     expect(() => shardOf(cells, 4, 4)).toThrow(/not a shard/);
-    expect(estimateSeconds(cells[0]!)).toBe(120 + 13 * 40);
+    expect(estimatedTime(cells[0]!)).toEqual(s(120 + 13 * 40));
   });
 });
 
@@ -83,12 +84,12 @@ describe("the fault mapping", () => {
     expect(planOf(cellOf("crash")).inject).toEqual([{ do: "signal", target: "server", signal: "SIGKILL" }]);
     const pause = planOf(cellOf("freeze-process"));
     expect(pause.inject.map((step) => step.do)).toEqual(["pause", "wait", "kubectl"]);
-    expect(pause.inject[0]).toEqual({ do: "pause", target: "kube-proxy", ms: 5000 });
-    expect(pause.inject[1]).toEqual({ do: "wait", ms: 500 });
+    expect(pause.inject[0]).toEqual({ do: "pause", target: "kube-proxy", time: s(5) });
+    expect(pause.inject[1]).toEqual({ do: "wait", time: s(0.5) });
     const frozen = planOf(cellOf("freeze-process", DESIGN, "T18"));
     expect(frozen).toEqual({
       inject: [{ do: "signal", target: "redis", signal: "SIGSTOP" }],
-      hold: 5000,
+      hold: s(5),
       heal: [{ do: "signal", target: "redis", signal: "SIGCONT" }],
       restore: [],
     });
@@ -100,7 +101,7 @@ describe("the fault mapping", () => {
     expect(planOf(cellOf("node-drain")).restore).toEqual([{ do: "kubectl", args: ["uncordon", "{node}"] }]);
     expect(planOf(cellOf("cpu-throttle")).inject).toEqual([{ do: "cpu", target: "server", max: "1000 1000000" }]);
     expect(planOf(cellOf("cpu-throttle")).heal).toEqual([{ do: "cpu", target: "server", max: "max 1000000" }]);
-    expect(planOf(cellOf("app-stall")).inject).toEqual([{ do: "stall", target: "server", ms: 5000 }]);
+    expect(planOf(cellOf("app-stall")).inject).toEqual([{ do: "stall", target: "server", time: s(5) }]);
     expect(planOf(cellOf("liveness-restart")).inject).toEqual([{ do: "flag", target: "server", on: true }]);
     expect(planOf(cellOf("rollout", DESIGN, "T18")).heal).toEqual([{ do: "kubectl", args: ["-n", "{namespace}", "scale", "deployment/redis", "--replicas=1"] }]);
     expect(deletes(cellOf("rolling-update"))).toBe(true);

@@ -111,7 +111,7 @@ export const scenarioOf = (cell: KindCell, propagation: Propagation): Scenario =
     "prestop_sleep@pod": cell.pod.preStop,
     "termination_grace@pod": cell.pod.grace,
     "probe_period@pod": cell.pod.readiness.period,
-    "propagation_bound@cluster": s(propagation.hi),
+    "propagation_bound@cluster": propagation.hi,
   },
   probes: {
     readiness: s(seconds(cell.pod.readiness.period) * cell.pod.readiness.threshold),

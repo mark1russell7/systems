@@ -4,8 +4,9 @@
 //
 // T07 is the endpoint lifecycle of a Service in kind, and T18 is a fleet whose readiness needs
 // Redis. Each folder is the output of one shard of the workflow Kind on a runner of GitHub: the raw
-// record of each cell, summary.ndjson and runner.txt. The script judges each record again with the
-// cell of the catalog of the same name (`judgeKind`), as KIND_JUDGE does. The calibration of the
+// record of each cell, summary.ndjson and runner.txt. A record of the format /1 is read through
+// `upgrade`. The script judges each record again with the cell of the catalog of the same name
+// (`judgeKind`), as KIND_JUDGE does. The calibration of the
 // propagation changes the windows of the catalog after a run, thus the count of runs that disagree
 // can change. The script stops when the decision, the counts or the median disagree with
 // summary.ndjson. The copy keeps only what the page shows. It keeps no image digest, address, pod,
@@ -13,8 +14,10 @@
 
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import type { KindCell, KindRun, KindVerdict, Prediction, Reference } from "../../kind/src/index.ts";
-import { calibrationOf, judgeKind, propagationOf, referenceOf } from "../../kind/src/index.ts";
+import type { Quantity } from "../../quantity/src/index.ts";
+import { valueIn } from "../../quantity/src/index.ts";
+import type { KindCell, KindCellRecord, KindCellRecordV1, KindRun, KindVerdict, Prediction, Reference, TimeSpread } from "../../kind/src/index.ts";
+import { FORMAT, FORMAT_V1, calibrationOf, judgeKind, propagationOf, referenceOf, upgrade } from "../../kind/src/index.ts";
 import { T07_CELLS } from "../../cells/src/t07.ts";
 import { T18_CELLS } from "../../cells/src/t18.ts";
 import { dateOf, only, readFolders, runnerOf, round, stringify, time } from "./records.ts";
@@ -25,28 +28,28 @@ if (folders.length === 0) {
   process.exit(2);
 }
 
-/** A record is the raw record of one kind cell, as the runner of @systems/kind writes it. */
-interface KindRecord {
-  readonly format: string;
-  readonly cell: KindCell;
-  readonly runs: readonly KindRun[];
-  readonly manifests: ReadonlyArray<{ readonly scenario: { readonly kubernetes: string }; readonly cluster: { readonly server: string; readonly kind: string } }>;
-  readonly at: string;
-}
-/** A summary is one line of summary.ndjson: the verdict of a kind cell at the time of its run. */
+/** A record is the raw record of one kind cell, as the runner of @mark1russell7/kind writes it: the format /1 or /2. */
+type KindRecord = KindCellRecord | KindCellRecordV1;
+/** A summary is one line of summary.ndjson: the verdict of a kind cell at the time of its run. The format /2 gives the median as a quantity. */
 interface Summary {
   readonly name: string;
   readonly decision: string;
   readonly counted: number;
   readonly voided: number;
   readonly failed: number;
-  readonly median: number | null;
+  readonly median: number | Quantity | null;
 }
 
 const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS];
 const found = readFolders<KindRecord, Summary>(folders);
-for (const entry of found.values())
-  if (entry.record.format !== "systems.kind-cell-record/1") throw new Error(`${entry.record.cell.name}: the format ${entry.record.format}`);
+for (const entry of found.values()) {
+  // the file can hold another format than its type says
+  const { format, cell } = entry.record as { readonly format: string; readonly cell: { readonly name: string } };
+  if (format !== FORMAT && format !== FORMAT_V1) throw new Error(`${cell.name}: the format ${format}`);
+}
+
+/** This function gives an amount in seconds, the unit of the copy. */
+const s = (amount: Quantity): number => valueIn(amount, "s");
 
 /** These phrases name the reference events of a run, in a sentence. */
 const REFERENCES: Readonly<Record<Reference, string>> = {
@@ -87,7 +90,7 @@ const MEASURED: ReadonlyArray<readonly [RegExp, string]> = [
 /** This function gives the prediction of a cell for the page: its kind, its band and its text. */
 const predictionOf = (cell: KindCell) => {
   const p: Prediction = cell.prediction;
-  const band = (lo: number, hi: number) => ({ low: lo, high: hi });
+  const band = (lo: Quantity, hi: Quantity) => ({ low: s(lo), high: s(hi) });
   if (cell.calibrates)
     return {
       kind: "calibration",
@@ -105,8 +108,8 @@ const predictionOf = (cell: KindCell) => {
             : `The algebra predicts that no request ends with ${listed(p.outcomes.map(outcome))}. An answer of 503 from a replica is not one of them.`,
       };
     case "window": {
-      const opens = p.start.band.lo === 0 ? `at ${REFERENCES[p.start.from]}` : `${time(p.start.band.lo)} after ${REFERENCES[p.start.from]}`;
-      const closes = p.end === null ? "" : `, and it closes ${time(p.end.band.lo)} to ${time(p.end.band.hi)} after ${REFERENCES[p.end.from]}`;
+      const opens = s(p.start.band.lo) === 0 ? `at ${REFERENCES[p.start.from]}` : `${time(s(p.start.band.lo))} after ${REFERENCES[p.start.from]}`;
+      const closes = p.end === null ? "" : `, and it closes ${time(s(p.end.band.lo))} to ${time(s(p.end.band.hi))} after ${REFERENCES[p.end.from]}`;
       const parts = [`The algebra predicts that each failed request starts in a window. The window opens ${opens}${closes}.`];
       if (p.nodes === "paused") parts.push("Only the clients of the paused node fail.");
       if (p.certain) parts.push("At least one request fails.");
@@ -116,13 +119,13 @@ const predictionOf = (cell: KindCell) => {
       return {
         kind: p.kind,
         band: band(p.band.lo, p.band.hi),
-        text: `The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is ${time(p.band.lo)} to ${time(p.band.hi)} after the fault.`,
+        text: `The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is ${time(s(p.band.lo))} to ${time(s(p.band.hi))} after the fault.`,
       };
     case "leaves":
       return {
         kind: p.kind,
         band: band(p.band.lo, p.band.hi),
-        text: `The algebra predicts that the replica leaves the EndpointSlice and the rules of each node. The band is ${time(p.band.lo)} to ${time(p.band.hi)} after the start of the stall.`,
+        text: `The algebra predicts that the replica leaves the EndpointSlice and the rules of each node. The band is ${time(s(p.band.lo))} to ${time(s(p.band.hi))} after the start of the stall.`,
       };
     case "restarts":
       return p.band === null
@@ -130,7 +133,7 @@ const predictionOf = (cell: KindCell) => {
         : {
             kind: p.kind,
             band: band(p.band.lo, p.band.hi),
-            text: `The algebra predicts that each replica receives SIGTERM. The band is ${time(p.band.lo)} to ${time(p.band.hi)} after the fault.`,
+            text: `The algebra predicts that each replica receives SIGTERM. The band is ${time(s(p.band.lo))} to ${time(s(p.band.hi))} after the fault.`,
           };
     case "stays":
       return {
@@ -199,7 +202,7 @@ const whyOf = (cell: KindCell, verdict: KindVerdict, values: readonly number[]):
   const first = verdict.checks.find((check) => !check.ok);
   const [low, high] = [Math.min(...values), Math.max(...values)];
   const median =
-    verdict.median === null ? "" : unit === "requests" ? ` The median run had ${of(verdict.median, "failed request")}.` : unit === "s" ? ` The median is ${time(verdict.median)}.` : "";
+    verdict.median === null ? "" : unit === "requests" ? ` The median run had ${of(verdict.median.value, "failed request")}.` : unit === "s" ? ` The median is ${time(s(verdict.median))}.` : "";
   const range =
     values.length === 0 || high === 0 ? "" : unit === "requests" ? ` The counted runs had ${low.toLocaleString("en-US")} to ${high.toLocaleString("en-US")} failed requests.` : unit === "s" ? ` The counted runs measured ${time(low)} to ${time(high)}.` : "";
   if (cell.calibrates) {
@@ -235,26 +238,28 @@ const groupOf = (cell: KindCell): string => {
 const propagationValues = (runs: readonly KindRun[]): number[] =>
   runs
     .filter((run) => !run.warmup && run.void === null)
-    .flatMap((run) => Object.values(propagationOf(run, referenceOf(run, "deletion"))).flatMap((drop) => (drop === null ? [] : [drop.by])))
+    .flatMap((run) => Object.values(propagationOf(run, referenceOf(run, "deletion"))).flatMap((drop) => (drop === null ? [] : [s(drop.by)])))
     .sort((a, b) => a - b);
 
-const spread = (value: { readonly count: number; readonly min: number; readonly median: number; readonly p99: number; readonly max: number } | null) =>
-  value === null ? null : { count: value.count, min: value.min, median: value.median, p99: value.p99, max: value.max };
+const spread = (value: TimeSpread | null) =>
+  value === null ? null : { count: value.count, min: s(value.min), median: s(value.median), p99: s(value.p99), max: s(value.max) };
 
 const propagation: Record<string, unknown> = {};
 const cells = CATALOG.flatMap((cell) => {
   const entry = found.get(cell.name);
   if (entry === undefined) return [];
-  const { record, summary } = entry;
+  const { summary } = entry;
+  const record = upgrade(entry.record);
   const verdict = judgeKind(cell, record.runs);
+  const summed = summary.median === null || typeof summary.median === "number" ? summary.median : summary.median.value;
   if (
     verdict.decision !== summary.decision ||
     verdict.counted !== summary.counted ||
     verdict.voided !== summary.voided ||
-    verdict.median !== summary.median
+    (verdict.median?.value ?? null) !== summed
   )
     throw new Error(`${cell.name}: the catalog now gives ${verdict.decision} (${verdict.why}), and summary.ndjson gives ${summary.decision}`);
-  const values = verdict.checks.map((check) => check.value).filter((value): value is number => value !== null);
+  const values = verdict.checks.flatMap((check) => (check.value === null ? [] : [check.value.value]));
   if (cell.calibrates) {
     const calibration = calibrationOf({ cell, runs: record.runs, verdict });
     propagation[cell.mode] = {
@@ -279,7 +284,7 @@ const cells = CATALOG.flatMap((cell) => {
       voided: verdict.voided,
       failed: verdict.failed,
       unit: unitOf(cell),
-      median: verdict.median === null ? null : round(verdict.median),
+      median: verdict.median === null ? null : round(verdict.median.value),
       values,
       why: whyOf(cell, verdict, values),
     },

@@ -168,7 +168,7 @@ The client of these cells is the MongoDB client of the harness (`image/mongo/cli
 
 ## The T07 catalog
 
-T07 is the endpoint lifecycle of a Service in kind (`src/t07.ts`, on `@systems/kind`). A client on each node sends a request each 20 ms, each on a new connection to the ClusterIP. The server is the service of this repository, as a Deployment of 2 replicas on 2 workers.
+T07 is the endpoint lifecycle of a Service in kind (`src/t07.ts`, on `@mark1russell7/kind`). A client on each node sends a request each 20 ms, each on a new connection to the ClusterIP. The server is the service of this repository, as a Deployment of 2 replicas on 2 workers.
 
 - **The question** is O04 with the hold of the service. The listener of a leaving pod stays open for its preStop sleep and its hold of `fail readiness`. A connection fails when the rules of its node select the pod after that.
 - **The calibration** (`CAL.T07.<mode>`) deletes a pod with a preStop sleep of 10 s. Each node gives its propagation: the time from the deletion to the first poll of its rules without the pod. `PROPAGATION` in `src/kind.ts` holds the shortest and the longest time for each mode.
