@@ -162,7 +162,8 @@ const sample = async (ctx: Context, ours: ReadonlySet<string>): Promise<LoadSamp
 /** This function waits until the VM is quiet: no lab container of another agent, and an idle share of the CPUs. */
 const quiet = async (ctx: Context, ours: ReadonlySet<string>): Promise<LoadSample> => {
   for (;;) {
-    const load = await sample(ctx, ours);
+    // the prober and the watcher start again with new names, thus the names of this lab come at each sample
+    const load = await sample(ctx, new Set([...ours, ...ctx.lab.own(), ctx.loader.getName().replace(/^\//, "")]));
     ctx.loads.push(load);
     if (load.foreign.length === 0 && load.idle >= ctx.idle) return load;
     ctx.log(`  waiting: ${Math.round(load.idle * 100)}% idle, other lab containers: ${load.foreign.join("; ") || "none"}`);

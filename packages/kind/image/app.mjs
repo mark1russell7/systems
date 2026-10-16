@@ -51,7 +51,9 @@ const redis =
       );
 
 let life = null;
-const flag = () => (existsSync("/tmp/lab-fail") ? "error" : "ok");
+// the flag file fails the check of the liveness restart: the agent writes it in the root of the container
+const FLAG = process.env.LAB_FLAG ?? "/tmp/lab-fail";
+const flag = () => (existsSync(FLAG) ? "error" : "ok");
 
 // the server transport: a new connection for each request, and Connection: close while the service is not ready
 const sockets = new Set();
