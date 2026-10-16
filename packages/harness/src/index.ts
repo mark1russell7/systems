@@ -73,7 +73,7 @@ export {
   writesOf,
 } from "./timeline.ts";
 export type { Decision, GroupVerdict, Interval, ReconnectVerdict, Spread, StageVerdict, Verdict } from "./verdict.ts";
-export { NOISE, RELATIVE, STEPS, groupVerdictOf, medianInterval, quantileOf, requestWords, spreadOf, verdictOf } from "./verdict.ts";
+export { INJECT, NOISE, RELATIVE, STEPS, delayVoids, groupVerdictOf, medianInterval, noiseOf, quantileOf, requestWords, spreadOf, verdictOf } from "./verdict.ts";
 export type { Agent, FaultSide, Lab, Manifest, ManifestHop, NetworkFault, Probe } from "./lab.ts";
 export {
   LISTING,
@@ -81,6 +81,7 @@ export {
   deviceOf,
   endpointAfter,
   goHttpImage,
+  hzOf,
   harnessImage,
   mongoClientImage,
   nodeClientImage,

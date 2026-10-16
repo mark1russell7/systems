@@ -4,6 +4,7 @@ import type { Cell } from "@mark1russell7/harness";
 import { measure, runCell } from "@mark1russell7/harness";
 import { describe, expect, it } from "vitest";
 import { ALL } from "./all.ts";
+import { environmentOf } from "./environments.ts";
 
 /**
  * The runner of the catalog. It starts only with CELLS=1, because it needs Docker and privileged
@@ -25,6 +26,11 @@ const FILE = process.env["CELLS_FILE"] || undefined;
 const source: readonly Cell[] = FILE === undefined ? ALL : (JSON.parse(readFileSync(FILE, "utf8")) as Cell[]);
 const selected: Cell[] = source.filter((each) => ONLY.test(each.name)).filter((_, at) => at % of === shard);
 
+/** This environment is the runner image, when stage 0 calibrated it. A cell without its own δ_abs gets the image's. */
+const environment = environmentOf();
+const inEnvironment = (cell: Cell): Cell =>
+  cell.noise !== undefined || environment === undefined ? cell : { ...cell, noise: environment.noise };
+
 /** This function gives a file name for a cell: its name in lower case, with a dash for each other character. */
 const slug = (name: string): string => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
@@ -32,7 +38,7 @@ describe.skipIf(!RUN)("the catalogs, on the harness", () => {
   mkdirSync(OUT, { recursive: true });
   for (const cell of selected) {
     it(cell.name, async () => {
-      const result = await runCell(cell, (line) => console.log(line));
+      const result = await runCell(inEnvironment(cell), (line) => console.log(line));
       writeFileSync(
         `${OUT}/${slug(cell.name)}.json`,
         JSON.stringify({

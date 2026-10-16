@@ -181,7 +181,11 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
       const local = probe.events.find((event) => event.ev === "connected")?.["local"];
       await probe.stop();
       expect(lab.kernel.some((record) => record.netns === lab.netns.client && record.src === local)).toBe(true);
-      expect((await lab.manifest({})).client).toEqual({ kind: "image", image: node });
+      const manifest = await lab.manifest({});
+      expect(manifest.client).toEqual({ kind: "image", image: node });
+      // the manifest knows HZ: from /proc/config.gz, or measured on a host without it (a runner)
+      expect(["100", "250", "300", "1000"]).toContain(manifest.hz);
+      expect(["config", "measured"]).toContain(manifest.hzFrom);
       // an agent with the process namespace of the target finds the server process
       const agent = await lab.agent(node, ["sh", "-c", "while :; do sleep 3600; done"], { pid: true });
       expect(Number(await agent.exec(["sh", "-c", "pidof redis-server"]))).toBeGreaterThan(0);

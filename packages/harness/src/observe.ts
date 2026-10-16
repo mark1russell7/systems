@@ -7,7 +7,7 @@ import type { DriverStepTime } from "./driver.ts";
 import { measureDriver } from "./driver.ts";
 import type { GroupMeasured } from "./timeline.ts";
 import { measureGroup } from "./timeline.ts";
-import { NOISE, requestWords } from "./verdict.ts";
+import { INJECT, delayVoids, noiseOf, requestWords } from "./verdict.ts";
 
 /**
  * An outcome tells how the wait of a run ended. The socket failed with an errno, or it read the
@@ -466,7 +466,7 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
       (record) =>
         record.ev === "timer" && record.what === timer && record.mono >= from && record.mono <= to,
     );
-    const late = firings.find((record) => (record.behind?.value ?? 0) >= 2);
+    const late = firings.find((record) => delayVoids(record.behind?.value ?? 0, run.hz, noiseOf(cell)));
     if (late !== undefined)
       return `its ${timer} timer ran ${late.behind!.value} jiffies behind its wheel slot: the VM delayed it, not the kernel`;
     // a keepalive timer that finds its socket held by its owner sends nothing, and it tries again
@@ -549,14 +549,15 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
   // a close of the observer itself, for a prediction that says it: from ESTABLISHED to FIN_WAIT1,
   // the FIN that its pool sends when it closes an idle connection
   const own =
-    cell.prediction.detects === true && cell.prediction.errno === "CLOSED"
+    (cell.prediction.detects === true && cell.prediction.errno === "CLOSED") ||
+    (cell.prediction.detects === null && cell.prediction.ends === "own-close")
       ? socket.find((record) => record.ev === "state" && oldState(record) === 1 && newState(record) === 4)
       : undefined;
   // a drop by the program of the observer on its own timer: its `drop` line, at the kernel's stamp
   // of its close frame or its close. It counts when it comes before each report of the kernel
   const lines = programLines(cell, run);
   const kernelEnded = reported?.mono ?? closeWait?.mono ?? own?.mono ?? seen?.t;
-  const first = dropOf(lines, socket, local);
+  const first = dropOf(lines, socket, local, noiseOf(cell));
   const drop = first !== undefined && (kernelEnded === undefined || first.at <= kernelEnded) ? first : undefined;
   const dropped = drop !== undefined;
   const outcome: Outcome = dropped
@@ -575,7 +576,7 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     reported !== undefined && seen !== undefined && !dropped ? between(reported.mono, seen.t) : null;
   const { prediction } = cell;
   // the pings of a heartbeat of the program, at the kernel's stamps of their writes
-  const pings = pingsOf(lines, socket, local);
+  const pings = pingsOf(lines, socket, local, noiseOf(cell));
   // keepalive counts from the last segment received before the fault. The budget of the give-up
   // counts from the first retransmission of the RTO timer, not from the tail loss probe before it.
   // A reset counts from the send of the client. The kernel has no record of that send, thus the
@@ -770,7 +771,7 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
       } else if (after === null) {
         finding = "no router forgot the flow in the window, where it should forget it";
       } else {
-        const noise = valueIn(NOISE, "s");
+        const noise = valueIn(noiseOf(cell), "s");
         const low = valueIn(expected.low, "s") - noise;
         const high = valueIn(expected.high, "s") + noise;
         if (after.value < low || after.value > high)
@@ -837,10 +838,10 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
           : "end of file";
   // the reconnect of the client after the detection, against the bands of its waits
   const reconnect = prediction.reconnects === undefined ? undefined : reconnectOf(run, ended, cookie, drop?.line.t ?? ended);
-  const late = reconnect === undefined || prediction.reconnects === undefined ? null : reconnectFinding(prediction.reconnects, reconnect);
+  const late = reconnect === undefined || prediction.reconnects === undefined ? null : reconnectFinding(prediction.reconnects, reconnect, noiseOf(cell));
   // a drop of the program against the way that the prediction gives: a close frame or a close
   const left = prediction.drop === undefined || drop === undefined ? undefined : leftAfter(socket, drop.line);
-  const how = prediction.drop === undefined || drop === undefined || left === undefined ? null : dropFinding(prediction.drop, drop, left);
+  const how = prediction.drop === undefined || drop === undefined || left === undefined ? null : dropFinding(prediction.drop, drop, left, noiseOf(cell));
   const found = [matches ? null : `it ended with ${words}, not ${prediction.errno}`, late, how].filter((each) => each !== null);
   const finding = found.length === 0 ? null : found.join(". ");
   // the timer of an HTTP client or server is a timer of the program, not of the kernel: the kernel
@@ -874,7 +875,7 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
   // a toxic starts somewhere in the commit of its request. A commit longer than the noise of the
   // pipeline leaves its start unknown within δ_abs
   const commit = run.fault === null ? 0 : (run.fault.t1 - run.fault.t0) / 1e6;
-  if (prediction.from === "fault" && commit > valueIn(NOISE, "ms"))
+  if (prediction.from === "fault" && commit > valueIn(INJECT, "ms"))
     voided ??= `the commit of the fault took ${Math.round(commit * 10) / 10} ms, longer than the noise of the pipeline: its start is not known`;
   // the view of the program of a heartbeat: from the line of its first ping without an answer to
   // the line of its drop, or to the line of the error that it saw

@@ -60,13 +60,19 @@ const kernelAt = (
   socket: readonly KernelRecord[],
   line: ProbeEvent,
   matches: (record: KernelRecord) => boolean,
+  delta: Quantity,
 ): KernelRecord | undefined => {
-  const noise = valueIn(NOISE, "s") * 1e9;
+  const noise = valueIn(delta, "s") * 1e9;
   return socket.find((record) => record.mono >= line.t && record.mono <= line.t + noise && matches(record));
 };
 
-const eventOf = (socket: readonly KernelRecord[], line: ProbeEvent, matches: (record: KernelRecord) => boolean): ProgramEvent => {
-  const record = kernelAt(socket, line, matches);
+const eventOf = (
+  socket: readonly KernelRecord[],
+  line: ProbeEvent,
+  matches: (record: KernelRecord) => boolean,
+  delta: Quantity = NOISE,
+): ProgramEvent => {
+  const record = kernelAt(socket, line, matches, delta);
   return {
     line,
     at: record?.mono ?? line.t,
@@ -92,8 +98,13 @@ export const leftAfter = (socket: readonly KernelRecord[], line: ProbeEvent): Qu
  * A close closes the socket in δ_abs. A close frame is a write, and the program does not close
  * the socket at the drop. A peer that answers the close frame can close it, and that is no finding.
  */
-export const dropFinding = (expected: "frame" | "close", drop: ProgramEvent, left: Quantity | null): string | null => {
-  const noise = valueIn(NOISE, "s");
+export const dropFinding = (
+  expected: "frame" | "close",
+  drop: ProgramEvent,
+  left: Quantity | null,
+  delta: Quantity = NOISE,
+): string | null => {
+  const noise = valueIn(delta, "s");
   const soon = left !== null && valueIn(left, "s") <= noise;
   if (expected === "close") {
     if (left === null) return "the program did not close its socket after the drop, where a close is at once";
@@ -106,8 +117,13 @@ export const dropFinding = (expected: "frame" | "close", drop: ProgramEvent, lef
 const isWrite = (record: KernelRecord): boolean => record.ev === "tx";
 
 /** This function gives each ping of the program on the connection of the run, with the kernel's stamp of its write. */
-export const pingsOf = (lines: readonly ProbeEvent[], socket: readonly KernelRecord[], local: unknown): ProgramEvent[] =>
-  lines.filter((line) => line.ev === "ping" && onConnection(line, local)).map((line) => eventOf(socket, line, isWrite));
+export const pingsOf = (
+  lines: readonly ProbeEvent[],
+  socket: readonly KernelRecord[],
+  local: unknown,
+  delta: Quantity = NOISE,
+): ProgramEvent[] =>
+  lines.filter((line) => line.ev === "ping" && onConnection(line, local)).map((line) => eventOf(socket, line, isWrite, delta));
 
 /**
  * This function gives the first ping that got no answer: no segment with data reached the socket
@@ -130,11 +146,16 @@ export const firstUnanswered = (
  * write of a close frame. Or it stamps the change of the socket out of ESTABLISHED: a close or an
  * abort.
  */
-export const dropOf = (lines: readonly ProbeEvent[], socket: readonly KernelRecord[], local: unknown): ProgramEvent | undefined => {
+export const dropOf = (
+  lines: readonly ProbeEvent[],
+  socket: readonly KernelRecord[],
+  local: unknown,
+  delta: Quantity = NOISE,
+): ProgramEvent | undefined => {
   const line = lines.find((each) => each.ev === "drop" && onConnection(each, local));
   return line === undefined
     ? undefined
-    : eventOf(socket, line, (record) => isWrite(record) || (record.ev === "state" && oldState(record) === 1));
+    : eventOf(socket, line, (record) => isWrite(record) || (record.ev === "state" && oldState(record) === 1), delta);
 };
 
 /** A reconnect reading is what the client did after the detection, from its lines and from the records of the kernel. */
@@ -179,8 +200,8 @@ export const reconnectOf = (run: Run, detected: number, cookie: number | undefin
 };
 
 /** This function tells how the waits of a reconnect differ from their bands, each widened by δ_abs, or gives null. */
-export const reconnectFinding = (expected: Reconnects, read: ReconnectReading): string | null => {
-  const noise = valueIn(NOISE, "s");
+export const reconnectFinding = (expected: Reconnects, read: ReconnectReading, delta: Quantity = NOISE): string | null => {
+  const noise = valueIn(delta, "s");
   const round = (value: number) => Math.round(value * 1e6) / 1e6;
   const found = expected.waits.flatMap((band, at) => {
     const wait = read.waits[at];

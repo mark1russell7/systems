@@ -2,7 +2,7 @@ import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 import type { Cell, DriverBand, KernelRecord, LineMatch, ProbeEvent, Reference, Run } from "./cell.ts";
 import type { Measured, Outcome } from "./observe.ts";
-import { NOISE } from "./verdict.ts";
+import { INJECT, delayVoids, noiseOf } from "./verdict.ts";
 
 /**
  * This module measures a run of a cell whose client is a driver with more than one socket, for
@@ -210,9 +210,9 @@ export const settled = (cell: Cell, run: Run): boolean => {
  * that found the socket held by its owner put itself off by HZ/20. Either way, the run measured
  * something other than the timer.
  */
-const delayed = (place: KernelPlace, from: number, to: number): string | null => {
+const delayed = (place: KernelPlace, from: number, to: number, hz: number | undefined, noise: Quantity): string | null => {
   const firings = place.records.filter((record) => record.ev === "timer" && record.what === "keepalive" && record.mono >= from && record.mono <= to);
-  const late = firings.find((record) => (record.behind?.value ?? 0) >= 2);
+  const late = firings.find((record) => delayVoids(record.behind?.value ?? 0, hz, noise));
   if (late !== undefined) return `its keepalive timer ran ${late.behind!.value} jiffies behind its wheel slot: the VM delayed it, not the kernel`;
   const held = firings.find((record) => record.owned === true);
   return held === undefined ? null : "its keepalive timer found the socket held by its owner and put itself off by HZ/20: the run measured the owner, not the timer";
@@ -273,7 +273,7 @@ export const measureDriver = (cell: Cell, run: Run): Measured => {
     if (heal === null) voided = "the fault never lifted";
     else {
       const late = (heal.t0 - run.fault.t0) / 1e9 - valueIn(cell.hold, "s");
-      if (late > valueIn(NOISE, "s")) voided = `the lift came ${Math.round(late * 1e4) / 10} ms after its hold: the injector was late, not the client`;
+      if (late > valueIn(INJECT, "s")) voided = `the lift came ${Math.round(late * 1e4) / 10} ms after its hold: the injector was late, not the client`;
     }
   }
   const assumed = prediction.rtt;
@@ -281,7 +281,7 @@ export const measureDriver = (cell: Cell, run: Run): Measured => {
     voided = `rtt-over-assumption: its first round trip was ${rtt.value} ms, above the ${valueIn(assumed.high, "ms")} ms that the prediction assumes`;
 
   const findings: string[] = [];
-  const noise = valueIn(NOISE, "s");
+  const noise = valueIn(noiseOf(cell), "s");
   // the end of the window: the window of a silent prediction, or the end of the run
   const until = prediction.detects ? Infinity : after + valueIn(prediction.window, "s") * 1e9;
   for (const match of driver.quiet ?? []) {
@@ -350,7 +350,7 @@ export const measureDriver = (cell: Cell, run: Run): Measured => {
   const reference = referenceOf(run, prediction.from, driver.socket, driver.ends !== undefined);
   if (reference === undefined)
     return { ...base, ...nothing, ...stepped, outcome, void: voided, finding: `it ended without its reference event (${prediction.from} on the ${driver.socket} socket)` };
-  if (driver.ends === undefined && prediction.from === "last-received" && place !== undefined) voided ??= delayed(place, reference, ended);
+  if (driver.ends === undefined && prediction.from === "last-received" && place !== undefined) voided ??= delayed(place, reference, ended, run.hz, noiseOf(cell));
   const name = outcome.kind === "error" ? outcome.errno : outcome.kind === "eof" ? "EOF" : "silent";
   if (prediction.errno !== "OK" && name !== prediction.errno) findings.unshift(`it ended with ${name}, not ${prediction.errno}`);
   // the client's own view: its first error line after the report of the kernel

@@ -25,6 +25,7 @@ A **cell** (`cell.ts`) is all that one measurement needs, as data:
 - A privileged sidecar in the namespace of the client, for its sysctls and its routes. Docker Desktop keeps `/proc/sys` read-only in a container that operates.
 - Each hop of the topology, on the network of each of its sides.
 - An injector sidecar in the namespace of the target, with NET_ADMIN. Thus the image of the target stays stock.
+- The manifest of each environment gives the HZ of its kernel, from /proc/config.gz. A host without that file (a hosted runner) gets HZ from two readings of /proc/timer_list, one second apart: its jiffies against the time of the kernel (`hzOf`). `hzFrom` tells which.
 - The prober ([`@mark1russell7/prober`](https://www.npmjs.com/package/@mark1russell7/prober)): a privileged container that loads the kernel program. It watches the namespace of the client, of the target and of each hop. Each run keeps its records from its start to its end. A run whose records the prober lost is void.
 
 Each command is an argv array.
@@ -186,6 +187,7 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
 - **The time.** It times the detection from the reference event of the prediction to the error report of the kernel. eBPF stamps the two events. For keepalive, the reference is the last received segment. For the give-up, it is the first retransmission of the RTO timer, not the tail loss probe one RTO before it. For a reset, it is the send of the client, which no kernel record marks. The client stamps the send before its write.
 - **The other views.** It also gives the same interval from the `TCP_INFO` samples of the client, and the delay before the client saw the error. It also gives the steps of the kernel: each keepalive probe, or each expiry of the RTO timer.
 - **Void runs.** A run is void when the timer that drives the measurement was two jiffies or more behind its wheel slot in the timed interval. The wheel does a slot in the tick when it is due. Thus such a firing measured the host, which stopped a vCPU, not the kernel. A keepalive timer that found its socket held also makes the run void. A run whose fault came too late is void too.
+  - The rule is in time when the run knows its HZ (`Run.hz`, from the manifest). Then the delay must reach two jiffies and δ_abs, the larger of the two (`delayVoids`). Each band includes δ_abs, thus a smaller delay does not change a result. At HZ 250 two jiffies are 8 ms, more than a δ_abs of 4 ms, and the rule stays the same. At HZ 1000 two jiffies are 2 ms. A run without its HZ keeps the rule in jiffies.
 - **The first round trip.** The measurement gives the first round trip of the socket of the observer (`rtt`). It is the smoothed round trip in the first record of the socket: the sample of the handshake. A run whose first round trip is above the range of its prediction is void, with the reason `rtt-over-assumption` and the value. Such a run measured another path than the band assumes. For example, a round trip of 4.826 ms makes an RTO of 52 jiffies, and a ladder that assumes 1 ms has 51.
 - **Findings.** A finding is a wrong errno, a detector that did not fire, or a detection where the prediction is silence. A router that forgot the flow in the window of a silent prediction is also a finding.
 - **A reply.** A silent prediction with `replies` times the send of the request to the first segment with data that comes back. A proxy can acknowledge the request first, with no data.
@@ -241,7 +243,9 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
 
 `verdictOf(prediction, runs)` (`verdict.ts`) judges a cell:
 
-- **Containment.** Each run lands in [T_lo − δ_abs, T_hi + δ_abs]. `NOISE` (δ_abs) is 4 ms, from the calibration: the worst reset took 1.141 ms, and δ_abs is one jiffy at the minimum.
+- **Containment.** Each run lands in [T_lo − δ_abs, T_hi + δ_abs]. `NOISE` (δ_abs) is 4 ms, from the calibration of the first environment: the worst reset took 1.141 ms, and δ_abs is one jiffy at the minimum.
+  - **δ_abs of an environment.** A cell can give the δ_abs of its environment (`Cell.noise`). Stage 0 measures it in each environment. On a hosted runner of GitHub at HZ 1000, the worst reset took 0.147 ms, thus δ_abs is one jiffy, 1 ms. These read it (`noiseOf`): the bands, the pairing of a program line with its kernel record, and the drop of a program.
+  - **The injector has its own bound.** A fault that the injector commits or lifts late makes a run void. That bound is `INJECT` (4 ms), not δ_abs. Stage 0 measures the commit apart. On a hosted runner it took up to 2.75 ms at 4 environments.
 - **Median equivalence.** The order-statistic interval of the median must be in the band, made 5 % wider.
 - **Extension.** A median across the edge of the band extends the cell from 11 runs to 22, then 44. Then the verdict is inconclusive.
 - **Recovery.** The recovery after a stall gets the same test as a detection, by its band. A detection is then a finding.

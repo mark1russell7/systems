@@ -20,6 +20,28 @@ export const requestWords = (outcome: {
  * the harness, the kernel or Docker.
  */
 export const NOISE: Quantity = quantity(4, "ms");
+
+/**
+ * This time is how late the injector can commit or lift a fault before the run is void. Stage 0
+ * measures the commit apart from δ_abs, and the commit is longer. On a hosted runner it took up to
+ * 2.75 ms at 4 environments, where δ_abs is 1 ms. Thus a cell's δ_abs does not change it.
+ */
+export const INJECT: Quantity = NOISE;
+
+/** This function gives the δ_abs of a cell: its own, or `NOISE` for a cell that gives none. */
+export const noiseOf = (cell: { readonly noise?: Quantity | undefined }): Quantity => cell.noise ?? NOISE;
+
+/**
+ * This function tells if a timer firing came late enough to void a run. A firing two jiffies or
+ * more behind its wheel slot came late because the host stopped a vCPU. With the HZ of the run,
+ * the rule is in time: the delay must also reach δ_abs, because each band already includes that
+ * noise. At HZ 250 two jiffies are 8 ms, more than a δ_abs of 4 ms. At HZ 1000 they are 2 ms.
+ */
+export const delayVoids = (behind: number, hz: number | undefined, noise: Quantity): boolean => {
+  if (behind < 2) return false;
+  if (hz === undefined || !(hz > 0)) return true;
+  return behind / hz >= Math.max(2 / hz, valueIn(noise, "s"));
+};
 /** This fraction, δ_rel, is how far the median of a cell can be outside the prediction and stay equivalent. */
 export const RELATIVE = 0.05;
 /** These are the run counts of a cell: 11, then 22 and 44 while its median crosses the edge of the band. */
@@ -230,13 +252,13 @@ const middle = (sorted: readonly number[]): number => {
  * finding. The distribution test (a DKW band) needs a predicted distribution from a simulator,
  * which does not exist at this time.
  */
-export const verdictOf = (prediction: Prediction, runs: readonly Measured[]): Verdict => {
-  const band = verdictOfBand(prediction, runs);
+export const verdictOf = (prediction: Prediction, runs: readonly Measured[], noise: Quantity = NOISE): Verdict => {
+  const band = verdictOfBand(prediction, runs, noise);
   const counted = runs.filter((run) => run.void === null);
   const asked = counted.some((run) => run.request !== undefined) ? withRequests(band, counted) : band;
   const verdict = withProgram(asked, counted);
   if (prediction.group === undefined && !counted.some((run) => run.group !== undefined)) return verdict;
-  return { ...verdict, group: groupVerdictOf(prediction, counted) };
+  return { ...verdict, group: groupVerdictOf(prediction, counted, noise) };
 };
 
 /**
@@ -314,8 +336,8 @@ const medianCount = (values: readonly number[]): number | null =>
   values.length === 0 ? null : middle([...values].sort((a, b) => a - b));
 
 /** This function sums what the group of a group cell did in its counted runs, and tests each stage that has a band. */
-export const groupVerdictOf = (prediction: Prediction, counted: readonly Measured[]): GroupVerdict => {
-  const noise = valueIn(NOISE, "s");
+export const groupVerdictOf = (prediction: Prediction, counted: readonly Measured[], delta: Quantity = NOISE): GroupVerdict => {
+  const noise = valueIn(delta, "s");
   const stamps = prediction.group?.stamps === undefined ? 0 : valueIn(prediction.group.stamps, "s");
   const stages = (prediction.group?.stages ?? []).map((band): StageVerdict => {
     const interval = { low: s(valueIn(band.low, "s") - noise), high: s(valueIn(band.high, "s") + stamps + noise) };
@@ -376,7 +398,7 @@ export const groupVerdictOf = (prediction: Prediction, counted: readonly Measure
 };
 
 /** This function gives the verdict of the band of a cell: its containment and the equivalence of its median. */
-const verdictOfBand = (prediction: Prediction, runs: readonly Measured[]): Verdict => {
+const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta: Quantity = NOISE): Verdict => {
   const counted = runs.filter((run) => run.void === null);
   const voided = runs.length - counted.length;
   const outside = counted
@@ -466,7 +488,7 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[]): Verdi
 
   // the interval of a detection, of the return of the reply after a stall, or of a reply in its band
   const timed = prediction.detects ? prediction : (prediction.recovers ?? prediction.replies)!;
-  const noise = valueIn(NOISE, "s");
+  const noise = valueIn(delta, "s");
   const low = valueIn(timed.low, "s");
   const high = valueIn(timed.high, "s");
   const band = { low: s(low - noise), high: s(high + noise) };
