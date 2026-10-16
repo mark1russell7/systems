@@ -58,8 +58,11 @@ export const RUNS = 11;
 export const WINDOW = 20;
 /** This time is the round trip of the Docker network that the models read, without a latency. */
 export const RTT_MS = 1;
-/** The kernel of the VM counts time at HZ 250. */
-export const HZ = 250;
+/**
+ * This rate is the HZ of the kernel that runs the cells: 250 for the development VM. The cells
+ * workflow gives the runner's own value in CELLS_HZ, from the kernel's config.
+ */
+export const HZ = Number(process.env["CELLS_HZ"] ?? 250);
 
 /** These are the Linux 6.6 values of the knobs of Linux TCP. A cell gives each knob, thus nothing is left to a default. */
 export const LINUX_66: Readonly<Record<string, Extent>> = {

@@ -132,6 +132,10 @@ jobs:
           CELLS_FILE_AT: ${{ inputs.file }}
         run: |
           if [ -n "$CELLS_FILE_AT" ]; then export CELLS_FILE="$GITHUB_WORKSPACE/$CELLS_FILE_AT"; fi
+          # the catalogs' bands read the runner kernel's own HZ
+          CELLS_HZ="$(sed -n 's/^CONFIG_HZ=//p' "/boot/config-$(uname -r)")"
+          if [ -z "$CELLS_HZ" ]; then echo "::error::the runner's kernel config gives no CONFIG_HZ"; exit 1; fi
+          export CELLS_HZ
           pnpm --filter @systems/cells test
       - if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
