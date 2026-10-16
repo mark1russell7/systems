@@ -1,5 +1,5 @@
 {
-  "name": "systems-cells-http-node",
+  "name": "loom-harness-http-clients",
   "private": true,
   "type": "module",
   "dependencies": {

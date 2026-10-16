@@ -94,6 +94,13 @@ export const NODE_HTTP_AGENT: Machine = {
       default: null,
       note: "the hint that the response gives; a response without one: a reader gives it no bound",
     },
+    hz: {
+      key: "CONFIG_HZ",
+      scope: "global",
+      unit: "Hz",
+      default: null,
+      note: "the HZ of the kernel, for the step of the coarse loop clock of libuv (timers.ts)",
+    },
   },
   timers: {
     free_socket: {

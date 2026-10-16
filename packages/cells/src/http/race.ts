@@ -7,7 +7,8 @@ import type { AgentSettings } from "./node-agent.ts";
 import { NODE_HTTP_AGENT } from "./node-agent.ts";
 import type { NodeServerSettings } from "./node-server.ts";
 import { NODE_HTTP_SERVER, hintOf } from "./node-server.ts";
-import { NODE_EARLY_SECONDS, goLateSeconds, nodeLateSeconds } from "./timers.ts";
+import { HZ } from "../catalog.ts";
+import { goLateSeconds, nodeEarlySeconds, nodeLateSeconds } from "./timers.ts";
 import type { UndiciSettings } from "./undici.ts";
 import { UNDICI_CLIENT } from "./undici.ts";
 
@@ -152,14 +153,17 @@ export const timerInterval = (doc: Machine, timer: string, values: KnobValues): 
 /** This function rounds a time to the nanosecond, as the predictions of the cells do. */
 const round = (value: number): number => (Number.isFinite(value) ? Math.round(value * 1e9) / 1e9 : value);
 
-/** This function gives the values of a document's knobs: its defaults, then the settings, each in the unit of the knob. */
+/**
+ * This function gives the values of a document's knobs: its defaults, then the settings, each in
+ * the unit of the knob. The HZ of the kernel is the HZ of the cells, unless the settings give one.
+ */
 export const valuesOf =
   (doc: Machine, settings: object): KnobValues =>
   (name) => {
     const knob = doc.knobs[name];
     if (knob === undefined || knob.unit === null) return undefined;
     const given = (settings as Readonly<Record<string, number | "infinite" | undefined>>)[name];
-    const value = given ?? knob.default;
+    const value = given ?? (name === "hz" ? HZ : knob.default);
     if (value === null || value === undefined) return undefined;
     if (value === "infinite") return { value: "infinite", unit: knob.unit };
     return { value, unit: knob.unit };
@@ -234,7 +238,7 @@ export const DISPATCH = 0.001;
  * sleep of its runtime, late as its timers are, and the dispatch. Go sleeps with a Go timer, and
  * the Node clients with a Node timer (`timers.ts`).
  */
-export const gapOf = (client: HttpClient, g: number): Interval =>
+export const gapOf = (client: HttpClient, g: number, hz = HZ): Interval =>
   client === "go"
     ? { low: round(g), high: round(g + goLateSeconds(g) + DISPATCH) }
-    : { low: round(g - NODE_EARLY_SECONDS), high: round(g + nodeLateSeconds(g) + DISPATCH) };
+    : { low: round(g - nodeEarlySeconds(hz)), high: round(g + nodeLateSeconds(g, hz) + DISPATCH) };

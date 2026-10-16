@@ -17,12 +17,15 @@ import type { Expr } from "@mark1russell7/algebra";
  *   timeout in milliseconds. `deps/uv/src/timer.c:143-160` gives that timeout as the due time
  *   less the loop clock, in milliseconds.
  * - `deps/uv/src/unix/internal.h:467-470` truncates the loop clock to milliseconds.
- *   `deps/uv/src/unix/linux.c:1603-1629` reads `CLOCK_MONOTONIC` for that clock when
- *   `CLOCK_MONOTONIC_COARSE` is coarser than 1 ms. At HZ 250 the coarse clock has 4 ms steps.
+ * - `deps/uv/src/unix/linux.c:1603-1629` reads `CLOCK_MONOTONIC_COARSE` for that clock when its
+ *   resolution is 1 ms or less, and `CLOCK_MONOTONIC` when it is coarser.
+ * - The resolution of the coarse clock is one jiffy (`kernel/time/posix-timers.c:187-190`,
+ *   `include/vdso/ktime.h:13-14`, `include/vdso/jiffies.h`). It gives the time of the last tick.
+ *   Thus at HZ 1000 the loop clock can be one jiffy behind, and at HZ 250 it is exact.
  * - Node stamps the start of a timer with the loop clock (`lib/internal/timers.js:426-429`,
  *   `src/env.cc:1649-1651`). It starts the callback of a timer when the loop clock less that start
  *   is the duration or more (`lib/internal/timers.js:631-641`). Thus the start can be up to 1 ms
- *   before the arming.
+ *   before the arming, and one more step of the coarse clock.
  * - Go 1.27.2 sleeps in `epoll_wait` with the delay truncated to milliseconds, and with 1 ms when
  *   less than 1 ms remains (`src/runtime/netpoll_epoll.go:117-133`). A Go timer does not fire
  *   early: a wake before the due time sleeps again.
@@ -35,14 +38,23 @@ import type { Expr } from "@mark1russell7/algebra";
 const slackMs = (ms: string): string => `min(max((${ms}) / 1000, 0.05), 100)`;
 
 /**
- * This function gives the lateness of a Node timer of `ms` milliseconds. The lateness is the slack
- * of its sleep, and 1 ms for the truncation of the loop clock and of the timeout. The arithmetic
- * reads `ms` in milliseconds.
+ * This text is the step of the loop clock of libuv, in milliseconds, from the knob `hz`. It is one
+ * jiffy when the coarse clock is 1 ms or finer (HZ 1000). It is 0 when libuv reads `CLOCK_MONOTONIC`.
  */
-export const nodeTimerLateness = (ms: string): Expr => ({ expr: `${slackMs(ms)} + 1`, unit: "ms" });
+const COARSE_MS = "min(floor(hz / 1000), 1) * 1000 / hz";
 
-/** This expression is how early a Node timer can fire: 1 ms, because the loop clock that stamps its start is truncated. */
-export const NODE_TIMER_EARLY: Expr = { const: 1, unit: "ms" };
+/**
+ * This function gives the lateness of a Node timer of `ms` milliseconds. The lateness is the slack
+ * of its sleep, 1 ms for the truncation of the loop clock, and the step of the coarse clock. The
+ * arithmetic reads `ms` in milliseconds, and the knob `hz` in Hz.
+ */
+export const nodeTimerLateness = (ms: string): Expr => ({ expr: `${slackMs(ms)} + 1 + ${COARSE_MS}`, unit: "ms" });
+
+/**
+ * This expression is how early a Node timer can fire. It is 1 ms for the truncation of the loop
+ * clock that stamps its start, and the step of the coarse clock.
+ */
+export const NODE_TIMER_EARLY: Expr = { expr: `1 + ${COARSE_MS}`, unit: "ms" };
 
 /** This function gives the lateness of a Go timer of `s` seconds: the slack of its sleep and 1 ms. The arithmetic reads `s` in seconds. */
 export const goTimerLateness = (s: string): Expr => ({
@@ -50,12 +62,15 @@ export const goTimerLateness = (s: string): Expr => ({
   unit: "s",
 });
 
-/** This function gives the lateness of a Node timer of `seconds`, in seconds: the number form of `nodeTimerLateness`. */
-export const nodeLateSeconds = (seconds: number): number =>
-  (Math.min(Math.max(seconds, 0.05), 100) + 1) / 1000;
+/** This function gives the step of the coarse loop clock at a HZ, in seconds: the number form of `COARSE_MS`. */
+const coarseSeconds = (hz: number): number => (Math.min(Math.floor(hz / 1000), 1) * 1000) / hz / 1000;
 
-/** This time is how early a Node timer can fire, in seconds: the number form of `NODE_TIMER_EARLY`. */
-export const NODE_EARLY_SECONDS = 0.001;
+/** This function gives the lateness of a Node timer of `seconds` at a HZ, in seconds: the number form of `nodeTimerLateness`. */
+export const nodeLateSeconds = (seconds: number, hz: number): number =>
+  (Math.min(Math.max(seconds, 0.05), 100) + 1) / 1000 + coarseSeconds(hz);
+
+/** This function gives how early a Node timer can fire at a HZ, in seconds: the number form of `NODE_TIMER_EARLY`. */
+export const nodeEarlySeconds = (hz: number): number => 0.001 + coarseSeconds(hz);
 
 /** This function gives the lateness of a Go timer of `seconds`, in seconds: the number form of `goTimerLateness`. */
 export const goLateSeconds = (seconds: number): number => Math.min(Math.max(seconds / 1000, 0.00005), 0.1) + 0.001;
@@ -69,13 +84,16 @@ export const UNDICI_TICK_MS = 499;
 /**
  * This function gives how early a fast timer of undici can fire, for a duration of `ms`
  * milliseconds. Each tick adds the tick to the clock of the fast timers, whatever time passed
- * (`lib/util/timers.js:115-123`). A new timer takes the clock of the next tick less one tick as its
+ * (`lib/util/timers.js:115-123`).
+ *
+ * A new timer takes the clock of the next tick less one tick as its
  * start (`lib/util/timers.js:151-155`). It fires at the first tick where the clock is its start
  * plus its duration or more (`lib/util/timers.js:156-162`). Thus it fires after
- * `ceil(ms / 499) - 1` ticks and part of one more tick.
+ * `ceil(ms / 499) - 1` ticks and part of one more tick. Each tick is a Node timer. The loop clock
+ * of each tick has the same lag, thus the early bound of a Node timer comes in one time.
  */
 export const undiciFastEarly = (ms: string): Expr => ({
-  expr: `(${ms}) - (ceil((${ms}) / ${UNDICI_TICK_MS}) - 1) * ${UNDICI_TICK_MS}`,
+  expr: `(${ms}) - (ceil((${ms}) / ${UNDICI_TICK_MS}) - 1) * ${UNDICI_TICK_MS} + 1 + ${COARSE_MS}`,
   unit: "ms",
 });
 
@@ -87,6 +105,6 @@ export const undiciFastEarly = (ms: string): Expr => ({
 export const undiciFastLateness = (ms: string): Expr => ({
   expr:
     `ceil((${ms}) / ${UNDICI_TICK_MS}) * ${UNDICI_TICK_MS} - (${ms})` +
-    ` + ceil((${ms}) / ${UNDICI_TICK_MS}) * (${slackMs(String(UNDICI_TICK_MS))} + 1)`,
+    ` + ceil((${ms}) / ${UNDICI_TICK_MS}) * (${slackMs(String(UNDICI_TICK_MS))} + 1 + ${COARSE_MS})`,
   unit: "ms",
 });

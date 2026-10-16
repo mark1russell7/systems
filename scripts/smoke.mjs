@@ -59,6 +59,15 @@ const NEEDS = {
     "image/node/observer.mjs",
     "image/node/package.json",
     "image/node/npm-lock.json",
+    "image/go-http/Dockerfile",
+    "image/go-http/go.mod",
+    "image/go-http/main.go",
+    "image/node-http/Dockerfile",
+    "image/node-http/package.json",
+    "image/node-http/npm-lock.json",
+    "image/node-http/lines.mjs",
+    "image/node-http/client-agent.mjs",
+    "image/node-http/client-undici.mjs",
     "image/router/Dockerfile",
     "image/router/mbx.sh",
     "image/router/ctwatch.py",
@@ -229,6 +238,16 @@ try {
       const parts = { members: { m1: { ip: "10.0.0.2", netns: 1 }, m2: { ip: "10.0.0.3", netns: 2 } }, sentinels: { s1: { ip: "10.0.0.4", netns: 3 } } };
       check(module.peersOf(parts, "10.0.0.9", "m1", "group").join(",") === "10.0.0.3,10.0.0.4", "harness cuts a part of a group from the group only");
       check(module.STAGES.length === 8 && module.stagesOf([{ ev: "sentinel", t: 2e9, event: "+switch-master", detail: "mymaster" }], 1e9)["+switch-master"].value === 1, "harness reads the timeline of a group");
+      // an HTTP client: which connection its second request went on, a retry, and its end
+      const lines = [
+        { ev: "ready", t: 1e9 },
+        { ev: "sent", t: 7e9, i: 2 },
+        { ev: "request", t: 7e9, i: 2, reused: true },
+        { ev: "retry", t: 7e9, i: 2, reused: false },
+        { ev: "replied", t: 7e9, i: 2 },
+      ];
+      const second = module.requestOf(lines);
+      check(module.requestWords(second) === "reused, a retry, a reply" && second.gap.value === 6, "harness reads the second request of an HTTP client");
     }
   }
 } catch (error) {

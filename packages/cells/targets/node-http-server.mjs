@@ -12,9 +12,14 @@
 // socket, and the close. The server adds no listener for the `timeout` event of the server: such a
 // listener stops the destroy of an idle socket (lib/_http_server.js:900-909). A listener on the
 // socket changes nothing.
+//
+// The script is one file with no imports but Node's own: the cell copies it into the stock image.
 
 import http from "node:http";
-import { emit } from "./lines.mjs";
+
+/** This function writes one line, with `t` from process.hrtime: CLOCK_MONOTONIC, the clock of the prober. */
+const emit = (ev, fields = {}) =>
+  process.stdout.write(`${JSON.stringify({ ev, t: Number(process.hrtime.bigint()), ...fields })}\n`);
 
 const argv = process.argv.slice(2);
 const flag = (name) => {

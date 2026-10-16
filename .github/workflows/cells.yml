@@ -41,6 +41,8 @@ jobs:
           echo "kernel: $(uname -r)"
           echo "CONFIG_HZ: $(grep -E '^CONFIG_HZ=' "/boot/config-$(uname -r)" || echo unknown)"
           if [ -e /sys/kernel/btf/vmlinux ]; then echo "BTF: yes"; else echo "BTF: no"; fi
+          # libuv reads the coarse clock (id 6) when its step is 1 ms or less: the Node timers' bands read it
+          echo "CLOCK_MONOTONIC_COARSE: $(python3 -c 'import time; print(time.clock_getres(6))') s"
           echo "cpus: $(nproc)"
           free -m
           docker version --format 'docker: {{.Server.Version}}'
@@ -119,6 +121,7 @@ jobs:
           {
             echo "kernel: $(uname -r)"
             echo "CONFIG_HZ: $(grep -E '^CONFIG_HZ=' "/boot/config-$(uname -r)" || echo unknown)"
+            echo "CLOCK_MONOTONIC_COARSE: $(python3 -c 'import time; print(time.clock_getres(6))') s"
             echo "cpus: $(nproc)"
             echo "memory: $(free -m | awk '/^Mem:/ {print $2}') MiB"
             echo "image: $ImageOS $ImageVersion"

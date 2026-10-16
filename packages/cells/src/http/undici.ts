@@ -98,6 +98,13 @@ export const UNDICI_CLIENT: Machine = {
       default: null,
       note: "without a hint, the timeout is keepAliveTimeout",
     },
+    hz: {
+      key: "CONFIG_HZ",
+      scope: "global",
+      unit: "Hz",
+      default: null,
+      note: "the HZ of the kernel, for the step of the coarse loop clock of libuv (timers.ts)",
+    },
   },
   timers: {
     keep_alive: {

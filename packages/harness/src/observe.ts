@@ -3,7 +3,7 @@ import { quantity, valueIn } from "@mark1russell7/quantity";
 import type { Cell, KernelRecord, ProbeEvent, Reference, Run } from "./cell.ts";
 import type { GroupMeasured } from "./timeline.ts";
 import { measureGroup } from "./timeline.ts";
-import { NOISE } from "./verdict.ts";
+import { NOISE, requestWords } from "./verdict.ts";
 
 /**
  * An outcome tells how the wait of a run ended. The socket failed with an errno, or it read the
@@ -13,7 +13,21 @@ export type Outcome =
   | { readonly kind: "error"; readonly errno: string }
   | { readonly kind: "eof" }
   | { readonly kind: "silent" }
-  | { readonly kind: "answered" };
+  | { readonly kind: "answered" }
+  | { readonly kind: "closed" };
+
+/**
+ * A request reading is what the second request of an HTTP client met, from the lines of the
+ * client. It holds the connection of its first try, a new try, and its outcome. `gap` is the time
+ * from the end of the first reply to the send of the second request.
+ */
+export interface RequestReading {
+  readonly connection: "reused" | "new";
+  readonly retried: boolean;
+  readonly error: string | null;
+  readonly pending: boolean;
+  readonly gap: Quantity | null;
+}
 
 /** A measurement is what one run measured, against the prediction of its cell. */
 export interface Measured {
@@ -63,6 +77,8 @@ export interface Measured {
   readonly crossings?: Crossings;
   /** This record is what a run of a group cell measured: the stages of its timeline, and what became of each write. */
   readonly group?: GroupMeasured;
+  /** This record is what the second request of an HTTP client met, for a cell whose prediction says it. */
+  readonly request?: RequestReading | null;
   /** This text is the reason that the run cannot count, or null. A void run is not a pass and not a finding. */
   readonly void: string | null;
   /** This text tells what in the run disagrees with the prediction, other than its timing, or null. */
@@ -311,8 +327,56 @@ export const crossingsOf = (
  *   it, and before the first keepalive probe. A live peer answers that probe, and the answer
  *   starts the idle time again. A run where the fault was late is void. A run whose records the
  *   prober lost is also void.
+ * - For an HTTP client, it also reads what the second request met (`requestOf`). An outcome other
+ *   than the one that the prediction gives is a finding.
  */
 export const measure = (cell: Cell, run: Run): Measured => {
+  const read = measureSocket(cell, run);
+  const expected = cell.prediction.request;
+  if (cell.probe.http === undefined && expected === undefined) return read;
+  const request = requestOf(run.events);
+  if (expected === undefined || read.void !== null) return { ...read, request };
+  const differs = requestFinding(expected, request);
+  const finding = read.finding === null ? differs : differs === null ? read.finding : `${read.finding}. ${differs}`;
+  return { ...read, request, finding };
+};
+
+/** This function tells how a request reading differs from its prediction, or gives null. */
+const requestFinding = (expected: NonNullable<Cell["prediction"]["request"]>, read: RequestReading | null): string | null => {
+  if (read === null) return `the second request never went out, where it should meet: ${requestWords(expected)}`;
+  const same =
+    read.connection === expected.connection &&
+    read.retried === expected.retried &&
+    read.error === expected.error &&
+    read.pending === (expected.pending === true);
+  return same ? null : `the second request met: ${requestWords(read)}, not ${requestWords(expected)}`;
+};
+
+/**
+ * This function reads the second request of an HTTP client from its lines. Its first try is its
+ * first `request` line, and each `retry` line is a new try. Its end is its `error` line, or its
+ * `replied` line. A request with neither is pending. It gives null when the client wrote no try.
+ */
+export const requestOf = (events: readonly ProbeEvent[]): RequestReading | null => {
+  const of = (event: ProbeEvent) => Number(event["i"]) === 2;
+  const tries = events.filter((event) => (event.ev === "request" || event.ev === "retry") && of(event));
+  const first = tries[0];
+  if (first === undefined) return null;
+  const failed = events.find((event) => event.ev === "error" && of(event));
+  const replied = events.some((event) => event.ev === "replied" && of(event));
+  const ready = events.find((event) => event.ev === "ready");
+  const sent = events.find((event) => event.ev === "sent" && of(event));
+  return {
+    connection: first["reused"] === true ? "reused" : "new",
+    retried: tries.some((each) => each.ev === "retry"),
+    error: failed === undefined ? null : String(failed["errno"]),
+    pending: failed === undefined && !replied,
+    gap: ready === undefined || sent === undefined ? null : between(ready.t, sent.t),
+  };
+};
+
+/** This function reads the socket of one run against its cell, as `measure` does without the second request of an HTTP client. */
+const measureSocket = (cell: Cell, run: Run): Measured => {
   if (cell.group !== undefined) {
     const read = measureGroup(cell, run);
     return {
@@ -334,7 +398,8 @@ export const measure = (cell: Cell, run: Run): Measured => {
   const { events, kernel } = run;
   const ready = events.find((event) => event.ev === "ready");
   const local = events.find((event) => event.ev === "connected")?.["local"];
-  const inflight = cell.probe.mode !== "idle";
+  // a client in a gap sends its second request by itself, and its idle connection counts from its first reply
+  const inflight = cell.probe.mode !== "idle" && cell.probe.mode !== "gap";
   const request = inflight ? events.filter((event) => event.ev === "sent")[1] : ready;
   const server = cell.observer === "server";
   const place = socketOf(cell, run);
@@ -454,15 +519,23 @@ export const measure = (cell: Cell, run: Run): Measured => {
   // an end of file without an error is the change of state that the FIN of the peer makes, from
   // ESTABLISHED to CLOSE_WAIT, as the kernel stamps it
   const closeWait = socket.find((record) => record.ev === "state" && newState(record) === 8);
+  // a close of the observer itself, for a prediction that says it: from ESTABLISHED to FIN_WAIT1,
+  // the FIN that its pool sends when it closes an idle connection
+  const own =
+    cell.prediction.detects === true && cell.prediction.errno === "CLOSED"
+      ? socket.find((record) => record.ev === "state" && oldState(record) === 1 && newState(record) === 4)
+      : undefined;
   const outcome: Outcome =
     reported !== undefined
       ? { kind: "error", errno: ERRNO[reported.err!] ?? `E${reported.err}` }
       : closeWait !== undefined || seen?.ev === "eof"
         ? { kind: "eof" }
-        : seen !== undefined
-          ? { kind: "error", errno: String(seen["errno"]) }
-          : { kind: "silent" };
-  const ended = reported?.mono ?? closeWait?.mono ?? seen?.t;
+        : own !== undefined
+          ? { kind: "closed" }
+          : seen !== undefined
+            ? { kind: "error", errno: String(seen["errno"]) }
+            : { kind: "silent" };
+  const ended = reported?.mono ?? closeWait?.mono ?? own?.mono ?? seen?.t;
   const noticed =
     reported !== undefined && seen !== undefined ? between(reported.mono, seen.t) : null;
   const { prediction } = cell;
@@ -701,13 +774,18 @@ export const measure = (cell: Cell, run: Run): Measured => {
   const matches =
     prediction.errno === "EOF"
       ? outcome.kind === "eof"
-      : outcome.kind === "error" && outcome.errno === prediction.errno;
+      : prediction.errno === "CLOSED"
+        ? outcome.kind === "closed"
+        : outcome.kind === "error" && outcome.errno === prediction.errno;
   const finding = matches
     ? null
-    : `it ended with ${outcome.kind === "error" ? outcome.errno : "end of file"}, not ${prediction.errno}`;
+    : `it ended with ${outcome.kind === "error" ? outcome.errno : outcome.kind === "closed" ? "its own close" : "end of file"}, not ${prediction.errno}`;
+  // the timer of an HTTP client or server is a timer of the program, not of the kernel: the kernel
+  // timers of its socket do not drive the measurement
+  const programTimer = cell.probe.http !== undefined && prediction.from === "last-received" && prediction.timer !== "keepalive";
   // a firing at the reference itself only moves the start of the interval. A reset meets the send
   // with no timer, a FIN arrives with none, and a toxic has its own clock
-  if (prediction.from === "last-received" || prediction.from === "first-retransmission")
+  if ((prediction.from === "last-received" && !programTimer) || prediction.from === "first-retransmission")
     voided ??= delayed(
       reference,
       ended,

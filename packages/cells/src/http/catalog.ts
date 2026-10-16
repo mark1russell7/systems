@@ -25,12 +25,15 @@ import { UNDICI_CLIENT } from "./undici.ts";
  * the defaults stage, and the border cells of the keep-alive race. Each cell has the identifier of
  * the plan cell that it stands for. A cell that no plan cell names has none.
  *
- * The harness does not start these cells yet. Each cell is a draft with three parts. They are the
- * data of the harness, the prediction for the observed socket, and the outcome of the second request.
+ * Each cell has three parts: its spec, the prediction for the observed socket, and the outcome of
+ * the second request. `cells.ts` makes each one a cell of the harness.
  */
 
 /** This time is the time that a client takes to act on a FIN that arrived: an assumption of the cells, 1 ms. */
 export const NOTICE = 0.001;
+
+/** This time is how long a kept connection stays silent after the gap, in seconds: less than the wait of the client before its exit. */
+const KEPT_AFTER = 0.2;
 
 /** A workload is what the client does: two requests with a gap, a connection that stays idle, or a request into the fault. */
 export type Workload =
@@ -313,7 +316,7 @@ const T01_FAULTS: readonly HttpSpec[] = [
     client: "go",
     server: SERVER_OUT_OF_THE_WAY,
     workload: { mode: "inflight", method: "GET", hold: 60_000 },
-    fault: "none",
+    fault: "app-stall",
     manifestation: "freeze-process",
   },
   {
@@ -689,7 +692,8 @@ const predictRaceAt = (spec: HttpSpec, rttMs: number): { prediction: Prediction;
         from: "last-received",
       },
     };
-  if (decision.ordering === "kept") return { decision, prediction: { detects: false, window: q(gap + 0.5) } };
+  // the window ends before the client closes its sockets at its exit, a second after its last request
+  if (decision.ordering === "kept") return { decision, prediction: { detects: false, window: q(gap + KEPT_AFTER) } };
   if (decision.ordering === "dropped") {
     const { doc, values } = clientSide(spec);
     const band =

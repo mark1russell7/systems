@@ -50,6 +50,16 @@ describe("the machine documents of the HTTP systems", () => {
     expect(timerInterval(NODE_HTTP_SERVER, "headers", valuesOf(NODE_HTTP_SERVER, {}))).toEqual({ low: 60, high: 90.031 });
   });
 
+  it("give a Node timer one more jiffy on each bound at HZ 1000, where libuv reads the coarse clock", () => {
+    expect(timerInterval(NODE_HTTP_SERVER, "keep_alive", valuesOf(NODE_HTTP_SERVER, { hz: 1000 }))).toEqual({ low: 5.998, high: 6.008 });
+    expect(timerInterval(NODE_HTTP_SERVER, "keep_alive", valuesOf(NODE_HTTP_SERVER, { hz: 250 }))).toEqual({ low: 5.999, high: 6.007 });
+    expect(timerInterval(UNDICI_CLIENT, "headers", valuesOf(UNDICI_CLIENT, { headersTimeout: 10_000, hz: 1000 }))).toEqual({
+      low: 9.978,
+      high: 10.531479,
+    });
+    expect(gapOf("agent", 3, 1000)).toEqual({ low: 2.998, high: 3.006 });
+  });
+
   it("give the free socket timeout of the agent as the smaller of its timeout and the hint less the buffer", () => {
     expect(poolExpiry("agent", {}, 5)).toEqual({ low: 3.999, high: 4.005 });
     expect(poolExpiry("agent", { timeout: 10_000 }, 60)).toEqual({ low: 9.999, high: 10.011 });
@@ -70,8 +80,8 @@ describe("the machine documents of the HTTP systems", () => {
 
   it("give the headers timeout of undici on its fast timers: ticks of 499 ms", () => {
     // 10 s: it fires after 20 ticks and a part of the 21st, and each tick is a Node timer of 499 ms
-    expect(timerInterval(UNDICI_CLIENT, "headers", valuesOf(UNDICI_CLIENT, { headersTimeout: 10_000 }))).toEqual({
-      low: 9.98,
+    expect(timerInterval(UNDICI_CLIENT, "headers", valuesOf(UNDICI_CLIENT, { headersTimeout: 10_000, hz: 250 }))).toEqual({
+      low: 9.979,
       high: 10.510479,
     });
   });
@@ -82,10 +92,10 @@ describe("the machine documents of the HTTP systems", () => {
   });
 
   it("agree with the number forms of the lateness of a timer", () => {
-    for (const seconds of [0.01, 0.4, 3, 6, 90, 300]) {
+    for (const [seconds, hz] of [[0.01, 250], [0.4, 1000], [3, 250], [6, 1000], [90, 300], [300, 100]] as const) {
       const doc = { ...NODE_HTTP_SERVER, knobs: { ...NODE_HTTP_SERVER.knobs, d: { key: "d", scope: "test", unit: "ms", default: seconds * 1000 } } };
-      const node = evaluate(doc, nodeTimerLateness("d"), valuesOf(doc, {}));
-      expect(valueIn(node as never, "s")).toBeCloseTo(nodeLateSeconds(seconds), 12);
+      const node = evaluate(doc, nodeTimerLateness("d"), valuesOf(doc, { hz }));
+      expect(valueIn(node as never, "s")).toBeCloseTo(nodeLateSeconds(seconds, hz), 12);
       const goDoc = { ...GO_TRANSPORT, knobs: { ...GO_TRANSPORT.knobs, d: { key: "d", scope: "test", unit: "s", default: seconds } } };
       const go = evaluate(goDoc, goTimerLateness("d"), valuesOf(goDoc, {}));
       expect(valueIn(go as never, "s")).toBeCloseTo(goLateSeconds(seconds), 12);
@@ -244,7 +254,7 @@ describe("the HTTP catalog", () => {
       timer: "headers",
       errno: "UND_ERR_HEADERS_TIMEOUT",
       from: "request-sent",
-      low: 9.98,
+      low: 9.979,
       high: 10.510479,
     });
     expect(band(cell("T01.defaults.76 go, a GET in flight, a 1 s stall"))).toEqual({ firing: 3, low: 1.616, high: 1.705 });

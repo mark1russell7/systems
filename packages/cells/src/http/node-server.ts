@@ -112,6 +112,13 @@ export const NODE_HTTP_SERVER: Machine = {
       default: 0,
       note: "0 is no limit; at the limit the response says Connection: close, and a request above it gets 503 (lib/_http_server.js:1255-1271)",
     },
+    hz: {
+      key: "CONFIG_HZ",
+      scope: "global",
+      unit: "Hz",
+      default: null,
+      note: "the HZ of the kernel: at 1000, libuv reads the coarse clock, a jiffy a step, and each Node timer gets that step on each bound (timers.ts)",
+    },
   },
   timers: {
     keep_alive: {

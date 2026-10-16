@@ -272,21 +272,21 @@ func main() {
 	}
 
 	bootID, _ := os.ReadFile("/proc/sys/kernel/random/boot_id")
-	emit("start", map[string]any{
-		"boot_id": strings.TrimSpace(string(bootID)),
-		"mode":    *mode,
-		"client":  "go-nethttp",
-		"go":      runtime.Version(),
-		"settings": map[string]any{
-			"IdleConnTimeout_ms":     transport.IdleConnTimeout.Milliseconds(),
-			"MaxIdleConnsPerHost":    transport.MaxIdleConnsPerHost,
-			"DialTimeout_ms":         dialer.Timeout.Milliseconds(),
-			"KeepAlive_ms":           dialer.KeepAlive.Milliseconds(),
-			"KeepAliveInterval_ms":   dialer.KeepAliveConfig.Interval.Milliseconds(),
-			"KeepAliveCount":         dialer.KeepAliveConfig.Count,
-			"ClientTimeout_ms":       client.Timeout.Milliseconds(),
-		},
-	})
+	settings := map[string]any{}
+	settings["IdleConnTimeout_ms"] = transport.IdleConnTimeout.Milliseconds()
+	settings["MaxIdleConnsPerHost"] = transport.MaxIdleConnsPerHost
+	settings["DialTimeout_ms"] = dialer.Timeout.Milliseconds()
+	settings["KeepAlive_ms"] = dialer.KeepAlive.Milliseconds()
+	settings["KeepAliveInterval_ms"] = dialer.KeepAliveConfig.Interval.Milliseconds()
+	settings["KeepAliveCount"] = dialer.KeepAliveConfig.Count
+	settings["ClientTimeout_ms"] = client.Timeout.Milliseconds()
+	start := map[string]any{}
+	start["boot_id"] = strings.TrimSpace(string(bootID))
+	start["mode"] = *mode
+	start["client"] = "go-nethttp"
+	start["go"] = runtime.Version()
+	start["settings"] = settings
+	emit("start", start)
 	go func() {
 		time.Sleep(time.Duration(*maxS * float64(time.Second)))
 		emit("deadline", nil)

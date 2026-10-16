@@ -92,15 +92,16 @@ The cells of T12 go one at a time: a group has 16 containers, and its timeline r
 
 ## The HTTP catalog
 
-The HTTP catalog (`src/http/`) has the cells of T01 and T03 with the Node HTTP server. They are the defaults stage, and the border cells of the keep-alive race. The harness does not start them yet. Each cell is a draft with its prediction, and the name of the plan cell that it stands for.
+The HTTP catalog (`src/http/`) has the cells of T01 and T03 with the Node HTTP server. They are the defaults stage, and the border cells of the keep-alive race. Each catalog entry has its prediction, and the name of the plan cell that it stands for. `cells.ts` makes each entry a cell of the harness.
 
-- **The systems.** The server is the `http.Server` of Node 24.21.0, as a script on a stock Node image (`clients/node-http/server.mjs`). The clients are three:
-  - the `http.Transport` of Go 1.27.2 (`clients/go-http`)
-  - the `http.Agent` of Node 24.21.0 (`clients/node-http/client-agent.mjs`)
-  - an HTTP/1.1 `Client` of undici 8.12.2 (`clients/node-http/client-undici.mjs`)
-- **The lines.** Each client writes the JSON lines of the TCP client of the harness. For each request, it also writes its connection (the local port), a flag if the client reused it, a new try, and the outcome.
+- **The systems.** The server is the `http.Server` of Node 24.21.0, as a script on the stock Node image (`targets/node-http-server.mjs`). The clients are three, each from an image of the harness:
+  - the `http.Transport` of Go 1.27.2 (`go-http`)
+  - the `http.Agent` of Node 24.21.0 (`http-agent`)
+  - an HTTP/1.1 `Client` of undici 8.12.2 (`undici`)
+- **The lines.** Each client writes the JSON lines of the TCP client of the harness. For each request, it also writes its connection (the local port), a flag if the client reused it, a new try, and the outcome. The server writes a line at each accept, request, idle timeout and close.
 - **The documents.** Each system has a machine document from its source at its version: `node-server.ts`, `go-transport.ts`, `node-agent.ts` and `undici.ts`. Each fact has its file and its line.
 - **The lateness of a user timer.** A Node or Go timer sleeps in `epoll_wait`. The kernel lets that sleep end late by a slack: the remaining time divided by 1000, at most 100 ms (`timers.ts`). Thus the 6 s keep-alive timer of the Node server can fire 7 ms late.
+- **The coarse clock.** At HZ 1000, the coarse clock of the kernel has a step of 1 ms. Then libuv reads its loop clock from the coarse clock. Thus each bound of a Node timer gets one more jiffy. The knob `hz` of each Node document comes from `CELLS_HZ`.
 
 ### The keep-alive race
 
