@@ -8,20 +8,28 @@
 //
 // The lines:
 // - start: the version of the driver and of Node, the mode and the options.
-// - socket and socket-end: each socket of the driver by its role (monitor, rtt, pool), with its
-//   local address. The role comes from the stack of the call that makes the socket.
-// - sdam: each heartbeat, each change of a server's description, and each change of the topology.
-// - cmap: each event of a connection pool, the clear and its interruption of connections in use.
-// - command: each attempt of an operation, with the server that it went to. A retry is a second
-//   attempt with the same sequence number.
-// - connecting, ready: the start of the client, and its first reply.
-// - sent, ack, fail: each operation by its sequence number, its server, or its error with its labels.
+// - clocks: the wall clock in ms beside the monotonic clock, each second. The log of mongod is on
+//   the wall clock, and these lines put it on the monotonic clock.
+// - socket, socket-end, socket-error: each socket of the driver by its role (monitor, rtt, pool),
+//   with its local address. The role comes from the stack of the call that makes the socket.
+// - connected: the first socket of the pool. The TCP client of the harness names its own socket so.
+// - sdam: each heartbeat, each change of the description of a server, and each change of the topology.
+// - cmap: each event of a connection pool, and each clear with its interruption of connections in use.
+// - command: each try of an operation, with its server. A retry is a second try with the same number.
+// - connecting: the start of the selection of the first server.
+// - ready: the reply to the first write (idle, inflight), or the connection of the client (stream).
+// - sent, ack, fail: each operation by its sequence number, with its server or its error and labels.
+// - data, error: the end of the operation in flight, as the TCP client of the harness tells it.
+//   In idle mode, an error of the socket of the first pool connection is an error line too.
+// - done, deadline: the end of the client.
 //
 // The modes: idle sends one write, then holds the connections until --max-s. inflight sends one
-// write, waits for the file --go, sends one more operation into the fault, and waits for its end.
-// stream sends a write each --interval-ms after the reply before, until --max-s or SIGTERM.
-// --before starts the client into a fault that holds already: its first selection meets it.
+// write, waits for the file --go, sends one more operation into the fault, and holds the
+// connections after its end. stream sends a write each --interval-ms after the reply before, until
+// --max-s or SIGTERM. --before starts the client into a fault that holds already: its first
+// selection meets it.
 
+import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import net from "node:net";
 
@@ -39,7 +47,8 @@ if (host === undefined || port === undefined || !["idle", "inflight", "stream"].
   emit("fail", { why: "client-mongo HOST PORT --mode idle|inflight|stream" });
   process.exit(1);
 }
-const hosts = [`${host}:${port}`, ...(flag("--hosts") ?? "").split(",").filter((each) => each !== "")];
+const first = `${host}:${port}`;
+const hosts = [first, ...(flag("--hosts") ?? "").split(",").filter((each) => each !== "" && each !== first)];
 const set = flag("--set") ?? "rs0";
 const op = flag("--op") ?? "write";
 const interval = Number(flag("--interval-ms") ?? 50);
@@ -49,6 +58,14 @@ const w = flag("--w") === "1" ? 1 : "majority";
 const before = argv.includes("--before");
 const options = JSON.parse(flag("--options") ?? "{}");
 
+// ---- the two clocks: the wall clock of a log line of mongod goes onto the monotonic clock by them
+const clocks = () => {
+  const t = now();
+  emit("clocks", { real: Date.now() }, t);
+};
+clocks();
+setInterval(clocks, 1000).unref();
+
 // ---- each socket of the driver, by its role: the stack of the call that makes it names the caller
 const roleOf = (stack) => {
   if (/measureRoundTripTime/.test(stack)) return "rtt";
@@ -56,6 +73,7 @@ const roleOf = (stack) => {
   if (/cmap[\\/]connection_pool\.js/.test(stack)) return "pool";
   return "other";
 };
+let connected = null;
 const createConnection = net.createConnection;
 Error.stackTraceLimit = 50;
 net.createConnection = function (...args) {
@@ -65,17 +83,21 @@ net.createConnection = function (...args) {
   socket.once("connect", () => {
     const local = `${socket.localAddress}:${socket.localPort}`;
     emit("socket", { role, server, local });
-    // the TCP client of the harness names its socket in a connected line: the first socket of the pool is the client's socket
-    if (role === "pool" && !connected) {
-      connected = true;
+    if (role === "pool" && connected === null) {
+      connected = local;
       emit("connected", { local });
     }
     socket.once("close", (hadError) => emit("socket-end", { role, server, local, error: hadError }));
   });
-  socket.once("error", (error) => emit("socket-error", { role, server, errno: error.code ?? error.errno ?? null, message: error.message }));
+  socket.once("error", (error) => {
+    const local = socket.localPort === undefined ? null : `${socket.localAddress}:${socket.localPort}`;
+    const errno = error.code ?? error.errno ?? null;
+    emit("socket-error", { role, server, local, errno, message: error.message });
+    // the socket of the client in idle mode: its error is the detection, as for the TCP client
+    if (mode === "idle" && local !== null && local === connected) emit("error", { errno });
+  });
   return socket;
 };
-let connected = false;
 
 // the driver loads after the patch, thus each of its sockets goes through it
 const { MongoClient } = await import("mongodb");
@@ -88,19 +110,10 @@ const bootId = () => {
     return null;
   }
 };
-emit("start", {
-  boot_id: bootId(),
-  client: "mongodb",
-  driver: version,
-  node: process.versions.node,
-  mode,
-  op,
-  w,
-  options,
-});
+emit("start", { boot_id: bootId(), client: "mongodb", driver: version, node: process.versions.node, mode, op, w, hosts, options });
 
 const uri = `mongodb://${hosts.join(",")}/?replicaSet=${set}`;
-const client = new MongoClient(uri, { ...options, w, monitorCommands: true });
+const client = new MongoClient(uri, { ...options, writeConcern: { w }, monitorCommands: true });
 
 // ---- the driver's own events, each stamped as the driver emits it
 const failure = (error) =>
@@ -113,7 +126,9 @@ client.on("serverHeartbeatStarted", (e) => emit("sdam", { event: "heartbeat-star
 client.on("serverHeartbeatSucceeded", (e) =>
   emit("sdam", { event: "heartbeat-succeeded", address: e.connectionId, awaited: e.awaited, duration: e.duration, primary: e.reply?.isWritablePrimary ?? null }),
 );
-client.on("serverHeartbeatFailed", (e) => emit("sdam", { event: "heartbeat-failed", address: e.connectionId, awaited: e.awaited, duration: e.duration, failure: failure(e.failure) }));
+client.on("serverHeartbeatFailed", (e) =>
+  emit("sdam", { event: "heartbeat-failed", address: e.connectionId, awaited: e.awaited, duration: e.duration, failure: failure(e.failure) }),
+);
 client.on("serverDescriptionChanged", (e) =>
   emit("sdam", { event: "server-changed", address: e.address, previous: describe(e.previousDescription), next: describe(e.newDescription) }),
 );
@@ -139,30 +154,32 @@ client.on("connectionPoolCleared", (e) => emit("cmap", { event: "pool-cleared", 
 client.on("connectionClosed", (e) => emit("cmap", { event: "closed", address: e.address, connectionId: e.connectionId, reason: e.reason, failure: failure(e.error) }));
 client.on("connectionCheckOutFailed", (e) => emit("cmap", { event: "checkout-failed", address: e.address, reason: e.reason, failure: failure(e.error) }));
 
-/** the sequence number of each operation, from its comment */
+/** This function gives the sequence number of an operation from its comment. */
 const numberOf = (command) => {
   const match = /^[wr]:(\d+)$/.exec(String(command?.comment ?? ""));
   return match === null ? null : Number(match[1]);
 };
 const started = new Map();
-/** the server of the last attempt of each operation that succeeded, by its sequence number */
+/** This map holds the server of the last try of each operation that succeeded, by its sequence number. */
 const lastServer = new Map();
 client.on("commandStarted", (e) => {
-  if (e.commandName === "hello" || e.commandName === "isMaster") return;
-  started.set(e.requestId, numberOf(e.command));
-  emit("command", { event: "started", name: e.commandName, n: numberOf(e.command), address: e.address, connectionId: e.connectionId, requestId: e.requestId });
+  const n = numberOf(e.command);
+  if (n === null) return;
+  started.set(e.requestId, n);
+  emit("command", { event: "started", name: e.commandName, n, address: e.address, connectionId: e.connectionId, requestId: e.requestId });
 });
 client.on("commandSucceeded", (e) => {
   if (!started.has(e.requestId)) return;
   const n = started.get(e.requestId);
-  emit("command", { event: "succeeded", name: e.commandName, n, address: e.address, requestId: e.requestId, duration: e.duration });
-  if (n !== null) lastServer.set(n, e.address);
   started.delete(e.requestId);
+  lastServer.set(n, e.address);
+  emit("command", { event: "succeeded", name: e.commandName, n, address: e.address, requestId: e.requestId, duration: e.duration });
 });
 client.on("commandFailed", (e) => {
   if (!started.has(e.requestId)) return;
-  emit("command", { event: "failed", name: e.commandName, n: started.get(e.requestId), address: e.address, requestId: e.requestId, duration: e.duration, failure: failure(e.failure) });
+  const n = started.get(e.requestId);
   started.delete(e.requestId);
+  emit("command", { event: "failed", name: e.commandName, n, address: e.address, requestId: e.requestId, duration: e.duration, failure: failure(e.failure) });
 });
 
 // ---- the end of the client
@@ -180,60 +197,65 @@ setTimeout(() => {
 }, max);
 
 const collection = client.db("cells").collection("w");
+// the writes of one client: each run starts its numbers at 1, and the field `run` keeps them apart
+const run = randomUUID();
 
-/** one operation n: a write of its sequence number, or the read of the long document. It is stamped before the call. */
+/**
+ * This function sends operation n: a write of its sequence number, or the read of the long
+ * document. Its stamp is before the call. It gives null for a reply, or the error.
+ */
 const operate = async (n) => {
   const at = now();
   const kind = op === "read-long" && mode === "inflight" && n > 1 ? "read" : "write";
-  const reply =
-    kind === "read"
-      ? collection.findOne({ _id: "long" }, { comment: `r:${n}` })
-      : collection.insertOne({ _id: n, n }, { comment: `w:${n}` });
+  const reply = kind === "read" ? collection.findOne({ _id: "long" }, { comment: `r:${n}` }) : collection.insertOne({ n, run }, { comment: `w:${n}` });
   emit("sent", { n, kind }, at);
   try {
     const answer = await reply;
     emit("ack", { n, kind, at: lastServer.get(n) ?? null, bytes: kind === "read" ? JSON.stringify(answer ?? {}).length : 0 });
-    if (kind === "read") emit("replied", { n });
-    return true;
+    return null;
   } catch (error) {
     emit("fail", { n, kind, ...failure(error) });
-    // the TCP client's contract: an error line for the end of the operation, by its name
-    emit("error", { errno: error.name, message: error.message });
-    return false;
+    return error;
   }
 };
 
-emit("connecting", { uri: hosts.join(",") });
+emit("connecting", { hosts });
 try {
   await client.connect();
 } catch (error) {
   emit("fail", { why: "connect", ...failure(error) });
   emit("error", { errno: error.name, message: error.message });
-  if (before) stop(0);
-  else stop(1);
+  stop(before ? 0 : 1);
 }
 if (stopped) await new Promise(() => undefined);
-emit("ready", { at: hosts[0] });
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 if (mode === "stream") {
+  emit("ready", { at: first });
   for (let n = 1; !stopped; n += 1) {
     await operate(n);
     await sleep(interval);
   }
 } else {
-  // the first write makes the connection of the pool, and its reply is the last segment before the fault
-  if (!before) await operate(1);
-  if (mode === "inflight") {
-    await new Promise((resolve) => {
-      const wait = setInterval(() => {
-        if (!existsSync(go)) return;
-        clearInterval(wait);
-        resolve();
-      }, 2);
-    });
-    await operate(2);
-    stop(0);
+  // the first write makes the connection of the pool. Its reply is the last data before the fault
+  const failed = await operate(1);
+  if (failed !== null) {
+    emit("error", { errno: failed.name, message: failed.message });
+    stop(1);
+  } else {
+    emit("ready", { reply: "ack" });
+    if (mode === "inflight") {
+      await new Promise((resolve) => {
+        const wait = setInterval(() => {
+          if (!existsSync(go)) return;
+          clearInterval(wait);
+          resolve();
+        }, 2);
+      });
+      const error = await operate(2);
+      if (error === null) emit("data", { n: 1 });
+      else emit("error", { errno: error.name, message: error.message });
+    }
   }
 }

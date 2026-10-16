@@ -1,11 +1,13 @@
 import { valueIn } from "@mark1russell7/quantity";
 import type { Cell, FaultPlace, KernelRecord, ProbeEvent, Run } from "./cell.ts";
 import { isHopPlace } from "./cell.ts";
+import { longestOf, settled as driverSettled } from "./driver.ts";
 import { groupOnce, openGroupLab } from "./group.ts";
 import type { FaultOptions, Lab, Manifest, Probe } from "./lab.ts";
 import { openLab } from "./lab.ts";
 import type { Measured } from "./observe.ts";
 import { measure, socketOf } from "./observe.ts";
+import { openReplicaSetLab, replicaSetOnce } from "./replset.ts";
 import type { Verdict } from "./verdict.ts";
 import { STEPS, verdictOf } from "./verdict.ts";
 
@@ -47,8 +49,11 @@ const droppedSoFar = (records: readonly KernelRecord[]): number => {
 const probeArgs = (cell: Cell, lab: Lab): string[] => {
   const { prediction, probe } = cell;
   const longest =
-    (prediction.detects ? valueIn(prediction.high, "s") : valueIn(prediction.window, "s")) +
-    (cell.idleBefore === undefined ? 0 : valueIn(cell.idleBefore, "s"));
+    (prediction.detects === true && prediction.driver !== undefined
+      ? longestOf(cell)
+      : prediction.detects
+        ? valueIn(prediction.high, "s")
+        : valueIn(prediction.window, "s")) + (cell.idleBefore === undefined ? 0 : valueIn(cell.idleBefore, "s"));
   const args = [lab.targetIp, String(lab.targetPort), "--mode", probe.mode];
   if (probe.http !== undefined) {
     // an HTTP client sets its socket options from its own settings, and sends its own requests
@@ -67,6 +72,16 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
   if (probe.request !== undefined) args.push("--request", probe.request);
   if (probe.count !== undefined) args.push("--count", String(probe.count));
   if (probe.interval !== undefined) args.push("--interval-ms", String(valueIn(probe.interval, "ms")));
+  if (probe.driver?.name === "mongodb") {
+    // the MongoDB driver: its replica set, its operation, its write concern and its own options
+    args.push("--set", probe.driver.set);
+    if (probe.driver.op !== undefined) args.push("--op", probe.driver.op);
+    if (cell.writeConcern !== undefined) args.push("--w", String(cell.writeConcern));
+    if (cell.before === true) args.push("--before");
+    if (cell.driverOptions !== undefined) args.push("--options", JSON.stringify(cell.driverOptions));
+    args.push("--max-s", String(Math.ceil(longest * 2 + 10)));
+    return args;
+  }
   if (probe.driver !== undefined) {
     // a driver sets its socket options from its own options: the keepAlive of ioredis
     args.push("--keepalive-ms", String(valueIn(probe.driver.keepAlive, "ms")));
@@ -144,6 +159,71 @@ const requestSent = (probe: Probe, within: number): Promise<ProbeEvent> =>
     look();
   });
 
+/** This time is how long a run of a driver cell continues after its outcome, so that the record shows what came next. */
+const TAIL_MS = 1_000;
+
+/** This function waits for the outcome of a run of a driver cell, or for `within` ms. The outcome is the end of its band and of each later band. */
+const driverOutcome = async (cell: Cell, current: () => Run, within: number): Promise<void> => {
+  const started = Date.now();
+  while (Date.now() - started < within) {
+    if (driverSettled(cell, current())) return;
+    await sleep(250);
+  }
+};
+
+/** This function gives the longest wait of a run of a driver cell for its outcome, in ms. */
+const driverWithin = (cell: Cell): number => (longestOf(cell) * 1.2 + 10) * 1_000;
+
+/**
+ * This function does one run of a cell whose fault holds before the client starts (`Cell.before`).
+ * The fault is a network fault at its place. The client then starts into it, and the run waits for
+ * each band of the driver. Then the fault lifts.
+ */
+const beforeOnce = async (lab: Lab, cell: Cell, environment: number, index: number): Promise<Run> => {
+  if (cell.fault !== "rst" && cell.fault !== "blackhole" && cell.fault !== "unreachable")
+    throw new Error(`${cell.name}: a fault before the client starts is a network fault, not ${cell.fault}`);
+  await lab.forget();
+  const from = lab.kernel.length;
+  const middleboxFrom = lab.middlebox.length;
+  const lostBefore = droppedSoFar(lab.kernel);
+  const faultAt: FaultPlace = cell.faultAt ?? "target";
+  const kind = cell.fault === "unreachable" ? "reject" : cell.fault;
+  const options: FaultOptions = cell.fault === "unreachable" ? { code: cell.icmp ?? "host" } : {};
+  const fault = await lab.fault(kind, faultAt, options);
+  let probe: Probe | undefined;
+  try {
+    probe = await lab.probe(probeArgs(cell, lab));
+    const started = probe;
+    const current = (): Run => ({
+      environment,
+      index,
+      events: started.events,
+      fault,
+      kernel: lab.kernel.slice(from),
+      netns: lab.netns.client,
+      targetNetns: lab.netns.target,
+      lost: 0,
+    });
+    await driverOutcome(cell, current, driverWithin(cell));
+    await sleep(TAIL_MS);
+  } finally {
+    await lab.lift(kind, faultAt, options);
+    await probe?.stop();
+  }
+  const settled = await lab.settle();
+  return {
+    environment,
+    index,
+    events: [...(probe?.events ?? [])],
+    fault,
+    kernel: lab.kernel.slice(from),
+    netns: lab.netns.client,
+    targetNetns: lab.netns.target,
+    lost: settled === null ? null : settled - lostBefore,
+    ...(lab.topology === null ? {} : { topology: lab.topology, middlebox: lab.middlebox.slice(middleboxFrom) }),
+  };
+};
+
 /** This function gives the netem specification of a cell: its latency, then the netem of its fault when it has one. */
 const netemSpec = (cell: Cell, fault: string | undefined): string | null => {
   const parts = [
@@ -173,6 +253,7 @@ const once = async (
   index: number,
   dry = false,
 ): Promise<Run> => {
+  if (cell.before === true) return beforeOnce(lab, cell, environment, index);
   // each run starts from kernels that keep nothing from the runs before it
   await lab.forget();
   const from = lab.kernel.length;
@@ -205,6 +286,9 @@ const once = async (
   });
   let fault: Run["fault"] = null;
   let heal: { t0: number; t1: number } | null = null;
+  // a target with a named process freezes by SIGSTOP, with stamps, and a hold thaws it at its instant
+  const signalled = !server && cell.target.program !== undefined;
+  let thawing: Promise<{ t0: number; t1: number }> | null = null;
   try {
     await probe.until(["ready"], 15_000);
     if (dry) {
@@ -254,9 +338,21 @@ const once = async (
       // an MTU drop goes where the long reply arrives: the namespace of the client
       const apply = async (): Promise<Run["fault"]> => {
         switch (cell.fault) {
-          case "freeze-process":
+          case "freeze-process": {
+            if (signalled) {
+              const stamp = await lab.signal("STOP");
+              if (cell.hold !== undefined) {
+                thawing = lab.signal("CONT", stamp.t0 + valueIn(cell.hold, "s") * 1e9).then((thawed) => {
+                  heal = thawed;
+                  return thawed;
+                });
+                thawing.catch(() => undefined);
+              }
+              return stamp;
+            }
             await peer.freeze();
             return null;
+          }
           case "fin":
             await (server ? probe.kill() : lab.kill());
             return null;
@@ -291,6 +387,11 @@ const once = async (
       const lift = async (): Promise<void> => {
         switch (cell.fault) {
           case "freeze-process":
+            if (signalled) {
+              if (thawing !== null) await thawing.catch(() => lab.signal("CONT"));
+              else await lab.signal("CONT");
+              return undefined;
+            }
             return peer.thaw();
           case "fin":
           case "middlebox-forget":
@@ -326,7 +427,15 @@ const once = async (
         if ((cell.probe.mode === "inflight" || cell.probe.mode === "stream") && !replyInFlight) await go();
         const { prediction } = cell;
         const http = cell.probe.http !== undefined;
-        if (cell.probe.mode === "gap") {
+        if (prediction.detects !== null && prediction.driver !== undefined) {
+          // a driver cell: each of its bands ends, or its silent window passes from the fault
+          if (prediction.detects) {
+            await driverOutcome(cell, () => ({ ...partial(), fault }), driverWithin(cell));
+          } else {
+            await sleep(valueIn(prediction.window, "s") * 1_000);
+          }
+          await sleep(TAIL_MS);
+        } else if (cell.probe.mode === "gap") {
           // the run ends when the second request does: its outcome is a part of the record
           const gap = cell.probe.http?.gap === undefined ? 0 : valueIn(cell.probe.http.gap, "s");
           const window = valueIn(prediction.detects ? prediction.high : prediction.window, "s");
@@ -375,7 +484,7 @@ const once = async (
     index,
     events: [...probe.events],
     fault,
-    ...(cell.fault === "stall" ? { heal } : {}),
+    ...(cell.fault === "stall" || thawing !== null ? { heal } : {}),
     kernel: lab.kernel.slice(from),
     netns: lab.netns.client,
     targetNetns: lab.netns.target,
@@ -416,6 +525,7 @@ const inEnvironment = async (
   say: (line: string) => void,
 ): Promise<{ manifest: Manifest; runs: Run[]; warmup: Run }> => {
   if (cell.group !== undefined) return inGroupEnvironment(cell, environment, count, say);
+  if (cell.replicaSet !== undefined) return inReplicaSetEnvironment(cell, environment, count, say);
   const lab = await openLab(cell.target, cell.client ?? cell.probe.driver?.name ?? "tcp", cell.topology);
   try {
     // the settings of the target first: Redis applies tcp-keepalive to a client when it accepts it
@@ -470,6 +580,34 @@ const inGroupEnvironment = async (
     const runs: Run[] = [];
     for (let index = 0; index < count; index += 1) {
       const run = await groupOnce(lab, cell, environment, index);
+      runs.push(run);
+      say(line(cell, run, measure(cell, run)));
+    }
+    return { manifest, runs, warmup };
+  } finally {
+    await lab.close();
+  }
+};
+
+/**
+ * This function does the part of the runs of a replica set cell in one environment. The warm-up
+ * is a whole run with its fault, as for a group under Sentinels. The set converges before each run.
+ */
+const inReplicaSetEnvironment = async (
+  cell: Cell,
+  environment: number,
+  count: number,
+  say: (line: string) => void,
+): Promise<{ manifest: Manifest; runs: Run[]; warmup: Run }> => {
+  const lab = await openReplicaSetLab(cell.replicaSet!);
+  try {
+    const manifest = await lab.manifest(await lab.sysctl(cell.sysctls));
+    const warmed = await replicaSetOnce(lab, cell, environment, -1);
+    const warmup: Run = { ...warmed, warmup: true };
+    say(line(cell, warmup, measure(cell, warmup)));
+    const runs: Run[] = [];
+    for (let index = 0; index < count; index += 1) {
+      const run = await replicaSetOnce(lab, cell, environment, index);
       runs.push(run);
       say(line(cell, run, measure(cell, run)));
     }

@@ -79,6 +79,22 @@ The harness then removes each key from the group. After the run, the group conve
 
 A Sentinel that aborted a failover does not try again for 2 × `failover-timeout`. Thus after a run with an aborted failover, each Sentinel forgets the state of the group (`SENTINEL RESET`). The next run then starts from a group that each Sentinel knows again.
 
+## The replica sets
+
+A replica set (`ReplicaSet`, `Cell.replicaSet`) is a replicated group with no external authority, as data. Its members elect their own primary, and the client finds the primary with its own monitors. The set replaces the target of its cell.
+
+- **The members.** Each member is a container from one stock image, pinned by digest, in its own network namespace. Its server is the child of a shell, with the name of the set and the options of the set (`args`).
+- **The start.** The first member starts the set (`rs.initiate`) with the address of each member, as the client reaches it, and with the settings of the set. An example of a setting is `electionTimeoutMillis`.
+- **The sidecars.** Each member has an injector sidecar in its network namespace and in its process namespace, as a member of a group has.
+- **The client.** The client of each run is the MongoDB driver (`image/mongo`). It knows the address of each member and the name of the set. It writes a stream of sequence numbers with the write concern of the cell (`Cell.writeConcern`).
+- **The timeline.** A log consumer reads the JSON log of each member. A run keeps the lines of replication, of its heartbeats, of the elections, of the rollbacks and of the commands (`KEPT`).
+- **The clocks.** The log of mongod has the wall clock in ms. The client writes the wall clock beside the monotonic clock each second (`clocks`). Thus the run puts each line of a member on the monotonic clock (`clockOffsetOf`).
+- **The prober** watches the namespace of the client.
+
+Each run of a replica set cell starts from a set that converged. The member that answers is the one primary, and it accepts writes. Each other member is a healthy secondary at the optime of the primary. The harness then removes each write from the set, with a write concern of each member. After the run, the set converges again, and the writes that it holds tell which writes it kept.
+
+A fault names a member by its role at the start of a run: `primary`, or `replica` for a secondary. A cut from one member (`one`, `one-way`) cuts the first other member in the sequence of the set.
+
 ## The clients and the agents
 
 - **A client image** (`ClientImage`, `Cell.client`) replaces the TCP client of the harness in each run. It operates in the namespace of the client. Its command gets the arguments of the TCP client, and it prints the same JSON lines.
@@ -91,7 +107,7 @@ A Sentinel that aborted a failover does not try again for 2 × `failover-timeout
 
 ## The images
 
-The harness builds five images. The tag of each image comes from the content of all the files that its Dockerfile reads. The harness copies these files into a new build context, from its own package and from the prober package. Thus the build works in a workspace and from npm.
+The harness builds six images. The tag of each image comes from the content of all the files that its Dockerfile reads. The harness copies these files into a new build context, from its own package and from the prober package. Thus the build works in a workspace and from npm.
 
 - **The harness image** (`image/Dockerfile`) has two stages, each a digest-pinned Alpine. `Cargo.lock` pins the crates. The image holds:
   - the kernel program of the prober, compiled against the BTF of the kernel that builds it, and its Rust collector.
@@ -102,6 +118,11 @@ The harness builds five images. The tag of each image comes from the content of 
 - **The Node client image** (`image/node`) is a driver client: ioredis 6.0.0 on Node 24.21.0. The digest of the image and an npm lockfile pin them. `client-ioredis.mjs` prints the lines of the TCP client on the same clock, and it adds the status changes of ioredis as `status` lines. The same image holds the client of a group in Sentinel mode (`client-sentinel.mjs`) and the observer of its Sentinels (`observer.mjs`).
 - **The Go HTTP image** (`image/go-http`) is the `http.Transport` of Go 1.27.2 at its defaults (`client-go`). The program uses the standard library only, thus the digest of the Go builder pins all of its code. The build does `gofmt` and `go vet` first. A wrapper on each connection writes what the read loop of the transport reads. The trace of the transport writes each try of a request.
 - **The Node HTTP image** (`image/node-http`) holds the `http.Agent` of Node 24.21.0 (`client-agent.mjs`) and an HTTP/1.1 `Client` of undici 8.12.2 (`client-undici.mjs`). The digest of the image and an npm lockfile pin them. It is apart from the image of ioredis, thus the cells of ioredis keep their image.
+- **The MongoDB client image** (`image/mongo`) is the driver mongodb 7.7.0 on Node 24.21.0. The digest of the image and an npm lockfile pin them. `client-mongo.mjs` prints the lines of the TCP client on the same clock:
+  - Each socket of the driver is a `socket` line with its role: `monitor`, `rtt` or `pool`. The stack of the call that makes the socket gives the role.
+  - The events of the driver are `sdam` lines (the heartbeats and the changes of each server), `cmap` lines (the pools) and `command` lines (each try of an operation).
+  - Each operation is a `sent` line, then an `ack` line or a `fail` line. An `ack` line has the server that accepted it. A `fail` line has the name and the labels of its error.
+  - The same image holds `stepdown-mongo.mjs`, the sender of `replSetStepDown`.
 - **The router image** (`image/router`) is a digest-pinned Alpine with conntrack-tools, nftables, iproute2 and Python. `mbx.sh` sets the form of the router in one nftables table, `ctwatch.py` writes the conntrack events, and `resetter.py` sends the resets of the `reset-both` form. Each run records its packages in the manifest.
 
 The build does the `cargo test` of the two crates. Thus the record decoder passes its tests before an image exists. Each amount that the native programs print is a quantity in a canonical unit. For example, an RTO is in `jiffy`, a round trip in `us`, and a segment in `B`.
@@ -112,7 +133,8 @@ ioredis sets the keepalive of its socket itself, after it connects. Thus a cell 
 
 - **A black hole** is DROP rules in the two directions, in the namespace of the peer of the observer. Thus the measurement gets the kernel timers of the observer. For the client, the rules go in the namespace of the target, through the injector. For the server, they go in the namespace of the client, through its admin sidecar. Rules in the namespace of the observer make its sends fail with EPERM, and the kernel records only a retransmission that goes out (`FaultSide`).
 - **A reset** is a `REJECT --reject-with tcp-reset` rule in the namespace of the target, for the segments of the client. The next send of the client gets a reset one round trip later. It is the reference fault of the calibration.
-- **A frozen process** is the cgroup freezer (`docker pause`), while the kernel stays up.
+- **A frozen process** is the cgroup freezer (`docker pause`), while the kernel stays up. A target that names its server process (`Target.program`) freezes by SIGSTOP from a sidecar in its process namespace, with stamps (`lab.signal`). A hold (`Cell.hold`) then thaws it with SIGCONT at that time after the freeze.
+- **A fault before the client** (`Cell.before`) holds before the client starts. Thus the first selection of the driver meets it. It is a black hole, a reset or an ICMP unreachable.
 - **A stall** is a black hole that stops by itself, `Cell.stall` after the send of the request. The run reads the stamp of the client on the send. Then `inject clear PEER --at NS` holds the end in the VM until that instant (`lab.heal`). Thus the latency of a docker exec does not change the length of the stall.
 - **An ICMP unreachable** (`unreachable`, `Cell.icmp`) answers each segment from the observer with host, net or port unreachable, or admin prohibited. Linux keeps it as a soft error, continues to retransmit, and gives the errno of the ICMP at the timeout. Host and net unreachable also revert the backoff (RFC 6069).
 - **A simplex partition** (`simplex`, `Cell.drops`) drops the segments to the server, or the segments to the client, but not both.
@@ -140,6 +162,7 @@ ioredis sets the keepalive of its socket itself, after it connects. Thus a cell 
   - A frozen process (`freeze-process`) is SIGSTOP to the server of the part, and SIGCONT thaws it. A FIN (`fin`) is SIGKILL, and the server starts again after the run.
   - A planned failover (`planned-failover`) is `SENTINEL FAILOVER <group>` to the first Sentinel, or `SENTINEL FAILOVER <group> COORDINATED` (`Cell.coordinated`). The injector stamps the write of the command and its reply.
   - A fault with a hold (`Cell.hold`) lifts at that time after its commit. The injector waits for that instant in the VM. A stall (`Cell.stall`) lifts at its length after the first write into it.
+  - A step-down (`step-down`) is `replSetStepDown` to the primary of a replica set (`STEP_DOWN`). A client of its own sends it, and it stamps the command when the driver writes it.
 
 A length match and netem act on GSO super-packets of up to 64 KB, not on segments, while TSO, GSO and GRO are on. Thus the cells of `mtu-blackhole` and `netem` turn them off on the two ends (`lab.offload`). They also turn them off on the two devices of a hop where the fault is.
 
@@ -178,6 +201,16 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
   - **The errors on the way.** The run gives each kind of error that the client met after the fault, with its first time and its count.
   - **Void runs.** A run is void when a Sentinel entered its TILT mode, or when the election split its votes. Both measured another path than the band assumes. A run whose Sentinels reached `+odown` and started no failover is void: the hold-off of an earlier failover stopped them. A band whose hold lifted more than δ_abs late is void too. The rules of the RTT and of a slow commit apply.
   - **The stamps.** A calibration gives the delay of each stamp of the observer after the write of its Sentinel that it read (`lags`).
+- **A replica set** (`measureGroup`, `replicaSetStagesOf`). The outcome is the first accepted write of a write that the client sent after the commit of the fault. Thus a partial cut, which leaves the old primary its writes, gives the first write after the fault.
+  - The time of the acceptance is the last segment with data on a socket of the pool. The monitor and the pinger have their own sockets to each member.
+  - **The timeline.** A log line of a member marks each stage. The first stages are a member that marks the old primary DOWN, the start of an election and its win. The last stages are the end of the catch-up, the first write of the new primary, and the step-down of the old primary.
+  - The lines of the client mark the discovery of the new primary, the write-off of the old one, and the first accepted write.
+  - A stage that the prediction names as quiet (`GroupPrediction.quiet`) is a finding when a run shows it. An election that another member wins is a failover.
+- **A driver band** (`measureDriver`, `driver.ts`). A driver with more than one socket names the socket of its band (`DriverBand.socket`).
+  - The band counts from its reference on that socket. It ends at a line of the client (`ends`), or at the report of the kernel on the socket.
+  - A band that a line ends counts from the last segment with data. The idle timer of a Node socket starts again only at its data.
+  - Each later band (`then`) has its own reference and line. A later band outside its band, or absent, is a finding. So is a line that the prediction names as quiet, after the fault.
+  - For a silent prediction, a flow of an open socket of the driver that a router forgot is a finding.
 
 ## The verdict
 
@@ -210,6 +243,8 @@ The distribution test needs a simulator, which does not exist at this time.
   - A cell whose probe names a `driver` opens its labs with the client of that driver (`openLab(target, "ioredis")`).
   - The harness sets the `targetSettings` of a cell in the target before a client connects, with the `settings` commands of the target (`redis-cli CONFIG SET`, then `CONFIG GET`).
   - A group cell opens a group environment (`openGroupLab`), and each run is `groupOnce`. Its warm-up is a whole run with its fault, because no fault of a group ends its environment. The manifest also holds the settings of each member and of each Sentinel, as each part read them.
+  - A replica set cell opens a replica set environment (`openReplicaSetLab`), and each run is `replicaSetOnce`. A run with a hold continues to the end of the hold, thus its record shows what the set did in all of it.
+  - A driver cell (`prediction.driver`) waits for the end of its band and of each later band. A silent driver cell waits for its window.
 - **The observer.** A cell observes the client, the server, or a socket of a proxy toward one side (`observer`). A cell on the server side measures the socket of the target for the connection of the client. The run waits for the error of that socket. `freeze-process` freezes the peer of the observer: the target for the client, the client for the server.
   - A cell on the server side sets the sysctls of the target through `targetSysctls`, with a privileged sidecar in the namespace of the target. That sidecar starts only when a cell asks for it.
   - Its in-flight data is the reply of the server. Thus the client sends `probe.request` first, for example a BLPOP with a timeout, and the fault occurs while the server holds it.
@@ -234,6 +269,10 @@ A run needs Docker, and privileged containers for the prober and the sidecars. T
 
 The tests also measure a group run from test lines. They find the first accepted write, the stages, the writes that the group kept, and the void runs. They test the views that make a group healthy, and the peers that a fault on a part cuts.
 
+The tests of a replica set read the log of mongod, and they put its lines on the monotonic clock. They test the views that make a set healthy and the peers of each cut. They measure the stages of a set and the bands of a driver from test lines.
+
 The cells themselves need Docker and privileged containers. CI does not start them. `HARNESS_LAB=1` starts the lab tests on Docker. They start a client image and an agent, and they put a reset and netem at a router. They also fail a group of Valkey 9.1 over with a planned failover. Each HTTP client sends two requests on one connection to a Node server, from a script in the stock Node image.
+
+The lab tests also step a replica set of three members of MongoDB 9.0.4 down, and they write the free memory of the machine. They also reset a write of the MongoDB driver in flight to a set of one member.
 
 `pnpm --filter @mark1russell7/harness build` writes the package for npm into `build/`.

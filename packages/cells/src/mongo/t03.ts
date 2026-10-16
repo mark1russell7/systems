@@ -72,7 +72,8 @@ export const T03_MONGO_SPECS: readonly MongoSpec[] = [
     op: "read-long",
     mtu: 1200,
     router: PRESETS.gcp,
-    toward: "client",
+    // the rule drops each long segment that comes from the side it faces: the reply comes from the target
+    toward: "target",
   },
   { plan: "T03.defaults.5", name: "a 1 s stall at the router, a write in flight, a plain router", fault: "stall", mode: "inflight", stall: 1, router: PRESETS.linux, toward: "client" },
   {
