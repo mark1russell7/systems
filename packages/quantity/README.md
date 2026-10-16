@@ -25,15 +25,22 @@ Amounts in typed units, with exact arithmetic. A `Quantity` is `{ value, unit }`
 ## Installation
 
 ```sh
-pnpm add @mark1russell7/quantity zod
+pnpm add @mark1russell7/quantity
 ```
 
-The package uses `zod` as a peer dependency. The schemas of the package are then parts of the schemas of the application, with one copy of `zod`.
+The root entry has the amounts, the units and the arithmetic. It does not import `zod`.
+
+The schemas are in the entry `@mark1russell7/quantity/schema`. That entry uses `zod` as an optional peer dependency. The schemas of the package are then parts of the schemas of the application, with one copy of `zod`.
+
+```sh
+pnpm add @mark1russell7/quantity zod
+```
 
 ## Example
 
 ```ts
-import { add, convert, format, quantity, quantitySchema } from "@mark1russell7/quantity";
+import { add, convert, format, quantity } from "@mark1russell7/quantity";
+import { quantitySchema } from "@mark1russell7/quantity/schema";
 
 const idle = quantity(7200, "s");
 const probes = quantity(675, "s");
