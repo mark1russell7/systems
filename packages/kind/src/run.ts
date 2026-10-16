@@ -2,8 +2,10 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { StartedTestContainer } from "testcontainers";
+import type { Quantity } from "@mark1russell7/quantity";
+import { valueIn } from "@mark1russell7/quantity";
 import type { KindCell, KindRun, Replica } from "./cell.ts";
-import type { Cluster, ClusterManifest } from "./cluster.ts";
+import type { Cluster } from "./cluster.ts";
 import { command, createCluster } from "./cluster.ts";
 import type { Step } from "./faults.ts";
 import { NODE, POD, VERSION, deletes as deletesAPod, planOf } from "./faults.ts";
@@ -12,31 +14,13 @@ import type { KindLab, Line, Stamp } from "./lab.ts";
 import { localPin, openKindLab } from "./lab.ts";
 import { CLIENT, REDIS, REDIS_IMAGE, SERVER, clientObjects, namespaceOf, redisObjects, serverObjects } from "./manifests.ts";
 import type { PodLine, Request } from "./observe.ts";
-import type { KindScenario } from "./scenario.ts";
+import type { EnvironmentManifest, KindCellRecord, KindCellResult, LoadSample } from "./record.ts";
+import { FORMAT } from "./record.ts";
 import { scenario } from "./scenario.ts";
-import type { KindVerdict } from "./verdict.ts";
 import { judgeKind } from "./verdict.ts";
 
-/** This time is the interval of the poll of the rules on each node, in milliseconds. */
-export const RULES_EVERY = 50;
-
-/** A load sample is what the VM did in 4 s before a run: its idle share and its busiest processes. */
-export interface LoadSample {
-  readonly t: number;
-  readonly idle: number;
-  readonly top: readonly string[];
-  readonly foreign: readonly string[];
-}
-
-/** A kind cell result is a cell, its runs over its environments, the manifest of each environment, and its verdict. */
-export interface KindCellResult {
-  readonly cell: KindCell;
-  readonly runs: KindRun[];
-  readonly manifests: Array<{ readonly env: number; readonly scenario: KindScenario; readonly cluster: ClusterManifest; readonly images: Readonly<Record<string, string>> }>;
-  readonly loads: LoadSample[];
-  readonly verdict: KindVerdict;
-  readonly at: string;
-}
+/** This time is the interval of the poll of the rules on each node. */
+export const RULES_EVERY: Quantity = { value: 50, unit: "ms" };
 
 /** These options run a catalog of kind cells. */
 export interface RunOptions {
@@ -251,7 +235,7 @@ const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], ba
     }
     case "pause": {
       const at = await where(step.target);
-      const stamp = lab.act(at.node, { op: "pause", pid: at.pid, ms: step.ms });
+      const stamp = lab.act(at.node, { op: "pause", pid: at.pid, ms: valueIn(step.time, "ms") });
       background.push(stamp);
       const now = await lab.now();
       return { t0: now, t1: now };
@@ -278,10 +262,10 @@ const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], ba
     }
     case "stall": {
       const at = await where(step.target);
-      return lab.act(at.node, { op: "stall", pid: at.pid, ms: step.ms });
+      return lab.act(at.node, { op: "stall", pid: at.pid, ms: valueIn(step.time, "ms") });
     }
     case "wait":
-      await sleep(step.ms);
+      await sleep(valueIn(step.time, "ms"));
       return null;
   }
 };
@@ -339,7 +323,7 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
   let heal: number | null = null;
   if (plan.hold !== null) {
     const now = await lab.now();
-    await sleep(Math.max(0, plan.hold - (now - (fault ?? now))));
+    await sleep(Math.max(0, valueIn(plan.hold, "ms") - (now - (fault ?? now))));
     for (const step of plan.heal) {
       try {
         const stamp = await doStep(ctx, step, replicas, background);
@@ -354,7 +338,7 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
     if (each.status === "fulfilled" && typeof each.value === "object" && each.value !== null && "t1" in each.value) resume = (each.value as Stamp).t1;
   }
   // the observation: at least 3 s after the last act, until the trigger happened and the cell is at rest again
-  const limit = Date.now() + 240_000 + 1000 * (cell.pod.grace.value + cell.pod.preStop.value);
+  const limit = Date.now() + 240_000 + valueIn(cell.pod.grace, "ms") + valueIn(cell.pod.preStop, "ms");
   await sleep(3000);
   while (Date.now() < limit && !over(ctx, { target, replicas, restarts }, lab.lines)) await sleep(250);
   const end = await lab.now();
@@ -400,7 +384,8 @@ const rebalance = async (ctx: Context): Promise<void> => {
 /** This function writes the result of a cell: its raw record, and one line of its verdict in `summary.ndjson`. */
 export const writeResult = (out: string, result: KindCellResult): void => {
   mkdirSync(out, { recursive: true });
-  writeFileSync(join(out, `${slug(result.cell.name)}.json`), JSON.stringify({ format: "systems.kind-cell-record/1", ...result }));
+  const record: KindCellRecord = { format: FORMAT, ...result };
+  writeFileSync(join(out, `${slug(result.cell.name)}.json`), JSON.stringify(record));
   const { verdict, cell } = result;
   writeFileSync(
     join(out, "summary.ndjson"),
@@ -435,7 +420,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
   for (const cell of cells) groups.set(`${cell.mode}-${cell.workers}`, [...(groups.get(`${cell.mode}-${cell.workers}`) ?? []), cell]);
   const results: KindCellResult[] = [];
   for (const [key, group] of groups) {
-    const partial = new Map<string, { runs: KindRun[]; manifests: KindCellResult["manifests"]; loads: LoadSample[] }>();
+    const partial = new Map<string, { runs: KindRun[]; manifests: EnvironmentManifest[]; loads: LoadSample[] }>();
     for (let env = 0; env < environments; env += 1) {
       const s = scenario(`lab-${key}-${env}`, group[0]!.mode, group[0]!.workers);
       const dir = join(options.work ?? join(tmpdir(), "systems-kind-work"), s.name);
@@ -505,13 +490,9 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
   return results;
 };
 
-/**
- * This function gives an estimate of the time of a cell in seconds: its setup, then each run and
- * each warm-up. A run waits for the cell at rest, samples the load, does the trigger and waits
- * until the cell is at rest again.
- */
-export const estimateSeconds = (cell: KindCell, environments = 2): number => {
-  const hold = cell.trigger.hold === undefined ? 0 : cell.trigger.hold.value;
+/** This function gives the estimate of a cell in seconds, for the arithmetic of the shards. */
+const estimate = (cell: KindCell, environments = 2): number => {
+  const hold = cell.trigger.hold === undefined ? 0 : valueIn(cell.trigger.hold, "s");
   const trigger: Record<string, number> = {
     "liveness-restart": 100,
     crash: 30,
@@ -519,9 +500,16 @@ export const estimateSeconds = (cell: KindCell, environments = 2): number => {
     "cpu-throttle": hold + 40,
     rollout: hold + 50,
   };
-  const each = 25 + (trigger[cell.trigger.kind] ?? (cell.template === "T18" ? hold + 35 : 15 + cell.pod.preStop.value));
+  const each = 25 + (trigger[cell.trigger.kind] ?? (cell.template === "T18" ? hold + 35 : 15 + valueIn(cell.pod.preStop, "s")));
   return 60 * environments + (cell.runs + environments) * each;
 };
+
+/**
+ * This function gives an estimate of the time of a cell: its setup, then each run and each
+ * warm-up. A run waits for the cell at rest, samples the load, does the trigger and waits until the
+ * cell is at rest again.
+ */
+export const estimatedTime = (cell: KindCell, environments = 2): Quantity => ({ value: estimate(cell, environments), unit: "s" });
 
 /**
  * This function gives the share of a shard of a catalog: cells in sequence. Thus the cells of one
@@ -531,13 +519,13 @@ export const shardOf = <T extends KindCell>(cells: readonly T[], index: number, 
   if (!(Number.isInteger(index) && Number.isInteger(count) && count >= 1 && index >= 0 && index < count))
     throw new RangeError(`shard ${index} of ${count} is not a shard`);
   const ordered = [...cells].sort((a, b) => (a.mode === b.mode ? 0 : a.mode < b.mode ? -1 : 1));
-  const total = ordered.reduce((sum, cell) => sum + estimateSeconds(cell), 0);
+  const total = ordered.reduce((sum, cell) => sum + estimate(cell), 0);
   const out: T[] = [];
   let before = 0;
   for (const cell of ordered) {
-    const middle = before + estimateSeconds(cell) / 2;
+    const middle = before + estimate(cell) / 2;
     if (Math.min(count - 1, Math.floor((middle / total) * count)) === index) out.push(cell);
-    before += estimateSeconds(cell);
+    before += estimate(cell);
   }
   return out;
 };

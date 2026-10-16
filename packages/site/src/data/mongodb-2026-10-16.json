@@ -1,0 +1,2984 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again by the harness",
+  "ranAt": "2026-10-16",
+  "units": "s",
+  "noise": 0.004,
+  "runs": 11,
+  "kernel": "6.17.0",
+  "hz": 1000,
+  "target": "mongo:9.0.4",
+  "client": "mongodb 7.7.0 on Node 24.21.0",
+  "cells": [
+    {
+      "plan": "T01.defaults.1",
+      "catalog": "T01",
+      "name": "blackhole, a write in flight",
+      "group": "T01",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 39.999,
+        "high": 40.011,
+        "window": null,
+        "text": "The algebra predicts that the monitor writes the server off at the timeout of its stream with MongoNetworkTimeoutError. The band is 39.999 s to 40.011 s after the last segment on its socket. Then the pool interrupts the operation in flight with PoolClearedOnNetworkError: 39.999 s to 40.021 s after the last segment on its socket. Then the server selection of the retry times out with MongoServerSelectionError: 69.999 s to 70.041 s after the last segment on its socket."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 39.995,
+        "high": 40.015
+      },
+      "median": 40.002161,
+      "why": "11 of the 11 counted runs are in the band of 39.995 s to 40.015 s. The median is 40.002 s, and its interval is 40.001 s to 40.003 s.",
+      "runs": [
+        [40.000979, 40.002659, 40.002184, 40.001603, 40.002161, 40.003236],
+        [40.001146, 40.003065, 40.002151, 40.001497, 40.003111]
+      ],
+      "warmups": [40.000963, 40.001483],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.defaults.40",
+      "catalog": "T01",
+      "name": "rst, a write in flight",
+      "group": "T01",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.002,
+        "window": null,
+        "text": "The algebra predicts that the request meets a reset with ECONNRESET. The band is 0 s to 2 ms after the send of the request. Then the server selection of the retry times out with MongoServerSelectionError: 30 s to 30.022 s after the send of the request."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.006
+      },
+      "median": 0.001287,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 6 ms. The median is 1.29 ms, and its interval is 1.12 ms to 1.74 ms.",
+      "runs": [
+        [0.001743, 0.001136, 0.002034, 0.001203, 0.001367, 0.001215],
+        [0.001106, 0.001369, 0.001294, 0.001287, 0.001115]
+      ],
+      "warmups": [0.001329, 0.001255],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.defaults.41",
+      "catalog": "T01",
+      "name": "fin, idle",
+      "group": "T01",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.012,
+        "window": null,
+        "text": "The algebra predicts that the stream of the monitor ends with an end of file. The band is 0 s to 12 ms after the close of the socket of the server."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.016
+      },
+      "median": 0.00001,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 16 ms. The median is 10 µs, and its interval is 9 µs to 12 µs.",
+      "runs": [
+        [0.000009],
+        [0.00001],
+        [0.00001],
+        [0.00001],
+        [0.00001],
+        [0.000012],
+        [0.000009],
+        [0.00001],
+        [0.000012],
+        [0.00001],
+        [0.00001]
+      ],
+      "warmups": [null, null, null, null, null, null, null, null, null, null, null],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.defaults.42",
+      "catalog": "T01",
+      "name": "unreachable-host, idle",
+      "group": "T01",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 129.999,
+        "high": 134.736,
+        "window": null,
+        "text": "The algebra predicts that the keepalive of the kernel ends the idle socket of the pool with ETIMEDOUT. The band is 129.999 s to 134.736 s after the last segment on its socket. The prediction has no heartbeat-failed event of the monitor after the fault."
+      },
+      "decision": "fails",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 129.995,
+        "high": 134.74
+      },
+      "median": 133.071908,
+      "why": "11 of the 11 counted runs are in the band of 129.995 s to 134.74 s. The median is 133.072 s, and its interval is 132.727 s to 133.422 s. Each counted run has a finding: the monitor reported heartbeat-failed 49.719 s after the fault, where the prediction has no such event.",
+      "runs": [
+        [133.177667, 133.314959, 133.5109, 132.678947, 132.837878, 133.007947],
+        [132.727048, 132.93292, 133.071908, 133.243933, 133.42193]
+      ],
+      "warmups": [131.761941, 132.324972],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.defaults.43",
+      "catalog": "T01",
+      "name": "freeze-process, a write in flight",
+      "group": "T01",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 39.999,
+        "high": 40.011,
+        "window": null,
+        "text": "The algebra predicts that the monitor writes the server off at the timeout of its stream with MongoNetworkTimeoutError. The band is 39.999 s to 40.011 s after the last segment on its socket. Then the pool interrupts the operation in flight with PoolClearedOnNetworkError: 39.999 s to 40.021 s after the last segment on its socket. Then the server selection of the retry times out with MongoServerSelectionError: 69.999 s to 70.041 s after the last segment on its socket."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 39.995,
+        "high": 40.015
+      },
+      "median": 40.002251,
+      "why": "11 of the 11 counted runs are in the band of 39.995 s to 40.015 s. The median is 40.002 s, and its interval is 40.002 s to 40.003 s.",
+      "runs": [
+        [40.001765, 40.001823, 40.002262, 40.002838, 40.002218, 40.002069],
+        [40.002251, 40.002868, 40.003082, 40.00293, 40.001777]
+      ],
+      "warmups": [40.002401, 40.002822],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.defaults.44",
+      "catalog": "T01",
+      "name": "a 1 s stall, a write in flight",
+      "group": "T01",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "recovers",
+        "low": 1.604,
+        "high": 1.697,
+        "window": 20,
+        "text": "The algebra predicts that the reply comes back at the third firing of the RTO timer. The band is 1.604 s to 1.697 s after the send of the request."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 1.6,
+        "high": 1.701
+      },
+      "median": 1.664396,
+      "why": "11 of the 11 counted runs are in the band of 1.6 s to 1.701 s. The median is 1.664 s, and its interval is 1.636 s to 1.689 s.",
+      "runs": [
+        [1.690291, 1.68844, 1.649907, 1.62859, 1.676892, 1.649918],
+        [1.657488, 1.688929, 1.636446, 1.685567, 1.664396]
+      ],
+      "warmups": [1.694454, 1.683426],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.defaults.45",
+      "catalog": "T01",
+      "name": "event:idle, no fault for 200 s",
+      "group": "T01",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 200,
+        "text": "The algebra predicts that nothing detects the fault in a window of 200 s. The prediction has no heartbeat-failed event of the monitor, socket error or failed operation after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 200 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.defaults.47",
+      "catalog": "T01",
+      "name": "rst at connect: the member refuses before the client starts",
+      "group": "T01",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 30,
+        "high": 30.01,
+        "window": null,
+        "text": "The algebra predicts that the first server selection times out with MongoServerSelectionError. The band is 30 s to 30.01 s after the start of the client."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 29.996,
+        "high": 30.014
+      },
+      "median": 30.008428,
+      "why": "11 of the 11 counted runs are in the band of 29.996 s to 30.014 s. The median is 30.008 s, and its interval is 30.008 s to 30.009 s.",
+      "runs": [
+        [30.008131, 30.008782, 30.009049, 30.008428, 30.008779, 30.00807],
+        [30.008175, 30.008599, 30.009419, 30.007929, 30.008308]
+      ],
+      "warmups": [30.007626, 30.007708],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.border-off.19",
+      "catalog": "T01",
+      "name": "blackhole, idle, keepAliveInitialDelay 258 s, below a level of the timer wheel",
+      "group": "T01",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 267.999,
+        "high": 272.736,
+        "window": null,
+        "text": "The algebra predicts that the keepalive of the kernel ends the idle socket of the pool with ETIMEDOUT. The band is 267.999 s to 272.736 s after the last segment on its socket. Then the monitor writes the server off at the timeout of its stream with MongoNetworkTimeoutError: 39.999 s to 40.011 s after the last segment on its socket."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 267.995,
+        "high": 272.74
+      },
+      "median": 271.767237,
+      "why": "11 of the 11 counted runs are in the band of 267.995 s to 272.74 s. The median is 271.767 s, and its interval is 268.343 s to 272.232 s.",
+      "runs": [
+        [268.279233, 268.606199, 272.042219, 268.365224, 271.81022, 272.265762],
+        [268.57115, 271.99519, 268.343237, 271.767237, 272.232202]
+      ],
+      "warmups": [270.755015, 272.134264],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.border-off.20",
+      "catalog": "T01",
+      "name": "blackhole, idle, keepAliveInitialDelay 260 s, above a level of the timer wheel",
+      "group": "T01",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 269.999,
+        "high": 303.408,
+        "window": null,
+        "text": "The algebra predicts that the keepalive of the kernel ends the idle socket of the pool with ETIMEDOUT. The band is 269.999 s to 303.408 s after the last segment on its socket. Then the monitor writes the server off at the timeout of its stream with MongoNetworkTimeoutError: 39.999 s to 40.011 s after the last segment on its socket."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 269.995,
+        "high": 303.412
+      },
+      "median": 292.724826,
+      "why": "11 of the 11 counted runs are in the band of 269.995 s to 303.412 s. The median is 292.725 s, and its interval is 292.537 s to 292.879 s.",
+      "runs": [
+        [292.878807, 292.783808, 292.724826, 292.571792, 292.536783, 292.419306],
+        [292.947842, 292.82278, 292.737752, 292.714814, 292.572496]
+      ],
+      "warmups": [284.222893, 289.363859],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.border-off.21",
+      "catalog": "T01",
+      "name": "blackhole, a write in flight, keepAliveInitialDelay 27 s: the keepalive ends the monitor's stream before its write-off",
+      "group": "T01",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 36.999,
+        "high": 38.152,
+        "window": null,
+        "text": "The algebra predicts that the keepalive of the kernel ends the socket of the monitor, and the monitor writes the server off with ETIMEDOUT. The band is 36.999 s to 38.152 s after the last segment on its socket. Then the pool interrupts the operation in flight with PoolClearedOnNetworkError: 76.999 s to 78.183 s after the last segment on its socket. Then the server selection of the retry times out with MongoServerSelectionError: 106.999 s to 108.203 s after the last segment on its socket."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 36.995,
+        "high": 38.156
+      },
+      "median": 37.25804,
+      "why": "11 of the 11 counted runs are in the band of 36.995 s to 38.156 s. The median is 37.258 s, and its interval is 37.24 s to 37.285 s.",
+      "runs": [
+        [37.251036, 37.285009, 37.249064, 37.276982, 37.25804, 37.274031],
+        [37.240034, 37.259028, 37.294004, 37.228029, 37.242015]
+      ],
+      "warmups": [37.269014, 37.232032],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.border-off.22",
+      "catalog": "T01",
+      "name": "blackhole, a write in flight, keepAliveInitialDelay 31 s: the write-off comes before the keepalive",
+      "group": "T01",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 39.999,
+        "high": 40.011,
+        "window": null,
+        "text": "The algebra predicts that the monitor writes the server off at the timeout of its stream with MongoNetworkTimeoutError. The band is 39.999 s to 40.011 s after the last segment on its socket. Then the pool interrupts the operation in flight with PoolClearedOnNetworkError: 39.999 s to 40.021 s after the last segment on its socket. Then the server selection of the retry times out with MongoServerSelectionError: 69.999 s to 70.041 s after the last segment on its socket."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 39.995,
+        "high": 40.015
+      },
+      "median": 40.001964,
+      "why": "11 of the 11 counted runs are in the band of 39.995 s to 40.015 s. The median is 40.002 s, and its interval is 40.002 s to 40.003 s.",
+      "runs": [
+        [40.004033, 40.001964, 40.002532, 40.001834, 40.00183, 40.002939],
+        [40.00204, 40.001858, 40.001857, 40.001997, 40.001562]
+      ],
+      "warmups": [40.001609, 40.001369],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.border-off.51",
+      "catalog": "T01",
+      "name": "blackhole, a write in flight, tcp_retries2 = 5: the kernel gives up before the monitor's write-off",
+      "group": "T01",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 12.6,
+        "high": 26.752,
+        "window": null,
+        "text": "The algebra predicts that the give-up of the retransmissions ends the socket of the request with ETIMEDOUT. The band is 12.6 s to 26.752 s after the first retransmission of the RTO timer. Then the server selection of the retry times out with MongoServerSelectionError: 42.6 s to 56.772 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 12.596,
+        "high": 26.756
+      },
+      "median": 12.824001,
+      "why": "11 of the 11 counted runs are in the band of 12.596 s to 26.756 s. The median is 12.824 s, and its interval is 12.649 s to 13.048 s.",
+      "runs": [
+        [12.711989, 12.808006, 12.880016, 12.912012, 13.071991, 12.648988],
+        [12.992026, 13.048002, 12.632015, 12.704011, 12.824001]
+      ],
+      "warmups": [12.872005, 12.688006],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.border-off.52",
+      "catalog": "T01",
+      "name": "blackhole, a write in flight, tcp_retries2 = 7: the monitor's write-off comes first",
+      "group": "T01",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 39.999,
+        "high": 40.011,
+        "window": null,
+        "text": "The algebra predicts that the monitor writes the server off at the timeout of its stream with MongoNetworkTimeoutError. The band is 39.999 s to 40.011 s after the last segment on its socket. Then the pool interrupts the operation in flight with PoolClearedOnNetworkError: 39.999 s to 40.021 s after the last segment on its socket. Then the server selection of the retry times out with MongoServerSelectionError: 69.999 s to 70.041 s after the last segment on its socket."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 39.995,
+        "high": 40.015
+      },
+      "median": 40.001777,
+      "why": "11 of the 11 counted runs are in the band of 39.995 s to 40.015 s. The median is 40.002 s, and its interval is 40.001 s to 40.002 s.",
+      "runs": [
+        [40.001469, 40.00229, 40.001481, 40.001193, 40.001777, 40.002188],
+        [40.001107, 40.002138, 40.002802, 40.001949, 40.001072]
+      ],
+      "warmups": [40.002348, 40.002533],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.border-off.59",
+      "catalog": "T01",
+      "name": "freeze-process 29 s, a write in flight: inside the write-off",
+      "group": "T01",
+      "stage": "border",
+      "prediction": {
+        "kind": "replies",
+        "low": 29,
+        "high": 29.112,
+        "window": 39,
+        "text": "The algebra predicts that nothing detects the fault, and that the reply comes back. The band of the reply is 29 s to 29.112 s after the fault. The prediction has no heartbeat-failed event of the monitor or failed operation after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 28.996,
+        "high": 29.116
+      },
+      "median": 29.005009,
+      "why": "11 of the 11 counted runs are in the band of 28.996 s to 29.116 s. The median is 29.005 s, and its interval is 29.005 s to 29.006 s.",
+      "runs": [
+        [29.00458, 29.004888, 29.005133, 29.005936, 29.005009, 29.004702],
+        [29.006045, 29.004786, 29.006165, 29.005251, 29.004188]
+      ],
+      "warmups": [29.004307, 29.004605],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.border-off.60",
+      "catalog": "T01",
+      "name": "freeze-process 41 s, a write in flight: outside the write-off",
+      "group": "T01",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 39.999,
+        "high": 40.011,
+        "window": null,
+        "text": "The algebra predicts that the monitor writes the server off at the timeout of its stream with MongoNetworkTimeoutError. The band is 39.999 s to 40.011 s after the last segment on its socket. Then the pool interrupts the operation in flight with PoolClearedOnNetworkError: 39.999 s to 40.021 s after the last segment on its socket. Then the retry lands when the fault lifts: 41 s to 41.138 s after the fault. The prediction has no failed operation after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 39.995,
+        "high": 40.015
+      },
+      "median": 40.002413,
+      "why": "11 of the 11 counted runs are in the band of 39.995 s to 40.015 s. The median is 40.002 s, and its interval is 40.001 s to 40.003 s.",
+      "runs": [
+        [40.002413, 40.002398, 40.002296, 40.002025, 40.000944, 40.003159],
+        [40.00258, 40.001487, 40.002423, 40.002983, 40.003087]
+      ],
+      "warmups": [40.002703, 40.002183],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.border-off.67",
+      "catalog": "T01",
+      "name": "freeze-process 59 s, a write in flight: the retry lands inside serverSelectionTimeoutMS",
+      "group": "T01",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 39.999,
+        "high": 40.011,
+        "window": null,
+        "text": "The algebra predicts that the monitor writes the server off at the timeout of its stream with MongoNetworkTimeoutError. The band is 39.999 s to 40.011 s after the last segment on its socket. Then the pool interrupts the operation in flight with PoolClearedOnNetworkError: 39.999 s to 40.021 s after the last segment on its socket. Then the retry lands when the fault lifts: 59 s to 59.138 s after the fault. The prediction has no failed operation after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 39.995,
+        "high": 40.015
+      },
+      "median": 40.001386,
+      "why": "11 of the 11 counted runs are in the band of 39.995 s to 40.015 s. The median is 40.001 s, and its interval is 40.001 s to 40.002 s.",
+      "runs": [
+        [40.00121, 40.001283, 40.00111, 40.001096, 40.00269, 40.001695],
+        [40.002366, 40.001386, 40.001329, 40.002241, 40.002316]
+      ],
+      "warmups": [40.002046, 40.001958],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.border-off.68",
+      "catalog": "T01",
+      "name": "freeze-process 71 s, a write in flight: the retry's selection times out first",
+      "group": "T01",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 39.999,
+        "high": 40.011,
+        "window": null,
+        "text": "The algebra predicts that the monitor writes the server off at the timeout of its stream with MongoNetworkTimeoutError. The band is 39.999 s to 40.011 s after the last segment on its socket. Then the pool interrupts the operation in flight with PoolClearedOnNetworkError: 39.999 s to 40.021 s after the last segment on its socket. Then the server selection of the retry times out with MongoServerSelectionError: 69.999 s to 70.041 s after the last segment on its socket."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 39.995,
+        "high": 40.015
+      },
+      "median": 40.002093,
+      "why": "11 of the 11 counted runs are in the band of 39.995 s to 40.015 s. The median is 40.002 s, and its interval is 40.001 s to 40.003 s.",
+      "runs": [
+        [40.00215, 40.001537, 40.002563, 40.001488, 40.00218, 40.00216],
+        [40.003204, 40.001395, 40.00203, 40.002093, 40.002046]
+      ],
+      "warmups": [40.002102, 40.001717],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.border-off.75",
+      "catalog": "T01",
+      "name": "freeze-process 4.5 s, a write in flight, heartbeatFrequencyMS 2000 and connectTimeoutMS 5000: inside the write-off",
+      "group": "T01",
+      "stage": "border",
+      "prediction": {
+        "kind": "replies",
+        "low": 4.5,
+        "high": 4.612,
+        "window": 14.5,
+        "text": "The algebra predicts that nothing detects the fault, and that the reply comes back. The band of the reply is 4.5 s to 4.612 s after the fault. The prediction has no heartbeat-failed event of the monitor or failed operation after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 4.496,
+        "high": 4.616
+      },
+      "median": 4.506647,
+      "why": "11 of the 11 counted runs are in the band of 4.496 s to 4.616 s. The median is 4.507 s, and its interval is 4.506 s to 4.507 s.",
+      "runs": [
+        [4.506519, 4.505877, 4.507331, 4.507038, 4.505485, 4.50576],
+        [4.505865, 4.507433, 4.507322, 4.506647, 4.507064]
+      ],
+      "warmups": [4.5066, 4.506987],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.border-off.76",
+      "catalog": "T01",
+      "name": "freeze-process 7.5 s, a write in flight, heartbeatFrequencyMS 2000 and connectTimeoutMS 5000: outside the write-off",
+      "group": "T01",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 6.999,
+        "high": 7.011,
+        "window": null,
+        "text": "The algebra predicts that the monitor writes the server off at the timeout of its stream with MongoNetworkTimeoutError. The band is 6.999 s to 7.011 s after the last segment on its socket. Then the pool interrupts the operation in flight with PoolClearedOnNetworkError: 6.999 s to 7.021 s after the last segment on its socket. Then the retry lands when the fault lifts: 7.5 s to 7.638 s after the fault. The prediction has no failed operation after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 6.995,
+        "high": 7.015
+      },
+      "median": 7.002447,
+      "why": "11 of the 11 counted runs are in the band of 6.995 s to 7.015 s. The median is 7.002 s, and its interval is 7.002 s to 7.004 s.",
+      "runs": [
+        [7.003731, 7.003259, 7.002447, 7.002403, 7.004122, 7.001824],
+        [7.002424, 7.002489, 7.001883, 7.002608, 7.002339]
+      ],
+      "warmups": [7.002428, 7.002836],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.border-off.215",
+      "catalog": "T01",
+      "name": "freeze-process 60 s, a write in flight, connectTimeoutMS 1000: the monitor's hello has a timeout",
+      "group": "T01",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 10.999,
+        "high": 11.011,
+        "window": null,
+        "text": "The algebra predicts that the monitor writes the server off at the timeout of its stream with MongoNetworkTimeoutError. The band is 10.999 s to 11.011 s after the last segment on its socket. Then the pool interrupts the operation in flight with PoolClearedOnNetworkError: 10.999 s to 11.021 s after the last segment on its socket. Then the server selection of the retry times out with MongoServerSelectionError: 40.999 s to 41.041 s after the last segment on its socket."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 10.995,
+        "high": 11.015
+      },
+      "median": 11.002408,
+      "why": "11 of the 11 counted runs are in the band of 10.995 s to 11.015 s. The median is 11.002 s, and its interval is 11.002 s to 11.003 s.",
+      "runs": [
+        [11.002932, 11.002308, 11.001797, 11.002949, 11.002316, 11.001901],
+        [11.003365, 11.002553, 11.002408, 11.001742, 11.002438]
+      ],
+      "warmups": [11.002986, 11.001997],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.border-off.216",
+      "catalog": "T01",
+      "name": "freeze-process 60 s, a write in flight, connectTimeoutMS 0: the monitor's hello has no timeout",
+      "group": "T01",
+      "stage": "border",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 60,
+        "text": "The algebra predicts that nothing detects the fault in a window of 60 s. The prediction has no heartbeat-failed event of the monitor or failed operation after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 60 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.border-off.221",
+      "catalog": "T01",
+      "name": "blackhole before the client starts, serverSelectionTimeoutMS 25000: the selection ends before the connect timeout",
+      "group": "T01",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 25,
+        "high": 25.01,
+        "window": null,
+        "text": "The algebra predicts that the first server selection times out with MongoServerSelectionError. The band is 25 s to 25.01 s after the start of the client."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 24.996,
+        "high": 25.014
+      },
+      "median": 25.008971,
+      "why": "11 of the 11 counted runs are in the band of 24.996 s to 25.014 s. The median is 25.009 s, and its interval is 25.008 s to 25.01 s.",
+      "runs": [
+        [25.0096, 25.009522, 25.008939, 25.00825, 25.009327, 25.009135],
+        [25.008326, 25.008881, 25.009249, 25.008491, 25.008971]
+      ],
+      "warmups": [25.008584, 25.009551],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.border-off.222",
+      "catalog": "T01",
+      "name": "blackhole before the client starts, serverSelectionTimeoutMS 35000: the connect times out first",
+      "group": "T01",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 35,
+        "high": 35.01,
+        "window": null,
+        "text": "The algebra predicts that the first server selection times out after the connect of the monitor with MongoServerSelectionError. The band is 35 s to 35.01 s after the start of the client. Then the first connect of the monitor times out with MongoNetworkTimeoutError: 30 s to 30.011 s after the start of the client."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 34.996,
+        "high": 35.014
+      },
+      "median": 35.007936,
+      "why": "11 of the 11 counted runs are in the band of 34.996 s to 35.014 s. The median is 35.008 s, and its interval is 35.007 s to 35.008 s.",
+      "runs": [
+        [35.008311, 35.007869, 35.007601, 35.007334, 35.007273, 35.007943],
+        [35.007148, 35.007999, 35.008033, 35.007936, 35.007982]
+      ],
+      "warmups": [35.007985, 35.007834],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T03.defaults.1",
+      "catalog": "T03",
+      "name": "middlebox-forget, idle for 400 s, AWS NAT form",
+      "group": "T03",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 400,
+        "text": "The algebra predicts that nothing detects the fault in a window of 400 s. The prediction has no heartbeat-failed event of the monitor, socket error or failed operation after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 400 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T03.defaults.2",
+      "catalog": "T03",
+      "name": "blackhole at the router, a write in flight, Azure NAT form",
+      "group": "T03",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 39.999,
+        "high": 40.011,
+        "window": null,
+        "text": "The algebra predicts that the monitor writes the server off at the timeout of its stream with MongoNetworkTimeoutError. The band is 39.999 s to 40.011 s after the last segment on its socket. Then the pool interrupts the operation in flight with PoolClearedOnNetworkError: 39.999 s to 40.021 s after the last segment on its socket. Then the server selection of the retry times out with MongoServerSelectionError: 69.999 s to 70.041 s after the last segment on its socket."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 39.995,
+        "high": 40.015
+      },
+      "median": 40.002422,
+      "why": "11 of the 11 counted runs are in the band of 39.995 s to 40.015 s. The median is 40.002 s, and its interval is 40.001 s to 40.003 s.",
+      "runs": [
+        [40.001751, 40.002646, 40.002458, 40.001897, 40.002644, 40.002898],
+        [40.002422, 40.002681, 40.001304, 40.000722, 40.001341]
+      ],
+      "warmups": [40.002173, 40.00225],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T03.defaults.3",
+      "catalog": "T03",
+      "name": "unreachable-host at the router, idle, Azure LB with TCP reset",
+      "group": "T03",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 129.999,
+        "high": 134.736,
+        "window": null,
+        "text": "The algebra predicts that the keepalive of the kernel ends the idle socket of the pool with ETIMEDOUT. The band is 129.999 s to 134.736 s after the last segment on its socket. The prediction has no heartbeat-failed event of the monitor after the fault."
+      },
+      "decision": "fails",
+      "counted": 8,
+      "voided": 3,
+      "band": {
+        "low": 129.995,
+        "high": 134.74
+      },
+      "median": 133.149183,
+      "why": "8 of the 8 counted runs are in the band of 129.995 s to 134.74 s. The median is 133.149 s, and its interval is 132.872 s to 133.585 s. Each counted run has a finding: the monitor reported heartbeat-failed 49.743 s after the fault, where the prediction has no such event.",
+      "runs": [
+        [133.526082, 132.872208, 133.066327, 133.416362],
+        [132.937381, 133.070443, 133.227922, 133.585367]
+      ],
+      "warmups": [131.630394, 132.969395],
+      "voids": "3 runs are void: in each, the keepalive timer was 2 to 3 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T03.defaults.4",
+      "catalog": "T03",
+      "name": "mtu-blackhole at the router, a read of a 2 MB document, GCP firewall form",
+      "group": "T03",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 60,
+        "text": "The algebra predicts that nothing detects the fault in a window of 60 s. The prediction has no heartbeat-failed event of the monitor, socket error or failed operation after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 60 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T03.defaults.5",
+      "catalog": "T03",
+      "name": "a 1 s stall at the router, a write in flight, a plain router",
+      "group": "T03",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "recovers",
+        "low": 1.604,
+        "high": 1.697,
+        "window": 20,
+        "text": "The algebra predicts that the reply comes back at the third firing of the RTO timer. The band is 1.604 s to 1.697 s after the send of the request."
+      },
+      "decision": "holds",
+      "counted": 6,
+      "voided": 5,
+      "band": {
+        "low": 1.6,
+        "high": 1.701
+      },
+      "median": 1.67911,
+      "why": "6 of the 6 counted runs are in the band of 1.6 s to 1.701 s. The median is 1.679 s, and its interval is 1.633 s to 1.688 s.",
+      "runs": [
+        [1.675885, 1.683069, 1.632912],
+        [1.687957, 1.682335, 1.633393]
+      ],
+      "warmups": [1.661785, 1.640786],
+      "voids": "5 runs are void: in each, the retransmit timer was 2 to 6 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T03.defaults.28",
+      "catalog": "T03",
+      "name": "blackhole at the router, mongod's socket for an idle pool connection, AWS NAT form",
+      "group": "T03",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 308.999,
+        "high": 342.344,
+        "window": null,
+        "text": "The algebra predicts that the keepalive of mongod ends its socket of the pool connection with ETIMEDOUT. The band is 308.999 s to 342.344 s after the last segment on its socket."
+      },
+      "decision": "holds",
+      "counted": 6,
+      "voided": 5,
+      "band": {
+        "low": 308.995,
+        "high": 342.348
+      },
+      "median": 325.611006,
+      "why": "6 of the 6 counted runs are in the band of 308.995 s to 342.348 s. The median is 325.611 s, and its interval is 325.403 s to 326.079 s.",
+      "runs": [
+        [326.079011, 325.411026, 326.039016, 325.402989],
+        [325.568003, 325.654009]
+      ],
+      "warmups": [312.628012, 321.488021],
+      "voids": "5 runs are void: in each, the keepalive timer was 2 to 6 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T03.defaults.38",
+      "catalog": "T03",
+      "name": "rst at the router, a write in flight, GCP firewall form",
+      "group": "T03",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.002,
+        "window": null,
+        "text": "The algebra predicts that the request meets a reset with ECONNRESET. The band is 0 s to 2 ms after the send of the request. Then the server selection of the retry times out with MongoServerSelectionError: 30 s to 30.022 s after the send of the request."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.006
+      },
+      "median": 0.001381,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 6 ms. The median is 1.38 ms, and its interval is 1.27 ms to 1.69 ms.",
+      "runs": [
+        [0.001514, 0.001453, 0.001687, 0.001298, 0.001294, 0.001964],
+        [0.001092, 0.00139, 0.001336, 0.001381, 0.001269]
+      ],
+      "warmups": [0.001324, 0.001298],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T03.defaults.39",
+      "catalog": "T03",
+      "name": "simplex-to-client at the router, a write in flight, GCP firewall form",
+      "group": "T03",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 39.999,
+        "high": 40.011,
+        "window": null,
+        "text": "The algebra predicts that the monitor writes the server off at the timeout of its stream with MongoNetworkTimeoutError. The band is 39.999 s to 40.011 s after the last segment on its socket. Then the pool interrupts the operation in flight with PoolClearedOnNetworkError: 39.999 s to 40.021 s after the last segment on its socket. Then the server selection of the retry times out with MongoServerSelectionError: 69.999 s to 70.041 s after the last segment on its socket."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 39.995,
+        "high": 40.015
+      },
+      "median": 40.003012,
+      "why": "11 of the 11 counted runs are in the band of 39.995 s to 40.015 s. The median is 40.003 s, and its interval is 40.002 s to 40.004 s.",
+      "runs": [
+        [40.003668, 40.003475, 40.002827, 40.002136, 40.003778, 40.002688],
+        [40.003827, 40.00257, 40.00364, 40.003012, 40.002344]
+      ],
+      "warmups": [40.002932, 40.002316],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T03.defaults.41",
+      "catalog": "T03",
+      "name": "fin, idle, Azure NAT form",
+      "group": "T03",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.012,
+        "window": null,
+        "text": "The algebra predicts that the stream of the monitor ends with an end of file. The band is 0 s to 12 ms after the close of the socket of the server."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.016
+      },
+      "median": 0.000025,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 16 ms. The median is 25 µs, and its interval is 22 µs to 28 µs.",
+      "runs": [
+        [0.000024],
+        [0.000025],
+        [0.000025],
+        [0.000028],
+        [0.000024],
+        [0.000023],
+        [0.000028],
+        [0.00009],
+        [0.000022],
+        [0.000026],
+        [0.000021]
+      ],
+      "warmups": [null, null, null, null, null, null, null, null, null, null, null],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T03.border-off.7",
+      "catalog": "T03",
+      "name": "middlebox-forget, an idle pool connection, keepAliveInitialDelay 11 s, reset-both at 12 s",
+      "group": "T03",
+      "stage": "border",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 30,
+        "text": "The algebra predicts that nothing detects the fault in a window of 30 s. The prediction has no heartbeat-failed event of the monitor, socket error or failed operation after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 30 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T03.border-off.8",
+      "catalog": "T03",
+      "name": "middlebox-forget, an idle pool connection, keepAliveInitialDelay 13 s, reset-both at 12 s",
+      "group": "T03",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 12,
+        "high": 12.09,
+        "window": null,
+        "text": "The algebra predicts that the router forgets the flow and resets the two ends with ECONNRESET. The band is 12 s to 12.09 s after the last segment on its socket. The prediction has no heartbeat-failed event of the monitor after the fault."
+      },
+      "decision": "fails",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 11.996,
+        "high": 12.094
+      },
+      "median": 12.069993,
+      "why": "10 of the 11 counted runs are in the band of 11.996 s to 12.094 s. The median is 12.07 s, and its interval is 12.045 s to 12.089 s.",
+      "runs": [
+        [12.081174, 12.042832, 12.063577, 12.065013, 12.069804, 12.044938],
+        [12.088816, 12.086017, 12.079333, 12.069993, 12.094537]
+      ],
+      "warmups": [12.047911, 12.070347],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T03.border-off.9",
+      "catalog": "T03",
+      "name": "middlebox-forget, an idle pool connection, keepAliveInitialDelay 11 s, reset-next at 12 s",
+      "group": "T03",
+      "stage": "border",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 30,
+        "text": "The algebra predicts that nothing detects the fault in a window of 30 s. The prediction has no heartbeat-failed event of the monitor, socket error or failed operation after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 30 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T03.border-off.10",
+      "catalog": "T03",
+      "name": "middlebox-forget, an idle pool connection, keepAliveInitialDelay 13 s, reset-next at 12 s",
+      "group": "T03",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 12.999,
+        "high": 13.514,
+        "window": null,
+        "text": "The algebra predicts that the first keepalive probe meets the reset of the router with ECONNRESET. The band is 12.999 s to 13.514 s after the last segment on its socket. The prediction has no heartbeat-failed event of the monitor after the fault."
+      },
+      "decision": "holds",
+      "counted": 10,
+      "voided": 1,
+      "band": {
+        "low": 12.995,
+        "high": 13.518
+      },
+      "median": 13.223743,
+      "why": "10 of the 10 counted runs are in the band of 12.995 s to 13.518 s. The median is 13.224 s, and its interval is 13.053 s to 13.36 s.",
+      "runs": [
+        [13.053201, 13.359859, 13.097247, 13.307395, 13.329244],
+        [13.084239, 13.481987, 13.301247, 13.146238, 13.02397]
+      ],
+      "warmups": [13.290313, 13.000901],
+      "voids": "One run is void: its keepalive timer was 2 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T03.border-off.11",
+      "catalog": "T03",
+      "name": "middlebox-forget, an idle pool connection, keepAliveInitialDelay 11 s, silent-drop at 12 s",
+      "group": "T03",
+      "stage": "border",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 30,
+        "text": "The algebra predicts that nothing detects the fault in a window of 30 s. The prediction has no heartbeat-failed event of the monitor, socket error or failed operation after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 30 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T03.border-off.12",
+      "catalog": "T03",
+      "name": "middlebox-forget, an idle pool connection, keepAliveInitialDelay 13 s, silent-drop at 12 s",
+      "group": "T03",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 22.999,
+        "high": 24.152,
+        "window": null,
+        "text": "The algebra predicts that the keepalive probes get no answer, and the keepalive of the kernel gives up with ETIMEDOUT. The band is 22.999 s to 24.152 s after the last segment on its socket. The prediction has no heartbeat-failed event of the monitor after the fault."
+      },
+      "decision": "holds",
+      "counted": 4,
+      "voided": 7,
+      "band": {
+        "low": 22.995,
+        "high": 24.156
+      },
+      "median": 23.530021,
+      "why": "4 of the 4 counted runs are in the band of 22.995 s to 24.156 s. The median is 23.53 s, and its interval is 23.315 s to 23.628 s.",
+      "runs": [
+        [23.627556],
+        [23.314652, 23.480701, 23.57934]
+      ],
+      "warmups": [23.534716, 23.517725],
+      "voids": "7 runs are void: in each, the keepalive timer was 2 to 4 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.border-off.207",
+      "catalog": "T01",
+      "name": "middlebox-forget, the monitor's heartbeat 11 s, silent-drop at 12 s",
+      "group": "T01",
+      "stage": "border",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 30,
+        "text": "The algebra predicts that nothing detects the fault in a window of 30 s. The prediction has no heartbeat-failed event of the monitor, socket error or failed operation after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 30 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T01.border-off.208",
+      "catalog": "T01",
+      "name": "middlebox-forget, the monitor's heartbeat 13 s, silent-drop at 12 s: the keepalive at 6 s refreshes the flow",
+      "group": "T01",
+      "stage": "border",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 30,
+        "text": "The algebra predicts that nothing detects the fault in a window of 30 s. The prediction has no heartbeat-failed event of the monitor, socket error or failed operation after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 30 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "stages": null,
+      "writes": null
+    },
+    {
+      "plan": "T11.defaults.1",
+      "catalog": "T11",
+      "name": "event:stepdown, replSetStepDown at the primary",
+      "group": "T11",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.5,
+        "window": null,
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 0 s to 500 ms after the fault."
+      },
+      "decision": "fails",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.504
+      },
+      "median": 0.03396,
+      "why": "10 of the 11 counted runs are in the band of −4 ms to 504 ms. The median is 34 ms, and its interval is 29 ms to 44.2 ms.",
+      "runs": [
+        [0.03396, 0.042592, 0.044163, 0.035706, 0.028967, 0.029457],
+        [0.524981, 0.033319, 0.027077, 0.032875, 0.034527]
+      ],
+      "warmups": [0.03387, 0.029359],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "election-start",
+          "low": -0.004,
+          "high": 0.244,
+          "median": 0.002652,
+          "decision": "holds"
+        },
+        {
+          "stage": "elected",
+          "low": -0.004,
+          "high": 0.244,
+          "median": 0.004967,
+          "decision": "holds"
+        },
+        {
+          "stage": "caught-up",
+          "low": -0.004,
+          "high": 0.256,
+          "median": 0.007782,
+          "decision": "holds"
+        },
+        {
+          "stage": "writable",
+          "low": -0.004,
+          "high": 0.366,
+          "median": 0.013557,
+          "decision": "holds"
+        },
+        {
+          "stage": "old-primary-steps-down",
+          "low": -0.004,
+          "high": 0.12,
+          "median": 0.000782,
+          "decision": "holds"
+        },
+        {
+          "stage": "discovered",
+          "low": -0.004,
+          "high": 0.378,
+          "median": 0.017948,
+          "decision": "holds"
+        },
+        {
+          "stage": "first-write",
+          "low": -0.004,
+          "high": 0.506,
+          "median": 0.034509,
+          "decision": "fails"
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 11,
+        "stayed": 0
+      }
+    },
+    {
+      "plan": "T11.defaults.8",
+      "catalog": "T11",
+      "name": "freeze-process at the primary, 60 s",
+      "group": "T11",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 29.999,
+        "high": 40.149,
+        "window": null,
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 29.999 s to 40.149 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 29.995,
+        "high": 40.153
+      },
+      "median": 39.429652,
+      "why": "11 of the 11 counted runs are in the band of 29.995 s to 40.153 s. The median is 39.43 s, and its interval is 39.423 s to 39.443 s.",
+      "runs": [
+        [39.423456, 39.445876, 39.442512, 39.443311, 39.424862, 39.426665],
+        [39.443335, 39.40474, 39.429833, 39.429652, 39.426552]
+      ],
+      "warmups": [39.415794, 39.424013],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "member-down",
+          "low": 9.996,
+          "high": 12.026,
+          "median": 10.817288,
+          "decision": "holds"
+        },
+        {
+          "stage": "election-start",
+          "low": 9.836,
+          "high": 11.518,
+          "median": 10.842643,
+          "decision": "holds"
+        },
+        {
+          "stage": "elected",
+          "low": 9.836,
+          "high": 11.642,
+          "median": 10.844643,
+          "decision": "holds"
+        },
+        {
+          "stage": "caught-up",
+          "low": 9.996,
+          "high": 21.652,
+          "median": 11.964392,
+          "decision": "holds"
+        },
+        {
+          "stage": "writable",
+          "low": 9.996,
+          "high": 21.762,
+          "median": 11.967393,
+          "decision": "holds"
+        },
+        {
+          "stage": "old-primary-steps-down",
+          "low": null,
+          "high": null,
+          "median": 60.008109,
+          "decision": null
+        },
+        {
+          "stage": "discovered",
+          "low": 9.996,
+          "high": 21.774,
+          "median": 11.968995,
+          "decision": "holds"
+        },
+        {
+          "stage": "written-off",
+          "low": 29.995,
+          "high": 40.017,
+          "median": 39.422543,
+          "decision": "holds"
+        },
+        {
+          "stage": "first-write",
+          "low": 29.995,
+          "high": 40.155,
+          "median": 39.430139,
+          "decision": "holds"
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 1
+        },
+        "unknown": {
+          "total": 2,
+          "held": 2
+        },
+        "errors": [],
+        "moved": 11,
+        "stayed": 0
+      }
+    },
+    {
+      "plan": "T11.defaults.9",
+      "catalog": "T11",
+      "name": "blackhole at the primary, the clients too, 60 s",
+      "group": "T11",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 29.999,
+        "high": 40.149,
+        "window": null,
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 29.999 s to 40.149 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 29.995,
+        "high": 40.153
+      },
+      "median": 39.441572,
+      "why": "11 of the 11 counted runs are in the band of 29.995 s to 40.153 s. The median is 39.442 s, and its interval is 39.437 s to 39.49 s.",
+      "runs": [
+        [39.437178, 39.44629, 39.490398, 39.488067, 39.441977, 39.441572],
+        [39.440531, 39.427905, 39.439784, 39.436862, 39.490607]
+      ],
+      "warmups": [39.450014, 39.426252],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "member-down",
+          "low": 9.996,
+          "high": 12.026,
+          "median": 11.061693,
+          "decision": "holds"
+        },
+        {
+          "stage": "election-start",
+          "low": 9.836,
+          "high": 11.518,
+          "median": 10.427857,
+          "decision": "holds"
+        },
+        {
+          "stage": "elected",
+          "low": 9.836,
+          "high": 11.642,
+          "median": 10.429857,
+          "decision": "holds"
+        },
+        {
+          "stage": "caught-up",
+          "low": 9.996,
+          "high": 21.652,
+          "median": 11.249693,
+          "decision": "holds"
+        },
+        {
+          "stage": "writable",
+          "low": 9.996,
+          "high": 21.762,
+          "median": 11.252693,
+          "decision": "holds"
+        },
+        {
+          "stage": "old-primary-steps-down",
+          "low": 9.836,
+          "high": 10.018,
+          "median": 9.957017,
+          "decision": "holds"
+        },
+        {
+          "stage": "discovered",
+          "low": 9.996,
+          "high": 21.774,
+          "median": 11.255673,
+          "decision": "holds"
+        },
+        {
+          "stage": "written-off",
+          "low": 29.995,
+          "high": 40.017,
+          "median": 39.431406,
+          "decision": "holds"
+        },
+        {
+          "stage": "first-write",
+          "low": 29.995,
+          "high": 40.155,
+          "median": 39.441969,
+          "decision": "holds"
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 1
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 11,
+        "stayed": 0
+      }
+    },
+    {
+      "plan": "T11.defaults.10",
+      "catalog": "T11",
+      "name": "partition:complete, the primary cut from the other members, not from the clients, 40 s",
+      "group": "T11",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 10,
+        "high": 21.896,
+        "window": null,
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 10 s to 21.896 s after the fault."
+      },
+      "decision": "fails",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 9.996,
+        "high": 21.9
+      },
+      "median": 19.341475,
+      "why": "9 of the 11 counted runs are in the band of 9.996 s to 21.9 s. The median is 19.341 s, and its interval is 18.132 s to 22.497 s.",
+      "runs": [
+        [18.131744, 20.97336, 19.341475, 11.017753, 19.015817, 19.076163],
+        [22.497182, 24.620293, 19.032732, 21.392952, 19.51206]
+      ],
+      "warmups": [22.545453, 20.207089],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "member-down",
+          "low": 9.996,
+          "high": 12.026,
+          "median": 10.731274,
+          "decision": "holds"
+        },
+        {
+          "stage": "election-start",
+          "low": 9.836,
+          "high": 11.518,
+          "median": 10.490316,
+          "decision": "holds"
+        },
+        {
+          "stage": "elected",
+          "low": 9.836,
+          "high": 11.642,
+          "median": 10.492316,
+          "decision": "holds"
+        },
+        {
+          "stage": "caught-up",
+          "low": 9.996,
+          "high": 21.652,
+          "median": 11.33882,
+          "decision": "holds"
+        },
+        {
+          "stage": "writable",
+          "low": 9.996,
+          "high": 21.762,
+          "median": 11.340819,
+          "decision": "holds"
+        },
+        {
+          "stage": "old-primary-steps-down",
+          "low": 9.836,
+          "high": 10.018,
+          "median": 9.958274,
+          "decision": "holds"
+        },
+        {
+          "stage": "discovered",
+          "low": 9.996,
+          "high": 21.774,
+          "median": 11.343034,
+          "decision": "holds"
+        },
+        {
+          "stage": "written-off",
+          "low": null,
+          "high": null,
+          "median": 40.582583,
+          "decision": null
+        },
+        {
+          "stage": "first-write",
+          "low": 9.996,
+          "high": 21.902,
+          "median": 19.34216,
+          "decision": "fails"
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 1
+        },
+        "unknown": {
+          "total": 1,
+          "held": 1
+        },
+        "errors": [],
+        "moved": 11,
+        "stayed": 0
+      }
+    },
+    {
+      "plan": "T11.defaults.11",
+      "catalog": "T11",
+      "name": "partition:partial, the primary cut from one secondary, 40 s",
+      "group": "T11",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.174,
+        "window": null,
+        "text": "The algebra predicts that the first write after the fault lands on the same primary. The band is 0 s to 174 ms after the fault. The prediction has no election or write-off of the primary after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.178
+      },
+      "median": 0.012615,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 178 ms. The median is 12.6 ms, and its interval is 7.58 ms to 19.9 ms.",
+      "runs": [
+        [0.014386, 0.018394, 0.007543, 0.021447, 0.01991, 0.007816],
+        [0.017176, 0.009021, 0.012615, 0.012459, 0.00758]
+      ],
+      "warmups": [0.019127, 0.009715],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "member-down",
+          "low": null,
+          "high": null,
+          "median": 10.738552,
+          "decision": null
+        },
+        {
+          "stage": "first-write",
+          "low": null,
+          "high": null,
+          "median": 0.013052,
+          "decision": null
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 802,
+          "max": 813
+        },
+        "unknown": {
+          "total": 1,
+          "held": 1
+        },
+        "errors": [],
+        "moved": 0,
+        "stayed": 11
+      }
+    },
+    {
+      "plan": "T11.defaults.11",
+      "catalog": "T11",
+      "name": "partition:partial, the primary cut from the clients, a 20 s stall",
+      "group": "T11",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "recovers",
+        "low": 25.72,
+        "high": 26.969,
+        "window": 36.969,
+        "text": "The algebra predicts that the reply comes back at the seventh firing of the RTO timer. The band is 25.72 s to 26.969 s after the fault. The prediction has no election or write-off of the primary after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 25.716,
+        "high": 26.973
+      },
+      "median": 26.504337,
+      "why": "11 of the 11 counted runs are in the band of 25.716 s to 26.973 s. The median is 26.504 s, and its interval is 26.356 s to 26.787 s.",
+      "runs": [
+        [26.587081, 26.433974, 26.885905, 26.786724, 26.656057, 26.504239],
+        [26.6388, 26.504337, 26.400493, 26.330865, 26.355706]
+      ],
+      "warmups": [26.614459, 26.65698],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "first-write",
+          "low": null,
+          "high": null,
+          "median": 26.521689,
+          "decision": null
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 79,
+          "max": 79
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 0,
+        "stayed": 11
+      }
+    },
+    {
+      "plan": "T11.defaults.12",
+      "catalog": "T11",
+      "name": "partition:simplex, the segments from the primary to one secondary dropped, 40 s",
+      "group": "T11",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.174,
+        "window": null,
+        "text": "The algebra predicts that the first write after the fault lands on the same primary. The band is 0 s to 174 ms after the fault. The prediction has no election or write-off of the primary after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.178
+      },
+      "median": 0.010554,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 178 ms. The median is 10.6 ms, and its interval is 5.62 ms to 57.4 ms.",
+      "runs": [
+        [0.057393, 0.013873, 0.008024, 0.009421, 0.059753, 0.005129],
+        [0.056295, 0.005832, 0.010554, 0.015426, 0.005621]
+      ],
+      "warmups": [0.00768, 0.006317],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "member-down",
+          "low": null,
+          "high": null,
+          "median": 10.797672,
+          "decision": null
+        },
+        {
+          "stage": "first-write",
+          "low": null,
+          "high": null,
+          "median": 0.011198,
+          "decision": null
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 797,
+          "max": 798
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 0,
+        "stayed": 11
+      }
+    },
+    {
+      "plan": "T11.border-off.5",
+      "catalog": "T11",
+      "name": "freeze-process at the primary, 8 s, inside electionTimeoutMillis 10 s",
+      "group": "T11",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 8,
+        "high": 8.114,
+        "window": null,
+        "text": "The algebra predicts that the first write after the fault lands on the same primary. The band is 8 s to 8.114 s after the fault. The prediction has no election after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 7.996,
+        "high": 8.118
+      },
+      "median": 8.005166,
+      "why": "11 of the 11 counted runs are in the band of 7.996 s to 8.118 s. The median is 8.005 s, and its interval is 8.005 s to 8.006 s.",
+      "runs": [
+        [8.004957, 8.004937, 8.005366, 8.005743, 8.008558, 8.005753],
+        [8.005455, 8.004045, 8.005166, 8.004829, 8.004837]
+      ],
+      "warmups": [8.004437, 8.007117],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "first-write",
+          "low": 7.996,
+          "high": 8.12,
+          "median": 8.006385,
+          "decision": "holds"
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 77,
+          "max": 77
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 0,
+        "stayed": 11
+      }
+    },
+    {
+      "plan": "T11.border-off.6",
+      "catalog": "T11",
+      "name": "freeze-process at the primary, 13 s, outside electionTimeoutMillis and its offset",
+      "group": "T11",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 13,
+        "high": 13.262,
+        "window": null,
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 13 s to 13.262 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 12.996,
+        "high": 13.266
+      },
+      "median": 13.063106,
+      "why": "11 of the 11 counted runs are in the band of 12.996 s to 13.266 s. The median is 13.063 s, and its interval is 13.017 s to 13.198 s.",
+      "runs": [
+        [13.020621, 13.138995, 13.214824, 13.198297, 13.020965, 13.012679],
+        [13.019996, 13.063106, 13.138579, 13.017289, 13.186529]
+      ],
+      "warmups": [13.016859, 13.142068],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "member-down",
+          "low": 9.996,
+          "high": 12.026,
+          "median": 10.523953,
+          "decision": "holds"
+        },
+        {
+          "stage": "election-start",
+          "low": 9.836,
+          "high": 11.518,
+          "median": 10.565175,
+          "decision": "holds"
+        },
+        {
+          "stage": "elected",
+          "low": 9.836,
+          "high": 11.642,
+          "median": 10.567175,
+          "decision": "holds"
+        },
+        {
+          "stage": "caught-up",
+          "low": 9.996,
+          "high": 13.018,
+          "median": 11.93429,
+          "decision": "holds"
+        },
+        {
+          "stage": "writable",
+          "low": 9.996,
+          "high": 13.128,
+          "median": 11.936289,
+          "decision": "holds"
+        },
+        {
+          "stage": "old-primary-steps-down",
+          "low": null,
+          "high": null,
+          "median": 13.002133,
+          "decision": null
+        },
+        {
+          "stage": "discovered",
+          "low": 9.996,
+          "high": 13.14,
+          "median": 11.938293,
+          "decision": "holds"
+        },
+        {
+          "stage": "written-off",
+          "low": null,
+          "high": null,
+          "median": 13.018169,
+          "decision": null
+        },
+        {
+          "stage": "first-write",
+          "low": 12.996,
+          "high": 13.268,
+          "median": 13.06336,
+          "decision": "holds"
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 1,
+          "held": 0
+        },
+        "errors": [
+          {
+            "name": "MongoServerError",
+            "runs": 1,
+            "first": 13.010723
+          }
+        ],
+        "moved": 11,
+        "stayed": 0
+      }
+    },
+    {
+      "plan": "T11.border-off.24",
+      "catalog": "T11",
+      "name": "freeze-process at the primary, 60 s, heartbeatFrequencyMS 2000 and connectTimeoutMS 5000: the write-off before the election",
+      "group": "T11",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 10,
+        "high": 21.896,
+        "window": null,
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 10 s to 21.896 s after the fault."
+      },
+      "decision": "fails",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 9.996,
+        "high": 21.9
+      },
+      "median": 18.972041,
+      "why": "8 of the 11 counted runs are in the band of 9.996 s to 21.9 s. The median is 18.972 s, and its interval is 17.957 s to 22.385 s.",
+      "runs": [
+        [17.957392, 22.112022, 18.977764, 19.187098, 17.577494, 18.972041],
+        [17.971358, 23.23009, 17.999978, 17.975687, 22.38523]
+      ],
+      "warmups": [17.403618, 17.833222],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "member-down",
+          "low": 9.996,
+          "high": 12.026,
+          "median": 10.760266,
+          "decision": "holds"
+        },
+        {
+          "stage": "election-start",
+          "low": 9.836,
+          "high": 11.518,
+          "median": 10.440251,
+          "decision": "holds"
+        },
+        {
+          "stage": "elected",
+          "low": 9.836,
+          "high": 11.642,
+          "median": 10.443251,
+          "decision": "holds"
+        },
+        {
+          "stage": "caught-up",
+          "low": 9.996,
+          "high": 21.652,
+          "median": 11.967519,
+          "decision": "holds"
+        },
+        {
+          "stage": "writable",
+          "low": 9.996,
+          "high": 21.762,
+          "median": 11.970519,
+          "decision": "holds"
+        },
+        {
+          "stage": "old-primary-steps-down",
+          "low": null,
+          "high": null,
+          "median": 60.006942,
+          "decision": null
+        },
+        {
+          "stage": "discovered",
+          "low": 9.996,
+          "high": 21.774,
+          "median": 11.972943,
+          "decision": "holds"
+        },
+        {
+          "stage": "written-off",
+          "low": 4.995,
+          "high": 7.017,
+          "median": 6.442731,
+          "decision": "holds"
+        },
+        {
+          "stage": "first-write",
+          "low": 9.996,
+          "high": 21.902,
+          "median": 18.972718,
+          "decision": "fails"
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 11,
+        "stayed": 0
+      }
+    },
+    {
+      "plan": "T11.border-off.31",
+      "catalog": "T11",
+      "name": "blackhole at the primary, 60 s, tcp_retries2 = 5: the kernel gives up before the write-off",
+      "group": "T11",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 12.6,
+        "high": 27.354,
+        "window": null,
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 12.6 s to 27.354 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 12.596,
+        "high": 27.358
+      },
+      "median": 17.251108,
+      "why": "11 of the 11 counted runs are in the band of 12.596 s to 27.358 s. The median is 17.251 s, and its interval is 13.372 s to 19.325 s.",
+      "runs": [
+        [17.441836, 17.251108, 13.37243, 13.295757, 18.263333, 22.774518],
+        [19.306708, 19.325217, 17.101984, 13.646688, 13.424914]
+      ],
+      "warmups": [19.107168, 17.778888],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "member-down",
+          "low": 9.996,
+          "high": 12.026,
+          "median": 11.098279,
+          "decision": "holds"
+        },
+        {
+          "stage": "election-start",
+          "low": 9.836,
+          "high": 11.518,
+          "median": 10.363789,
+          "decision": "holds"
+        },
+        {
+          "stage": "elected",
+          "low": 9.836,
+          "high": 11.642,
+          "median": 10.365789,
+          "decision": "holds"
+        },
+        {
+          "stage": "caught-up",
+          "low": 9.996,
+          "high": 21.652,
+          "median": 11.248447,
+          "decision": "holds"
+        },
+        {
+          "stage": "writable",
+          "low": 9.996,
+          "high": 21.762,
+          "median": 11.250447,
+          "decision": "holds"
+        },
+        {
+          "stage": "old-primary-steps-down",
+          "low": 9.836,
+          "high": 10.018,
+          "median": 9.962053,
+          "decision": "holds"
+        },
+        {
+          "stage": "discovered",
+          "low": 9.996,
+          "high": 21.774,
+          "median": 11.254934,
+          "decision": "holds"
+        },
+        {
+          "stage": "written-off",
+          "low": 29.995,
+          "high": 40.017,
+          "median": 13.367483,
+          "decision": "fails"
+        },
+        {
+          "stage": "first-write",
+          "low": 12.596,
+          "high": 27.36,
+          "median": 17.252237,
+          "decision": "holds"
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 1,
+          "held": 1
+        },
+        "errors": [],
+        "moved": 11,
+        "stayed": 0
+      }
+    },
+    {
+      "plan": "T11.border-off.32",
+      "catalog": "T11",
+      "name": "blackhole at the primary, 60 s, tcp_retries2 = 7: the write-off comes first",
+      "group": "T11",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 29.999,
+        "high": 40.149,
+        "window": null,
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 29.999 s to 40.149 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 29.995,
+        "high": 40.153
+      },
+      "median": 39.456586,
+      "why": "11 of the 11 counted runs are in the band of 29.995 s to 40.153 s. The median is 39.457 s, and its interval is 39.446 s to 39.465 s.",
+      "runs": [
+        [39.46179, 39.450031, 39.465458, 39.457998, 39.453393, 39.456586],
+        [39.461458, 39.469719, 39.442176, 39.445969, 39.450407]
+      ],
+      "warmups": [39.455199, 39.448569],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "member-down",
+          "low": 9.996,
+          "high": 12.026,
+          "median": 10.455951,
+          "decision": "holds"
+        },
+        {
+          "stage": "election-start",
+          "low": 9.836,
+          "high": 11.518,
+          "median": 10.440194,
+          "decision": "holds"
+        },
+        {
+          "stage": "elected",
+          "low": 9.836,
+          "high": 11.642,
+          "median": 10.442193,
+          "decision": "holds"
+        },
+        {
+          "stage": "caught-up",
+          "low": 9.996,
+          "high": 21.652,
+          "median": 11.632194,
+          "decision": "holds"
+        },
+        {
+          "stage": "writable",
+          "low": 9.996,
+          "high": 21.762,
+          "median": 11.634193,
+          "decision": "holds"
+        },
+        {
+          "stage": "old-primary-steps-down",
+          "low": 9.836,
+          "high": 10.018,
+          "median": 9.963951,
+          "decision": "holds"
+        },
+        {
+          "stage": "discovered",
+          "low": 9.996,
+          "high": 21.774,
+          "median": 11.637449,
+          "decision": "holds"
+        },
+        {
+          "stage": "written-off",
+          "low": 29.995,
+          "high": 40.017,
+          "median": 39.45173,
+          "decision": "holds"
+        },
+        {
+          "stage": "first-write",
+          "low": 29.995,
+          "high": 40.155,
+          "median": 39.45686,
+          "decision": "holds"
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 11,
+        "stayed": 0
+      }
+    },
+    {
+      "plan": "T11.border-off.39",
+      "catalog": "T11",
+      "name": "freeze-process at the primary, 29 s, inside the write-off",
+      "group": "T11",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 29,
+        "high": 29.252,
+        "window": null,
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 29 s to 29.252 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 28.996,
+        "high": 29.256
+      },
+      "median": 29.024543,
+      "why": "11 of the 11 counted runs are in the band of 28.996 s to 29.256 s. The median is 29.025 s, and its interval is 29.019 s to 29.027 s.",
+      "runs": [
+        [29.028721, 29.0186, 29.022977, 29.026363, 29.024543, 29.025408],
+        [29.01929, 29.025799, 29.026744, 29.020521, 29.022256]
+      ],
+      "warmups": [29.026866, 29.019165],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "member-down",
+          "low": 9.996,
+          "high": 12.026,
+          "median": 10.611965,
+          "decision": "holds"
+        },
+        {
+          "stage": "election-start",
+          "low": 9.836,
+          "high": 11.518,
+          "median": 10.388509,
+          "decision": "holds"
+        },
+        {
+          "stage": "elected",
+          "low": 9.836,
+          "high": 11.642,
+          "median": 10.390509,
+          "decision": "holds"
+        },
+        {
+          "stage": "caught-up",
+          "low": 9.996,
+          "high": 21.652,
+          "median": 10.703894,
+          "decision": "holds"
+        },
+        {
+          "stage": "writable",
+          "low": 9.996,
+          "high": 21.762,
+          "median": 10.706894,
+          "decision": "holds"
+        },
+        {
+          "stage": "old-primary-steps-down",
+          "low": null,
+          "high": null,
+          "median": 29.007206,
+          "decision": null
+        },
+        {
+          "stage": "discovered",
+          "low": 9.996,
+          "high": 21.774,
+          "median": 10.70875,
+          "decision": "holds"
+        },
+        {
+          "stage": "written-off",
+          "low": null,
+          "high": null,
+          "median": 29.025685,
+          "decision": null
+        },
+        {
+          "stage": "first-write",
+          "low": 28.996,
+          "high": 29.258,
+          "median": 29.026916,
+          "decision": "holds"
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 1,
+          "held": 1
+        },
+        "errors": [],
+        "moved": 11,
+        "stayed": 0
+      }
+    },
+    {
+      "plan": "T11.border-off.40",
+      "catalog": "T11",
+      "name": "freeze-process at the primary, 41 s, outside the write-off",
+      "group": "T11",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 29.999,
+        "high": 40.149,
+        "window": null,
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 29.999 s to 40.149 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 29.995,
+        "high": 40.153
+      },
+      "median": 39.460916,
+      "why": "11 of the 11 counted runs are in the band of 29.995 s to 40.153 s. The median is 39.461 s, and its interval is 39.457 s to 39.48 s.",
+      "runs": [
+        [39.478269, 39.456929, 39.45862, 39.458018, 39.460916, 39.463381],
+        [39.45658, 39.421023, 39.484669, 39.479571, 39.477605]
+      ],
+      "warmups": [39.481142, 39.459984],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "member-down",
+          "low": 9.996,
+          "high": 12.026,
+          "median": 10.426608,
+          "decision": "holds"
+        },
+        {
+          "stage": "election-start",
+          "low": 9.836,
+          "high": 11.518,
+          "median": 10.299899,
+          "decision": "holds"
+        },
+        {
+          "stage": "elected",
+          "low": 9.836,
+          "high": 11.642,
+          "median": 10.300899,
+          "decision": "holds"
+        },
+        {
+          "stage": "caught-up",
+          "low": 9.996,
+          "high": 21.652,
+          "median": 11.565373,
+          "decision": "holds"
+        },
+        {
+          "stage": "writable",
+          "low": 9.996,
+          "high": 21.762,
+          "median": 11.567373,
+          "decision": "holds"
+        },
+        {
+          "stage": "old-primary-steps-down",
+          "low": null,
+          "high": null,
+          "median": 41.002914,
+          "decision": null
+        },
+        {
+          "stage": "discovered",
+          "low": 9.996,
+          "high": 21.774,
+          "median": 11.569858,
+          "decision": "holds"
+        },
+        {
+          "stage": "written-off",
+          "low": 29.995,
+          "high": 40.017,
+          "median": 39.455512,
+          "decision": "holds"
+        },
+        {
+          "stage": "first-write",
+          "low": 29.995,
+          "high": 40.155,
+          "median": 39.461313,
+          "decision": "holds"
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 11,
+        "stayed": 0
+      }
+    },
+    {
+      "plan": "T11.border-off.48",
+      "catalog": "T11",
+      "name": "freeze-process at the primary, 90 s, the tuned write-off, electionTimeoutMillis 40000: the retry's selection times out first",
+      "group": "T11",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 39.84,
+        "high": 56.396,
+        "window": null,
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 39.84 s to 56.396 s after the fault. The client meets MongoServerSelectionError 34.999 s to 37.031 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 39.836,
+        "high": 56.4
+      },
+      "median": 48.082641,
+      "why": "11 of the 11 counted runs are in the band of 39.836 s to 56.4 s. The median is 48.083 s, and its interval is 47.001 s to 52.525 s.",
+      "runs": [
+        [48.082641, 47.001196, 48.194228, 47.278817, 48.577146, 46.604187],
+        [48.121421, 47.640289, 52.525023, 47.015169, 55.216989]
+      ],
+      "warmups": [47.340286, 47.418009],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "member-down",
+          "low": 9.996,
+          "high": 12.026,
+          "median": 10.534158,
+          "decision": "holds"
+        },
+        {
+          "stage": "election-start",
+          "low": 39.836,
+          "high": 46.018,
+          "median": 42.966436,
+          "decision": "holds"
+        },
+        {
+          "stage": "elected",
+          "low": 39.836,
+          "high": 46.142,
+          "median": 42.968436,
+          "decision": "holds"
+        },
+        {
+          "stage": "caught-up",
+          "low": 39.836,
+          "high": 56.152,
+          "median": 46.079782,
+          "decision": "holds"
+        },
+        {
+          "stage": "writable",
+          "low": 39.836,
+          "high": 56.262,
+          "median": 46.082782,
+          "decision": "holds"
+        },
+        {
+          "stage": "old-primary-steps-down",
+          "low": null,
+          "high": null,
+          "median": 90.008366,
+          "decision": null
+        },
+        {
+          "stage": "discovered",
+          "low": 39.836,
+          "high": 56.274,
+          "median": 46.085579,
+          "decision": "holds"
+        },
+        {
+          "stage": "written-off",
+          "low": 4.995,
+          "high": 7.017,
+          "median": 6.438661,
+          "decision": "holds"
+        },
+        {
+          "stage": "first-write",
+          "low": 39.836,
+          "high": 56.402,
+          "median": 48.08328,
+          "decision": "holds"
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 11,
+          "held": 0
+        },
+        "errors": [
+          {
+            "name": "MongoServerSelectionError",
+            "runs": 11,
+            "first": 36.440851
+          }
+        ],
+        "moved": 11,
+        "stayed": 0
+      }
+    },
+    {
+      "plan": "T11.border-off.66",
+      "catalog": "T11",
+      "name": "partition:complete, the primary cut from the other members, 40 s, writes with w 1",
+      "group": "T11",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 10,
+        "high": 21.896,
+        "window": null,
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 10 s to 21.896 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 9.996,
+        "high": 21.9
+      },
+      "median": 11.808194,
+      "why": "11 of the 11 counted runs are in the band of 9.996 s to 21.9 s. The median is 11.808 s, and its interval is 11.294 s to 21.129 s.",
+      "runs": [
+        [11.29362, 11.633503, 10.579159, 20.629968, 20.986696, 21.045159],
+        [11.791835, 11.615003, 21.129432, 21.46947, 11.808194]
+      ],
+      "warmups": [11.25369, 10.150188],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "member-down",
+          "low": 9.996,
+          "high": 12.026,
+          "median": 10.657279,
+          "decision": "holds"
+        },
+        {
+          "stage": "election-start",
+          "low": 9.836,
+          "high": 11.518,
+          "median": 10.821919,
+          "decision": "holds"
+        },
+        {
+          "stage": "elected",
+          "low": 9.836,
+          "high": 11.642,
+          "median": 10.823918,
+          "decision": "holds"
+        },
+        {
+          "stage": "caught-up",
+          "low": 9.996,
+          "high": 21.652,
+          "median": 11.800625,
+          "decision": "holds"
+        },
+        {
+          "stage": "writable",
+          "low": 9.996,
+          "high": 21.762,
+          "median": 11.802625,
+          "decision": "holds"
+        },
+        {
+          "stage": "old-primary-steps-down",
+          "low": 9.836,
+          "high": 10.018,
+          "median": 9.963472,
+          "decision": "holds"
+        },
+        {
+          "stage": "discovered",
+          "low": 9.996,
+          "high": 21.774,
+          "median": 11.804253,
+          "decision": "holds"
+        },
+        {
+          "stage": "written-off",
+          "low": null,
+          "high": null,
+          "median": 41.415754,
+          "decision": null
+        },
+        {
+          "stage": "first-write",
+          "low": 9.996,
+          "high": 21.902,
+          "median": 11.80839,
+          "decision": "holds"
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 2147,
+          "median": 195,
+          "max": 196
+        },
+        "old": {
+          "median": 195,
+          "max": 196
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 11,
+        "stayed": 0
+      }
+    },
+    {
+      "plan": "T11.border-off.68",
+      "catalog": "T11",
+      "name": "partition:complete, the primary cut from the other members, 40 s, catchUpTimeoutMillis 0",
+      "group": "T11",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 9.84,
+        "high": 11.886,
+        "window": null,
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 9.84 s to 11.886 s after the fault."
+      },
+      "decision": "fails",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 9.836,
+        "high": 11.89
+      },
+      "median": 11.257602,
+      "why": "6 of the 11 counted runs are in the band of 9.836 s to 11.89 s. The median is 11.258 s, and its interval is 10.465 s to 18.679 s.",
+      "runs": [
+        [18.797454, 18.006457, 10.540675, 10.387177, 18.343454, 18.164855],
+        [10.85272, 18.678798, 10.4647, 11.257602, 10.506987]
+      ],
+      "warmups": [18.97766, 18.969981],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "member-down",
+          "low": 9.996,
+          "high": 12.026,
+          "median": 10.690984,
+          "decision": "holds"
+        },
+        {
+          "stage": "election-start",
+          "low": 9.836,
+          "high": 11.518,
+          "median": 10.492983,
+          "decision": "holds"
+        },
+        {
+          "stage": "elected",
+          "low": 9.836,
+          "high": 11.642,
+          "median": 10.494982,
+          "decision": "holds"
+        },
+        {
+          "stage": "caught-up",
+          "low": 9.836,
+          "high": 11.642,
+          "median": 10.495983,
+          "decision": "holds"
+        },
+        {
+          "stage": "writable",
+          "low": 9.836,
+          "high": 11.752,
+          "median": 10.499983,
+          "decision": "holds"
+        },
+        {
+          "stage": "old-primary-steps-down",
+          "low": 9.836,
+          "high": 10.018,
+          "median": 9.966541,
+          "decision": "holds"
+        },
+        {
+          "stage": "discovered",
+          "low": 9.836,
+          "high": 11.764,
+          "median": 10.503051,
+          "decision": "holds"
+        },
+        {
+          "stage": "written-off",
+          "low": null,
+          "high": null,
+          "median": 41.151097,
+          "decision": null
+        },
+        {
+          "stage": "first-write",
+          "low": 9.836,
+          "high": 11.892,
+          "median": 11.258048,
+          "decision": "fails"
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 11,
+        "stayed": 0
+      }
+    }
+  ]
+}

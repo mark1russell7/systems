@@ -1,20 +1,13 @@
 import type { StartedTestContainer } from "testcontainers";
 import { harnessImage } from "@mark1russell7/harness";
+import type { Quantity } from "@mark1russell7/quantity";
+import { valueIn } from "@mark1russell7/quantity";
 import type { ServiceRule } from "./backends.ts";
 import type { Cluster } from "./cluster.ts";
 import { command } from "./cluster.ts";
+import type { Line } from "./observe.ts";
 
-/**
- * A line is one JSON line of a source of a run, with its stamp `t` in milliseconds on
- * CLOCK_MONOTONIC. It is a request of a client, a record of the service or a probe answer. It is
- * also a pod, an EndpointSlice or an event of the API. Or it is the backends of the rules of a
- * node, a kernel record, or an act of the lab.
- */
-export interface Line {
-  readonly ev: string;
-  readonly t: number;
-  readonly [field: string]: unknown;
-}
+export type { Line } from "./observe.ts";
 
 /** A stamp brackets an act on CLOCK_MONOTONIC, in milliseconds. */
 export interface Stamp {
@@ -23,7 +16,7 @@ export interface Stamp {
 }
 
 /** These kinds of kernel record stay in the raw record of a run. The lab counts the other kinds and drops them. */
-export const KEPT_KERNEL = new Set(["rst_tx", "rst_rx", "rst_v4", "error", "retrans", "begin", "fail"]);
+export const KEPT_KERNEL: ReadonlySet<string> = new Set(["rst_tx", "rst_rx", "rst_v4", "error", "retrans", "begin", "fail"]);
 
 /** These are the sidecars of one node: the agent of the lab and the injector of the harness, in the PID namespace of the node. */
 interface Sidecars {
@@ -48,8 +41,8 @@ export interface KindLab {
   watch(namespaces: readonly string[]): Promise<void>;
   probe(netns: readonly number[]): Promise<void>;
   stopProbe(): Promise<void>;
-  /** This method asks each agent to poll the backends of a Service in the rules of its node, or to stop with null. */
-  rules(rule: (ServiceRule & { readonly every: number }) | null): Promise<void>;
+  /** This method asks each agent to poll the backends of a Service in the rules of its node, `every` apart, or to stop with null. */
+  rules(rule: (ServiceRule & { readonly every: Quantity }) | null): Promise<void>;
   act(node: string, spec: Readonly<Record<string, unknown>>): Promise<Stamp>;
   inject(node: string, pid: number, args: readonly string[]): Promise<Stamp>;
   now(): Promise<number>;
@@ -215,9 +208,11 @@ export const openKindLab = async (cluster: Cluster, image: string): Promise<Kind
       prober = null;
     },
     async rules(rule) {
+      // the agent reads the interval of its poll in milliseconds
+      const file = rule === null ? null : JSON.stringify({ ...rule, every: valueIn(rule.every, "ms") });
       for (const { agent } of sidecars.values()) {
-        if (rule === null) await output(agent, ["rm", "-f", "/tmp/rules.json"]);
-        else await output(agent, ["sh", "-c", `printf '%s' '${JSON.stringify(rule)}' > /tmp/rules.json`]);
+        if (file === null) await output(agent, ["rm", "-f", "/tmp/rules.json"]);
+        else await output(agent, ["sh", "-c", `printf '%s' '${file}' > /tmp/rules.json`]);
       }
     },
     async act(node, spec) {

@@ -1,10 +1,20 @@
-import type { Line } from "./lab.ts";
-
 /**
  * This module reads a run from its lines. Each time is in milliseconds on CLOCK_MONOTONIC. All the
  * containers of the VM share that clock: the clients, the service, the agents, the injector, the
  * watcher and the prober.
  */
+
+/**
+ * A line is one JSON line of a source of a run, with its stamp `t` in milliseconds on
+ * CLOCK_MONOTONIC. It is a request of a client, a record of the service or a probe answer. It is
+ * also a pod, an EndpointSlice or an event of the API. Or it is the backends of the rules of a
+ * node, a kernel record, or an act of the lab. A record keeps each line as its source wrote it.
+ */
+export interface Line {
+  readonly ev: string;
+  readonly t: number;
+  readonly [field: string]: unknown;
+}
 
 /** A request is one request of a client: its start, its duration in ms, its outcome, its client and the node of the client. */
 export interface Request {

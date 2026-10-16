@@ -1,5 +1,7 @@
-import type { KindCell, Prediction } from "@systems/kind";
-import { kubeletBand, latchBand, removalBand, restartBand, showBand, stallRemovalBand } from "@systems/kind";
+import type { Band, KindCell, Prediction } from "@mark1russell7/kind";
+import { kubeletBand, latchBand, removalBand, restartBand, showBand, stallRemovalBand } from "@mark1russell7/kind";
+import type { Quantity } from "@mark1russell7/quantity";
+import { valueIn } from "@mark1russell7/quantity";
 import { DESIGN_REDIS, KUBE_PROBE, PROPAGATION, WORKERS, WORKLOAD, kubeDefaults, s } from "./kind.ts";
 
 /**
@@ -37,7 +39,7 @@ const base: Omit<KindCell, "id" | "name" | "trigger" | "prediction"> = {
 };
 
 /** This function gives a removal of each replica, and the hold of a fault: the end of the band and 5 s. */
-const removal = (latch: { lo: number; hi: number }, how: string): { prediction: Prediction; hold: number } => {
+const removal = (latch: Band, how: string): { prediction: Prediction; hold: Quantity } => {
   const band = removalBand(latch, KUBE_PROBE, E);
   return {
     prediction: {
@@ -45,7 +47,7 @@ const removal = (latch: { lo: number; hi: number }, how: string): { prediction: 
       band,
       why: `the latch trips in ${showBand(latch)} (${how}), the kubelet needs 3 probes 10 s apart, then the propagation: the Service is empty in ${showBand(band)}`,
     },
-    hold: Math.ceil(band.hi) + 5,
+    hold: s(Math.ceil(valueIn(band.hi, "s")) + 5),
   };
 };
 
@@ -60,21 +62,21 @@ export const T18_CELLS: readonly KindCell[] = [
     ...base,
     id: "T18.defaults.1",
     name: "T18 rst from Redis to each replica, the round trip gates readiness",
-    trigger: { kind: "rst", hold: s(refused.hold) },
+    trigger: { kind: "rst", hold: refused.hold },
     prediction: refused.prediction,
   },
   {
     ...base,
     id: "T18.defaults.10",
     name: "T18 Redis frozen with SIGSTOP, the round trip gates readiness",
-    trigger: { kind: "freeze-process", hold: s(quiet.hold) },
+    trigger: { kind: "freeze-process", hold: quiet.hold },
     prediction: quiet.prediction,
   },
   {
     ...base,
     id: "T18.defaults.11",
     name: "T18 blackhole between Redis and each replica, the round trip gates readiness",
-    trigger: { kind: "blackhole", hold: s(quiet.hold) },
+    trigger: { kind: "blackhole", hold: quiet.hold },
     prediction: quiet.prediction,
   },
   {
@@ -82,7 +84,7 @@ export const T18_CELLS: readonly KindCell[] = [
     declaration: { ...DESIGN_REDIS, redis: { ...DESIGN_REDIS.redis!, gates: null } },
     id: "T18.defaults.11",
     name: "T18 blackhole between Redis and each replica, the round trip gates nothing",
-    trigger: { kind: "blackhole", hold: s(quiet.hold) },
+    trigger: { kind: "blackhole", hold: quiet.hold },
     prediction: {
       kind: "stays",
       why: "no check gates readiness on Redis: each replica stays ready, degraded, and each request that needs Redis fails by itself",
@@ -92,7 +94,7 @@ export const T18_CELLS: readonly KindCell[] = [
     ...base,
     id: "T18.defaults.5",
     name: "T18 Redis gone without a close, the round trip gates readiness",
-    trigger: { kind: "peer-gone-without-close", hold: s(quiet.hold) },
+    trigger: { kind: "peer-gone-without-close", hold: quiet.hold },
     prediction: quiet.prediction,
   },
   {
@@ -118,7 +120,7 @@ export const T18_CELLS: readonly KindCell[] = [
     declaration: { ...DESIGN_REDIS, couplings: [...DESIGN_REDIS.couplings, { from: "readiness", to: "liveness", effect: "fails" }] },
     id: "T18.defaults.6",
     name: "T18 blackhole of Redis, readiness fails liveness",
-    trigger: { kind: "blackhole", hold: s(Math.ceil(restart.hi) + 5) },
+    trigger: { kind: "blackhole", hold: s(Math.ceil(valueIn(restart.hi, "s")) + 5) },
     prediction: {
       kind: "restarts",
       band: restart,
@@ -139,7 +141,7 @@ export const T18_CELLS: readonly KindCell[] = [
     ...base,
     id: "T18.defaults.9",
     name: "T18 cpu.max of one replica at 1 ms in each 1 s for 40 s",
-    trigger: { kind: "cpu-throttle", hold: s(40), cpuMax: { quota: 1000, period: 1_000_000 } },
+    trigger: { kind: "cpu-throttle", hold: s(40), cpuMax: { quota: { value: 1000, unit: "us" }, period: { value: 1_000_000, unit: "us" } } },
     prediction: {
       kind: "measured",
       why: "the quota bounds the stall in each period (0.999 s), not the CPU that the replica needs: a probe meets its 1 s deadline or not by that need",

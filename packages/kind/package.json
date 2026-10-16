@@ -1,32 +1,94 @@
 {
   "$schema": "https://json.schemastore.org/package",
-  "name": "@systems/kind",
+  "name": "@mark1russell7/kind",
   "version": "0.1.0",
-  "private": true,
-  "description": "Kubernetes in Docker as an environment of the systems program: a kind cluster from a scenario, faults in the namespaces of its pods, observations on the one monotonic clock of the VM, and predictions from the ordering law.",
+  "description": "Kubernetes in Docker as a lab for connection timers: a kind cluster from a scenario, faults in the namespaces of its pods, observations on the one monotonic clock of the VM, and predictions from the ordering law. Its judge entry reads and judges a raw record without Docker.",
+  "keywords": [
+    "kubernetes",
+    "kind",
+    "kube-proxy",
+    "endpoints",
+    "readiness",
+    "graceful-shutdown",
+    "fault-injection",
+    "chaos-engineering",
+    "testcontainers"
+  ],
+  "homepage": "https://mark1russell7.github.io/systems/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mark1russell7/systems.git",
+    "directory": "packages/kind"
+  },
+  "bugs": {
+    "url": "https://github.com/mark1russell7/systems/issues"
+  },
+  "license": "MIT",
+  "author": "Mark Russell (https://github.com/mark1russell7)",
   "type": "module",
+  "sideEffects": false,
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./judge": "./src/judge.ts",
     "./package.json": "./package.json"
   },
+  "files": [
+    "build",
+    "image/Dockerfile",
+    "image/package.json",
+    "image/npm-lock.json",
+    "image/app.mjs",
+    "image/client.mjs",
+    "image/agent.mjs",
+    "image/watch.mjs",
+    "src/compose.ts",
+    "src/backends.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.19"
+  },
   "scripts": {
+    "build": "tsdown",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit --emitDeclarationOnly false && tsc -p tsconfig.test.json",
+    "prepublishOnly": "node ../../scripts/publish-guard.mjs && pnpm build"
   },
   "dependencies": {
     "@mark1russell7/harness": "workspace:^",
     "@mark1russell7/quantity": "workspace:^",
     "@mark1russell7/service": "workspace:^",
-    "testcontainers": "12.2.0",
-    "zod": "^4.6.6"
+    "testcontainers": "12.2.0"
+  },
+  "peerDependencies": {
+    "zod": "^4.1.0"
   },
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue",
     "@types/node": "^26.6.4",
+    "tsdown": "^0.23.1",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "zod": "^4.6.6"
+  },
+  "publishConfig": {
+    "access": "public",
+    "main": "./build/index.js",
+    "types": "./build/index.d.ts",
+    "exports": {
+      ".": {
+        "types": "./build/index.d.ts",
+        "default": "./build/index.js"
+      },
+      "./judge": {
+        "types": "./build/judge.d.ts",
+        "default": "./build/judge.js"
+      },
+      "./package.json": "./package.json"
+    }
   }
 }

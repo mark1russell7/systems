@@ -1,0 +1,1384 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again by the harness. A re-run replaces the first run of its cell",
+  "ranAt": "2026-10-16",
+  "units": "s",
+  "noise": 0.004,
+  "runs": 11,
+  "kernel": "6.17.0",
+  "hz": 1000,
+  "target": "valkey/valkey:9.1",
+  "quorum": 2,
+  "stampBound": 0.002,
+  "stamps": {
+    "count": 397,
+    "median": 0.000208,
+    "p99": 0.000552,
+    "max": 0.000705
+  },
+  "cells": [
+    {
+      "plan": "T12.defaults.1",
+      "catalog": "T12",
+      "name": "partition:partial, the primary cut from the Sentinels and the replicas, its clients with it, 40 s",
+      "group": "defaults",
+      "fault": "partition",
+      "at": "primary",
+      "cuts": "group",
+      "hold": 40,
+      "downAfter": 30,
+      "lands": "new",
+      "prediction": {
+        "kind": "measured",
+        "low": null,
+        "high": null,
+        "window": 120,
+        "text": "This cell has no band. This cell is a split brain. The client stays on the old primary while the fault holds, because ioredis has no timer for the group. After the lift, the old primary becomes a replica again only when a Sentinel reaches it. That occurs on the SYN backoff of its kernel, from a time that no document gives. The harness measures the time from the fault to the first write that succeeds."
+      },
+      "decision": "measured",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": 52.855355,
+      "why": "The median is 52.855 s from the fault, and the counted runs measured 52.612 s to 53.234 s.",
+      "runs": [
+        [52.936798, 53.121742, 53.195033, 52.886426, 52.705624, 52.845846],
+        [52.830513, 52.62964, 52.612101, 53.23426, 52.855355]
+      ],
+      "warmups": [53.076944, 52.919471],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "+sdown",
+          "low": 29.997,
+          "high": 31.207,
+          "median": 30.203249,
+          "decision": "holds"
+        },
+        {
+          "stage": "+odown",
+          "low": 29.997,
+          "high": 31.309,
+          "median": 30.376172,
+          "decision": "holds"
+        },
+        {
+          "stage": "+try-failover",
+          "low": null,
+          "high": null,
+          "median": 30.37622,
+          "decision": null
+        },
+        {
+          "stage": "+elected-leader",
+          "low": 30.049,
+          "high": 31.413,
+          "median": 30.443252,
+          "decision": "holds"
+        },
+        {
+          "stage": "+selected-slave",
+          "low": 30.101,
+          "high": 31.513,
+          "median": 30.514709,
+          "decision": "holds"
+        },
+        {
+          "stage": "+promoted-slave",
+          "low": 30.153,
+          "high": 32.717,
+          "median": 31.403845,
+          "decision": "holds"
+        },
+        {
+          "stage": "+switch-master",
+          "low": 30.153,
+          "high": 32.819,
+          "median": 31.486667,
+          "decision": "holds"
+        },
+        {
+          "stage": "+convert-to-slave",
+          "low": null,
+          "high": null,
+          "median": 52.718318,
+          "decision": null
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 11462,
+          "median": 1042,
+          "max": 1048
+        },
+        "old": {
+          "median": 1042,
+          "max": 1048
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [
+          {
+            "name": "ECONNRESET",
+            "runs": 1,
+            "first": 52.707557
+          }
+        ],
+        "moved": 11,
+        "stayed": 0
+      },
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T12.defaults.1",
+      "catalog": "T12",
+      "name": "partition:partial, the primary cut from the clients, a 40 s stall",
+      "group": "defaults",
+      "fault": "partition",
+      "at": "primary",
+      "cuts": "clients",
+      "hold": null,
+      "downAfter": 30,
+      "lands": "same",
+      "prediction": {
+        "kind": "recovers",
+        "low": 51.447,
+        "high": 53.209,
+        "window": 63.209,
+        "text": "The algebra predicts that a write of the client succeeds again 51.447 s to 53.209 s after the fault. The Sentinels see a live primary, thus no failover occurs. The reply comes at the first retransmission after the heal, the eighth firing of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 51.443,
+        "high": 53.213
+      },
+      "median": 52.727413,
+      "why": "11 of the 11 counted runs are in the band of 51.443 s to 53.213 s. The median is 52.727 s, and its interval is 52.546 s to 52.908 s.",
+      "runs": [
+        [52.932589, 52.872627, 52.773971, 52.727413, 52.575601, 52.510006],
+        [52.700027, 52.642671, 52.545699, 52.908196, 52.830673]
+      ],
+      "warmups": [52.592164, 52.852141],
+      "voids": null,
+      "stages": [],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 40,
+          "max": 41
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 0,
+        "stayed": 11
+      },
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T12.defaults.6",
+      "catalog": "T12",
+      "name": "blackhole at the primary, 40 s",
+      "group": "defaults",
+      "fault": "blackhole",
+      "at": "primary",
+      "cuts": null,
+      "hold": 40,
+      "downAfter": 30,
+      "lands": "new",
+      "prediction": {
+        "kind": "measured",
+        "low": null,
+        "high": null,
+        "window": 120,
+        "text": "This cell has no band. The client stays on the old primary while the fault holds, because ioredis has no timer for the group. After the lift, the old primary becomes a replica again only when a Sentinel reaches it. That occurs on the SYN backoff of its kernel, from a time that no document gives. The harness measures the time from the fault to the first write that succeeds."
+      },
+      "decision": "measured",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": 52.858309,
+      "why": "The median is 52.858 s from the fault, and the counted runs measured 50.247 s to 53.112 s.",
+      "runs": [
+        [50.466284, 52.865684, 53.003445, 52.90974, 52.708369, 53.112014],
+        [52.858309, 52.755707, 50.246931, 52.899006, 52.592045]
+      ],
+      "warmups": [50.447732, 52.873196],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "+sdown",
+          "low": 29.997,
+          "high": 31.207,
+          "median": 30.304396,
+          "decision": "holds"
+        },
+        {
+          "stage": "+odown",
+          "low": 29.997,
+          "high": 31.309,
+          "median": 30.392148,
+          "decision": "holds"
+        },
+        {
+          "stage": "+try-failover",
+          "low": null,
+          "high": null,
+          "median": 30.392227,
+          "decision": null
+        },
+        {
+          "stage": "+elected-leader",
+          "low": 30.049,
+          "high": 31.413,
+          "median": 30.450668,
+          "decision": "holds"
+        },
+        {
+          "stage": "+selected-slave",
+          "low": 30.101,
+          "high": 31.513,
+          "median": 30.522156,
+          "decision": "holds"
+        },
+        {
+          "stage": "+promoted-slave",
+          "low": 30.153,
+          "high": 32.717,
+          "median": 31.43537,
+          "decision": "holds"
+        },
+        {
+          "stage": "+switch-master",
+          "low": 30.153,
+          "high": 32.819,
+          "median": 31.515357,
+          "decision": "holds"
+        },
+        {
+          "stage": "+convert-to-slave",
+          "low": null,
+          "high": null,
+          "median": 52.686414,
+          "decision": null
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 17,
+          "median": 0,
+          "max": 6
+        },
+        "old": {
+          "median": 0,
+          "max": 6
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 11,
+        "stayed": 0
+      },
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T12.defaults.7",
+      "catalog": "T12",
+      "name": "freeze-process at the primary, 40 s",
+      "group": "defaults",
+      "fault": "freeze-process",
+      "at": "primary",
+      "cuts": null,
+      "hold": 40,
+      "downAfter": 30,
+      "lands": "new",
+      "prediction": {
+        "kind": "detects",
+        "low": 50.05,
+        "high": 50.403,
+        "window": null,
+        "text": "The algebra predicts that a write of the client succeeds again 50.05 s to 50.403 s after the fault. The Sentinels fail over. After the thaw, they make the old primary a replica, and that closes the connection of the client. Then ioredis connects to the new primary."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 50.046,
+        "high": 50.407
+      },
+      "median": 50.197044,
+      "why": "11 of the 11 counted runs are in the band of 50.046 s to 50.407 s. The median is 50.197 s, and its interval is 50.104 s to 50.249 s.",
+      "runs": [
+        [50.249466, 50.104354, 50.140617, 50.145419, 50.217266, 50.2298],
+        [50.076995, 50.265053, 50.237259, 50.120154, 50.197044]
+      ],
+      "warmups": [50.263739, 50.265039],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "+sdown",
+          "low": 29.997,
+          "high": 31.207,
+          "median": 30.317391,
+          "decision": "holds"
+        },
+        {
+          "stage": "+odown",
+          "low": 29.997,
+          "high": 31.309,
+          "median": 30.333321,
+          "decision": "holds"
+        },
+        {
+          "stage": "+try-failover",
+          "low": null,
+          "high": null,
+          "median": 30.333392,
+          "decision": null
+        },
+        {
+          "stage": "+elected-leader",
+          "low": 30.049,
+          "high": 31.413,
+          "median": 30.392364,
+          "decision": "holds"
+        },
+        {
+          "stage": "+selected-slave",
+          "low": 30.101,
+          "high": 31.513,
+          "median": 30.47559,
+          "decision": "holds"
+        },
+        {
+          "stage": "+promoted-slave",
+          "low": 30.153,
+          "high": 32.717,
+          "median": 31.339077,
+          "decision": "holds"
+        },
+        {
+          "stage": "+switch-master",
+          "low": 30.153,
+          "high": 32.819,
+          "median": 31.425447,
+          "decision": "holds"
+        },
+        {
+          "stage": "+convert-to-slave",
+          "low": null,
+          "high": null,
+          "median": 50.03123,
+          "decision": null
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 2188,
+          "median": 199,
+          "max": 200
+        },
+        "old": {
+          "median": 199,
+          "max": 200
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 11,
+        "stayed": 0
+      },
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T12.defaults.8",
+      "catalog": "T12",
+      "name": "fin at the primary",
+      "group": "defaults",
+      "fault": "fin",
+      "at": "primary",
+      "cuts": null,
+      "hold": null,
+      "downAfter": 30,
+      "lands": "new",
+      "prediction": {
+        "kind": "detects",
+        "low": 31.35,
+        "high": 39.347,
+        "window": null,
+        "text": "The algebra predicts that a write of the client succeeds again 31.35 s to 39.347 s after the fault. The Sentinels fail over. Then the reconnect ladder of ioredis finds the new primary."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 31.346,
+        "high": 39.351
+      },
+      "median": 32.554128,
+      "why": "11 of the 11 counted runs are in the band of 31.346 s to 39.351 s. The median is 32.554 s, and its interval is 32.368 s to 32.736 s.",
+      "runs": [
+        [32.580396, 32.554128, 32.533251, 32.368066, 32.736257, 32.736547],
+        [32.612107, 32.37468, 32.351875, 32.496375, 32.582134]
+      ],
+      "warmups": [32.496059, 32.45441],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "+sdown",
+          "low": 29.997,
+          "high": 30.209,
+          "median": 30.051842,
+          "decision": "holds"
+        },
+        {
+          "stage": "+odown",
+          "low": 29.997,
+          "high": 30.311,
+          "median": 30.051907,
+          "decision": "holds"
+        },
+        {
+          "stage": "+try-failover",
+          "low": null,
+          "high": null,
+          "median": 30.051936,
+          "decision": null
+        },
+        {
+          "stage": "+elected-leader",
+          "low": 30.049,
+          "high": 30.415,
+          "median": 30.127573,
+          "decision": "holds"
+        },
+        {
+          "stage": "+selected-slave",
+          "low": 30.101,
+          "high": 30.515,
+          "median": 30.195465,
+          "decision": "holds"
+        },
+        {
+          "stage": "+promoted-slave",
+          "low": 30.153,
+          "high": 31.719,
+          "median": 31.129742,
+          "decision": "holds"
+        },
+        {
+          "stage": "+switch-master",
+          "low": 30.153,
+          "high": 31.821,
+          "median": 31.205188,
+          "decision": "holds"
+        },
+        {
+          "stage": "+convert-to-slave",
+          "low": null,
+          "high": null,
+          "median": 45.024025,
+          "decision": null
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [
+          {
+            "name": "ECONNREFUSED",
+            "runs": 11,
+            "first": 0.120454
+          },
+          {
+            "name": "Error",
+            "runs": 11,
+            "first": 0.582514
+          }
+        ],
+        "moved": 11,
+        "stayed": 0
+      },
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T12.defaults.9",
+      "catalog": "T12",
+      "name": "event:planned, SENTINEL FAILOVER",
+      "group": "defaults",
+      "fault": "planned-failover",
+      "at": null,
+      "cuts": null,
+      "hold": null,
+      "downAfter": 30,
+      "lands": "new",
+      "prediction": {
+        "kind": "detects",
+        "low": 10.154,
+        "high": 12.013,
+        "window": null,
+        "text": "The algebra predicts that a write of the client succeeds again 10.154 s to 12.013 s after the fault. The command SENTINEL FAILOVER starts the failover. Then the Sentinels make the old primary a replica, and that closes the connection of the client. Then ioredis connects to the new primary."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 10.15,
+        "high": 12.017
+      },
+      "median": 11.36443,
+      "why": "11 of the 11 counted runs are in the band of 10.15 s to 12.017 s. The median is 11.364 s, and its interval is 11.334 s to 11.487 s.",
+      "runs": [
+        [11.427106, 11.389545, 11.361451, 11.355041, 11.348757, 11.465404],
+        [11.487474, 11.36443, 11.505927, 11.33414, 11.246882]
+      ],
+      "warmups": [11.26609, 11.429349],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "+try-failover",
+          "low": null,
+          "high": null,
+          "median": 0.000674,
+          "decision": null
+        },
+        {
+          "stage": "+elected-leader",
+          "low": -0.004,
+          "high": 0.108,
+          "median": 0.040881,
+          "decision": "holds"
+        },
+        {
+          "stage": "+selected-slave",
+          "low": 0.048,
+          "high": 0.208,
+          "median": 0.111827,
+          "decision": "holds"
+        },
+        {
+          "stage": "+promoted-slave",
+          "low": 0.1,
+          "high": 1.412,
+          "median": 1.071452,
+          "decision": "holds"
+        },
+        {
+          "stage": "+switch-master",
+          "low": 0.1,
+          "high": 1.514,
+          "median": 1.131125,
+          "decision": "holds"
+        },
+        {
+          "stage": "+convert-to-slave",
+          "low": null,
+          "high": null,
+          "median": 11.217295,
+          "decision": null
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 2406,
+          "median": 219,
+          "max": 220
+        },
+        "old": {
+          "median": 223,
+          "max": 225
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 11,
+        "stayed": 0
+      },
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T12.defaults.9",
+      "catalog": "T12",
+      "name": "event:planned, SENTINEL FAILOVER COORDINATED",
+      "group": "defaults",
+      "fault": "planned-failover",
+      "at": null,
+      "cuts": null,
+      "hold": null,
+      "downAfter": 30,
+      "lands": "new",
+      "prediction": {
+        "kind": "measured",
+        "low": null,
+        "high": null,
+        "window": 120,
+        "text": "This cell has no band. The FAILOVER command of the server stops the writes and gives the primary to a replica. No machine document gives its time. The harness measures the time from the fault to the first write that succeeds."
+      },
+      "decision": "measured",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": 1.246527,
+      "why": "The median is 1.247 s from the fault, and the counted runs measured 1.124 s to 2.294 s.",
+      "runs": [
+        [2.294135, 1.246527, 1.232286, 1.265642, 1.296498, 1.124163],
+        [1.19812, 1.168335, 1.280064, 1.259322, 1.17872]
+      ],
+      "warmups": [1.346889, 1.375535],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "+try-failover",
+          "low": null,
+          "high": null,
+          "median": 0.000766,
+          "decision": null
+        },
+        {
+          "stage": "+elected-leader",
+          "low": null,
+          "high": null,
+          "median": 0.029588,
+          "decision": null
+        },
+        {
+          "stage": "+selected-slave",
+          "low": null,
+          "high": null,
+          "median": 0.109683,
+          "decision": null
+        },
+        {
+          "stage": "+promoted-slave",
+          "low": null,
+          "high": null,
+          "median": 1.071127,
+          "decision": null
+        },
+        {
+          "stage": "+switch-master",
+          "low": null,
+          "high": null,
+          "median": 1.148032,
+          "decision": null
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 4,
+          "max": 5
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 11,
+        "stayed": 0
+      },
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T12.defaults.10",
+      "catalog": "T12",
+      "name": "rst at the primary: each peer refused",
+      "group": "defaults",
+      "fault": "rst",
+      "at": "primary",
+      "cuts": null,
+      "hold": null,
+      "downAfter": 30,
+      "lands": "new",
+      "prediction": {
+        "kind": "detects",
+        "low": 31.35,
+        "high": 39.397,
+        "window": null,
+        "text": "The algebra predicts that a write of the client succeeds again 31.35 s to 39.397 s after the fault. The primary refuses each connection, and the Sentinels fail over. Then the reconnect ladder of ioredis finds the new primary."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 31.346,
+        "high": 39.401
+      },
+      "median": 32.713181,
+      "why": "11 of the 11 counted runs are in the band of 31.346 s to 39.401 s. The median is 32.713 s, and its interval is 32.452 s to 32.867 s.",
+      "runs": [
+        [32.590371, 33.076977, 32.866906, 32.712238, 32.848187, 32.317894],
+        [32.713181, 32.742307, 32.555115, 32.743006, 32.451832]
+      ],
+      "warmups": [32.574647, 32.726561],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "+sdown",
+          "low": 29.997,
+          "high": 31.207,
+          "median": 30.17812,
+          "decision": "holds"
+        },
+        {
+          "stage": "+odown",
+          "low": 29.997,
+          "high": 31.309,
+          "median": 30.283161,
+          "decision": "holds"
+        },
+        {
+          "stage": "+try-failover",
+          "low": null,
+          "high": null,
+          "median": 30.283289,
+          "decision": null
+        },
+        {
+          "stage": "+elected-leader",
+          "low": 30.049,
+          "high": 31.413,
+          "median": 30.338764,
+          "decision": "holds"
+        },
+        {
+          "stage": "+selected-slave",
+          "low": 30.101,
+          "high": 31.513,
+          "median": 30.43955,
+          "decision": "holds"
+        },
+        {
+          "stage": "+promoted-slave",
+          "low": 30.153,
+          "high": 32.717,
+          "median": 30.969923,
+          "decision": "holds"
+        },
+        {
+          "stage": "+switch-master",
+          "low": 30.153,
+          "high": 32.819,
+          "median": 31.02652,
+          "decision": "holds"
+        },
+        {
+          "stage": "+convert-to-slave",
+          "low": null,
+          "high": null,
+          "median": 45.006811,
+          "decision": null
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [
+          {
+            "name": "ECONNRESET",
+            "runs": 11,
+            "first": 0.011019
+          },
+          {
+            "name": "ECONNREFUSED",
+            "runs": 11,
+            "first": 0.134583
+          },
+          {
+            "name": "Error",
+            "runs": 11,
+            "first": 0.652489
+          }
+        ],
+        "moved": 11,
+        "stayed": 0
+      },
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T12.border-off.1",
+      "catalog": "T12",
+      "name": "freeze-process at the primary, 29 s, inside down-after-milliseconds 30 s",
+      "group": "border",
+      "fault": "freeze-process",
+      "at": "primary",
+      "cuts": null,
+      "hold": 29,
+      "downAfter": 30,
+      "lands": "same",
+      "prediction": {
+        "kind": "detects",
+        "low": 29,
+        "high": 29.012,
+        "window": null,
+        "text": "The algebra predicts that a write of the client succeeds again 29 s to 29.012 s after the fault. The thaw comes before down-after-milliseconds. Thus no failover occurs, and the same primary answers again."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 28.996,
+        "high": 29.016
+      },
+      "median": 29.00473,
+      "why": "11 of the 11 counted runs are in the band of 28.996 s to 29.016 s. The median is 29.005 s, and its interval is 29.005 s to 29.005 s.",
+      "runs": [
+        [29.00491, 29.004843, 29.004815, 29.004711, 29.004764, 29.004707],
+        [29.00473, 29.008457, 29.004568, 29.004574, 29.004302]
+      ],
+      "warmups": [29.005706, 29.005587],
+      "voids": null,
+      "stages": [],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 41,
+          "max": 41
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 0,
+        "stayed": 11
+      },
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T12.border-off.2",
+      "catalog": "T12",
+      "name": "freeze-process at the primary, 33 s, outside down-after-milliseconds 30 s",
+      "group": "border",
+      "fault": "freeze-process",
+      "at": "primary",
+      "cuts": null,
+      "hold": 33,
+      "downAfter": 30,
+      "lands": "new",
+      "prediction": {
+        "kind": "detects",
+        "low": 43.05,
+        "high": 43.403,
+        "window": null,
+        "text": "The algebra predicts that a write of the client succeeds again 43.05 s to 43.403 s after the fault. The Sentinels fail over. After the thaw, they make the old primary a replica, and that closes the connection of the client. Then ioredis connects to the new primary."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 43.046,
+        "high": 43.407
+      },
+      "median": 43.159414,
+      "why": "11 of the 11 counted runs are in the band of 43.046 s to 43.407 s. The median is 43.159 s, and its interval is 43.106 s to 43.232 s.",
+      "runs": [
+        [43.215136, 43.232381, 43.155547, 43.180261, 43.159414, 43.106365],
+        [43.079699, 43.131878, 43.231459, 43.137153, 43.244346]
+      ],
+      "warmups": [43.186475, 43.102082],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "+sdown",
+          "low": 29.997,
+          "high": 31.207,
+          "median": 30.248498,
+          "decision": "holds"
+        },
+        {
+          "stage": "+odown",
+          "low": 29.997,
+          "high": 31.309,
+          "median": 30.311874,
+          "decision": "holds"
+        },
+        {
+          "stage": "+try-failover",
+          "low": null,
+          "high": null,
+          "median": 30.311931,
+          "decision": null
+        },
+        {
+          "stage": "+elected-leader",
+          "low": 30.049,
+          "high": 31.413,
+          "median": 30.375011,
+          "decision": "holds"
+        },
+        {
+          "stage": "+selected-slave",
+          "low": 30.101,
+          "high": 31.513,
+          "median": 30.476083,
+          "decision": "holds"
+        },
+        {
+          "stage": "+promoted-slave",
+          "low": 30.153,
+          "high": 32.717,
+          "median": 31.350215,
+          "decision": "holds"
+        },
+        {
+          "stage": "+switch-master",
+          "low": 30.153,
+          "high": 32.819,
+          "median": 31.406422,
+          "decision": "holds"
+        },
+        {
+          "stage": "+convert-to-slave",
+          "low": null,
+          "high": null,
+          "median": 43.037049,
+          "decision": null
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 2185,
+          "median": 199,
+          "max": 199
+        },
+        "old": {
+          "median": 199,
+          "max": 199
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 11,
+        "stayed": 0
+      },
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T12.border-off.15",
+      "catalog": "T12",
+      "name": "fin at the primary, down-after-milliseconds 69 s, inside the give-up of the offline queue",
+      "group": "border",
+      "fault": "fin",
+      "at": "primary",
+      "cuts": null,
+      "hold": null,
+      "downAfter": 69,
+      "lands": "new",
+      "prediction": {
+        "kind": "detects",
+        "low": 69.157,
+        "high": 75.95,
+        "window": null,
+        "text": "The algebra predicts that a write of the client succeeds again 69.157 s to 75.95 s after the fault. The Sentinels fail over. Then the reconnect ladder of ioredis finds the new primary."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 69.153,
+        "high": 75.954
+      },
+      "median": 73.518659,
+      "why": "11 of the 11 counted runs are in the band of 69.153 s to 75.954 s. The median is 73.519 s, and its interval is 73.207 s to 73.872 s.",
+      "runs": [
+        [73.611928, 73.221814, 73.20655, 73.262659, 73.766376, 73.090908],
+        [74.236419, 73.746829, 73.433702, 73.872327, 73.518659]
+      ],
+      "warmups": [73.446944, 73.466841],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "+sdown",
+          "low": 68.997,
+          "high": 69.209,
+          "median": 69.051106,
+          "decision": "holds"
+        },
+        {
+          "stage": "+odown",
+          "low": 68.997,
+          "high": 69.311,
+          "median": 69.052809,
+          "decision": "holds"
+        },
+        {
+          "stage": "+try-failover",
+          "low": null,
+          "high": null,
+          "median": 69.05288,
+          "decision": null
+        },
+        {
+          "stage": "+elected-leader",
+          "low": 69.049,
+          "high": 69.415,
+          "median": 69.135076,
+          "decision": "holds"
+        },
+        {
+          "stage": "+selected-slave",
+          "low": 69.101,
+          "high": 69.515,
+          "median": 69.217762,
+          "decision": "holds"
+        },
+        {
+          "stage": "+promoted-slave",
+          "low": 69.153,
+          "high": 70.719,
+          "median": 69.541622,
+          "decision": "holds"
+        },
+        {
+          "stage": "+switch-master",
+          "low": 69.153,
+          "high": 70.821,
+          "median": 69.604374,
+          "decision": "holds"
+        },
+        {
+          "stage": "+convert-to-slave",
+          "low": null,
+          "high": null,
+          "median": 85.925971,
+          "decision": null
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [
+          {
+            "name": "ECONNREFUSED",
+            "runs": 11,
+            "first": 0.211158
+          },
+          {
+            "name": "Error",
+            "runs": 11,
+            "first": 0.747534
+          },
+          {
+            "name": "ECONNRESET",
+            "runs": 1,
+            "first": 0.002736
+          }
+        ],
+        "moved": 11,
+        "stayed": 0
+      },
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T12.border-off.16",
+      "catalog": "T12",
+      "name": "fin at the primary, down-after-milliseconds 76 s, outside the give-up of the offline queue",
+      "group": "border",
+      "fault": "fin",
+      "at": "primary",
+      "cuts": null,
+      "hold": null,
+      "downAfter": 76,
+      "lands": "new",
+      "prediction": {
+        "kind": "detects",
+        "low": 76.35,
+        "high": 86.408,
+        "window": null,
+        "text": "The algebra predicts that a write of the client succeeds again 76.35 s to 86.408 s after the fault. The Sentinels fail over. Then the reconnect ladder of ioredis finds the new primary."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 76.346,
+        "high": 86.412
+      },
+      "median": 78.655654,
+      "why": "11 of the 11 counted runs are in the band of 76.346 s to 86.412 s. The median is 78.656 s, and its interval is 78.36 s to 78.863 s.",
+      "runs": [
+        [78.360122, 78.292021, 78.68709, 78.44387, 78.818649, 78.861354],
+        [78.646106, 78.369796, 78.863183, 78.655654, 78.903874]
+      ],
+      "warmups": [78.566809, 78.437471],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "+sdown",
+          "low": 75.997,
+          "high": 76.209,
+          "median": 76.049627,
+          "decision": "holds"
+        },
+        {
+          "stage": "+odown",
+          "low": 75.997,
+          "high": 76.311,
+          "median": 76.056559,
+          "decision": "holds"
+        },
+        {
+          "stage": "+try-failover",
+          "low": null,
+          "high": null,
+          "median": 76.056615,
+          "decision": null
+        },
+        {
+          "stage": "+elected-leader",
+          "low": 76.049,
+          "high": 76.415,
+          "median": 76.12549,
+          "decision": "holds"
+        },
+        {
+          "stage": "+selected-slave",
+          "low": 76.101,
+          "high": 76.515,
+          "median": 76.209618,
+          "decision": "holds"
+        },
+        {
+          "stage": "+promoted-slave",
+          "low": 76.153,
+          "high": 77.719,
+          "median": 76.839942,
+          "decision": "holds"
+        },
+        {
+          "stage": "+switch-master",
+          "low": 76.153,
+          "high": 77.821,
+          "median": 76.912388,
+          "decision": "holds"
+        },
+        {
+          "stage": "+convert-to-slave",
+          "low": null,
+          "high": null,
+          "median": 91.015867,
+          "decision": null
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 11,
+          "held": 0
+        },
+        "errors": [
+          {
+            "name": "ECONNRESET",
+            "runs": 1,
+            "first": 0.0019
+          },
+          {
+            "name": "ECONNREFUSED",
+            "runs": 11,
+            "first": 0.193583
+          },
+          {
+            "name": "Error",
+            "runs": 11,
+            "first": 0.650377
+          },
+          {
+            "name": "MaxRetriesPerRequestError",
+            "runs": 11,
+            "first": 73.548285
+          }
+        ],
+        "moved": 11,
+        "stayed": 0
+      },
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": null,
+      "catalog": "CAL",
+      "name": "the stamps of the observer of the Sentinels, event:planned SENTINEL FAILOVER",
+      "group": "calibration",
+      "fault": "planned-failover",
+      "at": null,
+      "cuts": null,
+      "hold": null,
+      "downAfter": 30,
+      "lands": "new",
+      "prediction": {
+        "kind": "measured",
+        "low": null,
+        "high": null,
+        "window": 120,
+        "text": "This cell has no band. This cell is a calibration. It compares each stamp of the observer with the write of the Sentinel that the observer read. The harness measures the time from the fault to the first write that succeeds."
+      },
+      "decision": "measured",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": 11.323616,
+      "why": "The median is 11.324 s from the fault, and the counted runs measured 11.217 s to 11.402 s.",
+      "runs": [
+        [11.268839, 11.219964, 11.237001, 11.402377, 11.335439, 11.217115],
+        [11.400711, 11.238288, 11.323616, 11.354853, 11.356536]
+      ],
+      "warmups": [11.392624, 11.412772],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "+try-failover",
+          "low": null,
+          "high": null,
+          "median": 0.000606,
+          "decision": null
+        },
+        {
+          "stage": "+elected-leader",
+          "low": -0.004,
+          "high": 0.108,
+          "median": 0.040962,
+          "decision": "holds"
+        },
+        {
+          "stage": "+selected-slave",
+          "low": 0.048,
+          "high": 0.208,
+          "median": 0.099539,
+          "decision": "holds"
+        },
+        {
+          "stage": "+promoted-slave",
+          "low": 0.1,
+          "high": 1.412,
+          "median": 1.068909,
+          "decision": "holds"
+        },
+        {
+          "stage": "+switch-master",
+          "low": 0.1,
+          "high": 1.514,
+          "median": 1.141655,
+          "decision": "holds"
+        },
+        {
+          "stage": "+convert-to-slave",
+          "low": null,
+          "high": null,
+          "median": 11.158733,
+          "decision": null
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 2398,
+          "median": 218,
+          "max": 220
+        },
+        "old": {
+          "median": 221,
+          "max": 224
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 11,
+        "stayed": 0
+      },
+      "first": "measured",
+      "repeated": "In the first CI run, the harness did not keep the subscriptions of the observer, thus the calibration gave no delay of a stamp. After a fix, CI did the calibration again."
+    }
+  ]
+}

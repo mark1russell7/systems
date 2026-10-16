@@ -1,0 +1,71 @@
+---
+title: A MongoDB replica set
+sidebar:
+  label: MongoDB
+description: The MongoDB cells on the runners of GitHub, with the Node driver of MongoDB against mongod 9.0.4. Of 58 cells, 51 hold and 7 fail.
+---
+
+import RunResults, { WritesTable } from "../../../components/RunResults.tsx";
+
+These are the results of the MongoDB cells, from 2026-10-16. The client is the driver `mongodb` 7.7.0 on Node 24.21.0, and the server is mongod 9.0.4. T01 is the direct pair, with a replica set of one member. T03 puts a NAT router between the client and that member. T11 is a replica set of three members that elect their own primary.
+
+The driver has more than one socket: its monitor, its pool and its pinger of the round trip. Thus each band names the socket of its reference, and the line of the client that ends it. A band can also have later bands. The prediction can also name lines of the client that do not come after the fault.
+
+CI started the cells in the run [38947012339](https://github.com/mark1russell7/systems/actions/runs/38947012339), on 20 hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000. Each cell has 11 runs in 2 fresh environments, with one warm-up run in each environment.
+
+Of the 58 cells, 51 hold against the prediction of the algebra, and 7 fail. The 7 failures are findings about the models of the catalog, not faults of the harness. The cells have 617 counted runs and 21 void runs.
+
+## What the cells found
+
+- **The monitor is not quiet under an ICMP host unreachable.** An idle connection meets an unreachable host, on the direct pair and at the router. The keepalive of the kernel ends the idle socket of the pool in its band in each run, at 133.072 s and 133.149 s. But in each run, the monitor reports `heartbeat-failed` approximately 49.7 s after the fault. The model does not have the timeout of the monitor itself, thus the prediction gives no such event.
+- **An election has a tail past its band.** The primary cut from the other members (`T11.defaults.10`) has 2 of 11 runs at 22.497 s and 24.62 s, after the band of 9.996 s to 21.9 s. A freeze of 60 s with `heartbeatFrequencyMS` 2000 and `connectTimeoutMS` 5000 (`T11.border-off.24`) has 3 of 11 runs at 22.1 s to 23.2 s. A second round of the election is a probable cause.
+- **`catchUpTimeoutMillis` 0 does not give the short band.** `T11.border-off.68` has 5 of 11 runs at 18 s to 18.8 s, after the band of 9.836 s to 11.89 s. The other 6 runs are in the band.
+- **Two cells fail at the edge of their band.** A `replSetStepDown` (`T11.defaults.1`) has one run at 525 ms, 21 ms after the band. A router that resets the two ends (`T03.border-off.8`) has one run at 12.0945 s, 0.5 ms after the band.
+- **The default write concern keeps each write.** No cell with the default write concern lost a write that a primary accepted. With `w: 1`, the old primary accepts writes after it loses the other members (`T11.border-off.66`). The group did not keep them: 195 writes in the median run.
+- **The write-off of the monitor ends a write in flight.** Behind a black hole or a freeze, the monitor writes the server off at the timeout of its stream, 40.002 s after the last segment. Then the pool interrupts the operation, and the server selection of the retry times out 30 s later. With `connectTimeoutMS` 1000, the write-off comes at 11.002 s. With `connectTimeoutMS` 0, the hello of the monitor has no timeout, and nothing detects the freeze in 60 s.
+- **The kernel comes first only below the write-off.** At `tcp_retries2 = 5`, the retransmissions of the kernel give up at 12.824 s, before the write-off. At `tcp_retries2 = 7`, the write-off comes first, at 40.002 s. A `keepAliveInitialDelay` of 27 s ends the stream of the monitor at 37.258 s. At 31 s, the write-off comes first.
+- **Each void run is through the router.** The 21 void runs are in 5 cells of T03. In each void run, a keepalive or retransmit timer was 2 to 6 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel. The page of [the timers behind their slot](../timers/) tells how the prober finds such a delay.
+
+## T01: the direct pair
+
+The target is a replica set of one member, thus no election occurs. The client meets each fault through its monitor and its pool.
+
+### The defaults
+
+<RunResults copy="mongodb" group="T01" stage="defaults" client:visible />
+
+### The borders
+
+<RunResults copy="mongodb" group="T01" stage="border" client:visible />
+
+## T03: through a NAT router
+
+The router is the router image of the harness: a NAT with conntrack, in the form of a cloud preset. Each cell names its preset.
+
+### The defaults
+
+<RunResults copy="mongodb" group="T03" stage="defaults" client:visible />
+
+### The borders
+
+<RunResults copy="mongodb" group="T03" stage="border" client:visible />
+
+## T11: a replica set of three members
+
+The members elect their own primary. The stages come from the logs of the members and from the lines of the client. The time of each cell is the first write that a primary accepts after the fault.
+
+<WritesTable copy="mongodb" group="T11" />
+
+### The defaults
+
+<RunResults copy="mongodb" group="T11" stage="defaults" client:visible />
+
+### The borders
+
+<RunResults copy="mongodb" group="T11" stage="border" client:visible />
+
+## Where the data comes from
+
+Each runner wrote a raw record of each of its cells. A record has the cell and the manifests of its environments. It also has each warm-up run, and each run with its kernel records and the lines of the client and the members.
+
+The script `packages/site/scripts/mongodb.ts` reads each record with the code of the harness, and it stops when a verdict disagrees with the summary of the run. It also stops when a prediction disagrees with the catalog at HZ 1000. It writes the copy that this page shows, and that copy names no machine. The cells and their predictions are in the [catalogs](https://github.com/mark1russell7/systems/tree/main/packages/cells).

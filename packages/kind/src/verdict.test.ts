@@ -30,11 +30,13 @@ const runWith = (extra: Line[], acts: Partial<KindRun["acts"]> = {}): KindRun =>
 });
 
 const request = (t: number, o: string, n = "w1"): Line => ({ ev: "req", t, d: 1, o, p: `client-${n}`, n });
+const s = (value: number) => ({ value, unit: "s" });
+const b = (lo: number, hi: number) => ({ lo: s(lo), hi: s(hi) });
 const cell = (prediction: Prediction): KindCell => ({ ...cellOf("pod-deletion"), prediction });
 
 describe("the judgement of a kind run", () => {
   it("measures the propagation of each node from the deletion, between two polls", () => {
-    expect(propagationOf(runWith([]), 1000)).toEqual({ w1: { after: 0.05, by: 0.1 }, w2: { after: 0.03, by: 0.08 } });
+    expect(propagationOf(runWith([]), 1000)).toEqual({ w1: { after: s(0.05), by: s(0.1) }, w2: { after: s(0.03), by: s(0.08) } });
   });
 
   it("holds a prediction of no failure only when each request succeeds", () => {
@@ -49,8 +51,8 @@ describe("the judgement of a kind run", () => {
     const window = cell({
       kind: "window",
       nodes: "all",
-      start: { from: "intake", band: { lo: 0, hi: 1 } },
-      end: { from: "deletion", band: { lo: 0, hi: 2.5 } },
+      start: { from: "intake", band: b(0, 1) },
+      end: { from: "deletion", band: b(0, 2.5) },
       certain: false,
       why: "a test",
     });
@@ -64,8 +66,8 @@ describe("the judgement of a kind run", () => {
     const paused = cell({
       kind: "window",
       nodes: "paused",
-      start: { from: "intake", band: { lo: 0, hi: 5 } },
-      end: { from: "resume", band: { lo: 0.05, hi: 0.4 } },
+      start: { from: "intake", band: b(0, 5) },
+      end: { from: "resume", band: b(0.05, 0.4) },
       certain: true,
       why: "a test",
     });
@@ -80,7 +82,7 @@ describe("the judgement of a kind run", () => {
   });
 
   it("times the empty Service from the fault, in the EndpointSlice and in the rules of each node", () => {
-    const removal = cell({ kind: "removal", band: { lo: 28, hi: 49 }, why: "a test" });
+    const removal = cell({ kind: "removal", band: b(28, 49), why: "a test" });
     const lines: Line[] = [
       { ev: "slice", t: 40_000, type: "MODIFIED", name: "lab-x", svc: "lab", eps: [{ ip: TARGET.ip, r: false }, { ip: OTHER.ip, r: false }] },
       { ev: "rules", t: 40_200, prev: 40_150, node: "w1", b: [] },
@@ -88,7 +90,7 @@ describe("the judgement of a kind run", () => {
     ];
     const run = { ...runWith([]), lines: lines.map((line) => line), acts: { fault: 5000, heal: 60_000, resume: null } };
     const check = checkRun(removal, run);
-    expect(check).toMatchObject({ ok: true, value: 35 });
+    expect(check).toMatchObject({ ok: true, value: s(35), facts: { sliceEmpty: s(35), rules: { w1: s(35.2), w2: s(35.1) } } });
     const late = { ...run, acts: { ...run.acts, fault: -20_000 } };
     expect(checkRun(removal, late).ok).toBe(false);
   });

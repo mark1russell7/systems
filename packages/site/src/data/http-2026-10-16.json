@@ -1,0 +1,1502 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again by the harness. A re-run replaces the first run of its cell",
+  "ranAt": "2026-10-16",
+  "units": "s",
+  "noise": 0.004,
+  "runs": 11,
+  "kernel": "6.17.0",
+  "hz": 1000,
+  "target": "node:24.21.0-alpine",
+  "cells": [
+    {
+      "plan": "T01.defaults.77",
+      "catalog": "T01",
+      "name": "go, a GET 3 s after the reply",
+      "group": "race",
+      "client": "go",
+      "ordering": "kept",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 3.2,
+        "text": "The algebra predicts that nothing closes the connection in a window of 3.2 s. The second request goes on the same connection, and it gets a reply."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing closed the connection in the 11 counted runs, each of 3.2 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "reused, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.defaults.77",
+      "catalog": "T01",
+      "name": "go, a GET 5.95 s after the reply, 100 ms latency",
+      "group": "race",
+      "client": "go",
+      "ordering": "crossed",
+      "prediction": {
+        "kind": "detects",
+        "low": 5.998,
+        "high": 6.008,
+        "window": null,
+        "text": "The algebra predicts that the client reads the end of file from the keep-alive timer of the server. The band is 5.998 s to 6.008 s after the last segment of the reply. The second request fails on the same connection. The client sends it again on a new connection, and it gets a reply."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 5.994,
+        "high": 6.012
+      },
+      "median": 6.000577,
+      "why": "11 of the 11 counted runs are in the band of 5.994 s to 6.012 s. The median is 6.0006 s, and its interval is 5.9999 s to 6.0012 s.",
+      "runs": [
+        [5.999863, 6.000859, 5.999441, 6.001183, 6.00018, 6.001173],
+        [5.999921, 6.000779, 6.000059, 6.000577, 6.000778]
+      ],
+      "warmups": [6.002716, 6.003809],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "reused, a retry, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.defaults.77",
+      "catalog": "T01",
+      "name": "go, a POST 5.95 s after the reply, 100 ms latency",
+      "group": "race",
+      "client": "go",
+      "ordering": "crossed",
+      "prediction": {
+        "kind": "detects",
+        "low": 5.998,
+        "high": 6.008,
+        "window": null,
+        "text": "The algebra predicts that the client reads the end of file from the keep-alive timer of the server. The band is 5.998 s to 6.008 s after the last segment of the reply. The second request fails with EOF on the same connection."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 5.994,
+        "high": 6.012
+      },
+      "median": 6.004746,
+      "why": "11 of the 11 counted runs are in the band of 5.994 s to 6.012 s. The median is 6.0047 s, and its interval is 6.0008 s to 6.0057 s.",
+      "runs": [
+        [6.005677, 6.005735, 6.004652, 6.004746, 6.005684, 6.004713],
+        [6.000771, 6.001971, 6.000806, 6.005843, 6.004761]
+      ],
+      "warmups": [6.001804, 6.001924],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "reused, EOF",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.defaults.77",
+      "catalog": "T01",
+      "name": "go, a GET 6.5 s after the reply",
+      "group": "race",
+      "client": "go",
+      "ordering": "fin-first",
+      "prediction": {
+        "kind": "detects",
+        "low": 5.998,
+        "high": 6.008,
+        "window": null,
+        "text": "The algebra predicts that the client reads the end of file from the keep-alive timer of the server. The band is 5.998 s to 6.008 s after the last segment of the reply. The second request goes on a new connection, and it gets a reply."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 5.994,
+        "high": 6.012
+      },
+      "median": 6.000134,
+      "why": "11 of the 11 counted runs are in the band of 5.994 s to 6.012 s. The median is 6.0001 s, and its interval is 5.9999 s to 6.0011 s.",
+      "runs": [
+        [6.000134, 5.999841, 6.000563, 6.001064, 6.000931, 6.001339],
+        [5.999985, 5.999893, 6.000115, 5.999963, 6.000314]
+      ],
+      "warmups": [6.00351, 6.002814],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "new, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.defaults.77",
+      "catalog": "T01",
+      "name": "go, a GET 6 s after the reply",
+      "group": "race",
+      "client": "go",
+      "ordering": null,
+      "prediction": {
+        "kind": "measured",
+        "low": null,
+        "high": null,
+        "window": 8,
+        "text": "This cell has no band. The gap of 6 s to 6.008 s and a round trip of 0 s to 1 ms meet the close of the server at 5.998 s to 6.008 s. Thus the order of the two is a distribution. The harness measures the time from the last segment of the reply to the close of the connection."
+      },
+      "decision": "measured",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": 6.001201,
+      "why": "The median is 6.0012 s from the last segment that the client received, and the counted runs measured 6.0007 s to 6.0026 s.",
+      "runs": [
+        [6.00129, 6.001201, 6.001797, 6.000832, 6.001099, 6.000665],
+        [6.001329, 6.00088, 6.000674, 6.001943, 6.00258]
+      ],
+      "warmups": [6.002475, 6.001665],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "reused, a reply",
+          "count": 3
+        },
+        {
+          "outcome": "new, a reply",
+          "count": 6
+        },
+        {
+          "outcome": "reused, a retry, a reply",
+          "count": 2
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.border-off.129",
+      "catalog": "T01",
+      "name": "go, IdleConnTimeout 5.5 s (inside O01), a GET 5.45 s after the reply",
+      "group": "race",
+      "client": "go",
+      "ordering": "kept",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 5.65,
+        "text": "The algebra predicts that nothing closes the connection in a window of 5.65 s. The second request goes on the same connection, and it gets a reply."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing closed the connection in the 11 counted runs, each of 5.65 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "reused, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.border-off.129",
+      "catalog": "T01",
+      "name": "go, IdleConnTimeout 5.5 s (inside O01), a GET 5.55 s after the reply",
+      "group": "race",
+      "client": "go",
+      "ordering": "dropped",
+      "prediction": {
+        "kind": "detects",
+        "low": 5.5,
+        "high": 5.5065,
+        "window": null,
+        "text": "The algebra predicts that the IdleConnTimeout of Go closes the idle connection. The band is 5.5 s to 5.5065 s after the last segment of the reply. The second request goes on a new connection, and it gets a reply."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 5.496,
+        "high": 5.5105
+      },
+      "median": 5.504647,
+      "why": "11 of the 11 counted runs are in the band of 5.496 s to 5.5105 s. The median is 5.5046 s, and its interval is 5.5004 s to 5.5048 s.",
+      "runs": [
+        [5.503237, 5.504745, 5.504785, 5.500354, 5.50035, 5.504831],
+        [5.500515, 5.50482, 5.504913, 5.500355, 5.504647]
+      ],
+      "warmups": [5.504784, 5.504894],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "new, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.border-off.130",
+      "catalog": "T01",
+      "name": "go, IdleConnTimeout 5.9 s (outside O01), a GET 5.85 s after the reply",
+      "group": "race",
+      "client": "go",
+      "ordering": "kept",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 6.05,
+        "text": "The algebra predicts that nothing closes the connection in a window of 6.05 s. The second request goes on the same connection, and it gets a reply."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing closed the connection in the 11 counted runs, each of 6.05 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "reused, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.border-off.130",
+      "catalog": "T01",
+      "name": "go, IdleConnTimeout 5.9 s (outside O01), a GET 5.95 s after the reply",
+      "group": "race",
+      "client": "go",
+      "ordering": "dropped",
+      "prediction": {
+        "kind": "detects",
+        "low": 5.9,
+        "high": 5.9069,
+        "window": null,
+        "text": "The algebra predicts that the IdleConnTimeout of Go closes the idle connection. The band is 5.9 s to 5.9069 s after the last segment of the reply. The second request goes on a new connection, and it gets a reply."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 5.896,
+        "high": 5.9109
+      },
+      "median": 5.903775,
+      "why": "11 of the 11 counted runs are in the band of 5.896 s to 5.9109 s. The median is 5.9038 s, and its interval is 5.9006 s to 5.9053 s.",
+      "runs": [
+        [5.905284, 5.905298, 5.90064, 5.900962, 5.905633, 5.900866],
+        [5.903213, 5.905238, 5.900531, 5.905299, 5.903775]
+      ],
+      "warmups": [5.900386, 5.900473],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "new, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.border-off.121",
+      "catalog": "T01",
+      "name": "agent, agentKeepAliveTimeoutBuffer 500 ms against a hint of 6 (inside O01), a GET 5.45 s after the reply",
+      "group": "race",
+      "client": "agent",
+      "ordering": "kept",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 5.65,
+        "text": "The algebra predicts that nothing closes the connection in a window of 5.65 s. The second request goes on the same connection, and it gets a reply."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing closed the connection in the 11 counted runs, each of 5.65 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "reused, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.border-off.121",
+      "catalog": "T01",
+      "name": "agent, agentKeepAliveTimeoutBuffer 500 ms against a hint of 6 (inside O01), a GET 5.55 s after the reply",
+      "group": "race",
+      "client": "agent",
+      "ordering": "dropped",
+      "prediction": {
+        "kind": "detects",
+        "low": 5.498,
+        "high": 5.5075,
+        "window": null,
+        "text": "The algebra predicts that the agent closes its free socket. The band is 5.498 s to 5.5075 s after the last segment of the reply. The second request goes on a new connection, and it gets a reply."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 5.494,
+        "high": 5.5115
+      },
+      "median": 5.508919,
+      "why": "11 of the 11 counted runs are in the band of 5.494 s to 5.5115 s. The median is 5.5089 s, and its interval is 5.5078 s to 5.5097 s.",
+      "runs": [
+        [5.50949, 5.507763, 5.508173, 5.509295, 5.509793, 5.508754],
+        [5.505501, 5.508967, 5.508746, 5.508919, 5.509705]
+      ],
+      "warmups": [5.509048, 5.510379],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "new, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.border-off.122",
+      "catalog": "T01",
+      "name": "agent, agentKeepAliveTimeoutBuffer 100 ms against a hint of 6 (outside O01), a GET 5.85 s after the reply",
+      "group": "race",
+      "client": "agent",
+      "ordering": "kept",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 6.05,
+        "text": "The algebra predicts that nothing closes the connection in a window of 6.05 s. The second request goes on the same connection, and it gets a reply."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing closed the connection in the 11 counted runs, each of 6.05 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "reused, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.border-off.122",
+      "catalog": "T01",
+      "name": "agent, agentKeepAliveTimeoutBuffer 100 ms against a hint of 6 (outside O01), a GET 5.95 s after the reply",
+      "group": "race",
+      "client": "agent",
+      "ordering": "dropped",
+      "prediction": {
+        "kind": "detects",
+        "low": 5.898,
+        "high": 5.9079,
+        "window": null,
+        "text": "The algebra predicts that the agent closes its free socket. The band is 5.898 s to 5.9079 s after the last segment of the reply. The second request goes on a new connection, and it gets a reply."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 5.894,
+        "high": 5.9119
+      },
+      "median": 5.909354,
+      "why": "11 of the 11 counted runs are in the band of 5.894 s to 5.9119 s. The median is 5.9094 s, and its interval is 5.9062 s to 5.9096 s.",
+      "runs": [
+        [5.909354, 5.906207, 5.909609, 5.909631, 5.909423, 5.909214],
+        [5.904938, 5.909121, 5.909653, 5.909129, 5.909441]
+      ],
+      "warmups": [5.909999, 5.910566],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "new, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.border-off.123",
+      "catalog": "T01",
+      "name": "undici, keepAliveTimeoutThreshold 500 ms against a hint of 6 (inside O01), a GET 5.45 s after the reply",
+      "group": "race",
+      "client": "undici",
+      "ordering": "kept",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 5.65,
+        "text": "The algebra predicts that nothing closes the connection in a window of 5.65 s. The second request goes on the same connection, and it gets a reply."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing closed the connection in the 11 counted runs, each of 5.65 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "reused, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.border-off.123",
+      "catalog": "T01",
+      "name": "undici, keepAliveTimeoutThreshold 500 ms against a hint of 6 (inside O01), a GET 5.55 s after the reply",
+      "group": "race",
+      "client": "undici",
+      "ordering": "dropped",
+      "prediction": {
+        "kind": "detects",
+        "low": 5.498,
+        "high": 5.5075,
+        "window": null,
+        "text": "The algebra predicts that the pool of undici closes the idle connection. The band is 5.498 s to 5.5075 s after the last segment of the reply. The second request goes on a new connection, and it gets a reply."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 5.494,
+        "high": 5.5115
+      },
+      "median": 5.509784,
+      "why": "11 of the 11 counted runs are in the band of 5.494 s to 5.5115 s. The median is 5.5098 s, and its interval is 5.5096 s to 5.5099 s.",
+      "runs": [
+        [5.509723, 5.510058, 5.509744, 5.509536, 5.509861, 5.509933],
+        [5.509917, 5.509642, 5.509784, 5.509905, 5.509588]
+      ],
+      "warmups": [5.508698, 5.509843],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "new, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.border-off.124",
+      "catalog": "T01",
+      "name": "undici, keepAliveTimeoutThreshold 100 ms against a hint of 6 (outside O01), a GET 5.85 s after the reply",
+      "group": "race",
+      "client": "undici",
+      "ordering": "kept",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 6.05,
+        "text": "The algebra predicts that nothing closes the connection in a window of 6.05 s. The second request goes on the same connection, and it gets a reply."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing closed the connection in the 11 counted runs, each of 6.05 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "reused, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.border-off.124",
+      "catalog": "T01",
+      "name": "undici, keepAliveTimeoutThreshold 100 ms against a hint of 6 (outside O01), a GET 5.95 s after the reply",
+      "group": "race",
+      "client": "undici",
+      "ordering": "dropped",
+      "prediction": {
+        "kind": "detects",
+        "low": 5.898,
+        "high": 5.9079,
+        "window": null,
+        "text": "The algebra predicts that the pool of undici closes the idle connection. The band is 5.898 s to 5.9079 s after the last segment of the reply. The second request goes on a new connection, and it gets a reply."
+      },
+      "decision": "fails",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 5.894,
+        "high": 5.9119
+      },
+      "median": 5.912431,
+      "why": "3 of the 11 counted runs are in the band of 5.894 s to 5.9119 s. The median is 5.9124 s, and its interval is 5.9111 s to 5.9127 s.",
+      "runs": [
+        [5.912431, 5.912128, 5.912643, 5.912854, 5.912304, 5.912473],
+        [5.912704, 5.911089, 5.910715, 5.912626, 5.911302]
+      ],
+      "warmups": [5.913077, 5.913839],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "new, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": null,
+      "catalog": "T01",
+      "name": "agent, a GET 5 s after the reply, between C (4 s) and S (6 s)",
+      "group": "race",
+      "client": "agent",
+      "ordering": "dropped",
+      "prediction": {
+        "kind": "detects",
+        "low": 3.998,
+        "high": 4.006,
+        "window": null,
+        "text": "The algebra predicts that the agent closes its free socket. The band is 3.998 s to 4.006 s after the last segment of the reply. The second request goes on a new connection, and it gets a reply."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 3.994,
+        "high": 4.01
+      },
+      "median": 4.008944,
+      "why": "11 of the 11 counted runs are in the band of 3.994 s to 4.01 s. The median is 4.0089 s, and its interval is 4.0088 s to 4.0091 s.",
+      "runs": [
+        [4.008913, 4.009016, 4.008778, 4.009099, 4.00878, 4.009079],
+        [4.00865, 4.008989, 4.008935, 4.008944, 4.009168]
+      ],
+      "warmups": [4.010084, 4.009124],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "new, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": null,
+      "catalog": "T01",
+      "name": "undici, a GET 4 s after the reply, between C (3 s) and S (6 s)",
+      "group": "race",
+      "client": "undici",
+      "ordering": "dropped",
+      "prediction": {
+        "kind": "detects",
+        "low": 2.998,
+        "high": 3.005,
+        "window": null,
+        "text": "The algebra predicts that the pool of undici closes the idle connection. The band is 2.998 s to 3.005 s after the last segment of the reply. The second request goes on a new connection, and it gets a reply."
+      },
+      "decision": "fails",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.994,
+        "high": 3.009
+      },
+      "median": 3.008559,
+      "why": "7 of the 11 counted runs are in the band of 2.994 s to 3.009 s. The median is 3.0086 s, and its interval is 3.0072 s to 3.0104 s.",
+      "runs": [
+        [3.010429, 3.010189, 3.010402, 3.008601, 3.007132, 3.007231],
+        [3.007927, 3.010248, 3.008266, 3.008559, 3.007962]
+      ],
+      "warmups": [3.009135, 3.009203],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "new, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": null,
+      "catalog": "T01",
+      "name": "agent, keepAliveTimeout 1500 ms (a hint of 1), a GET 1 s after the reply",
+      "group": "race",
+      "client": "agent",
+      "ordering": "dropped",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "text": "The algebra predicts that the agent closes its free socket. The band is 0 s to 1 ms after the last segment of the reply. The second request goes on a new connection, and it gets a reply."
+      },
+      "decision": "fails",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.004337,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 4.34 ms, and its interval is 4.19 ms to 4.76 ms. That interval is outside the prediction with a margin of 5 %, 0 s to 1.05 ms. Thus the cell fails on its median.",
+      "runs": [
+        [0.004307, 0.004186, 0.004801, 0.004183, 0.00459, 0.004315],
+        [0.004337, 0.004475, 0.004606, 0.004757, 0.004254]
+      ],
+      "warmups": [0.005174, 0.005422],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "new, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": null,
+      "catalog": "T01",
+      "name": "undici, keepAliveTimeout 2500 ms (a hint of 2), a GET 1 s after the reply",
+      "group": "race",
+      "client": "undici",
+      "ordering": "dropped",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "text": "The algebra predicts that the pool of undici closes the idle connection. The band is 0 s to 1 ms after the last segment of the reply. The second request goes on a new connection, and it gets a reply."
+      },
+      "decision": "fails",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.0044,
+      "why": "10 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 4.4 ms, and its interval is 4.23 ms to 4.6 ms. That interval is outside the prediction with a margin of 5 %, 0 s to 1.05 ms. Thus the cell fails on its median.",
+      "runs": [
+        [0.004498, 0.004605, 0.005728, 0.004352, 0.004226, 0.0044],
+        [0.004499, 0.00426, 0.004184, 0.004429, 0.004322]
+      ],
+      "warmups": [0.005295, 0.005612],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "new, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.defaults.4",
+      "catalog": "T01",
+      "name": "go, a GET in flight, unreachable-host, tcp_retries2 = 3",
+      "group": "faults",
+      "client": "go",
+      "ordering": null,
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 3.329,
+        "window": null,
+        "text": "The algebra predicts that the give-up of the retransmissions gives EHOSTUNREACH. The band is 3 s to 3.329 s after the first retransmission of the RTO timer. The request in flight fails on the same connection. The client sends it again, and the new try gets EHOSTUNREACH."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.996,
+        "high": 3.333
+      },
+      "median": 3.120009,
+      "why": "11 of the 11 counted runs are in the band of 2.996 s to 3.333 s. The median is 3.12 s, and its interval is 3.12 s to 3.12 s.",
+      "runs": [
+        [3.119979, 3.120009, 3.120019, 3.119991, 3.119994, 3.120016],
+        [3.119966, 3.12002, 3.120015, 3.120003, 3.120025]
+      ],
+      "warmups": [3.119991, 3.120016],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "reused, a retry, EHOSTUNREACH",
+          "count": 11
+        }
+      ],
+      "first": "fails",
+      "repeated": "In the first CI run, the harness read a failed dial of a new try as a request with no new try. After a fix, the harness counts that dial as a new try, and CI did the cell again."
+    },
+    {
+      "plan": "T01.defaults.30",
+      "catalog": "T01",
+      "name": "agent idle, fin",
+      "group": "faults",
+      "client": "agent",
+      "ordering": null,
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "text": "The algebra predicts that the FIN of the server reaches the client as an end of file. The band is 0 s to 1 ms after the close of the socket of the server."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.000045,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 45 µs, and its interval is 39 µs to 50 µs.",
+      "runs": [
+        [0.000043],
+        [0.000043],
+        [0.000036],
+        [0.000048],
+        [0.000046],
+        [0.00005],
+        [0.000039],
+        [0.000056],
+        [0.000049],
+        [0.000045],
+        [0.000041]
+      ],
+      "warmups": [null, null, null, null, null, null, null, null, null, null, null],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "no second request",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.defaults.30",
+      "catalog": "T01",
+      "name": "agent, a held reply in flight, fin",
+      "group": "faults",
+      "client": "agent",
+      "ordering": null,
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "text": "The algebra predicts that the FIN of the server reaches the client as an end of file. The band is 0 s to 1 ms after the close of the socket of the server. The request in flight fails with ECONNRESET on the same connection."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.000036,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 36 µs, and its interval is 34 µs to 46 µs.",
+      "runs": [
+        [0.000034],
+        [0.000042],
+        [0.000046],
+        [0.000047],
+        [0.000035],
+        [0.000038],
+        [0.000037],
+        [0.000036],
+        [0.000035],
+        [0.000036],
+        [0.000033]
+      ],
+      "warmups": [null, null, null, null, null, null, null, null, null, null, null],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "reused, ECONNRESET",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.defaults.34",
+      "catalog": "T01",
+      "name": "undici, a GET in flight, freeze-process, headersTimeout 10 s",
+      "group": "faults",
+      "client": "undici",
+      "ordering": null,
+      "prediction": {
+        "kind": "detects",
+        "low": 9.978,
+        "high": 10.531479,
+        "window": null,
+        "text": "The algebra predicts that the headersTimeout of undici gives UND_ERR_HEADERS_TIMEOUT. The band is 9.978 s to 10.5315 s after the send of the request. The request in flight fails with UND_ERR_HEADERS_TIMEOUT on the same connection."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 9.974,
+        "high": 10.535479
+      },
+      "median": 10.187242,
+      "why": "11 of the 11 counted runs are in the band of 9.974 s to 10.5355 s. The median is 10.1872 s, and its interval is 10.18 s to 10.1919 s.",
+      "runs": [
+        [10.189916, 10.190808, 10.180913, 10.179966, 10.187242, 10.180294],
+        [10.192405, 10.189388, 10.181149, 10.191916, 10.179694]
+      ],
+      "warmups": [10.187145, 10.186635],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "reused, UND_ERR_HEADERS_TIMEOUT",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.defaults.76",
+      "catalog": "T01",
+      "name": "go, a GET in flight, a 1 s stall",
+      "group": "faults",
+      "client": "go",
+      "ordering": null,
+      "prediction": {
+        "kind": "recovers",
+        "low": 1.604,
+        "high": 1.697,
+        "window": 20,
+        "text": "The algebra predicts that the reply comes back 1.604 s to 1.697 s after the send of the request. The request in flight goes on the same connection, and it gets a reply."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 1.6,
+        "high": 1.701
+      },
+      "median": 1.65897,
+      "why": "11 of the 11 counted runs are in the band of 1.6 s to 1.701 s. The median is 1.659 s, and its interval is 1.6399 s to 1.6717 s.",
+      "runs": [
+        [1.685823, 1.65475, 1.639889, 1.66099, 1.659615, 1.65897],
+        [1.631476, 1.66698, 1.647559, 1.641975, 1.671703]
+      ],
+      "warmups": [1.678404, 1.658026],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "reused, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.defaults.79",
+      "catalog": "T01",
+      "name": "go, a GET in flight, rst",
+      "group": "faults",
+      "client": "go",
+      "ordering": null,
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "text": "The algebra predicts that a reset reaches the client as ECONNRESET. The band is 0 s to 1 ms after the send of the request. The request in flight fails on the same connection. The client sends it again, and the new try gets ECONNREFUSED."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.000226,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 226 µs, and its interval is 222 µs to 288 µs.",
+      "runs": [
+        [0.000232, 0.000229, 0.000288, 0.000225, 0.000226, 0.000223],
+        [0.000222, 0.000221, 0.000224, 0.000246, 0.000312]
+      ],
+      "warmups": [0.000288, 0.000881],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "reused, a retry, ECONNREFUSED",
+          "count": 11
+        }
+      ],
+      "first": "fails",
+      "repeated": "In the first CI run, the harness read a failed dial of a new try as a request with no new try. After a fix, the harness counts that dial as a new try, and CI did the cell again."
+    },
+    {
+      "plan": "T01.defaults.80",
+      "catalog": "T01",
+      "name": "go, app-stall: a reply that the server holds for 60 s",
+      "group": "faults",
+      "client": "go",
+      "ordering": null,
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 20,
+        "text": "The algebra predicts that nothing closes the connection in a window of 20 s. The request in flight waits for its reply until the end of the window."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing closed the connection in the 11 counted runs, each of 20 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "reused, pending",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.defaults.146",
+      "catalog": "T01",
+      "name": "agent, a GET in flight, unreachable-host, tcp_retries2 = 3",
+      "group": "faults",
+      "client": "agent",
+      "ordering": null,
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 3.329,
+        "window": null,
+        "text": "The algebra predicts that the give-up of the retransmissions gives EHOSTUNREACH. The band is 3 s to 3.329 s after the first retransmission of the RTO timer. The request in flight fails with EHOSTUNREACH on the same connection."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.996,
+        "high": 3.333
+      },
+      "median": 3.120005,
+      "why": "11 of the 11 counted runs are in the band of 2.996 s to 3.333 s. The median is 3.12 s, and its interval is 3.12 s to 3.12 s.",
+      "runs": [
+        [3.120003, 3.11998, 3.119979, 3.120018, 3.12003, 3.120019],
+        [3.120019, 3.120003, 3.120005, 3.119983, 3.120012]
+      ],
+      "warmups": [3.119991, 3.120008],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "reused, EHOSTUNREACH",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.defaults.12",
+      "catalog": "T03",
+      "name": "server, a long reply to a go GET, mtu-blackhole at the router toward the client, tcp_retries2 = 3",
+      "group": "router",
+      "client": "go",
+      "ordering": null,
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The algebra predicts that the give-up of the retransmissions gives ETIMEDOUT. The band is 3 s to 6.416 s after the first retransmission of the RTO timer. The request in flight waits for its reply until the end of the window."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.160015,
+      "why": "11 of the 11 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.16 s, and its interval is 6.143 s to 6.1878 s.",
+      "runs": [
+        [6.192004, 6.176017, 6.160014, 6.14404, 6.151997, 6.168015],
+        [6.160015, 6.143034, 6.183976, 6.187828, 6.140849]
+      ],
+      "warmups": [6.20003, 6.184013],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "reused, pending",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.defaults.24",
+      "catalog": "T03",
+      "name": "agent, a GET 14 s after the reply, the router idle 12 s",
+      "group": "router",
+      "client": "agent",
+      "ordering": "dropped",
+      "prediction": {
+        "kind": "detects",
+        "low": 3.998,
+        "high": 4.006,
+        "window": null,
+        "text": "The algebra predicts that the agent closes its free socket. The band is 3.998 s to 4.006 s after the last segment of the reply. The second request goes on a new connection, and it gets a reply."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 3.994,
+        "high": 4.01
+      },
+      "median": 4.006211,
+      "why": "11 of the 11 counted runs are in the band of 3.994 s to 4.01 s. The median is 4.0062 s, and its interval is 4.0054 s to 4.0072 s.",
+      "runs": [
+        [4.007185, 4.006211, 4.006538, 4.006151, 4.00618, 4.005807],
+        [4.005396, 4.006247, 4.007147, 4.005036, 4.007304]
+      ],
+      "warmups": [4.006587, 4.007591],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "new, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.defaults.30",
+      "catalog": "T03",
+      "name": "go, a GET in flight, rst at the router toward the client",
+      "group": "router",
+      "client": "go",
+      "ordering": null,
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "text": "The algebra predicts that a reset reaches the client as ECONNRESET. The band is 0 s to 1 ms after the send of the request. The request in flight fails on the same connection. The client sends it again, and the new try gets ECONNREFUSED."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.000233,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 233 µs, and its interval is 214 µs to 322 µs.",
+      "runs": [
+        [0.000214, 0.00021, 0.000268, 0.00022, 0.000226, 0.000269],
+        [0.000254, 0.000229, 0.000836, 0.000233, 0.000322]
+      ],
+      "warmups": [0.000247, 0.000335],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "reused, a retry, ECONNREFUSED",
+          "count": 11
+        }
+      ],
+      "first": "fails",
+      "repeated": "In the first CI run, the harness read a failed dial of a new try as a request with no new try. After a fix, the harness counts that dial as a new try, and CI did the cell again."
+    },
+    {
+      "plan": "T03.defaults.33",
+      "catalog": "T03",
+      "name": "go, a GET in flight, a 1 s stall at the router toward the client",
+      "group": "router",
+      "client": "go",
+      "ordering": null,
+      "prediction": {
+        "kind": "recovers",
+        "low": 1.604,
+        "high": 1.697,
+        "window": 20,
+        "text": "The algebra predicts that the reply comes back 1.604 s to 1.697 s after the send of the request. The request in flight goes on the same connection, and it gets a reply."
+      },
+      "decision": "holds",
+      "counted": 9,
+      "voided": 2,
+      "band": {
+        "low": 1.6,
+        "high": 1.701
+      },
+      "median": 1.649972,
+      "why": "9 of the 9 counted runs are in the band of 1.6 s to 1.701 s. The median is 1.65 s, and its interval is 1.6326 s to 1.6608 s.",
+      "runs": [
+        [1.627941, 1.650723, 1.640342, 1.654358],
+        [1.632604, 1.678035, 1.635761, 1.649972, 1.660803]
+      ],
+      "warmups": [1.683569, 1.642358],
+      "voids": "2 runs are void: in each, the retransmit timer was 3 to 8 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "requests": [
+        {
+          "outcome": "reused, a reply",
+          "count": 9
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.defaults.37",
+      "catalog": "T03",
+      "name": "undici, a GET in flight, unreachable-host at the router toward the client, tcp_retries2 = 3",
+      "group": "router",
+      "client": "undici",
+      "ordering": null,
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 3.329,
+        "window": null,
+        "text": "The algebra predicts that the give-up of the retransmissions gives EHOSTUNREACH. The band is 3 s to 3.329 s after the first retransmission of the RTO timer. The request in flight fails with EHOSTUNREACH on the same connection."
+      },
+      "decision": "holds",
+      "counted": 10,
+      "voided": 1,
+      "band": {
+        "low": 2.996,
+        "high": 3.333
+      },
+      "median": 3.12,
+      "why": "10 of the 10 counted runs are in the band of 2.996 s to 3.333 s. The median is 3.12 s, and its interval is 3.12 s to 3.12 s.",
+      "runs": [
+        [3.119998, 3.120017, 3.120002, 3.120003, 3.119983],
+        [3.119996, 3.12005, 3.120005, 3.119996, 3.119985]
+      ],
+      "warmups": [3.119999, 3.119988],
+      "voids": "One run is void: its retransmit timer was 6 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "requests": [
+        {
+          "outcome": "reused, EHOSTUNREACH",
+          "count": 10
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.defaults.62",
+      "catalog": "T03",
+      "name": "go, a GET 25 s after the reply, all timers scaled by 15",
+      "group": "router",
+      "client": "go",
+      "ordering": "fin-first",
+      "prediction": {
+        "kind": "detects",
+        "low": 0.398,
+        "high": 0.4024,
+        "window": null,
+        "text": "The algebra predicts that the client reads the end of file from the keep-alive timer of the server. The band is 398 ms to 402.4 ms after the last segment of the reply. The second request goes on a new connection, and it gets a reply."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 0.394,
+        "high": 0.4064
+      },
+      "median": 0.400924,
+      "why": "11 of the 11 counted runs are in the band of 394 ms to 406.4 ms. The median is 400.9 ms, and its interval is 400.1 ms to 401 ms.",
+      "runs": [
+        [0.400886, 0.400952, 0.400125, 0.401425, 0.400956, 0.400924],
+        [0.40102, 0.400903, 0.40101, 0.400726, 0.400051]
+      ],
+      "warmups": [0.402762, 0.401855],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "new, a reply",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.defaults.63",
+      "catalog": "T03",
+      "name": "go idle, blackhole at the router toward the client, Go timers scaled by 10",
+      "group": "router",
+      "client": "go",
+      "ordering": null,
+      "prediction": {
+        "kind": "detects",
+        "low": 9,
+        "high": 9.01,
+        "window": null,
+        "text": "The algebra predicts that the IdleConnTimeout of Go closes the idle connection. The band is 9 s to 9.01 s after the last segment of the reply."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 8.996,
+        "high": 9.014
+      },
+      "median": 9.008236,
+      "why": "11 of the 11 counted runs are in the band of 8.996 s to 9.014 s. The median is 9.0082 s, and its interval is 9.0008 s to 9.0084 s.",
+      "runs": [
+        [9.008324, 9.008367, 9.008378, 9.008297, 9.006833, 9.008236],
+        [9.003357, 9.000767, 9.003656, 9.000522, 9.008371]
+      ],
+      "warmups": [9.000485, 9.003003],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "no second request",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.defaults.63",
+      "catalog": "T03",
+      "name": "go, a GET in flight, blackhole at the router toward the client, tcp_retries2 = 3, DialTimeout 3 s",
+      "group": "router",
+      "client": "go",
+      "ordering": null,
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The algebra predicts that the give-up of the retransmissions gives ETIMEDOUT. The band is 3 s to 6.416 s after the first retransmission of the RTO timer. The request in flight fails on the same connection. The client sends it again, and the new try gets TIMEOUT."
+      },
+      "decision": "holds",
+      "counted": 10,
+      "voided": 1,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.184003,
+      "why": "10 of the 10 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.184 s, and its interval is 6.168 s to 6.192 s.",
+      "runs": [
+        [6.191998, 6.168004, 6.168021, 6.183997, 6.176002, 6.185],
+        [6.184008, 6.192, 6.191998, 6.168004]
+      ],
+      "warmups": [6.204683, 6.183997],
+      "voids": "One run is void: its retransmit timer was 5 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "requests": [
+        {
+          "outcome": "reused, a retry, TIMEOUT",
+          "count": 10
+        }
+      ],
+      "first": "fails",
+      "repeated": "In the first CI run, the harness read a failed dial of a new try as a request with no new try. After a fix, the harness counts that dial as a new try, and CI did the cell again."
+    },
+    {
+      "plan": "T03.defaults.64",
+      "catalog": "T03",
+      "name": "go, a GET in flight, simplex-to-server at the router toward the client, tcp_retries2 = 3, DialTimeout 3 s",
+      "group": "router",
+      "client": "go",
+      "ordering": null,
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The algebra predicts that the give-up of the retransmissions gives ETIMEDOUT. The band is 3 s to 6.416 s after the first retransmission of the RTO timer. The request in flight fails on the same connection. The client sends it again, and the new try gets TIMEOUT."
+      },
+      "decision": "holds",
+      "counted": 8,
+      "voided": 3,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.176499,
+      "why": "8 of the 8 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.1765 s, and its interval is 6.16 s to 6.192 s.",
+      "runs": [
+        [6.176992, 6.183572, 6.176005, 6.167222],
+        [6.160042, 6.192018, 6.16801, 6.192009]
+      ],
+      "warmups": [6.200023, 6.159999],
+      "voids": "3 runs are void: in each, the retransmit timer was 4 to 6 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "requests": [
+        {
+          "outcome": "reused, a retry, TIMEOUT",
+          "count": 8
+        }
+      ],
+      "first": "fails",
+      "repeated": "In the first CI run, the harness read a failed dial of a new try as a request with no new try. After a fix, the harness counts that dial as a new try, and CI did the cell again."
+    },
+    {
+      "plan": "T03.defaults.65",
+      "catalog": "T03",
+      "name": "go idle, fin",
+      "group": "router",
+      "client": "go",
+      "ordering": null,
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "text": "The algebra predicts that the FIN of the server reaches the client as an end of file. The band is 0 s to 1 ms after the close of the socket of the server."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.000086,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 86 µs, and its interval is 82 µs to 97 µs.",
+      "runs": [
+        [0.000083],
+        [0.000211],
+        [0.000081],
+        [0.000095],
+        [0.000097],
+        [0.000085],
+        [0.000088],
+        [0.000082],
+        [0.000086],
+        [0.000089],
+        [0.000085]
+      ],
+      "warmups": [null, null, null, null, null, null, null, null, null, null, null],
+      "voids": null,
+      "requests": [
+        {
+          "outcome": "no second request",
+          "count": 11
+        }
+      ],
+      "first": null,
+      "repeated": null
+    }
+  ]
+}

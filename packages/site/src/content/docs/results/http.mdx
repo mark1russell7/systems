@@ -1,0 +1,74 @@
+---
+title: HTTP/1.1 keep-alive
+sidebar:
+  label: HTTP keep-alive
+description: The HTTP cells on the runners of GitHub, with the server of Node 24.21.0 against the agent of Node, undici and the transport of Go. Of 39 cells, 34 hold, 4 fail and 1 is a measurement only.
+---
+
+import RunResults, { RaceBorder } from "../../../components/RunResults.tsx";
+
+These are the results of the HTTP cells, from 2026-10-16. The server is the `http.Server` of Node 24.21.0, as a script on the stock Node image. The clients are the `http.Agent` of Node 24.21.0, an HTTP/1.1 `Client` of undici 8.12.2 and the `http.Transport` of Go 1.27.2. The cells of T01 are a direct pair. The cells of T03 put a NAT router between the client and the server.
+
+CI started the cells on the hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000, and the coarse clock of the kernel has a step of 1 ms. Each cell has 11 runs in 2 fresh environments, with one warm-up run in each environment. The run [38931350785](https://github.com/mark1russell7/systems/actions/runs/38931350785) did the 39 cells in 8 shards. After a fix to the harness, the run [38934447634](https://github.com/mark1russell7/systems/actions/runs/38934447634) did 5 cells of Go again. This page shows the second result of these 5 cells.
+
+Of the 39 cells, 34 hold against the prediction of the algebra, and 1 is a measurement only. The 4 cells that fail have one cause. The pool of a Node client starts its idle timer 3 ms to 8 ms after the last segment of the reply. The model of the cells does not have that delay. Of the 429 runs, 7 are void.
+
+## The keep-alive race
+
+Two requests go on one connection, with a gap g between the first reply and the second request. The server closes an idle connection at S after its response: `keepAliveTimeout` plus `keepAliveTimeoutBuffer`, 6 s at the defaults. The pool of the client drops the connection at C after the reply. The one-way delays cancel, except for the round trip.
+
+| Ordering | Condition | What the second request meets |
+| --- | --- | --- |
+| `kept` | g + RTT < S, and g < C | the same connection, and a reply |
+| `dropped` | C < g, and C < S | a new connection: the pool closed the old one |
+| `fin-first` | S < g, and S < C | a new connection: the FIN came before the send |
+| `crossed` | S − RTT < g < S, and g < C | the FIN of the server in flight, and a reset from its kernel |
+
+The agent and undici take C from the hint of the server, less a buffer. The hint is S in whole seconds or less, thus their C stays below S. Go ignores the hint, and its C is 90 s. Thus only Go races at the defaults.
+
+## What the cells found
+
+- **Go races as the model gives.** A GET 3 s after the reply goes on the same connection. A GET 6.5 s after the reply meets a connection that the server closed at 6.0001 s, thus it goes on a new connection. At a gap of 6 s, the gap meets the close of the server in its window. Then 3 runs used the same connection, 6 used a new one, and 2 sent the GET again.
+- **A crossing needs a long round trip.** With 100 ms of latency, a GET 5.95 s after the reply meets the FIN of the server in flight. Go sends the GET again on a new connection, and it gets its reply. A POST gets the end of file, because Go does not send a POST again.
+- **The borders of O01 hold for each client.** A GET 50 ms before C goes on the same connection, and a GET 50 ms after C goes on a new one. Each pool closes its connection before the server does, thus no request meets a FIN. The plan gives O01 a margin of 0.26 s at S = 6 s. The documents give a margin of a few milliseconds, and the cells agree with the documents.
+- **The pools of Node close late by a few milliseconds.** The agent and undici start the idle timer 3 ms to 8 ms after the last segment of the reply. The model starts it at that segment. Thus 4 cells fail:
+  - the agent at `keepAliveTimeout 1500`, whose hint of 1 s gives C = 0. The pool closes at 4.34 ms, after the band of 0 s to 1 ms.
+  - undici at `keepAliveTimeout 2500`, whose hint of 2 s gives C = 0. The pool closes at 4.4 ms.
+  - undici between C (3 s) and S (6 s). The median is 3.0086 s, and 4 of 11 runs are after the band, which ends at 3.009 s.
+  - undici at `keepAliveTimeoutThreshold 100`. The median is 5.9124 s, and 8 of 11 runs are after the band, which ends at 5.9119 s.
+
+  The other cells of the two pools hold near the end of their bands. The agent between C (4 s) and S (6 s) closes at 4.0089 s, and its band ends at 4.01 s.
+- **Go sends a GET again after a failure on a reused connection.** Its new try then meets the fault. A reset ends the request at 226 µs with `ECONNRESET`, and the new try gets `ECONNREFUSED`. An unreachable host ends the request at 3.12 s with `EHOSTUNREACH`, and the new try gets `EHOSTUNREACH` too. Behind a black hole at the router, the retransmissions give up at 6.184 s, and the dial of the new try times out at `DialTimeout`.
+- **A timer of the client comes before the keepalive of the kernel.** Behind a black hole at the router, an idle Go connection closes at its `IdleConnTimeout`, 9.008 s with the timers of Go scaled by 10. Thus the client gets no error. A frozen server gives undici `UND_ERR_HEADERS_TIMEOUT` at 10.187 s, from its `headersTimeout`.
+- **Go waits for a held reply.** The server holds a reply for 60 s, and nothing ends the request of Go in a window of 20 s. At its defaults, Go has no timeout for a reply.
+- **Seven runs are void.** In each, the retransmit timer was 3 to 8 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel. The page of [the timers behind their slot](../timers/) tells how the prober finds such a delay.
+
+## T01: the race
+
+### The borders of O01
+
+Each border of O01 has two cells, with a GET on each side of C. The table gives the verdict of each cell. The band is the band of the close of the pool, after the last segment of the reply.
+
+<RaceBorder />
+
+### The race cells
+
+<RunResults copy="http" group="race" client:visible />
+
+## T01: the faults
+
+The fault cells set `keepAliveTimeout` to 60 s, thus the FIN of the server does not compete with the detection of the cell. Each prediction composes the document of the client, or of the server, over Linux TCP. Thus the keepalive of Go or the `keepAliveMsecs` of the agent is the keepalive of the kernel.
+
+<RunResults copy="http" group="faults" client:visible />
+
+## T03: through a NAT router
+
+The router is the router image of the harness, a NAT with conntrack, in its plain form. A fault at the router is a set of rules on its device toward one side.
+
+<RunResults copy="http" group="router" client:visible />
+
+## Where the data comes from
+
+Each runner wrote a raw record of each of its cells. A record has the cell and the manifests of its environments. It also has each warm-up run, and each run with its kernel records and the lines of the client and the server.
+
+The script `packages/site/scripts/http.ts` reads each record with the code of the harness, and it stops when a verdict disagrees with the summary of the run. It also stops when a prediction disagrees with the catalog at HZ 1000. It writes the copy that this page shows, and that copy names no machine. The cells and their predictions are in the [catalogs](https://github.com/mark1russell7/systems/tree/main/packages/cells).

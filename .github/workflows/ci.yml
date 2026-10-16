@@ -30,5 +30,12 @@ jobs:
       - run: pnpm test
       # The build that npm gets, for each package that the repository publishes
       - run: pnpm build
+      # The tarballs of a release, tested in an empty project as release.yml tests them
+      - run: node scripts/pack.mjs "$RUNNER_TEMP/release"
+      - run: node scripts/smoke.mjs "$RUNNER_TEMP/release"
+      # The site, as pages.yml builds it for GitHub Pages: a page that does not build fails here, before it reaches main
+      - run: pnpm --filter @systems/site run build
+        env:
+          ASTRO_TELEMETRY_DISABLED: "1"
       # The writing rules (ASD-STE100) of the README files and the doc comments
       - run: pnpm lint:ste
