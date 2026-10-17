@@ -35,12 +35,15 @@ const DUMP = {
  * those of a handshake. A kernel without CONFIG_NF_CONNTRACK_PROCFS has no /proc/net/nf_conntrack
  * (the kernel of GitHub's runner, 6.17), thus the agent then asks netlink with the conntrack tool of
  * the node. Both give the same form of line. The first read decides the source. `text` is null when
- * no source answers, and `why` tells why
+ * no source answers, and `why` tells why.
+ *
+ * A dump through netlink walks each bucket of the table of the whole kernel with the softirqs off,
+ * whatever its filter. A segment that comes in that walk waits for its end. Thus each read is one
+ * dump of TCP, and the agent filters it. The workflow makes the table small (kind.yml)
  */
 const SOURCES = {
   procfs: (ip) => [["nsenter", "-t", "1", "-n", "--", "grep", "-F", "-e", ` dst=${ip} `, "-e", "[UNREPLIED]", "-e", " SYN_RECV ", "/proc/net/nf_conntrack"]],
-  netlink: (ip) =>
-    [["--orig-dst", ip], ["--state", "SYN_SENT"], ["--state", "SYN_RECV"]].map((filter) => ["nsenter", "-t", "1", "-m", "-n", "--", "conntrack", "-L", "-p", "tcp", ...filter]),
+  netlink: () => [["nsenter", "-t", "1", "-m", "-n", "--", "conntrack", "-L", "-p", "tcp"]],
 };
 let source = null;
 const conntrackOf = (ip) => {
