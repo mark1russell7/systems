@@ -18,7 +18,7 @@ describe("the ledger of the results", () => {
     expect(tally("sentinel")).toEqual([13, 9, 0, 4, 0]);
     expect(tally("http")).toEqual([39, 34, 4, 1, 0]);
     expect(tally("mongodb")).toEqual([58, 51, 7, 0, 0]);
-    expect(tally("kind")).toEqual([31, 21, 5, 2, 3]);
+    expect(tally("kind")).toEqual([31, 22, 4, 2, 3]);
   });
 
   it("counts the runs of each page as the text of the page gives them", () => {
@@ -39,8 +39,8 @@ describe("the ledger of the results", () => {
 
   it("adds the pages into one total", () => {
     expect([TOTAL.pages, TOTAL.cells]).toEqual([8, 246]);
-    expect(TOTAL.tally).toEqual({ holds: 201, fails: 21, measured: 21, calibration: 3 });
+    expect(TOTAL.tally).toEqual({ holds: 202, fails: 20, measured: 21, calibration: 3 });
     expect(TOTAL.tally.holds + TOTAL.tally.fails + TOTAL.tally.measured + TOTAL.tally.calibration).toBe(TOTAL.cells);
-    expect([TOTAL.first, TOTAL.last]).toEqual(["2026-10-13", "2026-10-16"]);
+    expect([TOTAL.first, TOTAL.last]).toEqual(["2026-10-13", "2026-10-17"]);
   });
 });
