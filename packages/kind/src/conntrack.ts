@@ -43,10 +43,10 @@ export const KEEPS_NAT: ReadonlySet<string> = new Set(["SYN_SENT", "SYN_SENT2", 
  */
 export const HANDSHAKE_LIFE: Readonly<Record<string, number>> = { SYN_SENT: 120, SYN_RECV: 60 };
 
-/** This form is one TCP line of `/proc/net/nf_conntrack`: its timeout and state, the original tuple, its flags and counters, then the reply tuple. */
+/** This form is one TCP line of `/proc/net/nf_conntrack` or `conntrack -L`. It has the timeout and state, the original tuple, the flags and counters, then the reply tuple. */
 const LINE = /\btcp\s+\d+\s+(\d+)\s+(\S+)\s+src=(\S+) dst=(\S+) sport=(\d+) dport=(\d+)(.*?)\bsrc=(\S+) dst=\S+ sport=(\d+) dport=\d+/;
 
-/** This function gives the TCP flows of a dump of `/proc/net/nf_conntrack`. */
+/** This function gives the TCP flows of a dump of the conntrack table. */
 export const flowsOf = (text: string): ConntrackFlow[] => {
   const out: ConntrackFlow[] = [];
   for (const line of text.split("\n")) {
@@ -64,7 +64,7 @@ export const flowsOf = (text: string): ConntrackFlow[] => {
   return out;
 };
 
-/** This function gives the TCP entries of a dump of `/proc/net/nf_conntrack` whose original destination is the ClusterIP and port. */
+/** This function gives the TCP entries of a dump of the conntrack table whose original destination is the ClusterIP and port. */
 export const entriesOf = (text: string, ip: string, port: number): ConntrackEntry[] =>
   flowsOf(text)
     .filter((flow) => flow.to === `${ip}:${port}`)

@@ -3,7 +3,8 @@
 //
 //   node agent.mjs serve       polls the rules of kube-proxy in the namespaces of the node, as
 //                              /tmp/rules.json asks, and prints each change of the backends. It
-//                              also reads the conntrack table of the node. It prints each entry
+//                              also reads the conntrack table of the node (procfs, or netlink
+//                              with the conntrack tool of the node). It prints each entry
 //                              that keeps its NAT to a pod that the rules dropped (`stale`), each
 //                              handshake that stopped for a second (`stalled`). Each line
 //                              `rules-alive` also counts the reads of the table (`ct`)
@@ -29,13 +30,41 @@ const DUMP = {
   ipvs: ["nsenter", "-t", "1", "-n", "--", "cat", "/proc/net/ip_vs"],
 };
 
-/** the lines of the conntrack table of the node's network namespace: those of the ClusterIP and those of a handshake. Null when the kernel has no table */
+/**
+ * the TCP lines of the conntrack table of the node's network namespace: those of the ClusterIP and
+ * those of a handshake. A kernel without CONFIG_NF_CONNTRACK_PROCFS has no /proc/net/nf_conntrack
+ * (the kernel of GitHub's runner, 6.17), thus the agent then asks netlink with the conntrack tool of
+ * the node. Both give the same form of line. The first read decides the source. `text` is null when
+ * no source answers, and `why` tells why
+ */
+const SOURCES = {
+  procfs: (ip) => [["nsenter", "-t", "1", "-n", "--", "grep", "-F", "-e", ` dst=${ip} `, "-e", "[UNREPLIED]", "-e", " SYN_RECV ", "/proc/net/nf_conntrack"]],
+  netlink: (ip) =>
+    [["--orig-dst", ip], ["--state", "SYN_SENT"], ["--state", "SYN_RECV"]].map((filter) => ["nsenter", "-t", "1", "-m", "-n", "--", "conntrack", "-L", "-p", "tcp", ...filter]),
+};
+let source = null;
 const conntrackOf = (ip) => {
-  const patterns = ["-e", ` dst=${ip} `, "-e", "[UNREPLIED]", "-e", " SYN_RECV "];
-  const run = spawnSync("nsenter", ["-t", "1", "-n", "--", "grep", "-F", ...patterns, "/proc/net/nf_conntrack"], { encoding: "utf8", maxBuffer: 64 << 20 });
-  // grep exits 1 when no line matches, and 2 when it cannot read the table
-  if (run.status === 0 || run.status === 1) return run.stdout ?? "";
-  return null;
+  const why = [];
+  for (const name of source === null ? Object.keys(SOURCES) : [source]) {
+    const lines = new Set();
+    let ok = true;
+    for (const [command, ...args] of SOURCES[name](ip)) {
+      const run = spawnSync(command, args, { encoding: "utf8", maxBuffer: 64 << 20 });
+      // grep exits 1 when no line matches; conntrack exits 0 with no entry
+      if (run.status === 0 || (name === "procfs" && run.status === 1)) {
+        for (const line of (run.stdout ?? "").split("\n")) if (line.trim() !== "") lines.add(line);
+      } else {
+        ok = false;
+        why.push(`${name}: ${(run.stderr ?? "").trim().slice(0, 200) || `exit ${run.status ?? run.signal ?? run.error?.message}`}`);
+        break;
+      }
+    }
+    if (ok) {
+      source = name;
+      return { text: [...lines].join("\n"), why: null };
+    }
+  }
+  return { text: null, why: why.join("; ") };
 };
 /** how often the agent reads the conntrack table, in ms: the table is larger than the rules */
 const CONNTRACK_EVERY = 250;
@@ -85,11 +114,13 @@ const serve = async () => {
       if (conntrack && t - read >= CONNTRACK_EVERY) {
         read = t;
         try {
-          const text = conntrackOf(rule.ip);
+          const { text, why } = conntrackOf(rule.ip);
           count.reads += 1;
           count.ms += now() - t;
           if (text === null) {
-            say({ ev: "conntrack-fail", t, why: "the node has no readable /proc/net/nf_conntrack" });
+            // the lab drops the lines before a run, thus each beat tells it again in ct.error
+            say({ ev: "conntrack-fail", t, why });
+            count.error = why;
             conntrack = false;
           } else {
             const flows = flowsOf(text);
@@ -125,7 +156,7 @@ const serve = async () => {
     previous = t;
     if (t - beat >= 1000) {
       // the reads of the conntrack table since the last beat: a beat without them did not read it
-      const ct = { reads: count.reads, ms: count.reads === 0 ? 0 : Math.round((count.ms / count.reads) * 100) / 100, lines: count.lines, vip: count.vip, states: count.states, on: conntrack, ...(count.error === null ? {} : { error: count.error }) };
+      const ct = { source, reads: count.reads, ms: count.reads === 0 ? 0 : Math.round((count.ms / count.reads) * 100) / 100, lines: count.lines, vip: count.vip, states: count.states, on: conntrack, ...(count.error === null ? {} : { error: count.error }) };
       say({ ev: "rules-alive", t, polls, ms: Math.round((spent / polls) * 100) / 100, ct });
       count = { ...count, reads: 0, ms: 0 };
       beat = t;
