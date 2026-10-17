@@ -2,7 +2,7 @@
   "source": "the raw records of the runners of GitHub, judged again by the harness. A re-run replaces the first run of its cell",
   "ranAt": "2026-10-17",
   "units": "s",
-  "noise": 0.004,
+  "noise": null,
   "runs": 11,
   "kernel": "6.17.0",
   "hz": 1000,
@@ -36,6 +36,7 @@
       ],
       "warmups": [11.245372, 11.249135],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -67,6 +68,7 @@
       ],
       "warmups": [6.200009, 6.152002],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -98,6 +100,7 @@
       ],
       "warmups": [5.461973, 5.333478],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -129,6 +132,7 @@
       ],
       "warmups": [2.026913, 2.010571],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -169,6 +173,7 @@
       ],
       "warmups": [null, null, null, null, null, null, null, null, null, null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -200,6 +205,7 @@
       ],
       "warmups": [0.000041, 0.000045],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -228,6 +234,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -256,6 +263,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -284,6 +292,7 @@
       ],
       "warmups": [600.962233, 600.563823],
       "voids": null,
+      "noise": 0.001,
       "first": "measured",
       "repeated": "In the first CI run, the measurement waited for a close by the peer of the observer, and no run measured a time. The close of Redis is its own. Then the compiler made the cell end on the close of the observer, and CI did the cell again."
     },
@@ -315,6 +324,7 @@
       ],
       "warmups": [7.615559, 7.454923],
       "voids": null,
+      "noise": 0.004,
       "first": "fails",
       "repeated": "In the first CI run, the corpus said that the idle timeout of Redis ends the client with ETIMEDOUT. Redis closes the idle client itself, with a FIN. After that fix of the corpus, CI did the cell again."
     },
@@ -346,6 +356,7 @@
       ],
       "warmups": [15.413095, 15.699809],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -377,6 +388,7 @@
       ],
       "warmups": [8.114618, 8.359448],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -408,6 +420,7 @@
       ],
       "warmups": [1.029645, 1.000766],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -439,6 +452,7 @@
       ],
       "warmups": [0.00031, 0.000236],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -470,6 +484,7 @@
       ],
       "warmups": [5.127404, 5.491914],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -501,6 +516,7 @@
       ],
       "warmups": [5.26922, 5.494411],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -541,6 +557,7 @@
       ],
       "warmups": [null, null, null, null, null, null, null, null, null, null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -581,6 +598,7 @@
       ],
       "warmups": [null, null, null, null, null, null, null, null, null, null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -612,6 +630,7 @@
       ],
       "warmups": [0.000055, 0.000047],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -643,6 +662,7 @@
       ],
       "warmups": [0.000048, 0.000063],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -674,6 +694,7 @@
       ],
       "warmups": [11.280486, 11.264437],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -705,6 +726,7 @@
       ],
       "warmups": [11.258566, 11.288208],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -736,6 +758,7 @@
       ],
       "warmups": [11.295736, 11.260042],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -767,6 +790,7 @@
       ],
       "warmups": [11.246041, 11.237418],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -798,6 +822,7 @@
       ],
       "warmups": [6.152017, 6.184025],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -829,6 +854,7 @@
       ],
       "warmups": [3.119999, 3.120036],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -860,6 +886,7 @@
       ],
       "warmups": [3.120042, 3.119999],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -891,6 +918,7 @@
       ],
       "warmups": [6.192007, 6.168016],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -919,6 +947,7 @@
       ],
       "warmups": [600.851814, 600.465579],
       "voids": null,
+      "noise": 0.001,
       "first": "measured",
       "repeated": "In the first CI run, the measurement waited for a close by the peer of the observer, and no run measured a time. The close of Redis is its own. Then the compiler made the cell end on the close of the observer, and CI did the cell again."
     },
@@ -947,6 +976,7 @@
       ],
       "warmups": [600.975161, 600.515918],
       "voids": null,
+      "noise": 0.001,
       "first": "measured",
       "repeated": "In the first CI run, the measurement waited for a close by the peer of the observer, and no run measured a time. The close of Redis is its own. Then the compiler made the cell end on the close of the observer, and CI did the cell again."
     },
@@ -975,6 +1005,7 @@
       ],
       "warmups": [600.879736, 600.503006],
       "voids": null,
+      "noise": 0.001,
       "first": "measured",
       "repeated": "In the first CI run, the measurement waited for a close by the peer of the observer, and no run measured a time. The close of Redis is its own. Then the compiler made the cell end on the close of the observer, and CI did the cell again."
     },
@@ -1003,6 +1034,7 @@
       ],
       "warmups": [600.957861, 600.585426],
       "voids": null,
+      "noise": 0.001,
       "first": "measured",
       "repeated": "In the first CI run, the measurement waited for a close by the peer of the observer, and no run measured a time. The close of Redis is its own. Then the compiler made the cell end on the close of the observer, and CI did the cell again."
     },
@@ -1034,6 +1066,7 @@
       ],
       "warmups": [7.946743, 7.46176],
       "voids": null,
+      "noise": 0.004,
       "first": "fails",
       "repeated": "In the first CI run, the corpus said that the idle timeout of Redis ends the client with ETIMEDOUT. Redis closes the idle client itself, with a FIN. After that fix of the corpus, CI did the cell again."
     },
@@ -1065,6 +1098,7 @@
       ],
       "warmups": [7.998517, 7.800192],
       "voids": null,
+      "noise": 0.004,
       "first": "fails",
       "repeated": "In the first CI run, the corpus said that the idle timeout of Redis ends the client with ETIMEDOUT. Redis closes the idle client itself, with a FIN. After that fix of the corpus, CI did the cell again."
     },
@@ -1096,6 +1130,7 @@
       ],
       "warmups": [7.799452, 7.293265],
       "voids": null,
+      "noise": 0.004,
       "first": "fails",
       "repeated": "In the first CI run, the corpus said that the idle timeout of Redis ends the client with ETIMEDOUT. Redis closes the idle client itself, with a FIN. After that fix of the corpus, CI did the cell again."
     },
@@ -1127,6 +1162,7 @@
       ],
       "warmups": [7.404739, 7.205169],
       "voids": null,
+      "noise": 0.004,
       "first": "fails",
       "repeated": "In the first CI run, the corpus said that the idle timeout of Redis ends the client with ETIMEDOUT. Redis closes the idle client itself, with a FIN. After that fix of the corpus, CI did the cell again."
     },
@@ -1158,6 +1194,7 @@
       ],
       "warmups": [15.64812, 15.405666],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1189,6 +1226,7 @@
       ],
       "warmups": [15.637606, 15.653155],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1220,6 +1258,7 @@
       ],
       "warmups": [15.644029, 15.462268],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1251,6 +1290,7 @@
       ],
       "warmups": [15.415378, 15.253496],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1282,6 +1322,7 @@
       ],
       "warmups": [8.097462, 8.09981],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1313,6 +1354,7 @@
       ],
       "warmups": [8.294332, 8.314393],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1344,6 +1386,7 @@
       ],
       "warmups": [8.354897, 8.488901],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1375,6 +1418,7 @@
       ],
       "warmups": [8.4973, 8.257512],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1406,6 +1450,7 @@
       ],
       "warmups": [5.23163, 5.756579],
       "voids": null,
+      "noise": 0.004,
       "first": "fails",
       "repeated": "In the first CI run, the corpus said that the idle timeout of Redis ends the client with ETIMEDOUT. Redis closes the idle client itself, with a FIN. After that fix of the corpus, CI did the cell again."
     },
@@ -1434,6 +1479,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1462,6 +1508,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1490,6 +1537,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1521,6 +1569,7 @@
       ],
       "warmups": [134.872701, 134.720371],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1552,6 +1601,7 @@
       ],
       "warmups": [147.366411, 147.269977],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1583,6 +1633,7 @@
       ],
       "warmups": [211.736008, 212.344017],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1614,6 +1665,7 @@
       ],
       "warmups": [333.920086, 334.664024],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1645,6 +1697,7 @@
       ],
       "warmups": [5.433336, 5.360802],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1676,6 +1729,7 @@
       ],
       "warmups": [0.000163, 0.000118],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1707,6 +1761,7 @@
       ],
       "warmups": [5.394169, 5.03149],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1738,6 +1793,7 @@
       ],
       "warmups": [0.000041, 0.000045],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1769,6 +1825,7 @@
       ],
       "warmups": [5.770686, 5.517371],
       "voids": null,
+      "noise": 0.004,
       "first": "fails",
       "repeated": "In the first CI run, the corpus said that the idle timeout of Redis ends the client with ETIMEDOUT. Redis closes the idle client itself, with a FIN. After that fix of the corpus, CI did the cell again."
     },
@@ -1797,6 +1854,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1825,6 +1883,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1856,6 +1915,7 @@
       ],
       "warmups": [0.000043, 0.000036],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1887,6 +1947,7 @@
       ],
       "warmups": [0.000251, 0.00026],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1915,6 +1976,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1946,6 +2008,7 @@
       ],
       "warmups": [5.415709, 5.170309],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -1977,6 +2040,7 @@
       ],
       "warmups": [0.000049, 0.000054],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2005,6 +2069,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2036,6 +2101,7 @@
       ],
       "warmups": [2.03851, 2.021415],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2076,6 +2142,7 @@
       ],
       "warmups": [null, null, null, null, null, null, null, null, null, null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2107,6 +2174,7 @@
       ],
       "warmups": [6.200003, 6.183996],
       "voids": "5 runs are void: in each, the retransmit timer was 3 to 6 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2138,6 +2206,7 @@
       ],
       "warmups": [3.12, 3.119994],
       "voids": "5 runs are void: in each, the retransmit timer was 2 to 6 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2169,6 +2238,7 @@
       ],
       "warmups": [3.120005, 3.120016],
       "voids": "3 runs are void: in each, the retransmit timer was 2 to 3 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2200,6 +2270,7 @@
       ],
       "warmups": [6.175999, 6.176008],
       "voids": "3 runs are void: in each, the retransmit timer was 2 to 5 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2231,6 +2302,7 @@
       ],
       "warmups": [6.168013, 6.16001],
       "voids": "2 runs are void: in each, the retransmit timer was 2 to 3 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2262,6 +2334,7 @@
       ],
       "warmups": [1.656061, 1.669197],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2293,6 +2366,7 @@
       ],
       "warmups": [51.333656, 51.183071],
       "voids": "4 runs are void: in each, the keepalive timer was 2 to 4 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2324,6 +2398,7 @@
       ],
       "warmups": [6.159989, 6.144986],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2355,6 +2430,7 @@
       ],
       "warmups": [6.175941, 6.200017],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2383,6 +2459,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2414,6 +2491,7 @@
       ],
       "warmups": [0.000153, 0.000148],
       "voids": null,
+      "noise": 0.004,
       "first": "fails",
       "repeated": "In the first CI run, the corpus raced the keepalive refresh with the forget of the router only for an idle flow. A flow that idles before its request races them too. After that fix of the corpus, CI did the cell again."
     },
@@ -2442,6 +2520,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2470,6 +2549,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2498,6 +2578,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2529,6 +2610,7 @@
       ],
       "warmups": [6.168009, 6.200866],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2560,6 +2642,7 @@
       ],
       "warmups": [3.119985, 3.12],
       "voids": "One run is void: its retransmit timer was 2 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2591,6 +2674,7 @@
       ],
       "warmups": [3.119991, 3.119993],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2622,6 +2706,7 @@
       ],
       "warmups": [6.151991, 6.200992],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2653,6 +2738,7 @@
       ],
       "warmups": [1.663207, 1.636632],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2681,6 +2767,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2709,6 +2796,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2737,6 +2825,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2768,6 +2857,7 @@
       ],
       "warmups": [6.169011, 6.152001],
       "voids": "One run is void: its retransmit timer was 3 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2796,6 +2886,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2827,6 +2918,7 @@
       ],
       "warmups": [6.184001, 6.160002],
       "voids": "3 runs are void: in each, the retransmit timer was 3 to 5 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2858,6 +2950,7 @@
       ],
       "warmups": [8.083017, 8.481008],
       "voids": "One run is void: its keepalive timer was 7 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2889,6 +2982,7 @@
       ],
       "warmups": [6.152007, 6.143991],
       "voids": "One run is void: its retransmit timer was 6 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2920,6 +3014,7 @@
       ],
       "warmups": [3.120008, 3.119997],
       "voids": "3 runs are void: in each, the retransmit timer was 3 to 5 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2951,6 +3046,7 @@
       ],
       "warmups": [3.119997, 3.120997],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -2982,6 +3078,7 @@
       ],
       "warmups": [6.144011, 6.164244],
       "voids": "3 runs are void: in each, the retransmit timer was 2 to 8 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3013,6 +3110,7 @@
       ],
       "warmups": [6.15203, 6.152018],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3044,6 +3142,7 @@
       ],
       "warmups": [210.848001, 212.072988],
       "voids": "One run is void: its retransmit timer was 2 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3075,6 +3174,7 @@
       ],
       "warmups": [334.815994, 333.932013],
       "voids": "3 runs are void: in each, the retransmit timer was 2 to 4 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3106,6 +3206,7 @@
       ],
       "warmups": [8.322181, 8.236237],
       "voids": "One run is void: its keepalive timer was 2 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3137,6 +3238,7 @@
       ],
       "warmups": [8.2619, 8.109617],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3168,6 +3270,7 @@
       ],
       "warmups": [8.520108, 8.341779],
       "voids": "3 runs are void: in each, the keepalive timer was 5 to 7 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3199,6 +3302,7 @@
       ],
       "warmups": [8.436959, 8.235638],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3230,6 +3334,7 @@
       ],
       "warmups": [8.569845, 8.432009],
       "voids": "One run is void: its keepalive timer was 5 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3261,6 +3366,7 @@
       ],
       "warmups": [6.166993, 6.183001],
       "voids": "6 runs are void: in each, the retransmit timer was 2 to 7 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3292,6 +3398,7 @@
       ],
       "warmups": [6.167994, 6.160014],
       "voids": "One run is void: its retransmit timer was 2 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3323,6 +3430,7 @@
       ],
       "warmups": [6.192027, 6.152915],
       "voids": "One run is void: its retransmit timer was 6 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3354,6 +3462,7 @@
       ],
       "warmups": [1.670612, 1.634745],
       "voids": "3 runs are void: in each, the retransmit timer was 2 to 5 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3385,6 +3494,7 @@
       ],
       "warmups": [1.639952, 1.635579],
       "voids": "4 runs are void: in each, the retransmit timer was 4 to 6 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3413,6 +3523,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3444,6 +3555,7 @@
       ],
       "warmups": [6.160425, 6.168016],
       "voids": "3 runs are void: in each, the retransmit timer was 3 to 5 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3472,6 +3584,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3503,6 +3616,7 @@
       ],
       "warmups": [3.118803, 3.119975],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3531,6 +3645,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3562,6 +3677,7 @@
       ],
       "warmups": [6.200013, 6.183998],
       "voids": "One run is void: its retransmit timer was 6 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3590,6 +3706,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3621,6 +3738,7 @@
       ],
       "warmups": [0.000202, 0.000228],
       "voids": null,
+      "noise": 0.004,
       "first": "fails",
       "repeated": "In the first CI run, the corpus raced the keepalive refresh with the forget of the router only for an idle flow. A flow that idles before its request races them too. After that fix of the corpus, CI did the cell again."
     },
@@ -3649,6 +3767,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3677,6 +3796,7 @@
       ],
       "warmups": [null, null],
       "voids": null,
+      "noise": 0.004,
       "first": null,
       "repeated": null
     },
@@ -3708,6 +3828,7 @@
       ],
       "warmups": [3.119986, 3.119985],
       "voids": "One run is void: its retransmit timer was 2 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "noise": 0.004,
       "first": null,
       "repeated": null
     }

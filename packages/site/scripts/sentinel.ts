@@ -11,12 +11,11 @@
 
 import type { Cell, Stage } from "../../harness/src/index.ts";
 import { NOISE, STAGES } from "../../harness/src/index.ts";
-import { T12_CAL, T12_CELLS } from "../../cells/src/t12.ts";
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { CellRecord, Reading, Summary } from "./judged.ts";
 import { nameOf, read, resultOf } from "./judged.ts";
-import { dateOf, only, ordinal, readFolders, runnerOf, secondsOf, stringify, time } from "./records.ts";
+import { dateOf, noiseOf, ofCatalog, only, ordinal, readFolders, runnerOf, secondsOf, stringify, time } from "./records.ts";
 
 const folders = process.argv.slice(2);
 if (folders.length === 0) {
@@ -24,8 +23,19 @@ if (folders.length === 0) {
   process.exit(2);
 }
 
+// the catalog reads the HZ of the kernel when it loads, thus it loads after the HZ of the runner is known
+const runner = runnerOf(folders);
+process.env["CELLS_HZ"] = String(runner.hz);
+const { T12_CAL, T12_CELLS } = await import("../../cells/src/t12.ts");
+const { ALL } = await import("../../cells/src/all.ts");
+
 const CATALOG: readonly Cell[] = [...T12_CELLS, T12_CAL];
-const found = readFolders<CellRecord, Summary>(folders);
+// a full run of the catalogs holds the cells of each catalog: this export takes its own
+const found = ofCatalog(
+  readFolders<CellRecord, Summary>(folders),
+  CATALOG.map((cell) => cell.name),
+  ALL.map((cell) => cell.name),
+);
 
 /** These sentences tell the path of each prediction of a detection, by the timer that the catalog names. */
 const PATHS: Readonly<Record<string, string>> = {
@@ -172,13 +182,12 @@ const calibration = (() => {
   if (lags === undefined || lags === null) throw new Error("the calibration of the stamps has no delays");
   return { count: lags.count, median: secondsOf(lags.median), p99: secondsOf(lags.p99), max: secondsOf(lags.max) };
 })();
-const runner = runnerOf(folders);
 const date = dateOf(records.map((record) => record.at.ended));
 const copy = {
   source: "the raw records of the runners of GitHub, judged again by the harness. A re-run replaces the first run of its cell",
   ranAt: date,
   units: "s",
-  noise: secondsOf(NOISE),
+  noise: noiseOf(records.map((record) => record.cell), NOISE),
   runs: Number(only("the count of runs", records.map((record) => String(record.cell.runs)))),
   kernel: runner.kernel,
   hz: runner.hz,

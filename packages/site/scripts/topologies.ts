@@ -3,20 +3,20 @@
 //   pnpm exec tsx packages/site/scripts/topologies.ts <folder>...
 //
 // Each folder is the output of the runner of @systems/cells: one raw record for each cell, and
-// rejudged.ndjson, the verdict of each record from the final `observe.ts`. A cell in a later folder
+// rejudged.ndjson, the verdict of each record from the final `observe.ts`. A folder of a run at a
+// later harness has summary.ndjson only, and its verdicts are of that harness. A full run of the
+// catalogs holds each catalog: the export takes T03, T02, Toxiproxy and its slice of T01. A cell in a later folder
 // is the re-run of the same cell of an earlier folder, thus the folder of the re-runs goes last.
 // The page shows the first run and the re-run. The script reads each record again with the code of
 // the harness (`judge`). It stops when that verdict disagrees with rejudged.ndjson, or when a
 // prediction disagrees with the catalog. The copy keeps only what the page shows. It keeps no boot
 // id, image digest, container, namespace inode, user or path.
 
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Cell, Hop, Manifest, Measured, ProxyHop, Run, Verdict } from "../../harness/src/index.ts";
 import { judge, measure, NOISE } from "../../harness/src/index.ts";
-import { ALL } from "../../cells/src/all.ts";
-import { T03_SPECS, o03Of } from "../../cells/src/t03.ts";
 import { duration } from "../src/lib/format.ts";
 
 const folders = process.argv.slice(2);
@@ -51,7 +51,9 @@ interface Found {
 const found = new Map<string, Found[]>();
 for (const folder of folders) {
   const judgements = new Map<string, Judgement>();
-  for (const line of readFileSync(join(folder, "rejudged.ndjson"), "utf8").split("\n")) {
+  // the verdicts from the final measure, or else the run's own
+  const verdicts = existsSync(join(folder, "rejudged.ndjson")) ? "rejudged.ndjson" : "summary.ndjson";
+  for (const line of readFileSync(join(folder, verdicts), "utf8").split("\n")) {
     if (line.trim() === "") continue;
     const judgement = JSON.parse(line) as Judgement;
     judgements.set(judgement.name, judgement);
@@ -59,10 +61,39 @@ for (const folder of folders) {
   for (const file of readdirSync(folder).filter((name) => name.endsWith(".json")).sort()) {
     const record = JSON.parse(readFileSync(join(folder, file), "utf8")) as CellRecord;
     const judgement = judgements.get(record.cell.name);
-    if (judgement === undefined) throw new Error(`${file}: rejudged.ndjson has no line for ${record.cell.name}`);
+    if (judgement === undefined) throw new Error(`${file}: ${verdicts} has no line for ${record.cell.name}`);
     found.set(record.cell.name, [...(found.get(record.cell.name) ?? []), { record, judgement }]);
   }
 }
+
+// the catalogs read the HZ of the kernel when they load, thus they load after the HZ of the records is known
+const hzs = [...new Set([...found.values()].flat().flatMap((entry) => entry.record.manifests.flatMap((manifest) => (manifest.hz ? [manifest.hz] : []))))];
+if (hzs.length !== 1) throw new Error(`the records disagree on HZ: ${hzs.join(", ")}`);
+process.env["CELLS_HZ"] = hzs[0]!;
+const { ALL } = await import("../../cells/src/all.ts");
+const { T03_CELLS, T03_FAULT_SPECS, T03_SPECS, o03Of } = await import("../../cells/src/t03.ts");
+const { T02_CELLS } = await import("../../cells/src/t02.ts");
+const { TOX_CELLS } = await import("../../cells/src/toxiproxy.ts");
+
+/** These T01 cells are the slice of step 3: one cell of each family of manifestations, the two observers, the stall, the MTU black hole and one netem distribution. */
+const SLICE = [
+  "client idle, blackhole",
+  "client idle, fin",
+  "client in flight, blackhole, tcp_retries2 = 3",
+  "client in flight, unreachable-host, tcp_retries2 = 3",
+  "client in flight, freeze-process",
+  "client in flight, a 1 s stall",
+  "server idle, blackhole",
+  "server, a reply in flight, simplex-to-client, tcp_retries2 = 3",
+  "server, a long reply, mtu-blackhole, tcp_retries2 = 3",
+  "client stream, netem loss 5%",
+].map((name) => `T01 ${name}`);
+// a full run of the catalogs holds the cells of each catalog: this export takes its own
+const own = new Set([...T03_CELLS, ...T02_CELLS, ...TOX_CELLS].map((cell) => cell.name).concat(SLICE));
+const every = new Set(ALL.map((cell) => cell.name));
+const strange = [...found.keys()].filter((name) => !every.has(name));
+if (strange.length > 0) throw new Error(`no catalog has the cells ${strange.join(", ")}`);
+for (const name of [...found.keys()]) if (!own.has(name)) found.delete(name);
 
 /** These are the Linux 6.6 values of the sysctls that a cell sets. The page shows only the sysctls that differ. */
 const LINUX_66: Readonly<Record<string, string>> = {
@@ -355,7 +386,9 @@ const cells = ALL.flatMap((catalog) => {
   if (id === undefined) throw new Error(`${cell.name}: no catalog`);
   const name = cell.name.slice(id.length + 1);
   const spec = id === "T03" ? T03_SPECS.find((each) => each.name === name) : undefined;
-  if (id === "T03" && spec === undefined) throw new Error(`${cell.name}: no spec of T03`);
+  // a cell of a fault at the router has no forget of its own to order: O03 does not hold for it
+  const atRouter = id === "T03" && spec === undefined && T03_FAULT_SPECS.some((each) => each.name === name);
+  if (id === "T03" && spec === undefined && !atRouter) throw new Error(`${cell.name}: no spec of T03`);
   const o03 = spec === undefined ? null : o03Of(spec);
   const earlier = id === "T01" ? faults.cells.find((each) => each.name === name) : undefined;
   if (id === "T01" && earlier === undefined) throw new Error(`${cell.name}: not on the page of the network failures`);
@@ -364,7 +397,7 @@ const cells = ALL.flatMap((catalog) => {
     {
       catalog: id,
       name,
-      group: groupOf(id, cell),
+      group: atRouter ? `router ${modeOf(cell)}` : groupOf(id, cell),
       topology: { hops: (cell.topology?.hops ?? []).map(hopOf) },
       fault: {
         kind: cell.fault,
@@ -423,7 +456,7 @@ const copy = {
   source: "the prober's eBPF records, judged again by the final measure of the harness. A re-run follows the first run of its cell",
   ranAt: date,
   units: "s",
-  noise: secondsOf(NOISE),
+  noise: Number(only("the noise", records.map((record) => String(secondsOf(record.cell.noise ?? NOISE))))),
   runs: Number(only("the count of runs", records.map((record) => String(record.cell.runs)))),
   kernel: only("the kernel", manifests.map((manifest) => /^\d+(\.\d+)+/.exec(manifest.kernel)?.[0] ?? "")),
   hz: Number(only("HZ", manifests.map((manifest) => manifest.hz ?? ""))),

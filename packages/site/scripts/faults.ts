@@ -14,7 +14,6 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Cell, Manifest, Measured, Run, Verdict } from "../../harness/src/index.ts";
 import { judge, NOISE } from "../../harness/src/index.ts";
-import { CELLS } from "../../cells/src/catalog.ts";
 
 const folders = process.argv.slice(2);
 if (folders.length === 0) {
@@ -150,6 +149,13 @@ const only = (what: string, values: readonly string[]): string => {
   return set[0]!;
 };
 
+// the catalog reads the HZ of the kernel when it loads, thus it loads after the HZ of the records is known
+process.env["CELLS_HZ"] = only(
+  "HZ",
+  [...found.values()].flatMap((entry) => entry.record.manifests.flatMap((manifest) => (manifest.hz ? [manifest.hz] : []))),
+);
+const { CELLS } = await import("../../cells/src/catalog.ts");
+
 const cells = CELLS.map((catalog) => {
   const entry = found.get(catalog.name);
   if (entry === undefined) throw new Error(`no record of ${catalog.name}`);
@@ -202,7 +208,7 @@ const copy = {
   topology: "T01",
   ranAt: date,
   units: "s",
-  noise: secondsOf(NOISE),
+  noise: Number(only("the noise", records.map((record) => String(secondsOf(record.cell.noise ?? NOISE))))),
   runs: Number(only("the count of runs", records.map((record) => String(record.cell.runs)))),
   kernel: only("the kernel", manifests.map((manifest) => /^\d+(\.\d+)+/.exec(manifest.kernel)?.[0] ?? "")),
   hz: Number(only("HZ", manifests.map((manifest) => manifest.hz ?? ""))),

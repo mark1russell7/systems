@@ -66,6 +66,35 @@ export const only = (what: string, values: readonly string[]): string => {
 };
 
 /**
+ * This function keeps the records of the cells of one catalog. A full run of the catalogs puts the
+ * records of each catalog in the same folders, thus each export takes its own cells. A record of a
+ * cell of no catalog stops it: then the folders hold the records of another run.
+ */
+export const ofCatalog = <F>(found: ReadonlyMap<string, F>, own: readonly string[], every: readonly string[]): Map<string, F> => {
+  const mine = new Set(own);
+  const all = new Set(every);
+  const strange = [...found.keys()].filter((name) => !all.has(name));
+  if (strange.length > 0) throw new Error(`no catalog has the cells ${strange.join(", ")}`);
+  return new Map([...found].filter(([name]) => mine.has(name)));
+};
+
+/** A quantity of time, as a record gives it. */
+interface Time {
+  readonly value: number;
+  readonly unit: string;
+}
+
+/**
+ * This function gives the one δ_abs of the cells of a copy, in seconds: the noise of each cell, or
+ * the default of the harness. It gives null when the cells disagree, as when a re-run had another
+ * environment than the first run. Then each cell of the copy gives its own.
+ */
+export const noiseOf = (cells: readonly { readonly noise?: Time }[], fallback: Time): number | null => {
+  const values = [...new Set(cells.map((cell) => secondsOf(cell.noise ?? fallback)))];
+  return values.length === 1 ? values[0]! : null;
+};
+
+/**
  * This function gives the kernel and its HZ from runner.txt in each folder. The kernel keeps only
  * its version, and not the name of its build.
  */
