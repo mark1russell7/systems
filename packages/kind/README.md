@@ -72,12 +72,22 @@ The tests read three real records of `/1` (`test/records/`): a cell that holds, 
 `openKindLab(cluster, image)` (`lab.ts`) starts the instruments of a cluster:
 
 - **The agent of each node** is a privileged container in the PID namespace of the node container. It signals a process of a pod by its PID on the node. It writes `cpu.max` in the cgroup of a container, and a flag file in the root of a container.
+  - From 0.1.4, it also reads the conntrack table of the node each second. It writes a `stale` line for each entry to the ClusterIP that keeps its NAT to a pod that the rules dropped.
+  - It reads `/proc/net/nf_conntrack`, or else it asks netlink with the `conntrack` tool of the node. The kernel of a GitHub runner has no `/proc/net/nf_conntrack`. A dump through netlink walks each bucket of the table of the kernel with the softirqs off. A segment that comes in that walk waits. Thus each read is one dump, and `kind.yml` gives the table 16384 buckets, not 262144.
+  - A SYN on the port of such an entry goes to that pod, whatever the rules say. An entry in TIME_WAIT is not stale, because a SYN reopens it with a new lookup.
+  - It writes a `stalled` line for each handshake that stopped for one second or more: a SYN with no reply, or a SYN-ACK with no ACK. On the node of the client, the line gives the backend of the DNAT. On the node of that backend, the line tells which half of the handshake did not arrive.
+  - Each `rules-alive` line gives the source of the table (`ct`). It counts the reads since the last line, and the entries of the ClusterIP in each state. A read that fails stops the reads, and `ct.error` tells why. The lab drops the lines from before the first measurement, thus an early failure shows only in `ct.error`.
+  - `ct.syn` gives up to three entries in SYN_SENT, with the backend of their NAT and their life. A new SYN has the life 120 s, and an older one less.
+  - Each second, the agent reads the counters of dropped packets (`drops.ts`), and it writes a `drops` line with each counter that grew. For the node, these are the drops of the backlogs, the squeezes of the softirqs, and the drops of each veth.
+  - For each client pod, the agent reads `/proc/<pid>/net`. These counters are the IP discards, the sends with no route, the failed connects, the drops of its interfaces, and its neighbors with no address. A SYN that does not get to the conntrack of the node leaves its trace in one of them.
 - **The rules of each node.** The agent reads the rules of kube-proxy in the namespaces of the node each 50 ms: `iptables-save`, `nft list table ip kube-proxy`, or `/proc/net/ip_vs`. It writes a line when the backends of the Service change (`backends.ts`). A backend of IPVS with the weight zero takes no new connection, thus it is not a backend.
 - **The injector of each node** is the image of the harness, in the PID namespace of the node. `crictl` on the node gives the PID of a container, and `nsenter -n` enters the network namespace of its pod. The injector of the harness then applies its rules there.
 - **The watcher** is a container on the network of the cluster. It watches the pods, the EndpointSlices and the events through the API, and it follows the log of each pod of the cell.
 - **The prober** of the harness watches the network namespace of each pod, by its inode. The lab keeps its resets, errors and retransmissions, and it counts the other records.
 
 Each pod of a cluster shares the kernel of the Docker VM. Thus each stamp of the agent, the injector, the watcher, the clients, the service and the prober is on the same CLOCK_MONOTONIC.
+
+Before each run, the lab deletes the conntrack entries in SYN_SENT to the ClusterIP on each node (`forgetHandshakes`). A note of the run gives each count. Such an entry is a SYN with no answer, and it keeps its NAT for 120 s. A new SYN from the same port goes where the first one went, and it gets no answer either. The clients send requests between the runs too. Thus the restore of one run left such entries, and a client that took the port again in the next run timed out (T07, 2026-10-17).
 
 ## The image
 

@@ -3,6 +3,7 @@ import { harnessImage } from "@mark1russell7/harness";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { ServiceRule } from "./backends.ts";
+import { deletedOf } from "./conntrack.ts";
 import type { Cluster } from "./cluster.ts";
 import { command } from "./cluster.ts";
 import type { Line } from "./observe.ts";
@@ -50,6 +51,12 @@ export interface KindLab {
   netnsOf(node: string, pid: number): Promise<number>;
   /** This method gives the path of the cgroup of a process, as the agent reaches it through the root of the node. */
   cgroupOf(node: string, pid: number): Promise<string>;
+  /**
+   * This method deletes the conntrack entries in SYN_SENT to a ClusterIP and port on each node, and
+   * gives the count of each node. Such an entry is a SYN with no answer. It keeps its NAT for 120 s,
+   * and a new SYN from the same port goes where it went.
+   */
+  forgetHandshakes(ip: string, port: number): Promise<Record<string, number>>;
   close(): Promise<void>;
 }
 
@@ -214,6 +221,17 @@ export const openKindLab = async (cluster: Cluster, image: string): Promise<Kind
         if (file === null) await output(agent, ["rm", "-f", "/tmp/rules.json"]);
         else await output(agent, ["sh", "-c", `printf '%s' '${file}' > /tmp/rules.json`]);
       }
+    },
+    async forgetHandshakes(ip, port) {
+      const out: Record<string, number> = {};
+      for (const [node, { agent }] of sidecars) {
+        const argv = ["nsenter", "-t", "1", "-m", "-n", "--", "conntrack", "-D", "-p", "tcp", "--orig-dst", ip, "--dport", String(port), "--state", "SYN_SENT"];
+        // the tool writes its count to stderr, and exits 1 when it deletes no entry
+        const result = await agent.exec(argv);
+        if (result.exitCode !== 0 && result.exitCode !== 1) throw new Error(`${argv.join(" ")} exited ${result.exitCode}: ${result.output.trim().slice(0, 300)}`);
+        out[node] = deletedOf(result.output);
+      }
+      return out;
     },
     async act(node, spec) {
       const stdout = await output(sidecarOf(node).agent, ["node", "agent.mjs", "act", JSON.stringify(spec)]);

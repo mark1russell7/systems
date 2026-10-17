@@ -308,6 +308,9 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
   const restarts = new Map(ctx.tracker.servers().map((pod) => [pod.name, pod.cs.reduce((sum, status) => sum + status.rc, 0)]));
   const target = cell.declaration.redis !== null && ["rst", "blackhole", "freeze-process", "peer-gone-without-close", "rollout"].includes(cell.trigger.kind) ? null : replicas[0]!;
   const paused = cell.template === "T07" && cell.trigger.kind === "freeze-process" ? (cluster.nodes[1] ?? cluster.nodes[0]!) : null;
+  // A SYN with no answer before the run keeps its NAT for 120 s (SYN_SENT). A client that takes its
+  // port again in the run meets it, and the restore of the last run leaves such SYNs. Each run starts with none
+  const cleared = await lab.forgetHandshakes(ctx.clusterIp, 80);
   lab.take();
   for (const key of Object.keys(lab.dropped)) delete lab.dropped[key];
   const start = await lab.now();
@@ -316,6 +319,8 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
   let resume: number | null = null;
   if (cell.trigger.kind === "scale-in") ctx.expected = cell.pod.replicas - 1;
   const notes: string[] = [];
+  const forgotten = Object.entries(cleared).filter(([, count]) => count > 0);
+  if (forgotten.length > 0) notes.push(`before the run, the lab deleted SYN_SENT entries of the ClusterIP: ${forgotten.map(([node, count]) => `${count} on ${node}`).join(", ")}`);
   for (const step of plan.inject) {
     const stamp = await doStep(ctx, step, replicas, background);
     if (stamp !== null && fault === null) fault = stamp.t0;
