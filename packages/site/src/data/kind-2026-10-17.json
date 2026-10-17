@@ -1,6 +1,6 @@
 {
   "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
-  "ranAt": "2026-10-16",
+  "ranAt": "2026-10-17",
   "units": "s",
   "runs": 11,
   "kernel": "6.17.0",
@@ -11,74 +11,74 @@
     "iptables": {
       "all": {
         "count": 33,
-        "min": 0.017,
-        "median": 0.059,
-        "p99": 0.105,
-        "max": 0.105
+        "min": 0.029,
+        "median": 0.063,
+        "p99": 0.113,
+        "max": 0.113
       },
       "slice": {
         "count": 11,
         "min": 0.006,
-        "median": 0.012,
-        "p99": 0.024,
-        "max": 0.024
-      },
-      "intake": {
-        "count": 11,
-        "min": 12.006,
-        "median": 12.011,
-        "p99": 12.013,
-        "max": 12.013
-      },
-      "values": [0.017, 0.023, 0.025, 0.026, 0.033, 0.04, 0.041, 0.042, 0.044, 0.049, 0.053, 0.053, 0.056, 0.057, 0.058, 0.058, 0.059, 0.062, 0.063, 0.066, 0.067, 0.067, 0.068, 0.071, 0.071, 0.078, 0.079, 0.082, 0.083, 0.088, 0.091, 0.098, 0.105]
-    },
-    "ipvs": {
-      "all": {
-        "count": 33,
-        "min": 0.123,
-        "median": 0.192,
-        "p99": 0.309,
-        "max": 0.309
-      },
-      "slice": {
-        "count": 11,
-        "min": 0.005,
-        "median": 0.018,
-        "p99": 0.03,
-        "max": 0.03
+        "median": 0.011,
+        "p99": 0.018,
+        "max": 0.018
       },
       "intake": {
         "count": 11,
         "min": 12.008,
         "median": 12.01,
-        "p99": 12.012,
-        "max": 12.012
+        "p99": 12.013,
+        "max": 12.013
       },
-      "values": [0.123, 0.149, 0.151, 0.153, 0.157, 0.162, 0.168, 0.169, 0.17, 0.171, 0.173, 0.18, 0.182, 0.185, 0.189, 0.192, 0.192, 0.193, 0.198, 0.212, 0.218, 0.218, 0.225, 0.226, 0.232, 0.234, 0.235, 0.238, 0.247, 0.252, 0.254, 0.285, 0.309]
+      "values": [0.029, 0.035, 0.038, 0.044, 0.046, 0.05, 0.051, 0.052, 0.052, 0.053, 0.054, 0.054, 0.054, 0.055, 0.059, 0.059, 0.063, 0.065, 0.065, 0.066, 0.066, 0.067, 0.068, 0.071, 0.073, 0.075, 0.077, 0.078, 0.093, 0.097, 0.097, 0.101, 0.113]
     },
-    "nftables": {
+    "ipvs": {
       "all": {
         "count": 33,
-        "min": 0.019,
-        "median": 0.045,
-        "p99": 0.079,
-        "max": 0.079
+        "min": 0.101,
+        "median": 0.184,
+        "p99": 0.232,
+        "max": 0.232
       },
       "slice": {
         "count": 11,
         "min": 0.004,
-        "median": 0.008,
-        "p99": 0.023,
-        "max": 0.023
+        "median": 0.011,
+        "p99": 0.035,
+        "max": 0.035
       },
       "intake": {
         "count": 11,
         "min": 12.007,
-        "median": 12.009,
-        "p99": 12.011,
-        "max": 12.011
+        "median": 12.01,
+        "p99": 12.016,
+        "max": 12.016
       },
-      "values": [0.019, 0.021, 0.021, 0.025, 0.025, 0.027, 0.027, 0.028, 0.029, 0.029, 0.031, 0.034, 0.034, 0.038, 0.04, 0.043, 0.045, 0.047, 0.047, 0.047, 0.048, 0.05, 0.052, 0.054, 0.055, 0.055, 0.056, 0.057, 0.063, 0.065, 0.067, 0.077, 0.079]
+      "values": [0.101, 0.124, 0.135, 0.14, 0.154, 0.154, 0.157, 0.158, 0.161, 0.161, 0.165, 0.167, 0.168, 0.174, 0.182, 0.182, 0.184, 0.185, 0.188, 0.189, 0.192, 0.198, 0.201, 0.202, 0.207, 0.213, 0.215, 0.218, 0.22, 0.22, 0.224, 0.227, 0.232]
+    },
+    "nftables": {
+      "all": {
+        "count": 33,
+        "min": 0.017,
+        "median": 0.05,
+        "p99": 0.085,
+        "max": 0.085
+      },
+      "slice": {
+        "count": 11,
+        "min": 0.006,
+        "median": 0.012,
+        "p99": 0.031,
+        "max": 0.031
+      },
+      "intake": {
+        "count": 11,
+        "min": 12.007,
+        "median": 12.01,
+        "p99": 12.013,
+        "max": 12.013
+      },
+      "values": [0.017, 0.019, 0.023, 0.023, 0.026, 0.029, 0.03, 0.031, 0.034, 0.038, 0.042, 0.046, 0.047, 0.047, 0.049, 0.049, 0.05, 0.054, 0.054, 0.055, 0.055, 0.056, 0.059, 0.063, 0.064, 0.065, 0.066, 0.068, 0.072, 0.072, 0.074, 0.076, 0.085]
     }
   },
   "cells": [
@@ -97,11 +97,11 @@
       "decision": "calibration",
       "counted": 11,
       "voided": 0,
-      "failed": 1,
+      "failed": 0,
       "unit": "requests",
       "median": 0,
-      "values": [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-      "why": "The calibration measured the propagation in each of the 11 counted runs. In 1 counted run, 1 request failed with a timeout."
+      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "The calibration measured the propagation in each of the 11 counted runs."
     },
     {
       "id": "T07.defaults.9",
@@ -136,14 +136,14 @@
         "band": null,
         "text": "The algebra predicts that each failed request starts in a window. The window opens at the stop of the intake, and it closes 0 s to 105 ms after the deletion of the pod."
       },
-      "decision": "fails",
+      "decision": "holds",
       "counted": 11,
       "voided": 0,
-      "failed": 1,
+      "failed": 0,
       "unit": "requests",
       "median": 3,
-      "values": [7, 0, 3, 3, 3, 2, 2, 5, 4, 6, 2],
-      "why": "1 of the 11 counted runs disagrees with the prediction. In that run, 1 request failed outside the window of −100 ms to 161 ms after the stop of the intake. The median run had 3 failed requests."
+      "values": [4, 6, 6, 1, 3, 0, 2, 1, 3, 3, 2],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 3 failed requests. The counted runs had 0 to 6 failed requests."
     },
     {
       "id": "T07.defaults.34",
@@ -155,16 +155,16 @@
       "prediction": {
         "kind": "window",
         "band": null,
-        "text": "The algebra predicts that each failed request starts in a window. The window opens at the stop of the intake, and it closes 0 s to 105 ms after the resume of kube-proxy. Only the clients of the paused node fail. At least one request fails."
+        "text": "The algebra predicts that each failed request starts in a window. The window opens −2 min 2 s after the stop of the intake, and it closes 0 s to 2 min 2.1 s after the resume of kube-proxy. Only the clients of the paused node fail. At least one request fails."
       },
       "decision": "fails",
       "counted": 11,
       "voided": 0,
-      "failed": 8,
+      "failed": 1,
       "unit": "requests",
-      "median": 61,
-      "values": [51, 64, 61, 56, 84, 61, 61, 76, 71, 64, 56],
-      "why": "8 of the 11 counted runs disagree with the prediction. In the first of them, 1 request failed outside the window of −100 ms to 2.49 s after the stop of the intake. The median run had 61 failed requests."
+      "median": 63,
+      "values": [59, 59, 72, 63, 50, 64, 63, 60, 73, 65, 60],
+      "why": "1 of the 11 counted runs disagrees with the prediction. In that run, 1 request failed on a node whose kube-proxy did not pause. The median run had 63 failed requests."
     },
     {
       "id": "T07.border-off.1",
@@ -178,14 +178,14 @@
         "band": null,
         "text": "The algebra predicts that no request fails."
       },
-      "decision": "holds",
+      "decision": "fails",
       "counted": 11,
       "voided": 0,
-      "failed": 0,
+      "failed": 2,
       "unit": "requests",
       "median": 0,
-      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 0 failed requests."
+      "values": [0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0],
+      "why": "2 of the 11 counted runs disagree with the prediction. In the first of them, 1 request failed with a timeout. The median run had 0 failed requests."
     },
     {
       "id": "CAL.T07.ipvs",
@@ -246,9 +246,9 @@
       "voided": 0,
       "failed": 0,
       "unit": "requests",
-      "median": 13,
-      "values": [15, 12, 12, 12, 15, 12, 13, 14, 14, 15, 13],
-      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 13 failed requests. The counted runs had 12 to 15 failed requests."
+      "median": 12,
+      "values": [12, 17, 10, 14, 13, 10, 12, 15, 12, 10, 12],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 12 failed requests. The counted runs had 10 to 17 failed requests."
     },
     {
       "id": "T07.defaults.31",
@@ -260,16 +260,16 @@
       "prediction": {
         "kind": "window",
         "band": null,
-        "text": "The algebra predicts that each failed request starts in a window. The window opens at the stop of the intake, and it closes 73 ms to 309 ms after the resume of kube-proxy. Only the clients of the paused node fail. At least one request fails."
+        "text": "The algebra predicts that each failed request starts in a window. The window opens −2 min 2 s after the stop of the intake, and it closes 73 ms to 2 min 2.3 s after the resume of kube-proxy. Only the clients of the paused node fail. At least one request fails."
       },
-      "decision": "fails",
+      "decision": "holds",
       "counted": 11,
       "voided": 0,
-      "failed": 7,
+      "failed": 0,
       "unit": "requests",
-      "median": 65,
-      "values": [57, 61, 58, 65, 65, 67, 66, 57, 68, 75, 83],
-      "why": "7 of the 11 counted runs disagree with the prediction. In the first of them, 3 requests failed outside the window of −100 ms to 2.687 s after the stop of the intake. The median run had 65 failed requests."
+      "median": 58,
+      "values": [58, 57, 59, 58, 57, 59, 57, 57, 59, 58, 59],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 58 failed requests. The counted runs had 57 to 59 failed requests."
     },
     {
       "id": "T07.border-off.1",
@@ -346,14 +346,14 @@
         "band": null,
         "text": "The algebra predicts that each failed request starts in a window. The window opens at the stop of the intake, and it closes 0 s to 79 ms after the deletion of the pod."
       },
-      "decision": "holds",
+      "decision": "fails",
       "counted": 11,
       "voided": 0,
-      "failed": 0,
+      "failed": 1,
       "unit": "requests",
-      "median": 1,
-      "values": [0, 2, 2, 1, 0, 1, 1, 3, 1, 2, 3],
-      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 1 failed request. The counted runs had 0 to 3 failed requests."
+      "median": 3,
+      "values": [2, 5, 0, 3, 5, 2, 4, 2, 1, 3, 3],
+      "why": "1 of the 11 counted runs disagrees with the prediction. In that run, 1 request failed outside the window of −100 ms to 155 ms after the stop of the intake. The median run had 3 failed requests."
     },
     {
       "id": "T07.defaults.28",
@@ -365,16 +365,16 @@
       "prediction": {
         "kind": "window",
         "band": null,
-        "text": "The algebra predicts that each failed request starts in a window. The window opens at the stop of the intake, and it closes 0 s to 79 ms after the resume of kube-proxy. Only the clients of the paused node fail. At least one request fails."
+        "text": "The algebra predicts that each failed request starts in a window. The window opens −2 min 2 s after the stop of the intake, and it closes 0 s to 2 min 2.1 s after the resume of kube-proxy. Only the clients of the paused node fail. At least one request fails."
       },
       "decision": "fails",
       "counted": 11,
       "voided": 0,
-      "failed": 6,
+      "failed": 1,
       "unit": "requests",
-      "median": 60,
-      "values": [56, 59, 46, 80, 63, 75, 57, 51, 81, 60, 70],
-      "why": "6 of the 11 counted runs disagree with the prediction. In the first of them, 14 requests failed outside the window of −100 ms to 2.521 s after the stop of the intake. The median run had 60 failed requests."
+      "median": 61,
+      "values": [51, 68, 71, 56, 70, 63, 57, 49, 63, 61, 45],
+      "why": "1 of the 11 counted runs disagrees with the prediction. In that run, 1 request failed on a node whose kube-proxy did not pause. The median run had 61 failed requests."
     },
     {
       "id": "T07.border-off.1",
@@ -409,14 +409,14 @@
         "band": null,
         "text": "The algebra predicts that no request fails."
       },
-      "decision": "fails",
+      "decision": "holds",
       "counted": 11,
       "voided": 0,
-      "failed": 1,
+      "failed": 0,
       "unit": "requests",
       "median": 0,
-      "values": [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-      "why": "1 of the 11 counted runs disagrees with the prediction. In that run, 1 request failed with a timeout. The median run had 0 failed requests."
+      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 0 failed requests."
     },
     {
       "id": "T07.defaults.27",
@@ -477,9 +477,9 @@
       "voided": 0,
       "failed": 0,
       "unit": "requests",
-      "median": 67,
-      "values": [59, 70, 61, 66, 74, 71, 80, 59, 8, 67, 68],
-      "why": "The harness measured 11 counted runs. The median run had 67 failed requests. The counted runs had 8 to 80 failed requests."
+      "median": 31,
+      "values": [31, 32, 18, 32, 25, 14, 20, 32, 25, 40, 43],
+      "why": "The harness measured 11 counted runs. The median run had 31 failed requests. The counted runs had 14 to 43 failed requests."
     },
     {
       "id": "T07.defaults.11",
@@ -519,9 +519,9 @@
       "voided": 0,
       "failed": 0,
       "unit": "requests",
-      "median": 22,
-      "values": [28, 18, 21, 22, 24, 23, 20, 25, 21, 21, 23],
-      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 22 failed requests. The counted runs had 18 to 28 failed requests."
+      "median": 20,
+      "values": [20, 20, 20, 19, 21, 22, 20, 23, 21, 20, 21],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 20 failed requests. The counted runs had 19 to 23 failed requests."
     },
     {
       "id": "T18.defaults.1",
@@ -543,9 +543,9 @@
       "voided": 0,
       "failed": 0,
       "unit": "s",
-      "median": 34.244,
-      "values": [44.148, 34.08, 43.258, 34.103, 33.955, 34.125, 43.255, 43.998, 43.163, 34.089, 34.244],
-      "why": "Each of the 11 counted runs agrees with the prediction. The median is 34.244 s. The counted runs measured 33.955 s to 44.148 s."
+      "median": 43.459,
+      "values": [33.766, 43.699, 43.582, 43.796, 33.724, 43.593, 44.487, 43.402, 43.459, 43.383, 34.401],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 43.459 s. The counted runs measured 33.724 s to 44.487 s."
     },
     {
       "id": "T18.defaults.10",
@@ -567,9 +567,9 @@
       "voided": 0,
       "failed": 0,
       "unit": "s",
-      "median": 43.12,
-      "values": [44.948, 42.956, 43.163, 33.166, 43.12, 35.165, 44.039, 36.026, 44.011, 34.011, 43.992],
-      "why": "Each of the 11 counted runs agrees with the prediction. The median is 43.12 s. The counted runs measured 33.166 s to 44.948 s."
+      "median": 43.311,
+      "values": [43.249, 43.315, 43.407, 43.311, 33.412, 43.261, 43.607, 43.25, 43.336, 33.732, 43.503],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 43.311 s. The counted runs measured 33.412 s to 43.607 s."
     },
     {
       "id": "T18.defaults.11",
@@ -591,9 +591,9 @@
       "voided": 0,
       "failed": 0,
       "unit": "s",
-      "median": 42.277,
-      "values": [43.118, 33.968, 44.074, 44.219, 44.052, 43.24, 42.265, 36.979, 42.277, 34.217, 37.115],
-      "why": "Each of the 11 counted runs agrees with the prediction. The median is 42.277 s. The counted runs measured 33.968 s to 44.219 s."
+      "median": 43.281,
+      "values": [43.284, 43.317, 43.43, 43.445, 43.253, 43.281, 35.47, 43.257, 43.335, 33.182, 43.148],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 43.281 s. The counted runs measured 33.182 s to 43.445 s."
     },
     {
       "id": "T18.defaults.11",
@@ -612,9 +612,9 @@
       "voided": 0,
       "failed": 0,
       "unit": "requests",
-      "median": 8507,
-      "values": [8501, 8586, 8507, 8482, 8391, 8553, 8523, 8564, 8500, 8432, 8584],
-      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 8,507 failed requests. The counted runs had 8,391 to 8,586 failed requests."
+      "median": 8459,
+      "values": [8411, 8288, 8482, 8503, 8435, 8618, 8682, 8384, 8267, 8459, 8548],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 8,459 failed requests. The counted runs had 8,267 to 8,682 failed requests."
     },
     {
       "id": "T18.defaults.5",
@@ -636,9 +636,9 @@
       "voided": 0,
       "failed": 0,
       "unit": "s",
-      "median": 42.143,
-      "values": [32.312, 41.285, 42.257, 42.37, 33.269, 33.34, 43.196, 43.257, 42.447, 42.119, 42.143],
-      "why": "Each of the 11 counted runs agrees with the prediction. The median is 42.143 s. The counted runs measured 32.312 s to 43.257 s."
+      "median": 42.237,
+      "values": [44.032, 42.171, 43.491, 33.757, 43.847, 32.172, 42.162, 42.293, 42.237, 41.876, 42.932],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 42.237 s. The counted runs measured 32.172 s to 44.032 s."
     },
     {
       "id": "T18.defaults.4",
@@ -660,9 +660,9 @@
       "voided": 0,
       "failed": 0,
       "unit": "s",
-      "median": 26.383,
-      "values": [21.475, 26.383, 29.36, 25.29, 30.385, 22.139, 24.003, 21.168, 28.603, 28.268, 30.383],
-      "why": "Each of the 11 counted runs agrees with the prediction. The median is 26.383 s. The counted runs measured 21.168 s to 30.385 s."
+      "median": 26.487,
+      "values": [25.849, 24.554, 27.697, 30.939, 30.105, 24.425, 30.035, 26.012, 22.476, 26.487, 28.358],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 26.487 s. The counted runs measured 22.476 s to 30.939 s."
     },
     {
       "id": "T18.defaults.6",
@@ -705,9 +705,9 @@
       "voided": 0,
       "failed": 0,
       "unit": "s",
-      "median": 38.043,
-      "values": [39.094, 37.193, 37.556, 38.043, 37.029, 38.864, 38.678, 37.673, 37.162, 38.691, 39.124],
-      "why": "Each of the 11 counted runs agrees with the prediction. The median is 38.043 s. The counted runs measured 37.029 s to 39.124 s."
+      "median": 39.145,
+      "values": [38.779, 38.934, 39.565, 39.104, 39.209, 39.431, 39.43, 39.098, 39.297, 38.398, 39.145],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 39.145 s. The counted runs measured 38.398 s to 39.565 s."
     },
     {
       "id": "T18.defaults.7",
@@ -726,9 +726,9 @@
       "voided": 0,
       "failed": 0,
       "unit": "s",
-      "median": 6.954,
-      "values": [8.034, 6.954, 7.969, 6.119, 16.638, 6.014, 6.261, 6.266, 16.098, 16.155, 6.3],
-      "why": "Each of the 11 counted runs agrees with the prediction. The median is 6.954 s. The counted runs measured 6.014 s to 16.638 s."
+      "median": 6.608,
+      "values": [6.492, 6.579, 6.539, 6.706, 6.638, 15.818, 6.567, 6.716, 16.526, 6.569, 6.608],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 6.608 s. The counted runs measured 6.492 s to 16.526 s."
     },
     {
       "id": "T18.defaults.9",
@@ -747,9 +747,9 @@
       "voided": 0,
       "failed": 0,
       "unit": "requests",
-      "median": 1530,
-      "values": [1530, 1449, 1659, 1699, 1672, 1337, 1385, 1226, 1592, 1572, 1360],
-      "why": "The harness measured 11 counted runs. The median run had 1,530 failed requests. The counted runs had 1,226 to 1,699 failed requests."
+      "median": 1544,
+      "values": [1140, 1608, 1541, 1635, 1442, 1544, 1659, 1278, 1411, 1709, 1549],
+      "why": "The harness measured 11 counted runs. The median run had 1,544 failed requests. The counted runs had 1,140 to 1,709 failed requests."
     }
   ]
 }

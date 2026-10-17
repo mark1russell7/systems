@@ -36,6 +36,6 @@ describe("the components of the CI runs", () => {
     // the border of undici at 100 ms fails by less than a millisecond, thus the table gives 4 decimals
     expect(html[14]).toContain("5.9124 s");
     expect(html[14]).toContain("5.9079 s");
-    expect(html[22]).toContain("8 of 11 runs disagree");
+    expect(html[22]).toContain("1 of 11 runs disagrees");
   });
 });

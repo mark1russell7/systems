@@ -2,7 +2,7 @@
 title: Kubernetes endpoints in kind
 sidebar:
   label: Kubernetes in kind
-description: The T07 and T18 cells in kind on the runners of GitHub, with the service of this repository behind a Service. Of 31 cells, 21 hold, 5 fail, 3 are calibrations and 2 are measurements only.
+description: The T07 and T18 cells in kind on the runners of GitHub, with the service of this repository behind a Service. Of 31 cells, 22 hold, 4 fail, 3 are calibrations and 2 are measurements only.
 ---
 
 import { KindResults, ModeTable, Propagation } from "../../../components/RunResults.tsx";
@@ -10,27 +10,33 @@ import { Summary } from "../../../components/Ledger.tsx";
 
 <Summary of="kind" />
 
-These are the results of the T07 and T18 cells, from 2026-10-16. Each cell operates in kind: Kubernetes 1.37.0 in Docker, with one control plane and two workers. The server is the service of this repository, `@mark1russell7/service`, as a Deployment behind a Service. A client on each node sends a request each 20 ms, each on a new connection to the ClusterIP.
+These are the results of the T07 and T18 cells, from 2026-10-17. Each cell operates in kind: Kubernetes 1.37.0 in Docker, with one control plane and two workers. The server is the service of this repository, `@mark1russell7/service`, as a Deployment behind a Service. A client on each node sends a request each 20 ms, each on a new connection to the ClusterIP.
 
 T07 is the endpoint lifecycle of a Service. Its question is O04 with the hold of the service. The listener of a leaving pod stays open for its preStop sleep and its hold of `fail readiness`. A connection fails when the rules of its node select the pod after that. T18 is a fleet of 3 replicas, and the readiness of each replica needs Redis 7.4.
 
-CI started the cells in the run [38933056107](https://github.com/mark1russell7/systems/actions/runs/38933056107), on 12 hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000, and the three modes of kube-proxy operate on it. The cells of one mode get two new clusters in sequence. Each cluster does its share of the 11 runs of each cell, after one warm-up run.
+CI started the cells in the run [39045542856](https://github.com/mark1russell7/systems/actions/runs/39045542856), on 8 hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000, and the three modes of kube-proxy operate on it. The cells of one mode get new clusters in sequence. Each cluster does its share of the 11 runs of each cell, after one warm-up run.
 
-Of the 31 cells, 21 hold against the prediction, and 5 fail. 3 cells are the calibrations of the propagation, and 2 are measurements only. No run of the 341 is void. The calibration changes the windows of the catalog, thus a script judges each record again with the catalog after the calibration.
+Of the 31 cells, 22 hold against the prediction, and 4 fail. 3 cells are the calibrations of the propagation, and 2 are measurements only. No run of the 341 is void. The calibration changes the windows of the catalog, thus a script judges each record again with the catalog after the calibration.
+
+The catalog of this run has the models of the run of 2026-10-16. The client waits 2 s, thus the retransmission of a lost SYN gets through. A pause cell lets a stale SYN_SENT entry fail its node up to 122 s before the stop of the intake.
 
 ## What the cells found
 
-- **The propagation of a deletion depends on the mode of kube-proxy.** The calibration measures the time from the deletion of a pod to the first poll of the rules of each node without the pod. The median is 45 ms for `nftables`, 59 ms for `iptables` and 192 ms for `ipvs`. The slowest of 33 times is 79 ms, 105 ms and 309 ms.
-- **O04 with the hold of the service decides a deletion, in each mode.** With the hold of 2 s of the design, no request failed in the 33 runs. With no hold and no preStop, O04 does not hold. Then the failed requests start between the stop of the intake and the propagation. The median run lost 1 request on `nftables`, 3 on `iptables` and 13 on `ipvs`, which propagates more slowly.
-- **A pause of kube-proxy opens the window on its node only.** kube-proxy on one node stops for 5 s, from 0.5 s before a deletion. With a hold of 8 s, no request failed. With the hold of 2 s, the clients of the paused node fail until that node syncs: 60 to 65 failed requests in the median run. The other two nodes lost nothing.
-- **A stale conntrack entry catches a later connection.** The paused node sends each new connection to the address of the gone pod. The SYN of each connection makes a conntrack entry in SYN_SENT, and that entry stays for 120 s. A later connection from the same source port meets the entry, and it goes to the address of the pod again. Thus the three pause cells fail after their window, in 6 to 8 of 11 runs. In a second CI run, each late failure used the port of a failure in a window 10 s to 84 s before.
-- **Three single requests timed out outside any window.** No record tells why. One is in the rolling update, and one is in the deletion with no hold on `iptables`, thus these two cells fail. The third is in a calibration, which the verdict does not judge.
-- **A liveness that fails readiness keeps each connection.** When liveness fails readiness, the pod leaves the Service before the kubelet stops its container. No connection failed, and the service answered 503 for that time. Without that coupling, the endpoint stays until the container stops, and the median run had 22 failed requests.
-- **T18: a readiness that needs Redis empties the Service in its band.** After a reset, a freeze, a black hole or a loss of Redis, the Service had no ready endpoint 32.3 s to 44.9 s after the fault. The band is the latch, then 3 probes of the kubelet 10 s apart, then the propagation. The times are near 34 s or near 43 s, one period of the probe apart.
-- **A readiness that does not need Redis keeps the fleet in the Service.** Behind a black hole to Redis, no replica leaves the Service, and no request is refused. The requests that need Redis time out instead: 8,507 in the median run.
-- **Liveness and the stall are in their bands.** With readiness coupled into liveness, a black hole to Redis restarts each replica. SIGTERM comes at 38.043 s in the median run, in the band of 28 s to 50 s. Without the coupling, no replica got SIGTERM. A blocked event loop removes its replica at 26.383 s, in the band of 21 s to 31.105 s.
-- **A rollout waits for Redis.** While Redis has no endpoint, no old pod goes away and no new pod becomes ready. In the median run, the first new pod is ready 6.954 s after Redis is back.
-- **Two cells are measurements only.** A crash of the server process gives 67 failed requests in the median run. The kubelet finds the exit at its own relist, and no document gives that time. A throttle of `cpu.max` at 1 ms in each 1 s gives 1,530 failed requests in the median run.
+- **Each cell that fails, fails by one or two lone requests in 11 runs.** Each other failed request is in the window of its prediction. The cause of the lone failures is open.
+  - On `nftables` with no hold, 1 request failed 212 ms after the stop of the intake. The calibrated propagation of that mode is 85 ms at most.
+  - In the pause cells of `iptables` and `nftables`, 1 request failed on the control plane, a node that did not pause. They came 1.11 s and 1.06 s after the stop of the intake, a timeout and a refusal.
+  - With a hold of 8 s on `iptables`, 2 requests timed out on a node that did not pause. One of them came 1 s before the deletion, thus no deletion and no pause explains it.
+- **The propagation of a deletion depends on the mode of kube-proxy.** The calibration measures the time from the deletion of a pod to the first poll of the rules of each node without the pod. The median is 50 ms for `nftables`, 63 ms for `iptables` and 184 ms for `ipvs`. The slowest of 33 times is 85 ms, 113 ms and 232 ms.
+- **O04 with the hold of the service decides a deletion, in each mode.** With the hold of 2 s of the design, no request failed in the 33 runs. With no hold and no preStop, O04 does not hold. Then the failed requests start between the stop of the intake and the propagation. The median run lost 3 requests on `nftables` and on `iptables`, and 12 on `ipvs`, which propagates more slowly.
+- **A pause of kube-proxy opens the window on its node.** kube-proxy on one node stops for 5 s, from 0.5 s before a deletion. With the hold of 2 s, the clients of the paused node fail until that node syncs: 58 to 63 failed requests in the median run. With a hold of 8 s, the pod stays open longer than the pause, and the prediction is that no request fails. On `ipvs` and `nftables`, no request failed.
+- **A stale conntrack entry catches a later connection.** The paused node sends each new connection to the address of the gone pod. The SYN of each connection makes a conntrack entry in SYN_SENT, and that entry stays for 120 s. A later connection from the same source port meets the entry, and it goes to the address of the pod again. The windows of the pause cells include that time, thus the late failures of the run of 2026-10-16 are in the prediction.
+- **A rolling update loses no request.** The rules wait `minSyncPeriod` after a sync before they drop the old pod. The hold of 2 s covers that wait, and no request failed in 11 runs.
+- **A liveness that fails readiness keeps each connection.** When liveness fails readiness, the pod leaves the Service before the kubelet stops its container. No connection failed, and the service answered 503 for that time. Without that coupling, the endpoint stays until the container stops, and the median run had 20 failed requests.
+- **T18: a readiness that needs Redis empties the Service in its band.** After a reset, a freeze, a black hole or a loss of Redis, the Service had no ready endpoint 32.2 s to 44.5 s after the fault. The band is the latch, then 3 probes of the kubelet 10 s apart, then the propagation. The times are near 33 s or near 43 s, one period of the probe apart.
+- **A readiness that does not need Redis keeps the fleet in the Service.** Behind a black hole to Redis, no replica leaves the Service, and no request is refused. The requests that need Redis time out instead: 8,459 in the median run.
+- **Liveness and the stall are in their bands.** With readiness coupled into liveness, a black hole to Redis restarts each replica. SIGTERM comes at 39.145 s in the median run, in the band of 28 s to 50 s. Without the coupling, no replica got SIGTERM. A blocked event loop removes its replica at 26.487 s, in the band of 21 s to 31.105 s.
+- **A rollout waits for Redis.** While Redis has no endpoint, no old pod goes away and no new pod becomes ready. In the median run, the first new pod is ready 6.608 s after Redis is back.
+- **Two cells are measurements only.** A crash of the server process gives 31 failed requests in the median run. The kubelet finds the exit at its own relist, and no document gives that time. A throttle of `cpu.max` at 1 ms in each 1 s gives 1,544 failed requests in the median run.
 
 ## The propagation
 

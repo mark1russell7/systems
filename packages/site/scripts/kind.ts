@@ -169,6 +169,15 @@ const DISAGREE: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => stri
       `${of(Number(match[1]), "request")} failed outside the window of ${time(Number(match[2]))} to ${time(Number(match[3]))} after ${REFERENCES[match[4] as Reference] ?? match[4]}`,
   ],
   [
+    /^(\d+) failed requests on nodes whose kube-proxy did not pause$/,
+    (match) => `${of(Number(match[1]), "request")} failed on ${Number(match[1]) === 1 ? "a node" : "nodes"} whose kube-proxy did not pause`,
+  ],
+  [/^no request failed in a window that the law opens$/, () => "no request failed in a window that the law opens"],
+  [
+    /^the last failed request started (-?[\d.]+) s before the window can end$/,
+    (match) => `the last failed request started ${time(Number(match[1]))} before the window can end`,
+  ],
+  [
     /^(\d+) requests failed: (\{.*\})$/,
     (match) => {
       const total = Number(match[1]);

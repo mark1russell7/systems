@@ -7,7 +7,7 @@
  */
 import type { ReactElement } from "react";
 import http from "../data/http-2026-10-16.json";
-import kind from "../data/kind-2026-10-16.json";
+import kind from "../data/kind-2026-10-17.json";
 import mongodb from "../data/mongodb-2026-10-16.json";
 import sentinel from "../data/sentinel-2026-10-16.json";
 import { count as digits, duration, reading } from "../lib/format.ts";
