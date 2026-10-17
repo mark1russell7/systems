@@ -87,15 +87,21 @@ const TOX_SPECS: readonly ToxSpec[] = [
     prediction: () => ({ detects: false, window: q(10) }),
   },
   // "reset_peer: Simulate TCP RESET (Connection reset by peer) on the connections by closing the stub Input immediately or after a timeout."
-  // The request arrives at the toxic on the upstream: one crossing toward the target
+  // The README gives a reset, but the source gives one only to a link that starts with the toxic in its
+  // chain: Toxiproxy v2.12.0 link.go:95-107 sets SetLinger(0) in Start, and nowhere else. A toxic that
+  // comes to a live connection has no linger. Its close (toxics/reset_peer.go:21-34, stub.Close) ends the
+  // upstream chain, and link.go:137-169 closes the server's socket with a FIN. Redis reads the end of
+  // file and closes, and the downstream link closes the client's socket with a FIN. The request goes no
+  // further than the toxic. Thus the client reads an end of file, one crossing each way after its send.
+  // CI on 2026-10-16 (run 38981655277) saw an end of file in 11 of 11 runs, at a median of 0.374 ms.
   {
     name: "client in flight, toxic reset_peer 0 upstream on a live connection",
     fault: "toxic",
     mode: "inflight",
     toxic: { type: "reset_peer", stream: "upstream", attributes: { timeout: 0 } },
     prediction: (rtt) => {
-      const { through: terms, plus } = through("up");
-      return { detects: true, timer: "toxic reset_peer", errno: resetErrno, from: "request-sent", low: q(0), high: q(rtt + plus), through: terms };
+      const { through: terms, plus } = through("up", "down");
+      return { detects: true, timer: "toxic reset_peer", errno: "EOF", from: "request-sent", low: q(0), high: q(rtt + plus), through: terms };
     },
   },
   // "slow_close: Delay the TCP socket from closing until delay has elapsed."
