@@ -32,6 +32,9 @@ const values = (knobs: Readonly<Record<string, Extent>>): Record<string, Extent>
   rtt: ms(RTT_MS),
 });
 
+/** These are the sysctls of the namespace of HAProxy in each cell of the T02 shape: `PROXY_LINUX` over Linux 6.6. */
+export const PROXY_SYSCTLS: Readonly<Record<string, string>> = sysctlsOf(values(PROXY_LINUX));
+
 /** This function gives the band of a timer under a black hole: its duration less how early it fires, to its duration plus how late. */
 const bandOf = (timer: string, linux: KnobValues): { low: ReturnType<typeof q>; high: ReturnType<typeof q> } => {
   const bounds = timerUnder(LINUX_TCP, timer, linux, MANIFESTATIONS.blackhole);
@@ -164,7 +167,7 @@ const t02Cell = (spec: T02Spec): Cell => ({
       : sysctlsOf(values(spec.keepalive === "short" ? { keepidle: s(2), keepintvl: s(1), keepcnt: count(3) } : CLIENT_KEEPALIVE)),
   probe: { mode: "idle", keepalive: spec.keepalive !== undefined },
   fault: spec.fault,
-  topology: { name: "T02", hops: [haproxy(spec.timeouts, sysctlsOf(values(PROXY_LINUX)))] },
+  topology: { name: "T02", hops: [haproxy(spec.timeouts, PROXY_SYSCTLS)] },
   prediction: spec.prediction,
   ...(spec.observer === "client" ? {} : { observer: spec.observer }),
   ...(spec.faultAt === undefined ? {} : { faultAt: spec.faultAt }),
