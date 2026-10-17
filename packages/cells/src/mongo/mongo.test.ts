@@ -1,13 +1,11 @@
 import { algebraProblems, machineProblems, overValues, timerOf } from "@mark1russell7/algebra";
+import { LINUX_TCP, MONGOD_REPL, MONGOD_SESSION, MONGODB_NODE } from "@mark1russell7/machines";
 import { describe, expect, it } from "vitest";
-import { HZ, LINUX, given } from "../catalog.ts";
+import { HZ, given } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
 import { MONGO_IMAGE } from "./cells.ts";
 import type { MongoCell } from "./cells.ts";
 import {
-  MONGOD_REPL,
-  MONGOD_SESSION,
-  MONGODB_NODE,
   driverTimes,
   driverValues,
   electionOf,
@@ -58,10 +56,10 @@ describe("the machine documents of MongoDB", () => {
 
   it("sets the keepalive of each socket of the driver over the namespace's sysctls: 120 s, then 10 probes 1 s apart", () => {
     const lower = overValues(MONGODB_NODE, given(driverValues()), given(linuxValues()));
-    expect(values("keepalive", LINUX, lower)[0]).toBe(130);
+    expect(values("keepalive", LINUX_TCP, lower)[0]).toBe(130);
     const short = overValues(MONGODB_NODE, given(driverValues({ keepAliveInitialDelay: 27500 })), given(linuxValues()));
     // Node gives libuv the delay in whole seconds
-    expect(values("keepalive", LINUX, short)[0]).toBe(37);
+    expect(values("keepalive", LINUX_TCP, short)[0]).toBe(37);
   });
 
   it("gives mongod's keepalive on a client connection: 300 s and probes 1 s apart, not the namespace's 75 s", () => {

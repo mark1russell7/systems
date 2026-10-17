@@ -1,8 +1,7 @@
 import { algebraProblems, machineProblems } from "@mark1russell7/algebra";
+import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER, nodeEarlySeconds, nodeLateSeconds } from "@mark1russell7/machines";
 import { describe, expect, it } from "vitest";
 import { HZ } from "./catalog.ts";
-import { nodeEarlySeconds, nodeLateSeconds } from "./http/timers.ts";
-import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "./procedures-ws.ts";
 import { WS_CELLS, WS_SPECS } from "./ws.ts";
 
 const round = (value: number) => Math.round(value * 1e9) / 1e9;

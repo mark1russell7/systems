@@ -10,16 +10,15 @@ import {
   transitionOn,
 } from "@mark1russell7/algebra";
 import type { Cell, MiddleboxForm, Prediction } from "@mark1russell7/harness";
+import { LINUX_TCP, NF_CONNTRACK_TCP, REDIS_CLIENT } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Spec } from "./catalog.ts";
 import {
   HZ,
   KEEPALIVE,
-  LINUX,
   LINUX_66,
   REDIS,
-  REDIS_CLIENT,
   RTT_MS,
   RUNS,
   count,
@@ -35,7 +34,7 @@ import type { ManifestationName } from "./manifestations.ts";
 import { MANIFESTATIONS } from "./manifestations.ts";
 import { assuming } from "./rtt.ts";
 import type { O03Verdict } from "./topologies.ts";
-import { CONNTRACK, LISTING, ROUTER_PUMP, o03, router } from "./topologies.ts";
+import { LISTING, ROUTER_PUMP, o03, router } from "./topologies.ts";
 
 /** This time is the idle timeout of the router, nf_conntrack_tcp_timeout_established: 5 s, a cloud NAT's 350 s scaled by 70. */
 export const IDLE = 5;
@@ -121,7 +120,7 @@ const redisValues = (spec: T03Spec): Record<string, Extent> => ({
 });
 
 /** This function gives the errno of a reset at an established socket, from the Linux TCP document. */
-const resetErrno = (): string => transitionOn(LINUX, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET";
+const resetErrno = (): string => transitionOn(LINUX_TCP, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET";
 
 /** This function gives the band of a timer: its duration less how early it fires, to its duration plus how late, plus a delay. */
 const band = (
@@ -138,7 +137,7 @@ const band = (
 
 /** This band is when the router forgets a flow after its last packet: expire_established, late by the pump and two listings at most. */
 const forgetBand = (): { low: ReturnType<typeof q>; high: ReturnType<typeof q> } =>
-  band(timerOf(CONNTRACK, "expire_established", routerValues), "expire_established");
+  band(timerOf(NF_CONNTRACK_TCP, "expire_established", routerValues), "expire_established");
 
 /**
  * This function tells if the socket of the observer of a spec has keepalive on. The client sets
@@ -161,7 +160,7 @@ export const o03Of = (spec: T03Spec, rttMs = RTT_MS): O03Verdict => {
     return o03({ doc: REDIS_CLIENT, values: given(keepaliveOn(spec) ? redis : { ...redis, tcp_keepalive: off }) }, routerValues, rttMs / 1000);
   }
   const linux = clientValues(spec, rttMs);
-  return o03({ doc: LINUX, values: given(keepaliveOn(spec) ? linux : { ...linux, keepidle: off }) }, routerValues, rttMs / 1000);
+  return o03({ doc: LINUX_TCP, values: given(keepaliveOn(spec) ? linux : { ...linux, keepidle: off }) }, routerValues, rttMs / 1000);
 };
 
 /**
@@ -188,18 +187,18 @@ const predictT03At = (spec: T03Spec, rttMs: number): Prediction => {
       return { detects: true, timer: "rx.rst", errno: resetErrno(), from: "request-sent", low: q(0), high: q(rtt) };
     if (spec.form === "recreate") {
       // nf_conntrack_tcp_loose lets a mid-stream ACK make a new ESTABLISHED entry (ct.none.established)
-      const pickup = transitionOn(CONNTRACK, "NONE", "orig.ack");
+      const pickup = transitionOn(NF_CONNTRACK_TCP, "NONE", "orig.ack");
       if (pickup?.to !== "ESTABLISHED") throw new Error(`${spec.name}: conntrack picks up no flow mid-stream`);
       return { detects: false, window: q(2), replies: { low: q(0), high: q(rtt) } };
     }
-    const found = detection(LINUX, { state: "ESTABLISHED", inFlight: true }, MANIFESTATIONS.blackhole, linux);
+    const found = detection(LINUX_TCP, { state: "ESTABLISHED", inFlight: true }, MANIFESTATIONS.blackhole, linux);
     if (found.first === null) throw new Error(`${spec.name}: nothing detects a forgotten flow`);
     return {
       detects: true,
       timer: found.first.timer,
       errno: "ETIMEDOUT",
       from: "first-retransmission",
-      ...band(timerUnder(LINUX, found.first.timer, linux, MANIFESTATIONS.blackhole), found.first.timer),
+      ...band(timerUnder(LINUX_TCP, found.first.timer, linux, MANIFESTATIONS.blackhole), found.first.timer),
     };
   }
   if (verdict.holds) return { detects: false, window: q(WINDOW) };
@@ -209,17 +208,17 @@ const predictT03At = (spec: T03Spec, rttMs: number): Prediction => {
     const linux = given(clientValues(spec, rttMs));
     if (spec.form === "reset-next") {
       // the first keepalive probe after the forget meets the reset: the refresh of the client, one round trip later
-      const first = realizationOf(LINUX, "systems.mechanism.idle-refresh-interval", linux)!;
+      const first = realizationOf(LINUX_TCP, "systems.mechanism.idle-refresh-interval", linux)!;
       return { detects: true, timer: "rx.rst", errno: resetErrno(), from: "last-received", ...band(first, "keepidle", rtt) };
     }
-    const found = detection(LINUX, { state: "ESTABLISHED", inFlight: false }, MANIFESTATIONS.blackhole, linux);
+    const found = detection(LINUX_TCP, { state: "ESTABLISHED", inFlight: false }, MANIFESTATIONS.blackhole, linux);
     if (found.first === null) throw new Error(`${spec.name}: nothing detects a forgotten flow`);
     return {
       detects: true,
       timer: found.first.timer,
       errno: "ETIMEDOUT",
       from: "last-received",
-      ...band(timerUnder(LINUX, found.first.timer, linux, MANIFESTATIONS.blackhole), found.first.timer),
+      ...band(timerUnder(LINUX_TCP, found.first.timer, linux, MANIFESTATIONS.blackhole), found.first.timer),
     };
   }
   // the server: a late packet from outside is dropped (reset-next), or meets the reset of the router's own stack (none)
@@ -231,7 +230,7 @@ const predictT03At = (spec: T03Spec, rttMs: number): Prediction => {
   }
   const found = stackedDetection(
     REDIS_CLIENT,
-    LINUX,
+    LINUX_TCP,
     { state: "CONNECTED", inFlight: false },
     MANIFESTATIONS.blackhole,
     redis,
@@ -244,7 +243,7 @@ const predictT03At = (spec: T03Spec, rttMs: number): Prediction => {
     timer: found.first.timer,
     errno: "ETIMEDOUT",
     from: "last-received",
-    ...band(timerUnder(LINUX, found.first.timer, values, MANIFESTATIONS.blackhole), found.first.timer),
+    ...band(timerUnder(LINUX_TCP, found.first.timer, values, MANIFESTATIONS.blackhole), found.first.timer),
   };
 };
 
@@ -436,7 +435,7 @@ const asDirect = (spec: T03FaultSpec): Spec => ({
  */
 const forgetInFlight = (spec: T03FaultSpec, rttMs: number): { low: number; high: number } => {
   const linux = given(faultValues(spec, rttMs));
-  const ladder = recovery(LINUX, "retransmit", linux, s(60));
+  const ladder = recovery(LINUX_TCP, "retransmit", linux, s(60));
   if ("unknown" in ladder) throw new Error(`${spec.name}: ${ladder.unknown}`);
   const forget = forgetBand();
   const [earliest, latest] = [valueIn(forget.low, "s"), valueIn(forget.high, "s")];

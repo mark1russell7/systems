@@ -1,9 +1,4 @@
-import { readFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import type { Extent, Unknown } from "@mark1russell7/quantity";
-import { describe, expect, it } from "vitest";
-import type { Manifestation } from "./algebra.ts";
+import type { Machine, Manifestation } from "@mark1russell7/algebra";
 import {
   algebraProblems,
   detection,
@@ -16,23 +11,25 @@ import {
   recovery,
   timerOf,
   timerUnder,
-} from "./algebra.ts";
-import type { Machine } from "./machine.ts";
+} from "@mark1russell7/algebra";
+import type { Extent, Unknown } from "@mark1russell7/quantity";
+import { describe, expect, it } from "vitest";
+import { MACHINES, MANIFESTATIONS } from "./index.ts";
 
-const fixtures = resolve(dirname(fileURLToPath(import.meta.url)), "fixtures");
+// The algebra on the real documents: the closed forms of Linux 6.6, Redis and ioredis, and the
+// detection of each fault. The algebra's own tests use small machines of their own.
 
-/** a machine document, by its id in a graph: systems.machine.linux-tcp is fixtures/linux-tcp.json */
-const machine = async (id: string): Promise<Machine> =>
-  JSON.parse(await readFile(join(fixtures, `${id.split(".").at(-1)}.json`), "utf8")) as Machine;
+/** a machine document, by its id in a graph: systems.machine.linux-tcp is MACHINES["linux-tcp"] */
+const machine = async (id: string): Promise<Machine> => {
+  const doc = MACHINES[id.split(".").at(-1)!];
+  if (doc === undefined) throw new Error(`no document ${id}`);
+  return doc;
+};
 
 /** a manifestation: the events it still lets through to Linux TCP */
 const manifestation = async (slug: string): Promise<Manifestation> => {
-  const passes = JSON.parse(await readFile(join(fixtures, "manifestations.json"), "utf8")) as Record<
-    string,
-    string[]
-  >;
-  const through = passes[slug];
-  if (through === undefined) throw new Error(`no fixture says what ${slug} lets through`);
+  const through = MANIFESTATIONS[slug];
+  if (through === undefined) throw new Error(`no document says what ${slug} lets through`);
   return { name: slug, passes: through };
 };
 
@@ -352,14 +349,9 @@ describe("the algebra's first closed forms", () => {
     expect(() => parseExpr("pow(2)")).toThrow("pow takes 2, not 1");
   });
 
-  it("reads every timer of the four documents, and refuses arithmetic it cannot parse", async () => {
-    for (const id of [
-      "systems.machine.linux-tcp",
-      "systems.machine.nf-conntrack-tcp",
-      "systems.machine.ioredis-status",
-      "systems.machine.redis-client",
-    ]) {
-      expect(algebraProblems(await machine(id)), id).toEqual([]);
+  it("reads every timer of every document, and refuses arithmetic it cannot parse", async () => {
+    for (const id of Object.keys(MACHINES)) {
+      expect(algebraProblems(await machine(`systems.machine.${id}`)), id).toEqual([]);
     }
     expect(() => parseExpr("keepidle + * keepcnt")).toThrow(/\* is not a term/);
     expect(() => parseExpr("max(1)")).toThrow(/max takes 2, not 1/);

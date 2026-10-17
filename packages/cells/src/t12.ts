@@ -1,12 +1,11 @@
 import type { KnobValues, Machine } from "@mark1russell7/algebra";
 import { timerOf } from "@mark1russell7/algebra";
 import type { Cell, Fault, Group, GroupPlace, GroupPrediction, Prediction, StageBand, Target } from "@mark1russell7/harness";
+import { IOREDIS_SENTINEL, SENTINEL } from "@mark1russell7/machines";
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import { HZ, LINUX_66, RTT_MS, RUNS, given, ms, predict, q, s, seconds, sysctlsOf } from "./catalog.ts";
-import { IOREDIS_SENTINEL } from "./ioredis-sentinel.ts";
 import { assuming } from "./rtt.ts";
-import { SENTINEL } from "./sentinel.ts";
 
 /** This image is Valkey 9.1.2, pinned by the digest of its index: each member and each Sentinel of T12. */
 export const VALKEY_IMAGE = "valkey/valkey:9.1@sha256:418652cfb58ef879d4978c33553735d7147016032d5aefaa14c828e611eb9dfd";

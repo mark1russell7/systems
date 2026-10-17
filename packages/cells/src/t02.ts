@@ -1,13 +1,12 @@
 import type { KnobValues } from "@mark1russell7/algebra";
 import { detection, overValues, stackedDetection, timerUnder } from "@mark1russell7/algebra";
 import type { Cell, FaultPlace, Observer, Prediction } from "@mark1russell7/harness";
+import { LINUX_TCP, REDIS_CLIENT } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import {
   HZ,
-  LINUX,
   LINUX_66,
   REDIS,
-  REDIS_CLIENT,
   RTT_MS,
   RUNS,
   count,
@@ -35,7 +34,7 @@ const values = (knobs: Readonly<Record<string, Extent>>): Record<string, Extent>
 
 /** This function gives the band of a timer under a black hole: its duration less how early it fires, to its duration plus how late. */
 const bandOf = (timer: string, linux: KnobValues): { low: ReturnType<typeof q>; high: ReturnType<typeof q> } => {
-  const bounds = timerUnder(LINUX, timer, linux, MANIFESTATIONS.blackhole);
+  const bounds = timerUnder(LINUX_TCP, timer, linux, MANIFESTATIONS.blackhole);
   const duration = seconds(bounds.duration, timer);
   return {
     low: q(duration - seconds(bounds.early, `${timer}'s early bound`)),
@@ -46,7 +45,7 @@ const bandOf = (timer: string, linux: KnobValues): { low: ReturnType<typeof q>; 
 /** This function gives the prediction of an idle Linux socket in a black hole: its keepalive gives up, from the last segment it received. */
 const idleLinux = (knobs: Readonly<Record<string, Extent>>): Prediction => {
   const linux = given(values(knobs));
-  const found = detection(LINUX, { state: "ESTABLISHED", inFlight: false }, MANIFESTATIONS.blackhole, linux);
+  const found = detection(LINUX_TCP, { state: "ESTABLISHED", inFlight: false }, MANIFESTATIONS.blackhole, linux);
   if (found.first === null) throw new Error("nothing detects the black hole");
   return { detects: true, timer: found.first.timer, errno: "ETIMEDOUT", from: "last-received", ...bandOf(found.first.timer, linux) };
 };
@@ -55,7 +54,7 @@ const idleLinux = (knobs: Readonly<Record<string, Extent>>): Prediction => {
 const idleRedis = (keepalive: number): Prediction => {
   const redis = given({ tcp_keepalive: s(keepalive), timeout: s(0), hz: { value: HZ, unit: "Hz" } });
   const linux = given(values({}));
-  const found = stackedDetection(REDIS_CLIENT, LINUX, { state: "CONNECTED", inFlight: false }, MANIFESTATIONS.blackhole, redis, linux);
+  const found = stackedDetection(REDIS_CLIENT, LINUX_TCP, { state: "CONNECTED", inFlight: false }, MANIFESTATIONS.blackhole, redis, linux);
   if (found.first === null) throw new Error("nothing detects the black hole");
   return { detects: true, timer: found.first.timer, errno: "ETIMEDOUT", from: "last-received", ...bandOf(found.first.timer, overValues(REDIS_CLIENT, redis, linux)) };
 };

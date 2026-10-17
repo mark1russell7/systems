@@ -1,4 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra";
 import { NODE_TIMER_EARLY, nodeTimerLateness } from "./timers.ts";
 
 /**
@@ -11,7 +12,7 @@ import { NODE_TIMER_EARLY, nodeTimerLateness } from "./timers.ts";
  * Node timer (`timers.ts`). When it fires, the server closes the socket. The kernel sends a FIN, or
  * a reset when the receive queue has data that nothing read.
  */
-export const NODE_HTTP_SERVER: Machine = {
+export const NODE_HTTP_SERVER: Machine = machineSchema.parse({
   format: "mark1russell7.machine/1",
   id: "node-http-server",
   title: "One connection as the http.Server of Node 24.21.0 holds it",
@@ -243,21 +244,4 @@ export const NODE_HTTP_SERVER: Machine = {
     ends: "socket.error",
     note: "http.Server passes keepAlive to net.Server, and its default is off (lib/_http_server.js:646-651, lib/net.js:2753-2756). Thus an accepted socket has no SO_KEEPALIVE, and a reader gives the keepalive of the kernel no bound.",
   },
-};
-
-/** These are the settings of the server that a cell can give, by the names of the document. */
-export interface NodeServerSettings {
-  readonly keepAliveTimeout?: number;
-  readonly keepAliveTimeoutBuffer?: number;
-  readonly headersTimeout?: number;
-  readonly requestTimeout?: number;
-  readonly connectionsCheckingInterval?: number;
-  readonly timeout?: number;
-  readonly maxRequestsPerSocket?: number;
-}
-
-/** This function gives the hint of a server: the `timeout=` of its `Keep-Alive` header, in seconds, or null when it sends none. */
-export const hintOf = (settings: NodeServerSettings): number | null => {
-  const kat = settings.keepAliveTimeout ?? NODE_HTTP_SERVER.knobs["keepAliveTimeout"]!.default!;
-  return kat > 0 ? Math.floor(kat / 1000) : null;
-};
+} satisfies Machine);

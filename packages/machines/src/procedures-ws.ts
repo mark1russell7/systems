@@ -1,4 +1,5 @@
 import type { Expr, Machine } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra";
 import { NODE_TIMER_EARLY, nodeTimerLateness } from "./http/timers.ts";
 
 /**
@@ -41,7 +42,7 @@ const EARLY = arithmetic(NODE_TIMER_EARLY);
  *   min(initialDelay × multiplier^(n − 1), maxDelay), less a random part: jitter × backoff × r.
  * - The handshake has a time limit (`connectionTimeout`), and a failed handshake drops at once.
  */
-export const PROCEDURES_WS_CLIENT: Machine = {
+export const PROCEDURES_WS_CLIENT: Machine = machineSchema.parse({
   format: "mark1russell7.machine/1",
   id: "procedures-ws-client",
   title: "The connection of the WebSocket client of @procedures/client 0.3.0",
@@ -294,7 +295,7 @@ export const PROCEDURES_WS_CLIENT: Machine = {
     ends: "drop",
     note: "The connector of undici turns keepalive on with a delay of 60 s, and libuv adds 1 s and 10 probes. The ws package turns no keepalive on. Thus the keepalive sysctls of the namespace do not reach the socket.",
   },
-};
+} satisfies Machine);
 
 /**
  * This document is one connection as the WebSocket server of `@procedures/client` 0.3.0 holds it
@@ -305,7 +306,7 @@ export const PROCEDURES_WS_CLIENT: Machine = {
  * drop comes `misses` beats after the first ping without an answer, and the lateness of each beat
  * adds. Its `http.Server` sets no SO_KEEPALIVE when `keepAlive` is off, the default of Node.
  */
-export const PROCEDURES_WS_SERVER: Machine = {
+export const PROCEDURES_WS_SERVER: Machine = machineSchema.parse({
   format: "mark1russell7.machine/1",
   id: "procedures-ws-server",
   title: "One connection as the WebSocket server of @procedures/client 0.3.0 holds it",
@@ -382,28 +383,4 @@ export const PROCEDURES_WS_SERVER: Machine = {
     sets: {},
     ends: "socket.error",
   },
-};
-
-/**
- * These are the settings of the client that a cell gives, in milliseconds. Null turns the
- * heartbeat or the reconnect off. `socket` is the class of the sockets: the global `WebSocket` of
- * Node, or the `WebSocket` of the `ws` package.
- */
-export interface WsClientSettings {
-  readonly socket: "global" | "ws";
-  readonly heartbeat: { readonly interval: number; readonly timeout: number; readonly misses: number } | null;
-  readonly reconnect: {
-    readonly initialDelay: number;
-    readonly multiplier: number;
-    readonly maxDelay: number;
-    readonly attempts: number;
-    readonly jitter: number;
-  } | null;
-  readonly requestTimeout: number;
-  readonly connectionTimeout: number;
-}
-
-/** These are the settings of the server that a cell gives, in milliseconds. Null turns the heartbeat of the server off. */
-export interface WsServerSettings {
-  readonly heartbeat: { readonly interval: number; readonly misses: number } | null;
-}
+} satisfies Machine);

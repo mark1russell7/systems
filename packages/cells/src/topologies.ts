@@ -2,14 +2,12 @@ import type { KnobValues, Machine } from "@mark1russell7/algebra";
 import { evaluate as evaluateTime, realizationOf } from "@mark1russell7/algebra";
 import type { ProxyHop, RouterHop, Target } from "@mark1russell7/harness";
 import { LISTING } from "@mark1russell7/harness";
+import { LINUX_TCP, NF_CONNTRACK_TCP } from "@mark1russell7/machines";
 import type { Extent, Quantity, Unknown } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Binding, Rule } from "@mark1russell7/service";
 import { evaluate, verdictOf } from "@mark1russell7/service";
-import { HZ, LINUX, REDIS, fixture, seconds } from "./catalog.ts";
-
-/** This document is the TCP state machine of conntrack on the kernel of the VM: the router of T03. */
-export const CONNTRACK: Machine = fixture("nf-conntrack-tcp");
+import { HZ, REDIS, seconds } from "./catalog.ts";
 
 /** This target is Redis with a command that closes the connection of each client (`CLIENT KILL`). */
 export const REDIS_CLOSING: Target = {
@@ -136,13 +134,13 @@ export const o03 = (
   rtt: number,
 ): O03Verdict => {
   const refreshing = realizationOf(endpoint.doc, "systems.mechanism.idle-refresh-interval", endpoint.values);
-  const forgetting = realizationOf(CONNTRACK, "systems.mechanism.middlebox-idle", middlebox);
+  const forgetting = realizationOf(NF_CONNTRACK_TCP, "systems.mechanism.middlebox-idle", middlebox);
   if (refreshing === undefined || forgetting === undefined) throw new Error("a document realizes no term of O03");
   const idle = secondsOrInfinite(refreshing.duration, "the refresh");
   const refresh = idle === "inf" ? "inf" : idle + seconds(refreshing.lateness, "the lateness of the refresh");
   const forget =
     seconds(forgetting.duration, "the forget") - seconds(forgetting.early, "the early bound of the forget");
-  const jiffy = evaluateTime(LINUX, { model: "linux.jiffy", knobs: ["hz"], unit: "s" }, (name) =>
+  const jiffy = evaluateTime(LINUX_TCP, { model: "linux.jiffy", knobs: ["hz"], unit: "s" }, (name) =>
     name === "hz" ? { value: HZ, unit: "Hz" } : undefined,
   );
   const margin = rtt + valueIn(jiffy as Quantity, "s");

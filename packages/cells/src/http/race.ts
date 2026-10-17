@@ -1,16 +1,19 @@
 import type { KnobValues, Machine } from "@mark1russell7/algebra";
 import { timerOf } from "@mark1russell7/algebra";
+import {
+  GO_TRANSPORT,
+  NODE_HTTP_AGENT,
+  NODE_HTTP_SERVER,
+  UNDICI_CLIENT,
+  goLateSeconds,
+  nodeEarlySeconds,
+  nodeLateSeconds,
+} from "@mark1russell7/machines";
 import type { Extent, Unknown } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
-import { GO_TRANSPORT } from "./go-transport.ts";
-import type { AgentSettings } from "./node-agent.ts";
-import { NODE_HTTP_AGENT } from "./node-agent.ts";
-import type { NodeServerSettings } from "./node-server.ts";
-import { NODE_HTTP_SERVER, hintOf } from "./node-server.ts";
 import { HZ } from "../catalog.ts";
-import { goLateSeconds, nodeEarlySeconds, nodeLateSeconds } from "./timers.ts";
-import type { UndiciSettings } from "./undici.ts";
-import { UNDICI_CLIENT } from "./undici.ts";
+import type { AgentSettings, NodeServerSettings, UndiciSettings } from "./settings.ts";
+import { hintOf } from "./settings.ts";
 
 /**
  * This module is the arithmetic of the keep-alive race (DV-08). Two requests go on one

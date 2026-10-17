@@ -1,33 +1,19 @@
-import { readFileSync } from "node:fs";
-import type { Detection, KnobValues, Machine, Manifestation } from "@mark1russell7/algebra";
+import type { Detection, KnobValues, Manifestation } from "@mark1russell7/algebra";
 import {
   detection,
   errnoOf,
-  machineSchema,
   overValues,
   recovery,
   stackedDetection,
   timerUnder,
 } from "@mark1russell7/algebra";
 import type { Cell, Fault, Prediction, Reference, Target } from "@mark1russell7/harness";
+import { LINUX_TCP, REDIS_CLIENT } from "@mark1russell7/machines";
 import type { Extent, Quantity, Unknown } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { ManifestationName } from "./manifestations.ts";
 import { MANIFESTATIONS } from "./manifestations.ts";
 import { assuming } from "./rtt.ts";
-
-/** This function reads a machine document from the fixtures of the algebra in this repository. */
-export const fixture = (name: string): Machine =>
-  machineSchema.parse(
-    JSON.parse(
-      readFileSync(new URL(`../../algebra/src/fixtures/${name}.json`, import.meta.url), "utf8"),
-    ),
-  ) as Machine;
-
-/** This document is Linux TCP at v6.6: the socket of the client, and the socket of the server. */
-export const LINUX: Machine = fixture("linux-tcp");
-/** This document is the hold of Redis on one client, over its socket. */
-export const REDIS_CLIENT: Machine = fixture("redis-client");
 
 export const s = (value: number): Quantity => ({ value, unit: "s" });
 export const ms = (value: number): Quantity => ({ value, unit: "ms" });
@@ -362,7 +348,7 @@ export const q = (value: number): Quantity => ({ value: Math.round(value * 1e9) 
 
 /** This function gives the event that arms a timer, as the reference event of a measurement. */
 const referenceOf = (timer: string): Reference => {
-  const arms = LINUX.timers[timer]?.arms ?? [];
+  const arms = LINUX_TCP.timers[timer]?.arms ?? [];
   if (arms.includes("tx.retransmit.first")) return "first-retransmission";
   if (arms.includes("rx.ack")) return "last-received";
   throw new Error(`no reference for ${timer}: it is armed by ${arms.join(", ")}`);
@@ -383,10 +369,10 @@ export const predictAt = (spec: Spec, rttMs: number): Prediction => {
 
   if (spec.stall !== undefined) {
     // nothing may detect a stall in its window: the give-up must outlast it
-    const giveUp = detection(LINUX, { state: "ESTABLISHED", inFlight: true }, manifestation, given(linux));
+    const giveUp = detection(LINUX_TCP, { state: "ESTABLISHED", inFlight: true }, manifestation, given(linux));
     if (giveUp.first !== null && seconds(giveUp.first.duration, "the give-up") <= WINDOW)
       throw new Error(`${spec.name}: ${giveUp.first.timer} can detect the stall in its window`);
-    const after = recovery(LINUX, "retransmit", given(linux), s(spec.stall));
+    const after = recovery(LINUX_TCP, "retransmit", given(linux), s(spec.stall));
     if ("unknown" in after) throw new Error(`${spec.name}: ${after.unknown}`);
     if (after.first.length !== 1)
       throw new Error(`${spec.name}: the stall ends in the bounds of firing ${after.first[0]}`);
@@ -408,13 +394,13 @@ export const predictAt = (spec: Spec, rttMs: number): Prediction => {
     spec.observer === "server"
       ? stackedDetection(
           REDIS_CLIENT,
-          LINUX,
+          LINUX_TCP,
           { state: "CONNECTED", ...situation },
           manifestation,
           given(redis),
           given(linux),
         )
-      : detection(LINUX, { state: "ESTABLISHED", ...situation }, manifestation, given(linux));
+      : detection(LINUX_TCP, { state: "ESTABLISHED", ...situation }, manifestation, given(linux));
   const [delivered] = found.delivered;
   if (delivered !== undefined) {
     // a FIN comes one way: from the change of state of the peer to the change of the observer
@@ -434,12 +420,12 @@ export const predictAt = (spec: Spec, rttMs: number): Prediction => {
   // the values of the socket: for the server, those that Redis sets over its kernel's
   const values =
     spec.observer === "server" ? overValues(REDIS_CLIENT, given(redis), given(linux)) : given(linux);
-  const bounds = timerUnder(LINUX, timer, values, manifestation);
+  const bounds = timerUnder(LINUX_TCP, timer, values, manifestation);
   const duration = seconds(bounds.duration, timer);
   return {
     detects: true,
     timer,
-    errno: errnoOf(LINUX, "ESTABLISHED", { timer, fires }, manifestation) ?? "ETIMEDOUT",
+    errno: errnoOf(LINUX_TCP, "ESTABLISHED", { timer, fires }, manifestation) ?? "ETIMEDOUT",
     from: referenceOf(timer),
     low: q(duration - seconds(bounds.early, `${timer}'s early bound`)),
     high: q(duration + seconds(bounds.lateness, `${timer}'s lateness`)),
@@ -449,7 +435,7 @@ export const predictAt = (spec: Spec, rttMs: number): Prediction => {
 /** This function gives the sysctls of the namespace knobs of Linux TCP, by their keys. */
 export const sysctlsOf = (values: Readonly<Record<string, Extent>>): Record<string, string> => {
   const out: Record<string, string> = {};
-  for (const [name, knob] of Object.entries(LINUX.knobs)) {
+  for (const [name, knob] of Object.entries(LINUX_TCP.knobs)) {
     if (knob.scope !== "netns") continue;
     const value = values[name];
     if (value === undefined || value.value === "infinite")

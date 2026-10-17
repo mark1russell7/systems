@@ -2,15 +2,14 @@ import type { KnobValues, Manifestation } from "@mark1russell7/algebra";
 import { errnoOf, overValues, stackedDetection, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
 import type { Cell, Fault, Prediction, Reconnects, Reference, Target, WsProbe } from "@mark1russell7/harness";
 import { NOISE } from "@mark1russell7/harness";
+import { LINUX_TCP, PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Spec } from "./catalog.ts";
-import { HZ, LINUX, LINUX_66, RTT_MS, RUNS, WINDOW, count, given, ms, predictAt, q, s, seconds, sysctlsOf } from "./catalog.ts";
+import { HZ, LINUX_66, RTT_MS, RUNS, WINDOW, count, given, ms, predictAt, q, s, seconds, sysctlsOf } from "./catalog.ts";
 import { NODE_IMAGE } from "./http/cells.ts";
 import type { ManifestationName } from "./manifestations.ts";
 import { MANIFESTATIONS } from "./manifestations.ts";
-import type { WsClientSettings, WsServerSettings } from "./procedures-ws.ts";
-import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "./procedures-ws.ts";
 import { assuming } from "./rtt.ts";
 
 /**
@@ -19,10 +18,35 @@ import { assuming } from "./rtt.ts";
  * server script of the same image. Each cell gives each setting of the client and of the server.
  * It also gives each knob of Linux TCP at the observer, thus nothing comes from a default.
  *
- * The predictions compose the documents of `procedures-ws.ts` over Linux TCP
- * (`stackedDetection`). Thus the heartbeat of the client competes with the keepalive that undici
- * sets on its socket, and with the retransmission give-up of the kernel.
+ * The predictions compose the documents `PROCEDURES_WS_CLIENT` and `PROCEDURES_WS_SERVER` of
+ * `@mark1russell7/machines` over Linux TCP (`stackedDetection`). Thus the heartbeat of the client
+ * competes with the keepalive that undici sets on its socket, and with the retransmission give-up
+ * of the kernel.
  */
+
+/**
+ * These are the settings of the client that a cell gives, in milliseconds. Null turns the
+ * heartbeat or the reconnect off. `socket` is the class of the sockets: the global `WebSocket` of
+ * Node, or the `WebSocket` of the `ws` package.
+ */
+export interface WsClientSettings {
+  readonly socket: "global" | "ws";
+  readonly heartbeat: { readonly interval: number; readonly timeout: number; readonly misses: number } | null;
+  readonly reconnect: {
+    readonly initialDelay: number;
+    readonly multiplier: number;
+    readonly maxDelay: number;
+    readonly attempts: number;
+    readonly jitter: number;
+  } | null;
+  readonly requestTimeout: number;
+  readonly connectionTimeout: number;
+}
+
+/** These are the settings of the server that a cell gives, in milliseconds. Null turns the heartbeat of the server off. */
+export interface WsServerSettings {
+  readonly heartbeat: { readonly interval: number; readonly misses: number } | null;
+}
 
 /** This port is the port of the procedures server in the target. */
 const PORT = 8080;
@@ -290,7 +314,7 @@ const socketValues = (spec: WsSpec, rttMs: number): Record<string, Extent> => {
 
 /** This function gives the event that arms a timer of Linux TCP, as the reference of a measurement. */
 const linuxReference = (timer: string): Reference => {
-  const arms = LINUX.timers[timer]?.arms ?? [];
+  const arms = LINUX_TCP.timers[timer]?.arms ?? [];
   return arms.includes("tx.retransmit.first") ? "first-retransmission" : "last-received";
 };
 
@@ -354,7 +378,7 @@ export const predictWsAt = (spec: WsSpec, rttMs: number): Prediction => {
     return {
       detects: true,
       timer: "rx.rst",
-      errno: transitionOn(LINUX, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET",
+      errno: transitionOn(LINUX_TCP, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET",
       from: "ping-sent",
       low: q(0),
       high: q(rtt),
@@ -369,14 +393,14 @@ export const predictWsAt = (spec: WsSpec, rttMs: number): Prediction => {
   const inFlight = spec.mode === "inflight" || pinging;
   const manifestation: Manifestation = MANIFESTATIONS[spec.manifestation];
   const linux = given(socketValues(spec, rttMs));
-  const found = stackedDetection(doc, LINUX, { state, inFlight }, manifestation, values, linux);
+  const found = stackedDetection(doc, LINUX_TCP, { state, inFlight }, manifestation, values, linux);
   const [delivered] = found.delivered;
   if (delivered !== undefined)
     return { detects: true, timer: delivered.event, errno: delivered.errno ?? "EOF", from: "peer-closed", low: q(0), high: q(rtt), ...reconnects };
   if (found.unsettled.length > 0) throw new Error(`${spec.name}: a live detector has no time: ${found.unsettled.join(", ")}`);
   if (found.first === null) return { detects: false, window: q(spec.window ?? WINDOW) };
   const { timer, fires, beneath } = found.first;
-  const bounds = beneath === undefined ? timerUnder(doc, timer, values, manifestation) : timerUnder(LINUX, timer, overValues(doc, values, linux), manifestation);
+  const bounds = beneath === undefined ? timerUnder(doc, timer, values, manifestation) : timerUnder(LINUX_TCP, timer, overValues(doc, values, linux), manifestation);
   const duration = seconds(bounds.duration, timer);
   const band = {
     low: q(duration - seconds(bounds.early, `${timer}'s early bound`)),
@@ -386,7 +410,7 @@ export const predictWsAt = (spec: WsSpec, rttMs: number): Prediction => {
     return {
       detects: true,
       timer,
-      errno: errnoOf(LINUX, "ESTABLISHED", { timer, fires }, manifestation) ?? "ETIMEDOUT",
+      errno: errnoOf(LINUX_TCP, "ESTABLISHED", { timer, fires }, manifestation) ?? "ETIMEDOUT",
       from: linuxReference(timer),
       ...band,
       ...reconnects,
