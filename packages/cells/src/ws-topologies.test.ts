@@ -1,4 +1,5 @@
 import { realizationOf, timerOf } from "@mark1russell7/algebra";
+import { latestEndOf } from "@mark1russell7/harness";
 import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER, nodeEarlySeconds, nodeLateSeconds } from "@mark1russell7/machines";
 import { describe, expect, it } from "vitest";
 import { HZ } from "./catalog.ts";
@@ -184,6 +185,15 @@ describe("the WST catalog", () => {
     });
     // the next beat comes after the latest forget after the pong of the beat before it
     expect(6 - nodeEarlySeconds(HZ)).toBeGreaterThan(forgetOf(1).hi + 0.001);
+    // a beat before the forget refreshes the flow: the first ping without an answer comes at most a
+    // forget and a beat after the reply, and the run waits for it, past the 10 s of a short band
+    for (const name of ["server idle, router reset-next at 5 s, server heartbeat 6 s and 2 misses", "server idle, router none at 5 s, server heartbeat 6 s and 2 misses"]) {
+      const p = cell(name).prediction;
+      expect(p.detects === true ? p.startsBy?.value : undefined, name).toBeCloseTo(forgetOf(1).hi + 6 + nodeLateSeconds(6, HZ) + 0.001, 9);
+      // the latest detection: the latest first ping without an answer, then the band
+      expect(p.detects === true ? latestEndOf(p) : 0, name).toBeCloseTo((p.detects === true ? p.high.value : 0) + forgetOf(1).hi + 6 + nodeLateSeconds(6, HZ) + 0.001, 9);
+    }
+    expect(cell("server idle, router reset-both at 5 s, server heartbeat 4 s and 2 misses").prediction).not.toHaveProperty("startsBy");
     for (const name of [
       "server idle, router reset-both at 5 s, server heartbeat 4 s and 2 misses",
       "server idle, router reset-next at 5 s, server heartbeat 6 s and 2 misses",

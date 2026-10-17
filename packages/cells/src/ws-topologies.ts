@@ -278,10 +278,20 @@ const serverAt = (spec: WstSpec, form: MiddleboxForm, rttMs: number): Prediction
   const { heartbeat } = ws.server;
   if (heartbeat === null) throw new Error(`${spec.name}: a server without a heartbeat sends nothing to meet the router`);
   const beat = beatOf({ heartbeat });
+  const rtt = rttMs / 1000;
+  const forget = forgetOf(rttMs);
   const earliest = seconds(beat.duration, "a beat") - seconds(beat.early, "the early bound of a beat");
-  if (!(earliest > forgetOf(rttMs).hi + rttMs / 1000)) throw new Error(`${spec.name}: the next beat can come before the router forgets the flow`);
-  if (form === "reset-next" || form === "silent-drop") return predictWsAt(ws, rttMs);
-  if (form === "none") return predictWsAt({ ...ws, manifestation: "rst" }, rttMs);
+  if (!(earliest > forget.hi + rtt)) throw new Error(`${spec.name}: the next beat can come before the router forgets the flow`);
+  // a beat before the forget refreshes the flow. Thus the first ping without an answer comes at
+  // most one forget and one beat after the reply, and the run waits for it
+  const latest = seconds(beat.duration, "a beat") + seconds(beat.lateness, "the lateness of a beat");
+  const startsBy = q(forget.hi + latest + rtt);
+  const late = (prediction: Prediction): Prediction => {
+    if (prediction.detects !== true) throw new Error(`${spec.name}: nothing detects the forgotten flow`);
+    return { ...prediction, startsBy };
+  };
+  if (form === "reset-next" || form === "silent-drop") return late(predictWsAt(ws, rttMs));
+  if (form === "none") return late(predictWsAt({ ...ws, manifestation: "rst" }, rttMs));
   throw new Error(`${spec.name}: the harness has no reference for the form ${form} against the heartbeat of a server`);
 };
 

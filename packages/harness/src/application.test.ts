@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { callOf, exitOf, reconnectFinding } from "./application.ts";
 import type { Cell, KernelRecord, ProbeEvent, Run } from "./cell.ts";
+import { latestEndOf } from "./cell.ts";
 import { measure } from "./observe.ts";
 import { verdictOf } from "./verdict.ts";
 
@@ -298,6 +299,13 @@ describe("a detection by the program of the observer, from its lines and the ker
     // a line that names the client's own address does not match the socket of the server behind the router
     const named = lines.map((line) => ("peer" in line ? { ...line, peer: LOCAL } : line));
     expect(measure(server, run(client.slice(0, 4), records, { server: named, topology, fault: null })).outcome).not.toEqual({ kind: "dropped" });
+  });
+
+  it("ends a band at its high bound, after its latest reference when the reference can come late", () => {
+    const reset = { detects: true, timer: "rx.rst", errno: "ECONNRESET", from: "ping-sent", low: s(0), high: s(0.001) } as const;
+    expect(latestEndOf(reset)).toBe(0.001);
+    // the first ping without an answer of a server heartbeat can come 11.14 s after the reply
+    expect(latestEndOf({ ...reset, startsBy: s(11.14) })).toBeCloseTo(11.141, 9);
   });
 
   it("times the stall of an idle client from its first ping into it, and finds a drop before the recovery", () => {

@@ -113,7 +113,6 @@ A fault names a member by its role at the start of a run: `primary`, or `replica
   - The class of its sockets is the global `WebSocket` of Node, with the transport of the root entry. Or it is the `WebSocket` of the `ws` package, with the transport of the Node entry `@procedures/client/node`.
   - The transport gets a subclass of that class. The subclass writes a line, then gives the work to its class. Thus the transport, undici and ws operate as they do without it.
   - The subclass has `terminate()` only when its class has it, because the transport drops a socket with `terminate()` when it exists.
-- **The lines of a server through a topology.** A line of a server names its connection by its peer. Behind a router, that peer is the address of the router, as the socket of the server records it.
 - **A target from an image of the harness** (`Target.harness`). The target operates an image of the harness in place of its stock image. The procedures server is a script in the image of the WebSocket client (`server-ws.mjs`). Thus the client and the server use one release of the package. `Target.image` is the stock base of that image, and the manifest names both.
 - **An agent** (`lab.agent(image, command, { pid })`) is a container in the network namespace of the target. With `pid`, it also shares the process namespace of the target, thus it can signal the server process. Its JSON lines and its `exec` stay available to the caller.
 
@@ -204,6 +203,8 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
   - A drop counts when it comes before each report of the kernel. A report of the kernel that comes first is the detection, and the drop after it is not.
   - The second view is the stamps of the program: from its `ping` line to its `drop` line. The steps are the later pings, each from the reference.
   - The lines of a client name the socket by its local address (`local`), and the lines of a server by its peer (`peer`). For the server, the lines are the lines of the target. A line whose address is null is about a try that did not open.
+  - The harness reads the peer of a server from the records of its socket. Behind a router, that peer is the address of the router, not the address of the client.
+  - A first ping without an answer can come late, for example at a beat of a server whose phase no document gives. Then the prediction gives its latest time after the reply (`startsBy`), and the run waits that much longer.
   - A prediction can say how the program drops (`drop`). A close frame (`frame`) is a write, and the socket stays ESTABLISHED after it. A close (`close`) closes the socket in δ_abs: a FIN or an abort. Another drop is a finding. A FIN of the peer that answers a close frame is no close by the program. The run gives the time from the `drop` line to the close by the program (`left`).
   - The client process ends at the end of each run, and its kernel then closes each socket that is still open. A prediction can say that the program is that client process (`exits`). Then a close in δ_abs of that end is no close by the program: `left` stays null, and `exited` gives the time.
   - The end of the process is the first change out of ESTABLISHED of another socket of the client after its last `dial` line (`exitOf`). The program dropped none of these sockets.
