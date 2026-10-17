@@ -163,6 +163,17 @@ The client of `@procedures/client` drops a silent connection on its own heartbea
 
 Each toxic gets a prediction from the source of Toxiproxy. A `reset_peer` toxic on a live connection closes it with FINs, and the client reads an end of file.
 
+### LISTING · The listing of the router holds the softirqs
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** S1
+- **Started:** 2026-10-17
+- **Shipped:**
+- **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39057994070)
+
+The router of T03 lists the conntrack table each 50 ms. A listing walks each bucket of the table with the softirqs off, and a runner has 262144 buckets. One reply of 13,306 waited 6.8 ms in a listing, and one netem cell failed on it. The workflows give the table 16384 buckets.
+
 ### PG · PostgreSQL
 
 - **Status:** later
@@ -307,12 +318,12 @@ The kind page shows the run of 2026-10-17, with each lone failure and its time.
 
 - **Status:** in progress
 - **Area:** site
-- **Depends on:** DELACK
+- **Depends on:** DELACK, LISTING
 - **Started:** 2026-10-17
 - **Shipped:**
 - **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39057994070)
 
-A full run of the catalogs at main gives each page its next copy. Its predictions have the delayed ACK and the EOF of Toxiproxy.
+A full run of the catalogs at main gives each page its next copy. Its predictions have the delayed ACK and the EOF of Toxiproxy. The export scripts read the run of one catalog. For a full run on the runner, each script takes its own cells, at the HZ of the runner. The next full run comes after LISTING.
 
 ### CANONICAL · The canonical cells, measured to the close of Redis
 
