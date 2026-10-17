@@ -86,14 +86,263 @@ From the layout of a CMOS cell to the routing fabric of an FPGA, with the real g
 
 ### S6 · The service abstraction
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** program
 - **Depends on:** S1
+- **Started:** 2026-10-08
+- **Shipped:**
+- **Links:** [@mark1russell7/service](https://www.npmjs.com/package/@mark1russell7/service), [The requirements](S6.md), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+A service declares its clients, timeouts, retries, checks and state machines as data that the algebra reads. `@mark1russell7/service` 0.4.1 is on npm. It has the declaration, the law, the health runtime, the lifecycle and the Redis client.
+
+On 2026-10-17, Mark decided the design of the server stack (D1 to D18). These decisions replace the co-design gate for the runner, its HTTP entry, the composition, the requests, the signals and the profiles. Two parts of S6 still wait on S1. The first is the wrappers of the S1 clients after Redis, which Mark designs with S1. The second is the design of health and routing in the draft, whose candidates the harness of S1 and S2 tests.
+
+## The server stack in S6
+
+These items are the part of the server stack in this repository. The server stack is a plan across repositories: one service runner here, and one procedures server in the client. [Its tracker](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb) has the whole plan, with the same ids.
+
+On 2026-10-17, Mark decided these questions for this repository:
+
+- **D1.** The generic listener of `node:http` is a new entry, `@mark1russell7/service/http`. It has no framework.
+- **D2.** A procedures host is a component. It gives its parts to the one service of the process, and only the entry of the process uses `run()`.
+- **D3.** A controller can match a path pattern, and a function gives the idempotency of each request.
+- **D4.** Each request is a stream, and a unary call is a stream of one item.
+- **D5.** The probes answer on a port of their own or on the app port, as each process chooses.
+- **D6.** A declared option tells what a second signal does: `ignore` or `exit`.
+- **D7.** The profiles, for example local development and Kubernetes, are exported data that a caller spreads.
+- **D16.** The harness takes its test subjects as data, and the client owns the image of its procedures subject. Thus this repository pins no `@procedures` package. Today harness 0.11.1 holds `@procedures/client` 0.7.0 in its procedures image ([#44](https://github.com/mark1russell7/systems/pull/44)).
+- **D17.** A process for one command also operates under `run()`, with a minimal profile.
+
+### DOC-5 · The requirements of S6 in this repository
+
+- **Status:** done
+- **Area:** server stack
+- **Depends on:** S6
+- **Started:** 2026-10-17
+- **Shipped:** 2026-10-17
+- **Links:** [The requirements](S6.md), [#46](https://github.com/mark1russell7/systems/pull/46), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+The groups A, B and E of the S6 draft move from jarvis into this repository, in STE. Each requirement tells which part of the service meets it.
+
+### SYS-13 · The roadmap and the README tell the truth about S6
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** S6
+- **Started:** 2026-10-17
+- **Shipped:**
+- **Links:** [#46](https://github.com/mark1russell7/systems/pull/46), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+S6 is in progress, and the items of the server stack are on this roadmap. The README of the service names the `./http` exports before they exist. SYS-1 to SYS-3 give those exports and correct the example.
+
+### SYS-8 · The composition of components in one service
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** S6
+- **Started:** 2026-10-17
+- **Shipped:**
+- **Links:** [The README](https://github.com/mark1russell7/systems/tree/main/packages/service#composition), [#46](https://github.com/mark1russell7/systems/pull/46), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+A component gives its transports, dependencies and checks to the one service of the process. Only the entry uses `run()`. The README has the pattern. A test that composes two sets of parts under one `run()` comes next.
+
+### SYS-4 · A conformance kit for transports
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** S6
+- **Started:** 2026-10-17
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+`@mark1russell7/service/testing` gets a suite that checks each `TransportImpl`. The intake stops, the drain keeps its deadline and its signal, the count is true, and a close has a bound.
+
+### CI-1 · Real sockets and drain times in CI
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** SYS-4
+- **Started:** 2026-10-17
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+CI starts the conformance kit on real sockets, with the keep-alive and drain times of `./http`. These timed tests are only for CI.
+
+### SYS-1 · The HTTP listener as a transport
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** SYS-4, CI-1, DOC-5
+- **Started:** 2026-10-17
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+A new entry, `@mark1russell7/service/http`, makes a `node:http` server a transport, as A8 of S6 tells. A small list of request and upgrade handlers lets several hosts use one port.
+
+### SYS-2 · Probes on their own port or on the app port
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** SYS-1
+- **Started:** 2026-10-17
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+`./http` gets a probe server on its own port, and a probe handler for an app port. Both answer from the cache of the health runtime.
+
+### SYS-3 · An HTTP answer from each request outcome
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** SYS-1, SYS-15
+- **Started:** 2026-10-17
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+`./http` writes the status, `Retry-After` and `Connection: close` of a request outcome. A helper binds a request of `node:http` to the request tracking of the service.
+
+### SYS-15 · Request tracking from the start of each transport
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** S6
+- **Started:** 2026-10-17
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+The transports start before the startup ends, but `run()` gives `life.request` only at that end. The kind lab uses a global and a 503 to go around it. After this item, a transport tracks its requests from its start.
+
+### SYS-5 · Dynamic routes
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** S6
+- **Started:** 2026-10-17
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+A controller can declare a path pattern, and a function gives the idempotency of each request. Thus the service tracks a registry of procedures that changes while it operates.
+
+### SYS-6 · Each request is a stream
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** SYS-1
+- **Started:** 2026-10-17
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+A request stays in flight until its stream ends. A failure after the first item ends the stream with an error line, not a 503. The cooperative abort ends the stream. This change breaks the API, thus it comes in service 0.5.0.
+
+### SYS-7 · A stop when stdin closes, and a minimal profile
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** S6
+- **Started:** 2026-10-17
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+A stdio process, for example an MCP host, stops through the staged shutdown when its parent closes stdin. A small declaration without probes passes `describe()` and `lint()`.
+
+### SYS-9 · A declared policy for a second signal
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** S6
+- **Started:** 2026-10-17
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+A declaration tells what a second signal does: `ignore`, as today, or `exit`. The local development profile uses `exit`.
+
+### SYS-10 · Profiles as data
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** S6
+- **Started:** 2026-10-17
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+Exported profiles fill the phases, the cooperative window and the policies. A caller spreads them. The Kubernetes profile gets the caps from the grace period and the preStop delay.
+
+### SYS-12 · An optional zod
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** S6
+- **Started:** 2026-10-17
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+The root of the service does not use zod at run time. Thus zod becomes an optional peer dependency.
+
+### SYS-16 · run() for a process that runs one command
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** S6
+- **Started:** 2026-10-17
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+The process exits with the code of its work. A first Ctrl-C can abort at once, and the exit waits for stdout and stderr.
+
+### SYS-14 · A worker loop and a queue drain
+
+- **Status:** blocked
+- **Area:** server stack
+- **Depends on:** SYS-4
 - **Started:**
 - **Shipped:**
-- **Links:** [@mark1russell7/service](https://www.npmjs.com/package/@mark1russell7/service)
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-A service declares its clients, timeouts, retries, checks and state machines as data that the algebra reads. Mark designs it together with the S1 clients.
+A worker loop (A10 of S6) and a queue drain (A11) as `TransportImpl` factories. Both pass the conformance kit of SYS-4.
+
+### SYS-11 · The kind lab on ./http
+
+- **Status:** blocked
+- **Area:** server stack
+- **Depends on:** SYS-1, SYS-2, SYS-3
+- **Started:**
+- **Shipped:**
+- **Links:** [#40](https://github.com/mark1russell7/systems/pull/40), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+The image of the kind lab replaces its own transport, probe server and outcome map with `./http`. It starts from kind 0.1.4 (#40). The kind cells run only in CI.
+
+### REL-1 · Service 0.5.0 with ./http and the runner options
+
+- **Status:** blocked
+- **Area:** server stack
+- **Depends on:** SYS-1, SYS-2, SYS-3, SYS-15
+- **Started:**
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+A change of the version on main makes `release.yml` publish it. It is a MINOR, because SYS-6 changes `RequestFn` and the outcome type before 1.0. The client, jarvis and Graph then use it from npm.
+
+### SYS-17 · The harness takes its test subjects as data
+
+- **Status:** later
+- **Area:** server stack
+- **Depends on:** S6
+- **Started:**
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+`@mark1russell7/harness` accepts the image of a subject as data (D16). Thus another repository can give its own subject, with its own release in it.
+
+### SYS-18 · The procedures image leaves the harness
+
+- **Status:** blocked
+- **Area:** server stack
+- **Depends on:** SYS-17
+- **Started:**
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+After CLI-33, the client owns the image of its procedures subject. Then the harness removes `image/procedures`, and the README of the harness no longer describes that image.
 
 ## The systems of S1
 
