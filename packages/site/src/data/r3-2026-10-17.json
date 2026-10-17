@@ -1,0 +1,3715 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again by the harness. A re-run replaces the first run of its cell",
+  "ranAt": "2026-10-17",
+  "units": "s",
+  "noise": 0.004,
+  "runs": 11,
+  "kernel": "6.17.0",
+  "hz": 1000,
+  "target": "redis:7.4",
+  "cells": [
+    {
+      "plan": "T01.array.1",
+      "catalog": "T01",
+      "name": "client idle, blackhole",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 10.999,
+        "high": 11.704,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 10.999 s to 11.704 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 10.995,
+        "high": 11.708
+      },
+      "median": 11.277346,
+      "why": "11 of the 11 counted runs are in the band of 10.995 s to 11.708 s. The median is 11.277 s, and its interval is 11.248 s to 11.289 s.",
+      "runs": [
+        [11.257199, 11.289075, 11.270803, 11.280349, 11.281084, 11.292638],
+        [11.24795, 11.285718, 11.277346, 11.238608, 11.255834]
+      ],
+      "warmups": [11.245372, 11.249135],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.1",
+      "catalog": "T01",
+      "name": "client in flight, blackhole",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ETIMEDOUT. The band is 3 s to 6.416 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.168017,
+      "why": "11 of the 11 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.168 s, and its interval is 6.16 s to 6.184 s.",
+      "runs": [
+        [6.168008, 6.168011, 6.191997, 6.176015, 6.184016, 6.167996],
+        [6.183967, 6.168017, 6.160012, 6.168025, 6.160013]
+      ],
+      "warmups": [6.200009, 6.152002],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.2",
+      "catalog": "T01",
+      "name": "server idle, rst",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 4.999,
+        "high": 5.513,
+        "window": null,
+        "text": "The corpus predicts that a reset reaches the observer as ECONNRESET. The band is 4.999 s to 5.513 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 4.995,
+        "high": 5.517
+      },
+      "median": 5.214493,
+      "why": "11 of the 11 counted runs are in the band of 4.995 s to 5.517 s. The median is 5.214 s, and its interval is 5.055 s to 5.432 s.",
+      "runs": [
+        [5.308075, 5.431861, 5.098021, 5.214493, 5.369456, 5.00418],
+        [5.160681, 5.282535, 5.450409, 5.055011, 5.202764]
+      ],
+      "warmups": [5.461973, 5.333478],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.2",
+      "catalog": "T01",
+      "name": "server in flight, rst",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 2,
+        "high": 2.102,
+        "window": null,
+        "text": "The corpus predicts that a reset reaches the observer as ECONNRESET. The band is 2 s to 2.102 s after the send of the request."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 1.996,
+        "high": 2.106
+      },
+      "median": 2.06039,
+      "why": "11 of the 11 counted runs are in the band of 1.996 s to 2.106 s. The median is 2.06 s, and its interval is 2.043 s to 2.079 s.",
+      "runs": [
+        [2.042611, 2.0785, 2.06039, 2.078585, 2.020188, 2.044502],
+        [2.058877, 2.04482, 2.079411, 2.065599, 2.099484]
+      ],
+      "warmups": [2.026913, 2.010571],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.3",
+      "catalog": "T01",
+      "name": "client idle, fin",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "text": "The corpus predicts that the FIN of the peer reaches the observer as an end of file. The band is 0 s to 1 ms after the close of the socket of the peer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.000048,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 48 µs, and its interval is 40 µs to 54 µs.",
+      "runs": [
+        [0.000047],
+        [0.000053],
+        [0.000046],
+        [0.000027],
+        [0.000052],
+        [0.000059],
+        [0.000053],
+        [0.000054],
+        [0.00004],
+        [0.000048],
+        [0.000048]
+      ],
+      "warmups": [null, null, null, null, null, null, null, null, null, null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.3",
+      "catalog": "T01",
+      "name": "server idle, fin",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "text": "The corpus predicts that the FIN of the peer reaches the observer as an end of file. The band is 0 s to 1 ms after the close of the socket of the peer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.000039,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 39 µs, and its interval is 33 µs to 50 µs.",
+      "runs": [
+        [0.00005, 0.000039, 0.000033, 0.000037, 0.000042, 0.000058],
+        [0.000039, 0.000032, 0.000042, 0.000036, 0.000047]
+      ],
+      "warmups": [0.000041, 0.000045],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.5",
+      "catalog": "T01",
+      "name": "client idle, freeze-process",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 20,
+        "text": "The corpus predicts that nothing detects the fault in a window of 20 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 20 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.5",
+      "catalog": "T01",
+      "name": "client in flight, freeze-process",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 20,
+        "text": "The corpus predicts that nothing detects the fault in a window of 20 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 20 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.7",
+      "catalog": "T01",
+      "name": "server idle, blackhole",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "measured",
+        "low": null,
+        "high": null,
+        "window": 1202.2,
+        "text": "This cell has no band. The idle timer of Redis (600 s to 601.1 s) and the keepalive of the kernel (600 s) can fire in either order. Thus the corpus predicts neither, and the cell measures the end of the connection."
+      },
+      "decision": "measured",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "None of the 11 counted runs measured a time.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.7",
+      "catalog": "T01",
+      "name": "server in flight, blackhole",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 7,
+        "high": 8.201,
+        "window": null,
+        "text": "The corpus predicts that Redis closes the idle client at its timeout, with its own FIN. The band is 7 s to 8.201 s after the send of the request."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 6.996,
+        "high": 8.205
+      },
+      "median": 7.828979,
+      "why": "11 of the 11 counted runs are in the band of 6.996 s to 8.205 s. The median is 7.829 s, and its interval is 7.656 s to 7.928 s.",
+      "runs": [
+        [7.828979, 7.842332, 7.943821, 7.928169, 7.872815, 7.877097],
+        [7.665562, 7.65082, 7.655899, 7.688097, 7.660254]
+      ],
+      "warmups": [7.615559, 7.454923],
+      "voids": null,
+      "first": "fails",
+      "repeated": "In the first CI run, the corpus said that the idle timeout of Redis ends the client with ETIMEDOUT. Redis closes the idle client itself, with a FIN. After that fix of the corpus, CI did the cell again."
+    },
+    {
+      "plan": "T01.array.8",
+      "catalog": "T01",
+      "name": "client idle, blackhole",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 14.999,
+        "high": 16.152,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 14.999 s to 16.152 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 14.995,
+        "high": 16.156
+      },
+      "median": 15.447332,
+      "why": "11 of the 11 counted runs are in the band of 14.995 s to 16.156 s. The median is 15.447 s, and its interval is 15.288 s to 15.638 s.",
+      "runs": [
+        [15.488934, 15.387998, 15.235098, 15.637837, 15.492419, 15.388582],
+        [15.287544, 15.69671, 15.56384, 15.447332, 15.298892]
+      ],
+      "warmups": [15.413095, 15.699809],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.8",
+      "catalog": "T01",
+      "name": "server idle, blackhole",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 7.999,
+        "high": 8.704,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 7.999 s to 8.704 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 7.995,
+        "high": 8.708
+      },
+      "median": 8.274304,
+      "why": "11 of the 11 counted runs are in the band of 7.995 s to 8.708 s. The median is 8.274 s, and its interval is 8.156 s to 8.501 s.",
+      "runs": [
+        [8.155688, 8.369668, 8.580813, 8.274304, 8.501025, 8.217744],
+        [8.364762, 8.08649, 8.262389, 8.483822, 8.19924]
+      ],
+      "warmups": [8.114618, 8.359448],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.10",
+      "catalog": "T01",
+      "name": "client idle, rst",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 0.999,
+        "high": 1.065,
+        "window": null,
+        "text": "The corpus predicts that a reset reaches the observer as ECONNRESET. The band is 999 ms to 1.065 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 0.995,
+        "high": 1.069
+      },
+      "median": 1.035038,
+      "why": "11 of the 11 counted runs are in the band of 995 ms to 1.069 s. The median is 1.035 s, and its interval is 1.001 s to 1.053 s.",
+      "runs": [
+        [1.01109, 1.054969, 1.035038, 1.048625, 1.032876, 1.00101],
+        [1.001083, 1.000669, 1.052676, 1.035641, 1.044621]
+      ],
+      "warmups": [1.029645, 1.000766],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.10",
+      "catalog": "T01",
+      "name": "client in flight, rst",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "text": "The corpus predicts that a reset reaches the observer as ECONNRESET. The band is 0 s to 1 ms after the send of the request."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.000247,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 247 µs, and its interval is 222 µs to 280 µs.",
+      "runs": [
+        [0.000274, 0.000241, 0.000222, 0.00022, 0.0007, 0.000231],
+        [0.00026, 0.000247, 0.00028, 0.00024, 0.00026]
+      ],
+      "warmups": [0.00031, 0.000236],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.11",
+      "catalog": "T01",
+      "name": "client idle, rst",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 4.999,
+        "high": 5.513,
+        "window": null,
+        "text": "The corpus predicts that a reset reaches the observer as ECONNRESET. The band is 4.999 s to 5.513 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 4.995,
+        "high": 5.517
+      },
+      "median": 5.245056,
+      "why": "11 of the 11 counted runs are in the band of 4.995 s to 5.517 s. The median is 5.245 s, and its interval is 5.083 s to 5.439 s.",
+      "runs": [
+        [5.438603, 5.082918, 5.183305, 5.356417, 5.482164, 5.145341],
+        [5.245056, 5.393444, 5.035282, 5.20509, 5.34746]
+      ],
+      "warmups": [5.127404, 5.491914],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.11",
+      "catalog": "T01",
+      "name": "server idle, rst",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 4.999,
+        "high": 5.513,
+        "window": null,
+        "text": "The corpus predicts that a reset reaches the observer as ECONNRESET. The band is 4.999 s to 5.513 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 4.995,
+        "high": 5.517
+      },
+      "median": 5.184502,
+      "why": "11 of the 11 counted runs are in the band of 4.995 s to 5.517 s. The median is 5.185 s, and its interval is 5.051 s to 5.44 s.",
+      "runs": [
+        [5.380015, 5.115824, 5.281581, 5.402074, 5.051247, 5.184502],
+        [5.4401, 5.150169, 5.17638, 5.460818, 5.024268]
+      ],
+      "warmups": [5.26922, 5.494411],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.13",
+      "catalog": "T01",
+      "name": "client idle, fin",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "text": "The corpus predicts that the FIN of the peer reaches the observer as an end of file. The band is 0 s to 1 ms after the close of the socket of the peer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.000048,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 48 µs, and its interval is 39 µs to 49 µs.",
+      "runs": [
+        [0.000049],
+        [0.000049],
+        [0.000041],
+        [0.000039],
+        [0.00005],
+        [0.000048],
+        [0.000048],
+        [0.000049],
+        [0.000027],
+        [0.000048],
+        [0.000039]
+      ],
+      "warmups": [null, null, null, null, null, null, null, null, null, null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.13",
+      "catalog": "T01",
+      "name": "client in flight, fin",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "text": "The corpus predicts that the FIN of the peer reaches the observer as an end of file. The band is 0 s to 1 ms after the close of the socket of the peer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.000046,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 46 µs, and its interval is 38 µs to 52 µs.",
+      "runs": [
+        [0.000038],
+        [0.000037],
+        [0.000052],
+        [0.000046],
+        [0.000046],
+        [0.000054],
+        [0.000046],
+        [0.000047],
+        [0.000048],
+        [0.000042],
+        [0.000042]
+      ],
+      "warmups": [null, null, null, null, null, null, null, null, null, null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.14",
+      "catalog": "T01",
+      "name": "server idle, fin",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "text": "The corpus predicts that the FIN of the peer reaches the observer as an end of file. The band is 0 s to 1 ms after the close of the socket of the peer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.000053,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 53 µs, and its interval is 46 µs to 60 µs.",
+      "runs": [
+        [0.000047, 0.000053, 0.000049, 0.000053, 0.00006, 0.000054],
+        [0.000047, 0.000054, 0.000041, 0.000046, 0.000064]
+      ],
+      "warmups": [0.000055, 0.000047],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.14",
+      "catalog": "T01",
+      "name": "server in flight, fin",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "text": "The corpus predicts that the FIN of the peer reaches the observer as an end of file. The band is 0 s to 1 ms after the close of the socket of the peer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.000055,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 55 µs, and its interval is 48 µs to 65 µs.",
+      "runs": [
+        [0.000054, 0.000054, 0.00007, 0.000058, 0.000049, 0.000057],
+        [0.000055, 0.000045, 0.000055, 0.000065, 0.000048]
+      ],
+      "warmups": [0.000048, 0.000063],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.16",
+      "catalog": "T01",
+      "name": "client idle, admin, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 10.999,
+        "high": 11.704,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 10.999 s to 11.704 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 10.995,
+        "high": 11.708
+      },
+      "median": 11.280731,
+      "why": "11 of the 11 counted runs are in the band of 10.995 s to 11.708 s. The median is 11.281 s, and its interval is 11.25 s to 11.294 s.",
+      "runs": [
+        [11.287214, 11.292937, 11.277577, 11.294284, 11.280731, 11.249504],
+        [11.295056, 11.268353, 11.246696, 11.281019, 11.265774]
+      ],
+      "warmups": [11.280486, 11.264437],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.16",
+      "catalog": "T01",
+      "name": "client idle, host, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 10.999,
+        "high": 11.704,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 10.999 s to 11.704 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 10.995,
+        "high": 11.708
+      },
+      "median": 11.266077,
+      "why": "11 of the 11 counted runs are in the band of 10.995 s to 11.708 s. The median is 11.266 s, and its interval is 11.252 s to 11.285 s.",
+      "runs": [
+        [11.266077, 11.284799, 11.262561, 11.265533, 11.288162, 11.284042],
+        [11.273257, 11.258407, 11.252366, 11.24116, 11.275433]
+      ],
+      "warmups": [11.258566, 11.288208],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.16",
+      "catalog": "T01",
+      "name": "client idle, net, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 10.999,
+        "high": 11.704,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 10.999 s to 11.704 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 10.995,
+        "high": 11.708
+      },
+      "median": 11.256993,
+      "why": "11 of the 11 counted runs are in the band of 10.995 s to 11.708 s. The median is 11.257 s, and its interval is 11.237 s to 11.286 s.",
+      "runs": [
+        [11.283075, 11.24165, 11.248862, 11.256993, 11.292517, 11.285719],
+        [11.242855, 11.267841, 11.236854, 11.258946, 11.23442]
+      ],
+      "warmups": [11.295736, 11.260042],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.16",
+      "catalog": "T01",
+      "name": "client idle, port, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 10.999,
+        "high": 11.704,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 10.999 s to 11.704 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 10.995,
+        "high": 11.708
+      },
+      "median": 11.274518,
+      "why": "11 of the 11 counted runs are in the band of 10.995 s to 11.708 s. The median is 11.275 s, and its interval is 11.257 s to 11.294 s.",
+      "runs": [
+        [11.294688, 11.258242, 11.277147, 11.290406, 11.274518, 11.271621],
+        [11.266938, 11.294148, 11.253144, 11.256667, 11.289043]
+      ],
+      "warmups": [11.246041, 11.237418],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.16",
+      "catalog": "T01",
+      "name": "client in flight, admin, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives EHOSTUNREACH, the soft error of an ICMP. The band is 3 s to 6.416 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.184011,
+      "why": "11 of the 11 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.184 s, and its interval is 6.168 s to 6.2 s.",
+      "runs": [
+        [6.167997, 6.199995, 6.176023, 6.184006, 6.199977, 6.184011],
+        [6.168021, 6.175997, 6.192001, 6.192009, 6.184012]
+      ],
+      "warmups": [6.152017, 6.184025],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.16",
+      "catalog": "T01",
+      "name": "client in flight, host, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 3.329,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives EHOSTUNREACH, the soft error of an ICMP. The band is 3 s to 3.329 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.996,
+        "high": 3.333
+      },
+      "median": 3.120004,
+      "why": "11 of the 11 counted runs are in the band of 2.996 s to 3.333 s. The median is 3.12 s, and its interval is 3.12 s to 3.12 s.",
+      "runs": [
+        [3.120011, 3.120023, 3.120001, 3.120004, 3.119974, 3.12002],
+        [3.119974, 3.120023, 3.120003, 3.119998, 3.120031]
+      ],
+      "warmups": [3.119999, 3.120036],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.16",
+      "catalog": "T01",
+      "name": "client in flight, net, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 3.329,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ENETUNREACH, the soft error of an ICMP. The band is 3 s to 3.329 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.996,
+        "high": 3.333
+      },
+      "median": 3.120008,
+      "why": "11 of the 11 counted runs are in the band of 2.996 s to 3.333 s. The median is 3.12 s, and its interval is 3.12 s to 3.12 s.",
+      "runs": [
+        [3.120004, 3.119984, 3.12001, 3.120002, 3.120011, 3.12001],
+        [3.120047, 3.12, 3.120008, 3.119993, 3.120013]
+      ],
+      "warmups": [3.120042, 3.119999],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.16",
+      "catalog": "T01",
+      "name": "client in flight, port, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ECONNREFUSED, the soft error of an ICMP. The band is 3 s to 6.416 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.176006,
+      "why": "11 of the 11 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.176 s, and its interval is 6.168 s to 6.184 s.",
+      "runs": [
+        [6.176006, 6.184014, 6.168005, 6.168006, 6.168006, 6.168],
+        [6.176002, 6.176009, 6.176007, 6.17601, 6.184007]
+      ],
+      "warmups": [6.192007, 6.168016],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.17",
+      "catalog": "T01",
+      "name": "server idle, admin, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "measured",
+        "low": null,
+        "high": null,
+        "window": 1202.2,
+        "text": "This cell has no band. The idle timer of Redis (600 s to 601.1 s) and the keepalive of the kernel (600 s) can fire in either order. Thus the corpus predicts neither, and the cell measures the end of the connection."
+      },
+      "decision": "measured",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "None of the 11 counted runs measured a time.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.17",
+      "catalog": "T01",
+      "name": "server idle, host, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "measured",
+        "low": null,
+        "high": null,
+        "window": 1202.2,
+        "text": "This cell has no band. The idle timer of Redis (600 s to 601.1 s) and the keepalive of the kernel (600 s) can fire in either order. Thus the corpus predicts neither, and the cell measures the end of the connection."
+      },
+      "decision": "measured",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "None of the 11 counted runs measured a time.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.17",
+      "catalog": "T01",
+      "name": "server idle, net, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "measured",
+        "low": null,
+        "high": null,
+        "window": 1202.2,
+        "text": "This cell has no band. The idle timer of Redis (600 s to 601.1 s) and the keepalive of the kernel (600 s) can fire in either order. Thus the corpus predicts neither, and the cell measures the end of the connection."
+      },
+      "decision": "measured",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "None of the 11 counted runs measured a time.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.17",
+      "catalog": "T01",
+      "name": "server idle, port, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "measured",
+        "low": null,
+        "high": null,
+        "window": 1202.2,
+        "text": "This cell has no band. The idle timer of Redis (600 s to 601.1 s) and the keepalive of the kernel (600 s) can fire in either order. Thus the corpus predicts neither, and the cell measures the end of the connection."
+      },
+      "decision": "measured",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "None of the 11 counted runs measured a time.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.17",
+      "catalog": "T01",
+      "name": "server in flight, admin, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 7,
+        "high": 8.201,
+        "window": null,
+        "text": "The corpus predicts that Redis closes the idle client at its timeout, with its own FIN. The band is 7 s to 8.201 s after the send of the request."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 6.996,
+        "high": 8.205
+      },
+      "median": 7.314475,
+      "why": "11 of the 11 counted runs are in the band of 6.996 s to 8.205 s. The median is 7.314 s, and its interval is 7.302 s to 7.847 s.",
+      "runs": [
+        [7.303741, 7.314475, 7.297436, 7.306782, 7.312031, 7.302103],
+        [7.834499, 7.805314, 7.846876, 7.850418, 7.815235]
+      ],
+      "warmups": [7.946743, 7.46176],
+      "voids": null,
+      "first": "fails",
+      "repeated": "In the first CI run, the corpus said that the idle timeout of Redis ends the client with ETIMEDOUT. Redis closes the idle client itself, with a FIN. After that fix of the corpus, CI did the cell again."
+    },
+    {
+      "plan": "T01.array.17",
+      "catalog": "T01",
+      "name": "server in flight, host, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 7,
+        "high": 8.201,
+        "window": null,
+        "text": "The corpus predicts that Redis closes the idle client at its timeout, with its own FIN. The band is 7 s to 8.201 s after the send of the request."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 6.996,
+        "high": 8.205
+      },
+      "median": 7.2222,
+      "why": "11 of the 11 counted runs are in the band of 6.996 s to 8.205 s. The median is 7.222 s, and its interval is 7.157 s to 8.06 s.",
+      "runs": [
+        [7.215915, 7.156807, 7.195319, 7.211978, 7.130904, 7.2222],
+        [7.981763, 8.0966, 8.01054, 7.989374, 8.059924]
+      ],
+      "warmups": [7.998517, 7.800192],
+      "voids": null,
+      "first": "fails",
+      "repeated": "In the first CI run, the corpus said that the idle timeout of Redis ends the client with ETIMEDOUT. Redis closes the idle client itself, with a FIN. After that fix of the corpus, CI did the cell again."
+    },
+    {
+      "plan": "T01.array.17",
+      "catalog": "T01",
+      "name": "server in flight, net, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 7,
+        "high": 8.201,
+        "window": null,
+        "text": "The corpus predicts that Redis closes the idle client at its timeout, with its own FIN. The band is 7 s to 8.201 s after the send of the request."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 6.996,
+        "high": 8.205
+      },
+      "median": 7.20617,
+      "why": "11 of the 11 counted runs are in the band of 6.996 s to 8.205 s. The median is 7.206 s, and its interval is 7.149 s to 7.691 s.",
+      "runs": [
+        [7.20617, 7.205116, 7.185325, 7.143141, 7.149187, 7.195451],
+        [7.694914, 7.643621, 7.639301, 7.675719, 7.69102]
+      ],
+      "warmups": [7.799452, 7.293265],
+      "voids": null,
+      "first": "fails",
+      "repeated": "In the first CI run, the corpus said that the idle timeout of Redis ends the client with ETIMEDOUT. Redis closes the idle client itself, with a FIN. After that fix of the corpus, CI did the cell again."
+    },
+    {
+      "plan": "T01.array.17",
+      "catalog": "T01",
+      "name": "server in flight, port, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 7,
+        "high": 8.201,
+        "window": null,
+        "text": "The corpus predicts that Redis closes the idle client at its timeout, with its own FIN. The band is 7 s to 8.201 s after the send of the request."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 6.996,
+        "high": 8.205
+      },
+      "median": 7.631148,
+      "why": "11 of the 11 counted runs are in the band of 6.996 s to 8.205 s. The median is 7.631 s, and its interval is 7.425 s to 7.715 s.",
+      "runs": [
+        [7.667027, 7.696004, 7.631148, 7.662679, 7.735543, 7.714612],
+        [7.425357, 7.48813, 7.453289, 7.452654, 7.421679]
+      ],
+      "warmups": [7.404739, 7.205169],
+      "voids": null,
+      "first": "fails",
+      "repeated": "In the first CI run, the corpus said that the idle timeout of Redis ends the client with ETIMEDOUT. Redis closes the idle client itself, with a FIN. After that fix of the corpus, CI did the cell again."
+    },
+    {
+      "plan": "T01.array.18",
+      "catalog": "T01",
+      "name": "client idle, admin, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 14.999,
+        "high": 16.152,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 14.999 s to 16.152 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 14.995,
+        "high": 16.156
+      },
+      "median": 15.481386,
+      "why": "11 of the 11 counted runs are in the band of 14.995 s to 16.156 s. The median is 15.481 s, and its interval is 15.252 s to 15.657 s.",
+      "runs": [
+        [15.325315, 15.740057, 15.657044, 15.491716, 15.38659, 15.251639],
+        [15.605357, 15.481386, 15.373977, 15.24882, 15.595538]
+      ],
+      "warmups": [15.64812, 15.405666],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.18",
+      "catalog": "T01",
+      "name": "client idle, host, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 14.999,
+        "high": 16.152,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 14.999 s to 16.152 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 14.995,
+        "high": 16.156
+      },
+      "median": 15.47208,
+      "why": "11 of the 11 counted runs are in the band of 14.995 s to 16.156 s. The median is 15.472 s, and its interval is 15.247 s to 15.647 s.",
+      "runs": [
+        [15.256228, 15.601357, 15.47208, 15.36347, 15.247443, 15.647435],
+        [15.73266, 15.602732, 15.497542, 15.340713, 15.237114]
+      ],
+      "warmups": [15.637606, 15.653155],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.18",
+      "catalog": "T01",
+      "name": "client idle, net, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 14.999,
+        "high": 16.152,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 14.999 s to 16.152 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 14.995,
+        "high": 16.156
+      },
+      "median": 15.536045,
+      "why": "11 of the 11 counted runs are in the band of 14.995 s to 16.156 s. The median is 15.536 s, and its interval is 15.316 s to 15.707 s.",
+      "runs": [
+        [15.315967, 15.707361, 15.615564, 15.446731, 15.344567, 15.709363],
+        [15.67272, 15.536045, 15.455175, 15.285667, 15.67281]
+      ],
+      "warmups": [15.644029, 15.462268],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.18",
+      "catalog": "T01",
+      "name": "client idle, port, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 14.999,
+        "high": 16.152,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 14.999 s to 16.152 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 14.995,
+        "high": 16.156
+      },
+      "median": 15.481064,
+      "why": "11 of the 11 counted runs are in the band of 14.995 s to 16.156 s. The median is 15.481 s, and its interval is 15.306 s to 15.677 s.",
+      "runs": [
+        [15.593989, 15.46034, 15.306231, 15.732496, 15.603751, 15.481064],
+        [15.36495, 15.266023, 15.67671, 15.533364, 15.418316]
+      ],
+      "warmups": [15.415378, 15.253496],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.18",
+      "catalog": "T01",
+      "name": "server idle, admin, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 7.999,
+        "high": 8.704,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 7.999 s to 8.704 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 7.995,
+        "high": 8.708
+      },
+      "median": 8.288658,
+      "why": "11 of the 11 counted runs are in the band of 7.995 s to 8.708 s. The median is 8.289 s, and its interval is 8.139 s to 8.477 s.",
+      "runs": [
+        [8.28395, 8.480106, 8.183446, 8.405598, 8.104856, 8.312974],
+        [8.288658, 8.47657, 8.210036, 8.404608, 8.139334]
+      ],
+      "warmups": [8.097462, 8.09981],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.18",
+      "catalog": "T01",
+      "name": "server idle, host, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 7.999,
+        "high": 8.704,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 7.999 s to 8.704 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 7.995,
+        "high": 8.708
+      },
+      "median": 8.325987,
+      "why": "11 of the 11 counted runs are in the band of 7.995 s to 8.708 s. The median is 8.326 s, and its interval is 8.17 s to 8.516 s.",
+      "runs": [
+        [8.294355, 8.516306, 8.224066, 8.4254, 8.136254, 8.35307],
+        [8.325987, 8.539699, 8.256643, 8.441242, 8.169634]
+      ],
+      "warmups": [8.294332, 8.314393],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.18",
+      "catalog": "T01",
+      "name": "server idle, net, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 7.999,
+        "high": 8.704,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 7.999 s to 8.704 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 7.995,
+        "high": 8.708
+      },
+      "median": 8.307611,
+      "why": "11 of the 11 counted runs are in the band of 7.995 s to 8.708 s. The median is 8.308 s, and its interval is 8.091 s to 8.522 s.",
+      "runs": [
+        [8.521604, 8.227896, 8.477726, 8.170701, 8.388726, 8.090719],
+        [8.15241, 8.367456, 8.07958, 8.307611, 8.535257]
+      ],
+      "warmups": [8.354897, 8.488901],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.18",
+      "catalog": "T01",
+      "name": "server idle, port, unreachable",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 7.999,
+        "high": 8.704,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 7.999 s to 8.704 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 7.995,
+        "high": 8.708
+      },
+      "median": 8.271141,
+      "why": "11 of the 11 counted runs are in the band of 7.995 s to 8.708 s. The median is 8.271 s, and its interval is 8.129 s to 8.501 s.",
+      "runs": [
+        [8.129408, 8.372251, 8.56339, 8.251973, 8.499942, 8.171267],
+        [8.341412, 8.082574, 8.271141, 8.501448, 8.206603]
+      ],
+      "warmups": [8.4973, 8.257512],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.19",
+      "catalog": "T01",
+      "name": "server idle, freeze-process",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 5,
+        "high": 6.1,
+        "window": null,
+        "text": "The corpus predicts that Redis closes the idle client at its timeout, with its own FIN. The band is 5 s to 6.1 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 4.996,
+        "high": 6.104
+      },
+      "median": 5.476725,
+      "why": "11 of the 11 counted runs are in the band of 4.996 s to 6.104 s. The median is 5.477 s, and its interval is 5.092 s to 5.536 s.",
+      "runs": [
+        [5.536269, 5.530381, 5.49705, 5.491667, 5.476725, 5.563044],
+        [5.032677, 5.122292, 5.108317, 5.092203, 5.125805]
+      ],
+      "warmups": [5.23163, 5.756579],
+      "voids": null,
+      "first": "fails",
+      "repeated": "In the first CI run, the corpus said that the idle timeout of Redis ends the client with ETIMEDOUT. Redis closes the idle client itself, with a FIN. After that fix of the corpus, CI did the cell again."
+    },
+    {
+      "plan": "T01.array.20",
+      "catalog": "T01",
+      "name": "client idle, freeze-process",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 20,
+        "text": "The corpus predicts that nothing detects the fault in a window of 20 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 20 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.20",
+      "catalog": "T01",
+      "name": "client in flight, freeze-process",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 20,
+        "text": "The corpus predicts that nothing detects the fault in a window of 20 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 20 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.array.20",
+      "catalog": "T01",
+      "name": "server idle, freeze-process",
+      "group": "T01",
+      "stage": "array",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 20,
+        "text": "The corpus predicts that nothing detects the fault in a window of 20 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 20 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.border-off.11",
+      "catalog": "T01",
+      "name": "client idle, inside, blackhole",
+      "group": "T01",
+      "stage": "border-off",
+      "prediction": {
+        "kind": "detects",
+        "low": 132.999,
+        "high": 137.736,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 132.999 s to 137.736 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 132.995,
+        "high": 137.74
+      },
+      "median": 134.379394,
+      "why": "11 of the 11 counted runs are in the band of 132.995 s to 137.74 s. The median is 134.379 s, and its interval is 134.041 s to 134.719 s.",
+      "runs": [
+        [134.234644, 134.392855, 134.591103, 134.735352, 133.892905, 134.043811],
+        [134.041099, 134.236664, 134.379394, 134.581764, 134.719183]
+      ],
+      "warmups": [134.872701, 134.720371],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.border-off.12",
+      "catalog": "T01",
+      "name": "client idle, outside, blackhole",
+      "group": "T01",
+      "stage": "border-off",
+      "prediction": {
+        "kind": "detects",
+        "low": 144.999,
+        "high": 149.736,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 144.999 s to 149.736 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 144.995,
+        "high": 149.74
+      },
+      "median": 146.679303,
+      "why": "11 of the 11 counted runs are in the band of 144.995 s to 149.74 s. The median is 146.679 s, and its interval is 146.244 s to 146.861 s.",
+      "runs": [
+        [146.95253, 146.39775, 146.861002, 146.306164, 146.757173, 146.244237],
+        [146.86116, 146.331415, 146.753089, 146.239549, 146.679303]
+      ],
+      "warmups": [147.366411, 147.269977],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.border-off.15",
+      "catalog": "T01",
+      "name": "client in flight, inside, blackhole",
+      "group": "T01",
+      "stage": "border-off",
+      "prediction": {
+        "kind": "detects",
+        "low": 204.6,
+        "high": 338.624,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ETIMEDOUT. The band is 204.6 s to 338.624 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 204.596,
+        "high": 338.628
+      },
+      "median": 211.536006,
+      "why": "11 of the 11 counted runs are in the band of 204.596 s to 338.628 s. The median is 211.536 s, and its interval is 210.928 s to 211.888 s.",
+      "runs": [
+        [210.936016, 210.943989, 210.928023, 210.880013, 211.896035, 211.888043],
+        [211.544003, 211.544001, 211.536006, 211.536029, 211.536]
+      ],
+      "warmups": [211.736008, 212.344017],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.border-off.16",
+      "catalog": "T01",
+      "name": "client in flight, outside, blackhole",
+      "group": "T01",
+      "stage": "border-off",
+      "prediction": {
+        "kind": "detects",
+        "low": 324.6,
+        "high": 462.72,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ETIMEDOUT. The band is 324.6 s to 462.72 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 324.596,
+        "high": 462.724
+      },
+      "median": 334.488002,
+      "why": "11 of the 11 counted runs are in the band of 324.596 s to 462.724 s. The median is 334.488 s, and its interval is 334.008 s to 334.752 s.",
+      "runs": [
+        [334.008005, 333.872031, 334.752022, 334.648033, 334.488002, 334.407986],
+        [334.752, 334.607983, 334.496026, 334.35205, 334.248021]
+      ],
+      "warmups": [333.920086, 334.664024],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.defaults.2",
+      "catalog": "T01",
+      "name": "client idle, rst",
+      "group": "T01",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 4.999,
+        "high": 5.513,
+        "window": null,
+        "text": "The corpus predicts that a reset reaches the observer as ECONNRESET. The band is 4.999 s to 5.513 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 4.995,
+        "high": 5.517
+      },
+      "median": 5.223048,
+      "why": "11 of the 11 counted runs are in the band of 4.995 s to 5.517 s. The median is 5.223 s, and its interval is 5.065 s to 5.387 s.",
+      "runs": [
+        [5.165254, 5.334532, 5.468042, 5.066963, 5.223494, 5.386906],
+        [5.064719, 5.223048, 5.381897, 5.010626, 5.126181]
+      ],
+      "warmups": [5.433336, 5.360802],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.defaults.2",
+      "catalog": "T01",
+      "name": "client in flight, rst",
+      "group": "T01",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "text": "The corpus predicts that a reset reaches the observer as ECONNRESET. The band is 0 s to 1 ms after the send of the request."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.000153,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 153 µs, and its interval is 128 µs to 222 µs.",
+      "runs": [
+        [0.000307, 0.000154, 0.000136, 0.000122, 0.000128, 0.00013],
+        [0.000161, 0.000129, 0.000218, 0.000222, 0.000153]
+      ],
+      "warmups": [0.000163, 0.000118],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.defaults.2",
+      "catalog": "T01",
+      "name": "server idle, rst",
+      "group": "T01",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 4.999,
+        "high": 5.513,
+        "window": null,
+        "text": "The corpus predicts that a reset reaches the observer as ECONNRESET. The band is 4.999 s to 5.513 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 4.995,
+        "high": 5.517
+      },
+      "median": 5.290839,
+      "why": "11 of the 11 counted runs are in the band of 4.995 s to 5.517 s. The median is 5.291 s, and its interval is 5.08 s to 5.48 s.",
+      "runs": [
+        [5.359863, 5.506063, 5.144192, 5.290839, 5.434145, 5.072943],
+        [5.479736, 5.109709, 5.245511, 5.38933, 5.080033]
+      ],
+      "warmups": [5.394169, 5.03149],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.random.2",
+      "catalog": "T01",
+      "name": "server in flight, fin",
+      "group": "T01",
+      "stage": "random",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "text": "The corpus predicts that the FIN of the peer reaches the observer as an end of file. The band is 0 s to 1 ms after the close of the socket of the peer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.000044,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 44 µs, and its interval is 40 µs to 48 µs.",
+      "runs": [
+        [0.000049, 0.000039, 0.000048, 0.000046, 0.000044, 0.000044],
+        [0.000043, 0.00004, 0.000046, 0.000042, 0.000042]
+      ],
+      "warmups": [0.000041, 0.000045],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.random.5",
+      "catalog": "T01",
+      "name": "server idle, freeze-process",
+      "group": "T01",
+      "stage": "random",
+      "prediction": {
+        "kind": "detects",
+        "low": 5,
+        "high": 6.1,
+        "window": null,
+        "text": "The corpus predicts that Redis closes the idle client at its timeout, with its own FIN. The band is 5 s to 6.1 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 4.996,
+        "high": 6.104
+      },
+      "median": 5.781537,
+      "why": "11 of the 11 counted runs are in the band of 4.996 s to 6.104 s. The median is 5.782 s, and its interval is 5.022 s to 6.083 s.",
+      "runs": [
+        [6.026442, 5.017127, 6.083469, 6.033132, 5.021766, 6.087296],
+        [5.737025, 5.700677, 5.781537, 5.744119, 5.794131]
+      ],
+      "warmups": [5.770686, 5.517371],
+      "voids": null,
+      "first": "fails",
+      "repeated": "In the first CI run, the corpus said that the idle timeout of Redis ends the client with ETIMEDOUT. Redis closes the idle client itself, with a FIN. After that fix of the corpus, CI did the cell again."
+    },
+    {
+      "plan": "T01.random.6",
+      "catalog": "T01",
+      "name": "client in flight, freeze-process",
+      "group": "T01",
+      "stage": "random",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 20,
+        "text": "The corpus predicts that nothing detects the fault in a window of 20 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 20 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.random.9",
+      "catalog": "T01",
+      "name": "client in flight, freeze-process",
+      "group": "T01",
+      "stage": "random",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 20,
+        "text": "The corpus predicts that nothing detects the fault in a window of 20 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 20 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.random.10",
+      "catalog": "T01",
+      "name": "server idle, fin",
+      "group": "T01",
+      "stage": "random",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "text": "The corpus predicts that the FIN of the peer reaches the observer as an end of file. The band is 0 s to 1 ms after the close of the socket of the peer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.00004,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 40 µs, and its interval is 37 µs to 59 µs.",
+      "runs": [
+        [0.000044, 0.000044, 0.000059, 0.000036, 0.000039, 0.00004],
+        [0.000038, 0.000039, 0.000037, 0.000044, 0.000063]
+      ],
+      "warmups": [0.000043, 0.000036],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.random.13",
+      "catalog": "T01",
+      "name": "client in flight, rst",
+      "group": "T01",
+      "stage": "random",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "text": "The corpus predicts that a reset reaches the observer as ECONNRESET. The band is 0 s to 1 ms after the send of the request."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.000237,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 237 µs, and its interval is 216 µs to 255 µs.",
+      "runs": [
+        [0.000252, 0.000242, 0.000199, 0.000236, 0.000237, 0.000268],
+        [0.000216, 0.00023, 0.000244, 0.000255, 0.000236]
+      ],
+      "warmups": [0.000251, 0.00026],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.random.14",
+      "catalog": "T01",
+      "name": "client in flight, freeze-process",
+      "group": "T01",
+      "stage": "random",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 20,
+        "text": "The corpus predicts that nothing detects the fault in a window of 20 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 20 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.random.15",
+      "catalog": "T01",
+      "name": "server idle, rst",
+      "group": "T01",
+      "stage": "random",
+      "prediction": {
+        "kind": "detects",
+        "low": 4.999,
+        "high": 5.513,
+        "window": null,
+        "text": "The corpus predicts that a reset reaches the observer as ECONNRESET. The band is 4.999 s to 5.513 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 4.995,
+        "high": 5.517
+      },
+      "median": 5.264807,
+      "why": "11 of the 11 counted runs are in the band of 4.995 s to 5.517 s. The median is 5.265 s, and its interval is 5.074 s to 5.463 s.",
+      "runs": [
+        [5.463889, 5.090153, 5.390802, 5.400519, 5.074057, 5.196161],
+        [5.463046, 5.089088, 5.264807, 5.403817, 5.02004]
+      ],
+      "warmups": [5.415709, 5.170309],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.random.16",
+      "catalog": "T01",
+      "name": "server idle, fin",
+      "group": "T01",
+      "stage": "random",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "text": "The corpus predicts that the FIN of the peer reaches the observer as an end of file. The band is 0 s to 1 ms after the close of the socket of the peer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.000049,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 49 µs, and its interval is 48 µs to 54 µs.",
+      "runs": [
+        [0.000066, 0.000054, 0.000048, 0.000051, 0.000054, 0.000048],
+        [0.000049, 0.000049, 0.000049, 0.00005, 0.000048]
+      ],
+      "warmups": [0.000049, 0.000054],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.random.27",
+      "catalog": "T01",
+      "name": "client idle, freeze-process",
+      "group": "T01",
+      "stage": "random",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 20,
+        "text": "The corpus predicts that nothing detects the fault in a window of 20 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 20 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.random.28",
+      "catalog": "T01",
+      "name": "server in flight, rst",
+      "group": "T01",
+      "stage": "random",
+      "prediction": {
+        "kind": "detects",
+        "low": 2,
+        "high": 2.102,
+        "window": null,
+        "text": "The corpus predicts that a reset reaches the observer as ECONNRESET. The band is 2 s to 2.102 s after the send of the request."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 1.996,
+        "high": 2.106
+      },
+      "median": 2.031337,
+      "why": "11 of the 11 counted runs are in the band of 1.996 s to 2.106 s. The median is 2.031 s, and its interval is 2.007 s to 2.055 s.",
+      "runs": [
+        [2.023918, 2.007134, 2.057489, 2.054214, 2.054823, 2.006172],
+        [2.018823, 2.013178, 2.052371, 2.052918, 2.031337]
+      ],
+      "warmups": [2.03851, 2.021415],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T01.random.30",
+      "catalog": "T01",
+      "name": "client in flight, fin",
+      "group": "T01",
+      "stage": "random",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.001,
+        "window": null,
+        "text": "The corpus predicts that the FIN of the peer reaches the observer as an end of file. The band is 0 s to 1 ms after the close of the socket of the peer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.000049,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 49 µs, and its interval is 38 µs to 69 µs.",
+      "runs": [
+        [0.000038],
+        [0.000053],
+        [0.000045],
+        [0.000057],
+        [0.000044],
+        [0.000069],
+        [0.000049],
+        [0.000049],
+        [0.000038],
+        [0.000039],
+        [0.00007]
+      ],
+      "warmups": [null, null, null, null, null, null, null, null, null, null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.3",
+      "catalog": "T03",
+      "name": "client in flight, admin, unreachable, reset-both router 350 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives EHOSTUNREACH, the soft error of an ICMP. The band is 3 s to 6.416 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 6,
+      "voided": 5,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.192833,
+      "why": "6 of the 6 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.193 s, and its interval is 6.176 s to 6.2 s.",
+      "runs": [
+        [6.175997, 6.199987, 6.191991],
+        [6.193675, 6.183984, 6.199992]
+      ],
+      "warmups": [6.200003, 6.183996],
+      "voids": "5 runs are void: in each, the retransmit timer was 3 to 6 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.3",
+      "catalog": "T03",
+      "name": "client in flight, host, unreachable, reset-both router 350 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 3.329,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives EHOSTUNREACH, the soft error of an ICMP. The band is 3 s to 3.329 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 6,
+      "voided": 5,
+      "band": {
+        "low": 2.996,
+        "high": 3.333
+      },
+      "median": 3.120014,
+      "why": "6 of the 6 counted runs are in the band of 2.996 s to 3.333 s. The median is 3.12 s, and its interval is 3.12 s to 3.121 s.",
+      "runs": [
+        [3.120016, 3.121007],
+        [3.120011, 3.120037, 3.119988, 3.11998]
+      ],
+      "warmups": [3.12, 3.119994],
+      "voids": "5 runs are void: in each, the retransmit timer was 2 to 6 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.3",
+      "catalog": "T03",
+      "name": "client in flight, net, unreachable, reset-both router 350 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 3.329,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ENETUNREACH, the soft error of an ICMP. The band is 3 s to 3.329 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 8,
+      "voided": 3,
+      "band": {
+        "low": 2.996,
+        "high": 3.333
+      },
+      "median": 3.12,
+      "why": "8 of the 8 counted runs are in the band of 2.996 s to 3.333 s. The median is 3.12 s, and its interval is 3.12 s to 3.12 s.",
+      "runs": [
+        [3.119987, 3.119985, 3.120005],
+        [3.120003, 3.119994, 3.120004, 3.119997, 3.12001]
+      ],
+      "warmups": [3.120005, 3.120016],
+      "voids": "3 runs are void: in each, the retransmit timer was 2 to 3 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.3",
+      "catalog": "T03",
+      "name": "client in flight, port, unreachable, reset-both router 350 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ECONNREFUSED, the soft error of an ICMP. The band is 3 s to 6.416 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 8,
+      "voided": 3,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.168005,
+      "why": "8 of the 8 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.168 s, and its interval is 6.155 s to 6.185 s.",
+      "runs": [
+        [6.184006, 6.184989, 6.159984, 6.168005],
+        [6.168007, 6.159998, 6.168005, 6.15526]
+      ],
+      "warmups": [6.175999, 6.176008],
+      "voids": "3 runs are void: in each, the retransmit timer was 2 to 5 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.4",
+      "catalog": "T03",
+      "name": "server in flight, mtu-blackhole, silent-drop router 350 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ETIMEDOUT. The band is 3 s to 6.416 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 9,
+      "voided": 2,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.168029,
+      "why": "9 of the 9 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.168 s, and its interval is 6.15 s to 6.2 s.",
+      "runs": [
+        [6.15302, 6.15901, 6.200025, 6.144018, 6.150012],
+        [6.200028, 6.192011, 6.168029, 6.184012]
+      ],
+      "warmups": [6.168013, 6.16001],
+      "voids": "2 runs are void: in each, the retransmit timer was 2 to 3 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.5",
+      "catalog": "T03",
+      "name": "client in flight, a 1 s stall, none router 600 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "recovers",
+        "low": 1.604,
+        "high": 1.697,
+        "window": 20,
+        "text": "The corpus predicts that the reply comes back 1.604 s to 1.697 s after the send of the request."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 1.6,
+        "high": 1.701
+      },
+      "median": 1.671299,
+      "why": "11 of the 11 counted runs are in the band of 1.6 s to 1.701 s. The median is 1.671 s, and its interval is 1.656 s to 1.68 s.",
+      "runs": [
+        [1.671299, 1.680164, 1.688093, 1.65581, 1.660438, 1.678756],
+        [1.676147, 1.674041, 1.670354, 1.668123, 1.632316]
+      ],
+      "warmups": [1.656061, 1.669197],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.8",
+      "catalog": "T03",
+      "name": "client idle, blackhole, reset-next router 350 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 49.999,
+        "high": 55.12,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 49.999 s to 55.12 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 7,
+      "voided": 4,
+      "band": {
+        "low": 49.995,
+        "high": 55.124
+      },
+      "median": 51.262246,
+      "why": "7 of the 7 counted runs are in the band of 49.995 s to 55.124 s. The median is 51.262 s, and its interval is 51.125 s to 51.576 s.",
+      "runs": [
+        [51.576187, 51.262246, 51.482197, 51.223316],
+        [51.220626, 51.436451, 51.124664]
+      ],
+      "warmups": [51.333656, 51.183071],
+      "voids": "4 runs are void: in each, the keepalive timer was 2 to 4 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.8",
+      "catalog": "T03",
+      "name": "client in flight, blackhole, reset-next router 350 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ETIMEDOUT. The band is 3 s to 6.416 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.183984,
+      "why": "11 of the 11 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.184 s, and its interval is 6.152 s to 6.192 s.",
+      "runs": [
+        [6.191996, 6.15199, 6.152003, 6.183992, 6.151989, 6.183989],
+        [6.191983, 6.192987, 6.167992, 6.151988, 6.183984]
+      ],
+      "warmups": [6.159989, 6.144986],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.10",
+      "catalog": "T03",
+      "name": "server in flight, mtu-blackhole, reset-next router 600 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ETIMEDOUT. The band is 3 s to 6.416 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.168011,
+      "why": "11 of the 11 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.168 s, and its interval is 6.152 s to 6.192 s.",
+      "runs": [
+        [6.184028, 6.156393, 6.192015, 6.150991, 6.152022, 6.193021],
+        [6.168011, 6.152995, 6.192024, 6.168023, 6.15199]
+      ],
+      "warmups": [6.175941, 6.200017],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.12",
+      "catalog": "T03",
+      "name": "client idle, middlebox-forget, reset-next router 39 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 83,
+        "text": "The corpus predicts that nothing detects the fault in a window of 83 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 83 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.12",
+      "catalog": "T03",
+      "name": "client in flight, middlebox-forget, reset-next router 39 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "replies",
+        "low": 0,
+        "high": 0.001,
+        "window": 2,
+        "text": "The corpus predicts that the keepalive refreshes the flow before the router forgets it. Thus the request gets its reply 0 s to 1 ms after its send."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.000175,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 175 µs, and its interval is 155 µs to 373 µs.",
+      "runs": [
+        [0.000245, 0.000472, 0.00018, 0.000373, 0.000158, 0.000175],
+        [0.000168, 0.000155, 0.00015, 0.000164, 0.000184]
+      ],
+      "warmups": [0.000153, 0.000148],
+      "voids": null,
+      "first": "fails",
+      "repeated": "In the first CI run, the corpus raced the keepalive refresh with the forget of the router only for an idle flow. A flow that idles before its request races them too. After that fix of the corpus, CI did the cell again."
+    },
+    {
+      "plan": "T03.array.12",
+      "catalog": "T03",
+      "name": "server idle, middlebox-forget, reset-next router 39 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 83,
+        "text": "The corpus predicts that nothing detects the fault in a window of 83 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 83 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.18",
+      "catalog": "T03",
+      "name": "server idle, middlebox-forget, reset-both router 10 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 25,
+        "text": "The corpus predicts that nothing detects the fault in a window of 25 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 25 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.23",
+      "catalog": "T03",
+      "name": "server idle, middlebox-forget, reset-both router 10 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 25,
+        "text": "The corpus predicts that nothing detects the fault in a window of 25 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 25 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.26",
+      "catalog": "T03",
+      "name": "client in flight, admin, unreachable, silent-drop router 350 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives EHOSTUNREACH, the soft error of an ICMP. The band is 3 s to 6.416 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.191997,
+      "why": "11 of the 11 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.192 s, and its interval is 6.183 s to 6.192 s.",
+      "runs": [
+        [6.19124, 6.168998, 6.191997, 6.184, 6.192018, 6.192005],
+        [6.192002, 6.191988, 6.192004, 6.183005, 6.200007]
+      ],
+      "warmups": [6.168009, 6.200866],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.26",
+      "catalog": "T03",
+      "name": "client in flight, host, unreachable, silent-drop router 350 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 3.329,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives EHOSTUNREACH, the soft error of an ICMP. The band is 3 s to 3.329 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 10,
+      "voided": 1,
+      "band": {
+        "low": 2.996,
+        "high": 3.333
+      },
+      "median": 3.119993,
+      "why": "10 of the 10 counted runs are in the band of 2.996 s to 3.333 s. The median is 3.12 s, and its interval is 3.12 s to 3.12 s.",
+      "runs": [
+        [3.120005, 3.11836, 3.119986, 3.119989, 3.119992],
+        [3.119995, 3.119999, 3.119997, 3.11999, 3.119996]
+      ],
+      "warmups": [3.119985, 3.12],
+      "voids": "One run is void: its retransmit timer was 2 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.26",
+      "catalog": "T03",
+      "name": "client in flight, net, unreachable, silent-drop router 350 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 3.329,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ENETUNREACH, the soft error of an ICMP. The band is 3 s to 3.329 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.996,
+        "high": 3.333
+      },
+      "median": 3.119996,
+      "why": "11 of the 11 counted runs are in the band of 2.996 s to 3.333 s. The median is 3.12 s, and its interval is 3.12 s to 3.12 s.",
+      "runs": [
+        [3.119018, 3.119995, 3.120019, 3.119996, 3.120991, 3.120015],
+        [3.119994, 3.119996, 3.119998, 3.120016, 3.119988]
+      ],
+      "warmups": [3.119991, 3.119993],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.26",
+      "catalog": "T03",
+      "name": "client in flight, port, unreachable, silent-drop router 350 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ECONNREFUSED, the soft error of an ICMP. The band is 3 s to 6.416 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.182997,
+      "why": "11 of the 11 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.183 s, and its interval is 6.159 s to 6.192 s.",
+      "runs": [
+        [6.159002, 6.183989, 6.176007, 6.191994, 6.19099, 6.143992],
+        [6.191986, 6.182997, 6.167999, 6.167992, 6.191991]
+      ],
+      "warmups": [6.151991, 6.200992],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.27",
+      "catalog": "T03",
+      "name": "client in flight, a 1 s stall, silent-drop router 350 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "recovers",
+        "low": 1.604,
+        "high": 1.697,
+        "window": 20,
+        "text": "The corpus predicts that the reply comes back 1.604 s to 1.697 s after the send of the request."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 1.6,
+        "high": 1.701
+      },
+      "median": 1.656552,
+      "why": "11 of the 11 counted runs are in the band of 1.6 s to 1.701 s. The median is 1.657 s, and its interval is 1.632 s to 1.672 s.",
+      "runs": [
+        [1.67205, 1.633326, 1.65552, 1.62691, 1.656552, 1.653036],
+        [1.682272, 1.631534, 1.664903, 1.661265, 1.669692]
+      ],
+      "warmups": [1.663207, 1.636632],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.29",
+      "catalog": "T03",
+      "name": "client idle, middlebox-forget, silent-drop router 39 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 83,
+        "text": "The corpus predicts that nothing detects the fault in a window of 83 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 83 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.29",
+      "catalog": "T03",
+      "name": "server idle, middlebox-forget, silent-drop router 39 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 83,
+        "text": "The corpus predicts that nothing detects the fault in a window of 83 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 83 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.30",
+      "catalog": "T03",
+      "name": "server idle, middlebox-forget, none router 10 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 25,
+        "text": "The corpus predicts that nothing detects the fault in a window of 25 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 25 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.33",
+      "catalog": "T03",
+      "name": "server in flight, mtu-blackhole, none router 350 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ETIMEDOUT. The band is 3 s to 6.416 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 10,
+      "voided": 1,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.159991,
+      "why": "10 of the 10 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.16 s, and its interval is 6.152 s to 6.177 s.",
+      "runs": [
+        [6.151996, 6.179542, 6.177004, 6.159995, 6.152011, 6.151059],
+        [6.159987, 6.167991, 6.168017, 6.151961]
+      ],
+      "warmups": [6.169011, 6.152001],
+      "voids": "One run is void: its retransmit timer was 3 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.38",
+      "catalog": "T03",
+      "name": "client idle, blackhole, reset-next router 600 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 15,
+        "text": "The corpus predicts that nothing detects the fault in a window of 15 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 15 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.38",
+      "catalog": "T03",
+      "name": "client in flight, blackhole, reset-next router 600 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ETIMEDOUT. The band is 3 s to 6.416 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 8,
+      "voided": 3,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.160004,
+      "why": "8 of the 8 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.16 s, and its interval is 6.145 s to 6.192 s.",
+      "runs": [
+        [6.191998, 6.160003, 6.167997, 6.144999, 6.152004],
+        [6.160005, 6.152002, 6.160004]
+      ],
+      "warmups": [6.184001, 6.160002],
+      "voids": "3 runs are void: in each, the retransmit timer was 3 to 5 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.38",
+      "catalog": "T03",
+      "name": "server idle, blackhole, reset-next router 600 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 7.999,
+        "high": 8.704,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 7.999 s to 8.704 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 10,
+      "voided": 1,
+      "band": {
+        "low": 7.995,
+        "high": 8.708
+      },
+      "median": 8.329824,
+      "why": "10 of the 10 counted runs are in the band of 7.995 s to 8.708 s. The median is 8.33 s, and its interval is 8.188 s to 8.527 s.",
+      "runs": [
+        [8.356139, 8.075931, 8.303509, 8.527138, 8.228537],
+        [8.565215, 8.269109, 8.451387, 8.187894, 8.37907]
+      ],
+      "warmups": [8.083017, 8.481008],
+      "voids": "One run is void: its keepalive timer was 7 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.39",
+      "catalog": "T03",
+      "name": "client in flight, admin, unreachable, reset-next router 600 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives EHOSTUNREACH, the soft error of an ICMP. The band is 3 s to 6.416 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 10,
+      "voided": 1,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.161396,
+      "why": "10 of the 10 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.161 s, and its interval is 6.159 s to 6.192 s.",
+      "runs": [
+        [6.143004, 6.191996, 6.160015, 6.162777, 6.159992],
+        [6.200013, 6.158998, 6.16799, 6.175991, 6.159985]
+      ],
+      "warmups": [6.152007, 6.143991],
+      "voids": "One run is void: its retransmit timer was 6 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.39",
+      "catalog": "T03",
+      "name": "client in flight, host, unreachable, reset-next router 600 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 3.329,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives EHOSTUNREACH, the soft error of an ICMP. The band is 3 s to 3.329 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 8,
+      "voided": 3,
+      "band": {
+        "low": 2.996,
+        "high": 3.333
+      },
+      "median": 3.119732,
+      "why": "8 of the 8 counted runs are in the band of 2.996 s to 3.333 s. The median is 3.12 s, and its interval is 3.114 s to 3.12 s.",
+      "runs": [
+        [3.119995, 3.118999, 3.120003, 3.115214],
+        [3.120002, 3.119992, 3.114491, 3.119472]
+      ],
+      "warmups": [3.120008, 3.119997],
+      "voids": "3 runs are void: in each, the retransmit timer was 3 to 5 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.39",
+      "catalog": "T03",
+      "name": "client in flight, net, unreachable, reset-next router 600 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 3.329,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ENETUNREACH, the soft error of an ICMP. The band is 3 s to 3.329 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.996,
+        "high": 3.333
+      },
+      "median": 3.119993,
+      "why": "11 of the 11 counted runs are in the band of 2.996 s to 3.333 s. The median is 3.12 s, and its interval is 3.12 s to 3.12 s.",
+      "runs": [
+        [3.119997, 3.120002, 3.119996, 3.12023, 3.119974, 3.119988],
+        [3.11999, 3.119987, 3.119993, 3.119964, 3.120004]
+      ],
+      "warmups": [3.119997, 3.120997],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.39",
+      "catalog": "T03",
+      "name": "client in flight, port, unreachable, reset-next router 600 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ECONNREFUSED, the soft error of an ICMP. The band is 3 s to 6.416 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 8,
+      "voided": 3,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.167988,
+      "why": "8 of the 8 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.168 s, and its interval is 6.152 s to 6.19 s.",
+      "runs": [
+        [6.167986, 6.16799, 6.160014, 6.168007],
+        [6.189755, 6.152, 6.157007, 6.16801]
+      ],
+      "warmups": [6.144011, 6.164244],
+      "voids": "3 runs are void: in each, the retransmit timer was 2 to 8 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.array.40",
+      "catalog": "T03",
+      "name": "server in flight, mtu-blackhole, reset-next router 350 s",
+      "group": "T03",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ETIMEDOUT. The band is 3 s to 6.416 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.167986,
+      "why": "11 of the 11 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.168 s, and its interval is 6.152 s to 6.2 s.",
+      "runs": [
+        [6.19999, 6.152033, 6.183996, 6.143994, 6.159011, 6.167986],
+        [6.168004, 6.19201, 6.16, 6.201012, 6.159995]
+      ],
+      "warmups": [6.15203, 6.152018],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.border-off.23",
+      "catalog": "T03",
+      "name": "client in flight, inside, blackhole, reset-next router 350 s",
+      "group": "T03",
+      "stage": "border-off",
+      "prediction": {
+        "kind": "detects",
+        "low": 204.6,
+        "high": 338.624,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ETIMEDOUT. The band is 204.6 s to 338.624 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 10,
+      "voided": 1,
+      "band": {
+        "low": 204.596,
+        "high": 338.628
+      },
+      "median": 211.959997,
+      "why": "10 of the 10 counted runs are in the band of 204.596 s to 338.628 s. The median is 211.96 s, and its interval is 211.248 s to 212.048 s.",
+      "runs": [
+        [212.047983, 212.048003, 211.999982, 212.008013, 211.920011, 212],
+        [211.247999, 211.249, 211.256052, 211.24]
+      ],
+      "warmups": [210.848001, 212.072988],
+      "voids": "One run is void: its retransmit timer was 2 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.border-off.24",
+      "catalog": "T03",
+      "name": "client in flight, outside, blackhole, reset-next router 350 s",
+      "group": "T03",
+      "stage": "border-off",
+      "prediction": {
+        "kind": "detects",
+        "low": 324.6,
+        "high": 462.72,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ETIMEDOUT. The band is 324.6 s to 462.72 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 8,
+      "voided": 3,
+      "band": {
+        "low": 324.596,
+        "high": 462.724
+      },
+      "median": 334.523998,
+      "why": "8 of the 8 counted runs are in the band of 324.596 s to 462.724 s. The median is 334.524 s, and its interval is 333.752 s to 334.864 s.",
+      "runs": [
+        [334.864009, 334.750987, 334.520005, 334.52799, 333.751999],
+        [333.991999, 334.712, 334.463987]
+      ],
+      "warmups": [334.815994, 333.932013],
+      "voids": "3 runs are void: in each, the retransmit timer was 2 to 4 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.defaults.2",
+      "catalog": "T03",
+      "name": "server idle, blackhole, reset-next router 240 s",
+      "group": "T03",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 7.999,
+        "high": 8.704,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 7.999 s to 8.704 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 10,
+      "voided": 1,
+      "band": {
+        "low": 7.995,
+        "high": 8.708
+      },
+      "median": 8.316261,
+      "why": "10 of the 10 counted runs are in the band of 7.995 s to 8.708 s. The median is 8.316 s, and its interval is 8.162 s to 8.528 s.",
+      "runs": [
+        [8.396516, 8.11782, 8.308234, 8.543179, 8.225021],
+        [8.324287, 8.528395, 8.216428, 8.445803, 8.162382]
+      ],
+      "warmups": [8.322181, 8.236237],
+      "voids": "One run is void: its keepalive timer was 2 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.defaults.8",
+      "catalog": "T03",
+      "name": "server idle, blackhole, reset-next router 350 s",
+      "group": "T03",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 7.999,
+        "high": 8.704,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 7.999 s to 8.704 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 7.995,
+        "high": 8.708
+      },
+      "median": 8.340319,
+      "why": "11 of the 11 counted runs are in the band of 7.995 s to 8.708 s. The median is 8.34 s, and its interval is 8.149 s to 8.502 s.",
+      "runs": [
+        [8.344546, 8.078428, 8.280209, 8.501906, 8.205459, 8.455677],
+        [8.228744, 8.440331, 8.14877, 8.340319, 8.538062]
+      ],
+      "warmups": [8.2619, 8.109617],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.defaults.19",
+      "catalog": "T03",
+      "name": "server idle, blackhole, reset-both router 240 s",
+      "group": "T03",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 7.999,
+        "high": 8.704,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 7.999 s to 8.704 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 8,
+      "voided": 3,
+      "band": {
+        "low": 7.995,
+        "high": 8.708
+      },
+      "median": 8.369878,
+      "why": "8 of the 8 counted runs are in the band of 7.995 s to 8.708 s. The median is 8.37 s, and its interval is 8.087 s to 8.576 s.",
+      "runs": [
+        [8.086676, 8.298522, 8.519987, 8.576347],
+        [8.388127, 8.351628, 8.554324, 8.242354]
+      ],
+      "warmups": [8.520108, 8.341779],
+      "voids": "3 runs are void: in each, the keepalive timer was 5 to 7 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.defaults.25",
+      "catalog": "T03",
+      "name": "server idle, blackhole, silent-drop router 600 s",
+      "group": "T03",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 7.999,
+        "high": 8.704,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 7.999 s to 8.704 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 7.995,
+        "high": 8.708
+      },
+      "median": 8.31067,
+      "why": "11 of the 11 counted runs are in the band of 7.995 s to 8.708 s. The median is 8.311 s, and its interval is 8.166 s to 8.525 s.",
+      "runs": [
+        [8.567963, 8.283876, 8.453437, 8.166468, 8.409645, 8.098323],
+        [8.31067, 8.525449, 8.230576, 8.452494, 8.166394]
+      ],
+      "warmups": [8.436959, 8.235638],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.defaults.31",
+      "catalog": "T03",
+      "name": "server idle, blackhole, none router 432000 s",
+      "group": "T03",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 7.999,
+        "high": 8.704,
+        "window": null,
+        "text": "The corpus predicts that the keepalive of the kernel gives up on the connection with ETIMEDOUT. The band is 7.999 s to 8.704 s after the last segment that the observer received."
+      },
+      "decision": "holds",
+      "counted": 10,
+      "voided": 1,
+      "band": {
+        "low": 7.995,
+        "high": 8.708
+      },
+      "median": 8.339958,
+      "why": "10 of the 10 counted runs are in the band of 7.995 s to 8.708 s. The median is 8.34 s, and its interval is 8.148 s to 8.531 s.",
+      "runs": [
+        [8.147971, 8.390015, 8.572228, 8.298624, 8.241604],
+        [8.53069, 8.249995, 8.441968, 8.146734, 8.381291]
+      ],
+      "warmups": [8.569845, 8.432009],
+      "voids": "One run is void: its keepalive timer was 5 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.defaults.32",
+      "catalog": "T03",
+      "name": "client in flight, admin, unreachable, none router 432000 s",
+      "group": "T03",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives EHOSTUNREACH, the soft error of an ICMP. The band is 3 s to 6.416 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 5,
+      "voided": 6,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.174904,
+      "why": "5 of the 5 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.175 s, and its interval is 6.152 s to 6.2 s.",
+      "runs": [
+        [6.2, 6.159994, 6.151986],
+        [6.183997, 6.174904]
+      ],
+      "warmups": [6.166993, 6.183001],
+      "voids": "6 runs are void: in each, the retransmit timer was 2 to 7 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.defaults.32",
+      "catalog": "T03",
+      "name": "client in flight, port, unreachable, none router 432000 s",
+      "group": "T03",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ECONNREFUSED, the soft error of an ICMP. The band is 3 s to 6.416 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 10,
+      "voided": 1,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.171993,
+      "why": "10 of the 10 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.172 s, and its interval is 6.152 s to 6.184 s.",
+      "runs": [
+        [6.184001, 6.139686, 6.151999, 6.175989, 6.199994],
+        [6.176, 6.158998, 6.184004, 6.167996, 6.152009]
+      ],
+      "warmups": [6.167994, 6.160014],
+      "voids": "One run is void: its retransmit timer was 2 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.random.2",
+      "catalog": "T03",
+      "name": "server in flight, mtu-blackhole, reset-next router 500 s",
+      "group": "T03",
+      "stage": "random",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ETIMEDOUT. The band is 3 s to 6.416 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 10,
+      "voided": 1,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.18001,
+      "why": "10 of the 10 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.18 s, and its interval is 6.16 s to 6.198 s.",
+      "runs": [
+        [6.176002, 6.176012, 6.192008, 6.200031, 6.160023],
+        [6.18401, 6.16001, 6.197956, 6.184007, 6.168032]
+      ],
+      "warmups": [6.192027, 6.152915],
+      "voids": "One run is void: its retransmit timer was 6 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.random.3",
+      "catalog": "T03",
+      "name": "client in flight, a 1 s stall, reset-next router 1656 s",
+      "group": "T03",
+      "stage": "random",
+      "prediction": {
+        "kind": "recovers",
+        "low": 1.604,
+        "high": 1.697,
+        "window": 20,
+        "text": "The corpus predicts that the reply comes back 1.604 s to 1.697 s after the send of the request."
+      },
+      "decision": "holds",
+      "counted": 8,
+      "voided": 3,
+      "band": {
+        "low": 1.6,
+        "high": 1.701
+      },
+      "median": 1.668152,
+      "why": "8 of the 8 counted runs are in the band of 1.6 s to 1.701 s. The median is 1.668 s, and its interval is 1.634 s to 1.684 s.",
+      "runs": [
+        [1.678677, 1.670064, 1.666239, 1.665604],
+        [1.633702, 1.67865, 1.662954, 1.683796]
+      ],
+      "warmups": [1.670612, 1.634745],
+      "voids": "3 runs are void: in each, the retransmit timer was 2 to 5 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.random.6",
+      "catalog": "T03",
+      "name": "client in flight, a 1 s stall, reset-next router 83 s",
+      "group": "T03",
+      "stage": "random",
+      "prediction": {
+        "kind": "recovers",
+        "low": 1.604,
+        "high": 1.697,
+        "window": 20,
+        "text": "The corpus predicts that the reply comes back 1.604 s to 1.697 s after the send of the request."
+      },
+      "decision": "holds",
+      "counted": 7,
+      "voided": 4,
+      "band": {
+        "low": 1.6,
+        "high": 1.701
+      },
+      "median": 1.662339,
+      "why": "7 of the 7 counted runs are in the band of 1.6 s to 1.701 s. The median is 1.662 s, and its interval is 1.631 s to 1.686 s.",
+      "runs": [
+        [1.635036, 1.632469, 1.673307, 1.662339],
+        [1.630513, 1.686133, 1.670772]
+      ],
+      "warmups": [1.639952, 1.635579],
+      "voids": "4 runs are void: in each, the retransmit timer was 4 to 6 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.random.9",
+      "catalog": "T03",
+      "name": "client idle, middlebox-forget, reset-next router 11 s",
+      "group": "T03",
+      "stage": "random",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 27,
+        "text": "The corpus predicts that nothing detects the fault in a window of 27 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 27 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.random.10",
+      "catalog": "T03",
+      "name": "client in flight, blackhole, reset-next router 350 s",
+      "group": "T03",
+      "stage": "random",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ETIMEDOUT. The band is 3 s to 6.416 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 8,
+      "voided": 3,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.171029,
+      "why": "8 of the 8 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.171 s, and its interval is 6.16 s to 6.192 s.",
+      "runs": [
+        [6.168, 6.168002, 6.16802, 6.191565, 6.160002],
+        [6.183997, 6.174037, 6.174996]
+      ],
+      "warmups": [6.160425, 6.168016],
+      "voids": "3 runs are void: in each, the retransmit timer was 3 to 5 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.random.11",
+      "catalog": "T03",
+      "name": "server idle, middlebox-forget, reset-next router 10 s",
+      "group": "T03",
+      "stage": "random",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 25,
+        "text": "The corpus predicts that nothing detects the fault in a window of 25 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 25 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.random.13",
+      "catalog": "T03",
+      "name": "client in flight, host, unreachable, reset-next router 2233 s",
+      "group": "T03",
+      "stage": "random",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 3.329,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives EHOSTUNREACH, the soft error of an ICMP. The band is 3 s to 3.329 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.996,
+        "high": 3.333
+      },
+      "median": 3.119996,
+      "why": "11 of the 11 counted runs are in the band of 2.996 s to 3.333 s. The median is 3.12 s, and its interval is 3.12 s to 3.12 s.",
+      "runs": [
+        [3.120017, 3.120993, 3.120009, 3.119988, 3.119967, 3.119996],
+        [3.12, 3.120016, 3.119979, 3.119994, 3.118993]
+      ],
+      "warmups": [3.118803, 3.119975],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.random.15",
+      "catalog": "T03",
+      "name": "client idle, middlebox-forget, reset-next router 5 s",
+      "group": "T03",
+      "stage": "random",
+      "prediction": {
+        "kind": "measured",
+        "low": null,
+        "high": null,
+        "window": 15,
+        "text": "This cell has no band. The corpus gives the forget of the router at 5 s to 5.09 s after the last segment, and nothing notices it in 15 s. The harness of that run read silence through a router as the router keeping the flow. Thus the cell measures the forget."
+      },
+      "decision": "measured",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "None of the 11 counted runs measured a time.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.random.16",
+      "catalog": "T03",
+      "name": "server in flight, mtu-blackhole, reset-next router 62 s",
+      "group": "T03",
+      "stage": "random",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 6.416,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ETIMEDOUT. The band is 3 s to 6.416 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 10,
+      "voided": 1,
+      "band": {
+        "low": 2.996,
+        "high": 6.42
+      },
+      "median": 6.172013,
+      "why": "10 of the 10 counted runs are in the band of 2.996 s to 6.42 s. The median is 6.172 s, and its interval is 6.152 s to 6.192 s.",
+      "runs": [
+        [6.159994, 6.192028, 6.176002, 6.176022, 6.14402],
+        [6.17602, 6.168023, 6.151575, 6.200019, 6.168005]
+      ],
+      "warmups": [6.200013, 6.183998],
+      "voids": "One run is void: its retransmit timer was 6 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.random.22",
+      "catalog": "T03",
+      "name": "server idle, middlebox-forget, reset-next router 67 s",
+      "group": "T03",
+      "stage": "random",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 139,
+        "text": "The corpus predicts that nothing detects the fault in a window of 139 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 139 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.random.25",
+      "catalog": "T03",
+      "name": "client in flight, middlebox-forget, reset-next router 350 s",
+      "group": "T03",
+      "stage": "random",
+      "prediction": {
+        "kind": "replies",
+        "low": 0,
+        "high": 0.001,
+        "window": 2,
+        "text": "The corpus predicts that the keepalive refreshes the flow before the router forgets it. Thus the request gets its reply 0 s to 1 ms after its send."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.005
+      },
+      "median": 0.000223,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 5 ms. The median is 223 µs, and its interval is 189 µs to 327 µs.",
+      "runs": [
+        [0.000206, 0.00024, 0.00026, 0.000294, 0.000161, 0.000208],
+        [0.000189, 0.000327, 0.000223, 0.000203, 0.000914]
+      ],
+      "warmups": [0.000202, 0.000228],
+      "voids": null,
+      "first": "fails",
+      "repeated": "In the first CI run, the corpus raced the keepalive refresh with the forget of the router only for an idle flow. A flow that idles before its request races them too. After that fix of the corpus, CI did the cell again."
+    },
+    {
+      "plan": "T03.random.30",
+      "catalog": "T03",
+      "name": "client idle, blackhole, reset-next router 350 s",
+      "group": "T03",
+      "stage": "random",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 15,
+        "text": "The corpus predicts that nothing detects the fault in a window of 15 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 15 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.random.31",
+      "catalog": "T03",
+      "name": "client idle, middlebox-forget, reset-next router 600 s",
+      "group": "T03",
+      "stage": "random",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 1205,
+        "text": "The corpus predicts that nothing detects the fault in a window of 1205 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 1205 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null,
+      "first": null,
+      "repeated": null
+    },
+    {
+      "plan": "T03.random.32",
+      "catalog": "T03",
+      "name": "client in flight, net, unreachable, reset-next router 350 s",
+      "group": "T03",
+      "stage": "random",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 3.329,
+        "window": null,
+        "text": "The corpus predicts that the give-up of the retransmissions gives ENETUNREACH, the soft error of an ICMP. The band is 3 s to 3.329 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 10,
+      "voided": 1,
+      "band": {
+        "low": 2.996,
+        "high": 3.333
+      },
+      "median": 3.119994,
+      "why": "10 of the 10 counted runs are in the band of 2.996 s to 3.333 s. The median is 3.12 s, and its interval is 3.119 s to 3.12 s.",
+      "runs": [
+        [3.119993, 3.119994, 3.120004, 3.118997, 3.116518],
+        [3.119987, 3.119984, 3.119994, 3.119999, 3.120011]
+      ],
+      "warmups": [3.119986, 3.119985],
+      "voids": "One run is void: its retransmit timer was 2 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "first": null,
+      "repeated": null
+    }
+  ]
+}

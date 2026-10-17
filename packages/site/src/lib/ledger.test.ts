@@ -19,6 +19,10 @@ describe("the ledger of the results", () => {
     expect(tally("http")).toEqual([39, 34, 4, 1, 0]);
     expect(tally("mongodb")).toEqual([58, 51, 7, 0, 0]);
     expect(tally("kind")).toEqual([31, 22, 4, 2, 3]);
+    // r3: "Of the 115 cells of the queue, 114 hold and 1 is a measurement only", the 9 that failed first
+    // held on a re-run, and 6 canonical cells: 1 holds and 5 measure
+    expect(tally("r3")).toEqual([121, 115, 0, 6, 0]);
+    expect(entryOf("r3").heldOnRerun).toBe(9);
   });
 
   it("counts the runs of each page as the text of the page gives them", () => {
@@ -31,15 +35,16 @@ describe("the ledger of the results", () => {
   });
 
   it("gives the kernel, the clock and the catalogs of each page", () => {
-    expect(LEDGER.map((entry) => `${entry.kernel} ${entry.hz}`)).toEqual(["6.6 250", "6.6 250", "6.6 250", "6.6 250", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000"]);
+    expect(LEDGER.map((entry) => `${entry.kernel} ${entry.hz}`)).toEqual(["6.6 250", "6.6 250", "6.6 250", "6.6 250", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000"]);
+    expect(entryOf("r3").tags).toEqual(["T01", "T03"]);
     expect(entryOf("topologies").tags).toEqual(["T01", "T03", "T02", "TOX"]);
     expect(entryOf("sentinel").tags).toEqual(["T12"]);
     expect(entryOf("kind").tags).toEqual(["T07", "T18"]);
   });
 
   it("adds the pages into one total", () => {
-    expect([TOTAL.pages, TOTAL.cells]).toEqual([8, 246]);
-    expect(TOTAL.tally).toEqual({ holds: 202, fails: 20, measured: 21, calibration: 3 });
+    expect([TOTAL.pages, TOTAL.cells]).toEqual([9, 367]);
+    expect(TOTAL.tally).toEqual({ holds: 317, fails: 20, measured: 27, calibration: 3 });
     expect(TOTAL.tally.holds + TOTAL.tally.fails + TOTAL.tally.measured + TOTAL.tally.calibration).toBe(TOTAL.cells);
     expect([TOTAL.first, TOTAL.last]).toEqual(["2026-10-13", "2026-10-17"]);
   });

@@ -9,6 +9,7 @@ import type { ReactElement } from "react";
 import http from "../data/http-2026-10-16.json";
 import kind from "../data/kind-2026-10-17.json";
 import mongodb from "../data/mongodb-2026-10-16.json";
+import r3 from "../data/r3-2026-10-17.json";
 import sentinel from "../data/sentinel-2026-10-16.json";
 import { count as digits, duration, reading } from "../lib/format.ts";
 import { axisOf, code, joined, predictionText, runsText } from "./CellFrame.tsx";
@@ -67,6 +68,7 @@ const COPIES: Readonly<Record<string, readonly RunCell[]>> = {
   sentinel: sentinel.cells,
   http: http.cells,
   mongodb: mongodb.cells,
+  r3: r3.cells,
 };
 
 const ms = (s: number): number => s * 1000;
@@ -267,7 +269,7 @@ function RunFrame(props: { readonly cell: RunCell }): ReactElement {
 }
 
 /** The cells of one group of a copy, in the sequence of the catalog. `stage` selects the defaults or the borders of the plan. */
-export default function RunResults(props: { readonly copy: "sentinel" | "http" | "mongodb"; readonly group: string; readonly stage?: string }): ReactElement {
+export default function RunResults(props: { readonly copy: "sentinel" | "http" | "mongodb" | "r3"; readonly group: string; readonly stage?: string }): ReactElement {
   const cells = (COPIES[props.copy] ?? []).filter((cell) => cell.group === props.group && (props.stage === undefined || cell.stage === props.stage));
   if (cells.length === 0) throw new Error(`no cell of ${props.copy} has the group ${props.group}`);
   return (
