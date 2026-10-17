@@ -276,16 +276,16 @@
       "counted": 11,
       "voided": 0,
       "band": null,
-      "median": null,
-      "why": "None of the 11 counted runs measured a time.",
+      "median": 600.299546,
+      "why": "The median is 600.3 s from the last segment that the client received, and the counted runs measured 600.246 s to 600.87 s.",
       "runs": [
-        [null, null, null, null, null, null],
-        [null, null, null, null, null]
+        [600.272883, 600.246256, 600.260094, 600.299546, 600.279289, 600.25158],
+        [600.832192, 600.807643, 600.87031, 600.853296, 600.851421]
       ],
-      "warmups": [null, null],
+      "warmups": [600.962233, 600.563823],
       "voids": null,
-      "first": null,
-      "repeated": null
+      "first": "measured",
+      "repeated": "In the first CI run, the measurement waited for a close by the peer of the observer, and no run measured a time. The close of Redis is its own. Then the compiler made the cell end on the close of the observer, and CI did the cell again."
     },
     {
       "plan": "T01.array.7",
@@ -911,16 +911,16 @@
       "counted": 11,
       "voided": 0,
       "band": null,
-      "median": null,
-      "why": "None of the 11 counted runs measured a time.",
+      "median": 600.213179,
+      "why": "The median is 600.213 s from the last segment that the client received, and the counted runs measured 600.091 s to 600.854 s.",
       "runs": [
-        [null, null, null, null, null, null],
-        [null, null, null, null, null]
+        [600.090606, 600.151393, 600.174124, 600.142892, 600.167648, 600.213179],
+        [600.804389, 600.833899, 600.672021, 600.85351, 600.652469]
       ],
-      "warmups": [null, null],
+      "warmups": [600.851814, 600.465579],
       "voids": null,
-      "first": null,
-      "repeated": null
+      "first": "measured",
+      "repeated": "In the first CI run, the measurement waited for a close by the peer of the observer, and no run measured a time. The close of Redis is its own. Then the compiler made the cell end on the close of the observer, and CI did the cell again."
     },
     {
       "plan": "T01.array.17",
@@ -939,16 +939,16 @@
       "counted": 11,
       "voided": 0,
       "band": null,
-      "median": null,
-      "why": "None of the 11 counted runs measured a time.",
+      "median": 600.405317,
+      "why": "The median is 600.405 s from the last segment that the client received, and the counted runs measured 600.315 s to 600.947 s.",
       "runs": [
-        [null, null, null, null, null, null],
-        [null, null, null, null, null]
+        [600.31522, 600.329714, 600.324923, 600.405317, 600.353202, 600.401802],
+        [600.94713, 600.86048, 600.929246, 600.894502, 600.855487]
       ],
-      "warmups": [null, null],
+      "warmups": [600.975161, 600.515918],
       "voids": null,
-      "first": null,
-      "repeated": null
+      "first": "measured",
+      "repeated": "In the first CI run, the measurement waited for a close by the peer of the observer, and no run measured a time. The close of Redis is its own. Then the compiler made the cell end on the close of the observer, and CI did the cell again."
     },
     {
       "plan": "T01.array.17",
@@ -967,16 +967,16 @@
       "counted": 11,
       "voided": 0,
       "band": null,
-      "median": null,
-      "why": "None of the 11 counted runs measured a time.",
+      "median": 600.308694,
+      "why": "The median is 600.309 s from the last segment that the client received, and the counted runs measured 600.226 s to 600.867 s.",
       "runs": [
-        [null, null, null, null, null, null],
-        [null, null, null, null, null]
+        [600.241321, 600.22642, 600.274914, 600.308694, 600.252257, 600.296906],
+        [600.859966, 600.839298, 600.866848, 600.825846, 600.867293]
       ],
-      "warmups": [null, null],
+      "warmups": [600.879736, 600.503006],
       "voids": null,
-      "first": null,
-      "repeated": null
+      "first": "measured",
+      "repeated": "In the first CI run, the measurement waited for a close by the peer of the observer, and no run measured a time. The close of Redis is its own. Then the compiler made the cell end on the close of the observer, and CI did the cell again."
     },
     {
       "plan": "T01.array.17",
@@ -995,16 +995,16 @@
       "counted": 11,
       "voided": 0,
       "band": null,
-      "median": null,
-      "why": "None of the 11 counted runs measured a time.",
+      "median": 600.440261,
+      "why": "The median is 600.44 s from the last segment that the client received, and the counted runs measured 600.363 s to 600.969 s.",
       "runs": [
-        [null, null, null, null, null, null],
-        [null, null, null, null, null]
+        [600.405261, 600.440261, 600.42249, 600.399119, 600.363032, 600.414402],
+        [600.968584, 600.918102, 600.963466, 600.945488, 600.95245]
       ],
-      "warmups": [null, null],
+      "warmups": [600.957861, 600.585426],
       "voids": null,
-      "first": null,
-      "repeated": null
+      "first": "measured",
+      "repeated": "In the first CI run, the measurement waited for a close by the peer of the observer, and no run measured a time. The close of Redis is its own. Then the compiler made the cell end on the close of the observer, and CI did the cell again."
     },
     {
       "plan": "T01.array.17",

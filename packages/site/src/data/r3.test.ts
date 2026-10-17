@@ -19,7 +19,7 @@ describe("the copy of R3's queue holds the figures of its CI runs", () => {
   });
 
   it("holds the 9 cells that failed first, on two gaps of the corpus", () => {
-    const again = r3.cells.filter((each) => each.first !== null);
+    const again = r3.cells.filter((each) => each.first === "fails");
     expect(again.map((each) => [each.first, each.decision])).toEqual(Array.from({ length: 9 }, () => ["fails", "holds"]));
     // Redis closes an idle client itself, with a FIN: 7 cells; a flow that idles before its request: 2
     expect(again.filter((each) => /idle timeout of Redis/.test(each.repeated ?? "")).length).toBe(7);
@@ -29,7 +29,14 @@ describe("the copy of R3's queue holds the figures of its CI runs", () => {
 
   it("gives the measurements only: the either order of 600 s and the forget behind a router", () => {
     expect(decisions("measured").map((each) => each.plan)).toEqual(["T01.array.7", "T01.array.17", "T01.array.17", "T01.array.17", "T01.array.17", "T03.random.15"]);
-    for (const each of decisions("measured")) expect([each.prediction.kind, each.median]).toEqual(["measured", null]);
+    for (const each of decisions("measured")) expect(each.prediction.kind).toBe("measured");
+    // the first run of the 5 either-order cells measured nothing; their re-run ends on the idle close of Redis
+    const either = decisions("measured").filter((each) => each.plan.startsWith("T01."));
+    expect(either.map((each) => each.first)).toEqual(Array.from({ length: 5 }, () => "measured"));
+    for (const each of either) expect(each.repeated).toMatch(/end on the close of the observer/);
+    for (const each of either) expect(each.median).toBeGreaterThanOrEqual(600);
+    for (const each of either) expect(each.median).toBeLessThanOrEqual(601.1);
+    expect(decisions("measured").find((each) => each.plan === "T03.random.15")!.median).toBeNull();
   });
 
   it("names no machine and no claim of the corpus", () => {

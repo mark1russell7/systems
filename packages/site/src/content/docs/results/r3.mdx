@@ -34,7 +34,8 @@ CI started the 115 cells of the queue in the run [38922068182](https://github.co
 - **The canonical cells.** CI started 6 cells at the scale of their profile in the run [38974137508](https://github.com/mark1russell7/systems/actions/runs/38974137508).
   - `T03.random.31` holds: behind a router with an idle timeout of 600 s, nothing detects the forget in 1,205 s.
   - The other 5 put the idle close of Redis (600 s) against the keepalive of the kernel (600 s). The two can fire in either order, thus the corpus predicts neither.
-  - In that run, no run of the 5 measured a time. The measurement waited for a close by the observer, and the close of Redis is its own. A later run measures them again.
+  - In that run, no run of the 5 measured a time. The measurement waited for a close by the peer of the observer, and the close of Redis is its own. The compiler then made these cells end on the close of the observer.
+  - CI did the 5 cells again in the run [39045508827](https://github.com/mark1russell7/systems/actions/runs/39045508827). Each of the 55 runs ended 600.09 s to 600.97 s after the last segment. That is the idle close of Redis, in its range of 600 s to 601.1 s.
 
 ## T01: a client and Redis on a direct path
 

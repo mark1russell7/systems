@@ -104,12 +104,16 @@ const predictionOf = (cell: Cell) => {
   return { kind: "silent", ...none, window, text: `The corpus predicts that nothing detects the fault in a window of ${at(window)}.` };
 };
 
-/** This function tells why CI did a cell again, from the prediction of its first run. */
+/** This function tells why CI did a cell again, from the prediction of its first run. It stops on a reason that it does not know. */
 const repeatedOf = (name: string): string => {
   const first = firsts.get(name)?.cell.prediction;
   if (first?.detects === true && first.timer === "idle" && first.errno === "ETIMEDOUT")
     return "In the first CI run, the corpus said that the idle timeout of Redis ends the client with ETIMEDOUT. Redis closes the idle client itself, with a FIN. After that fix of the corpus, CI did the cell again.";
-  return "In the first CI run, the corpus raced the keepalive refresh with the forget of the router only for an idle flow. A flow that idles before its request races them too. After that fix of the corpus, CI did the cell again.";
+  if (first?.detects === true && first.timer === "rx.rst" && first.errno === "ECONNRESET")
+    return "In the first CI run, the corpus raced the keepalive refresh with the forget of the router only for an idle flow. A flow that idles before its request races them too. After that fix of the corpus, CI did the cell again.";
+  if (first?.detects === null && first.ends === undefined)
+    return "In the first CI run, the measurement waited for a close by the peer of the observer, and no run measured a time. The close of Redis is its own. Then the compiler made the cell end on the close of the observer, and CI did the cell again.";
+  throw new Error(`${name}: the page has no reason for its re-run`);
 };
 
 const cells = [...found.entries()]
