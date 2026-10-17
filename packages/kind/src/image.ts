@@ -23,6 +23,7 @@ const FILES: ReadonlyArray<readonly [string, string]> = [
   ["watch.mjs", "image/watch.mjs"],
   ["compose.ts", "src/compose.ts"],
   ["backends.ts", "src/backends.ts"],
+  ["conntrack.ts", "src/conntrack.ts"],
 ];
 
 const shell = process.platform === "win32";

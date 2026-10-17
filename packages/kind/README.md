@@ -72,6 +72,8 @@ The tests read three real records of `/1` (`test/records/`): a cell that holds, 
 `openKindLab(cluster, image)` (`lab.ts`) starts the instruments of a cluster:
 
 - **The agent of each node** is a privileged container in the PID namespace of the node container. It signals a process of a pod by its PID on the node. It writes `cpu.max` in the cgroup of a container, and a flag file in the root of a container.
+  - From 0.1.4, it also reads the conntrack table of the node each 250 ms. It writes a `stale` line for each entry to the ClusterIP that keeps its NAT to a pod that the rules dropped.
+  - A SYN on the port of such an entry goes to that pod, whatever the rules say. An entry in TIME_WAIT is not stale, because a SYN reopens it with a new lookup.
 - **The rules of each node.** The agent reads the rules of kube-proxy in the namespaces of the node each 50 ms: `iptables-save`, `nft list table ip kube-proxy`, or `/proc/net/ip_vs`. It writes a line when the backends of the Service change (`backends.ts`). A backend of IPVS with the weight zero takes no new connection, thus it is not a backend.
 - **The injector of each node** is the image of the harness, in the PID namespace of the node. `crictl` on the node gives the PID of a container, and `nsenter -n` enters the network namespace of its pod. The injector of the harness then applies its rules there.
 - **The watcher** is a container on the network of the cluster. It watches the pods, the EndpointSlices and the events through the API, and it follows the log of each pod of the cell.

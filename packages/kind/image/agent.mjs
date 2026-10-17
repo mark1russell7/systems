@@ -2,7 +2,9 @@
 // container, thus it sees the processes of each pod of the node, and PID 1 is the init of the node.
 //
 //   node agent.mjs serve       polls the rules of kube-proxy in the namespaces of the node, as
-//                              /tmp/rules.json asks, and prints each change of the backends
+//                              /tmp/rules.json asks, and prints each change of the backends. It
+//                              also reads the conntrack table of the node, and prints each entry
+//                              that keeps its NAT to a pod that the rules dropped (`stale`)
 //   node agent.mjs act JSON    does one act and prints its stamps on CLOCK_MONOTONIC
 //
 // The acts: signal (a signal to a PID), pause (SIGSTOP, then SIGCONT after ms), write (a file, for
@@ -11,6 +13,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { backendsOf } from "./backends.ts";
+import { entriesOf, staleOf } from "./conntrack.ts";
 
 const now = () => Number(process.hrtime.bigint()) / 1e6;
 const node = process.env.NODE_NAME ?? "";
@@ -24,6 +27,16 @@ const DUMP = {
   ipvs: ["nsenter", "-t", "1", "-n", "--", "cat", "/proc/net/ip_vs"],
 };
 
+/** the conntrack table of the node's network namespace, only the lines of the ClusterIP, or null when the kernel has none */
+const conntrackOf = (ip) => {
+  const run = spawnSync("nsenter", ["-t", "1", "-n", "--", "grep", "-F", ` dst=${ip} `, "/proc/net/nf_conntrack"], { encoding: "utf8", maxBuffer: 64 << 20 });
+  // grep exits 1 when no line matches, and 2 when it cannot read the table
+  if (run.status === 0 || run.status === 1) return run.stdout ?? "";
+  return null;
+};
+/** how often the agent reads the conntrack table, in ms: the table is larger than the rules */
+const CONNTRACK_EVERY = 250;
+
 const serve = async () => {
   let last = null;
   let previous = null;
@@ -31,6 +44,10 @@ const serve = async () => {
   let spent = 0;
   let beat = now();
   let dumped = null;
+  // the conntrack read: its last time, the stale entries that it saw, and whether the table exists
+  let read = 0;
+  let seen = new Map();
+  let conntrack = true;
   for (;;) {
     if (!existsSync("/tmp/rules.json")) {
       last = null;
@@ -57,6 +74,24 @@ const serve = async () => {
       if (key !== last) {
         say({ ev: "rules", t, prev: previous, took: Math.round(took * 1000) / 1000, b: backends });
         last = key;
+      }
+      // a new SYN on the port of a stale entry goes to the pod of the entry, not to a backend of the rules
+      if (conntrack && t - read >= CONNTRACK_EVERY) {
+        read = t;
+        const text = conntrackOf(rule.ip);
+        if (text === null) {
+          say({ ev: "conntrack-fail", t, why: "the node has no readable /proc/net/nf_conntrack" });
+          conntrack = false;
+        } else {
+          const next = new Map();
+          for (const entry of staleOf(entriesOf(text, rule.ip, rule.port), backends)) {
+            const id = `${entry.client}>${entry.backend}`;
+            next.set(id, entry.state);
+            // each entry once, and again when its state changes
+            if (seen.get(id) !== entry.state) say({ ev: "stale", t, state: entry.state, ttl: entry.ttl, client: entry.client, backend: entry.backend, unreplied: entry.unreplied });
+          }
+          seen = next;
+        }
       }
     }
     previous = t;
