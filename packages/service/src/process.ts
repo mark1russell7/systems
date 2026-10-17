@@ -67,7 +67,7 @@ export interface ProcessHost {
   readonly stderr?: HostStream | undefined;
 }
 
-/** This function adds a handler to some events of an emitter, and calls it one time at most. */
+/** This function adds a handler to some events of an emitter. The handler operates one time at most. */
 const once = (emitter: HostStream | ProcessHost, events: readonly string[], handler: () => void): (() => void) => {
   let called = false;
   const fire = (): void => {

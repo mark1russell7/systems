@@ -73,7 +73,7 @@ export const fakeClock = (start = 0): FakeClock => {
 export interface FakeProcess extends ProcessPort {
   /** This method sends a signal to each handler of it. */
   signal(name: ExitSignal): void;
-  /** This method sends a trigger to each handler of it: a signal, or a process trigger such as `stdin-close`. */
+  /** This method sends a trigger to each handler of it: a signal, or a process trigger, for example `stdin-close`. */
   trigger(name: ExitTrigger): void;
   /** These are the exit codes, in sequence. A correct runtime exits one time. */
   readonly exits: readonly number[];

@@ -7,7 +7,7 @@ import type { Timing } from "./timing.ts";
 /**
  * A profile is a part of a declaration as data: policies, phases and the rules of the shutdown.
  * `svc.profile(profile)` declares each field, as its method does. The runtime has no defaults, and
- * a profile is not a default: the caller gives it, and the caller can change each field with a
+ * a profile is not a default, because the caller gives it. The caller can change each field with a
  * spread. `describe()` then shows the values of the profile.
  *
  *     svc.profile({ ...kubernetes({ grace: s(60), preStop: s(5) }), onRepeatSignal: "exit" });
