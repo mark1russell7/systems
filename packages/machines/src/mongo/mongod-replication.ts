@@ -293,7 +293,8 @@ export const MONGOD_REPL: Machine = machineSchema.parse({
       note: "a member is DOWN at the end of a heartbeat window without a response. A silence that starts just before a request is found one window later. One that starts just after a response is found an interval and a window later",
     },
     "systems.mechanism.election-timeout": { timer: "election" },
-    "systems.mechanism.primary-liveness": { timer: "liveness" },
+    // how long a leader keeps its role without a majority: the primary steps down at the end of it
+    "systems.mechanism.step-down-window": { timer: "liveness" },
   },
   transitions: [
     { id: "rs.secondary", from: "startup", to: "secondary", on: "rx.heartbeat" },
