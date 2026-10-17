@@ -474,7 +474,8 @@ export interface Reconnects {
  * A cell whose outcome is a distribution, for example under netem loss, has no band. Its
  * prediction is `detects: null` with the reason, and its runs are measurements only. A
  * measurement-only cell that names a reference (`from`) also records the time from it to the end
- * of the connection, or to the last data.
+ * of the connection, or to the last data. It can also give the waits of the reconnect after that
+ * end (`reconnects`).
  *
  * For a group cell, the band is the first write that a primary accepts after the fault, and its
  * errno is `OK`. `group` tells which primary, and the stages of the group on the way.
@@ -542,6 +543,11 @@ export type Prediction =
       readonly ends?: "own-close";
       readonly group?: GroupPrediction;
       readonly request?: RequestPrediction;
+      /**
+       * These are the waits of the reconnect after the end of the connection, from the document of
+       * the client. The end has no band, but each wait has one. A wait outside its band is a finding of its run.
+       */
+      readonly reconnects?: Reconnects;
     };
 
 /** A target is the server that a cell connects to: a stock image. */

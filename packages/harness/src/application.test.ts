@@ -260,6 +260,43 @@ describe("a detection by the program of the observer, from its lines and the ker
     expect(measure(stall, dropped)).toMatchObject({ outcome: { kind: "dropped" }, finding: "detected after 1.50003 s, where it should recover" });
   });
 
+  it("times the reconnect of a measurement-only cell after the end of its connection, which has no band", () => {
+    // a proxy closes the idle connection at its own timeout: a FIN 5 s after the reply, and the client tries again
+    const F = T + 5_000_400_000;
+    const closing: Cell = {
+      ...HEARTBEAT,
+      fault: "proxy-idle",
+      prediction: {
+        detects: null,
+        window: s(10),
+        why: "the proxy has no machine document",
+        from: "last-received",
+        reconnects: { waits: [{ low: s(0.499), high: s(0.5021) }] },
+      },
+    };
+    const lines: ProbeEvent[] = [
+      ...client.slice(0, 4),
+      { ev: "eof", t: F + 300_000, local: LOCAL },
+      { ev: "reconnecting", t: F + 400_000, attempt: 1 },
+      { ev: "dial", t: F + 501_300_000, conn: 2 },
+    ];
+    const records = [k("rx", T - 50_000, data(40)), state(F, 1, 8), state(F + 503_000_000, 7, 2, NEW), state(F + 503_300_000, 2, 1, NEW)];
+    const read = measure(closing, run(lines, records, { fault: null }));
+    expect(read).toMatchObject({ outcome: { kind: "eof" }, elapsed: s(5.00045), void: null, finding: null });
+    expect(read.reconnect).toEqual({ waits: [s(0.5009)], syn: s(0.503), established: s(0.5033), connects: [s(0.0017)] });
+    const verdict = verdictOf(closing.prediction, [read]);
+    expect(verdict).toMatchObject({ decision: "measured", outside: [] });
+    expect(verdict.why).toContain("Reconnect: the waits before each try, median 500.9 ms");
+    // a wait outside its band is a finding of its run, and the verdict names that run
+    const slow = lines.map((line) => (line.ev === "dial" ? { ...line, t: F + 521_300_000 } : line));
+    const late = measure(closing, run(slow, records, { fault: null }));
+    expect(late.finding).toBe("its wait before try 1 was 0.5209 s, outside [0.495, 0.5061] s");
+    expect(verdictOf(closing.prediction, [late])).toMatchObject({ decision: "measured", outside: [{ why: late.finding }] });
+    // without the bands of the reconnect, the cell measures as it did before them
+    const plain = { ...closing, prediction: { detects: null, window: s(10), why: "the proxy has no machine document", from: "last-received" } } as Cell;
+    expect(measure(plain, run(lines, records, { fault: null }))).not.toHaveProperty("reconnect");
+  });
+
   it("reads the call in flight: its error, and its time from the detection", () => {
     const request = { ev: "sent", t: T + 400_000_000 };
     const lines = [request, { ev: "call-error", t: D + 150_000, code: "Error", message: "WebSocket connection closed" }];
