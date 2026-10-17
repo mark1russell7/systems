@@ -1,7 +1,7 @@
 // A client of a kind cell: an open loop of requests to the ClusterIP of the service, each on a new
 // connection, thus kube-proxy picks a backend for each one. Each request is one JSON line with its
-// start on CLOCK_MONOTONIC, its duration and its outcome: ok, 503, refused, reset, timeout,
-// unreachable, or another error.
+// start on CLOCK_MONOTONIC, its duration, its outcome (ok, 503, refused, reset, timeout,
+// unreachable, or another error) and its local port (`lp`).
 import http from "node:http";
 
 const [host, port] = (process.env.TARGET ?? "").split(":");
@@ -29,16 +29,27 @@ const outcomeOf = (error) => {
   return "error";
 };
 
+// the local port of a socket, or null once its handle is closed. The kernel gives the port at
+// connect(), and a refusal closes the handle in the poll phase of the loop: before setImmediate
+const portOf = (socket) => {
+  const out = {};
+  socket?._handle?.getsockname?.(out);
+  return typeof out.port === "number" ? out.port : null;
+};
+
 const fire = () => {
   const t = now();
   let done = false;
-  // the local port of the connection: a failed request names it, to find a reuse of the port across connections
+  // the local port of the connection, on each request: a conntrack entry is per port, thus a failure
+  // on a port shows the connection before it on the same port, and the backend that it went to
   let lp = null;
+  let socket = null;
   const finish = (o, extra = {}) => {
     if (done) return;
     done = true;
     clearTimeout(timer);
-    say({ ev: "req", t, d: Math.round((now() - t) * 1000) / 1000, o, ...extra, ...(o === "ok" ? {} : { lp }) });
+    lp ??= portOf(socket);
+    say({ ev: "req", t, d: Math.round((now() - t) * 1000) / 1000, o, ...extra, lp });
   };
   const req = http.request({ host, port: Number(port), path: "/work", agent: false, headers: { connection: "close" } }, (res) => {
     let body = "";
@@ -50,15 +61,20 @@ const fire = () => {
     res.on("error", (error) => finish(outcomeOf(error), { e: error.code ?? String(error) }));
   });
   const timer = setTimeout(() => {
+    // before the destroy closes the handle
+    lp ??= portOf(socket);
     const error = Object.assign(new Error("no answer in time"), { code: "LAB_TIMEOUT" });
     req.destroy(error);
     finish("timeout", { e: "LAB_TIMEOUT" });
   }, timeout);
   req.on("error", (error) => finish(outcomeOf(error), { e: error.code ?? String(error) }));
-  req.on("socket", (socket) => {
-    // the kernel gives the port at connect(), which comes before the next turn of the loop
-    setImmediate(() => {
-      lp = socket.localPort ?? null;
+  req.on("socket", (opened) => {
+    socket = opened;
+    // connect() comes in the tick before this event, thus the handle has the port here, a refused
+    // connection's too: in 200 refusals, each port was here and none at setImmediate
+    lp = portOf(opened);
+    opened.once("connect", () => {
+      lp ??= portOf(opened);
     });
   });
   req.end();

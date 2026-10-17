@@ -87,7 +87,7 @@ The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`
 - **From npm**, the stage packs the installed versions of the same packages. The package holds the files of the image, and `src/compose.ts` and `src/backends.ts`, for that.
 - **The service** (`app.mjs`) is a Node HTTP server. Its one controller needs Redis when the cell has Redis. Its health server gives the probes, and it declares each stage of the shutdown. `compose.ts` composes the service from the declaration of the cell, and `lint()` reads the same composition.
 - **The seams** of the service are a flag file that fails its liveness check, and SIGUSR2. SIGUSR2 blocks its event loop for the time in a file.
-- **The clients** (`client.mjs`) send requests on new connections to the ClusterIP. Each request gives one line with its outcome: ok, 503, refused, reset, timeout or unreachable.
+- **The clients** (`client.mjs`) send requests on new connections to the ClusterIP. Each request gives one line with its outcome: ok, 503, refused, reset, timeout or unreachable. From 0.1.3, each line also gives the local port of its connection (`lp`), a refused one's too. A conntrack entry is per port. Thus the requests on the port of a failure show the connection before it, and the pod that it went to.
 
 ## The triggers
 
