@@ -3,8 +3,10 @@
 //
 //   node agent.mjs serve       polls the rules of kube-proxy in the namespaces of the node, as
 //                              /tmp/rules.json asks, and prints each change of the backends. It
-//                              also reads the conntrack table of the node, and prints each entry
-//                              that keeps its NAT to a pod that the rules dropped (`stale`)
+//                              also reads the conntrack table of the node. It prints each entry
+//                              that keeps its NAT to a pod that the rules dropped (`stale`), each
+//                              handshake that stopped for a second (`stalled`), and a count of
+//                              the reads each second (`conntrack-alive`)
 //   node agent.mjs act JSON    does one act and prints its stamps on CLOCK_MONOTONIC
 //
 // The acts: signal (a signal to a PID), pause (SIGSTOP, then SIGCONT after ms), write (a file, for
@@ -13,7 +15,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { backendsOf } from "./backends.ts";
-import { entriesOf, staleOf } from "./conntrack.ts";
+import { entriesOf, flowsOf, staleOf, stalledOf } from "./conntrack.ts";
 
 const now = () => Number(process.hrtime.bigint()) / 1e6;
 const node = process.env.NODE_NAME ?? "";
@@ -27,9 +29,10 @@ const DUMP = {
   ipvs: ["nsenter", "-t", "1", "-n", "--", "cat", "/proc/net/ip_vs"],
 };
 
-/** the conntrack table of the node's network namespace, only the lines of the ClusterIP, or null when the kernel has none */
+/** the lines of the conntrack table of the node's network namespace: those of the ClusterIP and those of a handshake. Null when the kernel has no table */
 const conntrackOf = (ip) => {
-  const run = spawnSync("nsenter", ["-t", "1", "-n", "--", "grep", "-F", ` dst=${ip} `, "/proc/net/nf_conntrack"], { encoding: "utf8", maxBuffer: 64 << 20 });
+  const patterns = ["-e", ` dst=${ip} `, "-e", "[UNREPLIED]", "-e", " SYN_RECV "];
+  const run = spawnSync("nsenter", ["-t", "1", "-n", "--", "grep", "-F", ...patterns, "/proc/net/nf_conntrack"], { encoding: "utf8", maxBuffer: 64 << 20 });
   // grep exits 1 when no line matches, and 2 when it cannot read the table
   if (run.status === 0 || run.status === 1) return run.stdout ?? "";
   return null;
@@ -44,10 +47,13 @@ const serve = async () => {
   let spent = 0;
   let beat = now();
   let dumped = null;
-  // the conntrack read: its last time, the stale entries that it saw, and whether the table exists
+  // the conntrack read: its last time, the stale entries and the stalled handshakes that it saw,
+  // whether the table exists, and the count of the reads since the last beat
   let read = 0;
   let seen = new Map();
+  let stuck = new Map();
   let conntrack = true;
+  let count = { reads: 0, ms: 0, lines: 0, vip: 0, states: {} };
   for (;;) {
     if (!existsSync("/tmp/rules.json")) {
       last = null;
@@ -79,24 +85,45 @@ const serve = async () => {
       if (conntrack && t - read >= CONNTRACK_EVERY) {
         read = t;
         const text = conntrackOf(rule.ip);
+        count.reads += 1;
+        count.ms += now() - t;
         if (text === null) {
           say({ ev: "conntrack-fail", t, why: "the node has no readable /proc/net/nf_conntrack" });
           conntrack = false;
         } else {
+          const flows = flowsOf(text);
+          const entries = entriesOf(text, rule.ip, rule.port);
+          count.lines = flows.length;
+          count.vip = entries.length;
+          count.states = {};
+          for (const entry of entries) count.states[entry.state] = (count.states[entry.state] ?? 0) + 1;
           const next = new Map();
-          for (const entry of staleOf(entriesOf(text, rule.ip, rule.port), backends)) {
+          for (const entry of staleOf(entries, backends)) {
             const id = `${entry.client}>${entry.backend}`;
             next.set(id, entry.state);
             // each entry once, and again when its state changes
             if (seen.get(id) !== entry.state) say({ ev: "stale", t, state: entry.state, ttl: entry.ttl, client: entry.client, backend: entry.backend, unreplied: entry.unreplied });
           }
           seen = next;
+          // a connection that times out: where its SYN went, and whether an answer came on this node
+          const held = new Map();
+          for (const flow of stalledOf(flows, 1)) {
+            const id = `${flow.from}>${flow.to}`;
+            held.set(id, flow.state);
+            if (stuck.get(id) !== flow.state) say({ ev: "stalled", t, state: flow.state, ttl: flow.ttl, from: flow.from, to: flow.to, reply: flow.reply, unreplied: flow.unreplied });
+          }
+          stuck = held;
         }
       }
     }
     previous = t;
     if (t - beat >= 1000) {
       say({ ev: "rules-alive", t, polls, ms: Math.round((spent / polls) * 100) / 100 });
+      // the reads of the conntrack table: a run without this line did not read it
+      if (count.reads > 0) {
+        say({ ev: "conntrack-alive", t, reads: count.reads, ms: Math.round((count.ms / count.reads) * 100) / 100, lines: count.lines, vip: count.vip, states: count.states });
+        count = { ...count, reads: 0, ms: 0 };
+      }
       beat = t;
       polls = 0;
       spent = 0;
