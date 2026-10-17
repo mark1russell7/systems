@@ -117,7 +117,7 @@ The plan's `event:clock-jump` has no trigger. A step of CLOCK_REALTIME in the VM
 `predict.ts` gives each band from the declaration, the pod settings and the calibration of the propagation:
 
 - **A deletion.** The listener of a leaving pod stays open for its preStop sleep and the hold of `fail readiness`. A connection fails when the rules of its node select the pod after that. `rules.ts` gives O04 with the hold as data, and `lint()` decides it.
-- **A pause of kube-proxy** keeps the rules of one node for its hold. The window on that node ends one propagation after the pause.
+- **A pause of kube-proxy** keeps the rules of one node for its hold. The window on that node ends one propagation after the pause. A SYN_SENT entry of an earlier run lives up to 122 s, thus the window also opens up to 122 s before the intake. `predictionText` writes each end of a window with its band, for example `the intake + [-122, 4.605] s`.
 - **A fault of a shared dependency** trips the readiness latch of each replica (`failSpan`). Then the kubelet needs its threshold of probes, and the rules need one propagation.
 - **A restart through a coupling** adds the liveness probes of the kubelet and the preStop sleep to the latch.
 

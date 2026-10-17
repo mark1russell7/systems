@@ -17,6 +17,7 @@ import {
   kindCellRecordV1Schema,
   medianInterval,
   medianText,
+  predictionText,
   quantileOf,
   readRecord,
   unitOf,
@@ -148,6 +149,26 @@ describe("the judgement of a record again", () => {
     expect(medianText(timed)).toBe("34.244 s");
     const replicas = { ...record, verdict: { ...record.verdict, median: { value: 0, unit: "{replica}" } } };
     expect(medianText(replicas)).toBe("0 replicas");
+  });
+
+  it("writes the start of a window with its band, which can open before its reference", () => {
+    const s = (value: number) => ({ value, unit: "s" });
+    // a pause on one node: a stale SYN_SENT entry from an earlier run can fail it 122 s before the intake
+    const paused = {
+      kind: "window",
+      nodes: "paused",
+      start: { from: "intake", band: { lo: s(-122), hi: s(0) } },
+      end: { from: "resume", band: { lo: s(0.5), hi: s(125.3) } },
+      certain: true,
+      why: "",
+    } as const;
+    expect(predictionText(paused)).toBe(
+      "failures only from the intake + [-122, 0] s to the resume + [0.5, 125.3] s, on the paused node, at least one",
+    );
+    // a band of [0, 0] s is the reference itself
+    expect(predictionText({ ...paused, nodes: "all", start: { from: "deletion", band: { lo: s(0), hi: s(0) } }, end: null, certain: false })).toBe(
+      "failures only from the deletion",
+    );
   });
 });
 
