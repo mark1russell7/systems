@@ -218,7 +218,7 @@ T07 is the lifecycle of the endpoints of a Service, and T18 is a fleet whose rea
 - **Shipped:**
 - **Links:** [#35](https://github.com/mark1russell7/systems/pull/35)
 
-One failure is a stale SYN_SENT entry on a reused port, and one is a late propagation. The others need a capture of the SYNs and resets to the deleted pod.
+One failure is a stale SYN_SENT entry on a reused port, and one is a late propagation. For the others, the agent of kind 0.1.4 reads the conntrack table of each node each second. It writes each entry that keeps its NAT to a dropped pod, and each handshake that stops. A runner has no `/proc/net/nf_conntrack`, thus the agent reads through netlink, on a table of 16384 buckets.
 
 ## The engines and the models
 
