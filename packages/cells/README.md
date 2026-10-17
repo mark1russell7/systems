@@ -151,8 +151,15 @@ Each prediction of a fault composes the document of the client, or of the server
 
 ## The WS catalog
 
-The WS catalog has the WebSocket client and server of `@procedures/client` 0.3.0 on a direct pair (`src/ws.ts`). The client is the harness client `procedures-ws`, and the server is a script in its image. Each cell gives each setting of the client and of the server.
+The WS catalog has the WebSocket client and server of `@procedures/client` 0.7.0 on a direct pair (`src/ws.ts`). The client is the harness client `procedures-ws`, and the server is a script in its image. Each cell gives each setting of the client and of the server.
 
+- **0.7.0 against the documents of 0.3.0.** The cells operate 0.7.0. The documents stay at 0.3.0 until `@mark1russell7/machines` 0.3.0 is on npm. The code that they read is the same in 0.7.0, at these lines of `dist/adapters/websocket`:
+  - The heartbeat of the client is `startHeartbeat` (`client/transport.js:394-414`), on `heartbeat()` of `@mark1russell7/service` 0.4.1. The build of service 0.4.1 is the build of 0.4.0.
+  - The drop is `dropConnection` (`client/transport.js:320-339`): `terminate()` when the class has it, else `close()`. 0.7.0 leaves an empty error handler on the socket (`detach`, `:90-95`), and 0.3.0 left none.
+  - The reconnect is `reconnectDelay` (`client/transport.js:136-143`) and `scheduleReconnect` (`:372-388`). The time limit of the handshake is at `:244-253`, and a failed handshake drops at `:302-306`.
+  - The heartbeat of the server is `beat()` (`server/transport.js:94-112`), on one `setInterval` from the start of the transport (`:147-151`). A pong sets the misses to 0 (`:241`).
+  - 0.7.0 adds a `seq` to each stream frame, and a keep-alive to an NDJSON stream of HTTP. A call of these cells is no stream, and the cells use no HTTP transport.
+- **The class of the sockets.** Since 0.4.0, the root entry keeps the global `WebSocket`. The Node entry `@procedures/client/node` uses the `WebSocket` of ws (`client/node.js:27-31`). The client of the harness takes the transport of the entry of its class, and the image holds one copy of ws.
 - **The documents** (`PROCEDURES_WS_CLIENT` and `PROCEDURES_WS_SERVER` of `@mark1russell7/machines`) are the client and the server of 0.3.0, from the files of the release and of `@mark1russell7/service` 0.4.0. Each fact has its file and its line.
   - The states and the events come from the document of the client repository at commit 1f50f47 (`WEBSOCKET_CONNECTION_MACHINE`). The timers come from the code of 0.3.0.
   - The heartbeat of the client is `heartbeat()` of the service. It sends a ping only when no pong is awaited, and `misses` misses in sequence drop the connection. With one miss, the drop comes one timeout after the ping that got no answer.
@@ -174,7 +181,7 @@ The WS catalog has the WebSocket client and server of `@procedures/client` 0.3.0
 
 ## The WST catalog
 
-The WST catalog has the client and the server of the WS catalog through a topology (`src/ws-topologies.ts`). Each cell gives each setting of the client, as the WS catalog does. The server has no heartbeat.
+The WST catalog has the client and the server of the WS catalog through a topology (`src/ws-topologies.ts`). Each cell gives each setting of the client and of the server, as the WS catalog does. Only the cells of the server give the server a heartbeat.
 
 - **The router of T03.** The router forgets an idle flow at 5 s. The key question is O03 of the ordering law: does the heartbeat refresh the router before it forgets the flow?
   - The ping timer realizes the idle refresh in `PROCEDURES_WS_CLIENT`. Each tick writes a ping, whatever data the connection carries, and the pong comes back.
@@ -192,6 +199,21 @@ The WST catalog has the client and the server of the WS catalog through a topolo
 - **A black hole on each leg of HAProxy.** The heartbeat detects each one, 1 s after the ping.
   - On the client leg, nothing comes back.
   - On the target leg, the kernel of HAProxy acknowledges the ping, as the kernel of a frozen server does. Thus only the heartbeat finds it.
+- **The ws class through each hop.** The cells above use the global `WebSocket`. Each one has a twin with the `WebSocket` of ws, the default class of `@procedures/client/node` (`the ws class`).
+  - The ws class sets no keepalive, thus only the heartbeat refreshes a flow at the router. O03 gives the same verdicts, because the keepalive of undici waits 60 s.
+  - The bands are the bands of the global `WebSocket`. A drop by the heartbeat closes the socket at once with `terminate()`, where the global `WebSocket` writes a close frame.
+- **The heartbeat of the server through the router of T03.** The client has no heartbeat and no reconnect, and the server is the observer.
+  - Each beat pings each connection, and the WebSocket of the client answers with a pong. Thus a beat refreshes the flow.
+  - `PROCEDURES_WS_SERVER` realizes no idle refresh. Thus the refresh of O03 is its heartbeat timer at one miss: one interval, with the lateness of one Node timer (`beatOf`).
+  - A beat each 4 s keeps the flow, and the cell is silent for 15 s. A router that forgets the flow in that window is a finding.
+  - With a beat each 6 s, the router forgets the flow before the next beat. Then the ping from outside meets the form of the router.
+  - `reset-next` drops the ping. The heartbeat drops the connection 2 beats after it: 11.996 s to 12.016 s at HZ 1000.
+  - `none` answers the ping with a reset from the stack of the router, in one round trip.
+- **The reference of a beat.** One `setInterval` of the server beats for all connections, from the start of the transport. No document gives the phase of a beat after the accept. Thus each band of the server counts from its first ping without an answer.
+  - A beat before the forget refreshes the flow. Thus that ping comes at most one forget and one beat after the reply: 11.14 s at HZ 1000 (`startsBy`). The run waits for it.
+  - No cell has `reset-both` with a beat each 6 s. That reset comes at the forget, and a ping can refresh the flow after the reply.
+  - The harness counts a forget from the last segment before the reply. Thus it has no reference for that cell.
+- **The lines of the server.** A line of the server names the connection by its peer. Behind the router, the peer is the address of the router. The harness 0.11.1 reads that peer from the socket of the server.
 
 The cells of WST go one at a time, as the cells of T03.
 
@@ -209,6 +231,19 @@ The CI dispatches 38993929671 and 38993943667 did each cell of WST 11 times, on 
 - **HAProxy.** A heartbeat of 4 s kept each connection for 15 s. At 6 s, HAProxy closed the connection with a FIN 5.0002 s to 5.0022 s after the last reply, for `timeout client` and for `timeout server`.
 - **A black hole on a leg of HAProxy.** The heartbeat dropped the connection 1.001 s to 1.003 s after the ping, on each leg.
 - **The reconnect.** In each cell, each wait of the reconnect was 0.499 s to 0.502 s, in its band. The first SYN came 0.502 s to 0.511 s after the detection.
+
+### What the runs of 0.7.0 in CI showed
+
+The CI dispatches 39070231927 and 39073727730 did each cell of WS and WST 11 times on 0.7.0, at HZ 1000 with a δ_abs of 1 ms. Each cell of WS and each cell of the global `WebSocket` in WST holds again, or is measured, in the two dispatches.
+
+- **The ws class.** Each twin holds, or is measured, where its cell of the global `WebSocket` is. After a drop by the heartbeat, `terminate()` closed the socket 0.53 ms to 0.93 ms after the drop line.
+- **A forget behind the ws class.** `reset-both` reset the client 5.0026 s to 5.0909 s after the last reply. In one run, the client acknowledged the reply at once, thus the forget came 2.6 ms after it.
+- **The heartbeat of the server.** A beat each 4 s kept each flow for 15 s in 22 runs. With a beat each 6 s:
+  - `reset-next`: the heartbeat dropped the connection 11.9998 s to 12.0119 s after the first ping without an answer, in 17 counted runs.
+  - `none`: the reset came 0.073 ms to 0.15 ms after that ping.
+- **The failure of the first dispatch.** It waited 10 s for the band of `none`, which is 1 ms wide. In 3 of 11 runs, a beat refreshed the flow before the forget, and the next beat was due at 10.6 s. The client process ended first.
+  - The second dispatch waits for the latest ping (`startsBy`), and each of its 11 runs detected it. In each one, a beat refreshed the flow first.
+- **Void runs.** In the second dispatch, 5 of 11 runs of `reset-next` are void. The retransmit timer of the ping was 2 to 7 jiffies behind its slot. That ping stays in flight for 12 s, thus its timer fires more times than in a cell of the client.
 
 ## The calibration of the proxies
 
