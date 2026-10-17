@@ -116,7 +116,7 @@ jobs:
           echo "KIND_WAITING=$waiting" >> "$GITHUB_ENV"
       # A dump of conntrack through netlink walks each bucket of the table of the kernel with the
       # softirqs off, and a segment that comes in that walk waits for its end. The agent of each node
-      # dumps the table each 250 ms. A runner of 16 GB has 262144 buckets: the table gets 16384.
+      # dumps the table each second. A runner of 16 GB has 262144 buckets: the table gets 16384.
       - name: A small conntrack table
         run: |
           sudo apt-get install -y -qq conntrack >/dev/null

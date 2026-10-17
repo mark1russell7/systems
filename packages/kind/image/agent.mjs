@@ -69,8 +69,12 @@ const conntrackOf = (ip) => {
   }
   return { text: null, why: why.join("; ") };
 };
-/** how often the agent reads the conntrack table, in ms: the table is larger than the rules */
-const CONNTRACK_EVERY = 250;
+/**
+ * how often the agent reads the conntrack table, in ms. Three dumps each 250 ms on each node took
+ * three quarters of the CPUs of a runner (run 39066066532), and the lab waited for an idle VM until
+ * the end. An entry of a SYN with no reply lives 120 s, thus a read each second sees it
+ */
+const CONNTRACK_EVERY = 1000;
 
 const serve = async () => {
   let last = null;
