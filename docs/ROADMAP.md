@@ -277,7 +277,7 @@ jarvis imports the 15 documents of `@mark1russell7/machines` by a procedure. The
 - **Shipped:**
 - **Links:**
 
-The full catalog run (234 cells) and the kind run (31 cells) are landed in the same work as the import. They ship with it.
+The full catalog run (234 cells), the kind run (31 cells) and the 5 canonical cells are landed in the same work as the import. They ship with it.
 
 ## The site
 
@@ -316,14 +316,14 @@ A full run of the catalogs at main gives each page its next copy. Its prediction
 
 ### CANONICAL · The canonical cells, measured to the close of Redis
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** site
 - **Depends on:** REDIS
 - **Started:** 2026-10-17
-- **Shipped:**
-- **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39045508827)
+- **Shipped:** 2026-10-17
+- **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39045508827), [The page](https://mark1russell7.github.io/systems/results/r3/), [#38](https://github.com/mark1russell7/systems/pull/38)
 
-Five cells put the idle close of Redis against the keepalive of the kernel, both at 600 s. From this run, a measurement ends at the close of Redis itself.
+Five cells put the idle close of Redis against the keepalive of the kernel, both at 600 s. Each of the 55 runs ended 600.09 s to 600.97 s after the last segment, at the idle close of Redis.
 
 ## Decisions for Mark
 
