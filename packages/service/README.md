@@ -55,6 +55,60 @@ The machines of the runtime are `mark1russell7.machine/1` documents, which `@mar
 
 The tests replay the real runtime against each document. They also compare each timer of the documents, from the algebra, with the time that the runtime keeps.
 
+## Composition
+
+A process has one service, and one entry that uses `run()`. A component gives parts to that service, and it does not start them. For example, a component is the procedures host of another repository, or one of the HTTP hosts of a process.
+
+- **The parts.** A component gives a `TransportImpl` for each source of work, a `DependencyHandle` for each dependency that it owns, and each check with its `CheckFn`. It can also give work for a declared phase (`onPhase`).
+- **The entry.** The entry declares one service: the parts of each component, the policies, the startup budget, the phases and the cooperative window. Only the entry uses `run()`. Thus the process has one set of signal handlers, one staged shutdown and one exit.
+- **What a component does not do.** A component does not use `start()` or `run()`. It installs no signal handler, and it does not end the process. A service has one health server, thus the entry chooses it.
+- **Names.** A service refuses a second part of one kind with the same name. Thus the entry gives each component a prefix, for example `app.http` and `ingest.http`.
+- **The sequence.** The lifecycle connects the dependencies of all components in their declared sequence, and then it starts each transport. Each stage of the shutdown acts on the transports of all components together. The dependencies close in the reverse sequence.
+- **Requests.** The transports start before the startup ends, but `run()` gives the `Lifecycle` only at that end. Thus [SYS-15](https://github.com/mark1russell7/systems/blob/main/docs/ROADMAP.md) gives each transport the request tracking from the time that it starts.
+- **The builder form.** A component can also take the builder of the entry and declare its parts on it. The Redis client does this: `attach(svc, options)` declares its dependency, its handle and its checks.
+
+```ts
+import type { Extent } from "@mark1russell7/quantity";
+import { service } from "@mark1russell7/service";
+import type { Check, CheckFn, Dependency, DependencyHandle, ServiceBuilder, TransportImpl } from "@mark1russell7/service";
+
+// the parts of a component, as data: the component declares nothing, and it does not run
+interface Parts {
+  readonly servers: ReadonlyArray<{ name: string; knobs: Record<string, Extent>; impl: TransportImpl }>;
+  readonly dependencies: ReadonlyArray<{ name: string; spec: Omit<Dependency, "name">; handle: DependencyHandle }>;
+  readonly checks: ReadonlyArray<{ check: Check; run: CheckFn }>;
+}
+
+const declare = (svc: ServiceBuilder, parts: Parts): void => {
+  for (const { name, spec, handle } of parts.dependencies) svc.dependency(name, spec, handle);
+  for (const { name, knobs, impl } of parts.servers) svc.server(name, knobs, impl);
+  for (const { check, run } of parts.checks) svc.check(check, run);
+};
+
+const s = (value: number) => ({ value, unit: "s" });
+const svc = service("app");
+// three hosts in one process: each component gives its parts under its own prefix
+for (const [prefix, port] of [["app", 4820], ["ingest", 4830], ["remote", 4840]] as const)
+  declare(svc, createHost({ prefix, port }));
+svc
+  .healthServer(probes) // the entry chooses the one health server of the process
+  .readiness({ type: "debounce", interval: s(5), failAfter: 3, recoverAfter: 1 })
+  .liveness({ type: "window", failAfter: s(45) })
+  .startup(s(60))
+  .phase("fail readiness", s(2))
+  .phase("stop intake", s(5))
+  .phase("drain", s(15))
+  .phase("close transports", s(2))
+  .phase("stop the poller", s(1))
+  .phase("tear down dependencies", s(2))
+  .phase("close the health server", s(1))
+  .cooperativeWindow(s(5));
+
+const life = await svc.run(); // only the entry calls run(), and the process exits after the shutdown
+```
+
+The requirements that the lifecycle follows are in [the requirements of S6](https://github.com/mark1russell7/systems/blob/main/docs/S6.md).
+
 ## The timers
 
 The clock, the heartbeat and the backoff have their own entries. Each entry imports no `node:` module, no zod and no other package. Thus a client in a browser can use them. Each entry is less than 1 kB of gzip. The root of the package also gives each function.
