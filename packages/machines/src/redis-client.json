@@ -16,6 +16,14 @@
     {
       "ref": "Redis CLIENT LIST documentation (id, addr, laddr, fd, name, age, idle, flags, cmd ...)",
       "rung": "documented"
+    },
+    {
+      "ref": "redis 8.10.2 (and 7.4.1) src/timeout.c:146-180 getTimeoutFromObjectOrReply(): the deadline is commandTimeSnapshot() plus ceil(timeout × 1000) ms; src/timeout.c:118-136 handleBlockedClientsTimeout(): a deadline fires once mstime() is past it, from blockedBeforeSleep() (src/blocked.c:827); src/ae.c:383-404 aeProcessEvents(): beforeSleep, then a sleep until the earliest time event; src/server.c:1859 serverCron returns 1000/hz ms; src/server.c:1572-1584 dynamic-hz doubles hz only while clients exceed 200 a tick",
+      "rung": "implemented"
+    },
+    {
+      "ref": "redis 8.10.2 (and 7.4.1) src/timeout.c clientsCronHandleTimeout(): closes when now/1000 − lastinteraction > maxidletime, in whole seconds, and never for a blocked or Pub/Sub client; src/server.c:1259-1271 clientsCron visits every client each serverCron when it holds fewer than 5",
+      "rung": "implemented"
     }
   ],
   "states": {
@@ -25,6 +33,9 @@
     },
     "CONNECTED": {
       "note": "listed by CLIENT LIST; flags and cmd change within it"
+    },
+    "BLOCKED": {
+      "note": "blocked on a command with a timeout (BLPOP and the other blocking commands): its reply waits for data on a key, or for the timeout"
     },
     "GONE": {
       "final": true,
@@ -62,6 +73,18 @@
     "socket.error": {
       "kind": "local",
       "note": "read fails with the socket's own error: the kernel beneath gave up, by its keepalive or its retransmissions (ETIMEDOUT)"
+    },
+    "app.block": {
+      "kind": "app",
+      "note": "a blocking command with a timeout above 0, which puts the client in the timeout table"
+    },
+    "app.unblock": {
+      "kind": "app",
+      "note": "data on a key it waits for serves it, and its reply goes out"
+    },
+    "timer.blocked": {
+      "kind": "timer",
+      "note": "the blocking command's timeout: its null reply goes out"
     }
   },
   "knobs": {
@@ -75,7 +98,8 @@
       "key": "redis timeout",
       "scope": "server",
       "unit": "s",
-      "default": 0
+      "default": 0,
+      "off": 0
     },
     "hz": {
       "key": "CONFIG_HZ",
@@ -83,6 +107,21 @@
       "unit": "Hz",
       "default": null,
       "note": "the kernel's build option: Redis's keepalive is the kernel's, so its firings are rounded on the kernel's timer wheel, which counts in jiffies"
+    },
+    "blocking_timeout": {
+      "key": "BLPOP timeout",
+      "scope": "client",
+      "unit": "s",
+      "default": null,
+      "off": 0,
+      "note": "the blocking command's own timeout argument, in seconds (0 blocks for ever): a cell gives it"
+    },
+    "redis_hz": {
+      "key": "redis hz",
+      "scope": "server",
+      "unit": "Hz",
+      "default": 10,
+      "note": "how often serverCron runs; an idle event loop sleeps until it"
     }
   },
   "timers": {
@@ -91,10 +130,34 @@
         "knob": "timeout",
         "unit": "s"
       },
+      "lateness": {
+        "expr": "1 + 1 / redis_hz",
+        "unit": "s"
+      },
       "arms": [
-        "accept"
+        "enter:CONNECTED",
+        "peer.data"
       ],
-      "fires": "timer.idle"
+      "fires": "timer.idle",
+      "note": "the timeout config (0 = off): clientsCron closes a client once the whole seconds since its last interaction exceed it, so never early and up to 1 s and one serverCron tick late. Each command it reads re-arms it. A blocked or Pub/Sub client has none"
+    },
+    "blocked": {
+      "duration": {
+        "knob": "blocking_timeout",
+        "unit": "s"
+      },
+      "lateness": {
+        "expr": "1 / redis_hz + 0.001",
+        "unit": "s"
+      },
+      "arms": [
+        "app.block"
+      ],
+      "cancels": [
+        "app.unblock"
+      ],
+      "fires": "timer.blocked",
+      "note": "the deadline is the command's start, in whole ms, plus the timeout rounded up to the ms, and beforeSleep fires it only once the clock is past it, so never early. An idle event loop calls beforeSleep only when it wakes, at the next serverCron, so the reply goes up to one tick and 1 ms late (101 ms at hz 10). Traffic on any other socket wakes it sooner"
     }
   },
   "realizes": {
@@ -146,6 +209,33 @@
         "app.kill",
         "app.quit"
       ]
+    },
+    {
+      "id": "rc.block",
+      "from": "CONNECTED",
+      "to": "BLOCKED",
+      "on": "app.block"
+    },
+    {
+      "id": "rc.unblock",
+      "from": "BLOCKED",
+      "to": "CONNECTED",
+      "on": [
+        "app.unblock",
+        "timer.blocked"
+      ]
+    },
+    {
+      "id": "rc.gone-blocked",
+      "from": "BLOCKED",
+      "to": "GONE",
+      "on": [
+        "peer.fin",
+        "peer.rst",
+        "socket.error",
+        "app.kill",
+        "app.quit"
+      ]
     }
   ],
   "observe": {
@@ -161,7 +251,8 @@
   "over": {
     "machine": "systems.machine.linux-tcp",
     "states": {
-      "CONNECTED": "ESTABLISHED"
+      "CONNECTED": "ESTABLISHED",
+      "BLOCKED": "ESTABLISHED"
     },
     "sets": {
       "keepidle": {

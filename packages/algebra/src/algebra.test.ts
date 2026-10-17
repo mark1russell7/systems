@@ -548,3 +548,46 @@ describe("what a failure delivers, the errno it sets, and the durations it chang
     expect(timerUnder(SOCKET, "retransmit", values, each, 5).duration).toEqual(s(0.204));
   });
 });
+
+describe("a knob that turns its timers off (0.7.0)", () => {
+  // a server that closes an idle client after its timeout, where 0 closes no client
+  const IDLE: Machine = {
+    format: "mark1russell7.machine/1",
+    id: "idle-server",
+    title: "A server with an idle timeout",
+    layer: "server",
+    version: "1",
+    conditions: {},
+    sources: [{ ref: "this test", rung: "documented" }],
+    states: { OPEN: { initial: true }, GONE: {} },
+    events: { "timer.idle": { kind: "timer" } },
+    knobs: { timeout: { key: "timeout", scope: "server", unit: "s", default: 0, off: 0 } },
+    timers: {
+      idle: {
+        duration: { knob: "timeout", unit: "s" },
+        lateness: { expr: "timeout / 10", unit: "s" },
+        arms: ["enter:OPEN"],
+        fires: "timer.idle",
+      },
+    },
+    transitions: [{ id: "close", from: "OPEN", to: "GONE", on: "timer.idle" }],
+  };
+  const secs = (value: number) => ({ value, unit: "s" });
+
+  it("gives a timer that reads the knob at its off value no bound, in each expression", () => {
+    expect(timerOf(IDLE, "idle", given({ timeout: secs(0) }))).toMatchObject({
+      duration: { value: "infinite" },
+      lateness: { value: "infinite" },
+    });
+    // the off value in another unit is the same value
+    expect(timerOf(IDLE, "idle", given({ timeout: { value: 0, unit: "ms" } })).duration).toMatchObject({
+      value: "infinite",
+    });
+    // any other value is a time
+    expect(timerOf(IDLE, "idle", given({ timeout: secs(5) }))).toMatchObject({
+      duration: secs(5),
+      lateness: secs(0.5),
+    });
+    expect(machineProblems(IDLE)).toEqual([]);
+  });
+});

@@ -202,6 +202,7 @@
       "scope": "socket",
       "unit": "ms",
       "default": 0,
+      "off": 0,
       "note": "0 = off"
     },
     "tcp_fin_timeout": {

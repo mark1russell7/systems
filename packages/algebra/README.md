@@ -10,6 +10,7 @@ A machine document has the format `mark1russell7.machine/1`, and `machineSchema`
 - **Timers.** A timer has a duration, the events that arm it, the events that cancel it, and the event that it fires. It can also have a lateness and an early bound.
 - **Durations.** A duration is a constant, a knob, arithmetic over knobs (`+ - * /`, `min`, `max`, `floor`, `ceil`, `pow`), or a named model. `pow` takes a whole exponent, for example the `fired` of a backoff with a multiplier of 1.5.
 - **Knobs.** Each knob has its key in its system, its scope, its unit and its default. A switch or a choice has the unit `null`.
+  - A knob can give the value that turns its timers off (`off`). Redis's `timeout` 0 closes no client, and `TCP_USER_TIMEOUT` 0 is no timeout. A time that reads the knob at that value has no bound, in each expression. Thus a caller gives the value of the system, and the algebra reads its meaning.
 - **Backoff timers.** A backoff timer starts again after it fires, and each wait is longer than the last. Its waits read `fired`: the number of times that it fired after a reset.
 - **Layers.** A machine can operate on another machine (`over`): a driver on its kernel socket. Each state of the upper machine is on a state of the lower machine. Some knobs of the upper machine set knobs of the lower machine. The end of the lower machine arrives as an event of the upper machine.
 - **Realizations.** A machine can give the time of a mechanism (`realizes`): one of its timers, or a time of its own over its knobs.
