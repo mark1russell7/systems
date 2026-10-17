@@ -131,11 +131,11 @@ jobs:
           t.sort()
           print(f"median {t[100]:.2f} ms, max {t[-1]:.2f} ms of 200 listings")'
           }
-          before="$(cat /sys/module/nf_conntrack/parameters/hashsize)"
+          before="$(sudo cat /sys/module/nf_conntrack/parameters/hashsize)"
           slow="$(listing)"
           echo 16384 | sudo tee /sys/module/nf_conntrack/parameters/hashsize >/dev/null
           {
-            echo "conntrack buckets: $before, then $(cat /sys/module/nf_conntrack/parameters/hashsize)"
+            echo "conntrack buckets: $before, then $(sudo cat /sys/module/nf_conntrack/parameters/hashsize)"
             echo "conntrack listing at $before buckets: $slow"
             echo "conntrack listing at 16384 buckets: $(listing)"
           } | tee -a "$RUNNER_TEMP/kindcells/runner.txt"
