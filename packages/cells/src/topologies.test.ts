@@ -101,9 +101,10 @@ describe("the catalogs of the topologies", () => {
       high: near(2.001 + ms(down) / 1000),
     });
     expect(band(TOX_CELLS, "TOX client idle, toxic timeout 0 downstream")).toBe("silent");
+    // a toxic on a live connection gets no linger: its close is FINs, one crossing each way
     expect(band(TOX_CELLS, "TOX client in flight, toxic reset_peer 0 upstream on a live connection")).toMatchObject({
-      errno: "ECONNRESET",
-      high: near(0.001 + ms(up) / 1000),
+      errno: "EOF",
+      high: near(0.001 + (ms(up) + ms(down)) / 1000),
     });
     expect(band(TOX_CELLS, "TOX client in flight, toxic limit_data 1000 bytes downstream, a 500000-byte reply")).toMatchObject({
       high: near(0.001 + (ms(up) + ms(down)) / 1000),
