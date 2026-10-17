@@ -264,14 +264,16 @@ describe("the algebra's first closed forms", () => {
         given({ tcp_keepalive: { value: 300, unit: "s" }, ...HZ }),
       )?.lateness,
     ).toEqual({ value: 16.384, unit: "s" });
-    // a whole timer is the timer: Redis closes an idle client after `timeout`, never by default
+    // a whole timer is the timer: Redis closes an idle client after `timeout`, never by default.
+    // clientsCron counts whole seconds and runs at each serverCron tick, thus the close comes up to
+    // 1 s and one tick late: 1.1 s at the default hz of 10
     expect(
       realizationOf(
         redis,
         "systems.mechanism.server-idle-close",
-        given({ timeout: { value: "infinite", unit: "s" } }),
+        given({ timeout: { value: "infinite", unit: "s" }, redis_hz: { value: 10, unit: "Hz" } }),
       ),
-    ).toEqual({ duration: { value: "infinite", unit: "s" } });
+    ).toEqual({ duration: { value: "infinite", unit: "s" }, lateness: { value: 1.1, unit: "s" } });
     expect(realizationKnobs(redis, "systems.mechanism.idle-refresh-interval")).toEqual([
       "tcp_keepalive",
       "hz",

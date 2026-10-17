@@ -470,6 +470,10 @@ const knobIn = (
   if ("unknown" in given) return unknown(`${name}: ${given.unknown}`);
   if (given.value === "infinite") return INFINITE;
   const value = r.fromNumber(given.value);
+  // a knob at its off value turns its timers off: a time that reads it has no bound
+  const { off, unit: own } = doc.knobs[name]!;
+  if (off !== undefined && own !== null && r.toNumber(convertExact(value, given.unit, own)) === off)
+    return INFINITE;
   return exact(
     unit === null
       ? convertExact(value, given.unit, given.unit)

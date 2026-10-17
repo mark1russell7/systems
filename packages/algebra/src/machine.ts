@@ -145,6 +145,8 @@ export interface Machine {
         readonly scope: string;
         readonly unit: Unit | null;
         readonly default: number | null;
+        /** This value turns the knob's timers off: a time that reads the knob at it has no bound. */
+        readonly off?: number | undefined;
         readonly note?: string | undefined;
       }
     >
@@ -284,6 +286,11 @@ export const machineSchema: z.ZodType<Machine> = z.strictObject({
       /** The unit is null for a switch or a choice (nf_conntrack_tcp_loose), whose default is its code. */
       unit: knobUnit.nullable(),
       default: z.number().nullable(),
+      /**
+       * This value turns the knob's timers off, in the unit of the knob: Redis's timeout 0 closes no
+       * client. A time that reads the knob at that value has no bound, in each expression.
+       */
+      off: z.number().optional(),
       note: z.string().optional(),
     }),
   ),

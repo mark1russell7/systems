@@ -81,7 +81,7 @@ export const NODE_HTTP_SERVER: Machine = machineSchema.parse({
       key: "node http.Server keepAliveTimeout",
       scope: "server",
       unit: "ms",
-      default: 5000,
+      default: 5000, off: 0,
       note: "0 disables the keep-alive timer and the hint: a reader gives the timer no bound",
     },
     keepAliveTimeoutBuffer: {
@@ -103,7 +103,7 @@ export const NODE_HTTP_SERVER: Machine = machineSchema.parse({
       key: "node http.Server timeout",
       scope: "server",
       unit: "ms",
-      default: 0,
+      default: 0, off: 0,
       note: "the socket timeout while a request is open (lib/_http_server.js:1303); 0 is off",
     },
     maxRequestsPerSocket: {
