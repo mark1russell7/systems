@@ -415,9 +415,10 @@ export const predictWsAt = (spec: WsSpec, rttMs: number): Prediction => {
       ...band,
       ...reconnects,
     };
-  // a timer of the program itself: the heartbeat drops the connection by itself
+  // a timer of the program itself: the heartbeat drops the connection by itself. The client process
+  // ends at the end of the run, and the kernel closes its sockets then: that close is not the drop
   const drop = !server && spec.client.socket === "global" ? "frame" : "close";
-  return { detects: true, timer, errno: "DROPPED", from: "ping-sent", ...band, ...reconnects, drop };
+  return { detects: true, timer, errno: "DROPPED", from: "ping-sent", ...band, ...reconnects, drop, ...(server ? {} : { exits: true as const }) };
 };
 
 /** This function gives the prediction of a cell, with the range of first round trips that its band assumes. */
