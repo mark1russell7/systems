@@ -25,7 +25,7 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 
 | Export | Identifier | System and version | Layer | Sources, by rung |
 | --- | --- | --- | --- | --- |
-| `LINUX_TCP` | `linux-tcp` | TCP of Linux 6.6, for kernels from 6.6 to 6.9 | kernel | 3 normative, 5 implemented |
+| `LINUX_TCP` | `linux-tcp` | TCP of Linux 6.6, for kernels from 6.6 to 6.9 | kernel | 4 normative, 7 implemented |
 | `NF_CONNTRACK_TCP` | `nf-conntrack-tcp` | The TCP state machine of conntrack on Linux 6.6.87.2 | middlebox | 4 implemented |
 | `REDIS_CLIENT` | `redis-client` | One client connection of the Redis 8.10.2 server | server | 3 implemented, 1 documented |
 | `IOREDIS_STATUS` | `ioredis-status` | The connection status of ioredis 6.0.0, standalone | driver | 5 implemented |
@@ -87,8 +87,16 @@ A change to the version of a system changes its sources too. Each fact of the do
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
 
+### 0.3.0
+
+- **`linux-tcp`: the delayed ACK.** The timer `delayed_ack` arms on each segment of data (`rx.data`), and each segment that goes out stops it. It waits from `TCP_DELACK_MIN` (HZ/25) up to the smoothed round trip, and `TCP_DELACK_MAX` (HZ/5) at most. The models are `linux.delack` and `linux.delack-lateness` of the algebra 0.7.1.
+  - The document realizes the ack delay (`systems.mechanism.ack-delay`): from at once to that wait. The kernel acknowledges at once in quick-ACK mode. Thus a client that sends one request acknowledges its reply at once, and a client of many requests waits.
+  - The sources are `include/net/tcp.h`, `net/ipv4/tcp_output.c`, `net/ipv4/tcp_input.c` and `net/ipv4/tcp.c` of Linux 6.6, and RFC 1122 §4.2.3.2.
+  - One prediction of the snapshot moves. The WST cell `router silent-drop` loses its bound on the round trip, 405 ms. The cap of 200 ms keeps the forget of the router before the first ping at each round trip.
+
 ### 0.2.0
 
+- **The MongoDB documents realize the mechanisms of a reader.** In `mongod-replication`, the heartbeat window is the heartbeat detection time, and the liveness check is the step-down window. In `mongodb-node`, the selection timeout is the client retry window.
 - **`redis-client`.** A blocking command holds its client in the state `BLOCKED`. The timer `blocked` gives its reply at its timeout, up to one serverCron tick and 1 ms late. The idle timer arms on the entry to `CONNECTED` and on each read, and it closes the client up to 1 s and one tick late. In 0.1.0 it armed on `accept` only, thus it did not fire at any time.
   - The knob `redis_hz` gives the tick. The sources are `src/timeout.c`, `src/blocked.c`, `src/ae.c` and `src/server.c` of Redis 8.10.2.
 - **`off`.** Eight knobs give the value that turns their timers off, each 0. They are `tcp_user_timeout`, Redis's `timeout` and `blocking_timeout`, and two timeouts of Node's server. The MongoDB driver adds `connectTimeoutMS`, `socketTimeoutMS` and `waitQueueTimeoutMS`. Each catalog prediction stays the same.

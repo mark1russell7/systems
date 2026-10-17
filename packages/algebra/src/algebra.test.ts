@@ -265,6 +265,25 @@ describe("the closed forms of the models", () => {
     expect(timerOf(SOCKET, "retrans_giveup", far).lateness).toEqual(s(14.944));
   });
 
+  it("bounds the delayed ACK by the round trip, from HZ/25 to HZ/5, and rounds it on the wheel", () => {
+    const delack = (rtt: number, hz: number) => {
+      const values = given({ rtt: { value: rtt, unit: "ms" }, hz: { value: hz, unit: "Hz" } });
+      return {
+        wait: evaluate(SOCKET, model("linux.delack", ["rtt", "hz"]), values),
+        late: evaluate(SOCKET, model("linux.delack-lateness", ["rtt", "hz"]), values),
+      };
+    };
+    // a fast path: TCP_DELACK_MIN, 40 ms at each HZ, at most one jiffy late on the wheel's level 0
+    expect(delack(0.1, 1000)).toEqual({ wait: s(0.04), late: s(0.001) });
+    expect(delack(0.1, 250)).toEqual({ wait: s(0.04), late: s(0.004) });
+    // a round trip of 100 ms bounds it at 100 ms, which waits on the 8 ms level at HZ 1000
+    expect(delack(100, 1000)).toEqual({ wait: s(0.1), late: s(0.008) });
+    // TCP_DELACK_MAX caps it at 200 ms
+    expect(delack(350, 1000)).toEqual({ wait: s(0.2), late: s(0.008) });
+    // the round trip counts in whole jiffies, rounded up: 41.5 ms is 11 jiffies at HZ 250
+    expect(delack(41.5, 250).wait).toEqual(s(0.044));
+  });
+
   it("reads a server's own arithmetic in its own units, over the socket below it", () => {
     // the server's keepalive is the socket's: idle is tcp_keepalive, the interval a third of it in
     // whole seconds, and three probes, so 300 + 3 × 100 = 600 s
