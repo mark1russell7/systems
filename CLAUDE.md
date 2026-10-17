@@ -11,6 +11,12 @@ This repository is the home of the systems program. It holds the site, at `mark1
 - Push and deploy this repository without a question to Mark. Mark gave this permission on 2026-10-08.
 - Do not publish a file that names a machine, a user, a path of the machine or an employer.
 
+## The roadmap
+
+- `docs/ROADMAP.md` is the source of truth for the work of the program.
+- The live tracker shows the same items: https://claude.ai/artifact/K5axzRghLLj9k7Xggi3j2V (collection `items`).
+- Change the file and the tracker together. Keep the tracker current as each item starts, ships or changes.
+
 ## Writing style
 
 Write all prose of this repository in the style of ASD-STE100 Simplified Technical English (STE). This prose is the README files, this file, the TSDoc comments and the text that the site shows. The linter [`ste-lint`](https://github.com/mark1russell7/ste-lint) examines it.
