@@ -34,7 +34,7 @@ import type { ManifestationName } from "./manifestations.ts";
 import { MANIFESTATIONS } from "./manifestations.ts";
 import { assuming } from "./rtt.ts";
 import type { O03Verdict } from "./topologies.ts";
-import { LISTING, ROUTER_PUMP, o03, router } from "./topologies.ts";
+import { LISTING, ROUTER_PUMP, ackDelay, o03, router } from "./topologies.ts";
 
 /** This time is the idle timeout of the router, nf_conntrack_tcp_timeout_established: 5 s, a cloud NAT's 350 s scaled by 70. */
 export const IDLE = 5;
@@ -140,6 +140,17 @@ const forgetBand = (): { low: ReturnType<typeof q>; high: ReturnType<typeof q> }
   band(timerOf(NF_CONNTRACK_TCP, "expire_established", routerValues), "expire_established");
 
 /**
+ * This band is when the router forgets an idle flow, from the last data that the observer received.
+ * The last segment of the flow is the ACK of the last reply, thus its delay comes first (`ackDelay`).
+ * A client of one request acknowledges at once, and the band starts at the forget itself.
+ */
+const idleForgetBand = (rttMs: number): { low: ReturnType<typeof q>; high: ReturnType<typeof q> } => {
+  const forget = forgetBand();
+  const ack = ackDelay(rttMs);
+  return { low: q(valueIn(forget.low, "s") + ack.lo), high: q(valueIn(forget.high, "s") + ack.hi) };
+};
+
+/**
  * This function tells if the socket of the observer of a spec has keepalive on. The client sets
  * SO_KEEPALIVE only when the spec gives it a keepalive idle time. Redis sets it on each client
  * when its tcp-keepalive is more than 0.
@@ -177,7 +188,7 @@ export const predictT03 = (spec: T03Spec): Prediction => assuming((rtt) => predi
 const predictT03At = (spec: T03Spec, rttMs: number): Prediction => {
   const rtt = rttMs / 1000;
   const verdict = o03Of(spec, rttMs);
-  const forget = forgetBand();
+  const forget = idleForgetBand(rttMs);
   if (spec.mode === "inflight") {
     // the request goes after the latest forget: it meets a router that forgot the flow
     if (!(IDLE_BEFORE > valueIn(forget.high, "s") + verdict.margin))
@@ -473,7 +484,7 @@ const predictFaultAt = (spec: T03FaultSpec, rttMs: number): Prediction => {
     return { detects: true, timer: "rx.rst", errno: resetErrno(), from: "request-sent", low: q(0), high: q(rtt) };
   if (spec.forgets === true && spec.form === "reset-both") {
     if (spec.mode === "idle")
-      return { detects: true, timer: "expire_established", errno: resetErrno(), from: "last-received", ...forgetBand() };
+      return { detects: true, timer: "expire_established", errno: resetErrno(), from: "last-received", ...idleForgetBand(rttMs) };
     const forget = forgetInFlight(spec, rttMs);
     const giveUp = predictAt(asDirect(spec), rttMs);
     if (giveUp.detects !== true || valueIn(giveUp.low, "s") <= forget.high)

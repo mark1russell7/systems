@@ -117,6 +117,27 @@ export const O03: Rule = {
   },
 };
 
+/** This is the mechanism of the corpus that the delay of an ACK is. */
+export const ACK_DELAY = "systems.mechanism.ack-delay";
+
+/**
+ * This function gives the delay of the ACK of the last data of a flow, in seconds, from the document
+ * of Linux TCP. That ACK is the last segment of an idle flow, thus the idle time of a router counts
+ * from it. The kernel acknowledges at once in quick-ACK mode. Else its delayed-ACK timer sends the
+ * ACK after max(TCP_DELACK_MIN, srtt) at most, 40 ms on a fast path, rounded on the wheel.
+ */
+export const ackDelay = (rttMs: number): { readonly lo: number; readonly hi: number } => {
+  const values: KnobValues = (name) =>
+    name === "rtt" ? { value: rttMs, unit: "ms" } : name === "hz" ? { value: HZ, unit: "Hz" } : undefined;
+  const bounds = realizationOf(LINUX_TCP, ACK_DELAY, values);
+  if (bounds === undefined) throw new Error(`${LINUX_TCP.title} does not realize ${ACK_DELAY}`);
+  const duration = seconds(bounds.duration, "the ack delay");
+  return {
+    lo: duration - seconds(bounds.early, "the early bound of the ack delay"),
+    hi: duration + seconds(bounds.lateness, "the lateness of the ack delay"),
+  };
+};
+
 /** This function gives the number of seconds of a time of the algebra, or of no bound. */
 const secondsOrInfinite = (extent: Extent | Unknown | undefined, what: string): number | "inf" => {
   // a knob that nothing sets is no bound: a keepalive that is off never refreshes the flow
