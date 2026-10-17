@@ -89,8 +89,8 @@ const clientsOf = () => {
 /**
  * the counters of dropped packets, by name. For the node: the drops of the backlogs and the squeezes
  * of the softirqs (the kernel, all CPUs), and the drops of each veth. For each client pod, through
- * /proc/<pid>/net: the IP discards and the sends with no route, the failed connects, the drops of
- * each interface, and the neighbors with no address yet
+ * /proc/<pid>/net: the IP discards and the sends with no route, the failed connects, the ICMP
+ * errors of an unreachable destination, the drops of each interface, and the neighbors with no address yet
  */
 const countersOf = () => {
   const values = {};
@@ -125,6 +125,8 @@ const countersOf = () => {
     values[`client.${pid}.ip-out-discards`] = ip["OutDiscards"] ?? 0;
     values[`client.${pid}.ip-out-no-routes`] = ip["OutNoRoutes"] ?? 0;
     values[`client.${pid}.tcp-attempt-fails`] = tcp["AttemptFails"] ?? 0;
+    // a refused connect is a reset, or an ICMP error such as the port unreachable of a reject rule
+    values[`client.${pid}.icmp-in-unreachable`] = snmpOf(snmp, "Icmp")["InDestUnreachs"] ?? 0;
     for (const [name, drops] of Object.entries(devOf(own))) {
       if (name === "lo") continue;
       values[`client.${pid}.${name}.rx-drops`] = drops.rx;
