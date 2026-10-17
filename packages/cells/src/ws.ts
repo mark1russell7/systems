@@ -107,7 +107,7 @@ export const RECONNECT = { initialDelay: 500, multiplier: 2, maxDelay: 4000, att
  */
 export const CLIENT: WsClientSettings = { socket: "global", heartbeat: HEARTBEAT, reconnect: RECONNECT, requestTimeout: 60_000, connectionTimeout: 10_000 };
 /** This client has no heartbeat and no reconnect: a cell on the server side, where the client must stay. */
-const SILENT_CLIENT: WsClientSettings = { ...CLIENT, heartbeat: null, reconnect: null };
+export const SILENT_CLIENT: WsClientSettings = { ...CLIENT, heartbeat: null, reconnect: null };
 /** This server has no heartbeat: the cells of the client meet no ping of the server. */
 export const QUIET_SERVER: WsServerSettings = { heartbeat: null };
 /**

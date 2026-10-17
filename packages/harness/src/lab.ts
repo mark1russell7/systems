@@ -101,7 +101,7 @@ const MONGO: Image = {
   dockerfile: "harness/image/mongo/Dockerfile",
   from: ["harness/image/mongo"],
 };
-/** This image holds `@procedures/client` 0.3.0 on Node 24.21.0: its WebSocket client as a client of the harness, and the script of its server. */
+/** This image holds `@procedures/client` 0.7.0 on Node 24.21.0: its WebSocket client as a client of the harness, and the script of its server. */
 const PROCEDURES: Image = {
   name: "loom-harness-procedures",
   dockerfile: "harness/image/procedures/Dockerfile",

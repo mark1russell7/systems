@@ -574,8 +574,11 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
   // a drop by the program of the observer on its own timer: its `drop` line, at the kernel's stamp
   // of its close frame or its close. It counts when it comes before each report of the kernel
   const lines = programLines(cell, run);
+  // a line of the client names the connection by its local address, and a line of a server by its
+  // peer. That peer is the peer of the socket of the server: the last hop of a topology
+  const named = server ? (socket.find((record) => record.dst !== undefined)?.dst ?? local) : local;
   const kernelEnded = reported?.mono ?? closeWait?.mono ?? own?.mono ?? seen?.t;
-  const first = dropOf(lines, socket, local, noiseOf(cell));
+  const first = dropOf(lines, socket, named, noiseOf(cell));
   const drop = first !== undefined && (kernelEnded === undefined || first.at <= kernelEnded) ? first : undefined;
   const dropped = drop !== undefined;
   const outcome: Outcome = dropped
@@ -594,7 +597,7 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     reported !== undefined && seen !== undefined && !dropped ? between(reported.mono, seen.t) : null;
   const { prediction } = cell;
   // the pings of a heartbeat of the program, at the kernel's stamps of their writes
-  const pings = pingsOf(lines, socket, local, noiseOf(cell));
+  const pings = pingsOf(lines, socket, named, noiseOf(cell));
   // keepalive counts from the last segment received before the fault. The budget of the give-up
   // counts from the first retransmission of the RTO timer, not from the tail loss probe before it.
   // A reset counts from the send of the client. The kernel has no record of that send, thus the

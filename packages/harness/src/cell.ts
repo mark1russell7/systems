@@ -1,5 +1,6 @@
 import type { KernelRecord } from "@mark1russell7/prober";
 import type { Quantity } from "@mark1russell7/quantity";
+import { valueIn } from "@mark1russell7/quantity";
 
 export type { KernelRecord };
 
@@ -505,6 +506,12 @@ export type Prediction =
       readonly low: Quantity;
       /** This time is the closed form, plus the most that the timer can fire late, plus each proxy time. */
       readonly high: Quantity;
+      /**
+       * This time is the latest reference of the band after the reply of the client. It is for a
+       * reference that can come late, for example the first ping without an answer of a server
+       * heartbeat. The run then waits that much longer for the detection.
+       */
+      readonly startsBy?: Quantity;
       readonly rtt?: RttRange;
       readonly through?: readonly ProxyTime[];
       readonly group?: GroupPrediction;
@@ -849,6 +856,13 @@ export type FaultPlace = "target" | "client" | HopPlace | GroupPlace;
 /** This function tells if a fault place is a hop of a topology. */
 export const isHopPlace = (place: FaultPlace | undefined): place is HopPlace =>
   typeof place === "object" && "hop" in place;
+
+/**
+ * This function gives the latest end of a band in seconds, from the reply of the client. It is
+ * the high bound, after the latest reference of the band (`startsBy`).
+ */
+export const latestEndOf = (prediction: Extract<Prediction, { readonly detects: true }>): number =>
+  valueIn(prediction.high, "s") + (prediction.startsBy === undefined ? 0 : valueIn(prediction.startsBy, "s"));
 
 /** A middlebox event is one line of the router: a change of a conntrack entry, or a reset that it sent. `t` is CLOCK_MONOTONIC in nanoseconds. */
 export interface MiddleboxEvent {

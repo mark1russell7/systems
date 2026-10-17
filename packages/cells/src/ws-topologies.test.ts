@@ -1,10 +1,11 @@
 import { realizationOf, timerOf } from "@mark1russell7/algebra";
-import { PROCEDURES_WS_CLIENT, nodeEarlySeconds, nodeLateSeconds } from "@mark1russell7/machines";
+import { latestEndOf } from "@mark1russell7/harness";
+import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER, nodeEarlySeconds, nodeLateSeconds } from "@mark1russell7/machines";
 import { describe, expect, it } from "vitest";
 import { HZ } from "./catalog.ts";
 import { T02_CELLS } from "./t02.ts";
-import { clientValues, CLIENT } from "./ws.ts";
-import { FIRST_REPLY, WST_CELLS, WST_SPECS, forgetOf, o03Ws } from "./ws-topologies.ts";
+import { clientValues, CLIENT, SILENT_CLIENT, serverValues } from "./ws.ts";
+import { FIRST_REPLY, WST_CELLS, WST_SPECS, beatOf, forgetOf, o03Server, o03Ws, o03Wst, predictWstAt } from "./ws-topologies.ts";
 
 const round = (value: number) => Math.round(value * 1e9) / 1e9;
 const cell = (name: string) => {
@@ -36,7 +37,9 @@ describe("the WST catalog", () => {
       expect(each.topology?.hops, each.name).toHaveLength(1);
       expect(each.concurrency, each.name).toBe(1);
       expect(each.probe).toMatchObject({ mode: "idle", keepalive: false });
-      expect(each.sysctls, each.name).toMatchObject({ "net.ipv4.tcp_retries2": "8" });
+      // the namespace of the observer gets the knobs of Linux TCP: the client, or the server
+      const namespace = each.observer === "server" ? each.targetSysctls : each.sysctls;
+      expect(namespace, each.name).toMatchObject({ "net.ipv4.tcp_retries2": "8" });
       const p = each.prediction;
       if (p.detects === null) expect(p.why.length, each.name).toBeGreaterThan(20);
       if (p.detects === true) expect(p.high.value, each.name).toBeGreaterThanOrEqual(p.low.value);
@@ -115,5 +118,117 @@ describe("the WST catalog", () => {
       expect(cell(name).faultAt).toEqual({ hop: "haproxy", toward });
       expect(waits(name), name).toEqual([nodeBand(0.5)]);
     }
+  });
+
+  it("gives each cell of the global WebSocket a twin with the ws class: the same bands, and a close at the drop", () => {
+    const globals = WST_CELLS.filter((each) => each.observer === undefined && each.probe.ws?.socket === "global");
+    const twins = WST_CELLS.filter((each) => each.probe.ws?.socket === "ws");
+    expect(globals).toHaveLength(9);
+    expect(twins).toHaveLength(globals.length);
+    for (const each of globals) {
+      const twin = cell(`${each.name.slice("WST ".length)}, the ws class`);
+      expect(twin.topology, twin.name).toEqual(each.topology);
+      expect(twin.fault, twin.name).toBe(each.fault);
+      expect(twin.faultAt, twin.name).toEqual(each.faultAt);
+      expect(twin.probe.ws, twin.name).toEqual({ ...each.probe.ws, socket: "ws" });
+      // terminate() ends the socket of ws at once, where the global WebSocket writes a close frame
+      const p = each.prediction;
+      expect(twin.prediction, twin.name).toEqual(p.detects === true && p.drop !== undefined ? { ...p, drop: "close" } : p);
+    }
+    const [low, high] = nodeBand(1);
+    for (const name of [
+      "client idle, router silent-drop at 5 s, heartbeat 6 s and 1 s, the ws class",
+      "client idle, blackhole at HAProxy toward the client, heartbeat 2 s and 1 s, the ws class",
+      "client idle, blackhole at HAProxy toward the target, heartbeat 2 s and 1 s, the ws class",
+    ])
+      expect(band(name), name).toEqual({ timer: "pong", errno: "DROPPED", from: "ping-sent", low, high, drop: "close" });
+  });
+
+  it("lets only the heartbeat refresh a flow of the ws class: the ws package sets no keepalive", () => {
+    const ws = { ...heartbeat(4000), socket: "ws" as const };
+    expect(o03Ws(ws)).toEqual(o03Ws(heartbeat(4000)));
+    expect(o03Ws({ ...heartbeat(6000), socket: "ws" })).toMatchObject({ holds: false, refresh: round(6 + nodeLateSeconds(6, HZ)) });
+    expect(band("client idle, router reset-both at 5 s, heartbeat 4 s and 1 s, the ws class")).toEqual({ silent: 15 });
+  });
+
+  it("lets a beat of the server refresh the flow: its heartbeat timer at one miss, 4 s holds and 6 s does not", () => {
+    const below = { heartbeat: { interval: 4000, misses: 2 } };
+    const above = { heartbeat: { interval: 6000, misses: 2 } };
+    expect(beatOf(below)).toEqual(timerOf(PROCEDURES_WS_SERVER, "heartbeat", serverValues({ heartbeat: { interval: 4000, misses: 1 } })));
+    expect(o03Server(below)).toEqual({ holds: true, refresh: round(4 + nodeLateSeconds(4, HZ)), forget: 5, margin: round(0.001 + 1 / HZ) });
+    expect(o03Server(above)).toMatchObject({ holds: false, refresh: round(6 + nodeLateSeconds(6, HZ)) });
+    expect(o03Server({ heartbeat: null })).toBeUndefined();
+    // a client without a heartbeat refreshes at the keepalive of undici, 60 s: the beat of the server decides
+    const spec = { name: "o03", hop: { kind: "router", form: "reset-both" }, fault: "middlebox-forget", client: SILENT_CLIENT } as const;
+    expect(o03Wst({ ...spec, server: below })).toEqual(o03Server(below));
+    expect(o03Wst(spec)).toEqual(o03Ws(SILENT_CLIENT));
+  });
+
+  it("predicts what the server sees when the router forgets the flow before its next beat, from its first ping without an answer", () => {
+    expect(band("server idle, router reset-both at 5 s, server heartbeat 4 s and 2 misses")).toEqual({ silent: 15 });
+    // reset-next drops a ping from outside: the heartbeat drops the connection two beats after it
+    expect(band("server idle, router reset-next at 5 s, server heartbeat 6 s and 2 misses")).toEqual({
+      timer: "heartbeat",
+      errno: "DROPPED",
+      from: "ping-sent",
+      low: round(12 - 2 * nodeEarlySeconds(HZ)),
+      high: round(12 + 2 * nodeLateSeconds(6, HZ)),
+      drop: "close",
+    });
+    // none answers the ping with a reset from the stack of the router, in one round trip
+    expect(band("server idle, router none at 5 s, server heartbeat 6 s and 2 misses")).toEqual({
+      timer: "rx.rst",
+      errno: "ECONNRESET",
+      from: "ping-sent",
+      low: 0,
+      high: 0.001,
+    });
+    // the next beat comes after the latest forget after the pong of the beat before it
+    expect(6 - nodeEarlySeconds(HZ)).toBeGreaterThan(forgetOf(1).hi + 0.001);
+    // a beat before the forget refreshes the flow: the first ping without an answer comes at most a
+    // forget and a beat after the reply, and the run waits for it, past the 10 s of a short band
+    for (const name of ["server idle, router reset-next at 5 s, server heartbeat 6 s and 2 misses", "server idle, router none at 5 s, server heartbeat 6 s and 2 misses"]) {
+      const p = cell(name).prediction;
+      expect(p.detects === true ? p.startsBy?.value : undefined, name).toBeCloseTo(forgetOf(1).hi + 6 + nodeLateSeconds(6, HZ) + 0.001, 9);
+      // the latest detection: the latest first ping without an answer, then the band
+      expect(p.detects === true ? latestEndOf(p) : 0, name).toBeCloseTo((p.detects === true ? p.high.value : 0) + forgetOf(1).hi + 6 + nodeLateSeconds(6, HZ) + 0.001, 9);
+    }
+    expect(cell("server idle, router reset-both at 5 s, server heartbeat 4 s and 2 misses").prediction).not.toHaveProperty("startsBy");
+    for (const name of [
+      "server idle, router reset-both at 5 s, server heartbeat 4 s and 2 misses",
+      "server idle, router reset-next at 5 s, server heartbeat 6 s and 2 misses",
+      "server idle, router none at 5 s, server heartbeat 6 s and 2 misses",
+    ]) {
+      const each = cell(name);
+      expect(each, name).toMatchObject({ observer: "server", sysctls: {}, fault: "middlebox-forget" });
+      expect(each.probe.ws, name).toMatchObject({ heartbeat: null, reconnect: null });
+      expect(each.target.command, name).toEqual(expect.arrayContaining(["--heartbeat", "on", "--heartbeat-misses", "2"]));
+      expect(each.prediction, name).not.toHaveProperty("exits");
+      expect(waits(name), name).toEqual([]);
+    }
+    expect(cell("server idle, router none at 5 s, server heartbeat 6 s and 2 misses").target.command).toEqual([
+      "node",
+      "/opt/harness/procedures/server-ws.mjs",
+      "--port",
+      "8080",
+      "--tcp-keepalive",
+      "off",
+      "--heartbeat",
+      "on",
+      "--heartbeat-interval-ms",
+      "6000",
+      "--heartbeat-misses",
+      "2",
+    ]);
+    // a reset of both ends counts from the last segment of the flow: the harness has no such reference after a beat
+    const both = {
+      name: "server, reset-both",
+      hop: { kind: "router", form: "reset-both" },
+      fault: "middlebox-forget",
+      observer: "server",
+      client: SILENT_CLIENT,
+      server: { heartbeat: { interval: 6000, misses: 2 } },
+    } as const;
+    expect(() => predictWstAt(both, 1)).toThrow(/no reference/);
   });
 });

@@ -1,6 +1,6 @@
 import { valueIn } from "@mark1russell7/quantity";
 import type { Cell, FaultPlace, KernelRecord, ProbeEvent, Run } from "./cell.ts";
-import { isHopPlace } from "./cell.ts";
+import { isHopPlace, latestEndOf } from "./cell.ts";
 import { longestOf, settled as driverSettled } from "./driver.ts";
 import { groupOnce, openGroupLab } from "./group.ts";
 import type { FaultOptions, Lab, Manifest, Probe } from "./lab.ts";
@@ -52,7 +52,7 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
     (prediction.detects === true && prediction.driver !== undefined
       ? longestOf(cell)
       : prediction.detects
-        ? valueIn(prediction.high, "s")
+        ? latestEndOf(prediction)
         : valueIn(prediction.window, "s")) + (cell.idleBefore === undefined ? 0 : valueIn(cell.idleBefore, "s"));
   const args = [lab.targetIp, String(lab.targetPort), "--mode", probe.mode];
   if (probe.ws !== undefined) {
@@ -522,7 +522,8 @@ const once = async (
           const window = valueIn(prediction.window, "s") * 1_000;
           await probe.until(["done", "error", "eof", "deadline"], window).catch(() => undefined);
         } else if (prediction.detects) {
-          const within = valueIn(prediction.high, "s") * 2_000 + 10_000;
+          // a band whose reference can come late ends later: the run waits for its latest end
+          const within = latestEndOf(prediction) * 2_000 + 10_000;
           if (cell.observer !== undefined && cell.observer !== "client") {
             // a target with its own detector writes a drop line when it drops the connection itself
             await observerError(cell, partial, within, () => lab.server.slice(serverFrom).some((line) => line.ev === "drop"));

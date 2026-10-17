@@ -53,7 +53,7 @@ export type {
   Toxic,
   WsProbe,
 } from "./cell.ts";
-export { isHopPlace } from "./cell.ts";
+export { isHopPlace, latestEndOf } from "./cell.ts";
 export type { CallReading, ProgramEvent, ReconnectReading } from "./application.ts";
 export {
   callOf,

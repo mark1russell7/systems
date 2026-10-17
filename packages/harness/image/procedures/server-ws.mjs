@@ -1,6 +1,6 @@
 // server-ws --port N --tcp-keepalive off|N --heartbeat off|on [--heartbeat-interval-ms N --heartbeat-misses N]
 //
-// A cell's target: the procedures server of @procedures/client 0.3.0 (Server and
+// A cell's target: the procedures server of @procedures/client 0.7.0 (Server and
 // WebSocketServerTransport) on the http.Server of Node 24.21.0, at the path /ws. It has two
 // procedures: `harness.echo` answers at once, and `harness.hold` answers after `ms` milliseconds
 // (a held reply, as BLPOP is for Redis).
@@ -10,7 +10,9 @@
 //
 // --heartbeat is the heartbeat of the server (roadmap R3): a WebSocket ping to each connection at
 // each interval, and terminate() for a connection that missed `misses` pongs. Each setting is a
-// flag, and the server has no default. 0.3.0 takes each time as a duration, not a number.
+// flag, and the server has no default. 0.7.0 takes each time as a duration, not a number. One
+// setInterval of the transport, from its start, beats for all connections: the first ping of a
+// connection comes at the next beat after its accept (transport.js:94-112, :147-151).
 //
 // Each event is a JSON line on the clock of the clients: a connection (`accepted`), a request,
 // a reply, and the close of a connection. The `ws` package does the WebSocket of the server. Its
@@ -87,7 +89,7 @@ httpServer.listen(port, "0.0.0.0", () =>
     port,
     boot_id: bootId(),
     node: process.version,
-    package: "@procedures/client 0.3.0",
+    package: "@procedures/client 0.7.0",
     tcpKeepalive: keepAliveMs,
     heartbeat,
   }),
