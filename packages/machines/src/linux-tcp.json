@@ -40,6 +40,18 @@
     {
       "ref": "net/ipv4/inet_timewait_sock.c:208 the time-wait minisock keeps the socket cookie",
       "rung": "implemented"
+    },
+    {
+      "ref": "RFC 1122 §4.2.3.2 (a delayed ACK: less than 0.5 s, and an ACK for each second full-sized segment)",
+      "rung": "normative"
+    },
+    {
+      "ref": "include/net/tcp.h:133-136 TCP_DELACK_MAX HZ/5, TCP_DELACK_MIN and TCP_ATO_MIN HZ/25; net/ipv4/tcp_output.c:4004-4054 tcp_send_delayed_ack(): ato, bound by the smoothed round trip and icsk_delack_max (net/ipv4/tcp.c:425)",
+      "rung": "implemented"
+    },
+    {
+      "ref": "net/ipv4/tcp_input.c:791-834 tcp_event_data_recv(): the first data starts quick-ACK mode; :326-333 tcp_in_quickack_mode(); :5552-5576 __tcp_ack_snd_check(): an ACK at once or delayed; net/ipv4/tcp_output.c:161-176 tcp_event_data_sent(): ping-pong mode",
+      "rung": "implemented"
     }
   ],
   "states": {
@@ -102,6 +114,10 @@
       "kind": "rx",
       "note": "an ICMP error during connect: fails at once"
     },
+    "rx.data": {
+      "kind": "rx",
+      "note": "a segment with new data arrives in order"
+    },
     "peer.reuse": {
       "kind": "peer",
       "note": "a new SYN on a TIME_WAIT tuple (tcp_tw_reuse, or an acceptable ISN)"
@@ -141,6 +157,10 @@
     },
     "timer.time-wait": {
       "kind": "timer"
+    },
+    "timer.delack": {
+      "kind": "timer",
+      "note": "the delayed-ACK timer fires, and the ACK of the data received goes out alone"
     }
   },
   "knobs": {
@@ -386,6 +406,39 @@
       ],
       "fires": "timer.time-wait",
       "note": "TCP_TIMEWAIT_LEN, compile-time"
+    },
+    "delayed_ack": {
+      "duration": {
+        "model": "linux.delack",
+        "knobs": [
+          "rtt",
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "lateness": {
+        "model": "linux.delack-lateness",
+        "knobs": [
+          "rtt",
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "early": {
+        "model": "linux.jiffy",
+        "knobs": [
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "arms": [
+        "rx.data"
+      ],
+      "cancels": [
+        "tx.data"
+      ],
+      "fires": "timer.delack",
+      "note": "the ACK of data received waits ato: TCP_DELACK_MIN (HZ/25, 40 ms) at least, and above that no longer than the smoothed round trip, to TCP_DELACK_MAX (HZ/5, 200 ms) at most. Each segment that goes out carries the ACK and stops the timer. The kernel does not wait in quick-ACK mode, or with more than one full segment unacknowledged: the ACK goes at once. A socket is in quick-ACK mode after its first data, for up to 16 segments, unless it is in ping-pong mode: it sent data less than ato after its last receive. Thus a client that sends one request acknowledges its reply at once, and a client of many requests waits"
     }
   },
   "realizes": {
@@ -422,6 +475,33 @@
     },
     "systems.mechanism.tcp-fin-timeout": {
       "timer": "fin_wait2"
+    },
+    "systems.mechanism.ack-delay": {
+      "duration": {
+        "model": "linux.delack",
+        "knobs": [
+          "rtt",
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "lateness": {
+        "model": "linux.delack-lateness",
+        "knobs": [
+          "rtt",
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "early": {
+        "model": "linux.delack",
+        "knobs": [
+          "rtt",
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "note": "from the data to its ACK alone: at once in quick-ACK mode, else when the delayed-ACK timer fires, up to its longest wait and the rounding of the wheel. The ACK of the last reply is the last segment of an idle flow, thus a middlebox's idle time counts from it"
     }
   },
   "transitions": [

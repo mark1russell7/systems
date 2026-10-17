@@ -29,6 +29,7 @@ The documents of the systems program are in [`@mark1russell7/machines`](https://
   - `linux.retrans-step`: how late the give-up comes after its budget, at the real RTO of the path.
   - `linux.rto-wait` and `linux.rto-wait-lateness`: one wait of the retransmission timer, from the tail loss probe, and its rounding.
   - `linux.keepalive-lateness`, `linux.wheel` and `linux.jiffy`: the rounding of the timer wheel at the HZ of the kernel.
+  - `linux.delack` and `linux.delack-lateness`: the longest wait of the delayed ACK, and its rounding. The wait is the smoothed round trip in whole jiffies, from `TCP_DELACK_MIN` (HZ/25, 40 ms) to `TCP_DELACK_MAX` (HZ/5, 200 ms).
   - `linux.syn-giveup`: the SYN give-up of 6.5 and later, with linear timeouts. At the defaults it is 131 s.
   - `ioredis.retry-base`: the reconnect delay of ioredis 6, min(2^(times − 1) × 50, 5000) ms.
   - `linux.rto-wait-reverted` and `linux.retrans-step-reverted`: the retransmissions when each one gets an ICMP host or net unreachable. The revert of RFC 6069 (`tcp_ld_RTO_revert`) takes back each doubling, thus each wait is one RTO.

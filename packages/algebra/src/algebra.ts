@@ -254,6 +254,23 @@ const TCP_RTO_MAX = whole(120n);
 const jiffiesOf = (seconds: Rational, hz: Rational): bigint => r.ceil(r.mul(seconds, hz)).n;
 
 /**
+ * This function gives the longest wait of the delayed ACK, in jiffies (tcp_send_delayed_ack in
+ * net/ipv4/tcp_output.c:4004-4054 at v6.6). The wait is the ACK timeout, ato. It is at least
+ * TCP_DELACK_MIN, HZ/25. Above that, the smoothed round trip in whole jiffies bounds it, but not
+ * below TCP_DELACK_MIN. The cap is icsk_delack_max, TCP_DELACK_MAX by default, HZ/5
+ * (include/net/tcp.h:133-136, net/ipv4/tcp.c:425). Thus it is 40 ms on a fast path at each HZ, and
+ * 200 ms at most.
+ */
+const delackWait = (rtt: Rational, hz: Rational): bigint => {
+  const ticks = integer(hz, "hz");
+  const least = ticks / 25n;
+  const most = ticks / 5n;
+  const srtt = jiffiesOf(rtt, hz);
+  const bound = srtt > least ? srtt : least;
+  return bound < most ? bound : most;
+};
+
+/**
  * This function gives how late the timer wheel can fire a timer that is due in `jiffies`
  * (calc_wheel_index in kernel/time/timer.c at v6.6). Level 0 holds the timers due in 63 jiffies
  * or less. Each level above holds eight times as long, at eight times the granularity. The wheel
@@ -412,6 +429,19 @@ const MODELS: Readonly<Record<string, Model>> = {
     knobs: ["s", "Hz"],
     seconds: ([time, hz]) => r.div(whole(granularity(jiffiesOf(time!, hz!))), hz!),
     source: "kernel/time/timer.c calc_wheel_index at v6.6",
+  },
+  // the longest wait of the delayed ACK: min(max(srtt, TCP_DELACK_MIN), TCP_DELACK_MAX), in jiffies
+  "linux.delack": {
+    knobs: ["s", "Hz"],
+    seconds: ([rtt, hz]) => r.div(whole(delackWait(rtt!, hz!)), hz!),
+    source:
+      "net/ipv4/tcp_output.c tcp_send_delayed_ack, include/net/tcp.h TCP_DELACK_MIN and TCP_DELACK_MAX at v6.6",
+  },
+  // the rounding of that wait on the timer wheel: 1 jiffy at 40 ms, 8 at 200 ms at HZ 1000
+  "linux.delack-lateness": {
+    knobs: ["s", "Hz"],
+    seconds: ([rtt, hz]) => r.div(whole(granularity(delackWait(rtt!, hz!))), hz!),
+    source: "net/ipv4/tcp_output.c tcp_send_delayed_ack and kernel/time/timer.c calc_wheel_index at v6.6",
   },
   // one jiffy: a timer counts from the tick before the event that arms it
   "linux.jiffy": {

@@ -282,6 +282,39 @@ describe("the algebra's first closed forms", () => {
     expect(realizationOf(redis, "systems.mechanism.middlebox-idle", given({}))).toBeUndefined();
   });
 
+  it("gives the delayed ACK from the round trip, and the ack delay from at once to it", async () => {
+    const tcp = await machine("systems.machine.linux-tcp");
+    const at = (rttMs: number, hz: number) =>
+      given({ rtt: { value: rttMs, unit: "ms" }, hz: { value: hz, unit: "Hz" } });
+    // on a fast path the timer waits TCP_DELACK_MIN, 40 ms, counted from the jiffy before the data
+    expect(timerOf(tcp, "delayed_ack", at(0.1, 1000))).toEqual({
+      duration: { value: 0.04, unit: "s" },
+      lateness: { value: 0.001, unit: "s" },
+      early: { value: 0.001, unit: "s" },
+    });
+    // the ack delay can be 0: in quick-ACK mode the kernel acknowledges at once
+    expect(realizationOf(tcp, "systems.mechanism.ack-delay", at(0.1, 250))).toEqual({
+      duration: { value: 0.04, unit: "s" },
+      lateness: { value: 0.004, unit: "s" },
+      early: { value: 0.04, unit: "s" },
+    });
+    // a round trip of 300 ms meets TCP_DELACK_MAX, 200 ms: 50 jiffies at HZ 250, still on the
+    // wheel's level 0, and 200 at HZ 1000, on the 8 ms level
+    expect(timerOf(tcp, "delayed_ack", at(300, 250))).toMatchObject({
+      duration: { value: 0.2, unit: "s" },
+      lateness: { value: 0.004, unit: "s" },
+    });
+    expect(timerOf(tcp, "delayed_ack", at(300, 1000)).lateness).toEqual({ value: 0.008, unit: "s" });
+    // no failure lets data through, thus the delayed ACK detects nothing
+    for (const slug of Object.keys(MANIFESTATIONS)) {
+      const passes = await manifestation(slug);
+      for (const inFlight of [false, true]) {
+        const found = detection(tcp, { state: "ESTABLISHED", inFlight }, passes, given(HERE));
+        expect(found.detectors.map((d) => d.timer), slug).not.toContain("delayed_ack");
+      }
+    }
+  });
+
   it("says which knob it lacks, and lets a timer never set run forever", async () => {
     const tcp = await machine("systems.machine.linux-tcp");
     const { keepcnt: _unsaid, ...lacking } = LINUX_66;
