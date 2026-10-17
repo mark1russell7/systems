@@ -159,7 +159,7 @@ The client of `@procedures/client` drops a silent connection on its own heartbea
 - **Depends on:** WS
 - **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39073727730)
+- **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39073727730), [#44](https://github.com/mark1russell7/systems/pull/44)
 
 The image of the WS cells moves to 0.7.0, and harness 0.11.1 holds it. WST gets the heartbeat of the server through the router of T03, and the ws class through each hop. Each of the 33 cells holds or is measured in CI.
 
