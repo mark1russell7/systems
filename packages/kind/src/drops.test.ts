@@ -7,6 +7,8 @@ const SNMP = [
   "Ip: 1 64 5000 0 0 0 0 0 5000 5100 2 1",
   "Tcp: RtoAlgorithm RtoMin RtoMax MaxConn ActiveOpens PassiveOpens AttemptFails EstabResets",
   "Tcp: 1 200 120000 -1 900 0 3 0",
+  "Icmp: InMsgs InErrors InCsumErrors InDestUnreachs",
+  "Icmp: 4 0 0 2",
 ].join("\n");
 const DEV = [
   "Inter-|   Receive                                                |  Transmit",
@@ -26,6 +28,7 @@ describe("the counters of the dropped packets", () => {
     expect(snmpOf(SNMP, "Ip")["OutDiscards"]).toBe(2);
     expect(snmpOf(SNMP, "Ip")["OutNoRoutes"]).toBe(1);
     expect(snmpOf(SNMP, "Tcp")["AttemptFails"]).toBe(3);
+    expect(snmpOf(SNMP, "Icmp")["InDestUnreachs"]).toBe(2);
     expect(snmpOf(SNMP, "Udp")).toEqual({});
   });
 
