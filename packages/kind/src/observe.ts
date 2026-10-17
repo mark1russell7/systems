@@ -16,7 +16,12 @@ export interface Line {
   readonly [field: string]: unknown;
 }
 
-/** A request is one request of a client: its start, its duration in ms, its outcome, its client and the node of the client. */
+/**
+ * A request is one request of a client: its start, its duration in ms, its outcome, its client and
+ * the node of the client. The backend (`b`) is the pod that answered. The local port (`lp`) is on
+ * each request from 0.1.3, and on the failed ones before it. A conntrack entry is per port, thus the
+ * requests on one port show which connection a stale entry came from.
+ */
 export interface Request {
   readonly t: number;
   readonly d: number;
@@ -24,6 +29,7 @@ export interface Request {
   readonly p: string;
   readonly n: string;
   readonly b?: string;
+  readonly lp?: number | null;
 }
 
 /** A pod line is one state of a pod, as the watcher received it. */
