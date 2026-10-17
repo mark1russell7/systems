@@ -4,13 +4,18 @@
 //                               --reconnect-attempts N --reconnect-jitter X]
 //           --request-timeout-ms N --connection-timeout-ms N [--hold-ms N] [--go PATH] [--max-s N]
 //
-// A cell's client: the WebSocket client of @procedures/client 0.3.0 (WebSocketTransport) on Node
-// 24.21.0. Its sockets are of the global WebSocket of Node, which is undici 7.29.1, or of the
-// WebSocket of the ws package (the option `webSocket`): --websocket. Each setting of the transport
-// is a flag, and the client has no default: a missing flag is a failure. 0.3.0 takes each time as a
-// duration, not a number. Both modes call `harness.echo` first; its reply is `ready`. idle: then
-// hold the connection. inflight: then wait for the file --go, and call `harness.echo` (or
-// `harness.hold` for --hold-ms) into the fault.
+// A cell's client: the WebSocket client of @procedures/client 0.7.0 (WebSocketTransport) on Node
+// 24.21.0. --websocket gives the class of its sockets:
+//   global  the WebSocketTransport of the root entry, whose default class is the global WebSocket
+//           of Node: undici 7.29.1.
+//   ws      the WebSocketTransport of the Node entry @procedures/client/node, whose default class
+//           is the WebSocket of the ws package (since 0.4.0). The client gives the transport a
+//           subclass of that class, from the one copy of ws in the image: it stops when the Node
+//           entry resolves another copy.
+// Each setting of the transport is a flag, and the client has no default: a missing flag is a
+// failure. 0.7.0 takes each time as a duration, not a number. Both modes call `harness.echo`
+// first, and its reply is `ready`. idle: then hold the connection. inflight: then wait for the file
+// --go, and call `harness.echo` (or `harness.hold` for --hold-ms) into the fault.
 //
 // The lines are those of the harness's TCP client, on CLOCK_MONOTONIC, and the program's own acts:
 //   dial {conn}            before each new socket of the transport (conn counts from 1)
@@ -27,9 +32,13 @@
 // The client gives the transport a subclass of the class of its sockets. The subclass writes a
 // line, then calls its class: the transport, undici and ws do what they do without it. Its
 // listeners of `open` and `close` are its own, thus the transport cannot remove them. A drop line
-// with no local address is a socket that never opened: a try that failed.
+// with no local address is a socket that never opened: a try that failed. A WebSocket of ws emits
+// no `error` for an error of its socket (lib/websocket.js:1411-1421), thus the subclass reads that
+// error on the socket itself.
 
 import { subscribe } from "node:diagnostics_channel";
+import { createRequire } from "node:module";
+import { fileURLToPath } from "node:url";
 import { WebSocket as WsWebSocket } from "ws";
 import { bootId, commandLine, emit, now, waitFor } from "./lines.mjs";
 
@@ -41,7 +50,7 @@ const mode = line.required("--mode");
 if (mode !== "idle" && mode !== "inflight") line.fail("--mode is idle or inflight");
 const socketClass = line.required("--websocket");
 if (socketClass !== "global" && socketClass !== "ws") line.fail("--websocket is global or ws");
-/** This function gives a duration of milliseconds, as 0.3.0 takes each time. */
+/** This function gives a duration of milliseconds, as 0.7.0 takes each time. */
 const ms = (value) => ({ value, unit: "ms" });
 const heartbeat = line.toggle("--heartbeat")
   ? {
@@ -67,11 +76,22 @@ const hold = line.flag("--hold-ms") === undefined ? undefined : line.number("--h
 const go = line.flag("--go") ?? "/tmp/go";
 const max = Number(line.flag("--max-s") ?? 60) * 1000;
 
+/** The entry of the transport for each class: the root for the global WebSocket, the Node entry for ws. */
+const ENTRY = socketClass === "ws" ? "@procedures/client/node" : "@procedures/client";
+// the class of the Node entry is the class of the ws that it resolves: it must be the ws of this client
+if (socketClass === "ws") {
+  const nodeEntry = fileURLToPath(import.meta.resolve(ENTRY));
+  const theirs = createRequire(nodeEntry).resolve("ws");
+  const ours = createRequire(import.meta.url).resolve("ws");
+  if (theirs !== ours) line.fail(`${ENTRY} resolves ws at ${theirs}, and this client at ${ours}`);
+}
+
 emit("start", {
   boot_id: bootId(),
   mode,
   client: "procedures-ws",
-  package: "@procedures/client 0.3.0",
+  package: "@procedures/client 0.7.0",
+  entry: ENTRY,
   websocket: socketClass,
   node: process.version,
   undici: process.versions.undici ?? null,
@@ -120,10 +140,14 @@ const stamped = (Base) => {
       super(...args);
       const socket = { conn, local: undefined, dropped: false };
       sockets.set(this, socket);
-      // a socket of ws gives its local address at its open; undici gives it in a diagnostics channel
+      // a socket of ws gives its local address at its open, and undici gives it in a diagnostics
+      // channel. ws keeps the error of its socket to itself, thus the client reads it there
       this.addEventListener("open", () => {
         const raw = this._socket;
         if (raw?.localAddress !== undefined) opened(socket, `${raw.localAddress}:${raw.localPort}`);
+        raw?.on?.("error", (error) => {
+          pending = { errno: error?.code ?? error?.name ?? "unknown", at: now() };
+        });
       });
       this.addEventListener("error", (event) => {
         const code = event?.error?.code;
@@ -174,7 +198,8 @@ setTimeout(() => {
   process.exit(0);
 }, max);
 
-const { Client, WebSocketTransport } = await import("@procedures/client");
+const { Client } = await import("@procedures/client");
+const { WebSocketTransport } = await import(ENTRY);
 
 let first;
 const firstOpen = new Promise((resolve) => {
