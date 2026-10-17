@@ -240,7 +240,7 @@ T07 is the lifecycle of the endpoints of a Service, and T18 is a fleet whose rea
 - **Shipped:**
 - **Links:** [#35](https://github.com/mark1russell7/systems/pull/35)
 
-One failure is a late propagation. The others are SYNs that met an entry in SYN_SENT on their port, from a SYN with no answer up to 120 s before. The agent of kind 0.1.4 reads the conntrack table of each node each second, through netlink on a runner. It showed the old entry of a lone timeout on its port, 35 s old. The first SYNs came between the runs, where the lab keeps no line. Thus the lab deletes these entries before each run.
+One failure is a late propagation. The others are SYNs that met an entry in SYN_SENT on their port, from a SYN with no answer up to 120 s before. The agent of kind 0.1.4 reads the conntrack table of each node each second, through netlink on a runner. It showed the old entry of a lone timeout on its port, 35 s old. The first SYNs came between the runs, where the lab keeps no line. Thus the lab deletes these entries before each run. Then the T07 run had no timeout. One refusal is left in nftables mode, 34 ms after a deletion, probably the ICMP error of a reject rule. kind 0.1.5 counts these errors.
 
 ## The engines and the models
 
@@ -253,7 +253,7 @@ One failure is a late propagation. The others are SYNs that met an entry in SYN_
 - **Shipped:** 2026-10-17
 - **Links:** [npm](https://www.npmjs.com/~mark1russell7)
 
-quantity 0.2.0, algebra 0.7.1, service 0.4.1, prober 0.3.1, harness 0.11.1 and kind 0.1.3. CI publishes each version change of main.
+quantity 0.2.0, algebra 0.7.1, service 0.4.1, prober 0.3.1, harness 0.11.1 and kind 0.1.5. CI publishes each version change of main.
 
 ### MACHINES · The first version of @mark1russell7/machines
 
