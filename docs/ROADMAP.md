@@ -246,14 +246,15 @@ quantity 0.2.0, algebra 0.7.1, service 0.4.1, prober 0.3.1, harness 0.11.0 and k
 
 ### MACHINES · The first version of @mark1russell7/machines
 
-- **Status:** blocked
+- **Status:** waiting on Mark
 - **Area:** engines
 - **Depends on:**
 - **Started:** 2026-10-16
 - **Shipped:**
 - **Links:** [packages/machines](https://github.com/mark1russell7/systems/tree/main/packages/machines)
+- **Waiting on Mark:** Touch your security key for the first publish of machines 0.3.0, in the session that owns npm. On 2026-10-17, npm refused it with a 429.
 
-The one home of each machine document. Its first version is 0.3.0. The session that owns npm publishes it when the quota of npm for new packages lets it.
+The one home of each machine document. Its first version is 0.3.0. The session that owns npm publishes it from main. Then release.yml publishes each later version.
 
 ### DELACK · The delayed ACK of Linux TCP
 
