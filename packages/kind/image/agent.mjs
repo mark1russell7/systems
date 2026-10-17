@@ -5,8 +5,8 @@
 //                              /tmp/rules.json asks, and prints each change of the backends. It
 //                              also reads the conntrack table of the node. It prints each entry
 //                              that keeps its NAT to a pod that the rules dropped (`stale`), each
-//                              handshake that stopped for a second (`stalled`), and a count of
-//                              the reads each second (`conntrack-alive`)
+//                              handshake that stopped for a second (`stalled`). Each line
+//                              `rules-alive` also counts the reads of the table (`ct`)
 //   node agent.mjs act JSON    does one act and prints its stamps on CLOCK_MONOTONIC
 //
 // The acts: signal (a signal to a PID), pause (SIGSTOP, then SIGCONT after ms), write (a file, for
@@ -53,7 +53,7 @@ const serve = async () => {
   let seen = new Map();
   let stuck = new Map();
   let conntrack = true;
-  let count = { reads: 0, ms: 0, lines: 0, vip: 0, states: {} };
+  let count = { reads: 0, ms: 0, lines: 0, vip: 0, states: {}, error: null };
   for (;;) {
     if (!existsSync("/tmp/rules.json")) {
       last = null;
@@ -84,46 +84,50 @@ const serve = async () => {
       // a new SYN on the port of a stale entry goes to the pod of the entry, not to a backend of the rules
       if (conntrack && t - read >= CONNTRACK_EVERY) {
         read = t;
-        const text = conntrackOf(rule.ip);
-        count.reads += 1;
-        count.ms += now() - t;
-        if (text === null) {
-          say({ ev: "conntrack-fail", t, why: "the node has no readable /proc/net/nf_conntrack" });
+        try {
+          const text = conntrackOf(rule.ip);
+          count.reads += 1;
+          count.ms += now() - t;
+          if (text === null) {
+            say({ ev: "conntrack-fail", t, why: "the node has no readable /proc/net/nf_conntrack" });
+            conntrack = false;
+          } else {
+            const flows = flowsOf(text);
+            const entries = entriesOf(text, rule.ip, rule.port);
+            count.lines = flows.length;
+            count.vip = entries.length;
+            count.states = {};
+            for (const entry of entries) count.states[entry.state] = (count.states[entry.state] ?? 0) + 1;
+            const next = new Map();
+            for (const entry of staleOf(entries, backends)) {
+              const id = `${entry.client}>${entry.backend}`;
+              next.set(id, entry.state);
+              // each entry once, and again when its state changes
+              if (seen.get(id) !== entry.state) say({ ev: "stale", t, state: entry.state, ttl: entry.ttl, client: entry.client, backend: entry.backend, unreplied: entry.unreplied });
+            }
+            seen = next;
+            // a connection that times out: where its SYN went, and whether an answer came on this node
+            const held = new Map();
+            for (const flow of stalledOf(flows, 1)) {
+              const id = `${flow.from}>${flow.to}`;
+              held.set(id, flow.state);
+              if (stuck.get(id) !== flow.state) say({ ev: "stalled", t, state: flow.state, ttl: flow.ttl, from: flow.from, to: flow.to, reply: flow.reply, unreplied: flow.unreplied });
+            }
+            stuck = held;
+          }
+        } catch (error) {
+          // a read that fails stops the reads, and the next beat tells why
+          count.error = String(error?.stack ?? error).slice(0, 600);
           conntrack = false;
-        } else {
-          const flows = flowsOf(text);
-          const entries = entriesOf(text, rule.ip, rule.port);
-          count.lines = flows.length;
-          count.vip = entries.length;
-          count.states = {};
-          for (const entry of entries) count.states[entry.state] = (count.states[entry.state] ?? 0) + 1;
-          const next = new Map();
-          for (const entry of staleOf(entries, backends)) {
-            const id = `${entry.client}>${entry.backend}`;
-            next.set(id, entry.state);
-            // each entry once, and again when its state changes
-            if (seen.get(id) !== entry.state) say({ ev: "stale", t, state: entry.state, ttl: entry.ttl, client: entry.client, backend: entry.backend, unreplied: entry.unreplied });
-          }
-          seen = next;
-          // a connection that times out: where its SYN went, and whether an answer came on this node
-          const held = new Map();
-          for (const flow of stalledOf(flows, 1)) {
-            const id = `${flow.from}>${flow.to}`;
-            held.set(id, flow.state);
-            if (stuck.get(id) !== flow.state) say({ ev: "stalled", t, state: flow.state, ttl: flow.ttl, from: flow.from, to: flow.to, reply: flow.reply, unreplied: flow.unreplied });
-          }
-          stuck = held;
         }
       }
     }
     previous = t;
     if (t - beat >= 1000) {
-      say({ ev: "rules-alive", t, polls, ms: Math.round((spent / polls) * 100) / 100 });
-      // the reads of the conntrack table: a run without this line did not read it
-      if (count.reads > 0) {
-        say({ ev: "conntrack-alive", t, reads: count.reads, ms: Math.round((count.ms / count.reads) * 100) / 100, lines: count.lines, vip: count.vip, states: count.states });
-        count = { ...count, reads: 0, ms: 0 };
-      }
+      // the reads of the conntrack table since the last beat: a beat without them did not read it
+      const ct = { reads: count.reads, ms: count.reads === 0 ? 0 : Math.round((count.ms / count.reads) * 100) / 100, lines: count.lines, vip: count.vip, states: count.states, on: conntrack, ...(count.error === null ? {} : { error: count.error }) };
+      say({ ev: "rules-alive", t, polls, ms: Math.round((spent / polls) * 100) / 100, ct });
+      count = { ...count, reads: 0, ms: 0 };
       beat = t;
       polls = 0;
       spent = 0;
