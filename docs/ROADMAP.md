@@ -154,11 +154,11 @@ The client of `@procedures/client` drops a silent connection on its own heartbea
 
 ### WS-070 · The WebSocket cells on @procedures/client 0.7.0
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** WS
 - **Started:** 2026-10-17
-- **Shipped:**
+- **Shipped:** 2026-10-17
 - **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39073727730), [#44](https://github.com/mark1russell7/systems/pull/44)
 
 The image of the WS cells moves to 0.7.0, and harness 0.11.1 holds it. WST gets the heartbeat of the server through the router of T03, and the ws class through each hop. Each of the 33 cells holds or is measured in CI.
@@ -253,7 +253,7 @@ One failure is a stale SYN_SENT entry on a reused port, and one is a late propag
 - **Shipped:** 2026-10-17
 - **Links:** [npm](https://www.npmjs.com/~mark1russell7)
 
-quantity 0.2.0, algebra 0.7.1, service 0.4.1, prober 0.3.1, harness 0.11.0 and kind 0.1.3. CI publishes each version change of main.
+quantity 0.2.0, algebra 0.7.1, service 0.4.1, prober 0.3.1, harness 0.11.1 and kind 0.1.3. CI publishes each version change of main.
 
 ### MACHINES · The first version of @mark1russell7/machines
 
