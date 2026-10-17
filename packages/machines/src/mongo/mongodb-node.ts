@@ -81,12 +81,12 @@ export const MONGODB_NODE: Machine = machineSchema.parse({
     "local.newer-primary": { kind: "local", note: "a hello from another member with a newer electionId" },
   },
   knobs: {
-    connectTimeoutMS: { key: "mongodb connectTimeoutMS", scope: "client", unit: "ms", default: 30000, note: "connection_string.ts:804-807. 0 is no timeout, thus also no stream timeout (monitor.ts:353)" },
+    connectTimeoutMS: { key: "mongodb connectTimeoutMS", scope: "client", unit: "ms", default: 30000, off: 0, note: "connection_string.ts:804-807. 0 is no timeout, thus also no stream timeout (monitor.ts:353)" },
     heartbeatFrequencyMS: { key: "mongodb heartbeatFrequencyMS", scope: "client", unit: "ms", default: 10000, note: "connection_string.ts:850-853: the period of the monitor, and the maxAwaitTimeMS of its hello" },
     minHeartbeatFrequencyMS: { key: "mongodb minHeartbeatFrequencyMS", scope: "client", unit: "ms", default: 500, note: "connection_string.ts:934-937" },
     serverSelectionTimeoutMS: { key: "mongodb serverSelectionTimeoutMS", scope: "client", unit: "ms", default: 30000, note: "connection_string.ts:1100-1103" },
-    socketTimeoutMS: { key: "mongodb socketTimeoutMS", scope: "client", unit: "ms", default: 0, note: "connection_string.ts:1107-1111. 0 is no timeout" },
-    waitQueueTimeoutMS: { key: "mongodb waitQueueTimeoutMS", scope: "client", unit: "ms", default: 0, note: "connection_string.ts:1178-1182 and timeout.ts:368-372. 0 is no timeout" },
+    socketTimeoutMS: { key: "mongodb socketTimeoutMS", scope: "client", unit: "ms", default: 0, off: 0, note: "connection_string.ts:1107-1111. 0 is no timeout" },
+    waitQueueTimeoutMS: { key: "mongodb waitQueueTimeoutMS", scope: "client", unit: "ms", default: 0, off: 0, note: "connection_string.ts:1178-1182 and timeout.ts:368-372. 0 is no timeout" },
     maxIdleTimeMS: { key: "mongodb maxIdleTimeMS", scope: "client", unit: "ms", default: 0, note: "connection_string.ts:906-908 and connection_pool.ts:584. 0 is no limit" },
     maxPoolSize: { key: "mongodb maxPoolSize", scope: "client", unit: "count", default: 100, note: "connection_string.ts:910-912" },
     minPoolSize: { key: "mongodb minPoolSize", scope: "client", unit: "count", default: 0, note: "connection_string.ts:930-933" },
@@ -184,7 +184,8 @@ export const MONGODB_NODE: Machine = machineSchema.parse({
     "systems.mechanism.connect-bound": { timer: "connect_timeout" },
     "systems.mechanism.driver-writeoff-time": { timer: "stream_timeout" },
     "systems.mechanism.heartbeat-interval": { timer: "check_period" },
-    "systems.mechanism.server-selection-timeout": { timer: "selection_timeout" },
+    // an operation that fails on a server is retried once, and the retry selects again with a new serverSelectionTimeoutMS
+    "systems.mechanism.client-retry-window": { timer: "selection_timeout" },
     "systems.mechanism.idle-refresh-interval": {
       duration: { expr: "floor(keepAliveInitialDelay / 1000)", unit: "s" },
       lateness: { model: "linux.wheel", knobs: ["keepAliveInitialDelay", "hz"], unit: "s" },
