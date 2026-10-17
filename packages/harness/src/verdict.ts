@@ -440,13 +440,16 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
         times.length === 0
           ? "no time"
           : `median ${s(middle(times)).value} s from ${prediction.from}, range [${s(times[0]!).value}, ${s(times.at(-1)!).value}] s`;
+      // the end has no band, but each wait of the reconnect has one: a wait outside it is a finding of its run
+      const missed = outside.filter((each) => counted.some((run) => name(run) === each.run && run.reconnect !== undefined));
+      const late = missed.length === 0 ? "" : ` ${missed.length} runs had a wait of the reconnect outside its band.`;
       return {
         ...empty,
         decision: "measured",
         band: null,
-        outside: [],
+        outside: missed,
         median: times.length === 0 ? null : s(middle(times)),
-        why: `${counted.length} runs measured: ${outcomes}; ${timed}. ${prediction.why}`,
+        why: `${counted.length} runs measured: ${outcomes}; ${timed}.${late} ${prediction.why}`,
       };
     }
     const samples = counted

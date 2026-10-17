@@ -32,18 +32,29 @@ export const router = (form: RouterHop["form"], idle: number): RouterHop => ({
 export const HAPROXY_IMAGE =
   "haproxy:3.2@sha256:e2b397cdbd612221cf79dec325690139d00a78b4ce4eae065530fbc81e1f6192";
 
+/** A proxied service is the name and the port of what HAProxy serves: Redis for T02, the procedures server for WST. */
+export interface Proxied {
+  readonly name: string;
+  readonly port: number;
+}
+
+/** This service is Redis on its port: the service of T02. */
+const REDIS_SERVICE: Proxied = { name: "redis", port: 6379 };
+
 /**
  * This function gives the HAProxy hop of T02 in TCP mode, with its idle timeout on each side. Each of
- * its sockets has kernel keepalive (`clitcpka`, `srvtcpka`), with the sysctls of its namespace.
+ * its sockets has kernel keepalive (`clitcpka`, `srvtcpka`), with the sysctls of its namespace. It
+ * serves Redis, or another service on its own port.
  */
 export const haproxy = (
   timeouts: { readonly client: number; readonly server: number },
   sysctls: Readonly<Record<string, string>>,
+  service: Proxied = REDIS_SERVICE,
 ): ProxyHop => ({
   name: "haproxy",
   kind: "proxy",
   image: HAPROXY_IMAGE,
-  port: 6379,
+  port: service.port,
   command: ["haproxy", "-V", "-f", "/usr/local/etc/haproxy/haproxy.cfg"],
   ready: "Loading success",
   files: {
@@ -57,11 +68,11 @@ export const haproxy = (
       `  timeout server ${timeouts.server}s`,
       "  option clitcpka",
       "  option srvtcpka",
-      "frontend redis",
-      "  bind :6379",
-      "  default_backend redis",
-      "backend redis",
-      "  server redis {{next}}",
+      `frontend ${service.name}`,
+      `  bind :${service.port}`,
+      `  default_backend ${service.name}`,
+      `backend ${service.name}`,
+      `  server ${service.name} {{next}}`,
       "",
     ].join("\n"),
   },

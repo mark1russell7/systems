@@ -642,10 +642,16 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
               proxy === undefined ? undefined : socketOf({ ...cell, observer: { hop: cell.calibrates, toward: "target" } }, run),
             ),
           };
+    // the reconnect after the end of the connection, against the bands of its waits. The end has no band
+    const reconnect =
+      prediction.reconnects === undefined || ended === undefined ? undefined : reconnectOf(run, ended, cookie, drop?.line.t ?? ended);
+    const late = reconnect === undefined || prediction.reconnects === undefined ? null : reconnectFinding(prediction.reconnects, reconnect, noiseOf(cell));
     return {
       ...base,
       ...nothing,
       ...chain,
+      ...(reconnect === undefined ? {} : { reconnect }),
+      finding: late,
       outcome: ended !== undefined ? outcome : { kind: "answered" },
       ...(from === undefined || until === undefined ? {} : { elapsed: between(from, until) }),
       noticed: prediction.from === undefined ? null : noticed,

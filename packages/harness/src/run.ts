@@ -58,7 +58,7 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
   if (probe.ws !== undefined) {
     // a WebSocket client gets each of its settings as a flag, and it has no default
     const { ws } = probe;
-    const reconnects = prediction.detects === true ? (prediction.reconnects?.waits ?? []) : [];
+    const reconnects = prediction.detects !== false ? (prediction.reconnects?.waits ?? []) : [];
     const waits = reconnects.reduce((sum, wait) => sum + valueIn(wait.high, "s"), 0);
     args.push("--websocket", ws.socket);
     args.push("--heartbeat", ws.heartbeat === null ? "off" : "on");
@@ -545,8 +545,9 @@ const once = async (
       // client sent no request
       if (cell.fault === "freeze-process" && !server && cell.probe.mode !== "idle")
         await probe.until(["data"], 5_000).catch(() => undefined);
-      // the client tries its new connections after the fault lifted: one `dial` line for each try
-      const expected = cell.prediction.detects === true ? cell.prediction.reconnects : undefined;
+      // the client tries its new connections after the fault lifted: one `dial` line for each try.
+      // A measurement-only cell can give the waits too: the end of its connection has no band
+      const expected = cell.prediction.detects !== false ? cell.prediction.reconnects : undefined;
       if (expected !== undefined) {
         const waits = expected.waits.reduce((sum, wait) => sum + valueIn(wait.high, "s"), 0);
         await dials(probe, 1 + expected.waits.length, waits * 2_000 + 5_000);

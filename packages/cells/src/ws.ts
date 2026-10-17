@@ -98,24 +98,24 @@ export interface WsSpec {
 }
 
 /** These are the times of the heartbeat of most cells: a ping each 2 s, a pong timeout of 1 s, and one miss drops. */
-const HEARTBEAT = { interval: 2000, timeout: 1000, misses: 1 };
+export const HEARTBEAT = { interval: 2000, timeout: 1000, misses: 1 };
 /** These are the settings of the reconnect: 0.5 s, then each wait two times the one before it, up to 4 s, with no jitter. */
-const RECONNECT = { initialDelay: 500, multiplier: 2, maxDelay: 4000, attempts: 10, jitter: 0 };
+export const RECONNECT = { initialDelay: 500, multiplier: 2, maxDelay: 4000, attempts: 10, jitter: 0 };
 /**
  * These are the settings of the client of most cells: the global WebSocket of Node. A call waits
  * 60 s for its reply, thus no call times out in a band.
  */
-const CLIENT: WsClientSettings = { socket: "global", heartbeat: HEARTBEAT, reconnect: RECONNECT, requestTimeout: 60_000, connectionTimeout: 10_000 };
+export const CLIENT: WsClientSettings = { socket: "global", heartbeat: HEARTBEAT, reconnect: RECONNECT, requestTimeout: 60_000, connectionTimeout: 10_000 };
 /** This client has no heartbeat and no reconnect: a cell on the server side, where the client must stay. */
 const SILENT_CLIENT: WsClientSettings = { ...CLIENT, heartbeat: null, reconnect: null };
 /** This server has no heartbeat: the cells of the client meet no ping of the server. */
-const QUIET_SERVER: WsServerSettings = { heartbeat: null };
+export const QUIET_SERVER: WsServerSettings = { heartbeat: null };
 /**
  * These are the knobs of Linux TCP that keep the kernel out of the way of the heartbeat. The
  * give-up of a ping comes 102.2 s after its first retransmission at tcp_retries2 = 8. The
  * keepalive of undici waits 60 s with nothing in flight.
  */
-const QUIET = { tcp_retries2: count(8) };
+export const QUIET = { tcp_retries2: count(8) };
 
 /**
  * The WS catalog. Each cell stands for a claim of the heartbeat or the reconnect of 0.3.0.
@@ -296,7 +296,7 @@ export const serverValues = (settings: WsServerSettings): KnobValues =>
   });
 
 /** This function gives the values of Linux TCP at the observer of a spec, at a round trip in ms: the sysctls of its namespace. */
-const linuxValues = (spec: WsSpec, rttMs: number): Record<string, Extent> => ({
+export const linuxValues = (spec: WsSpec, rttMs: number): Record<string, Extent> => ({
   ...LINUX_66,
   ...spec.linux,
   hz: { value: HZ, unit: "Hz" },
@@ -424,7 +424,7 @@ export const predictWsAt = (spec: WsSpec, rttMs: number): Prediction => {
 export const predictWs = (spec: WsSpec): Prediction => assuming((rtt) => predictWsAt(spec, rtt), RTT_MS);
 
 /** This function gives the settings of the client of a spec for the harness. */
-const probeOf = (spec: WsSpec): WsProbe => {
+export const probeOf = (spec: WsSpec): WsProbe => {
   const { heartbeat, reconnect } = spec.client;
   return {
     socket: spec.client.socket,

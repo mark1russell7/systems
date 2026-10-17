@@ -41,6 +41,8 @@ const EARLY = arithmetic(NODE_TIMER_EARLY);
  * - Each end of a socket starts the reconnect. The wait of try n is the backoff
  *   min(initialDelay × multiplier^(n − 1), maxDelay), less a random part: jitter × backoff × r.
  * - The handshake has a time limit (`connectionTimeout`), and a failed handshake drops at once.
+ * - The heartbeat refreshes an idle flow. Each tick writes a ping, whatever data the connection
+ *   carries, and the pong comes back. Thus the ping timer realizes the idle refresh of O03.
  */
 export const PROCEDURES_WS_CLIENT: Machine = machineSchema.parse({
   format: "mark1russell7.machine/1",
@@ -156,7 +158,7 @@ export const PROCEDURES_WS_CLIENT: Machine = machineSchema.parse({
       cancels: ["drop", "close"],
       fires: "ping-due",
       backoff: { resets: ["open"] },
-      note: "each tick starts the next one first, from the loop clock of that tick: a late tick moves each later tick",
+      note: "each tick starts the next one first, from the loop clock of that tick: a late tick moves each later tick. The data of the connection does not move a tick (service src/heartbeat.ts:129-135), thus an idle flow gets a ping and a pong each interval",
     },
     pong: {
       duration: { expr: "(heartbeat_misses - 1) * heartbeat_interval + heartbeat_timeout", unit: "ms" },
@@ -195,8 +197,12 @@ export const PROCEDURES_WS_CLIENT: Machine = machineSchema.parse({
       note: "one timer for each call: it fails the call, and the connection stays",
     },
   },
+  realizes: {
+    // each ping and its pong refresh the flow at a middlebox: O03 reads the interval at its latest
+    "systems.mechanism.idle-refresh-interval": { timer: "ping" },
+  },
   transitions: [
-    { id: "pw.connect", from: "DISCONNECTED", on: "connect", to: "CONNECTING" },
+    { id: "pw.connect",from: "DISCONNECTED", on: "connect", to: "CONNECTING" },
     { id: "pw.open", from: "CONNECTING", on: "open", to: "CONNECTED", source: "transport.js:237-262" },
     {
       id: "pw.handshake-timeout",
