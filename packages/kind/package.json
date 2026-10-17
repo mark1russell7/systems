@@ -46,6 +46,7 @@
     "src/compose.ts",
     "src/backends.ts",
     "src/conntrack.ts",
+    "src/drops.ts",
     "README.md",
     "LICENSE"
   ],

@@ -14,5 +14,5 @@ RUN for name in quantity algebra service; do \
       && tar -xzf /tmp/workspace/mark1russell7-$name-*.tgz -C "node_modules/@mark1russell7/$name" --strip-components=1; \
     done \
  && rm -rf /tmp/workspace
-COPY app.mjs client.mjs agent.mjs watch.mjs compose.ts backends.ts conntrack.ts ./
+COPY app.mjs client.mjs agent.mjs watch.mjs compose.ts backends.ts conntrack.ts drops.ts ./
 CMD ["node", "app.mjs"]
