@@ -15,7 +15,7 @@ import type { Cell, DriverBand, LineMatch, Reference } from "../../harness/src/i
 import { NOISE, REPLICA_SET_STAGES } from "../../harness/src/index.ts";
 import type { CellRecord, Reading, Summary } from "./judged.ts";
 import { nameOf, read, resultOf } from "./judged.ts";
-import { dateOf, only, ordinal, readFolders, runnerOf, secondsOf, stringify, time, timeAt } from "./records.ts";
+import { dateOf, noiseOf, ofCatalog, only, ordinal, readFolders, runnerOf, secondsOf, stringify, time, timeAt } from "./records.ts";
 
 const folders = process.argv.slice(2);
 if (folders.length === 0) {
@@ -28,8 +28,14 @@ const runner = runnerOf(folders);
 process.env["CELLS_HZ"] = String(runner.hz);
 const { MONGO_CELLS } = await import("../../cells/src/mongo/harness.ts");
 const { DRIVER } = await import("../../cells/src/mongo/cells.ts");
+const { ALL } = await import("../../cells/src/all.ts");
 
-const found = readFolders<CellRecord, Summary>(folders);
+// a full run of the catalogs holds the cells of each catalog: this export takes its own
+const found = ofCatalog(
+  readFolders<CellRecord, Summary>(folders),
+  MONGO_CELLS.map((cell) => cell.name),
+  ALL.map((cell) => cell.name),
+);
 
 /** These phrases tell what detects the fault in a prediction, by the timer that the catalog names. */
 const TIMERS: Readonly<Record<string, string>> = {
@@ -237,7 +243,7 @@ const copy = {
   source: "the raw records of the runners of GitHub, judged again by the harness",
   ranAt: date,
   units: "s",
-  noise: secondsOf(NOISE),
+  noise: noiseOf(records.map((record) => record.cell), NOISE),
   runs: Number(only("the count of runs", records.map((record) => String(record.cell.runs)))),
   kernel: runner.kernel,
   hz: runner.hz,

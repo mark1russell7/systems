@@ -17,7 +17,7 @@ import type { Cell } from "../../harness/src/index.ts";
 import { NOISE } from "../../harness/src/index.ts";
 import type { CellRecord, Summary } from "./judged.ts";
 import { nameOf, read, resultOf } from "./judged.ts";
-import { dateOf, only, readFolders, runnerOf, secondsOf, stringify, timeAt } from "./records.ts";
+import { dateOf, noiseOf, only, readFolders, runnerOf, secondsOf, stringify, timeAt } from "./records.ts";
 
 const folders = process.argv.slice(2);
 if (folders.length === 0) {
@@ -127,6 +127,8 @@ const cells = [...found.entries()]
       stage: named.plan.split(".")[1]!,
       prediction: predictionOf(entry.record.cell),
       ...resultOf(read(entry), { digits: 3, silent: "Nothing detected the fault" }),
+      // the δ_abs of the run of the cell: the first run of the queue had the default of the harness
+      noise: secondsOf(entry.record.cell.noise ?? NOISE),
       first: entry.first,
       repeated: entry.first === null ? null : repeatedOf(name),
     };
@@ -138,7 +140,7 @@ const copy = {
   source: "the raw records of the runners of GitHub, judged again by the harness. A re-run replaces the first run of its cell",
   ranAt: date,
   units: "s",
-  noise: secondsOf(NOISE),
+  noise: noiseOf(records.map((record) => record.cell), NOISE),
   runs: Number(only("the count of runs", records.map((record) => String(record.cell.runs)))),
   kernel: runner.kernel,
   hz: runner.hz,

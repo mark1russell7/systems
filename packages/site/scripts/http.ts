@@ -16,7 +16,7 @@ import type { Cell, RequestPrediction } from "../../harness/src/index.ts";
 import { NOISE } from "../../harness/src/index.ts";
 import type { CellRecord, Reading, Summary } from "./judged.ts";
 import { FROM, nameOf, read, resultOf } from "./judged.ts";
-import { dateOf, only, readFolders, runnerOf, secondsOf, stringify, timeAt } from "./records.ts";
+import { dateOf, noiseOf, ofCatalog, only, readFolders, runnerOf, secondsOf, stringify, timeAt } from "./records.ts";
 
 const folders = process.argv.slice(2);
 if (folders.length === 0) {
@@ -29,8 +29,14 @@ const runner = runnerOf(folders);
 process.env["CELLS_HZ"] = String(runner.hz);
 const { HTTP_CELLS } = await import("../../cells/src/http/catalog.ts");
 const { HTTP_HARNESS_CELLS } = await import("../../cells/src/http/cells.ts");
+const { ALL } = await import("../../cells/src/all.ts");
 
-const found = readFolders<CellRecord, Summary>(folders);
+// a full run of the catalogs holds the cells of each catalog: this export takes its own
+const found = ofCatalog(
+  readFolders<CellRecord, Summary>(folders),
+  HTTP_HARNESS_CELLS.map((cell) => cell.name),
+  ALL.map((cell) => cell.name),
+);
 
 /** These phrases tell what ends the connection in a prediction, by its timer and its errno. */
 const CLOSERS: Readonly<Record<string, string>> = {
@@ -152,7 +158,7 @@ const copy = {
   source: "the raw records of the runners of GitHub, judged again by the harness. A re-run replaces the first run of its cell",
   ranAt: date,
   units: "s",
-  noise: secondsOf(NOISE),
+  noise: noiseOf(records.map((record) => record.cell), NOISE),
   runs: Number(only("the count of runs", records.map((record) => String(record.cell.runs)))),
   kernel: runner.kernel,
   hz: runner.hz,
