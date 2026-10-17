@@ -1,7 +1,19 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 import type { CallReading, ReconnectReading } from "./application.ts";
-import { callOf, dropFinding, dropOf, firstUnanswered, leftAfter, pingsOf, programLines, reconnectFinding, reconnectOf } from "./application.ts";
+import {
+  callOf,
+  closeOrExit,
+  dropFinding,
+  dropOf,
+  exitOf,
+  firstUnanswered,
+  leftAfter,
+  pingsOf,
+  programLines,
+  reconnectFinding,
+  reconnectOf,
+} from "./application.ts";
 import type { Cell, KernelRecord, ProbeEvent, Reference, Run } from "./cell.ts";
 import type { DriverStepTime } from "./driver.ts";
 import { measureDriver } from "./driver.ts";
@@ -94,9 +106,15 @@ export interface Measured {
   /**
    * This time is from the drop line of the program to the close of its socket by its own side: a
    * FIN or an abort. A prediction that says how the program drops (`drop`) gets it. It is null
-   * when the socket did not close itself in the run.
+   * when the socket did not close itself in the run. A prediction can say that the client process
+   * ends with the run (`exits`). Then a close at that end is no close by the program, and `left` is null.
    */
   readonly left?: Quantity | null;
+  /**
+   * This time is from the drop line of the program to the end of the client process. A socket gets
+   * it when it stayed open until that end. The kernel closed it then, not the program (`exits`).
+   */
+  readonly exited?: Quantity;
   /** This text is the reason that the run cannot count, or null. A void run is not a pass and not a finding. */
   readonly void: string | null;
   /** This text tells what in the run disagrees with the prediction, other than its timing, or null. */
@@ -846,8 +864,13 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
   const reconnect = prediction.reconnects === undefined ? undefined : reconnectOf(run, ended, cookie, drop?.line.t ?? ended);
   const late = reconnect === undefined || prediction.reconnects === undefined ? null : reconnectFinding(prediction.reconnects, reconnect, noiseOf(cell));
   // a drop of the program against the way that the prediction gives: a close frame or a close
-  const left = prediction.drop === undefined || drop === undefined ? undefined : leftAfter(socket, drop.line);
-  const how = prediction.drop === undefined || drop === undefined || left === undefined ? null : dropFinding(prediction.drop, drop, left, noiseOf(cell));
+  const closed = prediction.drop === undefined || drop === undefined ? undefined : leftAfter(socket, drop.line);
+  // the end of the client process closes each socket that is still open: that close is not the program's
+  const { left, exited } =
+    closed === undefined || drop === undefined || prediction.exits !== true
+      ? { left: closed, exited: undefined }
+      : closeOrExit(drop.line, closed, exitOf(run, cookie), noiseOf(cell));
+  const how = prediction.drop === undefined || drop === undefined || left === undefined ? null : dropFinding(prediction.drop, drop, left, noiseOf(cell), exited);
   const found = [matches ? null : `it ended with ${words}, not ${prediction.errno}`, late, how].filter((each) => each !== null);
   const finding = found.length === 0 ? null : found.join(". ");
   // the timer of an HTTP client or server is a timer of the program, not of the kernel: the kernel
@@ -905,6 +928,7 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     steps,
     ...(reconnect === undefined ? {} : { reconnect }),
     ...(left === undefined ? {} : { left }),
+    ...(exited === undefined ? {} : { exited }),
     ...(cell.probe.ws !== undefined && inflight ? { call: callOf(events, request, ended) } : {}),
     void: voided,
     finding,

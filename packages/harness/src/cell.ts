@@ -517,6 +517,12 @@ export type Prediction =
        * ESTABLISHED at once (`close`).
        */
       readonly drop?: "frame" | "close";
+      /**
+       * This flag tells that the program of the observer is the client process, which ends at the
+       * end of the run. Its kernel then closes each socket that is still open. A close of the
+       * socket at that end is not a close by the program, thus `left` stays null for it (`exited`).
+       */
+      readonly exits?: true;
     }
   | {
       readonly detects: false;

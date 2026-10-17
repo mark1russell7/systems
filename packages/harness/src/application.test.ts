@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { callOf, reconnectFinding } from "./application.ts";
+import { callOf, exitOf, reconnectFinding } from "./application.ts";
 import type { Cell, KernelRecord, ProbeEvent, Run } from "./cell.ts";
 import { measure } from "./observe.ts";
 import { verdictOf } from "./verdict.ts";
@@ -187,6 +187,39 @@ describe("a detection by the program of the observer, from its lines and the ker
     // a socket that left ESTABLISHED later than the noise did not leave at once
     const late = [...kernel.filter((record) => record.mono !== D + 30_000), state(D + 520_000_000, 1, 4)];
     expect(measure(close, run(client, late)).finding).toBe("the program closed its socket 0.52 s after the drop, not at once");
+  });
+
+  it("tells a close by the program from the end of the client process, for a prediction that says the client exits", () => {
+    const frame = { ...HEARTBEAT, prediction: { ...HEARTBEAT.prediction, drop: "frame" } } as Cell;
+    const close = { ...HEARTBEAT, prediction: { ...HEARTBEAT.prediction, drop: "close" } } as Cell;
+    const exits = (cell: Cell): Cell => ({ ...cell, prediction: { ...cell.prediction, exits: true } as Cell["prediction"] });
+    // the run ends 20 ms after the try: the process ends, and its kernel closes the new socket and the old one at one instant
+    const X = G + 20_000_000;
+    const fresh = { src: "172.21.0.3:59240" };
+    const ending = [...kernel, k("state", X, { ...fresh, cookie: NEW, old: 1, new: 4 } as Partial<KernelRecord>), state(X + 90_000, 1, 4)];
+    expect(exitOf(run(client, ending), OLD)).toBe(X);
+    // without the flag, the end of the process is a close by the program, as before
+    expect(measure(frame, run(client, ending))).toMatchObject({ left: s(0.52119), finding: null });
+    expect(measure(frame, run(client, ending))).not.toHaveProperty("exited");
+    // with it, the global WebSocket did not close its socket: the kernel closed it at the end of the process
+    const read = measure(exits(frame), run(client, ending));
+    expect(read).toMatchObject({ outcome: { kind: "dropped" }, left: null, exited: s(0.52119), finding: null });
+    const verdict = verdictOf(exits(frame).prediction, [read]);
+    expect(verdict.left).toMatchObject({ spread: null, stayed: 1, exited: { count: 1, median: s(0.52119) } });
+    expect(verdict.why).toContain(
+      "After the drop, the program closed its socket in 0 runs, median none after its drop line, and it did not close it in 1: in 1 the socket stayed open until the client process ended, median 521.19 ms after the drop line.",
+    );
+    // a prediction of a close at once finds that the program left the socket to the end of the process
+    expect(measure(exits(close), run(client, ending)).finding).toBe(
+      "the program did not close its socket after the drop, where a close is at once: it stayed open until the client process ended",
+    );
+    // the WebSocket of ws: terminate() closes the socket 0.3 ms after the drop, long before the end of the process
+    const terminated = [...kernel.filter((record) => record.mono !== D + 30_000), state(D + 300_000, 1, 4), k("state", X, { ...fresh, cookie: NEW, old: 1, new: 4 } as Partial<KernelRecord>)];
+    expect(measure(exits(close), run(client, terminated))).toMatchObject({ left: s(0.0003), finding: null });
+    expect(measure(exits(close), run(client, terminated))).not.toHaveProperty("exited");
+    // a record with no end of the process after the last try keeps the close as it is
+    expect(exitOf(run(client, kernel), OLD)).toBeUndefined();
+    expect(measure(exits(frame), run(client, [...kernel, state(X + 90_000, 1, 4)]))).toMatchObject({ left: s(0.52119) });
   });
 
   it("does not take the drop of a try that never opened for the drop of the connection of the run", () => {
