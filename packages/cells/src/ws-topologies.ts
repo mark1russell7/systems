@@ -4,12 +4,11 @@ import { LINUX_TCP, NF_CONNTRACK_TCP, PROCEDURES_WS_CLIENT } from "@mark1russell
 import { RTT_MS, RUNS, WINDOW, given, q, sysctlsOf } from "./catalog.ts";
 import type { Span } from "./mongo/model.ts";
 import { plus, spanOf } from "./mongo/model.ts";
-import { delayedAck } from "./mongo/t03.ts";
 import { assuming } from "./rtt.ts";
 import { PROXY_SYSCTLS } from "./t02.ts";
 import { IDLE, routerValues } from "./t03.ts";
 import type { O03Verdict } from "./topologies.ts";
-import { haproxy, o03, router } from "./topologies.ts";
+import { ackDelay, haproxy, o03, router } from "./topologies.ts";
 import type { WsClientSettings, WsSpec } from "./ws.ts";
 import { CLIENT, HEARTBEAT, QUIET, QUIET_SERVER, clientValues, linuxValues, predictWsAt, probeOf, reconnectsOf, wsServer } from "./ws.ts";
 
@@ -164,7 +163,7 @@ export const o03Ws = (client: WsClientSettings, rttMs = RTT_MS): O03Verdict => {
  * `expire_established` fires, and the pump and two listings make its DESTROY late.
  */
 export const forgetOf = (rttMs: number): Span =>
-  plus(delayedAck(rttMs / 1000), spanOf(NF_CONNTRACK_TCP, "expire_established", routerValues));
+  plus(ackDelay(rttMs), spanOf(NF_CONNTRACK_TCP, "expire_established", routerValues));
 
 /** This text tells why a cell of an idle timeout of HAProxy has no band. */
 const NO_DOCUMENT =

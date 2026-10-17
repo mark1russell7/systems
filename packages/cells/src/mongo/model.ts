@@ -1,5 +1,5 @@
 import type { Detector, KnobValues, Machine, Manifestation } from "@mark1russell7/algebra";
-import { detection, errnoOf, evaluate, overValues, realizationOf, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
+import { detection, errnoOf, evaluate, overValues, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
 import { LINUX_TCP, MONGOD_REPL, MONGOD_SESSION, MONGODB_NODE } from "@mark1russell7/machines";
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
@@ -104,14 +104,6 @@ export const spanOf = (doc: Machine, timer: string, values: KnobValues, fired?: 
   const bounds = timerOf(doc, timer, values, fired);
   const duration = seconds(bounds.duration, timer);
   return span(duration - seconds(bounds.early, `${timer}'s early bound`), duration + seconds(bounds.lateness, `${timer}'s lateness`));
-};
-
-/** This function gives the span of a mechanism where a document realizes it, as spanOf gives the span of a timer. */
-export const realizedSpan = (doc: Machine, mechanism: string, values: KnobValues): Span => {
-  const bounds = realizationOf(doc, mechanism, values);
-  if (bounds === undefined) throw new Error(`${doc.title} does not realize ${mechanism}`);
-  const duration = seconds(bounds.duration, mechanism);
-  return span(duration - seconds(bounds.early, `${mechanism}'s early bound`), duration + seconds(bounds.lateness, `${mechanism}'s lateness`));
 };
 
 /** This function gives the value of one knob in seconds. */

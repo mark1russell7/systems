@@ -4,11 +4,11 @@ import { LINUX_TCP, MONGODB_NODE, NF_CONNTRACK_TCP } from "@mark1russell7/machin
 import { valueIn } from "@mark1russell7/quantity";
 import { RTT_MS, given, s, seconds } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
-import { LISTING, ROUTER_PUMP, o03 } from "../topologies.ts";
+import { LISTING, ROUTER_PUMP, ackDelay, o03 } from "../topologies.ts";
 import type { Alias, MongoCell, MongoPrediction, MongoRouter, MongoSpec, Waiting } from "./cells.ts";
 import { sec } from "./cells.ts";
 import type { DriverOptions, Span } from "./model.ts";
-import { driverValues, firstOn, linuxValues, plus, realizedSpan, secondsOf, sessionKeepalive, span, spanOf } from "./model.ts";
+import { driverValues, firstOn, linuxValues, plus, secondsOf, sessionKeepalive, span, spanOf } from "./model.ts";
 import { OP_ERROR, POOL_RX, SOCKET_END, WRITE_OFF, assumingSingle, bandOf, predictSingle } from "./single.ts";
 import { nameOf } from "./t01.ts";
 
@@ -144,15 +144,6 @@ export const T03_MONGO_SPECS: readonly MongoSpec[] = [
   },
 ];
 
-/** This is the mechanism of the corpus that the delay of an ACK is. */
-export const ACK_DELAY = "systems.mechanism.ack-delay";
-/**
- * This function gives the delay of the client's ACK of the last reply, in seconds, from the document
- * of Linux TCP. The ACK goes at once in quick-ACK mode. Else the delayed-ACK timer sends it after
- * max(TCP_DELACK_MIN, srtt) at most, 40 ms on a fast path, rounded on the wheel.
- */
-export const delayedAck = (rtt: number): Span => realizedSpan(LINUX_TCP, ACK_DELAY, given(linuxValues({}, rtt * 1000)));
-
 /**
  * This function gives the prediction of a forgotten flow, at a round trip in ms. O03 decides it for
  * each flow of the driver against the router's idle timeout. The pool connection refreshes its flow
@@ -175,7 +166,7 @@ const predictForget = (spec: MongoSpec, rttMs: number): MongoPrediction => {
   if (!(refresh < pool.forget - pool.margin)) throw new Error(`${spec.name}: the router can forget the monitor's flow`);
   if (pool.holds) return { detects: false, bands: [], window, quiet: [WRITE_OFF, SOCKET_END, OP_ERROR, "the router forgets a flow"] };
   // the client's delayed ACK of the last reply is the last segment of the flow: the idle time counts from it
-  const forget = plus(delayedAck(rtt), spanOf(NF_CONNTRACK_TCP, "expire_established", conntrack));
+  const forget = plus(ackDelay(rttMs), spanOf(NF_CONNTRACK_TCP, "expire_established", conntrack));
   const reset = transitionOn(LINUX_TCP, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET";
   if (router.form === "reset-both")
     return { detects: true, bands: [bandOf("the router forgets the flow and resets both ends", reset, POOL_RX, forget)], window, quiet: [WRITE_OFF] };
