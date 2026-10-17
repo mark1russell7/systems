@@ -1,7 +1,7 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { format, valueIn } from "@mark1russell7/quantity";
-import { seconds, showBand } from "./bands.ts";
-import type { KindCell, KindRun, Prediction } from "./cell.ts";
+import { seconds, secondsOf, showBand } from "./bands.ts";
+import type { Band, KindCell, KindRun, Prediction } from "./cell.ts";
 import { quantileOf } from "./stats.ts";
 import type { KindVerdict } from "./verdict.ts";
 import { factsOf, propagationOf, referenceOf } from "./verdict.ts";
@@ -37,13 +37,20 @@ export const timeSpread = (times: readonly Quantity[]): TimeSpread | null => {
   };
 };
 
+/** This function gives a reference with its band, and only the reference when the band is [0, 0] s. */
+const atBand = (from: string, band: Band): string => {
+  const { lo, hi } = secondsOf(band);
+  return lo === 0 && hi === 0 ? `the ${from}` : `the ${from} + ${showBand(band)}`;
+};
+
 /** This function gives the prediction of a cell in a short form for a table. */
 export const predictionText = (prediction: Prediction): string => {
   switch (prediction.kind) {
     case "none":
       return prediction.outcomes === undefined ? "no failure" : `no ${prediction.outcomes.join(", ")}`;
     case "window":
-      return `failures only from the ${prediction.start.from}${prediction.end === null ? "" : ` to the ${prediction.end.from} + ${showBand(prediction.end.band)}`}${prediction.nodes === "paused" ? ", on the paused node" : ""}${prediction.certain ? ", at least one" : ""}`;
+      // a window can open before its reference: a stale SYN_SENT entry fails the paused node up to its life before the intake
+      return `failures only from ${atBand(prediction.start.from, prediction.start.band)}${prediction.end === null ? "" : ` to ${atBand(prediction.end.from, prediction.end.band)}`}${prediction.nodes === "paused" ? ", on the paused node" : ""}${prediction.certain ? ", at least one" : ""}`;
     case "removal":
       return `Service empty in ${showBand(prediction.band)}`;
     case "leaves":
