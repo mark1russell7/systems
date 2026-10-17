@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { entriesOf, flowsOf, staleOf, stalledOf } from "./conntrack.ts";
+import { deletedOf, entriesOf, flowsOf, staleOf, stalledOf } from "./conntrack.ts";
 
 // lines in the format of /proc/net/nf_conntrack: one with the counters of nf_conntrack_acct, and the
 // last one in the format of `conntrack -L`, which has no family before the protocol
@@ -16,6 +16,14 @@ const DUMP = [
   "tcp      6 115 SYN_SENT src=10.244.1.5 dst=10.96.163.119 sport=50820 dport=80 [UNREPLIED] src=10.244.2.24 dst=10.244.1.5 sport=8080 dport=50820 mark=0 use=1",
   "ipv4     2 udp      17 29 src=10.244.0.8 dst=10.96.0.10 sport=53000 dport=53 src=10.244.0.3 dst=10.244.0.8 sport=53 dport=53000 mark=0 zone=0 use=2",
 ].join("\n");
+
+describe("the deletes of the conntrack tool", () => {
+  it("reads the count of the entries that it deleted", () => {
+    expect(deletedOf("conntrack v1.4.8 (conntrack-tools): 3 flow entries have been deleted.\n")).toBe(3);
+    expect(deletedOf("conntrack v1.4.8 (conntrack-tools): 0 flow entries have been deleted.")).toBe(0);
+    expect(() => deletedOf("conntrack: Operation failed: invalid parameters")).toThrow(/no count/);
+  });
+});
 
 describe("the conntrack entries of a ClusterIP", () => {
   it("reads each TCP entry to the ClusterIP and its port, with the backend of its NAT", () => {

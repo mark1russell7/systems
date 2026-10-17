@@ -77,6 +77,13 @@ export const entriesOf = (text: string, ip: string, port: number): ConntrackEntr
 export const staleOf = (entries: readonly ConntrackEntry[], backends: readonly string[]): ConntrackEntry[] =>
   entries.filter((entry) => KEEPS_NAT.has(entry.state) && !backends.includes(entry.backend));
 
+/** This function gives the count of entries that `conntrack -D` deleted, from its last line: "N flow entries have been deleted". */
+export const deletedOf = (text: string): number => {
+  const match = /(\d+) flow entr(?:y|ies) ha(?:s|ve) been deleted/.exec(text);
+  if (match === null) throw new Error(`conntrack -D gave no count: ${text.trim().slice(0, 200)}`);
+  return Number(match[1]);
+};
+
 /**
  * This function gives the flows whose handshake stopped `age` seconds ago or more. Such a flow is
  * a SYN with no reply (SYN_SENT), or a SYN and its SYN-ACK with no ACK (SYN_RECV). It is a

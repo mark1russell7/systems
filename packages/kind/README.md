@@ -77,7 +77,7 @@ The tests read three real records of `/1` (`test/records/`): a cell that holds, 
   - A SYN on the port of such an entry goes to that pod, whatever the rules say. An entry in TIME_WAIT is not stale, because a SYN reopens it with a new lookup.
   - It writes a `stalled` line for each handshake that stopped for one second or more: a SYN with no reply, or a SYN-ACK with no ACK. On the node of the client, the line gives the backend of the DNAT. On the node of that backend, the line tells which half of the handshake did not arrive.
   - Each `rules-alive` line gives the source of the table (`ct`). It counts the reads since the last line, and the entries of the ClusterIP in each state. A read that fails stops the reads, and `ct.error` tells why. The lab drops the lines from before the first measurement, thus an early failure shows only in `ct.error`.
-  - `ct.syn` gives up to three entries in SYN_SENT, with their life. A new SYN has the life 120 s, and an older one less.
+  - `ct.syn` gives up to three entries in SYN_SENT, with the backend of their NAT and their life. A new SYN has the life 120 s, and an older one less.
   - Each second, the agent reads the counters of dropped packets (`drops.ts`), and it writes a `drops` line with each counter that grew. For the node, these are the drops of the backlogs, the squeezes of the softirqs, and the drops of each veth.
   - For each client pod, the agent reads `/proc/<pid>/net`. These counters are the IP discards, the sends with no route, the failed connects, the drops of its interfaces, and its neighbors with no address. A SYN that does not get to the conntrack of the node leaves its trace in one of them.
 - **The rules of each node.** The agent reads the rules of kube-proxy in the namespaces of the node each 50 ms: `iptables-save`, `nft list table ip kube-proxy`, or `/proc/net/ip_vs`. It writes a line when the backends of the Service change (`backends.ts`). A backend of IPVS with the weight zero takes no new connection, thus it is not a backend.
@@ -86,6 +86,8 @@ The tests read three real records of `/1` (`test/records/`): a cell that holds, 
 - **The prober** of the harness watches the network namespace of each pod, by its inode. The lab keeps its resets, errors and retransmissions, and it counts the other records.
 
 Each pod of a cluster shares the kernel of the Docker VM. Thus each stamp of the agent, the injector, the watcher, the clients, the service and the prober is on the same CLOCK_MONOTONIC.
+
+Before each run, the lab deletes the conntrack entries in SYN_SENT to the ClusterIP on each node (`forgetHandshakes`). A note of the run gives each count. Such an entry is a SYN with no answer, and it keeps its NAT for 120 s. A new SYN from the same port goes where the first one went, and it gets no answer either. The clients send requests between the runs too. Thus the restore of one run left such entries, and a client that took the port again in the next run timed out (T07, 2026-10-17).
 
 ## The image
 

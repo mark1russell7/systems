@@ -205,7 +205,7 @@ const serve = async () => {
             count.states = {};
             for (const entry of entries) count.states[entry.state] = (count.states[entry.state] ?? 0) + 1;
             // a sample of the entries in SYN_SENT: a fresh SYN has the life 120, and an old one less
-            count.syn = entries.filter((entry) => entry.state === "SYN_SENT").slice(0, 3).map((entry) => ({ client: entry.client, ttl: entry.ttl, unreplied: entry.unreplied }));
+            count.syn = entries.filter((entry) => entry.state === "SYN_SENT").slice(0, 3).map((entry) => ({ client: entry.client, backend: entry.backend, ttl: entry.ttl, unreplied: entry.unreplied }));
             const next = new Map();
             for (const entry of staleOf(entries, backends)) {
               const id = `${entry.client}>${entry.backend}`;
