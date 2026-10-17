@@ -63,6 +63,9 @@
   "peerDependenciesMeta": {
     "ioredis": {
       "optional": true
+    },
+    "zod": {
+      "optional": true
     }
   },
   "devDependencies": {

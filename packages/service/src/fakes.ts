@@ -2,7 +2,7 @@
 // gives the same jitter on each run, and a fake process takes signals and keeps the exit codes.
 
 import type { Cancel, Clock } from "./clock.ts";
-import type { ExitSignal, ProcessPort } from "./process.ts";
+import type { ExitSignal, ExitTrigger, ProcessPort } from "./process.ts";
 
 /** A fake clock moves only when a test tells it to. */
 export interface FakeClock extends Clock {
@@ -69,35 +69,65 @@ export const fakeClock = (start = 0): FakeClock => {
   };
 };
 
-/** A fake process receives signals from a test, and keeps each exit code in place of an exit. */
+/** A fake process receives triggers from a test, and keeps each exit code in place of an exit. */
 export interface FakeProcess extends ProcessPort {
   /** This method sends a signal to each handler of it. */
   signal(name: ExitSignal): void;
+  /** This method sends a trigger to each handler of it: a signal, or a process trigger such as `stdin-close`. */
+  trigger(name: ExitTrigger): void;
   /** These are the exit codes, in sequence. A correct runtime exits one time. */
   readonly exits: readonly number[];
   /** This count is the number of handlers that are registered. */
   readonly handlers: number;
+  /** These are the triggers that have a handler, in the sequence of their first handler. */
+  readonly triggers: readonly ExitTrigger[];
+  /** These are the times of the clock of the options at each flush and each exit, when the options give a clock. */
+  readonly log: readonly string[];
+  /** This count is the number of flushes of the output. */
+  readonly flushes: number;
+}
+
+/** These options shape a fake process. */
+export interface FakeProcessOptions {
+  /** This function is the flush of the output, for example a wait on a fake clock. Without it, a flush ends at once. */
+  readonly flush?: (() => Promise<void> | void) | undefined;
+  /** This clock stamps each line of the log. */
+  readonly clock?: Clock | undefined;
 }
 
 /** This function makes a fake process. */
-export const fakeProcess = (): FakeProcess => {
-  const handlers = new Map<ExitSignal, Set<() => void>>();
+export const fakeProcess = (options: FakeProcessOptions = {}): FakeProcess => {
+  const handlers = new Map<ExitTrigger, Set<() => void>>();
   const exits: number[] = [];
+  const log: string[] = [];
+  let flushes = 0;
+  const stamp = (what: string): void => {
+    log.push(options.clock === undefined ? what : `${options.clock.now()} ${what}`);
+  };
+  const send = (name: ExitTrigger): void => {
+    for (const handler of [...(handlers.get(name) ?? [])]) handler();
+  };
   return {
-    on(signal, handler) {
-      const set = handlers.get(signal) ?? new Set();
+    on(trigger, handler) {
+      const set = handlers.get(trigger) ?? new Set();
       set.add(handler);
-      handlers.set(signal, set);
+      handlers.set(trigger, set);
       return () => {
         set.delete(handler);
       };
     },
+    async flush() {
+      stamp("flush");
+      await options.flush?.();
+      flushes += 1;
+      stamp("flushed");
+    },
     exit(code) {
+      stamp(`exit ${code}`);
       exits.push(code);
     },
-    signal(name) {
-      for (const handler of [...(handlers.get(name) ?? [])]) handler();
-    },
+    signal: send,
+    trigger: send,
     get exits() {
       return [...exits];
     },
@@ -105,6 +135,15 @@ export const fakeProcess = (): FakeProcess => {
       let count = 0;
       for (const set of handlers.values()) count += set.size;
       return count;
+    },
+    get triggers() {
+      return [...handlers.keys()];
+    },
+    get log() {
+      return [...log];
+    },
+    get flushes() {
+      return flushes;
     },
   };
 };

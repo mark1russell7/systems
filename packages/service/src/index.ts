@@ -11,10 +11,13 @@ export { asDebounce, asWindow, failSpan, heartbeatDetection, recoverSpan } from 
 export type {
   Check,
   Controller,
+  CooperativeFloor,
   Coupling,
   Dependency,
+  ExitCodes,
   Gate,
   Phase,
+  RepeatSignal,
   ServiceDescription,
   Step,
   Transport,
@@ -53,12 +56,15 @@ export type {
   PhaseContext,
   PhaseWork,
   RunOptions,
+  ShutdownOptions,
   Stage,
   TransportImpl,
 } from "./lifecycle.ts";
 export { STAGES, cooperativeAbortAt, stageRank } from "./lifecycle.ts";
-export type { ExitSignal, ProcessPort } from "./process.ts";
-export { EXIT_SIGNALS, nodeProcess } from "./process.ts";
+export type { ExitSignal, ExitTrigger, HostStream, ProcessHost, ProcessPort, ProcessTrigger } from "./process.ts";
+export { EXIT_SIGNALS, PROCESS_TRIGGERS, isExitCode, isExitSignal, nodeProcess, processPortOf } from "./process.ts";
+export type { PodTiming, Profile } from "./profiles.ts";
+export { ephemeral, kubernetes, localDev } from "./profiles.ts";
 export type { RequestFn, RequestOutcome } from "./requests.ts";
 export type { Watchdog, WatchdogSpec } from "./watchdog.ts";
 export { watchdog } from "./watchdog.ts";

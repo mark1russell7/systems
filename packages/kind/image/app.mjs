@@ -50,21 +50,18 @@ const redis =
         { clock, record },
       );
 
-let life = null;
 // the flag file fails the check of the liveness restart: the agent writes it in the root of the container
 const FLAG = process.env.LAB_FLAG ?? "/tmp/lab-fail";
 const flag = () => (existsSync(FLAG) ? "error" : "ok");
 
-// the server transport: a new connection for each request, and Connection: close while the service is not ready
+// the server transport: a new connection for each request, and Connection: close while the service is not ready.
+// The lifecycle comes with the start of the transport, thus a request before the end of the startup
+// gets the refusal of the service: 503, retryable
 const sockets = new Set();
 let inFlight = 0;
-const server = http.createServer(async (req, res) => {
+const serve = (life) => async (req, res) => {
   inFlight += 1;
   try {
-    if (life === null) {
-      res.writeHead(503, { connection: "close", "content-type": "text/plain" }).end("starting");
-      return;
-    }
     const outcome = await life.request(CONTROLLER, ROUTE, async (signal) => {
       if (redis !== undefined) {
         const sent = await redis.send("GET", ["lab"], { signal });
@@ -80,14 +77,16 @@ const server = http.createServer(async (req, res) => {
   } finally {
     inFlight -= 1;
   }
-});
+};
+const server = http.createServer();
 server.on("connection", (socket) => {
   sockets.add(socket);
   socket.on("close", () => sockets.delete(socket));
 });
 const transport = {
-  start: () =>
+  start: (_signal, life) =>
     new Promise((resolve, reject) => {
+      server.on("request", serve(life));
       server.once("error", reject);
       server.listen(config.port, () => {
         say({ ev: "app", what: "listening", port: config.port });
@@ -132,9 +131,9 @@ const healthServer = {
 
 const svc = compose(config.name, declaration, { redis, flag, http: transport, health: healthServer });
 const exits = { on: (signal, handler) => (process.on(signal, handler), () => process.off(signal, handler)), exit: (code) => {
-  say({ ev: "app", what: "exit", code, errors: life?.errors ?? [] });
+  say({ ev: "app", what: "exit", code, errors: svc.lifecycle?.errors ?? [] });
   process.exit(code);
 } };
 say({ ev: "app", what: "start", declaration });
-life = await svc.run({ clock, record, process: exits });
+const life = await svc.run({ clock, record, process: exits });
 say({ ev: "app", what: "started", ready: life.health.verdict().ready });

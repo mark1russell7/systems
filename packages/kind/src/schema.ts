@@ -23,6 +23,7 @@ export const STAGES: readonly [Stage, ...Stage[]] = [
   "stop the poller",
   "tear down dependencies",
   "close the health server",
+  "flush the output",
 ];
 
 const TRIGGERS = [

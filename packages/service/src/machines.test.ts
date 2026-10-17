@@ -90,6 +90,29 @@ const scenarios = async (): Promise<Array<{ name: string; events: LifecycleEvent
     await exited(r, life);
     keep("a blocked event loop", r.events, r);
   }
+  // a repeat signal that exits at once, during the drain
+  {
+    const r = rig();
+    r.svc.onRepeatSignal("exit");
+    const life = await run(r);
+    void life.request("api", "GET /things", () => new Promise<string>(() => {}));
+    r.process.signal("SIGTERM");
+    await r.clock.advance(1500);
+    r.process.signal("SIGINT");
+    await exited(r, life);
+    await r.clock.advance(10_000);
+    keep("a repeat signal that exits at once", r.events, r);
+  }
+  // the flush of the output, and a cooperative abort at the start of the drain
+  {
+    const r = rig({ caps: { ...CAPS, "flush the output": 1 }, window: s(4), flush: 200 });
+    r.svc.cooperativeFloor("none");
+    const life = await run(r);
+    void life.request("api", "GET /things", (signal) => new Promise<string>((_, reject) => signal.addEventListener("abort", () => reject(new Error("stopped")))));
+    void life.shutdown("the work ended", { code: 3 });
+    await exited(r, life);
+    keep("a flush of the output, and a cooperative abort at once", r.events, r);
+  }
   // a window latch that recovers, through the health runtime alone
   {
     const events: LifecycleEvent[] = [];
@@ -187,7 +210,7 @@ describe("the timers of the documents give the times of the runtime (the algebra
     const values = (name: string) => {
       if (name === "cooperative_window") return s(1);
       const stage = STAGES.find((each) => capKnob(each) === name);
-      return stage === undefined ? undefined : s(CAPS[stage]);
+      return stage === undefined || !(stage in CAPS) ? undefined : s(CAPS[stage as keyof typeof CAPS]);
     };
     const moves = r.events.filter((event) => event.machine === "drain" && event.from !== event.to);
     for (let at = 1; at < moves.length; at += 1) {
