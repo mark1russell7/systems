@@ -261,6 +261,45 @@ describe("a detection by the program of the observer, from its lines and the ker
     expect(read).toMatchObject({ outcome: { kind: "dropped" }, elapsed: s(2.00092), socket: s(2.0009), steps: [s(1.0004)], finding: null });
   });
 
+  it("names the connection of a server behind a router by the peer of its socket: the address of the router", () => {
+    const ROUTER = "172.22.0.2:59222";
+    const server: Cell = {
+      ...HEARTBEAT,
+      name: "W3",
+      observer: "server",
+      prediction: { detects: true, timer: "heartbeat", errno: "DROPPED", from: "ping-sent", low: s(11.98), high: s(12.02) },
+    };
+    const at = (ev: string, mono: number, more: Partial<KernelRecord> = {}): KernelRecord =>
+      k(ev, mono, { netns: NETNS + 1, cookie: 9184, src: SERVER, dst: ROUTER, ...more });
+    // a ping before the forget gets its pong. The router forgets the flow, and the next two pings get nothing
+    const B = T + 1_200_000_000;
+    const lines: ProbeEvent[] = [
+      { ev: "accepted", t: T - 2_100_000, peer: ROUTER },
+      { ev: "ping", t: B, peer: ROUTER },
+      { ev: "ping", t: B + 6_000_400_000, peer: ROUTER },
+      { ev: "ping", t: B + 12_000_900_000, peer: ROUTER },
+      { ev: "drop", t: B + 18_001_300_000, peer: ROUTER },
+    ];
+    const records = [
+      ...kernel.slice(0, 1),
+      // the socket of the server, ESTABLISHED with the router as its peer
+      at("state", T - 2_050_000, { old: 2, new: 1 } as Partial<KernelRecord>),
+      at("rx", T - 1_450_000, data(30)),
+      at("tx", B + 30_000, data(2)),
+      at("rx", B + 400_000, data(6)),
+      at("tx", B + 6_000_430_000, data(2)),
+      at("tx", B + 12_000_930_000, data(2)),
+      at("state", B + 18_001_350_000, { old: 1, new: 4 } as Partial<KernelRecord>),
+    ];
+    const topology = { targetPeer: "172.22.0.2", hops: { nat: { netns: NETNS + 2, client: "172.21.0.3", target: SERVER } } };
+    const read = measure(server, run(client.slice(0, 4), records, { server: lines, topology, fault: null }));
+    // the first ping without an answer is the second one, and the drop comes two beats after it
+    expect(read).toMatchObject({ outcome: { kind: "dropped" }, elapsed: s(12.00092), socket: s(12.0009), steps: [s(6.0005)], finding: null });
+    // a line that names the client's own address does not match the socket of the server behind the router
+    const named = lines.map((line) => ("peer" in line ? { ...line, peer: LOCAL } : line));
+    expect(measure(server, run(client.slice(0, 4), records, { server: named, topology, fault: null })).outcome).not.toEqual({ kind: "dropped" });
+  });
+
   it("times the stall of an idle client from its first ping into it, and finds a drop before the recovery", () => {
     const stall: Cell = {
       ...HEARTBEAT,
