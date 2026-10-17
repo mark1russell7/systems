@@ -184,7 +184,8 @@ export const MONGODB_NODE: Machine = machineSchema.parse({
     "systems.mechanism.connect-bound": { timer: "connect_timeout" },
     "systems.mechanism.driver-writeoff-time": { timer: "stream_timeout" },
     "systems.mechanism.heartbeat-interval": { timer: "check_period" },
-    "systems.mechanism.server-selection-timeout": { timer: "selection_timeout" },
+    // an operation that fails on a server is retried once, and the retry selects again with a new serverSelectionTimeoutMS
+    "systems.mechanism.client-retry-window": { timer: "selection_timeout" },
     "systems.mechanism.idle-refresh-interval": {
       duration: { expr: "floor(keepAliveInitialDelay / 1000)", unit: "s" },
       lateness: { model: "linux.wheel", knobs: ["keepAliveInitialDelay", "hz"], unit: "s" },

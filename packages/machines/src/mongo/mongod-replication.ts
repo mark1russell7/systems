@@ -285,7 +285,13 @@ export const MONGOD_REPL: Machine = machineSchema.parse({
     },
   },
   realizes: {
-    "systems.mechanism.failure-detection": { timer: "heartbeat_window" },
+    // from the start of a silence: the next request goes out up to heartbeatIntervalMillis after the last response, and its window starts then
+    "systems.mechanism.heartbeat-detection-time": {
+      duration: { expr: "heartbeatIntervalMillis + heartbeatTimeoutSecs * 1000", unit: "ms" },
+      lateness: { knob: "executor_slack", unit: "ms" },
+      early: { knob: "heartbeatIntervalMillis", unit: "ms" },
+      note: "a member is DOWN at the end of a heartbeat window without a response. A silence that starts just before a request is found one window later. One that starts just after a response is found an interval and a window later",
+    },
     "systems.mechanism.election-timeout": { timer: "election" },
     "systems.mechanism.primary-liveness": { timer: "liveness" },
   },
