@@ -245,8 +245,9 @@ export const DISPATCH = 0.001;
 /**
  * This function gives the gap of a client that sleeps `g` seconds after the reply, from the start
  * of its sleep. The gap is the sleep of its runtime, late as its timers are, and the dispatch. Go
- * sleeps with a Go timer, and the Node clients with a Node timer (`timers.ts`). The race adds the
- * handling time of the reply before the sleep (`afterHandling`).
+ * sleeps with a Go timer, and the Node clients with a Node timer (`goLateSeconds` and
+ * `nodeLateSeconds` of `@mark1russell7/machines`). The race adds the handling time of the reply
+ * before the sleep (`afterHandling`).
  */
 export const gapOf = (client: HttpClient, g: number, hz = HZ): Interval =>
   client === "go"

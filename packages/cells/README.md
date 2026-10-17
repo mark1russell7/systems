@@ -16,7 +16,7 @@ Each cell gives each knob that its prediction reads. The namespace of the observ
 
 ## The predictions
 
-`predict` asks `@mark1russell7/algebra` for each cell:
+`predict` asks `@mark1russell7/algebra` for each cell. The machine documents come from `@mark1russell7/machines`, and the snapshot `src/__snapshots__/predictions.json` holds the prediction of each cell of each catalog. A change that moves a prediction changes its line of the snapshot.
 
 - **A detection by a timer.** The first live timer of Linux TCP, or of Redis over Linux TCP for the server. The band is its duration, less how early it can fire, to its duration plus how late it can fire.
 - **A soft error.** Linux keeps an ICMP error on an established socket as a soft error. Thus the give-up of the retransmissions gives the errno of the ICMP (EHOSTUNREACH, ENETUNREACH, ECONNREFUSED), not ETIMEDOUT. Keepalive gives ETIMEDOUT: its probe has the sequence number before `snd_una`, thus its ICMP is out of the window, and the kernel ignores it.
@@ -66,9 +66,9 @@ The TOX catalog has Toxiproxy 2.12.0 as the subject, between the client and Redi
 
 T12 is a replicated group under an external failover authority: clients → three Sentinels → a primary and two replicas, all Valkey 9.1.2, quorum 2 (`src/t12.ts`). The client is ioredis 6.0.0 in Sentinel mode, at its defaults, with a stream of writes. The name of each cell starts with the cell of the plan that it stands for, for example `T12.defaults.6`.
 
-- **Two machine documents** give the timers. Comments cite each fact by its file and line.
-  - `src/sentinel.ts` is the Sentinel of Valkey 9.1.2, from `src/sentinel.c` at that tag. It gives the tick, the ping period, down-after, the asks, the election, the promotion and the conversion.
-  - `src/ioredis-sentinel.ts` is the Sentinel path of ioredis 6.0.0. It gives the reconnect ladder, the connects that each ask a Sentinel, and the give-up of the offline queue.
+- **Two machine documents** of `@mark1russell7/machines` give the timers. Comments cite each fact by its file and line.
+  - `SENTINEL` is the Sentinel of Valkey 9.1.2, from `src/sentinel.c` at that tag. It gives the tick, the ping period, down-after, the asks, the election, the promotion and the conversion.
+  - `IOREDIS_SENTINEL` is the Sentinel path of ioredis 6.0.0. It gives the reconnect ladder, the connects that each ask a Sentinel, and the give-up of the offline queue.
 - **The failover** (`failoverOf`) adds the stages, each from the Sentinel document:
   - The first PING without a PONG, then down-after-milliseconds and a tick.
   - The second Sentinel that is down, then a tick for the election, and a tick each for the selection and the promotion.
@@ -99,8 +99,8 @@ The HTTP catalog (`src/http/`) has the cells of T01 and T03 with the Node HTTP s
   - the `http.Agent` of Node 24.21.0 (`http-agent`)
   - an HTTP/1.1 `Client` of undici 8.12.2 (`undici`)
 - **The lines.** Each client writes the JSON lines of the TCP client of the harness. For each request, it also writes its connection (the local port), a flag if the client reused it, a new try, and the outcome. The server writes a line at each accept, request, idle timeout and close.
-- **The documents.** Each system has a machine document from its source at its version: `node-server.ts`, `go-transport.ts`, `node-agent.ts` and `undici.ts`. Each fact has its file and its line.
-- **The lateness of a user timer.** A Node or Go timer sleeps in `epoll_wait`. The kernel lets that sleep end late by a slack: the remaining time divided by 1000, at most 100 ms (`timers.ts`). Thus the 6 s keep-alive timer of the Node server can fire 7 ms late.
+- **The documents.** Each system has a machine document from its source at its version, in `@mark1russell7/machines`: `NODE_HTTP_SERVER`, `GO_TRANSPORT`, `NODE_HTTP_AGENT` and `UNDICI_CLIENT`. Each fact has its file and its line. The settings that a cell gives are in `src/http/settings.ts`.
+- **The lateness of a user timer.** A Node or Go timer sleeps in `epoll_wait`. The kernel lets that sleep end late by a slack: the remaining time divided by 1000, at most 100 ms (`nodeTimerLateness` and `goTimerLateness` of `@mark1russell7/machines`). Thus the 6 s keep-alive timer of the Node server can fire 7 ms late.
 - **The coarse clock.** At HZ 1000, the coarse clock of the kernel has a step of 1 ms. Then libuv reads its loop clock from the coarse clock. Thus each bound of a Node timer gets one more jiffy. The knob `hz` of each Node document comes from `CELLS_HZ`.
 
 ### The keep-alive race
@@ -153,14 +153,14 @@ Each prediction of a fault composes the document of the client, or of the server
 
 The WS catalog has the WebSocket client and server of `@procedures/client` 0.3.0 on a direct pair (`src/ws.ts`). The client is the harness client `procedures-ws`, and the server is a script in its image. Each cell gives each setting of the client and of the server.
 
-- **The documents** (`src/procedures-ws.ts`) are the client and the server of 0.3.0, from the files of the release and of `@mark1russell7/service` 0.4.0. Each fact has its file and its line.
+- **The documents** (`PROCEDURES_WS_CLIENT` and `PROCEDURES_WS_SERVER` of `@mark1russell7/machines`) are the client and the server of 0.3.0, from the files of the release and of `@mark1russell7/service` 0.4.0. Each fact has its file and its line.
   - The states and the events come from the document of the client repository at commit 1f50f47 (`WEBSOCKET_CONNECTION_MACHINE`). The timers come from the code of 0.3.0.
   - The heartbeat of the client is `heartbeat()` of the service. It sends a ping only when no pong is awaited, and `misses` misses in sequence drop the connection. With one miss, the drop comes one timeout after the ping that got no answer.
   - The reconnect waits min(initialDelay × multiplier^(n − 1), maxDelay) before try n, less its jitter. The cells set the jitter to 0. The algebra reads the wait with `pow` (`@mark1russell7/algebra` 0.6.0).
   - A drop of a socket of the global `WebSocket` writes a close frame and destroys nothing. Thus the kernel stamps the drop as a write, and the socket stays ESTABLISHED below. A socket of the `WebSocket` of ws ends at once with `terminate()`.
   - undici turns keepalive on with 60 s, and libuv adds 1 s and 10 probes. The ws package turns no keepalive on. Thus the keepalive sysctls of the namespace do not reach the socket of the client.
   - The heartbeat of the server pings each connection at each beat of a `setInterval`. It ends a connection after `misses` beats without a pong: `misses` beats after its first ping without an answer.
-- **The lateness of a timer of the program.** Each timer of the program is a Node timer, with the lateness of `http/timers.ts`. That is the slack of `epoll_wait`, the truncation of the loop clock to 1 ms, and the step of the coarse clock. The early bound is the truncation and the step. The time of the loop in other callbacks is the time of the application, and δ_abs holds a small part of it.
+- **The lateness of a timer of the program.** Each timer of the program is a Node timer, with the lateness of `nodeTimerLateness`. That is the slack of `epoll_wait`, the truncation of the loop clock to 1 ms, and the step of the coarse clock. The early bound is the truncation and the step. The time of the loop in other callbacks is the time of the application, and δ_abs holds a small part of it.
 - **The claims.** Each cell gives each knob of Linux TCP at the observer too.
   - A black hole, idle or with a call in flight, and a frozen server: the heartbeat drops the connection one pong timeout after its ping. The kernel of a frozen server acknowledges the ping, thus only the heartbeat finds it.
   - The drop of each class. The global `WebSocket` writes a close frame, and its socket stays ESTABLISHED. With the `WebSocket` of ws, the socket leaves ESTABLISHED at once.
@@ -190,15 +190,15 @@ Stage 0 measures δ_abs in each environment: the latency of the pipeline on a pa
 
 The MongoDB catalogs (`src/mongo/`) put the Node driver `mongodb` 7.7.0 on Node 24.21.0 against replica sets of mongod 9.0.4 (`mongo:9.0.4`, pinned by digest). T01 and T03 use a set of one member, because the monitor of the driver needs a set. T11 uses a set of three members. Each cell has the identifier of the cell of the plan that it stands for.
 
-The machine documents come from the source at the pinned versions, and each fact names its file and line:
+The machine documents of `@mark1russell7/machines` come from the source at the pinned versions, and each fact names its file and line:
 
-- **The driver** (`mongodb-node.ts`). The monitor streams `hello` and writes a silent server off after `connectTimeoutMS + heartbeatFrequencyMS`: 40 s at the defaults. A timeout of the monitor clears the pool and interrupts each operation in flight. An end of the stream by the kernel does not interrupt it. A retryable operation retries one time, after a new selection of `serverSelectionTimeoutMS`. Each socket gets `setKeepAlive(true, 120000)`, thus keepalive at 120 s and 10 probes 1 s apart.
-- **The replication of mongod** (`mongod-replication.ts`). A member sends a heartbeat each 2 s, and a window of 10 s without an answer marks the target DOWN. A secondary starts an election 10 s after its last contact with the primary, plus an offset of less than 1.5 s. A primary steps down when it cannot see a majority for 10 s. A new primary waits in its catch-up for an answer or a failure from each other member.
-- **The sync source of a secondary** (`mongod-replication.ts`). A secondary keeps a silent primary as its sync source until its oplog fetcher gives up, 17 s to 18 s after the fault:
+- **The driver** (`MONGODB_NODE`). The monitor streams `hello` and writes a silent server off after `connectTimeoutMS + heartbeatFrequencyMS`: 40 s at the defaults. A timeout of the monitor clears the pool and interrupts each operation in flight. An end of the stream by the kernel does not interrupt it. A retryable operation retries one time, after a new selection of `serverSelectionTimeoutMS`. Each socket gets `setKeepAlive(true, 120000)`, thus keepalive at 120 s and 10 probes 1 s apart.
+- **The replication of mongod** (`MONGOD_REPL`). A member sends a heartbeat each 2 s, and a window of 10 s without an answer marks the target DOWN. A secondary starts an election 10 s after its last contact with the primary, plus an offset of less than 1.5 s. A primary steps down when it cannot see a majority for 10 s. A new primary waits in its catch-up for an answer or a failure from each other member.
+- **The sync source of a secondary** (`MONGOD_REPL`). A secondary keeps a silent primary as its sync source until its oplog fetcher gives up, 17 s to 18 s after the fault:
   - The exhaust read times out at 10 s. This timeout is `SO_RCVTIMEO`, a kernel timer, thus the timer wheel makes it up to 512 ms late at HZ 1000.
   - The fetcher makes one new cursor after 5 ms, and that cursor times out at 7 s.
   - The reporter of the secondary keeps a `replSetUpdatePosition` to the silent primary for its network timeout of 30 s. It sent it at the last batch, or at its keepalive 5 s later. Until the command ends, a new primary learns the position of that secondary only from the response to each heartbeat, each 2 s.
-- **The connections of mongod** (`mongod-session.ts`). `mongod` lowers the keepalive idle time of each socket to 300 s and its interval to 1 s. Thus its window is 309 s at the Linux defaults. An awaitable `hello` answers after `maxAwaitTimeMS`, which the driver sets to `heartbeatFrequencyMS`. The source gives no bound for the lateness of that wait, thus the document assumes 20 ms. In CI, it was 1 ms to 10.6 ms.
+- **The connections of mongod** (`MONGOD_SESSION`). `mongod` lowers the keepalive idle time of each socket to 300 s and its interval to 1 s. Thus its window is 309 s at the Linux defaults. An awaitable `hello` answers after `maxAwaitTimeMS`, which the driver sets to `heartbeatFrequencyMS`. The source gives no bound for the lateness of that wait, thus the document assumes 20 ms. In CI, it was 1 ms to 10.6 ms.
 
 The predictions compose these documents:
 

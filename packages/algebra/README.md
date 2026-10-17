@@ -16,6 +16,8 @@ A machine document has the format `mark1russell7.machine/1`, and `machineSchema`
 
 `machineProblems` finds the problems of consistency in a document. For example, a transition names a state, an event or a timer that does not exist.
 
+The documents of the systems program are in [`@mark1russell7/machines`](https://www.npmjs.com/package/@mark1russell7/machines). They include Linux TCP, conntrack, Redis, ioredis, the Valkey Sentinel, HTTP and WebSocket clients and servers, and MongoDB. That package uses this package, and this package does not use it.
+
 ## The algebra
 
 - **Exact values.** `evaluate` and `timerOf` give a duration in the unit of its document, with exact rational arithmetic. Thus 0.2 s × 1023 is 204.6 s. A knob without a value gives an unknown result that names the knob. A knob that nothing sets gives a duration without an end.
@@ -81,6 +83,8 @@ detection(tcp, idle, { name: "blackhole", passes: [] }, values).first?.timer; //
 
 ## Tests
 
-`pnpm --filter @mark1russell7/algebra test` starts the tests. Four machine documents are their fixtures: Linux TCP, conntrack TCP, the Redis server and ioredis. The tests compute the defaults of Linux 6.6 and the rounding of the timer wheel. They also compute the scaled cells of the harness, the backoff waits, recovery after a stall, and detection for each fault. The replay tests use a machine with its own names, and they hold the entry of the replay without zod.
+`pnpm --filter @mark1russell7/algebra test` starts the tests. Each test writes its own small machines. The machines are a socket with the timers of a kernel's TCP, a server over the socket, and a driver with a backoff. The tests compute each model at the defaults of Linux 6.6, and the rounding of the timer wheel. They also compute the backoff waits, recovery after a stall, and detection for each fault. The replay tests use a machine with its own names, and they hold the entry of the replay without zod.
+
+The tests of the algebra on the real documents are in `@mark1russell7/machines`.
 
 `pnpm --filter @mark1russell7/algebra build` writes the package for npm into `build/`.
