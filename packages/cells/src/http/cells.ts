@@ -5,11 +5,8 @@ import { HZ, LINUX_66, RUNS, ms, s, sysctlsOf } from "../catalog.ts";
 import { router } from "../topologies.ts";
 import type { HttpCell, HttpSpec } from "./catalog.ts";
 import { HTTP_CAL, HTTP_CELLS } from "./catalog.ts";
-import type { GoSettings } from "./go-transport.ts";
-import type { AgentSettings } from "./node-agent.ts";
-import type { NodeServerSettings } from "./node-server.ts";
 import type { HttpClient } from "./race.ts";
-import type { UndiciSettings } from "./undici.ts";
+import type { AgentSettings, GoSettings, NodeServerSettings, UndiciSettings } from "./settings.ts";
 
 /** This image is the stock Node 24.21.0 of the server, pinned by digest: the Node of the client images of the harness. */
 export const NODE_IMAGE = "node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1";

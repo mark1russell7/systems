@@ -1,20 +1,15 @@
 import type { KnobValues, Machine, Manifestation } from "@mark1russell7/algebra";
 import { errnoOf, overValues, stackedDetection, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
 import type { Fault, MiddleboxForm, Prediction, Reference } from "@mark1russell7/harness";
+import { GO_TRANSPORT, LINUX_TCP, NF_CONNTRACK_TCP, NODE_HTTP_AGENT, NODE_HTTP_SERVER, UNDICI_CLIENT } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Spec } from "../catalog.ts";
-import { HZ, LINUX, LINUX_66, RTT_MS, WINDOW, count, given, ms, predictAt, q, s, seconds } from "../catalog.ts";
+import { HZ, LINUX_66, RTT_MS, WINDOW, count, given, ms, predictAt, q, s, seconds } from "../catalog.ts";
 import type { ManifestationName } from "../manifestations.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
 import { assuming } from "../rtt.ts";
-import { CONNTRACK, LISTING, ROUTER_PUMP } from "../topologies.ts";
-import type { GoSettings } from "./go-transport.ts";
-import { GO_TRANSPORT } from "./go-transport.ts";
-import type { AgentSettings } from "./node-agent.ts";
-import { NODE_HTTP_AGENT } from "./node-agent.ts";
-import type { NodeServerSettings } from "./node-server.ts";
-import { NODE_HTTP_SERVER, hintOf } from "./node-server.ts";
+import { LISTING, ROUTER_PUMP } from "../topologies.ts";
 import type { Decision, HttpClient, Interval, Ordering, Race, RequestOutcome } from "./race.ts";
 import {
   DISPATCH,
@@ -28,8 +23,8 @@ import {
   timerInterval,
   valuesOf,
 } from "./race.ts";
-import type { UndiciSettings } from "./undici.ts";
-import { UNDICI_CLIENT } from "./undici.ts";
+import type { AgentSettings, GoSettings, NodeServerSettings, UndiciSettings } from "./settings.ts";
+import { hintOf } from "./settings.ts";
 
 /**
  * This module is the HTTP catalog. It holds the cells of T01 and T03 with the Node HTTP server at
@@ -592,7 +587,7 @@ const nominalRtt = (spec: HttpSpec): number => RTT_MS + (spec.latency ?? 0);
 
 /** This function gives the event that arms a timer of Linux TCP, as the reference of a measurement. */
 const linuxReference = (timer: string): Reference => {
-  const arms = LINUX.timers[timer]?.arms ?? [];
+  const arms = LINUX_TCP.timers[timer]?.arms ?? [];
   if (arms.includes("tx.retransmit.first")) return "first-retransmission";
   return "last-received";
 };
@@ -621,7 +616,7 @@ const predictFaultAt = (spec: HttpSpec, rttMs: number): Prediction => {
     return {
       detects: true,
       timer: "rx.rst",
-      errno: transitionOn(LINUX, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET",
+      errno: transitionOn(LINUX_TCP, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET",
       from: "request-sent",
       low: q(0),
       high: q(rtt),
@@ -632,7 +627,7 @@ const predictFaultAt = (spec: HttpSpec, rttMs: number): Prediction => {
   const state = server ? "HANDLING" : inFlight ? STATES[spec.client].busy : STATES[spec.client].idle;
   const manifestation: Manifestation = MANIFESTATIONS[spec.manifestation ?? "blackhole"];
   const linux = given(linuxValues(spec, rttMs));
-  const found = stackedDetection(side.doc, LINUX, { state, inFlight }, manifestation, side.values, linux);
+  const found = stackedDetection(side.doc, LINUX_TCP, { state, inFlight }, manifestation, side.values, linux);
   const [delivered] = found.delivered;
   if (delivered !== undefined)
     return { detects: true, timer: delivered.event, errno: delivered.errno ?? "EOF", from: "peer-closed", low: q(0), high: q(rtt) };
@@ -641,12 +636,12 @@ const predictFaultAt = (spec: HttpSpec, rttMs: number): Prediction => {
   const { timer, fires, beneath } = found.first;
   if (beneath !== undefined) {
     const values = overValues(side.doc, side.values, linux);
-    const bounds = timerUnder(LINUX, timer, values, manifestation);
+    const bounds = timerUnder(LINUX_TCP, timer, values, manifestation);
     const duration = seconds(bounds.duration, timer);
     return {
       detects: true,
       timer,
-      errno: errnoOf(LINUX, "ESTABLISHED", { timer, fires }, manifestation) ?? "ETIMEDOUT",
+      errno: errnoOf(LINUX_TCP, "ESTABLISHED", { timer, fires }, manifestation) ?? "ETIMEDOUT",
       from: linuxReference(timer),
       low: q(duration - seconds(bounds.early, `${timer}'s early bound`)),
       high: q(duration + seconds(bounds.lateness, `${timer}'s lateness`)),
@@ -807,7 +802,7 @@ const forgetLow = (router: HttpRouter): number => {
     nf_conntrack_tcp_timeout_established: s(router.idle),
     gc_lag_max: s(valueIn(ROUTER_PUMP, "s") + 2 * valueIn(LISTING, "s")),
   });
-  const bounds = timerOf(CONNTRACK, "expire_established", values);
+  const bounds = timerOf(NF_CONNTRACK_TCP, "expire_established", values);
   return seconds(bounds.duration, "expire_established") - seconds(bounds.early, "the early bound of the forget");
 };
 

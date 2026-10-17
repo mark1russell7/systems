@@ -1,8 +1,9 @@
 import { transitionOn } from "@mark1russell7/algebra";
 import type { Cell, Fault, Prediction, ProxyTime, Toxic } from "@mark1russell7/harness";
+import { LINUX_TCP } from "@mark1russell7/machines";
 import { valueIn } from "@mark1russell7/quantity";
 import { PROXY_TIMES } from "./calibration.ts";
-import { LINUX, REDIS, RTT_MS, RUNS, ms, q } from "./catalog.ts";
+import { REDIS, RTT_MS, RUNS, ms, q } from "./catalog.ts";
 import { assuming } from "./rtt.ts";
 import { REDIS_CLOSING, toxiproxy } from "./topologies.ts";
 
@@ -32,7 +33,7 @@ interface ToxSpec {
 /** This text tells why a close translation is measurement only. */
 const NO_CLOSE =
   "Toxiproxy documents its toxics, but not what it sends to the client when its upstream connection fails";
-const resetErrno = transitionOn(LINUX, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET";
+const resetErrno = transitionOn(LINUX_TCP, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET";
 
 /**
  * This function gives the times of Toxiproxy that a band crosses, and their sum in seconds. A

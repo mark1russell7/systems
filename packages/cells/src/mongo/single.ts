@@ -1,12 +1,13 @@
 import type { KnobValues, Manifestation } from "@mark1russell7/algebra";
 import { timerOf, transitionOn } from "@mark1russell7/algebra";
+import { LINUX_TCP, MONGOD_SESSION } from "@mark1russell7/machines";
 import { valueIn } from "@mark1russell7/quantity";
-import { LINUX, RTT_MS, given, predict, seconds } from "../catalog.ts";
+import { RTT_MS, given, predict, seconds } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
 import type { MongoBand, MongoPrediction, MongoReference, MongoSpec } from "./cells.ts";
 import { sec } from "./cells.ts";
 import type { First, Span } from "./model.ts";
-import { MONGOD_SESSION, driverSpan, driverValues, firstOn, interrupts, linuxValues, plus, replTimes, secondsOf, sessionValues, span, spanOf } from "./model.ts";
+import { driverSpan, driverValues, firstOn, interrupts, linuxValues, plus, replTimes, secondsOf, sessionValues, span, spanOf } from "./model.ts";
 
 /**
  * This module predicts a cell of the driver against a replica set of one member: T01 and T03.
@@ -161,7 +162,7 @@ export const predictSingle = (spec: MongoSpec, rttMs = RTT_MS): MongoPrediction 
 
   // a reset answers the request at once
   if (spec.fault === "rst") {
-    const errno = transitionOn(LINUX, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET";
+    const errno = transitionOn(LINUX_TCP, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET";
     const reset = span(0, rtt);
     return {
       detects: true,
@@ -200,7 +201,7 @@ export const predictSingle = (spec: MongoSpec, rttMs = RTT_MS): MongoPrediction 
   // an operation in flight: the monitor interrupts it, or its own socket ends first. Each is set on
   // the clock of the fault: the monitor's last reply came up to one heartbeat before the fault, and
   // the request goes into the fault, its first retransmission two RTOs later
-  const rto = seconds(timerOf(LINUX, "retransmit", linux, 0).duration, "the RTO");
+  const rto = seconds(timerOf(LINUX_TCP, "retransmit", linux, 0).duration, "the RTO");
   const fromLast = interruptionAfter(onMonitor, spec, driver);
   const interrupt = fromLast === null ? null : plus(after, fromLast);
   const monitorOnFault = interrupt === null ? null : plus(span(-h, 0), interrupt);

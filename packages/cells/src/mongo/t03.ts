@@ -1,14 +1,14 @@
 import { realizationOf } from "@mark1russell7/algebra";
 import { transitionOn } from "@mark1russell7/algebra";
+import { LINUX_TCP, MONGODB_NODE, NF_CONNTRACK_TCP } from "@mark1russell7/machines";
 import { valueIn } from "@mark1russell7/quantity";
-import { HZ, LINUX, RTT_MS, given, s, seconds } from "../catalog.ts";
+import { HZ, RTT_MS, given, s, seconds } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
-import { CONNTRACK, LISTING, ROUTER_PUMP, o03 } from "../topologies.ts";
+import { LISTING, ROUTER_PUMP, o03 } from "../topologies.ts";
 import type { Alias, MongoCell, MongoPrediction, MongoRouter, MongoSpec, Waiting } from "./cells.ts";
 import { sec } from "./cells.ts";
 import type { DriverOptions, Span } from "./model.ts";
 import { driverValues, firstOn, linuxValues, plus, secondsOf, sessionKeepalive, span, spanOf } from "./model.ts";
-import { MONGODB_NODE } from "./mongodb-node.ts";
 import { OP_ERROR, POOL_RX, SOCKET_END, WRITE_OFF, assumingSingle, bandOf, predictSingle } from "./single.ts";
 import { nameOf } from "./t01.ts";
 
@@ -173,8 +173,8 @@ const predictForget = (spec: MongoSpec, rttMs: number): MongoPrediction => {
   if (!(refresh < pool.forget - pool.margin)) throw new Error(`${spec.name}: the router can forget the monitor's flow`);
   if (pool.holds) return { detects: false, bands: [], window, quiet: [WRITE_OFF, SOCKET_END, OP_ERROR, "the router forgets a flow"] };
   // the client's delayed ACK of the last reply is the last segment of the flow: the idle time counts from it
-  const forget = plus(delayedAck(rtt), spanOf(CONNTRACK, "expire_established", conntrack));
-  const reset = transitionOn(LINUX, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET";
+  const forget = plus(delayedAck(rtt), spanOf(NF_CONNTRACK_TCP, "expire_established", conntrack));
+  const reset = transitionOn(LINUX_TCP, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET";
   if (router.form === "reset-both")
     return { detects: true, bands: [bandOf("the router forgets the flow and resets both ends", reset, POOL_RX, forget)], window, quiet: [WRITE_OFF] };
   const first = realizationOf(MONGODB_NODE, "systems.mechanism.idle-refresh-interval", values)!;

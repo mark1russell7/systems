@@ -1,16 +1,19 @@
 import type { KnobValues, Machine } from "@mark1russell7/algebra";
 import { timerOf } from "@mark1russell7/algebra";
+import {
+  GO_TRANSPORT,
+  NODE_HTTP_AGENT,
+  NODE_HTTP_SERVER,
+  UNDICI_CLIENT,
+  goLateSeconds,
+  nodeEarlySeconds,
+  nodeLateSeconds,
+} from "@mark1russell7/machines";
 import type { Extent, Unknown } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
-import { GO_TRANSPORT } from "./go-transport.ts";
-import type { AgentSettings } from "./node-agent.ts";
-import { NODE_HTTP_AGENT } from "./node-agent.ts";
-import type { NodeServerSettings } from "./node-server.ts";
-import { NODE_HTTP_SERVER, hintOf } from "./node-server.ts";
 import { HZ } from "../catalog.ts";
-import { goLateSeconds, nodeEarlySeconds, nodeLateSeconds } from "./timers.ts";
-import type { UndiciSettings } from "./undici.ts";
-import { UNDICI_CLIENT } from "./undici.ts";
+import type { AgentSettings, NodeServerSettings, UndiciSettings } from "./settings.ts";
+import { hintOf } from "./settings.ts";
 
 /**
  * This module is the arithmetic of the keep-alive race (DV-08). Two requests go on one
@@ -242,8 +245,9 @@ export const DISPATCH = 0.001;
 /**
  * This function gives the gap of a client that sleeps `g` seconds after the reply, from the start
  * of its sleep. The gap is the sleep of its runtime, late as its timers are, and the dispatch. Go
- * sleeps with a Go timer, and the Node clients with a Node timer (`timers.ts`). The race adds the
- * handling time of the reply before the sleep (`afterHandling`).
+ * sleeps with a Go timer, and the Node clients with a Node timer (`goLateSeconds` and
+ * `nodeLateSeconds` of `@mark1russell7/machines`). The race adds the handling time of the reply
+ * before the sleep (`afterHandling`).
  */
 export const gapOf = (client: HttpClient, g: number, hz = HZ): Interval =>
   client === "go"

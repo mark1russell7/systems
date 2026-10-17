@@ -14,6 +14,7 @@
     "@mark1russell7/algebra": "workspace:^",
     "@mark1russell7/harness": "workspace:^",
     "@mark1russell7/kind": "workspace:^",
+    "@mark1russell7/machines": "workspace:^",
     "@mark1russell7/quantity": "workspace:^",
     "@mark1russell7/service": "workspace:^",
     "zod": "^4.6.6"

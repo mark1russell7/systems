@@ -1,11 +1,9 @@
 import type { Detector, KnobValues, Machine, Manifestation } from "@mark1russell7/algebra";
 import { detection, errnoOf, evaluate, overValues, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
+import { LINUX_TCP, MONGOD_REPL, MONGOD_SESSION, MONGODB_NODE } from "@mark1russell7/machines";
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
-import { HZ, LINUX, LINUX_66, RTT_MS, given, ms, seconds } from "../catalog.ts";
-import { MONGOD_REPL } from "./mongod-replication.ts";
-import { MONGOD_SESSION } from "./mongod-session.ts";
-import { MONGODB_NODE } from "./mongodb-node.ts";
+import { HZ, LINUX_66, RTT_MS, given, ms, seconds } from "../catalog.ts";
 
 /**
  * This module composes the machine documents of MongoDB. The driver's document goes over the
@@ -158,14 +156,14 @@ export const firstOn = (c: SocketCase, driver: KnobValues, linux: KnobValues): F
   const state = stateOf(c);
   const own = detection(MONGODB_NODE, { state, inFlight: c.inFlight }, { name: c.manifestation.name, passes: [...(c.passes ?? [])] }, driver);
   const lower = overValues(MONGODB_NODE, driver, linux);
-  const below = detection(LINUX, { state: "ESTABLISHED", inFlight: c.inFlight }, c.manifestation, lower);
+  const below = detection(LINUX_TCP, { state: "ESTABLISHED", inFlight: c.inFlight }, c.manifestation, lower);
   const [delivered] = below.delivered;
   if (delivered !== undefined) return { kind: "delivered", event: delivered.event, name: delivered.errno ?? "EOF" };
   const all = [
     ...own.detectors.filter(finite).map((d) => ({ d, layer: "driver" as const })),
     ...below.detectors.filter(finite).map((d) => ({ d, layer: "kernel" as const })),
   ].map((each) => {
-    const bounds = each.layer === "driver" ? timerOf(MONGODB_NODE, each.d.timer, driver) : timerUnder(LINUX, each.d.timer, lower, c.manifestation);
+    const bounds = each.layer === "driver" ? timerOf(MONGODB_NODE, each.d.timer, driver) : timerUnder(LINUX_TCP, each.d.timer, lower, c.manifestation);
     const duration = seconds(bounds.duration, each.d.timer);
     return {
       ...each,
@@ -180,7 +178,7 @@ export const firstOn = (c: SocketCase, driver: KnobValues, linux: KnobValues): F
   const name =
     winner.layer === "driver"
       ? (transitionOn(MONGODB_NODE, state, winner.d.fires)?.errno ?? winner.d.fires)
-      : (errnoOf(LINUX, "ESTABLISHED", winner.d, c.manifestation) ?? "ETIMEDOUT");
+      : (errnoOf(LINUX_TCP, "ESTABLISHED", winner.d, c.manifestation) ?? "ETIMEDOUT");
   return { kind: "timer", timer: winner.d.timer, layer: winner.layer, name, band: winner.band };
 };
 
@@ -549,7 +547,5 @@ export const lostOf = (settings: ReplSettings, options: DriverOptions, rttMs: nu
 export const sessionKeepalive = (sysctls: Readonly<Record<string, number>> = {}): Span => {
   const values = given(sessionValues(sysctls));
   const lower = overValues(MONGOD_SESSION, values, given(linuxValues()));
-  return spanOf(LINUX, "keepalive", lower);
+  return spanOf(LINUX_TCP, "keepalive", lower);
 };
-
-export { MONGOD_REPL, MONGOD_SESSION, MONGODB_NODE };

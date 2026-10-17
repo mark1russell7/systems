@@ -1,4 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra";
 import { NODE_TIMER_EARLY, nodeTimerLateness, undiciFastEarly, undiciFastLateness } from "./timers.ts";
 
 /**
@@ -12,10 +13,10 @@ import { NODE_TIMER_EARLY, nodeTimerLateness, undiciFastEarly, undiciFastLatenes
  *
  * The keep-alive timer arms on the event loop of the program, in the check phase after the parse
  * of the reply. The time from the last segment that the kernel received to that arm is the time of
- * the program. No source bounds it, and this document does not hold it. The race adds it from a
- * calibration (`HANDLING` in `race.ts`).
+ * the program. No source bounds it, and this document does not hold it. The race of the cells adds
+ * it from a calibration (`HANDLING` in `packages/cells/src/http/race.ts`).
  */
-export const UNDICI_CLIENT: Machine = {
+export const UNDICI_CLIENT: Machine = machineSchema.parse({
   format: "mark1russell7.machine/1",
   id: "undici-client-h1",
   title: "The socket of an HTTP/1.1 Client of undici 8.12.2",
@@ -246,15 +247,4 @@ export const UNDICI_CLIENT: Machine = {
     ends: "socket.error",
     note: "The connector turns keepalive on with a delay of 60 s, and Node and libuv add 1 s and 10 probes (src/tcp_wrap.cc:215-216). Thus the keepalive sysctls of the namespace do not reach it.",
   },
-};
-
-/** These are the options of the client that a cell can give, in milliseconds. */
-export interface UndiciSettings {
-  readonly keepAliveTimeout?: number;
-  readonly keepAliveMaxTimeout?: number;
-  readonly keepAliveTimeoutThreshold?: number;
-  readonly headersTimeout?: number;
-  readonly bodyTimeout?: number;
-  readonly connectTimeout?: number;
-  readonly keepAliveInitialDelay?: number;
-}
+} satisfies Machine);

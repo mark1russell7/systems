@@ -1,8 +1,19 @@
 import type { KnobValues, Machine } from "@mark1russell7/algebra";
 import { algebraProblems, evaluate, machineProblems, machineSchema, overValues, timerOf } from "@mark1russell7/algebra";
+import {
+  GO_TRANSPORT,
+  LINUX_TCP,
+  NODE_HTTP_AGENT,
+  NODE_HTTP_SERVER,
+  UNDICI_CLIENT,
+  goLateSeconds,
+  goTimerLateness,
+  nodeLateSeconds,
+  nodeTimerLateness,
+} from "@mark1russell7/machines";
 import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
-import { HZ, LINUX, LINUX_66, given } from "../catalog.ts";
+import { HZ, LINUX_66, given } from "../catalog.ts";
 import type { HttpCell } from "./catalog.ts";
 import {
   HANDLING_COPIES,
@@ -14,13 +25,9 @@ import {
   HTTP_WAITING,
   raceOf,
 } from "./catalog.ts";
-import { GO_TRANSPORT } from "./go-transport.ts";
-import { NODE_HTTP_AGENT } from "./node-agent.ts";
-import { NODE_HTTP_SERVER, hintOf } from "./node-server.ts";
 import type { Race } from "./race.ts";
 import { HANDLING, afterHandling, decide, gapOf, handlingOf, outcomeOf, poolExpiry, serverClose, timerInterval, valuesOf } from "./race.ts";
-import { goLateSeconds, goTimerLateness, nodeLateSeconds, nodeTimerLateness } from "./timers.ts";
-import { UNDICI_CLIENT } from "./undici.ts";
+import { hintOf } from "./settings.ts";
 
 const DOCUMENTS: readonly Machine[] = [NODE_HTTP_SERVER, GO_TRANSPORT, NODE_HTTP_AGENT, UNDICI_CLIENT];
 
@@ -113,7 +120,7 @@ describe("the machine documents of the HTTP systems", () => {
 
   it("compose the keepalive of each client over Linux TCP: Go 165 s, the agent 11 s, undici 70 s", () => {
     const windowOf = (doc: Machine, values: KnobValues): number =>
-      valueIn(timerOf(LINUX, "keepalive", overValues(doc, values, linuxOf())).duration as never, "s");
+      valueIn(timerOf(LINUX_TCP, "keepalive", overValues(doc, values, linuxOf())).duration as never, "s");
     expect(windowOf(GO_TRANSPORT, valuesOf(GO_TRANSPORT, {}))).toBe(165);
     expect(windowOf(NODE_HTTP_AGENT, valuesOf(NODE_HTTP_AGENT, {}))).toBe(11);
     expect(windowOf(UNDICI_CLIENT, valuesOf(UNDICI_CLIENT, {}))).toBe(70);

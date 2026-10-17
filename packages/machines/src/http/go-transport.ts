@@ -1,4 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra";
 import { goTimerLateness } from "./timers.ts";
 
 /**
@@ -11,7 +12,7 @@ import { goTimerLateness } from "./timers.ts";
  * file. A reused connection can fail before any byte of the reply. Then the transport sends a
  * request that it can replay again, on a new connection, by itself.
  */
-export const GO_TRANSPORT: Machine = {
+export const GO_TRANSPORT: Machine = machineSchema.parse({
   format: "mark1russell7.machine/1",
   id: "go-nethttp-transport",
   title: "One connection of the http.Transport of Go 1.27.2",
@@ -232,15 +233,4 @@ export const GO_TRANSPORT: Machine = {
     ends: "read.error",
     note: "Go sets SO_KEEPALIVE with its own idle, interval and count on each dialed socket, rounded up to whole seconds. Thus the keepalive sysctls of the namespace do not reach it. A negative KeepAlive turns it off: a reader gives keepidle no bound.",
   },
-};
-
-/** These are the settings of the Go client that a cell can give, by the names of the document, in seconds or as counts. */
-export interface GoSettings {
-  readonly IdleConnTimeout?: number;
-  readonly MaxIdleConnsPerHost?: number;
-  readonly DialTimeout?: number;
-  readonly KeepAlive?: number;
-  readonly KeepAliveInterval?: number;
-  readonly KeepAliveCount?: number;
-  readonly Timeout?: number;
-}
+} satisfies Machine);

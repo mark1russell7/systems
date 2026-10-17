@@ -276,6 +276,22 @@ try {
       const wait = module.evaluate(doc, { expr: "min(500 * pow(1.5, fired), 4000)", unit: "ms" }, () => undefined, 3);
       check(wait.value === 1687.5, "algebra raises to a whole power: the fourth wait of a backoff of 1.5");
     }
+    if (name === "@mark1russell7/machines") {
+      // the documents, read by the algebra as an application installs both
+      const algebra = await load("@mark1russell7/algebra");
+      const documents = Object.values(module.MACHINES);
+      check(documents.length === 15 && module.MACHINES["linux-tcp"] === module.LINUX_TCP, "machines gives each document by its identifier");
+      check(
+        documents.every((doc) => algebra.machineSchema.safeParse(doc).success && algebra.machineProblems(doc).length === 0),
+        "machines holds only documents that the algebra accepts",
+      );
+      const linux = (knob) => ({ keepidle: s(7200), keepintvl: s(75), keepcnt: { value: 9, unit: "count" } })[knob];
+      check(algebra.timerOf(module.LINUX_TCP, "keepalive", linux).duration.value === 7875, "machines gives Linux TCP, whose keepalive the algebra reads as 7875 s");
+      const blackhole = { name: "blackhole", passes: module.MANIFESTATIONS.blackhole };
+      const idle = algebra.detection(module.LINUX_TCP, { state: "ESTABLISHED", inFlight: false }, blackhole, linux);
+      check(idle.first?.timer === "keepalive", "machines lets the algebra find an idle black hole by keepalive");
+      check(module.nodeLateSeconds(6, 250) === 0.007, "machines gives the lateness of a Node timer: 7 ms for 6 s at HZ 250");
+    }
     if (name === "@mark1russell7/harness") {
       const verdict = module.verdictOf({ detects: false, window: s(1) }, []);
       check(verdict.decision === "inconclusive", "harness judges no runs as inconclusive");

@@ -1,9 +1,8 @@
 import { algebraProblems, machineProblems, timerOf } from "@mark1russell7/algebra";
+import { IOREDIS_SENTINEL, SENTINEL } from "@mark1russell7/machines";
 import { describe, expect, it } from "vitest";
 import { ALL } from "./all.ts";
 import { HZ } from "./catalog.ts";
-import { IOREDIS_SENTINEL } from "./ioredis-sentinel.ts";
-import { SENTINEL } from "./sentinel.ts";
 import {
   SENTINEL_DEFAULTS,
   T12_CAL,

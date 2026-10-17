@@ -33,7 +33,8 @@ import type { Expr } from "@mark1russell7/algebra";
  * The time that the loop itself spends in callbacks is the time of the application. These
  * documents do not bound it, and the noise of the harness (δ_abs) holds a small part of it. The
  * handling of the first reply by a Node client can take more time than δ_abs, before the client
- * arms its pool timer. The race adds that time from a calibration (`HANDLING` in `race.ts`).
+ * arms its pool timer. The race of the cells adds that time from a calibration (`HANDLING` in
+ * `packages/cells/src/http/race.ts`).
  */
 
 /** This text is the slack of `epoll_wait` for a sleep of `ms` milliseconds, in milliseconds. */

@@ -1,0 +1,102 @@
+# @mark1russell7/machines
+
+The machine documents of the systems program, in one place. Each document is a state machine as data, in the format `mark1russell7.machine/1` of [`@mark1russell7/algebra`](https://www.npmjs.com/package/@mark1russell7/algebra). Each document describes one system at one version, from the source of that version.
+
+## The machine document
+
+A machine document gives the states, events, knobs, timers and transitions of one machine.
+
+- **States and transitions.** A transition goes from one or more states to a state, on one or more events. Each transition can name the file and the line that it comes from (`source`).
+- **Events.** Each event has a kind. The kinds are `rx` (a segment in), `tx` (a segment out), `app` (a call of the application), `timer`, `local`, `packet` and `peer`.
+- **Knobs.** Each knob has its key in its system, its scope, its unit and its default.
+- **Timers.** A timer has a duration over the knobs, the events that arm it and cancel it, and the event that it fires. It can also have a lateness and an early bound.
+- **Realizations.** A document can give the time of a mechanism (`realizes`): one of its timers, or a time of its own over its knobs.
+- **Layers.** A document can operate on another machine (`over`), as a driver operates on its kernel socket. `over.machine` names the machine below as `systems.machine.<id>`.
+- **Sources.** Each document names its sources, and each source has a rung. The rung tells the type of the source:
+  - `normative`: a specification, for example an RFC.
+  - `implemented`: the code of the system at the version.
+  - `documented`: the documentation of the system.
+  - `observed`: a measurement of the system.
+  - `derived`: a result of other sources.
+
+The algebra reads these documents. It gives the closed form of each timer, the first detector of a failure, and the recovery after a stall.
+
+## The documents
+
+| Export | Identifier | System and version | Layer | Sources, by rung |
+| --- | --- | --- | --- | --- |
+| `LINUX_TCP` | `linux-tcp` | TCP of Linux 6.6, for kernels from 6.6 to 6.9 | kernel | 3 normative, 5 implemented |
+| `NF_CONNTRACK_TCP` | `nf-conntrack-tcp` | The TCP state machine of conntrack on Linux 6.6.87.2 | middlebox | 4 implemented |
+| `REDIS_CLIENT` | `redis-client` | One client connection of the Redis 8.10.2 server | server | 1 implemented, 1 documented |
+| `IOREDIS_STATUS` | `ioredis-status` | The connection status of ioredis 6.0.0, standalone | driver | 5 implemented |
+| `IOREDIS_SENTINEL` | `ioredis-sentinel` | ioredis 6.0.0 in Sentinel mode | driver | 10 implemented |
+| `SENTINEL` | `valkey-sentinel` | One Sentinel of Valkey 9.1.2, and the failover that it leads | server | 8 implemented, 1 observed |
+| `NODE_HTTP_SERVER` | `node-http-server` | One connection of the `http.Server` of Node 24.21.0 | server | 8 implemented |
+| `NODE_HTTP_AGENT` | `node-http-agent` | One socket of the `http.Agent` of Node 24.21.0 | driver | 9 implemented |
+| `UNDICI_CLIENT` | `undici-client-h1` | The socket of an HTTP/1.1 `Client` of undici 8.12.2 | driver | 8 implemented |
+| `GO_TRANSPORT` | `go-nethttp-transport` | One connection of the `http.Transport` of Go 1.27.2 | driver | 7 implemented |
+| `PROCEDURES_WS_CLIENT` | `procedures-ws-client` | The WebSocket client of `@procedures/client` 0.3.0 | driver | 9 implemented, 1 documented |
+| `PROCEDURES_WS_SERVER` | `procedures-ws-server` | The WebSocket server of `@procedures/client` 0.3.0 | server | 4 implemented |
+| `MONGODB_NODE` | `mongodb-node` | The MongoDB Node driver 7.7.0, for one server of a replica set | driver | 19 implemented |
+| `MONGOD_REPL` | `mongod-replication` | The replication of mongod 9.0.4: one member of a replica set | server | 29 implemented |
+| `MONGOD_SESSION` | `mongod-session` | One client connection of mongod 9.0.4 | server | 6 implemented |
+
+Eleven documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel and the replication of mongod operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
+
+The package also gives these parts:
+
+- **`MACHINES`** gives each document by its identifier, for example `MACHINES["linux-tcp"]`.
+- **`MANIFESTATIONS`** gives, for each manifestation of a failure, the incoming events that continue to arrive at Linux TCP. A black hole lets nothing through. The kernel of a frozen process continues to send ACKs, thus `rx.ack` arrives.
+- **The lateness of a user timer.** A Node timer and a Go timer sleep in `epoll_wait`, and the kernel lets that sleep end late. `nodeTimerLateness`, `NODE_TIMER_EARLY` and `goTimerLateness` give these bounds as expressions over the knobs. `nodeLateSeconds`, `nodeEarlySeconds` and `goLateSeconds` give the same bounds as numbers.
+- **The fast timers of undici.** `undiciFastEarly` and `undiciFastLateness` give the bounds of a timer that counts in ticks of `UNDICI_TICK_MS`.
+
+## How a program reads them
+
+Import a document by its name, or find it in `MACHINES` by its identifier. The schema of the algebra examined each document at load, thus a program does not parse it again.
+
+```ts
+import { detection, timerOf } from "@mark1russell7/algebra";
+import { LINUX_TCP, MACHINES, MANIFESTATIONS } from "@mark1russell7/machines";
+
+const values = (name: string) =>
+  ({
+    keepidle: { value: 7200, unit: "s" },
+    keepintvl: { value: 75, unit: "s" },
+    keepcnt: { value: 9, unit: "count" },
+  })[name];
+
+timerOf(LINUX_TCP, "keepalive", values).duration; // { value: 7875, unit: "s" }
+
+const blackhole = { name: "blackhole", passes: MANIFESTATIONS["blackhole"] ?? [] };
+const idle = { state: "ESTABLISHED", inFlight: false };
+detection(LINUX_TCP, idle, blackhole, values).first?.timer; // "keepalive"
+
+MACHINES["ioredis-status"]?.over?.machine; // "systems.machine.linux-tcp"
+```
+
+The workspace of this repository uses the source. The npm package holds the build: ES modules, with each JSON document in the JavaScript.
+
+## How a document changes
+
+A document changes only for one of two reasons:
+
+- **A reason from the source.** The change cites a fact of the source at its version: a file and a line, or a section of a specification. The citation goes in the `source` of a transition, a `note`, or a source of the document.
+- **A measurement.** A run of the harness refutes a time or a transition of the document. The change names the run, and it adds a source with the rung `observed`.
+
+A change to the version of a system changes its sources too. Each fact of the document then cites the new version.
+
+In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
+
+## Installation
+
+```sh
+pnpm add @mark1russell7/machines @mark1russell7/algebra zod
+```
+
+The package uses `@mark1russell7/algebra` for the type `Machine` and the schema `machineSchema`. The algebra does not use this package. Both packages use `zod` as a peer dependency.
+
+## Tests
+
+`pnpm --filter @mark1russell7/machines test` starts the tests. They examine each document with the schema and the consistency checks of the algebra. They also compute the algebra on the real documents: the defaults of Linux 6.6, the backoff waits, recovery after a stall, and detection.
+
+`pnpm --filter @mark1russell7/machines build` writes the package for npm into `build/`.

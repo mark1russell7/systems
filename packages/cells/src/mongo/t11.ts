@@ -1,6 +1,7 @@
 import { timerOf } from "@mark1russell7/algebra";
+import { LINUX_TCP } from "@mark1russell7/machines";
 import { valueIn } from "@mark1russell7/quantity";
-import { LINUX, RTT_MS, count, given, predict, seconds } from "../catalog.ts";
+import { RTT_MS, count, given, predict, seconds } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
 import type { Alias, GroupPlace, MongoBand, MongoCell, MongoGroupPrediction, MongoPrediction, MongoSpec, StageBand, Waiting } from "./cells.ts";
 import { sec } from "./cells.ts";
@@ -143,7 +144,7 @@ const giveUpOf = (spec: MongoSpec, rttMs: number): Span | null => {
   const pool = firstOn({ role: "pool", inFlight: true, manifestation: MANIFESTATIONS.blackhole }, driver, linux);
   if (pool.kind !== "timer") return null;
   // the write goes into the fault after the pause at the latest, and its first retransmission two RTOs later
-  const rto = seconds(timerOf(LINUX, "retransmit", linux, 0).duration, "the RTO");
+  const rto = seconds(timerOf(LINUX_TCP, "retransmit", linux, 0).duration, "the RTO");
   return plus(span(0, INTERVAL + 2 * rto + 0.01), pool.band);
 };
 
