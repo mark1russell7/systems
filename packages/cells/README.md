@@ -193,6 +193,18 @@ The WST catalog has the client and the server of the WS catalog through a topolo
 
 The cells of WST go one at a time, as the cells of T03.
 
+### What the runs in CI showed
+
+The CI dispatches 38993929671 and 38993943667 did each cell of WST 11 times, on runners at HZ 1000 with a δ_abs of 1 ms. Each cell with a band holds in the two dispatches.
+
+- **The router.** With a heartbeat of 4 s, no router forgot a flow in 22 runs. With 6 s, the router forgot each flow 5.042 s to 5.098 s after the last reply.
+- **The delayed ACK.** The Node client delays its ACK of the last reply, thus each forget came 42 ms or more after that reply. The TCP client of T03 does not: its router forgot each flow 4.999 s to 5.045 s after the reply. The band of T03 ([5, 5.09] s) has no term for the delay. Thus 4 of the 22 resets of WST are later than that band and δ_abs.
+- **What the client saw.** `reset-both` reset the client 5.046 s to 5.094 s after the last reply. `reset-next` reset the ping 0.087 ms to 0.131 ms after its write. `silent-drop` dropped the connection 1.001 s to 1.003 s after the ping.
+- **Void runs.** 4 of the 22 runs of `silent-drop` are void: the retransmit timer of the ping was 2 to 4 jiffies behind its slot.
+- **HAProxy.** A heartbeat of 4 s kept each connection for 15 s. At 6 s, HAProxy closed the connection with a FIN 5.0002 s to 5.0022 s after the last reply, for `timeout client` and for `timeout server`.
+- **A black hole on a leg of HAProxy.** The heartbeat dropped the connection 1.001 s to 1.003 s after the ping, on each leg.
+- **The reconnect.** In each cell, each wait of the reconnect was 0.499 s to 0.502 s, in its band. The first SYN came 0.502 s to 0.511 s after the detection.
+
 ## The calibration of the proxies
 
 The CAL catalog (`src/calibration.ts`) measures the own time of each proxy: HAProxy as T02 has it, and Toxiproxy with no toxic. Stage 0 measures δ_abs in the same way, on a path with no timer.
