@@ -1,4 +1,4 @@
-import type { KnobValues, Machine } from "@mark1russell7/algebra";
+import type { KnobValues, Machine, TimerBounds } from "@mark1russell7/algebra";
 import { evaluate as evaluateTime, realizationOf } from "@mark1russell7/algebra";
 import type { ProxyHop, RouterHop, Target } from "@mark1russell7/harness";
 import { LISTING } from "@mark1russell7/harness";
@@ -166,8 +166,17 @@ export const o03 = (
   rtt: number,
 ): O03Verdict => {
   const refreshing = realizationOf(endpoint.doc, "systems.mechanism.idle-refresh-interval", endpoint.values);
+  if (refreshing === undefined) throw new Error("a document realizes no term of O03");
+  return o03From(refreshing, middlebox, rtt);
+};
+
+/**
+ * This function decides O03 for a refresh that a timer of a document gives, on a middlebox. The
+ * refresh is the timer at its latest. The forget is the idle timeout of conntrack at its earliest.
+ */
+export const o03From = (refreshing: TimerBounds, middlebox: KnobValues, rtt: number): O03Verdict => {
   const forgetting = realizationOf(NF_CONNTRACK_TCP, "systems.mechanism.middlebox-idle", middlebox);
-  if (refreshing === undefined || forgetting === undefined) throw new Error("a document realizes no term of O03");
+  if (forgetting === undefined) throw new Error("a document realizes no term of O03");
   const idle = secondsOrInfinite(refreshing.duration, "the refresh");
   const refresh = idle === "inf" ? "inf" : idle + seconds(refreshing.lateness, "the lateness of the refresh");
   const forget =
