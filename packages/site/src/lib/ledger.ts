@@ -10,6 +10,7 @@ import harness from "../data/harness-2026-10-13.json";
 import http from "../data/http-2026-10-16.json";
 import kind from "../data/kind-2026-10-17.json";
 import mongodb from "../data/mongodb-2026-10-16.json";
+import r3 from "../data/r3-2026-10-17.json";
 import sentinel from "../data/sentinel-2026-10-16.json";
 import topologies from "../data/topologies-2026-10-16.json";
 
@@ -146,6 +147,21 @@ export const LEDGER: readonly Entry[] = [
     heldOnRerun: 0,
     counted: sum(kind.cells, (cell) => cell.counted),
     voided: sum(kind.cells, (cell) => cell.voided),
+  },
+  {
+    key: "r3",
+    href: "results/r3/",
+    label: "R3: the compiled queue",
+    tags: unique(r3.cells.map((cell) => cell.catalog)),
+    ranAt: r3.ranAt,
+    kernel: short(r3.kernel),
+    hz: r3.hz,
+    cells: r3.cells.length,
+    tally: tallyOf(r3.cells.map((cell) => cell.decision)),
+    // a re-run replaces its first run in the copy: the counts are of the re-run
+    heldOnRerun: r3.cells.filter((cell) => cell.first === "fails" && cell.decision === "holds").length,
+    counted: sum(r3.cells, (cell) => cell.counted),
+    voided: sum(r3.cells, (cell) => cell.voided),
   },
 ];
 

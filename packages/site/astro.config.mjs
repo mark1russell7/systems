@@ -46,6 +46,7 @@ export default defineConfig({
             "results/http",
             "results/mongodb",
             "results/kind",
+            "results/r3",
             "results/timers",
             "results/harness",
           ],

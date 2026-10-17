@@ -1,0 +1,77 @@
+---
+title: R3, the compiled queue
+sidebar:
+  label: R3, the compiled queue
+description: The cells that jarvis compiles from its corpus, on the runners of GitHub. Of the 115 cells of the queue, 114 hold and 1 is a measurement only. 9 failed first, on two gaps of the corpus, and held after the fix.
+---
+
+import RunResults from "../../../components/RunResults.tsx";
+import { Summary } from "../../../components/Ledger.tsx";
+
+<Summary of="r3" />
+
+These are the cells of R3's queue, from 2026-10-16 and 2026-10-17. A person did not write these cells. jarvis is the private repository of this program. It keeps a corpus of claims about each timer and each knob of the chain.
+
+Its compiler reads the corpus and the plan of each template. Then it writes each cell, with its settings and its prediction. The cells and their raw records are public, but the corpus is not. Thus a record names no claim.
+
+- **The templates.** T01 is a client and Redis 7.4 on a direct path. T03 puts a NAT router between them, with an idle timeout of its own.
+- **The stages.** Each stage sets the knobs of the chain in a different way.
+  - `defaults` sets each knob to the default of its system.
+  - `border-off` puts an ordering of the timer law at its border, with a cell on each side of it.
+  - `array` gives each cell a profile of a real system. Examples are the 600 s idle close of a managed Redis and the idle timeout of a cloud router.
+  - `random` draws each value on a log range. The knobs are the idle of the keepalive, `tcp_retries2`, `TCP_USER_TIMEOUT`, the idle of the router and the idle close of Redis.
+- **The scale.** The compiler divides the timers of a cell by a factor, thus the cell takes seconds and not hours. It keeps each ordering of the cell. The canonical cells run at the scale of their profile.
+
+CI started the 115 cells of the queue in the run [38922068182](https://github.com/mark1russell7/systems/actions/runs/38922068182), on 20 hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000, and each cell has 11 runs.
+
+## What the cells found
+
+- **The first records found two gaps in the corpus.** 9 of the 115 cells failed, and each failure was a fault of the corpus.
+  - **Redis closes an idle client itself.** The corpus said that the idle timeout of Redis ends the client with ETIMEDOUT. Redis closes the client with its own FIN. 7 cells had this gap.
+  - **A flow that idles before its request.** The corpus raced the keepalive refresh with the forget of the router only for an idle flow. A flow that idles before a request races them too. 2 cells had this gap.
+  - After the fix of the corpus, CI did the 9 cells again in the run [38964493103](https://github.com/mark1russell7/systems/actions/runs/38964493103). Each one holds.
+- **114 of the 115 cells hold.** Each detection, each silence and each recovery is in its band. The cell `T03.random.15` is a measurement only, and no run of it measured a time.
+- **The canonical cells.** CI started 6 cells at the scale of their profile in the run [38974137508](https://github.com/mark1russell7/systems/actions/runs/38974137508).
+  - `T03.random.31` holds: behind a router with an idle timeout of 600 s, nothing detects the forget in 1,205 s.
+  - The other 5 put the idle close of Redis (600 s) against the keepalive of the kernel (600 s). The two can fire in either order, thus the corpus predicts neither.
+  - In that run, no run of the 5 measured a time. The measurement waited for a close by the observer, and the close of Redis is its own. A later run measures them again.
+
+## T01: a client and Redis on a direct path
+
+### The defaults
+
+<RunResults copy="r3" group="T01" stage="defaults" client:visible />
+
+### At the borders
+
+<RunResults copy="r3" group="T01" stage="border-off" client:visible />
+
+### Profiles of real systems
+
+<RunResults copy="r3" group="T01" stage="array" client:visible />
+
+### Random draws
+
+<RunResults copy="r3" group="T01" stage="random" client:visible />
+
+## T03: a NAT router between the client and Redis
+
+### The defaults
+
+<RunResults copy="r3" group="T03" stage="defaults" client:visible />
+
+### At the borders
+
+<RunResults copy="r3" group="T03" stage="border-off" client:visible />
+
+### Profiles of real systems
+
+<RunResults copy="r3" group="T03" stage="array" client:visible />
+
+### Random draws
+
+<RunResults copy="r3" group="T03" stage="random" client:visible />
+
+## Where the data comes from
+
+Each runner wrote a raw record of each of its cells, with the cell that jarvis compiled. The script `packages/site/scripts/r3.ts` judges each record again with the harness. It stops when a verdict disagrees with the summary that CI wrote. A re-run replaces the first records of its cell, and the page says what those gave. The copy names no machine and no claim of the corpus.
