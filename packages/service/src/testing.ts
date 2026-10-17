@@ -2,7 +2,7 @@
 // repeatable timing. A seeded random gives the same jitter on each run. A fake process takes
 // signals and keeps the exit codes. A quiet server answers until it goes quiet, and then it holds
 // its connections open without an answer. `contractCases` generates the contract test of a
-// declaration.
+// declaration, and `transportConformance` generates the conformance test of a transport.
 
 import type { AddressInfo, Server, Socket } from "node:net";
 import { createServer } from "node:net";
@@ -13,6 +13,14 @@ export type { FakeClock, FakeProcess, FakeProcessOptions } from "./fakes.ts";
 export { fakeClock, fakeProcess, seeded } from "./fakes.ts";
 export type { ContractCase, ContractOptions } from "./contract.ts";
 export { contractCases } from "./contract.ts";
+export type {
+  ConformanceOptions,
+  ConformanceRecord,
+  HeldWork,
+  SubjectFactory,
+  TransportSubject,
+} from "./conformance.ts";
+export { transportConformance } from "./conformance.ts";
 
 /**
  * A behavior is what a scripted check does when the runtime starts it:
