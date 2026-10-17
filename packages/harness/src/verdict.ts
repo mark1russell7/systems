@@ -99,8 +99,10 @@ export interface Verdict {
   /**
    * This record is the time from a drop of the program to the close of its socket by its own side,
    * over the counted runs. It also counts the runs where the socket did not close itself.
+   * `exited` is the spread of the end of the client process, for the runs where the socket stayed
+   * open until that end (`Measured.exited`).
    */
-  readonly left?: { readonly spread: Spread | null; readonly stayed: number };
+  readonly left?: { readonly spread: Spread | null; readonly stayed: number; readonly exited?: Spread | null };
   readonly why: string;
 }
 
@@ -286,12 +288,18 @@ const withProgram = (verdict: Verdict, counted: readonly Measured[]): Verdict =>
   const outcomes: Record<string, number> = {};
   for (const call of calls) outcomes[call.outcome] = (outcomes[call.outcome] ?? 0) + 1;
   const gone = lefts.flatMap((each) => (each === null ? [] : [each]));
-  const left = lefts.length === 0 ? undefined : { spread: spreadOf(gone), stayed: lefts.length - gone.length };
+  // a socket that stayed open until the end of the client process: its kernel closed it, not the program
+  const ends = counted.flatMap((run) => (run.exited === undefined ? [] : [run.exited]));
+  const left =
+    lefts.length === 0
+      ? undefined
+      : { spread: spreadOf(gone), stayed: lefts.length - gone.length, ...(ends.length === 0 ? {} : { exited: spreadOf(ends) }) };
+  const ended = ends.length === 0 ? "" : `: in ${ends.length} the socket stayed open until the client process ended, median ${ms(spreadOf(ends))} after the drop line`;
   const said = [
     ...(left === undefined
       ? []
       : [
-          `After the drop, the program closed its socket in ${gone.length} runs, median ${ms(left.spread)} after its drop line${left.stayed === 0 ? "" : `, and it did not close it in ${left.stayed}`}.`,
+          `After the drop, the program closed its socket in ${gone.length} runs, median ${ms(left.spread)} after its drop line${left.stayed === 0 ? "" : `, and it did not close it in ${left.stayed}${ended}`}.`,
         ]),
     ...(reconnect === undefined
       ? []

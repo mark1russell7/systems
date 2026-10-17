@@ -94,6 +94,45 @@ export const leftAfter = (socket: readonly KernelRecord[], line: ProbeEvent): Qu
 };
 
 /**
+ * This function gives the end of the client process in a run, as the kernel stamps it. The process
+ * ends after its last try, and its kernel then closes each socket that is still open, at one
+ * instant. Thus the end is the first change out of ESTABLISHED of another socket of the client
+ * after its last `dial` line. The program dropped none of these sockets. It is undefined when the
+ * record has no such change, for example when the last try did not open.
+ */
+export const exitOf = (run: Run, cookie: number | undefined): number | undefined => {
+  const last = run.events.filter((line) => line.ev === "dial").at(-1);
+  if (last === undefined) return undefined;
+  const dropped = new Set(run.events.filter((line) => line.ev === "drop").map((line) => line["local"]));
+  return run.kernel.find(
+    (record) =>
+      record.netns === run.netns &&
+      record.cookie !== cookie &&
+      record.ev === "state" &&
+      oldState(record) === 1 &&
+      (newState(record) === 4 || newState(record) === 7) &&
+      record.mono >= last.t &&
+      !dropped.has(record.src),
+  )?.mono;
+};
+
+/**
+ * This function separates a close of the socket by the program from the end of the client process.
+ * `left` is the time from the drop line to the close, and `exit` is the end of the process. A close
+ * in δ_abs of that end is the end, not the program: `left` becomes null, and `exited` keeps the time.
+ */
+export const closeOrExit = (
+  line: ProbeEvent,
+  left: Quantity | null,
+  exit: number | undefined,
+  delta: Quantity = NOISE,
+): { readonly left: Quantity | null; readonly exited?: Quantity } => {
+  if (left === null || exit === undefined) return { left };
+  const at = line.t + valueIn(left, "s") * 1e9;
+  return Math.abs(at - exit) <= valueIn(delta, "s") * 1e9 ? { left: null, exited: left } : { left };
+};
+
+/**
  * This function tells how a drop differs from the way that its prediction gives, or gives null.
  * A close closes the socket in δ_abs. A close frame is a write, and the program does not close
  * the socket at the drop. A peer that answers the close frame can close it, and that is no finding.
@@ -103,11 +142,13 @@ export const dropFinding = (
   drop: ProgramEvent,
   left: Quantity | null,
   delta: Quantity = NOISE,
+  exited?: Quantity,
 ): string | null => {
   const noise = valueIn(delta, "s");
   const soon = left !== null && valueIn(left, "s") <= noise;
   if (expected === "close") {
-    if (left === null) return "the program did not close its socket after the drop, where a close is at once";
+    if (left === null)
+      return `the program did not close its socket after the drop, where a close is at once${exited === undefined ? "" : ": it stayed open until the client process ended"}`;
     return soon ? null : `the program closed its socket ${left.value} s after the drop, not at once`;
   }
   if (drop.record !== "write") return "the drop wrote no close frame on its socket";

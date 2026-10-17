@@ -56,6 +56,16 @@ describe("the WS catalog", () => {
     expect(cell("client idle, blackhole, heartbeat 2 s and 1 s").prediction).not.toHaveProperty("rtt");
   });
 
+  it("tells the harness that the client process ends with the run, thus its end is not a close by the program", () => {
+    for (const each of WS_CELLS) {
+      const p = each.prediction;
+      if (p.detects !== true || p.drop === undefined) continue;
+      // the client exits at the end of each run; the server does not
+      expect(p.exits, each.name).toBe(each.observer === "server" ? undefined : true);
+    }
+    expect(cell("server idle, blackhole, server heartbeat 1 s and 2 misses").prediction).not.toHaveProperty("exits");
+  });
+
   it("predicts the drop of the ws class at the same time, as a close of its socket at once", () => {
     const [low, high] = nodeBand(1);
     expect(band("client idle, blackhole, heartbeat 2 s and 1 s, the ws class: terminate()")).toEqual({
