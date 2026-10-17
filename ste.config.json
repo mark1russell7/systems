@@ -3,6 +3,7 @@
   "include": [
     "README.md",
     "CLAUDE.md",
+    "docs/*.md",
     "packages/*/README.md",
     "packages/site/**/*.{md,mdx}",
     "packages/*/src/**/*.{ts,tsx}",
