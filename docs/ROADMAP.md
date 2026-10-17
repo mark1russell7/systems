@@ -120,7 +120,7 @@ On 2026-10-17, Mark decided these questions for this repository:
 - **Depends on:** S6
 - **Started:** 2026-10-17
 - **Shipped:** 2026-10-17
-- **Links:** [The requirements](S6.md), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [The requirements](S6.md), [#46](https://github.com/mark1russell7/systems/pull/46), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 The groups A, B and E of the S6 draft move from jarvis into this repository, in STE. Each requirement tells which part of the service meets it.
 
@@ -131,7 +131,7 @@ The groups A, B and E of the S6 draft move from jarvis into this repository, in 
 - **Depends on:** S6
 - **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#46](https://github.com/mark1russell7/systems/pull/46), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 S6 is in progress, and the items of the server stack are on this roadmap. The README of the service names the `./http` exports before they exist. SYS-1 to SYS-3 give those exports and correct the example.
 
@@ -142,7 +142,7 @@ S6 is in progress, and the items of the server stack are on this roadmap. The RE
 - **Depends on:** S6
 - **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [The README](https://github.com/mark1russell7/systems/tree/main/packages/service#composition), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [The README](https://github.com/mark1russell7/systems/tree/main/packages/service#composition), [#46](https://github.com/mark1russell7/systems/pull/46), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 A component gives its transports, dependencies and checks to the one service of the process. Only the entry uses `run()`. The README has the pattern. A test that composes two sets of parts under one `run()` comes next.
 
