@@ -132,6 +132,32 @@ jobs:
             echo "memory: $(free -m | awk '/^Mem:/ {print $2}') MiB"
             echo "image: $ImageOS $ImageVersion"
           } | tee "$RUNNER_TEMP/cells/runner.txt"
+      # The router of a middlebox lists the conntrack table each 50 to 100 ms to evict its expired
+      # flows. A listing walks each bucket of the table of the kernel with the softirqs off, and a
+      # segment that comes in that walk waits for its end. A runner of 16 GB has 262144 buckets: in
+      # the run 39057994070, one reply through the router waited 6.8 ms. The table gets 16384.
+      - name: A small conntrack table
+        run: |
+          sudo apt-get install -y -qq conntrack >/dev/null
+          sudo modprobe nf_conntrack
+          listing() {
+            sudo unshare --net python3 -c 'import subprocess, time
+          t = []
+          for _ in range(200):
+              s = time.perf_counter()
+              subprocess.run(["conntrack", "-L", "-p", "tcp"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+              t.append((time.perf_counter() - s) * 1000)
+          t.sort()
+          print(f"median {t[100]:.2f} ms, max {t[-1]:.2f} ms of 200 listings")'
+          }
+          before="$(cat /sys/module/nf_conntrack/parameters/hashsize)"
+          slow="$(listing)"
+          echo 16384 | sudo tee /sys/module/nf_conntrack/parameters/hashsize >/dev/null
+          {
+            echo "conntrack buckets: $before, then $(cat /sys/module/nf_conntrack/parameters/hashsize)"
+            echo "conntrack listing at $before buckets: $slow"
+            echo "conntrack listing at 16384 buckets: $(listing)"
+          } | tee -a "$RUNNER_TEMP/cells/runner.txt"
       - name: The cells
         env:
           CELLS: "1"
