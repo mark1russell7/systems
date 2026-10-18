@@ -469,14 +469,17 @@ Each stage band of T12 includes the error of the stamps of the observer: 0.705 m
 
 ### PG · PostgreSQL
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** S1
-- **Started:**
+- **Started:** 2026-10-18
 - **Shipped:**
-- **Links:**
+- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62)
 
-The next system of the S1 order, with its clients and PgBouncer.
+The next system of the S1 order, with its clients and PgBouncer. The plan of R3 has 514 PG cells in 8 templates, and most of them are T10, through PgBouncer.
+
+- The first step is two machine documents from their sources: node-postgres 8.23.1 with pg-pool 3.14.0, and a backend of PostgreSQL 17.11 (machines 0.3.1, #62).
+- Then the harness gets a PostgreSQL target, and T01 and T03 get their cells, as the MongoDB catalog did. PgBouncer and T10 come after them.
 
 ### RABBIT · RabbitMQ
 
@@ -549,9 +552,9 @@ quantity 0.2.0, algebra 0.7.1, service 0.4.1, prober 0.3.1, harness 0.11.1 and k
 - **Started:** 2026-10-16
 - **Shipped:**
 - **Links:** [packages/machines](https://github.com/mark1russell7/systems/tree/main/packages/machines)
-- **Waiting on Mark:** Touch your security key for the first publish of machines 0.3.0, in the session that owns npm. On 2026-10-17, npm refused it with a 429.
+- **Waiting on Mark:** Touch your security key for the first publish of machines, in the session that owns npm. On 2026-10-17, npm refused it with a 429.
 
-The one home of each machine document. Its first version is 0.3.0. The session that owns npm publishes it from main. Then release.yml publishes each later version.
+The one home of each machine document. Its first version is 0.3.1: 0.3.0 and the two documents of PostgreSQL. The session that owns npm publishes it from main. Then release.yml publishes each later version.
 
 ### DELACK · The delayed ACK of Linux TCP
 
