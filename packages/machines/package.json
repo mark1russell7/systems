@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/machines",
-  "version": "0.3.5",
+  "version": "0.3.6",
   "description": "The machine documents of the systems program, each from the source of one system at one version: Linux TCP, conntrack, Redis, ioredis, the Valkey Sentinel, the HTTP clients and servers of Node and Go, a WebSocket client and server, and MongoDB.",
   "keywords": [
     "state-machine",

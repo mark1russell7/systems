@@ -317,6 +317,22 @@ const atHold = (spec: HikariSpec, driver: KnobValues, linux: KnobValues): Predic
 };
 
 /**
+ * This function gives the latest start of the check of the observed connection behind a silent
+ * fault, in seconds. The keepalive task of each connection operates on the one thread of the
+ * housekeeper (HikariPool.java:644-656). Behind the fault, each check waits for its read timeout
+ * (`check`). Thus the check of the observed connection can wait for the check of each other
+ * connection of the pool. In the cells of run 39111986991, it came up to 135 s after the connection,
+ * where one keepalive comes at 120 s at the latest.
+ */
+const latestCheck = (driver: KnobValues, check: Span): number => {
+  const keepalive = timerOf(HIKARICP_PGJDBC, "keepalive", driver);
+  const own = seconds(keepalive.duration, "the keepalive") + seconds(keepalive.lateness, "its lateness");
+  const size = driver("maximumPoolSize");
+  if (size === undefined || "unknown" in size || size.value === "infinite") throw new Error("hikaricp-pgjdbc gives no maximumPoolSize");
+  return own + (size.value - 1) * check.hi;
+};
+
+/**
  * This function gives the prediction of an idle connection through a router that forgets an idle
  * flow. O03 decides it: the keepalive of the pool against the idle timeout of conntrack. When O03
  * holds, the keepalive refreshes the flow, and nothing occurs in the window. When O03 fails, the
@@ -339,8 +355,7 @@ const atForget = (spec: HikariSpec, driver: KnobValues, linux: KnobValues): Pred
   if (!(earliest > forget.hi)) throw new Error(`${spec.plan}: the first keepalive can come before the router forgets the flow`);
   const check = hikariFirstOn("probing", MANIFESTATIONS.blackhole, driver, linux);
   if (check.kind !== "timer" || check.layer !== "driver") throw new Error(`${spec.plan}: no timer of the pool ends the check of the keepalive`);
-  const latest = seconds(keepalive.duration, "the keepalive") + seconds(keepalive.lateness, "its lateness");
-  return { detects: true, timer: check.timer, errno: "CLOSED", from: "first-sent", low: s(check.band.lo), high: s(check.band.hi), startsBy: s(latest) };
+  return { detects: true, timer: check.timer, errno: "CLOSED", from: "first-sent", low: s(check.band.lo), high: s(check.band.hi), startsBy: s(latestCheck(driver, check.band)) };
 };
 
 /** This function gives the prediction of a cell for the harness. */
@@ -368,16 +383,14 @@ export const hikariPrediction = (spec: HikariSpec): Prediction => {
     return { detects: true, timer: "the reset of the query", errno, from: "request-sent", low: s(0), high: s(PG_RTT_MS / 1000), rtt, driver: { socket: "pool" } };
   }
   // behind a black hole, the keepalive of the pool is the only check of an idle connection. It
-  // comes at a phase from the creation of the connection: at most one delay after the reply, which
-  // the run waits for (startsBy). Its empty query is the first segment that the socket sends after
-  // the fault, and the read timeout of the check counts from it. pgjdbc then closes the socket:
-  // the kernel stamps the change from ESTABLISHED to FIN_WAIT1
+  // comes at a phase from the creation of the connection, after the checks of the other connections
+  // before it, which the run waits for (startsBy). Its empty query is the first segment that the
+  // socket sends after the fault, and the read timeout of the check counts from it. pgjdbc then
+  // closes the socket: the kernel stamps the change from ESTABLISHED to FIN_WAIT1
   if (spec.fault === "blackhole" && spec.mode === "idle") {
     const check = hikariFirstOn("probing", manifestationOf(spec), driver, linux);
     if (check.kind !== "timer" || check.layer !== "driver") throw new Error(`${spec.plan}: no timer of the pool ends the check of the keepalive`);
-    const keepalive = timerOf(HIKARICP_PGJDBC, "keepalive", driver);
-    const latest = seconds(keepalive.duration, "the keepalive") + seconds(keepalive.lateness, "its lateness");
-    return { detects: true, timer: check.timer, errno: "CLOSED", from: "first-sent", low: s(check.band.lo), high: s(check.band.hi), startsBy: s(latest) };
+    return { detects: true, timer: check.timer, errno: "CLOSED", from: "first-sent", low: s(check.band.lo), high: s(check.band.hi), startsBy: s(latestCheck(driver, check.band)) };
   }
   const first = hikariFirstOn(spec.mode === "inflight" ? "querying" : "pooled", manifestationOf(spec), driver, linux);
   // the FIN of a killed server: the kernel moves the socket to CLOSE_WAIT at once, as pgjdbc reads nothing
