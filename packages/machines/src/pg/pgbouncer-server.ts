@@ -37,6 +37,10 @@ export const PGBOUNCER_SERVER: Machine = machineSchema.parse({
     { ref: `${PB} src/objects.c:1990-2008 the launch sets the time of the connect, before the DNS lookup and the TCP connect`, rung: "implemented" },
     { ref: `${PB} src/objects.c:1638-1641 and src/sbuf.c:163-203, :1064-1102 the TCP connect waits for EV_WRITE with a timeout of libevent of server_connect_timeout in whole seconds. A timeout or an error is 'connect failed' (src/server.c:851-853)`, rung: "implemented" },
     { ref: `${PB} src/janitor.c:558-570 the janitor closes a server in SV_LOGIN that is older than server_connect_timeout, from its launch: 'connect timeout'`, rung: "implemented" },
+    {
+      ref: "run 39160356281 of mark1russell7/systems: with server_connect_timeout 128 s, the connect timer closed the socket 127.998993 s after its SYN in 1 of 11 runs, 1.007 ms before 128 s. libevent 2.1 counts a timeout from its cached time of the pass (event.c event_add_nolock, gettime with tv_cache)",
+      rung: "observed",
+    },
     { ref: `${PB} src/objects.c:1385-1393, :1246-1248 a server in a login that closes marks the pool as failing, with the reason. A login that ends clears it`, rung: "implemented" },
     { ref: `${PB} src/server.c:74-119, :176-199 an ErrorResponse at the login closes each waiting client of a pool with no server, except for 57P03`, rung: "implemented" },
     { ref: `${PB} src/sbuf.c:494-506, :965-973 the socket of a server is always read: an idle server is not paused`, rung: "implemented" },
@@ -124,10 +128,11 @@ export const PGBOUNCER_SERVER: Machine = machineSchema.parse({
     connect_timeout: {
       duration: { knob: "server_connect_timeout", unit: "s" },
       lateness: { knob: "slack", unit: "ms" },
+      early: { knob: "slack", unit: "ms" },
       arms: ["enter:connecting"],
       cancels: ["socket.connect", "socket.error", "peer.rst"],
       fires: "timer.connect-timeout",
-      note: "src/objects.c:1640-1641, src/sbuf.c:163-203: a timeout of libevent on the wait for EV_WRITE, in whole seconds. Which clock libevent reads is an assumption of this document: the monotonic one",
+      note: "src/objects.c:1640-1641, src/sbuf.c:163-203: a timeout of libevent on the wait for EV_WRITE, in whole seconds. Which clock libevent reads is an assumption of this document: the monotonic one. libevent counts the timeout from the time that it caches for the callbacks of one pass of its loop, thus from up to one pass before the connect: the timer can fire up to that pass early",
     },
     login_timeout: {
       duration: { knob: "server_connect_timeout", unit: "s" },

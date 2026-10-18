@@ -233,6 +233,21 @@ const opened = (
   return record?.cookie === undefined ? undefined : { netns, cookie: record.cookie };
 };
 
+/**
+ * This function finds the socket of a hop that carries the request of a run toward the target. It is
+ * the first socket of the hop that sends data to the target after the send of the request. A pooler can
+ * reuse a server that it opened before the run, in the warm-up of the environment. Then the first
+ * socket that it opens in the run is another one (run 39160356281).
+ */
+const carried = (run: Run, netns: number, target: string): SocketPlace | undefined => {
+  const request = run.events.filter((event) => event.ev === "sent")[1];
+  if (request === undefined) return undefined;
+  const record = run.kernel.find(
+    (each) => each.netns === netns && each.ev === "tx" && each.dst === target && (each.seg?.len.value ?? 0) > 0 && each.mono >= request.t,
+  );
+  return record?.cookie === undefined ? undefined : { netns, cookie: record.cookie };
+};
+
 /** This function finds the socket of the target for the connection of a run. In a topology, its peer is the last hop. */
 const targetSocket = (run: Run, local: unknown): SocketPlace | undefined => {
   if (run.topology === undefined) {
@@ -249,7 +264,8 @@ const targetSocket = (run: Run, local: unknown): SocketPlace | undefined => {
  * This function finds the socket of the observer of a cell in a run:
  * - the client socket, by the address that it connected from, in its namespace.
  * - the socket of the target for the same connection, in its namespace.
- * - a socket of a proxy of the topology, toward the client or toward the target.
+ * - a socket of a proxy of the topology, toward the client or toward the target. Toward the target,
+ *   it is the socket that carries the request, else the first socket that the run opens.
  */
 export const socketOf = (cell: Cell, run: Run): SocketPlace | undefined => {
   const local = run.events.find((event) => event.ev === "connected")?.["local"];
@@ -263,7 +279,7 @@ export const socketOf = (cell: Cell, run: Run): SocketPlace | undefined => {
   if (hop === undefined) return undefined;
   return observer.toward === "client"
     ? opened(run, hop.netns, (dst) => ipOf(dst) === hop.client)
-    : opened(run, hop.netns, (dst) => dst === hop.target);
+    : (carried(run, hop.netns, hop.target) ?? opened(run, hop.netns, (dst) => dst === hop.target));
 };
 
 /**

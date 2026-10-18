@@ -649,6 +649,9 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
 - T10.defaults.3 waits: through Supavisor, the FIN of the server ends an idle client of HikariCP in two ways (run 39164922565).
   - In 6 of 11 runs the next login of the pool got 57P03 while the server shut down. Supavisor then shut the pool down, and each idle client got FATAL 57P01 and its close at once.
   - In 5 runs the connect came after the server. Then the client ended at its next check, with FATAL 08006 and the FIN 1.4 to 2.3 s after its empty query.
+- The fixes for two runs of the full PostgreSQL run 39160356281, which had 2 failures:
+  - Behind PgBouncer, the judge read a socket that the run opened, but PgBouncer sent the query through a server from the warm-up. Thus the judge reads the socket of the hop that carries the request (harness 0.11.14).
+  - The connect timer of PgBouncer closed its socket at 127.998993 s, 1 ms early. libevent counts a timeout from its cached time of the pass. Thus the band has an early slack of 10 ms (machines 0.3.11).
 - Then the T03 cells with a router in front of Supavisor.
 
 ### RABBIT · RabbitMQ
@@ -725,7 +728,7 @@ quantity 0.2.0, algebra 0.7.1, service 0.5.2, prober 0.3.1, harness 0.11.4 and k
 - **Shipped:** 2026-10-18
 - **Links:** [packages/machines](https://github.com/mark1russell7/systems/tree/main/packages/machines), [npm](https://www.npmjs.com/package/@mark1russell7/machines)
 
-The one home of each machine document. Its first version on npm is 0.3.7, published on 2026-10-18 with OIDC and provenance. Version 0.3.1 adds the two documents of PostgreSQL to 0.3.0, and 0.3.2 adds HikariCP over pgjdbc. Version 0.3.3 adds the slack of poll() for HikariCP, and 0.3.4 adds the start check of the pool. Version 0.3.5 gives a bound to the alarm of a PostgreSQL backend. Version 0.3.6 tells that the keepalive checks of HikariCP share one thread, and 0.3.7 adds the two documents of PgBouncer 1.26.1. Version 0.3.8 adds the document of Pgpool-II 4.7.3, and 0.3.9 gives the SYN give-up of Linux TCP its lateness on the wheel. Version 0.3.10 adds the two documents of Supavisor 2.9.13.
+The one home of each machine document. Its first version on npm is 0.3.7, published on 2026-10-18 with OIDC and provenance. Version 0.3.1 adds the two documents of PostgreSQL to 0.3.0, and 0.3.2 adds HikariCP over pgjdbc. Version 0.3.3 adds the slack of poll() for HikariCP, and 0.3.4 adds the start check of the pool. Version 0.3.5 gives a bound to the alarm of a PostgreSQL backend. Version 0.3.6 tells that the keepalive checks of HikariCP share one thread, and 0.3.7 adds the two documents of PgBouncer 1.26.1. Version 0.3.8 adds the document of Pgpool-II 4.7.3, and 0.3.9 gives the SYN give-up of Linux TCP its lateness on the wheel. Version 0.3.10 adds the two documents of Supavisor 2.9.13. Version 0.3.11 lets the connect timer of PgBouncer fire up to 10 ms early.
 
 release.yml publishes each later version from main, as for the other packages.
 

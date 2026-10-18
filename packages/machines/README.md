@@ -95,6 +95,10 @@ A change to the version of a system changes its sources too. Each fact of the do
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
 
+### 0.3.11
+
+- **The connect timer of PgBouncer can fire early.** libevent 2.1 counts a timeout from its cached time of the pass, not from the clock (event.c, `event_add_nolock` with `gettime` and `tv_cache`). Thus server_connect_timeout can fire up to one pass early, and its band has an early slack of 10 ms. In run 39160356281 the timer closed the socket at 127.998993 s, 1.007 ms before 128 s.
+
 ### 0.3.10
 
 - **Supavisor 2.9.13, in transaction mode.** Two new documents, each from the Elixir source at the tag v2.9.13:
