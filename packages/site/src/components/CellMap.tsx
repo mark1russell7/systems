@@ -15,22 +15,29 @@ import { VerdictIcon, statusOf } from "./Verdict.tsx";
 /** The words of the stages of a copy. A stage that is not here shows by its own name. */
 const STAGES: Readonly<Record<string, string>> = { defaults: "defaults", border: "borders", "border-off": "borders", array: "array", random: "random" };
 
-/** A row of the map: the cells of one group and one client, in clusters by stage. */
+/** A row of the map: the cells of one group, one client and one pooler, in clusters by stage. */
 interface Row {
   readonly key: string;
   readonly group: string;
   readonly client: string | undefined;
+  readonly via: string | undefined;
   readonly clusters: ReadonlyArray<{ readonly stage: string | undefined; readonly cells: readonly RunCell[] }>;
 }
 
+/**
+ * This function tells if the clusters of a row show their stages. A row shows them when it has more than one
+ * stage. A row of one stage shows it when it is not the defaults, as the borders through a pooler.
+ */
+export const labelled = (row: Row): boolean => row.clusters.length > 1 || row.clusters.some((cluster) => cluster.stage !== undefined && cluster.stage !== "defaults");
+
 /** This function puts the cells of a copy in rows, in the sequence of the copy. */
 export const rowsOf = (cells: readonly RunCell[]): Row[] => {
-  const rows: Array<{ key: string; group: string; client: string | undefined; clusters: Array<{ stage: string | undefined; cells: RunCell[] }> }> = [];
+  const rows: Array<{ key: string; group: string; client: string | undefined; via: string | undefined; clusters: Array<{ stage: string | undefined; cells: RunCell[] }> }> = [];
   for (const cell of cells) {
-    const key = `${cell.group} ${cell.client ?? ""}`;
+    const key = `${cell.group} ${cell.client ?? ""} ${cell.via ?? ""}`;
     let row = rows.find((each) => each.key === key);
     if (row === undefined) {
-      row = { key, group: cell.group, client: cell.client, clusters: [] };
+      row = { key, group: cell.group, client: cell.client, via: cell.via, clusters: [] };
       rows.push(row);
     }
     const last = row.clusters.at(-1);
@@ -59,11 +66,12 @@ export default function CellMap(props: { readonly copy: Copy }): ReactElement {
           <div className="sy-map-label">
             <code className="sy-tag">{row.group}</code>
             {row.client === undefined ? null : <span>{row.client}</span>}
+            {row.via === undefined ? null : <span className="sy-map-via">through {row.via}</span>}
           </div>
           <div className="sy-map-tiles">
             {row.clusters.map((cluster, at) => (
               <span className="sy-map-cluster" key={`${cluster.stage ?? ""} ${at}`}>
-                {cluster.stage === undefined || row.clusters.length === 1 ? null : <span className="sy-map-stage">{STAGES[cluster.stage] ?? cluster.stage}</span>}
+                {cluster.stage === undefined || !labelled(row) ? null : <span className="sy-map-stage">{STAGES[cluster.stage] ?? cluster.stage}</span>}
                 {cluster.cells.map((cell) => (
                   <a key={cellId(cell)} className="sy-tile" href={`#${cellId(cell)}`} data-status={statusOf(cell.decision)} aria-label={`${cell.plan ?? cell.catalog} ${cell.name}. ${lineOf(cell)}`}>
                     <VerdictIcon decision={cell.decision} />

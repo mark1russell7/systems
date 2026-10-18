@@ -1,7 +1,7 @@
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import Borders, { bordersOf, onAxis } from "./Borders.tsx";
-import CellMap, { rowsOf } from "./CellMap.tsx";
+import CellMap, { labelled, rowsOf } from "./CellMap.tsx";
 import RunResults, { COPIES, cellId, type Copy } from "./RunResults.tsx";
 
 const ids = (html: string, pattern: RegExp): string[] => [...html.matchAll(pattern)].map((match) => match[1]!);
@@ -26,9 +26,28 @@ describe("the map of the cells", () => {
     expect(frames).toEqual(COPIES.pg.filter((cell) => cell.group === "T01" && cell.client === "HikariCP" && cell.stage === "border").map(cellId));
   });
 
-  it("puts the cells in rows by group and client, in clusters by stage", () => {
+  it("puts the cells in rows by group, client and pooler, in clusters by stage", () => {
     const rows = rowsOf(COPIES.pg);
-    expect(rows.map((row) => `${row.group} ${row.client ?? ""}`.trim())).toEqual(["T01 node-postgres", "T01 HikariCP", "T03 HikariCP", "T10 HikariCP"]);
+    expect(rows.map((row) => `${row.group} ${row.client ?? ""} ${row.via ?? ""}`.trim())).toEqual([
+      "T01 node-postgres",
+      "T01 HikariCP",
+      "T03 HikariCP",
+      "T10 node-postgres PgBouncer",
+      "T10 node-postgres Pgpool-II",
+      "T10 node-postgres Supavisor",
+      "T10 HikariCP PgBouncer",
+      "T10 HikariCP Pgpool-II",
+    ]);
+    // through PgBouncer, HikariCP has 3 cells at the defaults and 10 at the borders
+    expect(rows[6]!.clusters.map((cluster) => [cluster.stage, cluster.cells.length])).toEqual([
+      ["defaults", 3],
+      ["border", 10],
+    ]);
+    const html = renderToString(<CellMap copy="pg" />);
+    // a row of one stage shows it when it is not the defaults: the borders of node-postgres through PgBouncer
+    expect(rows.map(labelled)).toEqual([true, true, false, true, false, false, true, true]);
+    // React puts a comment between the two parts of the label
+    expect(html).toMatch(/class="sy-map-via">through (?:<!-- -->)?Supavisor</);
     expect(rows[0]!.clusters.map((cluster) => [cluster.stage, cluster.cells.length])).toEqual([
       ["defaults", 9],
       ["border", 8],
@@ -58,7 +77,7 @@ describe("the charts of the borders", () => {
     // the read timeout of the check counts from its empty query, which comes at a phase of the keepalive: the chart gives it as text
     expect(onAxis(o03!.outside, o03!.at)).toBe(false);
     const html = renderToString(<Borders copy="pg" />);
-    expect(html).toContain("it ended 5.0042 s after the empty query of the check");
+    expect(html).toContain("it ended 5.0034 s after the empty query of the check");
     expect(html).toContain("nothing ended it in the window of 30 s");
     expect(html.split('class="sy-border"').length - 1).toBe(8);
   });

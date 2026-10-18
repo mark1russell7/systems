@@ -13,17 +13,46 @@ const outside = (each: Cell): number[] =>
   each.runs.flat().flatMap((t) => (t === null || each.band === null || (t >= each.band.low && t <= each.band.high) ? [] : [t])).sort((a, b) => a - b);
 
 describe("the copy of the PostgreSQL cells holds the figures of their CI run", () => {
-  it("has 44 cells on Linux 6.17 at HZ 1000, each holds, with 484 counted runs and no void run", () => {
+  it("has 65 cells on Linux 6.17 at HZ 1000, each holds, with 715 counted runs and no void run", () => {
     expect([pg.kernel, pg.hz, pg.target]).toEqual(["6.17.0", 1000, "postgres:17.11"]);
     expect(pg.clients).toEqual({ "node-postgres": "pg 8.23.1 with pg-pool 3.14.0 on Node 24.21.0", HikariCP: "HikariCP 7.1.0 over pgjdbc 42.7.13 on Temurin 21.0.12.1" });
-    expect(pg.cells).toHaveLength(44);
+    expect(pg.cells).toHaveLength(65);
     expect(pg.cells.every((each) => each.decision === "holds")).toBe(true);
-    expect(pg.cells.reduce((sum, each) => sum + each.counted, 0)).toBe(484);
+    expect(pg.cells.reduce((sum, each) => sum + each.counted, 0)).toBe(715);
     expect(pg.cells.reduce((sum, each) => sum + each.voided, 0)).toBe(0);
     const count = (group: string, client: string, stage: string) => pg.cells.filter((each) => each.group === group && each.client === client && each.stage === stage).length;
     expect([count("T01", "node-postgres", "defaults"), count("T01", "node-postgres", "border")]).toEqual([9, 8]);
     expect([count("T01", "HikariCP", "defaults"), count("T01", "HikariCP", "border")]).toEqual([9, 8]);
-    expect([count("T03", "HikariCP", "defaults"), count("T10", "HikariCP", "defaults")]).toEqual([7, 3]);
+    expect([count("T03", "HikariCP", "defaults"), count("T10", "HikariCP", "defaults"), count("T10", "HikariCP", "border")]).toEqual([7, 5, 12]);
+    expect([count("T10", "node-postgres", "defaults"), count("T10", "node-postgres", "border")]).toEqual([5, 2]);
+    // each cell of T10 names its pooler, and no other cell names one
+    const via = (name: string) => pg.cells.filter((each) => each.via === name).length;
+    expect([via("PgBouncer"), via("Pgpool-II"), via("Supavisor")]).toEqual([15, 5, 4]);
+    expect(pg.cells.every((each) => (each.group === "T10") === (each.via !== undefined))).toBe(true);
+  });
+
+  it("places the borders through PgBouncer on each side of its timers", () => {
+    const [connect, giveUp] = ["T10.border-off.83", "T10.border-off.84"].map(cell);
+    // the connect timer of PgBouncer closes its socket in SYN_SENT, and at 140 s the kernel gives up on the SYNs first
+    expect(connect!.median).toBeGreaterThan(127.99);
+    expect(connect!.median).toBeLessThan(128.01);
+    expect(connect!.prediction.text).toMatch(/in SYN_SENT, with no error and no FIN. The band is 127.99 s to 128.01 s after the SYN of the connect of PgBouncer.$/);
+    expect(giveUp!.median).toBeGreaterThan(131);
+    expect(giveUp!.median).toBeLessThan(140);
+    const [inside, outside] = ["T10.border-off.91", "T10.border-off.92"].map(cell);
+    // O01: the idle timer of the pool at 10 s comes before client_idle_timeout at 12 s, and at 14 s PgBouncer closes the client first
+    expect(inside!.median).toBeLessThan(12);
+    expect(outside!.median).toBeGreaterThan(12);
+    expect(outside!.prediction.text).toMatch(/^The algebra predicts that client_idle_timeout of PgBouncer closes the idle client/);
+  });
+
+  it("gives no timer of Supavisor to an idle client or to a query", () => {
+    const idle = cell("T10.defaults.27");
+    expect(idle.client).toBe("node-postgres");
+    expect(idle.median).toBeGreaterThan(10);
+    expect(idle.median).toBeLessThan(10.01);
+    for (const plan of ["T10.defaults.28", "T10.defaults.30"]) expect(cell(plan).band, plan).toBeNull();
+    expect(cell("T10.defaults.31").median).toBeGreaterThan(5);
   });
 
   it("gives the idle timer of node-postgres at 10 s, with and without a fault, each run in its band", () => {
@@ -71,7 +100,20 @@ describe("the copy of the PostgreSQL cells holds the figures of their CI run", (
   it("holds each cell with no detector in its window: no run has a time", () => {
     const quiet = pg.cells.filter((each) => each.band === null);
     expect(quiet.map((each) => each.plan).sort()).toEqual(
-      ["T01.defaults.126", "T01.border-off.158", "T01.defaults.55", "T01.defaults.57", "T01.border-off.151", "T03.defaults.8", "T03.defaults.42", "T03.defaults.51", "T10.defaults.45"].sort(),
+      [
+        "T01.defaults.126",
+        "T01.border-off.158",
+        "T01.defaults.55",
+        "T01.defaults.57",
+        "T01.border-off.151",
+        "T03.defaults.8",
+        "T03.defaults.42",
+        "T03.defaults.51",
+        "T10.defaults.45",
+        "T10.defaults.2",
+        "T10.defaults.28",
+        "T10.defaults.30",
+      ].sort(),
     );
     for (const each of quiet) expect(each.runs.flat().every((t) => t === null), each.plan).toBe(true);
   });

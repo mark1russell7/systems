@@ -4,7 +4,8 @@
 //
 // The PostgreSQL cells put two clients against one server of PostgreSQL 17.11: node-postgres
 // (pg 8.23.1 with pg-pool 3.14.0) and HikariCP 7.1.0 over pgjdbc 42.7.13. T01 is the direct pair,
-// T03 has a router of a cloud preset between them, and T10 has PgBouncer 1.26.1. Each folder is
+// T03 has a router of a cloud preset between them, and T10 has a pooler: PgBouncer 1.26.1, Pgpool-II
+// 4.7.3 or Supavisor 2.9.13. Each folder is
 // the output of one shard of the workflow Cells on a runner of GitHub: the raw record of each
 // cell, summary.ndjson and runner.txt.
 // The script reads each record again with the code of the harness (`judge`), and it stops when that
@@ -31,14 +32,22 @@ process.env["CELLS_HZ"] = String(runner.hz);
 const { T01_PG, PG_DRIVER } = await import("../../cells/src/pg/t01.ts");
 const { T01_HIKARI, HIKARI_DRIVER } = await import("../../cells/src/pg/hikari.ts");
 const { T03_HIKARI } = await import("../../cells/src/pg/t03.ts");
-const { T10_HIKARI } = await import("../../cells/src/pg/t10.ts");
+const { T10_HIKARI, T10_PG } = await import("../../cells/src/pg/t10.ts");
 const { ALL } = await import("../../cells/src/all.ts");
 
-/** These are the PostgreSQL cells of the catalogs, each with its client. */
+/** These are the PostgreSQL cells of the catalogs, each with its client, by their topology: T01, then T03, then T10. */
 const CATALOG = [
   ...T01_PG.map((cell) => ({ cell, client: "node-postgres" })),
-  ...[...T01_HIKARI, ...T03_HIKARI, ...T10_HIKARI].map((cell) => ({ cell, client: "HikariCP" })),
+  ...[...T01_HIKARI, ...T03_HIKARI].map((cell) => ({ cell, client: "HikariCP" })),
+  ...T10_PG.map((cell) => ({ cell, client: "node-postgres" })),
+  ...T10_HIKARI.map((cell) => ({ cell, client: "HikariCP" })),
 ];
+
+/** This function gives the pooler of a cell of T10, by the name of its hop: PgBouncer, Pgpool-II or Supavisor. */
+const viaOf = (cell: Cell): string | undefined => {
+  const hops = (cell.topology?.hops ?? []).map((hop) => hop.name);
+  return hops.includes("pgpool") ? "Pgpool-II" : hops.includes("supavisor") ? "Supavisor" : hops.includes("pgbouncer") ? "PgBouncer" : undefined;
+};
 
 // a full run of the catalogs holds the cells of each catalog: this export takes its own
 const found = ofCatalog(
@@ -60,7 +69,20 @@ const TIMERS: Readonly<Record<string, string>> = {
   socket_timeout: "the read timeout of pgjdbc closes the socket",
   start_check: "the start of the pool fails after the sleep of its check",
   statement_timeout: "the statement timer of the server ends the query",
+  client_idle_timeout: "client_idle_timeout of PgBouncer closes the idle client",
+  syn_giveup: "the kernel of PgBouncer gives up on the SYNs of its connect to the server",
 };
+/**
+ * These phrases are for a timer of PgBouncer with the name of a timer of a pool, by the timer and its
+ * error or its reference. query_timeout of PgBouncer closes the client with FATAL 08P01, and its
+ * connect timer counts from the SYN of PgBouncer.
+ */
+const POOLER_TIMERS: Readonly<Record<string, string>> = {
+  "query_timeout 08P01": "query_timeout of PgBouncer ends the query and closes the client",
+  "connect_timeout syn-sent": "the connect timer of PgBouncer closes its socket to the server",
+};
+const timerText = (p: { readonly timer: string; readonly errno: string; readonly from: Reference }): string | undefined =>
+  POOLER_TIMERS[`${p.timer} ${p.errno}`] ?? POOLER_TIMERS[`${p.timer} ${p.from}`] ?? TIMERS[p.timer];
 /** These phrases name the reference of a band, in a sentence. */
 const FROMS: Readonly<Record<string, string>> = {
   "last-received": "the last segment on the socket",
@@ -69,15 +91,25 @@ const FROMS: Readonly<Record<string, string>> = {
   "peer-closed": "the close of the socket of the server",
   "client-start": "the start of the first connect",
   "first-sent": "the empty query of the check, the first segment after the fault",
+  "syn-sent": "the SYN of the connect of PgBouncer",
 };
 const from = (reference: Reference): string => {
   const text = FROMS[reference];
   if (text === undefined) throw new Error(`no text for the reference ${reference}`);
   return text;
 };
-/** This function gives the phrase of the error of a band: the close of the pool, an end of file, or an error. */
-const withError = (name: string): string =>
-  name === "CLOSED" ? ", and the kernel stamps its FIN" : name === "EOF" ? " with an end of file" : ` with ${name.includes(" ") ? `'${name}'` : name}`;
+/**
+ * This function gives the phrase of the error of a band: the close of the pool, an end of file, or an
+ * error. A close in SYN_SENT has no FIN: the kernel stamps the change of the socket to CLOSE.
+ */
+const withError = (name: string, reference: Reference): string =>
+  name === "CLOSED"
+    ? reference === "syn-sent"
+      ? " in SYN_SENT, with no error and no FIN"
+      : ", and the kernel stamps its FIN"
+    : name === "EOF"
+      ? " with an end of file"
+      : ` with ${name.includes(" ") ? `'${name}'` : name}`;
 
 /** This function names a line that a prediction does not let come after the fault. */
 const quietOf = (match: LineMatch): string => {
@@ -97,7 +129,7 @@ const predictionOf = (cell: Cell) => {
   const extra = quiet.length > 0 ? [`The prediction has no ${listed(quiet)} after the fault.`] : [];
   const text = (first: string): string => [first, ...extra].join(" ");
   if (p.detects) {
-    const timer = TIMERS[p.timer];
+    const timer = timerText(p);
     if (timer === undefined) throw new Error(`${cell.name}: the timer "${p.timer}" has no text for the page`);
     const [low, high] = [secondsOf(p.low)!, secondsOf(p.high)!];
     return {
@@ -105,7 +137,7 @@ const predictionOf = (cell: Cell) => {
       ...none,
       low,
       high,
-      text: text(`The algebra predicts that ${timer}${withError(p.errno)}. The band is ${at(low)} to ${at(high)} after ${from(p.from)}.`),
+      text: text(`The algebra predicts that ${timer}${withError(p.errno, p.from)}. The band is ${at(low)} to ${at(high)} after ${from(p.from)}.`),
     };
   }
   if (p.recovers !== undefined) {
@@ -153,6 +185,7 @@ const cells = CATALOG.flatMap(({ cell: catalog, client }) => {
       ...named,
       name: shortOf(named.name),
       group: named.catalog,
+      ...(viaOf(catalog) === undefined ? {} : { via: viaOf(catalog) }),
       client,
       stage: named.plan?.includes(".border-off.") ? "border" : "defaults",
       prediction: predictionOf(entry.record.cell),
