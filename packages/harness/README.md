@@ -177,6 +177,9 @@ The harness ships ten images, each as a shipped source (`ImageSource`). The tag 
   - A hop takes the image as a shipped source: `{ kind: "shipped", name: "pgbouncer" }`. A proxy hop also takes a stock image by its digest.
   - A cell gives its configuration as files of the hop (`ProxyHop.files`): `/etc/pgbouncer/pgbouncer.ini` and `/etc/pgbouncer/userlist.txt`. In them, `{{next.host}}` and `{{next.port}}` are the host and the port of the server.
   - PgBouncer does not start as root, thus it operates as its own user.
+- **The Pgpool-II image** (`image/pgpool`) is Pgpool-II 4.7.3, a pooler hop, on a digest-pinned Alpine. The build gets the source of the tag V4_7_3 from GitHub and checks its SHA-256 before it builds. The tree of git holds no `configure`, thus the build runs autoreconf, and bison and flex make the parser.
+  - A hop takes the image as a shipped source: `{ kind: "shipped", name: "pgpool" }`.
+  - A cell gives its configuration as one file of the hop: `/etc/pgpool/pgpool.conf`. Each other file that Pgpool-II reads is empty in the image. Pgpool-II operates in the foreground as its own user.
 
 The build does the `cargo test` of the two crates. Thus the record decoder passes its tests before an image exists. Each amount that the native programs print is a quantity in a canonical unit. For example, an RTO is in `jiffy`, a round trip in `us`, and a segment in `B`.
 

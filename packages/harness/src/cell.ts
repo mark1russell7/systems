@@ -636,7 +636,7 @@ export type HarnessImage = "procedures";
  * A shipped image is an image that the harness ships, by its name. Its build context is in the
  * package of the harness, and in the package of the prober for `harness`.
  */
-export type Shipped = "harness" | "node" | "go-http" | "node-http" | "mongo" | "pg" | "hikari" | "procedures" | "router" | "pgbouncer";
+export type Shipped = "harness" | "node" | "go-http" | "node-http" | "mongo" | "pg" | "hikari" | "procedures" | "router" | "pgbouncer" | "pgpool";
 
 /**
  * An image source tells where an image comes from, as data. The harness resolves each kind to an

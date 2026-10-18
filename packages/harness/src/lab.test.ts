@@ -241,6 +241,59 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
     expect(result.manifests[0]?.hops?.[0]).toMatchObject({ name: "pgbouncer", kind: "proxy" });
   }, 600_000);
 
+  it("passes a query of node-postgres through Pgpool-II, and the FIN of a stopped server ends the idle client", async () => {
+    const s = (value: number) => ({ value, unit: "s" });
+    const pgpool: ProxyHop = {
+      name: "pgpool",
+      kind: "proxy",
+      image: { kind: "shipped", name: "pgpool" },
+      port: 9999,
+      files: {
+        "/etc/pgpool/pgpool.conf": [
+          "listen_addresses = '*'",
+          "port = 9999",
+          "unix_socket_directories = '/tmp'",
+          "pcp_socket_dir = '/tmp'",
+          "pid_file_name = '/tmp/pgpool.pid'",
+          "logdir = '/tmp'",
+          "backend_hostname0 = '{{next.host}}'",
+          "backend_port0 = {{next.port}}",
+          "backend_weight0 = 1",
+          "backend_flag0 = 'ALLOW_TO_FAILOVER'",
+          // the check of streaming replication finds the primary with this user
+          "sr_check_user = 'postgres'",
+          "",
+        ].join("\n"),
+      },
+      ready: "pgpool-II successfully started",
+    };
+    const cell: Cell = {
+      name: "lab pg through pgpool, fin of the server, idle",
+      target: POSTGRES,
+      sysctls: {},
+      probe: { mode: "idle", keepalive: false, driver: { name: "pg" } },
+      fault: "fin",
+      topology: { name: "T10", hops: [pgpool] },
+      // an idle session of Pgpool-II waits on the client and the server in one select(). The FIN of
+      // the server ends it: a FATAL error, then the close of the client (src/utils/pool_stream.c:263-276)
+      prediction: {
+        detects: true,
+        timer: "the server ends the connection",
+        errno: "EOF",
+        from: "peer-closed",
+        low: s(0),
+        high: s(1),
+        driver: { socket: "pool" },
+      },
+      runs: 1,
+      environments: 1,
+    };
+    const result = await runCell(cell);
+    const [read] = result.measured;
+    expect(read).toMatchObject({ void: null, finding: null });
+    expect(result.manifests[0]?.hops?.[0]).toMatchObject({ name: "pgpool", kind: "proxy" });
+  }, 600_000);
+
   it("fails a group of Valkey over with a planned failover, and the client writes to the new primary", async () => {
     const cell: Cell = {
       name: "lab group, event:planned SENTINEL FAILOVER",
