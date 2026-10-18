@@ -353,7 +353,7 @@ export const HIKARICP_PGJDBC: Machine = machineSchema.parse({
       early: { expr: "keepaliveTime / 5", unit: "ms" },
       arms: ["local.created", "rx.valid", "timer.keepalive"],
       fires: "timer.keepalive",
-      note: "HikariPool.java:498-504: a fixed delay from the creation, of keepaliveTime less a variance drawn one time for the connection. The next delay counts from the end of the last task, also when the task skipped a connection in use. A use of the connection does not move it. Thus the entry to a state does not arm it, and its first firing after a failure can come at any time in one delay: a cell times it from its empty query on the wire",
+      note: "HikariPool.java:498-504: a fixed delay from the creation, of keepaliveTime less a variance drawn one time for the connection. The next delay counts from the end of the last task, also when the task skipped a connection in use. A use of the connection does not move it. Thus the entry to a state does not arm it, and its first firing after a failure can come at any time in one delay: a cell times it from its empty query on the wire. The task of each connection runs on the one thread of the housekeeper (HikariPool.java:644-656, :879-891). A check that waits for its read timeout delays each task that comes due after it: behind a silent fault, the check of one connection can wait for the checks of the others",
     },
     max_lifetime: {
       duration: { knob: "maxLifetime", unit: "ms" },

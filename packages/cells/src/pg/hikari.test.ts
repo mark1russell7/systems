@@ -83,14 +83,15 @@ describe("the HikariCP catalog of T01", () => {
     expect(inside!.driverOptions).toEqual({ "dataSource.socketTimeout": 9 });
   });
 
-  it("times the keepalive behind a black hole from its empty query, up to one delay after the reply", () => {
+  it("times the keepalive behind a black hole from its empty query, after the checks of the other connections before it", () => {
     const p = cell("T01.defaults.52").prediction;
     expect(p).toMatchObject({ detects: true, timer: "validation_timeout", errno: "CLOSED", from: "first-sent" });
     if (p.detects !== true) return;
     // the check of 5 s, with the slack of poll() and of the JVM
     expect([valueIn(p.low, "s"), valueIn(p.high, "s")]).toEqual([5, 5.015]);
-    // the keepalive comes at most 120 s after the creation of the connection, thus after the reply
-    expect(valueIn(p.startsBy!, "s")).toBeCloseTo(120.01, 6);
+    // the keepalive comes at most 120 s after the creation of the connection. Its task can wait for the
+    // checks of the 9 other connections on the one thread of the housekeeper, each 5.015 s at most
+    expect(valueIn(p.startsBy!, "s")).toBeCloseTo(120.01 + 9 * 5.015, 6);
     expect(p.driver).toBeUndefined();
   });
 
@@ -151,9 +152,8 @@ describe("the HikariCP catalog of T01", () => {
     // outside, the router forgets the flow first and drops the empty query of the check: its read timeout closes the socket
     expect(outside!.prediction).toMatchObject({ detects: true, timer: "validation_timeout", errno: "CLOSED", from: "first-sent" });
     if (outside!.prediction.detects !== true) return;
-    const latest = valueIn(outside!.prediction.startsBy!, "s");
-    expect(latest).toBeGreaterThanOrEqual(80);
-    expect(latest).toBeLessThan(81);
+    // the keepalive of 80 s, then the checks of the 9 other connections before it, each 5.015 s at most
+    expect(valueIn(outside!.prediction.startsBy!, "s")).toBeCloseTo(80.01 + 9 * 5.015, 6);
   });
 
   it("refuses an option that is not a knob of the document", () => {

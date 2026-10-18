@@ -90,6 +90,10 @@ A change to the version of a system changes its sources too. Each fact of the do
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
 
+### 0.3.6
+
+- **`hikaricp-pgjdbc`: the queue of the keepalive checks.** The keepalive task of each connection operates on the one thread of the housekeeper (HikariPool.java:644-656). Behind a silent fault, each check waits for its read timeout. Thus the check of one connection can wait for the checks of the other connections. The note of the timer `keepalive` says so. No value of a document changes.
+
 ### 0.3.5
 
 - **`postgres-session`: the slack of the SIGALRM of a backend.** The knob `alarm_slack` has the value 10 ms. It is an assumption of the document, as the slack of the two client documents: the source gives no bound. The handler of SIGALRM sets the latch of the backend (timeout.c:364-377). pg_sleep waits on that latch, and it checks for interrupts before each wait (adt/misc.c:391-412). Thus a statement timer ends a sleep at once.
