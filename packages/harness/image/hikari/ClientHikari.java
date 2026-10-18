@@ -16,7 +16,8 @@
 // - ready: the reply to the first query: the connection is idle in the pool (idle, inflight), or
 //   the stream starts (stream).
 // - sent, ack, fail: each query by its sequence number, with its error.
-// - data, error: the end of the query in flight, as the TCP client of the harness tells it.
+// - data, error: the end of the query in flight, as the TCP client of the harness tells it. In idle
+//   mode, the close of the socket of the first connection is an error line too: the pool closed it.
 // - done, deadline: the end of the client.
 //
 // The modes are those of the pg client. idle sends one query, closes its connection (the
@@ -60,6 +61,7 @@ public final class ClientHikari {
   private static volatile boolean stopped = false;
   private static volatile HikariDataSource pool;
   private static volatile String connected;
+  private static volatile Socket observed;
   private static String host;
   private static String port;
   private static String query;
@@ -216,8 +218,8 @@ public final class ClientHikari {
 
   // ---- each connection that the client borrows: its socket, read from pgjdbc
 
-  /** This function gives the local address of the socket of a connection, or null. */
-  private static String localOf(Connection connection) {
+  /** This function gives the socket of a connection, from the PGStream of pgjdbc, or null. */
+  private static Socket socketOf(Connection connection) {
     try {
       PgConnection pg = connection.unwrap(PgConnection.class);
       Object executor = pg.getQueryExecutor();
@@ -231,21 +233,48 @@ public final class ClientHikari {
       }
       if (field == null) return null;
       field.setAccessible(true);
-      Socket socket = ((PGStream) field.get(executor)).getSocket();
-      return socket.getLocalAddress().getHostAddress() + ":" + socket.getLocalPort();
+      return ((PGStream) field.get(executor)).getSocket();
     } catch (Exception error) {
       return null;
     }
   }
 
   private static void seen(Connection connection) {
-    String local = localOf(connection);
-    if (local == null || !SEEN.add(local)) return;
+    Socket socket = socketOf(connection);
+    if (socket == null) return;
+    String local = socket.getLocalAddress().getHostAddress() + ":" + socket.getLocalPort();
+    if (!SEEN.add(local)) return;
     emit("socket", "\"role\":\"pool\",\"local\":" + q(local));
     if (connected == null) {
       connected = local;
+      observed = socket;
       emit("connected", "\"local\":" + q(local));
     }
+  }
+
+  /**
+   * This function watches the socket of the first connection in idle mode, each 2 ms. The pool
+   * closes it when a check finds it dead: pgjdbc closes the socket after a read timeout or an I/O
+   * error. That close is the detection of an idle cell, thus it writes an error line.
+   */
+  private static void watchIdle() {
+    Socket socket = observed;
+    if (socket == null) return;
+    Thread watcher = new Thread(() -> {
+      while (!stopped) {
+        if (socket.isClosed()) {
+          emit("error", "\"errno\":\"CLOSED\",\"local\":" + q(connected));
+          return;
+        }
+        try {
+          Thread.sleep(2);
+        } catch (InterruptedException stop) {
+          return;
+        }
+      }
+    }, "idle-watcher");
+    watcher.setDaemon(true);
+    watcher.start();
   }
 
   // ---- the counts of the pool, each 5 ms: a line for each change
@@ -413,6 +442,7 @@ public final class ClientHikari {
     }
     // the connection went back to the pool at the end of the query: it is idle there
     emit("ready", "\"reply\":\"ack\"");
+    if (mode.equals("idle")) watchIdle();
     if (mode.equals("inflight")) {
       while (!Files.exists(go)) Thread.sleep(2);
       Throwable error = operate(2);

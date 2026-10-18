@@ -133,6 +133,7 @@ const outsetOf = (run: Run): number => {
  * - `first-retransmission`: the first retransmission of the RTO timer on the socket.
  * - `peer-closed`: the change of state of the socket of the target, when its process dies.
  * - `fault`: the start of the commit of the fault. `client-start`: the `connecting` line.
+ * - `first-sent`: the first segment with data that the socket sends after the fault.
  */
 export const referenceOf = (run: Run, from: Reference, role: string, data: boolean): number | undefined => {
   const ready = run.events.find((event) => event.ev === "ready");
@@ -148,6 +149,8 @@ export const referenceOf = (run: Run, from: Reference, role: string, data: boole
       data ? (record.ev === "rx" || record.ev === "tx") && (record.seg?.len.value ?? 0) > 0 : record.ev === "rx";
     return place.records.filter((record) => record.mono <= before && counts(record)).at(-1)?.mono;
   }
+  if (from === "first-sent")
+    return place.records.find((record) => record.ev === "tx" && record.mono > before && (record.seg?.len.value ?? 0) > 0)?.mono;
   if (from === "first-retransmission") {
     const request = run.events.filter((event) => event.ev === "sent")[1]?.t ?? before;
     return place.records.find((record) => record.ev === "retrans" && record.why === "rto" && record.mono > request)?.mono;

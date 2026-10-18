@@ -248,6 +248,10 @@ export interface Toxic {
  * A heartbeat of a program counts from its first ping that got no answer (`ping-sent`). The
  * program writes a `ping` line before each ping, and the kernel stamps the write (`tx`). No
  * segment with data reaches the socket after that write, up to the detection.
+ *
+ * A check of a pool on an idle connection counts from the first segment with data that the socket
+ * sends after the fault (`first-sent`). The keepalive of HikariCP comes at a phase from the
+ * creation of its connection, thus no line of the client gives its time. The kernel stamps it.
  */
 export type Reference =
   | "last-received"
@@ -256,7 +260,8 @@ export type Reference =
   | "peer-closed"
   | "fault"
   | "client-start"
-  | "ping-sent";
+  | "ping-sent"
+  | "first-sent";
 
 /**
  * This prediction tells when a connection moves again after a stall. That occurs at the first

@@ -190,7 +190,7 @@ const socketVantage = (
   request: ProbeEvent,
 ): Quantity | null => {
   const { from } = cell.prediction.detects === true ? cell.prediction : { from: undefined };
-  if (from === undefined || from === "peer-closed" || from === "fault" || from === "ping-sent") return null;
+  if (from === undefined || from === "peer-closed" || from === "fault" || from === "ping-sent" || from === "first-sent") return null;
   const ended = events.find((event) => event.ev === "error" || event.ev === "eof");
   const reference =
     from === "last-received"
@@ -614,7 +614,9 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
         ? socket.filter((each) => each.ev === "rx" && each.mono <= before).at(-1)
         : from === "first-retransmission"
           ? retransmitted.find((each) => each.why === "rto")
-          : kernel.find(
+          : from === "first-sent"
+            ? socket.find((each) => each.ev === "tx" && each.mono > before && (each.seg?.len.value ?? 0) > 0)
+            : kernel.find(
               (each) =>
                 each.netns === peerNetns &&
                 each.cookie === peerCookie &&
