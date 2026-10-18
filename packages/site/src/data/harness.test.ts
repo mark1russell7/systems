@@ -47,4 +47,11 @@ describe("the copy of the harness results holds the figures of jarvis (SYSTEMS.m
     const text = readFileSync(new URL("./harness-2026-10-13.json", import.meta.url), "utf8");
     expect(text).not.toMatch(/boot_id|sha256|netns|[0-9a-f]{12,}/);
   });
+
+  it("gives each kernel by its version, not by the name of its build", () => {
+    for (const copy of ["./harness-2026-10-08.json", "./harness-2026-10-13.json"]) {
+      const text = readFileSync(new URL(copy, import.meta.url), "utf8");
+      expect(text, copy).not.toMatch(/WSL|microsoft|azure/i);
+    }
+  });
 });

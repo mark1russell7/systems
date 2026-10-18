@@ -147,7 +147,7 @@
         },
         "median": 11.156039
       },
-      "kernel": "6.6.87.2-microsoft-standard-WSL2",
+      "kernel": "6.6.87.2",
       "hz": "250"
     },
     {
@@ -294,7 +294,7 @@
         },
         "median": 6.339989
       },
-      "kernel": "6.6.87.2-microsoft-standard-WSL2",
+      "kernel": "6.6.87.2",
       "hz": "250"
     },
     {
@@ -442,7 +442,7 @@
         },
         "median": 12.920007
       },
-      "kernel": "6.6.87.2-microsoft-standard-WSL2",
+      "kernel": "6.6.87.2",
       "hz": "250"
     },
     {
@@ -578,7 +578,7 @@
         "band": null,
         "median": null
       },
-      "kernel": "6.6.87.2-microsoft-standard-WSL2",
+      "kernel": "6.6.87.2",
       "hz": "250"
     }
   ]
