@@ -59,6 +59,7 @@ export const POSTGRES_SESSION: Machine = machineSchema.parse({
     { ref: `${AT}/backend/utils/errcodes.txt:106-107 08003 and 08006, :111 08P01, :254-255 25P03 and 25P04, :421 55P03, :428-429 57014 and 57P01, :433 57P05`, rung: "implemented" },
     { ref: `${AT}/backend/tcop/postgres.c:4618-4706 at ReadyForQuery the backend arms idle_in_transaction_session_timeout in a transaction block, open or aborted, and idle_session_timeout outside one; :4714-4750 after a message it disarms them, then checks for interrupts`, rung: "implemented" },
     { ref: `${AT}/backend/tcop/postgres.c:2770-2796 start_xact_command arms statement_timeout and the client check, each only when not active, :2798-2802 finish_xact_command disarms statement_timeout, :5251-5278 no statement timer when statement_timeout >= transaction_timeout > 0`, rung: "implemented" },
+    { ref: `${AT}/backend/utils/adt/misc.c:391-412 pg_sleep: CHECK_FOR_INTERRUPTS before each WaitLatch on the latch of the backend, thus the SIGALRM of a timeout ends its wait`, rung: "implemented" },
     { ref: `${AT}/backend/tcop/postgres.c:4446-4502 an ERROR: disable_all_timeouts, the error to the client, AbortCurrentTransaction; :4562-4563 then ReadyForQuery`, rung: "implemented" },
     { ref: `${AT}/backend/access/transam/xact.c:2174-2176 StartTransaction arms transaction_timeout, :2315-2317, :2592-2594 and :2768-2770 commit, prepare and abort disarm it, :3472-3477 an error in a transaction block aborts the transaction and keeps the block`, rung: "implemented" },
     { ref: `${AT}/backend/storage/lmgr/proc.c:1292-1307 ProcSleep arms lock_timeout with the deadlock timer, :1652-1666 and disarms it after the wait`, rung: "implemented" },
@@ -188,8 +189,8 @@ export const POSTGRES_SESSION: Machine = machineSchema.parse({
       key: "the lateness of a SIGALRM timeout of a backend",
       scope: "process",
       unit: "ms",
-      default: null,
-      note: "The source gives no bound. setitimer(ITIMER_REAL) raises SIGALRM (timeout.c:338-339), and the backend acts at its next CHECK_FOR_INTERRUPTS",
+      default: 10,
+      note: "An assumption of this document: the source gives no bound. setitimer(ITIMER_REAL) raises SIGALRM (timeout.c:338-339), and the backend acts at its next CHECK_FOR_INTERRUPTS. The handler sets the latch of the backend (timeout.c:364-377), thus a wait on the latch ends at once. pg_sleep waits on the latch, and it calls CHECK_FOR_INTERRUPTS before each wait (adt/misc.c:391-412)",
     },
   },
   timers: {

@@ -41,7 +41,7 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `MONGOD_REPL` | `mongod-replication` | The replication of mongod 9.0.4: one member of a replica set | server | 29 implemented |
 | `MONGOD_SESSION` | `mongod-session` | One client connection of mongod 9.0.4 | server | 6 implemented |
 | `NODE_POSTGRES` | `node-postgres` | node-postgres 8.23.1 with pg-pool 3.14.0: one client of a `pg.Pool` | driver | 30 implemented, 2 documented, 1 derived |
-| `POSTGRES_SESSION` | `postgres-session` | One client connection of a PostgreSQL 17.11 backend | server | 40 implemented, 2 documented |
+| `POSTGRES_SESSION` | `postgres-session` | One client connection of a PostgreSQL 17.11 backend | server | 41 implemented, 2 documented |
 | `HIKARICP_PGJDBC` | `hikaricp-pgjdbc` | HikariCP 7.1.0 over pgjdbc 42.7.13: one connection of a pool | driver | 41 implemented, 1 documented, 2 derived |
 
 Fourteen documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel and the replication of mongod operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
@@ -89,6 +89,11 @@ A document changes only for one of two reasons:
 A change to the version of a system changes its sources too. Each fact of the document then cites the new version.
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
+
+### 0.3.5
+
+- **`postgres-session`: the slack of the SIGALRM of a backend.** The knob `alarm_slack` has the value 10 ms. It is an assumption of the document, as the slack of the two client documents: the source gives no bound. The handler of SIGALRM sets the latch of the backend (timeout.c:364-377). pg_sleep waits on that latch, and it checks for interrupts before each wait (adt/misc.c:391-412). Thus a statement timer ends a sleep at once.
+  - The source of pg_sleep is new. No other part of a document changes.
 
 ### 0.3.4
 

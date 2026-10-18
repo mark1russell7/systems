@@ -1,5 +1,5 @@
 // client-hikari HOST PORT --mode idle|inflight|stream [--interval-ms N] [--max-s N] [--go PATH]
-//               [--query TEXT] [--before] [--options JSON]
+//               [--query TEXT] [--inflight-query TEXT] [--before] [--options JSON]
 //
 // The client of a HikariCP cell: HikariCP 7.1.0 over pgjdbc 42.7.13, on Java 21. Each event is a
 // JSON line with `ev` and `t`, the time on CLOCK_MONOTONIC in nanoseconds (System.nanoTime, which
@@ -24,7 +24,8 @@
 // connection goes back to the pool), then holds until --max-s. inflight sends one query, waits for
 // the file --go, sends one more query into the fault, and holds after its end. stream sends a query
 // each --interval-ms after the reply before. --before starts the client into a fault that holds
-// already: the start of its pool meets it.
+// already: the start of its pool meets it. --inflight-query is the text of the query in flight
+// (query 2 of inflight), and --query is the text of each other query.
 //
 // The options are one flat JSON object. A name with the prefix `dataSource.` is a property of
 // pgjdbc. Each other name is a property of HikariConfig. A cell gives each option that it changes,
@@ -53,6 +54,8 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.postgresql.core.PGStream;
 import org.postgresql.jdbc.PgConnection;
+import org.postgresql.util.PSQLException;
+import org.postgresql.util.ServerErrorMessage;
 
 public final class ClientHikari {
   private static final PrintStream OUT = new PrintStream(new FileOutputStream(FileDescriptor.out), false, StandardCharsets.UTF_8);
@@ -65,6 +68,7 @@ public final class ClientHikari {
   private static String host;
   private static String port;
   private static String query;
+  private static String inflightQuery;
   private static HikariConfig config;
 
   private ClientHikari() {}
@@ -334,8 +338,13 @@ public final class ClientHikari {
     Runtime.getRuntime().halt(code);
   }
 
-  /** This function sends query n through the pool. Its stamp is before the borrow. It gives null for a reply, or the error. */
+  /** This function sends query n through the pool, with the text of each query. Its stamp is before the borrow. It gives null for a reply, or the error. */
   private static Throwable operate(int n) {
+    return operate(n, query);
+  }
+
+  /** This function sends query n through the pool, with its text. Its stamp is before the borrow. It gives null for a reply, or the error. */
+  private static Throwable operate(int n, String text) {
     long at = now();
     if (n == 1) emit("connecting", at, "\"at\":" + q(host + ":" + port));
     emit("sent", at, "\"n\":" + n);
@@ -346,7 +355,7 @@ public final class ClientHikari {
       try (Connection connection = pool.getConnection()) {
         seen(connection);
         try (Statement statement = connection.createStatement()) {
-          if (statement.execute(query)) {
+          if (statement.execute(text)) {
             try (ResultSet result = statement.getResultSet()) {
               while (result.next()) rows += 1;
             }
@@ -368,8 +377,10 @@ public final class ClientHikari {
    * makes no connection: it loads the classes of the pool. It also sets the login timeout of
    * DriverManager, thus pgjdbc then connects in a task of an executor (Driver.java:303-311,
    * :730-739). A connect to port 1 of the loopback after it is refused at once: it loads that
-   * connect of pgjdbc and its errors. HikariCP gives each new connection a random UUID (PoolBase.java:363), and the
-   * first one starts the SecureRandom of the JVM.
+   * connect of pgjdbc and its errors. HikariCP gives each new connection a random UUID
+   * (PoolBase.java:363), and the first one starts the SecureRandom of the JVM. An error of the
+   * server that pgjdbc parses loads the classes of an ERROR of a statement, for example of its
+   * timeout.
    */
   private static void warmUp() {
     HikariConfig empty = new HikariConfig();
@@ -388,6 +399,10 @@ public final class ClientHikari {
       // the refusal is the purpose of the connect
     }
     java.util.UUID.randomUUID();
+    // the fields of an ErrorResponse, each a code and a text with a NUL after it
+    PSQLException cancelled = new PSQLException(new ServerErrorMessage("SERROR\0VERROR\0C57014\0Mwarm-up\0"));
+    errnoOf(cancelled);
+    failure(cancelled);
   }
 
   public static void main(String[] args) throws Exception {
@@ -403,6 +418,7 @@ public final class ClientHikari {
     long max = Long.parseLong(flag(argv, "--max-s", "120")) * 1000;
     Path go = Path.of(flag(argv, "--go", "/tmp/go"));
     query = flag(argv, "--query", "SELECT 1");
+    inflightQuery = flag(argv, "--inflight-query", query);
     boolean before = argv.contains("--before");
     Map<String, String> options = parseObject(flag(argv, "--options", "{}"));
     warmUp();
@@ -424,7 +440,7 @@ public final class ClientHikari {
         + ",\"client\":\"hikari\",\"driver\":" + q(org.postgresql.util.DriverInfo.DRIVER_VERSION)
         + ",\"pool\":" + q(hikari == null ? "7.1.0" : hikari)
         + ",\"java\":" + q(System.getProperty("java.version"))
-        + ",\"mode\":" + q(mode) + ",\"query\":" + q(query) + ",\"options\":" + given);
+        + ",\"mode\":" + q(mode) + ",\"query\":" + q(query) + ",\"inflight_query\":" + q(inflightQuery) + ",\"options\":" + given);
 
     Properties properties = new Properties();
     for (Map.Entry<String, String> each : options.entrySet()) properties.setProperty(each.getKey(), each.getValue());
@@ -475,7 +491,7 @@ public final class ClientHikari {
     if (mode.equals("idle")) watchIdle();
     if (mode.equals("inflight")) {
       while (!Files.exists(go)) Thread.sleep(2);
-      Throwable error = operate(2);
+      Throwable error = operate(2, inflightQuery);
       if (error == null) emit("data", "\"n\":2");
       else emit("error", "\"errno\":" + q(errnoOf(error)) + ",\"message\":" + q(error.getMessage()));
     }

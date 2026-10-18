@@ -1,6 +1,7 @@
 import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import { predict } from "../catalog.ts";
+import { SLOW_QUERY, STATEMENT_DEADLINE } from "./server.ts";
 import { APP_STALL, PG_TARGET, POOL_IDLE, SLOWEST_POLL, STARTUP_BUDGET, T01_PG, T01_PG_SPECS, T01_PG_WAITING, firstOn, pgValues } from "./t01.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
 import { given } from "../catalog.ts";
@@ -25,7 +26,9 @@ describe("the PostgreSQL catalog of T01", () => {
     for (const each of T01_PG) expect(each.name).toMatch(/^T01\.(defaults|border-off)\.\d+ pg-8\.23 to postgresql, /);
     expect(new Set(T01_PG.map((each) => each.name)).size).toBe(T01_PG.length);
     expect(PG_TARGET.image).toMatch(/^postgres:17\.11@sha256:[0-9a-f]{64}$/);
-    expect(T01_PG.every((each) => each.probe.driver?.name === "pg" && each.target === PG_TARGET)).toBe(true);
+    expect(T01_PG.every((each) => each.probe.driver?.name === "pg" && each.target.image === PG_TARGET.image)).toBe(true);
+    // only a cell with a setting of the server has its own command
+    expect(T01_PG.filter((each) => each.target !== PG_TARGET).map((each) => each.name.split(" ")[0])).toEqual(["T01.border-off.171", "T01.border-off.172"]);
   });
 
   it("gives each cell of the plan over these systems a cell or a reason to wait, once", () => {
@@ -124,6 +127,23 @@ describe("the PostgreSQL catalog of T01", () => {
     expect(seconds(inside!.prediction.high)).toBeLessThan(SLOWEST_POLL);
     expect(seconds(outside!.prediction.low)).toBeGreaterThan(SLOWEST_POLL);
     expect(inside!.driverOptions).toEqual({ query_timeout: 9500 });
+  });
+
+  it("puts the query timer of the pool on each side of the statement deadline of the server (O07), with a slow query only in flight", () => {
+    const [inside, outside] = ["T01.border-off.171", "T01.border-off.172"].map((plan) => cell(plan));
+    for (const each of [inside!, outside!]) {
+      expect(each.probe.driver, each.name).toEqual({ name: "pg", inflight: SLOW_QUERY });
+      expect(each.target.command?.join(" "), each.name).toContain(`docker-entrypoint.sh postgres -c statement_timeout=${STATEMENT_DEADLINE * 1000} &`);
+    }
+    // inside, the statement timer of the server ends the query first, with its ERROR 57014
+    expect(inside!.prediction).toMatchObject({ detects: true, timer: "statement_timeout", errno: "57014", from: "request-sent", driver: { ends: { ev: "fail", where: { n: 2 }, name: "code" } } });
+    // outside, the pool gives up first, and the server goes on with the statement
+    expect(outside!.prediction).toMatchObject({ detects: true, timer: "query_timeout", errno: "Query read timeout", from: "request-sent", driver: { ends: { ev: "fail", where: { n: 2 }, name: "message" } } });
+    if (inside!.prediction.detects !== true || outside!.prediction.detects !== true) return;
+    expect(seconds(inside!.prediction.low)).toBe(STATEMENT_DEADLINE);
+    expect(seconds(inside!.prediction.high)).toBeLessThan(10.5);
+    expect(seconds(outside!.prediction.high)).toBeLessThan(STATEMENT_DEADLINE);
+    expect(inside!.driverOptions).toEqual({ query_timeout: 10500 });
   });
 
   it("puts the connect timer of the pool on each side of the startup budget (O15), before the kernel gives up", () => {

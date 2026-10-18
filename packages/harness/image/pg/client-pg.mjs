@@ -1,5 +1,5 @@
 // client-pg HOST PORT --mode idle|inflight|stream [--interval-ms N] [--max-s N] [--go PATH]
-//           [--query TEXT] [--before] [--options JSON]
+//           [--query TEXT] [--inflight-query TEXT] [--before] [--options JSON]
 //
 // The client of a PostgreSQL cell: node-postgres (pg 8.23.1 with pg-pool 3.14.0) on Node 24.21.0.
 // Each event is a JSON line with `ev` and `t`, the time on CLOCK_MONOTONIC in nanoseconds
@@ -24,6 +24,9 @@
 // inflight sends one query, waits for the file --go, sends one more query into the fault, and holds
 // after its end. stream sends a query each --interval-ms after the reply before, until --max-s or
 // SIGTERM. --before starts the client into a fault that holds already: its first connect meets it.
+// --inflight-query is the text of the query in flight (query 2 of inflight), and --query is the
+// text of each other query. Thus a slow query in flight does not delay the reply that makes the
+// client ready.
 
 import { readFileSync } from "node:fs";
 import { existsSync } from "node:fs";
@@ -46,6 +49,7 @@ const interval = Number(flag("--interval-ms") ?? 50);
 const max = Number(flag("--max-s") ?? 120) * 1000;
 const go = flag("--go") ?? "/tmp/go";
 const query = flag("--query") ?? "SELECT 1";
+const inflightQuery = flag("--inflight-query") ?? query;
 const before = argv.includes("--before");
 // the options of the pool. A cell gives each option that it changes, and pg-pool gives the others
 const options = JSON.parse(flag("--options") ?? "{}");
@@ -60,7 +64,7 @@ const bootId = () => {
     return null;
   }
 };
-emit("start", { boot_id: bootId(), client: "pg", driver: versionOf("pg"), pool: versionOf("pg-pool"), node: process.versions.node, mode, query, options });
+emit("start", { boot_id: bootId(), client: "pg", driver: versionOf("pg"), pool: versionOf("pg-pool"), node: process.versions.node, mode, query, inflight_query: inflightQuery, options });
 
 const pool = new pg.Pool({ host, port: Number(port), user: "postgres", database: "postgres", ...options });
 
@@ -116,10 +120,10 @@ setTimeout(() => {
   stop(0);
 }, max);
 
-/** This function sends query n through the pool. Its stamp is before the call. It gives null for a reply, or the error. */
-const operate = async (n) => {
+/** This function sends query n through the pool, with the text of n. Its stamp is before the call. It gives null for a reply, or the error. */
+const operate = async (n, text = query) => {
   const at = now();
-  const reply = pool.query(query);
+  const reply = pool.query(text);
   // a band of a cell that starts into a fault counts from the start of the first connect
   if (n === 1) emit("connecting", { at: `${host}:${port}` }, at);
   emit("sent", { n }, at);
@@ -158,7 +162,7 @@ if (mode === "stream") {
           resolve();
         }, 2);
       });
-      const error = await operate(2);
+      const error = await operate(2, inflightQuery);
       if (error === null) emit("data", { n: 2 });
       else emit("error", { errno: errnoOf(error), message: error.message });
     }

@@ -46,9 +46,10 @@ export type { KernelRecord };
  *   kernel stays up. `fin` stops the process with SIGKILL.
  * - `planned-failover` asks a Sentinel for a failover: `SENTINEL FAILOVER <group>`.
  *
- * This fault is of an HTTP server:
+ * This fault is of an HTTP server or of PostgreSQL:
  * - `app-stall` injects nothing. The server process holds the reply to the request, because the
- *   request asks for that (`HttpProbe.hold`), while its kernel stays up.
+ *   request asks for that, while its kernel stays up. An HTTP request asks with `HttpProbe.hold`,
+ *   and a query of PostgreSQL with its text, for example `SELECT pg_sleep(20)`.
  *
  * This fault is of a replica set (`Cell.replicaSet`):
  * - `step-down` sends `replSetStepDown` to the primary, as a client sends a command.
@@ -817,12 +818,16 @@ export interface Cell {
      * - HikariCP over pgjdbc on Java, as a `HikariDataSource` against one server. Its operation is
      *   `query`, or `SELECT 1`. `Cell.driverOptions` are the properties of HikariConfig, and a name
      *   with the prefix `dataSource.` is a property of pgjdbc.
+     *
+     * A pg or hikari driver can send a different text in flight (`inflight`): the second query of
+     * an in-flight run. The first query then makes the pool ready at once, and only the query in
+     * flight is slow, for example `SELECT pg_sleep(20)`.
      */
     readonly driver?:
       | { readonly name: "ioredis"; readonly keepAlive: Quantity }
       | { readonly name: "mongodb"; readonly set: string; readonly op?: "write" | "read-long" }
-      | { readonly name: "pg"; readonly query?: string }
-      | { readonly name: "hikari"; readonly query?: string };
+      | { readonly name: "pg"; readonly query?: string; readonly inflight?: string }
+      | { readonly name: "hikari"; readonly query?: string; readonly inflight?: string };
     /** This workload is the workload of an HTTP client (`Cell.client` is an HTTP client). The client then ignores `keepalive` and `userTimeout`. */
     readonly http?: HttpProbe;
     /** These are the settings of the WebSocket client (`Cell.client` is `procedures-ws`). The client then ignores `keepalive` and `userTimeout`. */

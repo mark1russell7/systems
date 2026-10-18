@@ -8,7 +8,9 @@ import { MANIFESTATIONS } from "../manifestations.ts";
 import type { Waiting } from "../mongo/cells.ts";
 import type { Span } from "../mongo/model.ts";
 import { linuxValues, span } from "../mongo/model.ts";
-import { PG_RTT_MS, PG_TARGET } from "./t01.ts";
+import type { Deadline } from "./server.ts";
+import { SLOW_QUERY, STATEMENT_DEADLINE, pgTargetWith, statementDeadline } from "./server.ts";
+import { APP_STALL, PG_RTT_MS, PG_TARGET } from "./t01.ts";
 
 /**
  * The PostgreSQL catalog of T01 for HikariCP 7.1.0 over pgjdbc 42.7.13, against one server of
@@ -34,7 +36,7 @@ export const HIKARI_DRIVER = "HikariCP 7.1.0 over pgjdbc 42.7.13 on Temurin 21.0
 export interface HikariSpec {
   readonly plan: string;
   readonly name: string;
-  readonly fault: "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none" | "blackhole";
+  readonly fault: "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none" | "blackhole" | "app-stall";
   readonly mode: "idle" | "inflight";
   readonly icmp?: "host" | "net" | "port" | "admin";
   /** This time is the length of a stall, in seconds. */
@@ -45,6 +47,10 @@ export interface HikariSpec {
   readonly options?: Readonly<Record<string, number>>;
   /** This flag starts the client into a fault that holds already: the start of its pool meets it. */
   readonly before?: true;
+  /** This text is the query in flight. Without it, the query in flight is `SELECT 1`, as each other query. */
+  readonly inflight?: string;
+  /** These are the settings of the server that differ from the defaults, by the names and in the units of `postgres-session`. */
+  readonly server?: Readonly<Record<string, number>>;
 }
 
 /** This value is the startup budget of a pod that R3 binds for the borders of O15: 30 s. */
@@ -70,6 +76,13 @@ export const T01_HIKARI_SPECS: readonly HikariSpec[] = [
   { plan: "T01.defaults.56", name: "a 1 s stall, a query in flight", fault: "stall", mode: "inflight", stall: 1 },
   { plan: "T01.defaults.57", name: "event:idle, no fault: the pool keeps its idle connection", fault: "none", mode: "idle" },
   { plan: "T01.defaults.59", name: "rst at the start: the server refuses the check of the pool", fault: "rst", mode: "inflight", before: true },
+  {
+    plan: "T01.defaults.60",
+    name: `app-stall: the server holds the query in flight ${APP_STALL} s, and nothing ends it`,
+    fault: "app-stall",
+    mode: "inflight",
+    inflight: `SELECT pg_sleep(${APP_STALL})`,
+  },
   // ---- O13: the read timeout of pgjdbc against the slowest poll of a check
   ...([
     ["T01.border-off.187", 9, "inside"],
@@ -79,6 +92,19 @@ export const T01_HIKARI_SPECS: readonly HikariSpec[] = [
     name: `blackhole, a query in flight, socketTimeout ${at} s: ${side} O13 against a poll of ${HIKARI_SLOWEST_POLL} s`,
     fault: "blackhole",
     mode: "inflight",
+    options: { socketTimeout: at },
+  })),
+  // ---- O07: the read timeout of pgjdbc against the statement deadline of the server
+  ...([
+    ["T01.border-off.173", 11, "inside"],
+    ["T01.border-off.174", 9, "outside"],
+  ] as const).map(([plan, at, side]): HikariSpec => ({
+    plan,
+    name: `app-stall in flight, socketTimeout ${at} s: ${side} O07 against a statement_timeout of ${STATEMENT_DEADLINE} s`,
+    fault: "app-stall",
+    mode: "inflight",
+    inflight: SLOW_QUERY,
+    server: { statement_timeout: STATEMENT_DEADLINE * 1000 },
     options: { socketTimeout: at },
   })),
   // ---- O15: the start of the pool against the startup budget of a pod
@@ -100,14 +126,11 @@ const ROUTER = "the cell needs a router between the client and the server, and t
 /** These are the cells of the plan over these systems that this catalog does not start, each with its reason. */
 export const T01_HIKARI_WAITING: readonly Waiting[] = [
   { plan: "T01.defaults.58", trigger: "event:server-restart-same-ip", why: "the harness has no restart of a target with its address" },
-  { plan: "T01.defaults.60", trigger: "app-stall", why: "the client of the harness sends one text for each query, thus a slow query delays its first reply too, and the first connect of the JVM takes most of the 15 s that the harness waits for it" },
   { plan: "T01.defaults.61", trigger: "timed:mid-commit", why: "the harness has no injector that times a fault to a reply" },
   { plan: "T01.defaults.62", trigger: "in-process:event-loop", why: "no document gives the delay of the threads of the JVM in a pause of the process" },
   { plan: "T01.defaults.63", trigger: "workload:write-write-read", why: "pgjdbc sets TCP_NODELAY on each socket (PGStream.java:299-302), thus Nagle holds no write: the pattern does not occur" },
   { plan: "T01.border-off.151", trigger: "border", why: ROUTER },
   { plan: "T01.border-off.152", trigger: "border", why: ROUTER },
-  { plan: "T01.border-off.173", trigger: "border", why: "the client of the harness sends one text for each query: the cell needs a slow query only after the client is ready" },
-  { plan: "T01.border-off.174", trigger: "border", why: "the client of the harness sends one text for each query: the cell needs a slow query only after the client is ready" },
   { plan: "T01.border-off.237", trigger: "border", why: "the cell needs a virtual IP that kube-vip moves, which the PG catalog does not have" },
   { plan: "T01.border-off.238", trigger: "border", why: "the cell needs a virtual IP that kube-vip moves, which the PG catalog does not have" },
 ];
@@ -222,6 +245,41 @@ const atStart = (spec: HikariSpec, driver: KnobValues): Prediction => {
   };
 };
 
+/**
+ * This function gives the prediction of a cell whose server holds the query in flight. The kernel
+ * of the server acknowledges the query, as for a frozen process. At the defaults nothing ends the
+ * query, and its reply comes after the hold. With a statement deadline (O07), the first of two
+ * timers ends the query: the read timeout of pgjdbc, or the statement timer of the server. The
+ * server then fails the query with ERROR 57014 and keeps the session.
+ */
+const atHold = (spec: HikariSpec, driver: KnobValues, linux: KnobValues): Prediction => {
+  const own = hikariFirstOn("querying", MANIFESTATIONS["freeze-process"], driver, linux);
+  if (own.kind === "delivered") throw new Error(`${spec.plan}: ${own.event} ends the query in the hold`);
+  // one step of the JVM reads the reply or the error of the server
+  const slack = seconds(timerOf(HIKARICP_PGJDBC, "start_check", driver).lateness, "the slack of the JVM");
+  const server: Deadline | null = spec.server === undefined ? null : statementDeadline(spec.server, PG_RTT_MS, slack);
+  if (server === null) {
+    if (own.kind !== "silent") throw new Error(`${spec.plan}: ${own.timer} ends the query in the hold`);
+    const reply = { from: "request-sent", ends: { ev: "ack", where: { n: 2 } } } as const;
+    return {
+      detects: false,
+      window: s(6 * APP_STALL),
+      replies: { low: s(APP_STALL), high: s(APP_STALL + PG_RTT_MS / 1000 + slack) },
+      driver: { socket: "pool", reply, quiet: [...QUIET] },
+    };
+  }
+  if (own.kind === "timer" && own.band.lo <= server.band.hi && server.band.lo <= own.band.hi)
+    throw new Error(`${spec.plan}: ${own.timer} and statement_timeout can both end the query first`);
+  // the server ends the query first: the fail line of the query gives the SQLState of its error
+  if (own.kind === "silent" || server.band.hi < own.band.lo) {
+    const ends = { ev: "fail", where: { n: 2 }, name: "sqlState" };
+    return { detects: true, timer: "statement_timeout", errno: server.errno, from: "request-sent", low: s(server.band.lo), high: s(server.band.hi), driver: { socket: "pool", ends } };
+  }
+  // the read timeout closes the socket first, as in a black hole (O13). The server goes on with the statement
+  if (own.layer !== "driver" || own.timer !== "socket_timeout") throw new Error(`${spec.plan}: ${own.timer} ends the query first, which this catalog does not measure yet`);
+  return { detects: true, timer: own.timer, errno: "CLOSED", from: "request-sent", low: s(own.band.lo), high: s(own.band.hi) };
+};
+
 /** This function gives the prediction of a cell for the harness. */
 export const hikariPrediction = (spec: HikariSpec): Prediction => {
   // a stall is the stall of Linux TCP: the classic measurement of the socket of the client times it
@@ -231,6 +289,7 @@ export const hikariPrediction = (spec: HikariSpec): Prediction => {
   const driver = given(hikariValues(RTT_MS, spec.options));
   const linux = given(linuxValues(spec.linux));
   if (spec.before === true) return atStart(spec, driver);
+  if (spec.fault === "app-stall") return atHold(spec, driver, linux);
   // a reset answers the query at once: the kernel reports it on the socket of the connection
   if (spec.fault === "rst") {
     const errno = transitionOn(LINUX_TCP, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET";
@@ -279,9 +338,9 @@ const driverOptionsOf = (options: Readonly<Record<string, number>>): Record<stri
 /** This function gives the harness cell of a spec. */
 export const hikariCell = (spec: HikariSpec): Cell => ({
   name: hikariNameOf(spec),
-  target: PG_TARGET,
+  target: spec.server === undefined ? PG_TARGET : pgTargetWith(PG_TARGET, spec.server),
   sysctls: sysctlsOf(linuxValues(spec.linux)),
-  probe: { mode: spec.mode, keepalive: false, driver: { name: "hikari" } },
+  probe: { mode: spec.mode, keepalive: false, driver: { name: "hikari", ...(spec.inflight === undefined ? {} : { inflight: spec.inflight }) } },
   fault: spec.fault,
   prediction: hikariPrediction(spec),
   ...(spec.fault === "unreachable" ? { targetSysctls: { "net.ipv4.icmp_ratelimit": "0" } } : {}),
