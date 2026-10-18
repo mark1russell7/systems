@@ -1,9 +1,8 @@
 /**
- * The map of the cells of a page of results: one tile for each cell, in rows by group and client, in
- * the sequence of the page. A tile has the icon and the color of its verdict, and it links to the frame
- * of its cell. When the pointer or the focus is on a tile, a line under its row gives the name, the
- * prediction and the median of the cell. Thus a long page of results has one view of each cell at its
- * head.
+ * The map of the cells of a page of results. It has one tile for each cell, in rows by group and
+ * client. A tile has the icon and the color of its verdict, and it links to the frame of its cell. The
+ * pointer or the focus on a tile shows a line under its row. The line gives the name, the prediction
+ * and the median of the cell. Thus a long page of results has one view of each cell at its head.
  *
  * The component has no state. The site renders it to HTML when it builds, and the lines need no script.
  */
