@@ -544,7 +544,7 @@ Each stage band of T12 includes the error of the stamps of the observer: 0.705 m
 - **Depends on:** S1
 - **Started:** 2026-10-18
 - **Shipped:**
-- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [Defaults](https://github.com/mark1russell7/systems/actions/runs/39096843868), [Idle](https://github.com/mark1russell7/systems/actions/runs/39098339096), [Seven](https://github.com/mark1russell7/systems/actions/runs/39101376487), [Connect](https://github.com/mark1russell7/systems/actions/runs/39103033893), [#76](https://github.com/mark1russell7/systems/pull/76), [Keepalive](https://github.com/mark1russell7/systems/actions/runs/39111986991), [#77](https://github.com/mark1russell7/systems/pull/77), [Start](https://github.com/mark1russell7/systems/actions/runs/39114190902), [#78](https://github.com/mark1russell7/systems/pull/78), [O07](https://github.com/mark1russell7/systems/actions/runs/39113772326), [#79](https://github.com/mark1russell7/systems/pull/79), [O03](https://github.com/mark1russell7/systems/actions/runs/39116194760), [#80](https://github.com/mark1russell7/systems/pull/80), [T03](https://github.com/mark1russell7/systems/actions/runs/39116595665)
+- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [Defaults](https://github.com/mark1russell7/systems/actions/runs/39096843868), [Idle](https://github.com/mark1russell7/systems/actions/runs/39098339096), [Seven](https://github.com/mark1russell7/systems/actions/runs/39101376487), [Connect](https://github.com/mark1russell7/systems/actions/runs/39103033893), [#76](https://github.com/mark1russell7/systems/pull/76), [Keepalive](https://github.com/mark1russell7/systems/actions/runs/39111986991), [#77](https://github.com/mark1russell7/systems/pull/77), [Start](https://github.com/mark1russell7/systems/actions/runs/39114190902), [#78](https://github.com/mark1russell7/systems/pull/78), [O07](https://github.com/mark1russell7/systems/actions/runs/39113772326), [#79](https://github.com/mark1russell7/systems/pull/79), [O03](https://github.com/mark1russell7/systems/actions/runs/39116194760), [#80](https://github.com/mark1russell7/systems/pull/80), [T03](https://github.com/mark1russell7/systems/actions/runs/39116595665), [#81](https://github.com/mark1russell7/systems/pull/81), [Server](https://github.com/mark1russell7/systems/actions/runs/39118515216)
 
 The next system of the S1 order, with its clients and PgBouncer. At its defaults and its borders, the plan of R3 has 329 cells with PostgreSQL. HikariCP with pgjdbc is the client of 160 of them, Npgsql of 47 and node-postgres of 36. T10, through a pooler, has 132 of them.
 
@@ -562,10 +562,15 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
   - `query_timeout` ends a query in a black hole at 9.503 s and 10.503 s, on each side of the slowest poll of 10 s (O13).
   - `connectionTimeoutMillis` ends the first connect at 29.007 s and 31.009 s, on each side of the startup budget of 30 s (O15). The kernel gives up on the SYNs only at 131 s.
   - A cell that starts into a fault counts from the first connect. The pg client writes a `connecting` line for it (harness 0.11.3).
-- Eight T01 cells of node-postgres wait, each with its reason:
+- The borders of O03 of node-postgres hold through a router that forgets an idle flow in silence, with 11 runs each (#81). On each side the pool closes its idle client at its own timer, thus the cells observe the socket of the server.
+  - The router divides its idle timeout by 20, thus it forgets at 12 s.
+  - Inside, the pool closes its client at 10 s, and its FIN reaches the server at 10.004 s.
+  - Outside, at 14 s, the router forgets the flow first and drops the FIN. The socket of the server stays established for the 30 s of the window: a backend for a client that is gone.
+  - Two forgets came 2.2 ms after the bound of the pump of the router and two listings. Harness 0.11.8 adds a slack of 5 ms to that bound.
+- Six T01 cells of node-postgres wait, each with its reason:
   - Three need a fault that the harness cannot make: a restart at the same address, a fault at a reply, and a blocked event loop.
   - Write-write-read does not occur, because pg sets TCP_NODELAY.
-  - Four are borders of O03 through a router. They need a chain for PG, or a client that the application holds.
+  - Two are borders of O03 for a client that the application holds. The client of the harness gives its client back to the pool after each query.
 - R3's plan has no T03 cell for node-postgres: each PostgreSQL cell of T03 has HikariCP as its client. The next client is HikariCP 7.1.0 over pgjdbc 42.7.13:
   - Its machine document is in machines 0.3.2 (#70). HikariCP reads no idle socket. Its keepalive checks an idle connection each 96 to 120 s from its creation, and at the defaults no timer of pgjdbc bounds a query.
   - The harness has its client, on Temurin 21.0.12.1 (harness 0.11.4, #71). Its lab test resets a query in flight.
