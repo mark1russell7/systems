@@ -351,7 +351,7 @@ A change of the version on main makes `release.yml` publish it. It is a MINOR, b
 - **Depends on:** S6
 - **Started:** 2026-10-18
 - **Shipped:**
-- **Links:** [#65](https://github.com/mark1russell7/systems/pull/65), [The WS run](https://github.com/mark1russell7/systems/actions/runs/39098182909), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#65](https://github.com/mark1russell7/systems/pull/65), [The WS, WST and PG run](https://github.com/mark1russell7/systems/actions/runs/39101123561), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 `@mark1russell7/harness` accepts the image of a subject as data (D16). Thus another repository can give its own subject, with its own release in it.
 
