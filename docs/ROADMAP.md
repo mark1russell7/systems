@@ -93,7 +93,7 @@ From the layout of a CMOS cell to the routing fabric of an FPGA, with the real g
 - **Shipped:**
 - **Links:** [@mark1russell7/service](https://www.npmjs.com/package/@mark1russell7/service), [The requirements](S6.md), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-A service declares its clients, timeouts, retries, checks and state machines as data that the algebra reads. `@mark1russell7/service` 0.4.1 is on npm. It has the declaration, the law, the health runtime, the lifecycle and the Redis client.
+A service declares its clients, timeouts, retries, checks and state machines as data that the algebra reads. `@mark1russell7/service` has the declaration, the law, the health runtime, the lifecycle and the Redis client. Version 0.5.0 adds the HTTP edge (`./http`), the runner options and the requests as streams.
 
 On 2026-10-17, Mark decided the design of the server stack (D1 to D18). These decisions replace the co-design gate for the runner, its HTTP entry, the composition, the requests, the signals and the profiles. Two parts of S6 still wait on S1. The first is the wrappers of the S1 clients after Redis, which Mark designs with S1. The second is the design of health and routing in the draft, whose candidates the harness of S1 and S2 tests.
 
@@ -324,21 +324,21 @@ A worker loop (A10 of S6) and a queue drain (A11) as `TransportImpl` factories. 
 
 ### SYS-11 · The kind lab on ./http
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** SYS-1, SYS-2, SYS-3
 - **Started:** 2026-10-18
-- **Shipped:**
+- **Shipped:** 2026-10-18
 - **Links:** [#58](https://github.com/mark1russell7/systems/pull/58), [The kind run](https://github.com/mark1russell7/systems/actions/runs/39092100083), [#49](https://github.com/mark1russell7/systems/pull/49), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 The image of the kind lab replaces its own transport, probe server and outcome map with `./http`: `httpTransport`, `probeServer` and `handle()`. A failure of the route keeps its 503 through the hook `failed`, thus the T07 and T18 cells count the same outcomes. The kind cells run only in CI.
 
 ### REL-1 · Service 0.5.0 with ./http and the runner options
 
-- **Status:** blocked
+- **Status:** in progress
 - **Area:** server stack
 - **Depends on:** SYS-1, SYS-2, SYS-3, SYS-15, SYS-11
-- **Started:**
+- **Started:** 2026-10-18
 - **Shipped:**
 - **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
