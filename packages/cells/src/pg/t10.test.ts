@@ -130,8 +130,15 @@ describe("the HikariCP catalog of T10, through PgBouncer", () => {
       if (found === undefined) throw new Error(`no cell ${plan}`);
       return found;
     };
-    // inside: the pool closes its idle client at 10 s, as on the direct pair, before PgBouncer at 12 s
-    expect(pg("T10.border-off.91").prediction).toEqual(pg("T01.defaults.128").prediction);
+    // inside: the idle timer of the pool at 10 s comes first, as on the direct pair, before PgBouncer at 12 s.
+    // The Terminate of the pool makes PgBouncer close the client, and its FIN comes before the pool ends
+    // its socket: the end is the end of the file, up to one step of PgBouncer later
+    const inside = pg("T10.border-off.91").prediction;
+    const direct = pg("T01.defaults.128").prediction;
+    if (inside.detects !== true || direct.detects !== true) throw new Error("detecting cells");
+    expect([inside.timer, inside.errno, inside.from, inside.low]).toEqual(["idle_timeout", "EOF", "last-received", direct.low]);
+    expect(direct.errno).toBe("CLOSED");
+    expect(valueIn(inside.high, "s")).toBeCloseTo(valueIn(direct.high, "s") + PGBOUNCER_LATENCY, 9);
     // outside: a pass of the janitor finds the client idle for longer than 12 s, and PgBouncer closes it
     const closed = pg("T10.border-off.92").prediction;
     if (closed.detects !== true) throw new Error("a detecting cell");

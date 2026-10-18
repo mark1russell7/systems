@@ -401,7 +401,22 @@ export const t10PgPrediction = (spec: PgSpec): Prediction => {
   }
   const earliest = pgbouncerEarliest(settings);
   if (!(earliest > ends)) throw new Error(`${spec.plan}: a timer of PgBouncer can end the client at ${earliest} s, before the band ends at ${ends} s`);
+  if (client.detects === true && client.timer === "idle_timeout" && client.errno === "CLOSED") return closedAtTerminate(spec, client);
   return client;
+};
+
+/**
+ * This function gives the idle close of the pool through PgBouncer. The pool sends the message
+ * `Terminate`, and it ends its socket only in the callback of that write (node-postgres
+ * connection.js:217-227). PgBouncer closes the client in the pass that reads the message
+ * (pbc.gone). Its FIN comes back one way later, before the loop of Node ends the socket. In 13 of
+ * 13 runs of run 39133716990, the kernel of the client stamped ESTABLISHED to CLOSE_WAIT. Thus the
+ * end is the FIN of PgBouncer, up to one step of PgBouncer after the idle timer.
+ */
+const closedAtTerminate = (spec: PgSpec, client: Prediction & { readonly detects: true }): Prediction => {
+  const gone = PGBOUNCER_CLIENT.transitions.find((each) => [each.from].flat().includes("idle") && [each.on].flat().includes("rx.terminate"));
+  if (gone === undefined || gone.to !== "ended") throw new Error(`${spec.plan}: pgbouncer-client does not close an idle client at its Terminate`);
+  return { ...client, errno: "EOF", high: s(seconds(client.high, "the band") + PGBOUNCER_LATENCY) };
 };
 
 /** These are the node-postgres cells of T10 for the harness. */
