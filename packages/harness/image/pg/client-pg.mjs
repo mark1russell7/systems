@@ -90,7 +90,8 @@ pool.on("connect", (client) => {
 });
 pool.on("acquire", (client) => emit("pool", { event: "acquire", local: localOf(client) }));
 pool.on("release", (error, client) => emit("pool", { event: "release", local: localOf(client), failure: failure(error) }));
-pool.on("remove", (client) => emit("pool", { event: "remove", local: localOf(client) }));
+// the pool removes a client: after its idle timer, its lifetime or an error. A driver band names the close CLOSED
+pool.on("remove", (client) => emit("pool", { event: "remove", name: "CLOSED", local: localOf(client) }));
 // an idle client that fails: the pool removes it and emits error. Without this listener, Node throws
 pool.on("error", (error, client) => {
   const local = localOf(client);

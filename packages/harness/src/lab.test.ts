@@ -39,7 +39,7 @@ const MONGO = "mongo:9.0.4@sha256:f90507905ce6e52e4a63d0ff8964fc254fa4d37ccbe56c
 /**
  * PostgreSQL 17.11 as the child of a shell, with trust authentication. The entrypoint first starts
  * a server on a Unix socket only, to initialize the cluster. Thus the line of the TCP listener
- * tells that the real server serves. A `fin` fault kills each postgres process with SIGKILL.
+ * tells that the real server serves. A `fin` fault stops each postgres process with SIGKILL.
  */
 const POSTGRES: Target = {
   image: "postgres:17.11@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3",
