@@ -544,7 +544,7 @@ Each stage band of T12 includes the error of the stamps of the observer: 0.705 m
 - **Depends on:** S1
 - **Started:** 2026-10-18
 - **Shipped:**
-- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [6 cells](https://github.com/mark1russell7/systems/actions/runs/39096843868), [Idle cell](https://github.com/mark1russell7/systems/actions/runs/39098339096), [7 cells](https://github.com/mark1russell7/systems/actions/runs/39101376487), [Connect cells](https://github.com/mark1russell7/systems/actions/runs/39103033893), [#76](https://github.com/mark1russell7/systems/pull/76), [Keepalive cell](https://github.com/mark1russell7/systems/actions/runs/39111986991), [#77](https://github.com/mark1russell7/systems/pull/77), [Start cells](https://github.com/mark1russell7/systems/actions/runs/39114190902)
+- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [6 cells](https://github.com/mark1russell7/systems/actions/runs/39096843868), [Idle cell](https://github.com/mark1russell7/systems/actions/runs/39098339096), [7 cells](https://github.com/mark1russell7/systems/actions/runs/39101376487), [Connect cells](https://github.com/mark1russell7/systems/actions/runs/39103033893), [#76](https://github.com/mark1russell7/systems/pull/76), [Keepalive cell](https://github.com/mark1russell7/systems/actions/runs/39111986991), [#77](https://github.com/mark1russell7/systems/pull/77), [Start cells](https://github.com/mark1russell7/systems/actions/runs/39114190902), [#78](https://github.com/mark1russell7/systems/pull/78), [O07 cells](https://github.com/mark1russell7/systems/actions/runs/39113772326)
 
 The next system of the S1 order, with its clients and PgBouncer. At its defaults and its borders, the plan of R3 has 329 cells with PostgreSQL. HikariCP with pgjdbc is the client of 160 of them, Npgsql of 47 and node-postgres of 36. T10, through a pooler, has 132 of them.
 
@@ -562,10 +562,10 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
   - `query_timeout` ends a query in a black hole at 9.503 s and 10.503 s, on each side of the slowest poll of 10 s (O13).
   - `connectionTimeoutMillis` ends the first connect at 29.007 s and 31.009 s, on each side of the startup budget of 30 s (O15). The kernel gives up on the SYNs only at 131 s.
   - A cell that starts into a fault counts from the first connect. The pg client writes a `connecting` line for it (harness 0.11.3).
-- Ten T01 cells of node-postgres wait, each with its reason:
+- Eight T01 cells of node-postgres wait, each with its reason:
   - Three need a fault that the harness cannot make: a restart at the same address, a fault at a reply, and a blocked event loop.
   - Write-write-read does not occur, because pg sets TCP_NODELAY.
-  - Six are borders: O03 through a router, and O07. They need a chain for PG, a client that the application holds, or a slow query only in the second query.
+  - Four are borders of O03 through a router. They need a chain for PG, or a client that the application holds.
 - R3's plan has no T03 cell for node-postgres: each PostgreSQL cell of T03 has HikariCP as its client. The next client is HikariCP 7.1.0 over pgjdbc 42.7.13:
   - Its machine document is in machines 0.3.2 (#70). HikariCP reads no idle socket. Its keepalive checks an idle connection each 96 to 120 s from its creation, and at the defaults no timer of pgjdbc bounds a query.
   - The harness has its client, on Temurin 21.0.12.1 (harness 0.11.4, #71). Its lab test resets a query in flight.
@@ -580,7 +580,12 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
     - A reset of the first connect fails the start at 1.008 s.
     - The borders of O15 hold. Behind a black hole, a `connectTimeout` of 28 s fails the start at 29.026 s, and 30 s at 31.030 s. The two are on each side of the startup budget of 30 s.
     - The client starts the code of a connect and of a pool before its first line (harness 0.11.6). It also starts SecureRandom, which HikariCP reads for the UUID of each new connection. Before that, the first connect of a cell was 22 ms late.
-  - The other 11 T01 cells of HikariCP wait, each with its reason. The next ones are O07 and a stall of the server. They need a slow query only in the query in flight.
+  - The server holds the query in flight 5 s, and nothing ends it: the reply comes at 5.004 s (#78).
+  - The other 8 T01 cells of HikariCP wait, each with its reason. The next ones are the borders of O03 through a router.
+- The borders of O07 hold for node-postgres and for HikariCP, with 11 runs each (#78). The server has a `statement_timeout` of 10 s, and the query in flight sleeps 20 s.
+  - Inside, the timer of the client is longer: pg at 10.5 s and HikariCP at 11 s. The server ends the query with ERROR 57014 at 10.002 s (pg) and at 10.004 s (HikariCP).
+  - Outside, the timer of the client is shorter. pg gives up at 9.503 s, and the read timeout of HikariCP closes its socket at 9.010 s. The server goes on with the statement.
+  - The harness sends a slow text only in the query in flight (`inflight`, harness 0.11.7). The server gets its settings on its command line.
 - Then PgBouncer and T10.
 
 ### RABBIT · RabbitMQ
@@ -658,7 +663,9 @@ quantity 0.2.0, algebra 0.7.1, service 0.5.2, prober 0.3.1, harness 0.11.4 and k
 - **Links:** [packages/machines](https://github.com/mark1russell7/systems/tree/main/packages/machines)
 - **Waiting on Mark:** Touch your security key for the first publish of machines, in the session that owns npm. On 2026-10-17, npm refused it with a 429.
 
-The one home of each machine document. Its first version is 0.3.4. Version 0.3.1 adds the two documents of PostgreSQL to 0.3.0, and 0.3.2 adds HikariCP over pgjdbc. Version 0.3.3 adds the slack of poll() for HikariCP, and 0.3.4 adds the start check of the pool. The session that owns npm publishes it from main. Then release.yml publishes each later version.
+The one home of each machine document. Its first version is 0.3.5. Version 0.3.1 adds the two documents of PostgreSQL to 0.3.0, and 0.3.2 adds HikariCP over pgjdbc. Version 0.3.3 adds the slack of poll() for HikariCP, and 0.3.4 adds the start check of the pool. Version 0.3.5 gives a bound to the alarm of a PostgreSQL backend.
+
+The session that owns npm publishes it from main. Then release.yml publishes each later version.
 
 ### DELACK · The delayed ACK of Linux TCP
 
