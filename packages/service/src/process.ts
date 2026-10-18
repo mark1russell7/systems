@@ -75,6 +75,12 @@ export interface ProcessPort {
    * written. The stage `flush the output` uses it, in the cap of that stage.
    */
   flush?(): Promise<void> | void;
+  /**
+   * This method keeps the process alive, and gives the function that releases it. The lifecycle
+   * holds its process from its start to its exit, as a listening socket does. Thus a process whose
+   * timers do not keep it alive does not end in the middle of its work. It keeps its teardown and its exit code.
+   */
+  hold?(): () => void;
   /** This method ends the process with a code: the code of the exit request, 1 after an error, or 0. */
   exit(code: number): void;
 }
@@ -98,6 +104,9 @@ export interface ProcessHost {
   readonly stdout?: HostStream | undefined;
   readonly stderr?: HostStream | undefined;
 }
+
+/** This time is the interval of the timer of a hold, the most that a timer of Node accepts. */
+const HOLD_INTERVAL = 0x7fffffff;
 
 /** This function adds a handler to some events of an emitter. The handler operates one time at most. */
 const once = (emitter: HostStream | ProcessHost, events: readonly string[], handler: () => void): (() => void) => {
@@ -173,6 +182,17 @@ export const processPortOf = (find: () => ProcessHost | undefined): ProcessPort 
     async flush() {
       const host = hostProcess();
       await Promise.all([written(host.stdout), written(host.stderr)]);
+    },
+    hold() {
+      hostProcess();
+      // one interval that keeps the event loop alive: its timer does nothing, and the release stops it
+      const timer = setInterval(() => {}, HOLD_INTERVAL);
+      let held = true;
+      return () => {
+        if (!held) return;
+        held = false;
+        clearInterval(timer);
+      };
     },
     exit(code) {
       hostProcess().exit(code);

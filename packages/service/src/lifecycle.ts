@@ -269,8 +269,10 @@ export const lifecycle = (
     startupEnded = resolve;
   });
   let offs: Array<() => void> = [];
+  // the hold of the process, from the start of the lifecycle to its exit
+  let release: () => void = () => {};
 
-  /** This function ends the process with a code, one time, and removes each handler of a trigger. */
+  /** This function ends the process with a code, one time, and removes each handler of a trigger and the hold. */
   const end = (code: number, on: string): void => {
     state = "exited";
     exitCode = code;
@@ -278,6 +280,8 @@ export const lifecycle = (
     offs = [];
     moveExit("exited", on, `exit ${code}`);
     finish(code);
+    // the hold ends at the exit, not at the stop of the intake: the drain and the teardown still need the process
+    release();
     port.exit(code);
   };
 
@@ -472,6 +476,7 @@ export const lifecycle = (
   };
 
   bind(life);
+  release = port.hold?.() ?? (() => {});
   offs = [...EXIT_SIGNALS, ...(description.shutdown.triggers ?? [])].map((trigger: ExitTrigger) =>
     port.on(trigger, trigger === "ipc-message" ? received : () => triggered(trigger)),
   );

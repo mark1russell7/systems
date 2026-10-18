@@ -465,8 +465,9 @@ describe("a stop from a message of the IPC channel (SYS-21)", () => {
     const { life, process, exit } = await runOn(child([], { match: "shutdown", as: "SIGTERM" }));
     process.message("shutdown");
     process.message("shutdown");
-    // the profile ephemeral exits at once at a repeat signal
+    // the profile ephemeral exits at once at a repeat signal, and the exit releases the hold
     expect(await exit()).toBe(1);
+    expect(process.heldAtExit).toEqual([0]);
     expect(life.errors).toContain("SIGTERM (a message of the IPC channel) came again while the shutdown ran, and the declaration exits at once");
     expect(process.exits).toEqual([1]);
   });
@@ -497,6 +498,37 @@ describe("a stop from a message of the IPC channel (SYS-21)", () => {
     expect(() => base().trigger("ipc-message", { match: (() => {}) as never }).describe()).toThrow(/is not a value of JSON/);
     expect(() => base().trigger("ipc-message", { match: "stop", as: "SIGKILL" as never }).describe()).toThrow(/stands for SIGKILL, not an exit signal/);
     expect(base().trigger("ipc-message", { match: "stop" }).exitCode("ipc-message", 0).describe().shutdown.exitCodes).toMatchObject({ "ipc-message": 0 });
+  });
+});
+
+describe("the hold of the process (A14)", () => {
+  it("holds the process from the start of the lifecycle to its exit, through the drain", async () => {
+    const svc = service("held").profile(ephemeral);
+    svc.controller("command").route("RUN", { idempotent: false });
+    // the drain waits 1 s: the hold stays after the stop of the intake
+    svc.onPhase("drain", ({ clock: given }) => new Promise<void>((resolve) => void given.after(1000, resolve)));
+    const clock = fakeClock();
+    const process = fakeProcess({ clock });
+    let ended = false;
+    const running = svc.run({ clock, process }).finally(() => {
+      ended = true;
+    });
+    // the hold starts with the lifecycle, before the startup ends
+    expect(process.holds).toBe(1);
+    for (let step = 0; step < 50 && !ended; step += 1) await clock.advance(50);
+    const life = await running;
+    expect(process.holds).toBe(1);
+    let code: number | null = null;
+    void life.shutdown("the command ended").then((given) => {
+      code = given;
+    });
+    await clock.advance(500);
+    expect(life.state).toBe("draining");
+    expect(process.holds).toBe(1);
+    for (let step = 0; step < 100 && code === null; step += 1) await clock.advance(50);
+    expect(code).toBe(0);
+    expect(process.holds).toBe(0);
+    expect(process.heldAtExit).toEqual([0]);
   });
 });
 

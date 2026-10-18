@@ -63,6 +63,8 @@ The format of a description is `mark1russell7.service/1`.
 - **The exit.** Only the lifecycle ends the process, through its `ProcessPort`. The exit code is 0 after a clean shutdown. It is 1 after an error: a startup that failed, a phase whose work did not end in its cap, or a work that threw. A phase over its cap does not stop the sequence.
 - **Exit codes.** `life.shutdown(cause, { code })` gives the exit code of the work, a whole number from 0 to 255. The first request with a code sets it. `svc.exitCode(trigger, code)` gives the code of a shutdown that a trigger starts, for example 130 for SIGINT. A code that is not 0 stays after an error. A code of 0, or no code, becomes 1 after an error.
 - **The output.** The stage `flush the output` comes last. The owners of the phase write their last output first, for example a log or a trace exporter. Then the `ProcessPort` writes the buffered output of stdout and stderr, in the cap of the stage. Without this phase, the process exits without a wait, as in 0.4.
+- **The hold.** The lifecycle holds its process from its start to its exit, through `ProcessPort.hold`, as a listening socket does. The hold is one timer of the event loop, and the exit releases it. The other timers of the runtime still do not keep the process alive (A14).
+- **Why the hold lasts to the exit.** A drain can wait on a timer that does not keep the process alive. Without the hold, Node then ends the process with the code 0 in the drain. The teardown and the declared exit code are then lost. Thus the hold does not end at the stop of the intake, and it is not a knob.
 - **The watchdog.** `svc.watchdog(spec)` declares a check on the event loop. A blocked loop delays each timer, thus a tick that comes late by more than the threshold fails the check. A liveness window then reads the wedge of the process.
 
 ## The machines
@@ -136,10 +138,11 @@ The requirements that the lifecycle follows are in [the requirements of S6](http
 - **The failures.** A throw is a failure, and the lane then waits its backoff. The first delay is `retry_base`, and each delay is two times longer, up to `retry_cap`, with a jitter up to the base. A success ends the sequence. `onError` gets each failure, and the loop does not end the process (A5).
 - **`wake()`.** It ends each sleep at once, also a sleep that comes after the iteration in flight. It does not end a backoff. After the stop of the intake, it gives false.
 - **The queue drain (S6 A11).** One taker takes a job from the source while a slot is free. `concurrency` is the number of slots, and a count without a bound takes each job that comes. The source is a function that takes the next job, or an async iterable.
-- **An empty source.** A take with no job waits `queue_poll_interval`, or until `wake()`. A failed take waits the backoff. The end of an async iterable stops the takes.
+- **An empty source.** A take with no job waits `queue_poll_interval`, or until `wake()`. A failed take waits the backoff.
+- **The end of a source.** The end of an async iterable stops the takes. While the intake is open, `onError` gets that end, because the drain then takes no more jobs. An async generator that throws gives its throw and then its end.
 - **The end of each job.** A success gets `settle.ack`. A failure gets the action of the redelivery policy: `requeue`, `reject` or `ack`. The queue declares its policy, because the drain has no default.
 - **The policy of A11.** `redeliverOnce(then, poison)` gives `ack` to a poison message. Each other job goes back one time after its first failure, and `then` decides each later failure.
-- **The deliveries.** The policy gets the count of deliveries of the job, 1 at the first. `settle.delivery` gives the count of the queue. Without it, the drain counts the deliveries of each job that it puts back.
+- **The deliveries.** The policy gets the count of deliveries of the job, 1 at the first. `settle.delivery` gives that count from the queue, for example `x-delivery-count` of RabbitMQ or `ApproximateReceiveCount` of SQS. It is necessary, because a broker gives a new object at each delivery. A queue in memory counts for itself.
 - **The bound of a unit.** `unit_processing_time` is the most time of one iteration or one job. At it, the signal of the unit aborts, and a throw after it is a failure. The law reads it as `unit_processing_time@consumer`.
 - **The stop of the intake.** No new iteration starts, and the drain takes no new job. Each sleep and each backoff ends. The drain ends an async iterable through `return()`. A take that gives a job after the stop gives it back (`settle.requeue(job, "unstarted")`).
 - **The drain.** `drain(deadline, signal)` waits for each unit in flight until the deadline, and gives each one the cooperative abort. A throw after that abort is a cut, not a failure.
@@ -147,7 +150,7 @@ The requirements that the lifecycle follows are in [the requirements of S6](http
 - **The close.** `close` aborts each unit, waits for its end, and then does the teardown or `options.close`, all in `close_bound`. The teardown occurs each time that the setup started, also after a failed setup. The close rejects a job that does not end in the bound.
 - **The request tracking.** With `request: { controller, route }`, each unit goes through `life.request`. The service then admits, counts, drains and cuts each unit as it does each request. A route function and `detail` can give each job a route of a pattern.
 - **The refusals.** While the service refuses its units, the loop and the taker wait their backoff, and each refused job goes back (`"unstarted"`). Thus a worker stops while a dependency of its controller is not ready.
-- **The clock.** The sleeps, the backoffs and the bounds use the clock of the options. Give the clock of the lifecycle. With the real clock, the timers do not keep a Node process alive (A14). A process whose only parts are workers gives `platformClock({ unref: false })`.
+- **The clock.** The sleeps, the backoffs and the bounds use the clock of the options. Give the clock of the lifecycle. With the real clock, the timers do not keep a Node process alive (A14). The lifecycle holds the process until its exit, thus a process whose only parts are workers does not end while it waits.
 - **The law.** `lint()` applies O20 one time for each consumer and each worker. A knob of the transport binds at the hop `consumer`, and a knob with a hop in its name binds at that hop. The scenario gives the lease of each source, for example the visibility timeout of SQS.
 - **The problems.** `problems(description)` compares the bounds with the caps. `close_bound` fits in the cap of `close transports`. `unit_processing_time` fits in the cap of `drain`, or the drain can cut a unit.
 
@@ -176,6 +179,7 @@ const jobs = queueDrain(
     handle: (job, { signal, delivery }) => runPipeline(job, { signal, delivery }),
     settle: {
       ack: (job) => db.markDone(job),
+      delivery: (job) => job.attempts, // the count of the table, 1 at the first take
       requeue: (job) => db.markQueued(job),
       reject: (job, error) => db.markFailed(job, error),
     },
@@ -391,7 +395,7 @@ const life = await app.run(); // the process exits after SIGTERM, with 0 or 1
 `@mark1russell7/service/testing` has the seams that a test of a service needs:
 
 - `fakeClock()` gives a clock that moves only on `advance(ms)`. Pass it to `start({ clock })`, and the timing of the runtime is exact and repeatable. `block(ms)` moves the clock and starts no timer, as a blocked event loop does.
-- `fakeProcess({ flush, clock })` gives a process port that takes signals and process triggers from a test (`signal(name)`, `trigger(name)`). It keeps each exit code in place of an exit. `flush` is its flush of the output, and `log` gives the time of each flush and each exit.
+- `fakeProcess({ flush, clock })` gives a process port that takes signals and process triggers from a test (`signal(name)`, `trigger(name)`). It keeps each exit code in place of an exit. `flush` is its flush of the output, and `log` gives the time of each flush and each exit. `holds` is the count of holds of the process, and `heldAtExit` gives that count at each exit. `message(value)` sends a message of the IPC channel.
 - `seeded(seed)` gives a seeded random number generator for the jitter (`start({ random })`).
 - `scriptedCheck(behavior)` gives a check whose behavior a test sets: `"ok"`, `"error"`, `"indeterminate"`, `"throw"`, `"timeout"` or `"hang"`.
 - `quietServer()` starts a TCP echo server that can go quiet. Its connections stay open while it is quiet, as with a frozen peer.
@@ -538,7 +542,7 @@ for await (const event of stream) {
 - **The requests.** A unary work is a stream of one item, and a stream gives each item when its reader asks. The drain waits for an open stream. The cooperative abort ends a stream through `return()`, and a cut or a failure after the first item ends in-band. A reader that stops early stops the work. The function of a route pattern decides the answer of each cut request.
 - **The options of the runner.** These tests cover the requests of a transport while the startup runs, the policy of a repeat signal, the profiles and the process triggers. They also cover the exit codes, a first Ctrl-C that aborts at once, and the flush of the output.
 - **The composition.** Two components, each with a transport, a dependency and a check, share one service and one `run()`. The parts start and stop in their sequence, and the process exits one time.
-- **The process port.** The port of Node, on a fake host: the signals, the end of stdin, the close of the IPC channel, the flush and the exit.
+- **The process port.** The port of Node, on a fake host: the signals, the end of stdin and the close of the IPC channel. The tests also cover the messages, the hold, the flush and the exit. The lifecycle holds its fake process from its start to its exit.
 - **The HTTP edge.** The transport, the mounts, the upgrades, the probes and `handle` run on fake servers and the fake clock, with no socket. A service under `run()` drains a held request, and its probes answer through the drain. A request during the warm-up gets 503, and a stream ends in-band after its first item.
 - **The headers of the outcomes.** Each path of the request tracker gets its status. Each 503 gets `Retry-After`: the refusals, the retryable cut and the cut of a unary stream. No 500 gets it.
 - **The headers on the port.** The transport adds `Retry-After` to each 503 of a probe and of a handler that writes its own status, in each form of `writeHead`. It takes `Retry-After` from each 500. The probe server gives its 503s the time of its knob.
@@ -549,7 +553,7 @@ for await (const event of stream) {
 - **The IPC message.** A message that matches a declared shape starts the staged shutdown on the fake process, with the exit code of its signal. A second message obeys the policy of a repeat signal.
 - **On real sockets.** `HTTP_IT=1` starts the tests of the HTTP edge on the loopback. They cover the conformance on the fake clock and on the real clock, keep-alive and the stop of the intake. They also cover the upgrades, the probe server and a service after SIGTERM. They measure time, thus only CI starts them (`http.yml`), on Node 22.19, 24 and 26. CI keeps the raw records of each job as an artifact.
 - **On the real clock.** `WORKERS_IT=1` starts the kit of the worker loop and of the queue drain on the real clock, in the jobs of `http.yml`.
-- **A real child process.** `PROCESS_IT=1` starts a child under `run()` with an IPC channel, on Linux and on Windows (`process.yml`). The message `shutdown` stops it in stages, with the code 143. A control shows that a SIGTERM of the parent does that only on Linux.
+- **A real child process.** `PROCESS_IT=1` starts a child under `run()` with an IPC channel, on Linux and on Windows (`process.yml`). The message `shutdown` stops it in stages, with the code 143. A control shows that a SIGTERM of the parent does that only on Linux. A child whose only part is a worker on the real clock stays alive through the hold, and on Linux a SIGTERM gives its teardown.
 - **Against a real Redis.** `REDIS_IT=1` starts the tests of the client against Redis 7.4. `REDIS_F6=1` starts the F6 matrix in the VM of Docker. The injector of `@mark1russell7/harness` makes the network faults, and an agent in the namespaces of Redis makes the process faults. All of them use one monotonic clock.
 
 `pnpm --filter @mark1russell7/service build` writes the package for npm into `build/`.

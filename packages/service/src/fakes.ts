@@ -87,6 +87,10 @@ export interface FakeProcess extends ProcessPort {
   readonly log: readonly string[];
   /** This count is the number of flushes of the output. */
   readonly flushes: number;
+  /** This count is the number of holds of the process that are not released. */
+  readonly holds: number;
+  /** These counts are the holds that were not released at each exit, in sequence. */
+  readonly heldAtExit: readonly number[];
 }
 
 /** These options shape a fake process. */
@@ -103,6 +107,8 @@ export const fakeProcess = (options: FakeProcessOptions = {}): FakeProcess => {
   const exits: number[] = [];
   const log: string[] = [];
   let flushes = 0;
+  let holds = 0;
+  const heldAtExit: number[] = [];
   const stamp = (what: string): void => {
     log.push(options.clock === undefined ? what : `${options.clock.now()} ${what}`);
   };
@@ -124,8 +130,18 @@ export const fakeProcess = (options: FakeProcessOptions = {}): FakeProcess => {
       flushes += 1;
       stamp("flushed");
     },
+    hold() {
+      holds += 1;
+      let held = true;
+      return () => {
+        if (!held) return;
+        held = false;
+        holds -= 1;
+      };
+    },
     exit(code) {
       stamp(`exit ${code}`);
+      heldAtExit.push(holds);
       exits.push(code);
     },
     signal: (name) => send(name),
@@ -147,6 +163,12 @@ export const fakeProcess = (options: FakeProcessOptions = {}): FakeProcess => {
     },
     get flushes() {
       return flushes;
+    },
+    get holds() {
+      return holds;
+    },
+    get heldAtExit() {
+      return [...heldAtExit];
     },
   };
 };

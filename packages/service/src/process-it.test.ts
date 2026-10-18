@@ -1,19 +1,25 @@
 import type { ChildProcess } from "node:child_process";
-import { fork } from "node:child_process";
+import { fork, spawn } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * SYS-21: a child process under run() on the process of Node, opt-in with PROCESS_IT=1. The parent
- * sends the IPC message "shutdown", and the child stops through its staged shutdown, as at SIGTERM.
+ * SYS-21 and A14: child processes under run() on the process of Node, opt-in with PROCESS_IT=1.
+ * - The parent sends the IPC message "shutdown", and the child stops through its staged shutdown,
+ *   as at SIGTERM.
+ * - A child whose only part is a worker on the real clock stays alive through the hold of its
+ *   lifecycle, because its timers do not keep it alive.
  * These tests start real processes, thus only CI starts them (.github/workflows/process.yml), on
- * Linux and on Windows. The same trigger on the fake process runs in the unit tests (runner.test.ts).
+ * Linux and on Windows. The same parts on the fake process run in the unit tests (runner.test.ts).
  */
 
 const RUN = process.env["PROCESS_IT"] === "1";
-const CHILD = join(dirname(fileURLToPath(import.meta.url)), "..", "test", "ipc", "child.mjs");
+const here = dirname(fileURLToPath(import.meta.url));
+const IPC_CHILD = join(here, "..", "test", "ipc", "child.mjs");
+const HELD_CHILD = join(here, "..", "test", "ipc", "hold.mjs");
 const STAGES = ["start", "ready", "stop intake", "drain", "close"];
+const WINDOWS = process.platform === "win32";
 
 interface Run {
   readonly child: ChildProcess;
@@ -23,9 +29,8 @@ interface Run {
   until(line: string): Promise<void>;
 }
 
-/** This function starts the child with an IPC channel, and keeps each line of its stdout. */
-const start = (): Run => {
-  const child = fork(CHILD, [], { stdio: ["ignore", "pipe", "inherit", "ipc"] });
+/** This function keeps each line of the stdout of a child. */
+const watch = (child: ChildProcess): Run => {
   const lines: string[] = [];
   let rest = "";
   child.stdout!.setEncoding("utf8");
@@ -49,7 +54,7 @@ const start = (): Run => {
 
 describe.skipIf(!RUN)("a child under run() and the IPC message of its parent (SYS-21)", () => {
   it("stops through its staged shutdown at the message shutdown, with the exit code of SIGTERM", async () => {
-    const run = start();
+    const run = watch(fork(IPC_CHILD, [], { stdio: ["ignore", "pipe", "inherit", "ipc"] }));
     await run.until("ready");
     run.child.send("shutdown");
     expect(await run.closed).toEqual({ code: 143, signal: null });
@@ -57,17 +62,35 @@ describe.skipIf(!RUN)("a child under run() and the IPC message of its parent (SY
   }, 30_000);
 
   it("gets its staged shutdown from a SIGTERM of its parent on Linux, and not on Windows (the control)", async () => {
-    const run = start();
+    const run = watch(fork(IPC_CHILD, [], { stdio: ["ignore", "pipe", "inherit", "ipc"] }));
     await run.until("ready");
     run.child.kill("SIGTERM");
     const end = await run.closed;
-    if (process.platform === "win32") {
+    if (WINDOWS) {
       // Windows ends the child at once, thus no stage occurs, and the exit code is not the code of the shutdown
       expect(run.lines).toEqual(["start", "ready"]);
       expect(end.code).not.toBe(143);
     } else {
       expect(end).toEqual({ code: 143, signal: null });
       expect(run.lines).toEqual(STAGES);
+    }
+  }, 30_000);
+});
+
+describe.skipIf(!RUN)("the hold of the process: a child whose only part is a worker (A14)", () => {
+  it("stays alive until its exit, and on Linux a SIGTERM gives its teardown and the exit code", async () => {
+    // no IPC channel and no socket: only the hold of the lifecycle keeps the child alive
+    const run = watch(spawn(process.execPath, [HELD_CHILD], { stdio: ["ignore", "pipe", "inherit"] }));
+    await run.until("iteration");
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    expect(run.child.exitCode).toBeNull();
+    expect(run.lines).toEqual(["ready", "iteration"]);
+    run.child.kill("SIGTERM");
+    const end = await run.closed;
+    if (WINDOWS) expect(run.lines).toEqual(["ready", "iteration"]);
+    else {
+      expect(end).toEqual({ code: 143, signal: null });
+      expect(run.lines).toEqual(["ready", "iteration", "teardown"]);
     }
   }, 30_000);
 });

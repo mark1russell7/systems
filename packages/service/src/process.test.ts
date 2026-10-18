@@ -134,6 +134,18 @@ describe("the port of the process of Node", () => {
     expect(fake.exits).toEqual([143]);
   });
 
+  it("holds the process with one timer of the event loop until the release (A14)", () => {
+    const port = processPortOf(() => host());
+    const timers = (): number => process.getActiveResourcesInfo().filter((name) => name === "Timeout").length;
+    const before = timers();
+    const release = port.hold!();
+    expect(timers()).toBe(before + 1);
+    release();
+    release();
+    expect(timers()).toBe(before);
+    expect(() => processPortOf(() => undefined).hold!()).toThrow(/no process: give the runtime a process port/);
+  });
+
   it("throws when the platform has no process", () => {
     const port = processPortOf(() => undefined);
     expect(() => port.on("SIGINT", () => {})).toThrow(/no process: give the runtime a process port/);
