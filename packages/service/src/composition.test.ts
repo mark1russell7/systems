@@ -114,7 +114,7 @@ describe("two components under one service and one run() (SYS-8)", () => {
     expect(life.health.verdict()).toMatchObject({ ready: true, controllers: { "app.api": true, "ingest.api": true } });
     // each transport has the one lifecycle of the process
     expect(lives).toEqual([life, life]);
-    expect(await life.request("ingest.api", "POST /ingest", () => "stored")).toEqual({ kind: "done", value: "stored" });
+    expect(await life.request("ingest.api", "POST /ingest", () => "stored").collect()).toEqual({ items: ["stored"], end: { kind: "done", delivered: 1 } });
 
     log.length = 0;
     process.signal("SIGTERM");

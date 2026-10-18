@@ -65,7 +65,8 @@ export type { ExitSignal, ExitTrigger, HostStream, ProcessHost, ProcessPort, Pro
 export { EXIT_SIGNALS, PROCESS_TRIGGERS, isExitCode, isExitSignal, nodeProcess, processPortOf } from "./process.ts";
 export type { PodTiming, Profile } from "./profiles.ts";
 export { ephemeral, kubernetes, localDev } from "./profiles.ts";
-export type { RequestFn, RequestOutcome } from "./requests.ts";
+export type { RequestEnd, RequestEvent, RequestFn, RequestOptions, RequestStream, RequestWork } from "./requests.ts";
+export type { OperationOf, RoutePattern, RouteRequest } from "./routes.ts";
 export type { Watchdog, WatchdogSpec } from "./watchdog.ts";
 export { watchdog } from "./watchdog.ts";
 export {

@@ -45,9 +45,15 @@ The format of a description is `mark1russell7.service/1`.
 - **The shutdown.** Readiness fails first. Then the declared phases occur in their sequence, and each phase races its cap. `svc.onPhase(name, work)` adds the work of an owner to a phase.
 - **The stages.** A declared phase with the name of a stage gets the work of that stage. The stages are `fail readiness`, `stop intake`, `drain`, `close transports`, `stop the poller`, `tear down dependencies`, `close the health server` and `flush the output`. The phase `fail readiness` holds for its cap while the endpoints update. The signal of the service aborts after the poller stops. `describe()` refuses the stages out of their sequence.
 - **The cooperative abort.** During the drain, the requests and the transports get a signal that aborts at the cap less the cooperative window. With the floor `half`, that time is half the cap at the least, and a window without a bound gives half the cap. With `svc.cooperativeFloor("none")`, a window of the whole cap aborts the work at the start of the drain.
-- **Requests.** `life.request(controller, route, work)` does one request on a declared route. While the service cannot take new work, it refuses the request with a retryable 503. That occurs before the start, after the intake stops, or while the controller is not ready.
+- **Requests.** `life.request(controller, route, work, { detail })` does one request on a declared route or route pattern. While the service cannot take new work, it refuses the request with a retryable 503. That occurs before the start, after the intake stops, or while the controller is not ready. A route that no route and no pattern declares throws, because it has no idempotency.
+- **Each request is a stream.** The request gives a `RequestStream`: each item of the work, and then one end. A work that gives an async iterable is a stream, also through a promise. Each other value is a stream of one item. `stream.collect()` reads the items and the end.
+- **The reader controls the work.** The stream asks the work for an item only when its reader asks for the next event. The request stays in flight until the iterator of the work ends. Thus the drain waits for an open stream. When the reader stops before the end, the work gets its abort and the `return()` of its iterator.
+- **The end.** The end is `done`, `failed`, `refused` or `cut`, with the count of the delivered items. Before the first item, `refused` and `cut` have a status. After the first item, the end is in-band: the transport sent its answer, thus it writes the end as the last line of the stream.
 - **Requests while the transports start.** Each transport gets the lifecycle at its start, and `svc.lifecycle` gives it from the start of `run()`. Thus a transport tracks its requests from its start. A request before the end of the startup gets a retryable 503, and `keepAlive()` is false.
-- **Cut requests.** When the drain cuts a request, an idempotent route answers 503, retryable. Each other route answers 500, because the work can have had its effect. A keyed route is retryable only while the server keeps its key.
+- **Cut requests.** When the drain cuts a request, an idempotent route answers 503, retryable. Each other route answers 500, because the work can have had its effect. A keyed route is retryable only while the server keeps its key. After the first item, a cut has no status, and `retryable` tells the caller if it can send the request again.
+- **The cooperative abort of a stream.** At the cooperative abort, the work gets its abort, and its iterator gets `return()`. A stream that ends after the abort ends as a cut. At the deadline of the drain, each request that is left gets a cut at once.
+- **Route patterns.** `controller.pattern(pattern, operations, operationOf)` matches the routes that the exact routes do not name, in the sequence of the patterns. In a pattern, `*` matches each text, and `:name` matches one part without `/`. The declaration names each operation that a request of the pattern can be, with its idempotency.
+- **The idempotency of each request.** The function `operationOf` gets the route, the parts of the pattern and the `detail` of the request. It gives the name of the operation, thus the retry rule and the answer of a cut. A pattern with one operation needs no function. `describe()` exports each pattern and its operations as data, and it checks them as it checks a route.
 - **Keep-alive.** `life.keepAlive()` is false while the service is not ready. Thus each response then closes its connection.
 - **The exit.** Only the lifecycle ends the process, through its `ProcessPort`. The exit code is 0 after a clean shutdown. It is 1 after an error: a startup that failed, a phase whose work did not end in its cap, or a work that threw. A phase over its cap does not stop the sequence.
 - **Exit codes.** `life.shutdown(cause, { code })` gives the exit code of the work, a whole number from 0 to 255. The first request with a code sets it. `svc.exitCode(trigger, code)` gives the code of a shutdown that a trigger starts, for example 130 for SIGINT. A code that is not 0 stays after an error. A code of 0, or no code, becomes 1 after an error.
@@ -156,8 +162,8 @@ await mcp.run();
 const tool = service("tool").profile(ephemeral);
 tool.controller("command").route("RUN", { idempotent: false });
 const life = await tool.run();
-const outcome = await life.request("command", "RUN", (signal) => main(signal));
-await life.shutdown("the command ended", { code: outcome.kind === "done" ? outcome.value : 1 });
+const { items, end } = await life.request("command", "RUN", (signal) => main(signal)).collect();
+await life.shutdown("the command ended", { code: end.kind === "done" ? items[0] : 1 });
 ```
 
 - **The declaration.** The profile `ephemeral` gives the policies, the startup budget, the phases and the rules of the shutdown. The recipe passes `describe()` and `lint()`, and a test holds it to them.
@@ -303,7 +309,27 @@ const app = service("app")
 app.controller("orders").requires("db").route("POST /orders", { idempotent: false });
 
 const life = await app.run(); // the process exits after SIGTERM, with 0 or 1
-const outcome = await life.request("orders", "POST /orders", (signal) => createOrder(signal));
+const { items, end } = await life.request("orders", "POST /orders", (signal) => createOrder(signal)).collect();
+```
+
+A registry that changes while the service runs declares a pattern, and each request a stream:
+
+```ts
+app
+  .controller("procedures")
+  .requires("db")
+  .pattern(
+    "POST /rpc/:procedure",
+    { read: { idempotent: true }, write: { idempotent: false } },
+    ({ detail }) => ((detail as Procedure).readOnly ? "read" : "write"),
+  );
+
+const stream = life.request("procedures", "POST /rpc/logs.tail", (signal) => tail(signal), { detail: procedure });
+for await (const event of stream) {
+  if (event.kind === "item") write(JSON.stringify(event.value));
+  else if (event.delivered > 0) write(JSON.stringify({ end: event.kind, delivered: event.delivered })); // in-band
+  else respond(event); // a status: 503, 500 or the error of the route
+}
 ```
 
 ## Tests
@@ -324,6 +350,7 @@ const outcome = await life.request("orders", "POST /orders", (signal) => createO
 - **F6 for Redis.** The fault matrix crosses each manifestation (a refusal, a frozen process, a black hole, a death without a close, and an app stall), each gating posture, two timings and two jitters. That is 60 cases on the fake. Each case holds the trip and the release of its policy to `failSpan` and `recoverSpan`. Five more cases shut the service down during each manifestation, and each one exits 0.
 - **The timers.** These tests use a fake clock, and they cover the hooks of the heartbeat and its two kinds of ping. A property test holds the death of a silent peer to `detectionTime` in 300 seeded cases. Another one compares the heartbeat with a WebSocket heartbeat that sends one ping at a time, on 300 schedules of pongs. The backoff gives the delays of three earlier backoffs, number for number, and each delay is in its band.
 - **The entries.** The timer entries reach no other package, no `node:` module and no zod. No entry of the service reaches zod, also through `quantity` and the replay of the algebra.
+- **The requests.** A unary work is a stream of one item, and a stream gives each item when its reader asks. The drain waits for an open stream. The cooperative abort ends a stream through `return()`, and a cut or a failure after the first item ends in-band. A reader that stops early stops the work. The function of a route pattern decides the answer of each cut request.
 - **The options of the runner.** These tests cover the requests of a transport while the startup runs, the policy of a repeat signal, the profiles and the process triggers. They also cover the exit codes, a first Ctrl-C that aborts at once, and the flush of the output.
 - **The composition.** Two components, each with a transport, a dependency and a check, share one service and one `run()`. The parts start and stop in their sequence, and the process exits one time.
 - **The process port.** The port of Node, on a fake host: the signals, the end of stdin, the close of the IPC channel, the flush and the exit.

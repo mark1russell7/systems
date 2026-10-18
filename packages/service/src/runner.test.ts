@@ -2,7 +2,7 @@ import { timerOf } from "@mark1russell7/algebra";
 import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import type { LifecycleEvent } from "./events.ts";
-import type { Lifecycle, Profile, RequestOutcome, Rule, ServiceBuilder, TransportImpl } from "./index.ts";
+import type { Lifecycle, Profile, RequestEnd, Rule, ServiceBuilder, TransportImpl } from "./index.ts";
 import { drainMachine, ephemeral, kubernetes, lint, localDev, service } from "./index.ts";
 import { CAPS, exited, rig, run } from "./rig.ts";
 import { fakeClock, fakeProcess, seeded } from "./testing.ts";
@@ -88,14 +88,14 @@ describe("request tracking from the start of each transport (SYS-15)", () => {
     const r = rig({ checkDelay: 300 });
     let given: Lifecycle | null = null;
     let fromBuilder: Lifecycle | null = null;
-    let warmUp: Promise<RequestOutcome<string>> | null = null;
+    let warmUp: Promise<{ readonly items: readonly string[]; readonly end: RequestEnd }> | null = null;
     const counts: Array<[number, boolean]> = [];
     r.svc.server("queue", {}, {
       start: (_signal, life) => {
         given = life;
         fromBuilder = r.svc.lifecycle;
         // the startup has not ended: the request, the count and keep-alive answer at once
-        warmUp = life.request("api", "GET /things", () => "early");
+        warmUp = life.request("api", "GET /things", () => "early").collect();
         counts.push([life.inFlight(), life.keepAlive()]);
       },
       stopIntake() {},
@@ -108,10 +108,13 @@ describe("request tracking from the start of each transport (SYS-15)", () => {
     expect(given).toBe(life);
     expect(fromBuilder).toBe(life);
     expect(r.svc.lifecycle).toBe(life);
-    expect(await warmUp!).toEqual({ kind: "refused", status: 503, retryable: true, cause: "the service has not started" });
+    expect(await warmUp!).toEqual({
+      items: [],
+      end: { kind: "refused", status: 503, retryable: true, cause: "the service has not started", delivered: 0 },
+    });
     expect(counts).toEqual([[0, false]]);
     // after the startup, the same transport serves through the same lifecycle
-    expect(await given!.request("api", "GET /things", () => "later")).toEqual({ kind: "done", value: "later" });
+    expect(await given!.request("api", "GET /things", () => "later").collect()).toEqual({ items: ["later"], end: { kind: "done", delivered: 1 } });
     void life.shutdown();
     expect(await exited(r, life)).toBe(0);
   });
@@ -393,8 +396,8 @@ describe("run() for a process that runs one command (SYS-16)", () => {
   it("exits with the code that its work gives", async () => {
     for (const code of [0, 2, 3]) {
       const { life, process, exit } = await runOn(command());
-      const outcome = await life.request("command", "RUN", () => code);
-      expect(outcome).toEqual({ kind: "done", value: code });
+      const outcome = await life.request("command", "RUN", () => code).collect();
+      expect(outcome).toEqual({ items: [code], end: { kind: "done", delivered: 1 } });
       void life.shutdown("the command ended", { code });
       expect(await exit()).toBe(code);
       expect(process.exits).toEqual([code]);
@@ -428,17 +431,19 @@ describe("run() for a process that runs one command (SYS-16)", () => {
   it("aborts the work at once on a first Ctrl-C, and exits 130", async () => {
     const { life, clock, process, events, exit } = await runOn(command());
     let abortedAt: number | null = null;
-    const work = life.request(
-      "command",
-      "RUN",
-      (signal) =>
-        new Promise<number>((_, reject) =>
-          signal.addEventListener("abort", () => {
-            abortedAt = clock.now();
-            reject(new Error("interrupted"));
-          }),
-        ),
-    );
+    const work = life
+      .request(
+        "command",
+        "RUN",
+        (signal) =>
+          new Promise<number>((_, reject) =>
+            signal.addEventListener("abort", () => {
+              abortedAt = clock.now();
+              reject(new Error("interrupted"));
+            }),
+          ),
+      )
+      .collect();
     await clock.advance(1000);
     const at = clock.now();
     process.signal("SIGINT");
@@ -446,7 +451,7 @@ describe("run() for a process that runs one command (SYS-16)", () => {
     await clock.advance(0);
     expect(abortedAt).toBe(at);
     expect(drainEnter(events, "drain").at).toBe(at);
-    expect(await work).toMatchObject({ kind: "cut", status: 500, retryable: false });
+    expect((await work).end).toMatchObject({ kind: "cut", status: 500, retryable: false, delivered: 0 });
     // the work gives its own code after the interrupt, and the code of SIGINT stays
     void life.shutdown("the command was interrupted", { code: 1 });
     expect(await exit()).toBe(130);

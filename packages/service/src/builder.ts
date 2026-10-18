@@ -33,6 +33,8 @@ import type { CheckFn } from "./poller.ts";
 import type { ExitTrigger, ProcessTrigger } from "./process.ts";
 import { EXIT_SIGNALS, PROCESS_TRIGGERS, isExitCode } from "./process.ts";
 import type { Profile } from "./profiles.ts";
+import type { OperationOf, RoutePattern } from "./routes.ts";
+import { routePatternProblems } from "./routes.ts";
 import type { Timing } from "./timing.ts";
 import type { Watchdog, WatchdogSpec } from "./watchdog.ts";
 import { watchdog } from "./watchdog.ts";
@@ -65,6 +67,11 @@ export interface ControllerBuilder {
   requires(...dependencies: string[]): ControllerBuilder;
   /** This method declares a route that the controller serves, and if its callers can send it again. */
   route(route: string, operation: Operation): ControllerBuilder;
+  /**
+   * This method declares a route pattern, the operations that its requests can be, and the function
+   * that picks the operation of each request. A pattern with one operation needs no function.
+   */
+  pattern(pattern: string, operations: Readonly<Record<string, Operation>>, operationOf?: OperationOf): ControllerBuilder;
 }
 
 /** A service builder composes a service, gives it as data, and starts it. */
@@ -181,7 +188,10 @@ export const service = (name: string): ServiceBuilder => {
     name: string;
     requires: string[];
     routes: Record<string, Operation>;
+    patterns: RoutePattern[];
   }> = [];
+  // the function of each route pattern, by controller and by pattern
+  const choices = new Map<string, Map<string, OperationOf>>();
   const checks: Check[] = [];
   const runs = new Map<string, CheckFn>();
   const couplings: Coupling[] = [];
@@ -294,6 +304,7 @@ export const service = (name: string): ServiceBuilder => {
         name: entry,
         requires: [] as string[],
         routes: {} as Record<string, Operation>,
+        patterns: [] as RoutePattern[],
       };
       controllers.push(held);
       const handle: ControllerBuilder = {
@@ -307,6 +318,24 @@ export const service = (name: string): ServiceBuilder => {
           if (held.routes[served] !== undefined)
             throw new Error(`${entry} already serves ${served}`);
           held.routes[served] = { ...operation };
+          return handle;
+        },
+        pattern(pattern, operations, operationOf) {
+          composing(`${entry}'s route patterns`);
+          if (held.patterns.some((each) => each.pattern === pattern))
+            throw new Error(`${entry} already has the route pattern ${pattern}`);
+          // the function is not data, thus the builder checks it here, and describe() checks the rest
+          if (operationOf === undefined && Object.keys(operations).length > 1)
+            throw new Error(`${entry}'s pattern ${pattern} has ${Object.keys(operations).length} operations, thus it needs the function that picks one`);
+          held.patterns.push({
+            pattern,
+            operations: Object.fromEntries(Object.entries(operations).map(([name, operation]) => [name, { ...operation }])),
+          });
+          if (operationOf !== undefined) {
+            const mine = choices.get(entry) ?? new Map<string, OperationOf>();
+            mine.set(pattern, operationOf);
+            choices.set(entry, mine);
+          }
           return handle;
         },
       };
@@ -467,6 +496,8 @@ export const service = (name: string): ServiceBuilder => {
         }
         for (const [route, operation] of Object.entries(controller.routes))
           problems.push(...operationProblems(`controller ${controller.name}`, route, operation));
+        for (const declared of controller.patterns)
+          problems.push(...routePatternProblems(`controller ${controller.name}`, declared));
       }
       for (const dependency of dependencies)
         for (const [name, operation] of Object.entries(dependency.operations))
@@ -486,6 +517,9 @@ export const service = (name: string): ServiceBuilder => {
         name: entry.name,
         requires: [...entry.requires],
         routes: { ...entry.routes },
+        ...(entry.patterns.length === 0
+          ? {}
+          : { patterns: entry.patterns.map((each) => ({ pattern: each.pattern, operations: { ...each.operations } })) }),
       }));
       return {
         format: FORMAT,
@@ -536,6 +570,7 @@ export const service = (name: string): ServiceBuilder => {
           dependencies: handles,
           healthServer: probes,
           phaseWork,
+          choices,
           stopPollers: () => {},
         };
         const problems = lifecycleProblems(description, components);

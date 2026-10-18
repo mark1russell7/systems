@@ -1,6 +1,7 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import type { Operation } from "./operation.ts";
 import type { ExitTrigger, ProcessTrigger } from "./process.ts";
+import type { RoutePattern } from "./routes.ts";
 import type { Poll, Timing } from "./timing.ts";
 
 /**
@@ -69,6 +70,12 @@ export interface Controller {
   readonly name: string;
   readonly requires: readonly string[];
   readonly routes: Readonly<Record<string, Operation>>;
+  /**
+   * These patterns match the routes that `routes` does not name, in their sequence: the first
+   * pattern that matches a route gives its operations. Without a declaration, the controller has
+   * no patterns.
+   */
+  readonly patterns?: readonly RoutePattern[] | undefined;
 }
 
 /** A coupling is a declared edge between two policies. The algebra checks its margin. */
