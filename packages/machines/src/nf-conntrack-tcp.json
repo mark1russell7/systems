@@ -1,11 +1,11 @@
 {
   "format": "mark1russell7.machine/1",
   "id": "nf-conntrack-tcp",
-  "title": "conntrack's TCP state machine (Linux 6.6.87.2-microsoft-standard-WSL2)",
+  "title": "conntrack's TCP state machine (Linux 6.6.87.2)",
   "layer": "middlebox",
   "version": "6.6.87.2",
   "conditions": {
-    "kernel": "6.6.87.2-microsoft-standard-WSL2",
+    "kernel": "6.6.87.2",
     "note": "regenerate per kernel: 6.1 and 7.3 change this machine"
   },
   "sources": [
