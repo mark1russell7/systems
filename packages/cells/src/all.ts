@@ -7,7 +7,7 @@ import { MONGO_CELLS } from "./mongo/harness.ts";
 import { T01_HIKARI } from "./pg/hikari.ts";
 import { T01_PG } from "./pg/t01.ts";
 import { T03_HIKARI } from "./pg/t03.ts";
-import { T10_HIKARI } from "./pg/t10.ts";
+import { T10_HIKARI, T10_PG } from "./pg/t10.ts";
 import { T02_CELLS } from "./t02.ts";
 import { T03_CELLS } from "./t03.ts";
 import { T12_CAL, T12_CELLS } from "./t12.ts";
@@ -51,6 +51,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...T01_HIKARI,
     ...T03_HIKARI,
     ...T10_HIKARI,
+    ...T10_PG,
   ];
 };
 

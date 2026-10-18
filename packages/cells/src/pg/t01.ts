@@ -1,6 +1,6 @@
 import type { Detector, KnobValues, Manifestation } from "@mark1russell7/algebra";
 import { detection, errnoOf, overValues, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
-import type { Cell, Prediction, RouterHop, Target } from "@mark1russell7/harness";
+import type { Cell, Prediction, ProxyHop, RouterHop, Target } from "@mark1russell7/harness";
 import { LINUX_TCP, NF_CONNTRACK_TCP, NODE_POSTGRES } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import { HZ, RTT_MS, RUNS, count, given, predict, s, seconds, sysctlsOf } from "../catalog.ts";
@@ -70,6 +70,8 @@ export interface PgSpec {
   readonly router?: { readonly form: RouterHop["form"]; readonly idle: number; readonly preset: string };
   /** This side is the observer: the client, or the socket of the server for the connection of the pool. */
   readonly observer?: "client" | "server";
+  /** This hop is a pooler between the client and the server, for a cell of T10. */
+  readonly pooler?: ProxyHop;
 }
 
 /** This factor divides the idle timeout of the router of the borders of O03, as in the MongoDB catalog: 240 s is 12 s. */
@@ -411,6 +413,7 @@ export const pgCell = (spec: PgSpec): Cell => ({
   name: nameOf(spec),
   target: spec.server === undefined ? PG_TARGET : pgTargetWith(PG_TARGET, spec.server),
   ...(spec.router === undefined ? {} : { topology: { name: "T01", hops: [routerHop(spec.router.form, spec.router.idle)] } }),
+  ...(spec.pooler === undefined ? {} : { topology: { name: spec.plan.split(".")[0]!, hops: [spec.pooler] } }),
   ...(spec.observer === "server" ? { observer: "server" as const } : {}),
   sysctls: sysctlsOf(linuxValues(spec.linux)),
   probe: {
