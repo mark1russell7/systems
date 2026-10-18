@@ -217,14 +217,24 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
       probe: { mode: "inflight", keepalive: false, driver: { name: "pg" } },
       fault: "rst",
       topology: { name: "T10", hops: [pgbouncer] },
-      // the reset ends the socket of PgBouncer to the server: PgBouncer then closes the client
-      prediction: { detects: true, timer: "the reset of the server", errno: "EOF", from: "request-sent", low: s(0), high: s(1) },
+      // the reset ends the socket of PgBouncer to the server: PgBouncer then sends the client a
+      // FATAL error and closes it. pg writes after that close, thus its socket ends with EPIPE: the
+      // fail line of the query ends the band
+      prediction: {
+        detects: true,
+        timer: "the reset of the server",
+        errno: "08P01",
+        from: "request-sent",
+        low: s(0),
+        high: s(1),
+        driver: { socket: "pool", ends: { ev: "fail", where: { n: 2 }, name: "code" } },
+      },
       runs: 1,
       environments: 1,
     };
     const result = await runCell(cell);
     const [read] = result.measured;
-    expect(read).toMatchObject({ outcome: { kind: "eof" }, void: null, finding: null });
+    expect(read).toMatchObject({ void: null, finding: null });
     // PgBouncer sends FATAL 08P01 'server conn crashed?' before it closes the client (src/server.c:806-815)
     const fail = result.runs[0]?.events.find((event) => event.ev === "fail" && event["n"] === 2);
     expect(fail).toMatchObject({ code: "08P01", message: "server conn crashed?" });
