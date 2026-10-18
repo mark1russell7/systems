@@ -40,8 +40,10 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `MONGODB_NODE` | `mongodb-node` | The MongoDB Node driver 7.7.0, for one server of a replica set | driver | 19 implemented |
 | `MONGOD_REPL` | `mongod-replication` | The replication of mongod 9.0.4: one member of a replica set | server | 29 implemented |
 | `MONGOD_SESSION` | `mongod-session` | One client connection of mongod 9.0.4 | server | 6 implemented |
+| `NODE_POSTGRES` | `node-postgres` | node-postgres 8.23.1 with pg-pool 3.14.0: one client of a `pg.Pool` | driver | 30 implemented, 2 documented, 1 derived |
+| `POSTGRES_SESSION` | `postgres-session` | One client connection of a PostgreSQL 17.11 backend | server | 40 implemented, 2 documented |
 
-Eleven documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel and the replication of mongod operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
+Thirteen documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel and the replication of mongod operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
 
 The package also gives these parts:
 
@@ -86,6 +88,12 @@ A document changes only for one of two reasons:
 A change to the version of a system changes its sources too. Each fact of the document then cites the new version.
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
+
+### 0.3.1
+
+- **PostgreSQL.** Two documents give the first systems of the PG catalog, each from its source at its tag or its npm version:
+  - `node-postgres`: pg 8.23.1 with pg-pool 3.14.0. At the defaults, no timer bounds the connect, a checkout from a full pool or a query. The pool removes an idle client after 10 s, and it emits `error` when an idle client fails. No socket of pg has keepalive, and neither package sends a query again.
+  - `postgres-session`: a backend of PostgreSQL 17.11 (`REL_17_11`, the image `postgres:17.11`). It turns on SO_KEEPALIVE, and at its defaults the keepalive sysctls of the namespace apply. Each timeout is off at 0. A send to a lost client waits with no timeout, thus the kernel or SIGTERM ends it.
 
 ### 0.3.0
 
