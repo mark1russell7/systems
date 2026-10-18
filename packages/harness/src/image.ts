@@ -64,6 +64,8 @@ const SHIPPED: Readonly<Record<Shipped, ShippedContext>> = {
   procedures: { name: "loom-harness-procedures", dockerfile: "harness/image/procedures/Dockerfile", from: ["harness/image/procedures"] },
   // the router of a middlebox chain: NAT and conntrack, with a form for a forgotten flow
   router: { name: "loom-harness-router", dockerfile: "harness/image/router/Dockerfile", from: ["harness/image/router"] },
+  // PgBouncer 1.26.1, a pooler hop: built from its release tarball, by its SHA-256
+  pgbouncer: { name: "loom-harness-pgbouncer", dockerfile: "harness/image/pgbouncer/Dockerfile", from: ["harness/image/pgbouncer"] },
 };
 
 /** These are the names of the images that the harness ships. */

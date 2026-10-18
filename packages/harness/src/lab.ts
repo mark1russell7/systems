@@ -356,8 +356,17 @@ const shared = (Base: typeof Testcontainers.GenericContainer) =>
     }
   };
 
-/** This function gives the content of a file of a proxy, with the address of the next hop for each {{next}}. */
-export const templated = (content: string, next: string): string => content.replaceAll("{{next}}", next);
+/**
+ * This function gives the content of a file of a proxy. Each {{next}} becomes the address and the
+ * port of the next hop. Each {{next.host}} and {{next.port}} becomes one of the two.
+ */
+export const templated = (content: string, next: string): string => {
+  const at = next.lastIndexOf(":");
+  return content
+    .replaceAll("{{next.host}}", next.slice(0, at))
+    .replaceAll("{{next.port}}", next.slice(at + 1))
+    .replaceAll("{{next}}", next);
+};
 
 /** This function gives the JSON body of a toxic for the API of Toxiproxy. Each toxic of a cell has the name `fault`. */
 export const toxicBody = (toxic: Toxic): string =>
@@ -613,7 +622,7 @@ export const openLab = async (
         continue;
       }
       const next = endpointOf(at + 1);
-      let proxy = new GenericContainer(hop.image).withNetwork(targetSide);
+      let proxy = new GenericContainer(await imageOf(hop.image)).withNetwork(targetSide);
       if (hop.command !== undefined) proxy = proxy.withCommand([...hop.command]);
       if (hop.files !== undefined)
         proxy = proxy.withCopyContentToContainer(
@@ -973,7 +982,7 @@ export const openLab = async (
             out.push({
               name: box.name,
               kind: box.kind,
-              image: box.kind === "router" ? await routerImage() : box.image,
+              image: box.kind === "router" ? await routerImage() : await imageOf(box.image),
               id: (await inspect(hop.box)).Image,
               settings:
                 box.kind === "router"
