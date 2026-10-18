@@ -544,7 +544,7 @@ Each stage band of T12 includes the error of the stamps of the observer: 0.705 m
 - **Depends on:** S1
 - **Started:** 2026-10-18
 - **Shipped:**
-- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [6 cells](https://github.com/mark1russell7/systems/actions/runs/39096843868), [Idle cell](https://github.com/mark1russell7/systems/actions/runs/39098339096), [7 cells](https://github.com/mark1russell7/systems/actions/runs/39101376487), [Connect cells](https://github.com/mark1russell7/systems/actions/runs/39103033893)
+- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [6 cells](https://github.com/mark1russell7/systems/actions/runs/39096843868), [Idle cell](https://github.com/mark1russell7/systems/actions/runs/39098339096), [7 cells](https://github.com/mark1russell7/systems/actions/runs/39101376487), [Connect cells](https://github.com/mark1russell7/systems/actions/runs/39103033893), [#76](https://github.com/mark1russell7/systems/pull/76), [Keepalive cell](https://github.com/mark1russell7/systems/actions/runs/39111986991)
 
 The next system of the S1 order, with its clients and PgBouncer. At its defaults and its borders, the plan of R3 has 329 cells with PostgreSQL. HikariCP with pgjdbc is the client of 160 of them, Npgsql of 47 and node-postgres of 36. T10, through a pooler, has 132 of them.
 
@@ -573,7 +573,10 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
   - The borders of O13 hold (#75). A read timeout of 9 s and 11 s closes the socket of a query in a black hole. The two are on each side of the slowest poll of 10 s.
     - The JDK waits for a read in poll(), and Linux ends that wait up to 0.1 % of its time late. The first cells measured it: 11.35 ms late at 11 s. The document gets that slack (machines 0.3.3).
     - The close of the socket ends the band. The fail line comes up to 9 ms later, when a new JVM builds the exception of pgjdbc.
-  - The other 15 T01 cells of HikariCP wait, each with its reason. The next ones are the keepalive behind a black hole, and the borders of O15.
+  - The keepalive of the pool holds behind a black hole, with 11 runs (#76). It came 96.3 to 103.2 s after the connection, inside the 96 to 120 s of the document.
+    - Its empty query is the first segment after the fault. The read timeout of the check closes the socket 5.003 s after that query (validationTimeout 5 s).
+    - The harness counts from that segment (reference `first-sent`, harness 0.11.5).
+  - The other 14 T01 cells of HikariCP wait, each with its reason. The next ones are the borders of O15.
 - Then PgBouncer and T10.
 
 ### RABBIT · RabbitMQ
