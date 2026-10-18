@@ -67,6 +67,7 @@ const run = async (p: Permutation, seed: number): Promise<{ trip: number; recove
     .liveness(p.policy === "liveness" ? p.timing : other)
     .startup(s(60))
     .phase("drain", s(1))
+    .onRepeatSignal("ignore")
     .cooperativeWindow(s(1));
   const health = await svc.start({ clock, random });
   const changes: Array<{ at: number; tripped: boolean }> = [];
@@ -144,6 +145,7 @@ describe("the bounds are reached, thus the algebra is tight", () => {
       .liveness(timing)
       .startup(s(60))
       .phase("drain", s(1))
+      .onRepeatSignal("ignore")
       .cooperativeWindow(s(1));
     const health = await svc.start({ clock, random: () => random });
     let trippedAt: number | null = null;

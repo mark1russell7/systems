@@ -43,6 +43,7 @@ describe("in real time", () => {
       .liveness({ type: "window", failAfter: ms(10_000) })
       .startup(ms(1000))
       .phase("drain", ms(10))
+      .onRepeatSignal("ignore")
       .cooperativeWindow(ms(10));
     const health = await svc.start();
     expect(health.verdict().ready).toBe(true);
@@ -73,6 +74,7 @@ describe("in real time", () => {
       .liveness({ type: "window", failAfter: ms(10_000) })
       .startup(ms(1000))
       .phase("drain", ms(10))
+      .onRepeatSignal("ignore")
       .cooperativeWindow(ms(10));
     const health = await svc.start();
     expect(health.verdict().ready).toBe(true);

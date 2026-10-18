@@ -134,6 +134,7 @@ const scenarios = async (): Promise<Array<{ name: string; events: LifecycleEvent
       .liveness({ type: "window", failAfter: s(3), recoverAfter: s(2) })
       .startup(s(10))
       .phase("drain", s(1))
+      .onRepeatSignal("ignore")
       .cooperativeWindow(s(0));
     const health = await svc.start({ clock, random: seeded(1), record: (event) => events.push(event) });
     await clock.advance(1500);

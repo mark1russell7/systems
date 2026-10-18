@@ -128,11 +128,11 @@ describe("the shutdown, in its declared phases (A6, A8, A9, A12, A14)", () => {
     void life.shutdown();
     await r.clock.advance(500);
     // during the readiness hold, the platform can still route a request here: it is served
-    const during = await life.request("api", "GET /things", () => "ok");
-    expect(during).toEqual({ kind: "done", value: "ok" });
+    const during = await life.request("api", "GET /things", () => "ok").collect();
+    expect(during).toEqual({ items: ["ok"], end: { kind: "done", delivered: 1 } });
     await r.clock.advance(1000);
-    const after = await life.request("api", "GET /things", () => "ok");
-    expect(after).toMatchObject({ kind: "refused", status: 503, retryable: true });
+    const after = await life.request("api", "GET /things", () => "ok").collect();
+    expect(after).toEqual({ items: [], end: { kind: "refused", status: 503, retryable: true, cause: "the service stopped its intake", delivered: 0 } });
     await exited(r, life);
   });
 
@@ -140,37 +140,39 @@ describe("the shutdown, in its declared phases (A6, A8, A9, A12, A14)", () => {
     const r = rig();
     const life = await run(r);
     const forever = () => new Promise<string>(() => {});
-    const get = life.request("api", "GET /things", forever);
-    const post = life.request("api", "POST /things", forever);
-    const charge = life.request("api", "POST /charges", forever);
+    const get = life.request("api", "GET /things", forever).collect();
+    const post = life.request("api", "POST /things", forever).collect();
+    const charge = life.request("api", "POST /charges", forever).collect();
     void life.shutdown();
     await exited(r, life);
-    expect(await get).toMatchObject({ kind: "cut", status: 503, retryable: true });
-    expect(await post).toMatchObject({ kind: "cut", status: 500, retryable: false });
+    expect((await get).end).toMatchObject({ kind: "cut", status: 503, retryable: true, delivered: 0 });
+    expect((await post).end).toMatchObject({ kind: "cut", status: 500, retryable: false, delivered: 0 });
     // a keyed route can go again only while the server keeps its key: 1 s, and the drain took longer
-    expect(await charge).toMatchObject({ kind: "cut", status: 500, retryable: false });
+    expect((await charge).end).toMatchObject({ kind: "cut", status: 500, retryable: false });
   });
 
   it("aborts the requests in flight at the cooperative abort, the cap less the window", async () => {
     const r = rig({ window: s(1) });
     const life = await run(r);
     let abortedAt: number | null = null;
-    const cooperative = life.request(
-      "api",
-      "GET /things",
-      (signal) =>
-        new Promise<string>((_, reject) =>
-          signal.addEventListener("abort", () => {
-            abortedAt = r.clock.now();
-            reject(new Error("aborted"));
-          }),
-        ),
-    );
+    const cooperative = life
+      .request(
+        "api",
+        "GET /things",
+        (signal) =>
+          new Promise<string>((_, reject) =>
+            signal.addEventListener("abort", () => {
+              abortedAt = r.clock.now();
+              reject(new Error("aborted"));
+            }),
+          ),
+      )
+      .collect();
     void life.shutdown();
     await exited(r, life);
     const enter = r.events.find((event) => event.machine === "drain" && event.to === "drain")!;
     expect(abortedAt! - enter.at).toBe(cooperativeAbortAt(CAPS.drain * 1000, s(1)));
-    expect(await cooperative).toMatchObject({ kind: "cut", status: 503, retryable: true });
+    expect((await cooperative).end).toMatchObject({ kind: "cut", status: 503, retryable: true });
   });
 
   it("refuses a request on a route that its controller does not declare, or on an unknown controller", async () => {
@@ -187,8 +189,8 @@ describe("the shutdown, in its declared phases (A6, A8, A9, A12, A14)", () => {
     const life = await run(r);
     r.checks.cache.behavior = "error";
     await r.clock.advance(4000);
-    expect(await life.request("stats", "GET /stats", () => 1)).toMatchObject({ kind: "refused", status: 503 });
-    expect(await life.request("api", "GET /things", () => 1)).toEqual({ kind: "done", value: 1 });
+    expect((await life.request("stats", "GET /stats", () => 1).collect()).end).toMatchObject({ kind: "refused", status: 503 });
+    expect(await life.request("api", "GET /things", () => 1).collect()).toEqual({ items: [1], end: { kind: "done", delivered: 1 } });
     void life.shutdown();
     await exited(r, life);
   });
@@ -234,6 +236,7 @@ describe("the declaration of a lifecycle has no defaults", () => {
       .readiness({ type: "debounce", interval: s(1), failAfter: 3, recoverAfter: 1 })
       .liveness({ type: "window", failAfter: s(5) })
       .startup(s(10))
+      .onRepeatSignal("ignore")
       .cooperativeWindow(s(1));
 
   it("refuses the stages of the shutdown out of their sequence", () => {

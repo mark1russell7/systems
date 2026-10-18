@@ -79,6 +79,7 @@ const started = async (c: Case) => {
     .startup(s(10))
     .phase("stop the poller", s(1))
     .phase("tear down dependencies", s(1))
+    .onRepeatSignal("ignore")
     .cooperativeWindow(s(0.5));
   client.attach(svc, { poll, steps: { "round-trip": gateOf(c.posture) } });
   let life: Lifecycle | null = null;

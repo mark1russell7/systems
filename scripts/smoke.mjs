@@ -175,6 +175,7 @@ try {
         .liveness({ type: "window", failAfter: s(45) })
         .startup(s(60))
         .phase("drain", s(15))
+        .onRepeatSignal("ignore")
         .cooperativeWindow(s(5));
       check(svc.describe().format === module.FORMAT, "service describes a declaration");
       const bound = module.serviceBindings(svc.describe(), { platform: {}, probes: { readiness: s(30), liveness: s(30) } }).bind;
@@ -194,6 +195,7 @@ try {
         .liveness({ type: "window", failAfter: s(45) })
         .startup(s(60))
         .phase("drain", s(15))
+        .onRepeatSignal("ignore")
         .cooperativeWindow(s(5));
       const health = await live.start({ clock, random: testing.seeded(1) });
       check(health.probe("readiness").status === 200, "service starts its health runtime, and it is ready");
@@ -211,6 +213,7 @@ try {
         .startup(s(60))
         .phase("fail readiness", s(1))
         .phase("drain", s(2))
+        .onRepeatSignal("ignore")
         .cooperativeWindow(s(1));
       const life = await exits.run({ clock: runClock, random: testing.seeded(1), process });
       check(life.state === "running", "service runs its lifecycle");

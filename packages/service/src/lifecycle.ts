@@ -7,8 +7,9 @@ import type { MachineName } from "./events.ts";
 import type { Health, Runtime, StartOptions } from "./health.ts";
 import type { ExitTrigger, ProcessPort } from "./process.ts";
 import { EXIT_SIGNALS, isExitCode, isExitSignal, nodeProcess } from "./process.ts";
-import type { RequestFn, RequestOutcome } from "./requests.ts";
+import type { RequestFn, RequestOptions, RequestStream } from "./requests.ts";
 import { tracker } from "./requests.ts";
+import type { OperationOf } from "./routes.ts";
 
 /**
  * A transport is a source of work: a server, a consumer or a worker. Each has one contract. It
@@ -142,10 +143,12 @@ export interface Lifecycle {
    */
   shutdown(cause?: string, options?: ShutdownOptions): Promise<number>;
   /**
-   * This method does one request of a controller, on a route that the controller declares. The
-   * service refuses it while it cannot take new work, and the shutdown can cut it.
+   * This method does one request of a controller, on a route or a route pattern that the controller
+   * declares. It gives the stream of the request: each item of the work, then one end. The service
+   * refuses the request while it cannot take new work, and the shutdown can cut it. An undeclared
+   * route throws, because it has no idempotency.
    */
-  request<T>(controller: string, route: string, work: RequestFn<T>): Promise<RequestOutcome<T>>;
+  request<T>(controller: string, route: string, work: RequestFn<T>, options?: RequestOptions): RequestStream<T>;
   inFlight(controller?: string): number;
   /**
    * This method tells if a response can keep its connection open. It is false while the service is
@@ -160,6 +163,8 @@ export interface Components {
   readonly dependencies: ReadonlyMap<string, DependencyHandle>;
   readonly healthServer: HealthServer | null;
   readonly phaseWork: ReadonlyMap<string, readonly PhaseWork[]>;
+  /** These are the functions of the route patterns, by controller and by pattern. */
+  readonly choices?: ReadonlyMap<string, ReadonlyMap<string, OperationOf>> | undefined;
   /** This function stops the parts that the poller stage stops beside the checks: the watchdogs. */
   readonly stopPollers: () => void;
 }
@@ -221,7 +226,7 @@ export const lifecycle = (
   const service = new AbortController();
   const errors: string[] = [];
   const exitCodes = description.shutdown.exitCodes ?? {};
-  const repeatPolicy = description.shutdown.onRepeatSignal ?? "ignore";
+  const repeatPolicy = description.shutdown.onRepeatSignal;
   let state: LifecycleState = "starting";
   let exitCode: number | null = null;
   // the code of the first exit request that gives one
@@ -248,7 +253,7 @@ export const lifecycle = (
     // still route a request to it until its endpoints update
     if (state === "draining") return null;
     return runtime.verdict().controllers[controller] === true ? null : `controller ${controller} is not ready`;
-  });
+  }, components.choices);
 
   let finish: (code: number) => void = () => {};
   const done = new Promise<number>((resolve) => {
@@ -450,7 +455,7 @@ export const lifecycle = (
     done,
     signal: service.signal,
     shutdown,
-    request: (controller, route, work) => requests.request(controller, route, work),
+    request: (controller, route, work, request) => requests.request(controller, route, work, request),
     inFlight: (controller) => requests.inFlight(controller),
     keepAlive: () => state === "running" && runtime.verdict().ready,
   };
@@ -461,9 +466,9 @@ export const lifecycle = (
   );
 
   void (async (): Promise<void> => {
-    runtime.beginStartup();
     const started = (what: string): void => record("gate", "starting", "starting", "component.started", what);
     try {
+      runtime.beginStartup();
       if (components.healthServer !== null) {
         await components.healthServer.listen(runtime);
         healthListening = true;

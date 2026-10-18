@@ -89,6 +89,7 @@ describe("two components under one service and one run() (SYS-8)", () => {
       .phase("stop the poller", s(1))
       .phase("tear down dependencies", s(1))
       .phase("close the health server", s(1))
+      .onRepeatSignal("ignore")
       .cooperativeWindow(s(1));
     svc.controller("app.api").requires("app.db").route("GET /things", { idempotent: true });
     svc.controller("ingest.api").requires("ingest.db").route("POST /ingest", { idempotent: true });
@@ -114,7 +115,7 @@ describe("two components under one service and one run() (SYS-8)", () => {
     expect(life.health.verdict()).toMatchObject({ ready: true, controllers: { "app.api": true, "ingest.api": true } });
     // each transport has the one lifecycle of the process
     expect(lives).toEqual([life, life]);
-    expect(await life.request("ingest.api", "POST /ingest", () => "stored")).toEqual({ kind: "done", value: "stored" });
+    expect(await life.request("ingest.api", "POST /ingest", () => "stored").collect()).toEqual({ items: ["stored"], end: { kind: "done", delivered: 1 } });
 
     log.length = 0;
     process.signal("SIGTERM");

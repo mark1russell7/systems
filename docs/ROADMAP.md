@@ -219,7 +219,7 @@ The transports start before the startup ends, but `run()` gives `life.request` o
 - **Depends on:** S6
 - **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#50](https://github.com/mark1russell7/systems/pull/50), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 A controller can declare a path pattern, and a function gives the idempotency of each request. Thus the service tracks a registry of procedures that changes while it operates.
 
@@ -227,12 +227,12 @@ A controller can declare a path pattern, and a function gives the idempotency of
 
 - **Status:** in progress
 - **Area:** server stack
-- **Depends on:** SYS-1
+- **Depends on:** S6
 - **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#50](https://github.com/mark1russell7/systems/pull/50), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-A request stays in flight until its stream ends. A failure after the first item ends the stream with an error line, not a 503. The cooperative abort ends the stream. This change breaks the API, thus it comes in service 0.5.0.
+A request stays in flight until its stream ends. A failure after the first item ends the stream with an error line, not a 503. The cooperative abort ends the stream. This change breaks the API, thus it comes in service 0.5.0. The client streams and the conformance kit of SYS-4 complete the item.
 
 ### SYS-7 · A stop when stdin closes, and a minimal profile
 
@@ -252,9 +252,9 @@ A stdio process, for example an MCP host, stops through the staged shutdown when
 - **Depends on:** S6
 - **Started:** 2026-10-17
 - **Shipped:** 2026-10-18
-- **Links:** [#48](https://github.com/mark1russell7/systems/pull/48), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#48](https://github.com/mark1russell7/systems/pull/48), [#50](https://github.com/mark1russell7/systems/pull/50), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-A declaration tells what a second signal does: `ignore`, as today, or `exit`. The local development profile uses `exit`.
+Each declaration tells what a second signal does: `ignore`, as in 0.4, or `exit`. In 0.5.0 `describe()` refuses a declaration without it, and `lint()` names a description without it. The profiles for a terminal use `exit`, and the profiles for a supervised host use `ignore`. jarvisService declares it at JAR-4.
 
 ### SYS-10 · Profiles as data
 
@@ -263,9 +263,9 @@ A declaration tells what a second signal does: `ignore`, as today, or `exit`. Th
 - **Depends on:** S6
 - **Started:** 2026-10-17
 - **Shipped:** 2026-10-18
-- **Links:** [#48](https://github.com/mark1russell7/systems/pull/48), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#48](https://github.com/mark1russell7/systems/pull/48), [#50](https://github.com/mark1russell7/systems/pull/50), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-Exported profiles fill the phases, the cooperative window and the policies. A caller spreads them. The Kubernetes profile gets the caps from the grace period and the preStop delay.
+Exported profiles fill the phases, the cooperative window and the policies. A caller spreads them. The Kubernetes profile gets the caps from the grace period and the preStop delay. The profile `daemon` is for a background host, with the caps of local development.
 
 ### SYS-12 · An optional zod
 
@@ -276,7 +276,18 @@ Exported profiles fill the phases, the cooperative window and the policies. A ca
 - **Shipped:** 2026-10-18
 - **Links:** [#48](https://github.com/mark1russell7/systems/pull/48), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-The root of the service does not use zod at run time. Thus zod becomes an optional peer dependency. The algebra keeps zod as a necessary peer, because its root uses zod.
+The root of the service does not use zod at run time. Thus zod becomes an optional peer dependency. The algebra keeps zod as a necessary peer, because its root uses zod. SYS-19 changes that.
+
+### SYS-19 · The zod schemas of the algebra in an entry of their own
+
+- **Status:** later
+- **Area:** server stack
+- **Depends on:** SYS-12
+- **Started:**
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+The zod schemas of `@mark1russell7/algebra` move into a new entry, `./schema`, as in `quantity`. Then zod becomes an optional peer of the algebra too. The root of the algebra no longer gives the schemas, thus the change breaks its API and comes in algebra 0.8.0.
 
 ### SYS-16 · run() for a process that runs one command
 

@@ -62,18 +62,21 @@ let inFlight = 0;
 const serve = (life) => async (req, res) => {
   inFlight += 1;
   try {
-    const outcome = await life.request(CONTROLLER, ROUTE, async (signal) => {
-      if (redis !== undefined) {
-        const sent = await redis.send("GET", ["lab"], { signal });
-        if (sent.outcome !== "ok") throw new Error(`redis ${sent.outcome}: ${sent.error}`);
-      }
-      return pod;
-    });
+    // a unary work is a stream of one item: the item is the answer, else the end gives the status
+    const { items, end } = await life
+      .request(CONTROLLER, ROUTE, async (signal) => {
+        if (redis !== undefined) {
+          const sent = await redis.send("GET", ["lab"], { signal });
+          if (sent.outcome !== "ok") throw new Error(`redis ${sent.outcome}: ${sent.error}`);
+        }
+        return pod;
+      })
+      .collect();
     const headers = { "content-type": "text/plain" };
     if (!life.keepAlive()) headers.connection = "close";
-    if (outcome.kind === "done") res.writeHead(200, headers).end(String(outcome.value));
-    else if (outcome.kind === "failed") res.writeHead(503, headers).end(`failed: ${outcome.error?.message ?? outcome.error}`);
-    else res.writeHead(outcome.status, headers).end(`${outcome.kind}: ${outcome.cause}`);
+    if (end.kind === "done") res.writeHead(200, headers).end(String(items[0]));
+    else if (end.kind === "failed") res.writeHead(503, headers).end(`failed: ${end.error?.message ?? end.error}`);
+    else res.writeHead(end.status ?? 500, headers).end(`${end.kind}: ${end.cause}`);
   } finally {
     inFlight -= 1;
   }

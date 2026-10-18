@@ -165,14 +165,41 @@ const dependencyBindings = (dependency: Dependency, scenario: Scenario): Record<
 
 const SCOPED = /@(client|dependency|server)$/;
 
-/** This function applies each service rule to a declaration and a scenario: one time for the service, and one time for each client. */
+/** This identifier is the rule of the findings about a field that the declaration does not give. */
+export const DECLARATION_RULE = "declaration";
+
+/**
+ * This function gives a finding for each field of the shutdown that a description does not give.
+ * `describe()` refuses such a declaration. A description from another source, for example the
+ * JSON of 0.4, can lack the field. The verdict is `depends`, and `unbound` names the field.
+ */
+const declarationFindings = (svc: ServiceDescription): Finding[] =>
+  (svc.shutdown as { onRepeatSignal?: unknown }).onRepeatSignal === undefined
+    ? [
+        {
+          rule: DECLARATION_RULE,
+          scope: svc.name,
+          verdict: "depends",
+          statement: "the declaration tells what a signal does while the shutdown runs: ignore or exit",
+          window: "a repeat signal has no declared effect",
+          evaluated: [],
+          unbound: ["shutdown.onRepeatSignal"],
+        },
+      ]
+    : [];
+
+/**
+ * This function applies each service rule to a declaration and a scenario: one time for the
+ * service, and one time for each client. It also gives a finding for each necessary field that the
+ * description does not give (`DECLARATION_RULE`).
+ */
 export const lint = (
   svc: ServiceDescription,
   scenario: Scenario,
   rules: readonly Rule[],
 ): Finding[] => {
   const service = serviceBindings(svc, scenario).bind;
-  const findings: Finding[] = [];
+  const findings: Finding[] = [...declarationFindings(svc)];
   for (const rule of rules) {
     if (!SERVICE_RULES.includes(rule.id)) continue;
     const symbols = symbolsOf(rule);

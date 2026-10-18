@@ -3,7 +3,7 @@ import { valueIn } from "@mark1russell7/quantity";
 import { timerOf } from "@mark1russell7/algebra";
 import { describe, expect, it } from "vitest";
 import type { LifecycleEvent } from "./events.ts";
-import type { RequestOutcome } from "./index.ts";
+import type { RequestEnd } from "./index.ts";
 import { cooperativeAbortAt, drainMachine } from "./index.ts";
 import type { Rig } from "./rig.ts";
 import { CAPS, exited, rig, run } from "./rig.ts";
@@ -47,18 +47,24 @@ const WINDOWS: Array<[string, Extent]> = [
 ];
 
 /** This function starts the request of a flight, or nothing. */
-const fly = (r: Rig, life: Awaited<ReturnType<typeof run>>, flight: Flight): Promise<RequestOutcome<string>> | null => {
+const fly = (
+  r: Rig,
+  life: Awaited<ReturnType<typeof run>>,
+  flight: Flight,
+): Promise<{ readonly items: readonly string[]; readonly end: RequestEnd }> | null => {
   const route = flight.includes("not idempotent") ? "POST /things" : "GET /things";
   if (flight === "none") return null;
   if (flight === "idempotent, ends in time")
-    return life.request("api", route, () => new Promise<string>((resolve) => r.clock.after(300, () => resolve("ok"))));
+    return life.request("api", route, () => new Promise<string>((resolve) => r.clock.after(300, () => resolve("ok")))).collect();
   if (flight.startsWith("cooperative"))
-    return life.request(
-      "api",
-      route,
-      (signal) => new Promise<string>((_, reject) => signal.addEventListener("abort", () => reject(new Error("stopped")))),
-    );
-  return life.request("api", route, () => new Promise<string>(() => {}));
+    return life
+      .request(
+        "api",
+        route,
+        (signal) => new Promise<string>((_, reject) => signal.addEventListener("abort", () => reject(new Error("stopped")))),
+      )
+      .collect();
+  return life.request("api", route, () => new Promise<string>(() => {})).collect();
 };
 
 const phaseSpans = (events: readonly LifecycleEvent[]) => {
@@ -136,9 +142,9 @@ describe("the shutdown, by permutation: the signal × the drain's cap × the wor
     // the answer of the request
     if (outcome !== null) {
       const answer = await outcome;
-      if (flight === "idempotent, ends in time") expect(answer, label).toEqual({ kind: "done", value: "ok" });
-      else if (flight.includes("not idempotent")) expect(answer, label).toMatchObject({ kind: "cut", status: 500, retryable: false });
-      else expect(answer, label).toMatchObject({ kind: "cut", status: 503, retryable: true });
+      if (flight === "idempotent, ends in time") expect(answer, label).toEqual({ items: ["ok"], end: { kind: "done", delivered: 1 } });
+      else if (flight.includes("not idempotent")) expect(answer.end, label).toMatchObject({ kind: "cut", status: 500, retryable: false, delivered: 0 });
+      else expect(answer.end, label).toMatchObject({ kind: "cut", status: 503, retryable: true, delivered: 0 });
     }
 
     // the exit: one, clean, with no handler and no timer left
