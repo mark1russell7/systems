@@ -167,6 +167,10 @@ describe("a run measured against its cell, from the kernel's own records", () =>
     expect(measure(IN_FLIGHT, run(events, kernel, { t0: sent + 1e6, t1: sent + 5e6 })).void).toBe(
       "the request went out before the fault held",
     );
+    // a retransmission of the RTO timer before the fault held, the SYN of a connect, is not the reference
+    const syn = measure(IN_FLIGHT, run(events, [retrans(T - 2_400_000, "rto", 0), ...kernel], { t0: T + 100e6, t1: T + 104e6 }));
+    expect(syn.elapsed).toEqual(s(6.4191));
+    expect(syn.steps).toEqual([s(0.4362), s(1.2674), s(2.9319)]);
   });
 
   it("times a stall's recovery from the send to the first segment back after it ended", () => {
