@@ -359,12 +359,12 @@ A change of the version on main makes `release.yml` publish it. It is a MINOR, b
 
 ### REL-4 · Service 0.5.1 with the worker loop, the queue drain and the IPC trigger
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** SYS-14, SYS-21
 - **Started:** 2026-10-18
-- **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Shipped:** 2026-10-18
+- **Links:** [#69](https://github.com/mark1russell7/systems/pull/69), [npm](https://www.npmjs.com/package/@mark1russell7/service/v/0.5.1), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 This release publishes `workerLoop`, `queueDrain`, `redeliverOnce`, the trigger `ipc-message` and the hold of the process (#66). It is a PATCH, because each change adds an export or an option before 1.0, and nothing is removed. Graph (GRAPH-6) and jarvis (JAR-4) then use the helpers from npm.
 
@@ -391,6 +391,39 @@ The source of an image is an image pinned by digest, a build context, or an imag
 - **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 After CLI-33, the client owns the image of its procedures subject. Then the harness removes `image/procedures`, and the README of the harness no longer describes that image.
+
+### SYS-24 · The progress check names the loops that mark it
+
+- **Status:** later
+- **Area:** server stack
+- **Depends on:** SYS-14
+- **Started:**
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+A check of the kind `progress` fires when no loop marks progress in its stall time. Today each app gives that time by hand: jarvis gives 370 s for its weather poll (JAR-4). With a field `marks`, the check names its loops. Then `lint()` finds a stall time that is shorter than the interval of the slowest loop, with its jitter and its timeout. It is a PATCH: an optional field and a new finding.
+
+### SYS-25 · The pairing window from the jitter of the runner
+
+- **Status:** later
+- **Area:** engines
+- **Depends on:**
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A run pairs each event of a program with its record of the kernel in δ_abs, 1 ms. On a runner of GitHub the jitter of a program is 1.06 to 1.74 ms, thus a single run can fail on it. The harness measures that jitter in each run and records it, and δ_abs is the larger of 1 ms and the measured bound. A verdict that fails a cell only when its miss repeats changes how a verdict counts. Mark ruled the void threshold on 2026-10-16, thus that part is a question for Mark.
+
+### SYS-26 · The image of the kind lab goes through the resolver of images
+
+- **Status:** later
+- **Area:** engines
+- **Depends on:** SYS-17
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+The kind lab builds its image with its own code. As a `build` source of SYS-17, it goes through `planOf` and `imageOf`. Then their rules apply: each FROM has a digest, and each manifest of packages has a lockfile.
 
 ## The systems of S1
 
@@ -500,9 +533,9 @@ Each stage band of T12 includes the error of the stamps of the observer: 0.705 m
 - **Depends on:** S1
 - **Started:** 2026-10-18
 - **Shipped:**
-- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [The run of the six cells](https://github.com/mark1russell7/systems/actions/runs/39096843868), [The run of the idle cell](https://github.com/mark1russell7/systems/actions/runs/39098339096)
+- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [6 cells](https://github.com/mark1russell7/systems/actions/runs/39096843868), [Idle cell](https://github.com/mark1russell7/systems/actions/runs/39098339096), [7 cells](https://github.com/mark1russell7/systems/actions/runs/39101376487), [Connect cells](https://github.com/mark1russell7/systems/actions/runs/39103033893)
 
-The next system of the S1 order, with its clients and PgBouncer. The plan of R3 has 514 PG cells in 8 templates, and most of them are T10, through PgBouncer.
+The next system of the S1 order, with its clients and PgBouncer. At its defaults and its borders, the plan of R3 has 329 cells with PostgreSQL. HikariCP with pgjdbc is the client of 160 of them, Npgsql of 47 and node-postgres of 36. T10, through a pooler, has 132 of them.
 
 - The first step is two machine documents from their sources: node-postgres 8.23.1 with pg-pool 3.14.0, and a backend of PostgreSQL 17.11 (machines 0.3.1, #62).
 - The harness has a client of node-postgres and a target of PostgreSQL 17.11 (harness 0.11.2, #64).
@@ -511,7 +544,18 @@ The next system of the S1 order, with its clients and PgBouncer. The plan of R3 
   - An unreachable host gives EHOSTUNREACH at 3.120 s, when the kernel stops with `tcp_retries2 = 3`.
   - A stall of 1 s recovers in 1.643 s. A frozen server has no detector in 60 s.
   - Behind a black hole, the pool ends its idle client at its idle timer, 10.004 s after the last segment. The kernel stamps the FIN of the pool. The pool emits `remove` only when the socket closes, and behind a black hole the FIN gets no answer.
-- Then T03 gets its cells through the NAT router, as the MongoDB catalog did. PgBouncer and T10 come after them.
+- Seven more T01 cells of node-postgres hold, with 11 runs each (#68):
+  - A reset of the SYN refuses the first connect in 3.1 ms (ECONNREFUSED).
+  - With no fault, the pool ends its idle client 10.004 s after the last segment, as behind a black hole.
+  - The server holds each reply 5 s. Nothing ends the query, and the reply comes at 5.006 s.
+  - `query_timeout` ends a query in a black hole at 9.503 s and 10.503 s, on each side of the slowest poll of 10 s (O13).
+  - `connectionTimeoutMillis` ends the first connect at 29.007 s and 31.009 s, on each side of the startup budget of 30 s (O15). The kernel gives up on the SYNs only at 131 s.
+  - A cell that starts into a fault counts from the first connect. The pg client writes a `connecting` line for it (harness 0.11.3).
+- Ten T01 cells of node-postgres wait, each with its reason:
+  - Three need a fault that the harness cannot make: a restart at the same address, a fault at a reply, and a blocked event loop.
+  - Write-write-read does not occur, because pg sets TCP_NODELAY.
+  - Six are borders: O03 through a router, and O07. They need a chain for PG, a client that the application holds, or a slow query only in the second query.
+- R3's plan has no T03 cell for node-postgres: each PostgreSQL cell of T03 has HikariCP as its client. The next client is HikariCP 7.1.0 over pgjdbc 42.7.13. Its machine document is in machines 0.3.2 (#70). Its client in the harness and its cells come next, then PgBouncer and T10.
 
 ### RABBIT · RabbitMQ
 
@@ -576,7 +620,7 @@ The run at main of 2026-10-18 has no failure either: 26 cells hold. The same cel
 - **Shipped:** 2026-10-17
 - **Links:** [npm](https://www.npmjs.com/~mark1russell7)
 
-quantity 0.2.0, algebra 0.7.1, service 0.5.0, prober 0.3.1, harness 0.11.2 and kind 0.1.7. CI publishes each version change of main.
+quantity 0.2.0, algebra 0.7.1, service 0.5.1, prober 0.3.1, harness 0.11.3 and kind 0.1.7. CI publishes each version change of main.
 
 ### MACHINES · The first version of @mark1russell7/machines
 
