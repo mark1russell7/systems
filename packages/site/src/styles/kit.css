@@ -904,18 +904,20 @@ code.sy-tag {
 /* The marks of a track take their place from the axis: a position in percent of the track. */
 .sy-border-track {
   position: relative;
-  height: 1.9rem;
+  display: flex;
+  align-items: center;
+  min-height: 1.9rem;
   margin-inline-end: 1.5rem;
   border-bottom: 1px solid var(--chart-grid);
 }
 
 .sy-border-top .sy-border-track {
-  height: 1.3rem;
+  min-height: 1.3rem;
   border-bottom: 0;
 }
 
 .sy-border-axis .sy-border-track {
-  height: 1.2rem;
+  min-height: 1.2rem;
   border-bottom: 0;
 }
 
@@ -953,13 +955,15 @@ code.sy-tag {
   transform: translate(-50%, -50%);
 }
 
-/* A note is on the line of the border, with the surface behind its text. */
-.sy-border-note {
+/*
+ * A note is in the flow of its track, thus a note on two lines makes its track taller and never covers
+ * the next track. It is on the line of the border, with the surface behind its text.
+ */
+.sy-border-track > .sy-border-note {
+  position: relative;
   z-index: 1;
-  inset-inline-start: 0.5rem;
+  margin: 0.3rem 0 0.3rem 0.5rem;
   max-width: calc(100% - 0.5rem);
-  top: 50%;
-  transform: translateY(-50%);
   padding: 0.05rem 0.35rem;
   background: var(--color-surface);
   color: var(--color-ink-muted);
