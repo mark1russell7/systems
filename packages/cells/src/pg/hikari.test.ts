@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { given, predict } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
 import { linuxValues } from "../mongo/model.ts";
-import { HIKARI_SLOWEST_POLL, T01_HIKARI, T01_HIKARI_SPECS, T01_HIKARI_WAITING, hikariFirstOn, hikariValues } from "./hikari.ts";
+import { HIKARI_SLOWEST_POLL, HIKARI_STARTUP_BUDGET, T01_HIKARI, T01_HIKARI_SPECS, T01_HIKARI_WAITING, hikariFirstOn, hikariValues } from "./hikari.ts";
 import { PG_TARGET } from "./t01.ts";
 
 const cell = (plan: string) => {
@@ -89,6 +89,23 @@ describe("the HikariCP catalog of T01", () => {
     // the keepalive comes at most 120 s after the creation of the connection, thus after the reply
     expect(valueIn(p.startsBy!, "s")).toBeCloseTo(120.01, 6);
     expect(p.driver).toBeUndefined();
+  });
+
+  it("fails the start of the pool after its check of 1 s, refused at once or after the connect timeout (O15)", () => {
+    const refused = cell("T01.defaults.59");
+    expect(refused.before).toBe(true);
+    expect(refused.prediction).toMatchObject({ detects: true, timer: "start_check", errno: "08001", from: "client-start", driver: { ends: { ev: "fail", where: { n: 1 }, name: "sqlState" } } });
+    if (refused.prediction.detects !== true) return;
+    expect(valueIn(refused.prediction.low, "s")).toBe(1);
+    expect(valueIn(refused.prediction.high, "s")).toBeLessThan(1.02);
+    const [inside, outside] = ["T01.border-off.197", "T01.border-off.198"].map(cell);
+    for (const each of [inside!, outside!]) expect(each.prediction, each.name).toMatchObject({ detects: true, timer: "connect_timeout", errno: "08001", from: "client-start" });
+    if (inside!.prediction.detects !== true || outside!.prediction.detects !== true) return;
+    // the connect timeout, the 1 ms left of its budget, and the sleep of 1 s of the check
+    expect(valueIn(inside!.prediction.low, "s")).toBeCloseTo(29.001, 6);
+    expect(valueIn(inside!.prediction.high, "s")).toBeLessThan(HIKARI_STARTUP_BUDGET);
+    expect(valueIn(outside!.prediction.low, "s")).toBeGreaterThan(HIKARI_STARTUP_BUDGET);
+    expect(inside!.driverOptions).toEqual({ "dataSource.connectTimeout": 28 });
   });
 
   it("refuses an option that is not a knob of the document", () => {

@@ -62,6 +62,8 @@ export const HIKARICP_PGJDBC: Machine = machineSchema.parse({
     { ref: `${HK}/pool/HikariPool.java:152-193 getConnection: a borrow waits up to connectionTimeout, and a connection idle for more than aliveBypassWindowMs is checked first. A dead one closes, and the borrow goes on in the time that remains`, rung: "implemented" },
     { ref: `${HK}/pool/HikariPool.java:183-184, :700-721 the timeout of a borrow: SQLTransientConnectionException 'Connection is not available, request timed out after', with the SQLState of the last failed creation`, rung: "implemented" },
     { ref: `${HK}/pool/HikariPool.java:745-787 the creator: one connection at a time, with a backoff from 10 ms to 5000 ms after a failure`, rung: "implemented" },
+    { ref: `${HK}/pool/HikariPool.java:567-599 checkFailFast: at the start of the pool, one attempt, then a sleep of 1 s after a failure, until initializationFailTimeout passes. Then PoolInitializationException, with the error of the last attempt`, rung: "implemented" },
+    { ref: `${HK}/HikariConfig.java:126 initializationFailTimeout 1 ms`, rung: "implemented" },
     { ref: `${HK}/util/UtilityElf.java:168-191 the adder and the closer each have one thread`, rung: "implemented" },
     { ref: `${HK}/pool/PoolBase.java:157-192 isConnectionDead: setNetworkTimeout(validationTimeout), then isValid(validationTimeout in whole seconds, at least 1). An exception or false is a dead connection`, rung: "implemented" },
     { ref: `${HK}/pool/PoolBase.java:416-456, :463-493 the setup of a new connection runs under setNetworkTimeout(validationTimeout), then gives back the network timeout of the driver`, rung: "implemented" },
@@ -94,6 +96,9 @@ export const HIKARICP_PGJDBC: Machine = machineSchema.parse({
     "[none]": { initial: true, pseudo: true, note: "Before the pool creates the connection, or before a borrow gets one" },
     waiting: { note: "A borrow of the application waits in the bag for a connection, up to connectionTimeout (HikariPool.java:152-193)" },
     connecting: { note: "The TCP connect of a new connection, with TCP_NODELAY and no keepalive at the defaults (PGStream.java:255-283)" },
+    "start-check": {
+      note: "The start of the pool after a failed attempt of its check: a sleep of 1 s, then one more attempt while initializationFailTimeout has not passed (HikariPool.java:567-599)",
+    },
     negotiating: { note: "The SSLRequest of sslmode prefer and its answer, with a read timeout of sslResponseTimeout (ConnectionFactoryImpl.java:646-720)" },
     startup: {
       note: "The startup message, the authentication, the first ReadyForQuery and SET application_name. Only socketTimeout bounds a read here, and it is off at the defaults",
@@ -139,6 +144,7 @@ export const HIKARICP_PGJDBC: Machine = machineSchema.parse({
     "timer.keepalive": { kind: "timer", note: "The keepalive task of the connection" },
     "timer.max-lifetime": { kind: "timer", note: "The lifetime of the connection ends" },
     "timer.idle": { kind: "timer", note: "A run of the housekeeper finds the connection idle for more than idleTimeout" },
+    "timer.start-check": { kind: "timer", note: "The sleep of 1 s of the start check ends" },
   },
   knobs: {
     connectionTimeout: {
@@ -189,6 +195,13 @@ export const HIKARICP_PGJDBC: Machine = machineSchema.parse({
       note: "A value of this document. The idle timer has an effect only when minimumIdle is below maximumPoolSize: then give idleTimeout. At the defaults the pool has a fixed size, thus 0 (off)",
     },
     maximumPoolSize: { key: "HikariCP maximumPoolSize", scope: "client", unit: "count", default: 10, note: "HikariConfig.java:56" },
+    initializationFailTimeout: {
+      key: "HikariCP initializationFailTimeout",
+      scope: "client",
+      unit: "ms",
+      default: 1,
+      note: "HikariConfig.java:126. Below 0, the pool does no check at its start. At 0, the pool starts after a failed check. Above 0, the check tries again each 1 s while it has not passed, and then the start fails (HikariPool.java:567-599). At 1 ms, the start fails after one attempt and one sleep",
+    },
     minimumIdle: {
       key: "HikariCP minimumIdle",
       scope: "client",
@@ -350,6 +363,13 @@ export const HIKARICP_PGJDBC: Machine = machineSchema.parse({
       fires: "timer.max-lifetime",
       note: "HikariPool.java:490-496: one time, at maxLifetime less a variance drawn one time for the connection: 22.5 to 30 min at the defaults",
     },
+    start_check: {
+      duration: { const: 1000, unit: "ms" },
+      lateness: { knob: "slack", unit: "ms" },
+      arms: ["enter:start-check"],
+      fires: "timer.start-check",
+      note: "HikariPool.java:592: quietlySleep of 1 s after each failed attempt of the check, on the thread that starts the pool",
+    },
     idle_timeout: {
       duration: { knob: "idle_eviction", unit: "ms" },
       lateness: { knob: "housekeepingPeriodMs", unit: "ms" },
@@ -420,6 +440,36 @@ export const HIKARICP_PGJDBC: Machine = machineSchema.parse({
       errno: "08001",
       note: "At prefer, the SocketTimeoutException starts one more connect with SSL off, with 1 ms of the budget left. It fails: 'The connection attempt failed.'",
       source: "ConnectionFactoryImpl.java:141-159, :195-208, :378-382, :430-440",
+    },
+    {
+      id: "hk.start-attempt-failed",
+      from: "connecting",
+      to: "start-check",
+      on: ["peer.rst", "socket.error", "timer.connect-timeout"],
+      guard: "the attempt is the check at the start of the pool, and initializationFailTimeout is 0 or more",
+      timer: "start_check",
+      note: "The attempt fails with 08001, and the start of the pool sleeps 1 s",
+      source: "HikariPool.java:567-599, ConnectionFactoryImpl.java:365-455",
+    },
+    {
+      id: "hk.start-failed",
+      from: "start-check",
+      to: "ended",
+      on: "timer.start-check",
+      timer: "start_check",
+      guard: "initializationFailTimeout has passed, and it is above 0",
+      errno: "PoolInitializationException",
+      note: "'Failed to initialize pool:' with the error of the last attempt as its cause: 08001 for a connect. The constructor of HikariDataSource throws it",
+      source: "HikariPool.java:592-598, :898-910",
+    },
+    {
+      id: "hk.start-again",
+      from: "start-check",
+      to: "connecting",
+      on: "timer.start-check",
+      timer: "connect_timeout",
+      guard: "initializationFailTimeout has not passed",
+      source: "HikariPool.java:574-593",
     },
     {
       id: "hk.connect-failed",

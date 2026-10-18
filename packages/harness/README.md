@@ -162,6 +162,7 @@ The harness ships eight images, each as a shipped source (`ImageSource`). The ta
 - **The HikariCP client image** (`image/hikari`) is HikariCP 7.1.0 over pgjdbc 42.7.13 on Temurin 21.0.12.1. The digests of the two stages and the SHA-256 of each jar pin them. The probe is `{ driver: { name: "hikari", query } }`.
   - `ClientHikari.java` makes one `HikariDataSource` with the properties of the cell (`Cell.driverOptions`). A name with the prefix `dataSource.` is a property of pgjdbc.
   - It prints the lines of the pg client on the same clock. Each socket comes from the `PGStream` of its connection, and a `pool` line gives each change of the counts of the pool. The errno of a failure is the SQLState of pgjdbc.
+  - Before its first line, it loads the classes of a connect and of a pool on the loopback of its namespace. It also starts the SecureRandom that HikariCP reads for the UUID of each new connection. A new JVM loads each class at its first use. Thus a cell that starts into a fault does not time that load.
 - **The MongoDB client image** (`image/mongo`) is the driver mongodb 7.7.0 on Node 24.21.0. The digest of the image and an npm lockfile pin them. `client-mongo.mjs` prints the lines of the TCP client on the same clock:
   - Each socket of the driver is a `socket` line with its role: `monitor`, `rtt` or `pool`. The stack of the call that makes the socket gives the role.
   - The events of the driver are `sdam` lines (the heartbeats and the changes of each server), `cmap` lines (the pools) and `command` lines (each try of an operation).
