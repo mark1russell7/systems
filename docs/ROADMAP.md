@@ -427,12 +427,12 @@ The kind lab builds its image with its own code. As a `build` source of SYS-17, 
 
 ### SYS-27 · A process port for a service in a process that another part owns
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** SYS-21
 - **Started:** 2026-10-18
-- **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Shipped:** 2026-10-18
+- **Links:** [#72](https://github.com/mark1russell7/systems/pull/72), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 Some entries start a service in a process that they do not own. Examples are a script, a test of an application, and `createPeer` of the client (CLI-7). Before, such an entry wrote its own small runner, or it gave the port of the process of Node. The new port `embeddedProcess()` adds no signal handler, it does not hold the process, and its `exit` only records the code. Thus the full lifecycle runs, and only the owner of the process handles its signals. It comes in service 0.5.2, a PATCH: one new export.
 
@@ -566,7 +566,12 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
   - Three need a fault that the harness cannot make: a restart at the same address, a fault at a reply, and a blocked event loop.
   - Write-write-read does not occur, because pg sets TCP_NODELAY.
   - Six are borders: O03 through a router, and O07. They need a chain for PG, a client that the application holds, or a slow query only in the second query.
-- R3's plan has no T03 cell for node-postgres: each PostgreSQL cell of T03 has HikariCP as its client. The next client is HikariCP 7.1.0 over pgjdbc 42.7.13. Its machine document is in machines 0.3.2 (#70). Its client in the harness and its cells come next, then PgBouncer and T10.
+- R3's plan has no T03 cell for node-postgres: each PostgreSQL cell of T03 has HikariCP as its client. The next client is HikariCP 7.1.0 over pgjdbc 42.7.13:
+  - Its machine document is in machines 0.3.2 (#70). HikariCP reads no idle socket. Its keepalive checks an idle connection each 96 to 120 s from its creation, and at the defaults no timer of pgjdbc bounds a query.
+  - The harness has its client, on Temurin 21.0.12.1 (harness 0.11.4, #71). Its lab test resets a query in flight.
+  - Its first six T01 cells hold, with 11 runs each (#73). A reset of a query gives ECONNRESET in 0.6 ms, and the FIN of a stopped server gives EOF in 12 µs. An unreachable host gives EHOSTUNREACH at 3.120 s at `tcp_retries2 = 3`. A stall of 1 s recovers in 1.656 s. A freeze and an idle pool have no detector in 60 s.
+  - The other 17 T01 cells of HikariCP wait, each with its reason. The next ones are the keepalive behind a black hole, and the borders of O13 and O15.
+- Then PgBouncer and T10.
 
 ### RABBIT · RabbitMQ
 
@@ -631,7 +636,7 @@ The run at main of 2026-10-18 has no failure either: 26 cells hold. The same cel
 - **Shipped:** 2026-10-17
 - **Links:** [npm](https://www.npmjs.com/~mark1russell7)
 
-quantity 0.2.0, algebra 0.7.1, service 0.5.1, prober 0.3.1, harness 0.11.3 and kind 0.1.7. CI publishes each version change of main.
+quantity 0.2.0, algebra 0.7.1, service 0.5.2, prober 0.3.1, harness 0.11.4 and kind 0.1.7. CI publishes each version change of main.
 
 ### MACHINES · The first version of @mark1russell7/machines
 

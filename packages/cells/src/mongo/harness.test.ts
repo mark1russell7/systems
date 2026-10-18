@@ -2,6 +2,7 @@ import type { Cell } from "@mark1russell7/harness";
 import { REPLICA_SET_STAGES } from "@mark1russell7/harness";
 import { describe, expect, it } from "vitest";
 import { ALL } from "../all.ts";
+import { T01_HIKARI } from "../pg/hikari.ts";
 import { T01_PG } from "../pg/t01.ts";
 import { MONGO_CELLS, MONGO_ONE, MEMBER_STAMPS, SET_DEFAULTS, longestWait } from "./harness.ts";
 
@@ -15,8 +16,9 @@ describe("the MongoDB cells, for the harness", () => {
   it("gives each cell of the three catalogs once, with a name of its own, before the PostgreSQL cells at the end of the catalogs", () => {
     expect(MONGO_CELLS).toHaveLength(58);
     expect(new Set(ALL.map((cell) => cell.name)).size).toBe(ALL.length);
-    expect(ALL.slice(-(MONGO_CELLS.length + T01_PG.length), -T01_PG.length)).toEqual(MONGO_CELLS);
-    expect(ALL.slice(-T01_PG.length)).toEqual(T01_PG);
+    const pg = [...T01_PG, ...T01_HIKARI];
+    expect(ALL.slice(-(MONGO_CELLS.length + pg.length), -pg.length)).toEqual(MONGO_CELLS);
+    expect(ALL.slice(-pg.length)).toEqual(pg);
   });
 
   it("names the socket and the line of each band of a driver against one member", () => {

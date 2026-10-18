@@ -4,6 +4,7 @@ import { CAL_CELLS } from "./calibration.ts";
 import { CELLS } from "./catalog.ts";
 import { HTTP_CAL_CELLS, HTTP_HARNESS_CELLS } from "./http/cells.ts";
 import { MONGO_CELLS } from "./mongo/harness.ts";
+import { T01_HIKARI } from "./pg/hikari.ts";
 import { T01_PG } from "./pg/t01.ts";
 import { T02_CELLS } from "./t02.ts";
 import { T03_CELLS } from "./t03.ts";
@@ -45,6 +46,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...wstCells(subjects.procedures),
     ...MONGO_CELLS,
     ...T01_PG,
+    ...T01_HIKARI,
   ];
 };
 
