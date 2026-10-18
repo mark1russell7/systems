@@ -2,7 +2,7 @@
 title: A MongoDB replica set
 sidebar:
   label: MongoDB
-description: The MongoDB cells on the runners of GitHub, with the Node driver of MongoDB against mongod 9.0.4. Of 58 cells, 51 hold and 7 fail.
+description: The MongoDB cells on the runners of GitHub, with the Node driver of MongoDB against mongod 9.0.4. Each of the 58 cells holds.
 ---
 
 import RunResults, { WritesTable } from "../../../components/RunResults.tsx";
@@ -10,24 +10,33 @@ import { Summary } from "../../../components/Ledger.tsx";
 
 <Summary of="mongodb" />
 
-These are the results of the MongoDB cells, from 2026-10-16. The client is the driver `mongodb` 7.7.0 on Node 24.21.0, and the server is mongod 9.0.4. T01 is the direct pair, with a replica set of one member. T03 puts a NAT router between the client and that member. T11 is a replica set of three members that elect their own primary.
+These are the results of the MongoDB cells, from 2026-10-18. The client is the driver `mongodb` 7.7.0 on Node 24.21.0, and the server is mongod 9.0.4. T01 is the direct pair, with a replica set of one member. T03 puts a NAT router between the client and that member. T11 is a replica set of three members that elect their own primary.
 
 The driver has more than one socket: its monitor, its pool and its pinger of the round trip. Thus each band names the socket of its reference, and the line of the client that ends it. A band can also have later bands. The prediction can also name lines of the client that do not come after the fault.
 
-CI started the cells in the run [38947012339](https://github.com/mark1russell7/systems/actions/runs/38947012339), on 20 hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000. Each cell has 11 runs in 2 fresh environments, with one warm-up run in each environment.
+CI started the cells on the hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000. Each cell has 11 runs in 2 fresh environments, with one warm-up run in each environment. The full run of the catalogs at main, [39074841434](https://github.com/mark1russell7/systems/actions/runs/39074841434), did the 58 cells with each other catalog, in 12 shards.
 
-Of the 58 cells, 51 hold against the prediction of the algebra, and 7 fail. The 7 failures are findings about the models of the catalog, not faults of the harness. The cells have 617 counted runs and 21 void runs.
+Each of the 58 cells holds against the prediction of the algebra. The cells have 638 counted runs, and no run is void.
+
+The first run of these cells, on 2026-10-16, refuted 7 of them. The log lines of the members and the kernel records of the client gave each cause. The models of the catalog then got each cause, and the 7 cells hold with them.
 
 ## What the cells found
 
-- **The monitor is not quiet under an ICMP host unreachable.** An idle connection meets an unreachable host, on the direct pair and at the router. The keepalive of the kernel ends the idle socket of the pool in its band in each run, at 133.072 s and 133.149 s. But in each run, the monitor reports `heartbeat-failed` approximately 49.7 s after the fault. The model does not have the timeout of the monitor itself, thus the prediction gives no such event.
-- **An election has a tail past its band.** The primary cut from the other members (`T11.defaults.10`) has 2 of 11 runs at 22.497 s and 24.62 s, after the band of 9.996 s to 21.9 s. A freeze of 60 s with `heartbeatFrequencyMS` 2000 and `connectTimeoutMS` 5000 (`T11.border-off.24`) has 3 of 11 runs at 22.1 s to 23.2 s. A second round of the election is a probable cause.
-- **`catchUpTimeoutMillis` 0 does not give the short band.** `T11.border-off.68` has 5 of 11 runs at 18 s to 18.8 s, after the band of 9.836 s to 11.89 s. The other 6 runs are in the band.
-- **Two cells fail at the edge of their band.** A `replSetStepDown` (`T11.defaults.1`) has one run at 525 ms, 21 ms after the band. A router that resets the two ends (`T03.border-off.8`) has one run at 12.0945 s, 0.5 ms after the band.
+- **An ICMP host unreachable stops the stream of the monitor.** The ACKs of the client do not get to the server, and each ICMP is only a soft error on the socket of the client. The retransmit timer of the server fires before its next reply, and its window of one segment holds that reply. Thus one reply gets to the driver, `heartbeatFrequencyMS` after the request of the monitor. The write-off comes 40 s after that reply: 50 s after the request.
+  - The keepalive of the kernel then ends the idle socket of the pool in its band. It ends it at 133.039 s on the direct pair, and at 133.146 s at the router.
+  - In the first run, the model of these 2 cells had no write-off of the monitor. Thus each run had an event that the prediction did not give.
+- **The other secondary sets the time of the first write after an election.** A write with `w: majority` on the new primary waits for the other secondary. When that secondary synced from the old primary, it takes the new primary only when its oplog fetcher gives up. That is 17 s to 18 s after the fault.
+  - Its reporter ends a command to the old primary at 30 s to 35 s. Until then, the new primary learns its position only from the response to each heartbeat. Thus each write can wait up to 2 s.
+  - The band of the primary cut from the other members (`T11.defaults.10`) ends at 26.58 s, and its median is 17.544 s. In the first run, its band ended at 21.9 s, and 2 of 11 runs were after it.
+  - No election took a second round. In each run of T11, the dry run won, and the real vote won at once.
+- **`catchUpTimeoutMillis` 0 ends the catch-up at the win.** It does not shorten the wait for the other secondary. Thus the band of `T11.border-off.68` ends at 22.365 s, and its median is 18.332 s. In the first run, its band ended at 11.89 s, and 5 of 11 runs were after it.
+- **Two cells were at the edge of their band.**
+  - After a `replSetStepDown` (`T11.defaults.1`), the other secondary can wait one heartbeat of 500 ms for a sync source. Its band ends at 1.184 s.
+  - At a router that resets the two ends (`T03.border-off.8`), the idle time of the router counts from the delayed ACK of the client. That ACK comes at most 40 ms after the last reply. Its band ends at 12.132 s.
 - **The default write concern keeps each write.** No cell with the default write concern lost a write that a primary accepted. With `w: 1`, the old primary accepts writes after it loses the other members (`T11.border-off.66`). The group did not keep them: 195 writes in the median run.
 - **The write-off of the monitor ends a write in flight.** Behind a black hole or a freeze, the monitor writes the server off at the timeout of its stream, 40.002 s after the last segment. Then the pool interrupts the operation, and the server selection of the retry times out 30 s later. With `connectTimeoutMS` 1000, the write-off comes at 11.002 s. With `connectTimeoutMS` 0, the hello of the monitor has no timeout, and nothing detects the freeze in 60 s.
-- **The kernel comes first only below the write-off.** At `tcp_retries2 = 5`, the retransmissions of the kernel give up at 12.824 s, before the write-off. At `tcp_retries2 = 7`, the write-off comes first, at 40.002 s. A `keepAliveInitialDelay` of 27 s ends the stream of the monitor at 37.258 s. At 31 s, the write-off comes first.
-- **Each void run is through the router.** The 21 void runs are in 5 cells of T03. In each void run, a keepalive or retransmit timer was 2 to 6 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel. The page of [the timers behind their slot](../timers/) tells how the prober finds such a delay.
+- **The kernel comes first only below the write-off.** At `tcp_retries2 = 5`, the retransmissions of the kernel give up at 12.936 s, before the write-off. At `tcp_retries2 = 7`, the write-off comes first, at 40.002 s. A `keepAliveInitialDelay` of 27 s ends the stream of the monitor at 37.255 s. At 31 s, the write-off comes first.
+- **No run is void.** In the first run, 21 runs in 5 cells of T03 were void. In each, a keepalive or retransmit timer was 2 to 6 jiffies behind its wheel slot, thus the VM delayed it, not the kernel. The page of [the timers behind their slot](../timers/) tells how the prober finds such a delay.
 
 ## T01: the direct pair
 

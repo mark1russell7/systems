@@ -1,8 +1,8 @@
 {
   "source": "the raw records of the runners of GitHub, judged again by the harness",
-  "ranAt": "2026-10-16",
+  "ranAt": "2026-10-18",
   "units": "s",
-  "noise": 0.004,
+  "noise": 0.001,
   "runs": 11,
   "kernel": "6.17.0",
   "hz": 1000,
@@ -26,16 +26,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 39.995,
-        "high": 40.015
+        "low": 39.998,
+        "high": 40.012
       },
-      "median": 40.002161,
-      "why": "11 of the 11 counted runs are in the band of 39.995 s to 40.015 s. The median is 40.002 s, and its interval is 40.001 s to 40.003 s.",
+      "median": 40.001754,
+      "why": "11 of the 11 counted runs are in the band of 39.998 s to 40.012 s. The median is 40.002 s, and its interval is 40.001 s to 40.003 s.",
       "runs": [
-        [40.000979, 40.002659, 40.002184, 40.001603, 40.002161, 40.003236],
-        [40.001146, 40.003065, 40.002151, 40.001497, 40.003111]
+        [40.001779, 40.003327, 40.003133, 40.001047, 40.001381, 40.001722],
+        [40.001312, 40.001578, 40.001754, 40.002005, 40.003327]
       ],
-      "warmups": [40.000963, 40.001483],
+      "warmups": [40.002333, 40.002552],
       "voids": null,
       "stages": null,
       "writes": null
@@ -57,16 +57,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": -0.004,
-        "high": 0.006
+        "low": -0.001,
+        "high": 0.003
       },
-      "median": 0.001287,
-      "why": "11 of the 11 counted runs are in the band of −4 ms to 6 ms. The median is 1.29 ms, and its interval is 1.12 ms to 1.74 ms.",
+      "median": 0.001306,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 3 ms. The median is 1.31 ms, and its interval is 1.21 ms to 1.51 ms.",
       "runs": [
-        [0.001743, 0.001136, 0.002034, 0.001203, 0.001367, 0.001215],
-        [0.001106, 0.001369, 0.001294, 0.001287, 0.001115]
+        [0.000898, 0.001226, 0.001485, 0.001509, 0.001247, 0.0016],
+        [0.001206, 0.001389, 0.001251, 0.001308, 0.001306]
       ],
-      "warmups": [0.001329, 0.001255],
+      "warmups": [0.001695, 0.001717],
       "voids": null,
       "stages": null,
       "writes": null
@@ -88,23 +88,23 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": -0.004,
-        "high": 0.016
+        "low": -0.001,
+        "high": 0.013
       },
-      "median": 0.00001,
-      "why": "11 of the 11 counted runs are in the band of −4 ms to 16 ms. The median is 10 µs, and its interval is 9 µs to 12 µs.",
+      "median": 0.000011,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 13 ms. The median is 11 µs, and its interval is 10 µs to 14 µs.",
       "runs": [
-        [0.000009],
+        [0.00001],
+        [0.000011],
+        [0.000014],
         [0.00001],
         [0.00001],
+        [0.000014],
+        [0.000013],
+        [0.000011],
+        [0.000011],
         [0.00001],
-        [0.00001],
-        [0.000012],
-        [0.000009],
-        [0.00001],
-        [0.000012],
-        [0.00001],
-        [0.00001]
+        [0.000015]
       ],
       "warmups": [null, null, null, null, null, null, null, null, null, null, null],
       "voids": null,
@@ -122,22 +122,22 @@
         "low": 129.999,
         "high": 134.736,
         "window": null,
-        "text": "The algebra predicts that the keepalive of the kernel ends the idle socket of the pool with ETIMEDOUT. The band is 129.999 s to 134.736 s after the last segment on its socket. The prediction has no heartbeat-failed event of the monitor after the fault."
+        "text": "The algebra predicts that the keepalive of the kernel ends the idle socket of the pool with ETIMEDOUT. The band is 129.999 s to 134.736 s after the last segment on its socket. Then the monitor writes the server off at the timeout of its stream with MongoNetworkTimeoutError: 49.999 s to 50.033 s after the last segment on its socket."
       },
-      "decision": "fails",
+      "decision": "holds",
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 129.995,
-        "high": 134.74
+        "low": 129.998,
+        "high": 134.737
       },
-      "median": 133.071908,
-      "why": "11 of the 11 counted runs are in the band of 129.995 s to 134.74 s. The median is 133.072 s, and its interval is 132.727 s to 133.422 s. Each counted run has a finding: the monitor reported heartbeat-failed 49.719 s after the fault, where the prediction has no such event.",
+      "median": 133.039225,
+      "why": "11 of the 11 counted runs are in the band of 129.998 s to 134.737 s. The median is 133.039 s, and its interval is 132.709 s to 133.46 s.",
       "runs": [
-        [133.177667, 133.314959, 133.5109, 132.678947, 132.837878, 133.007947],
-        [132.727048, 132.93292, 133.071908, 133.243933, 133.42193]
+        [132.522809, 132.708587, 132.859001, 133.039225, 133.220706, 133.36917],
+        [133.2487, 133.460216, 133.595721, 132.75841, 132.92818]
       ],
-      "warmups": [131.761941, 132.324972],
+      "warmups": [133.107245, 130.868358],
       "voids": null,
       "stages": null,
       "writes": null
@@ -159,16 +159,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 39.995,
-        "high": 40.015
+        "low": 39.998,
+        "high": 40.012
       },
-      "median": 40.002251,
-      "why": "11 of the 11 counted runs are in the band of 39.995 s to 40.015 s. The median is 40.002 s, and its interval is 40.002 s to 40.003 s.",
+      "median": 40.002567,
+      "why": "11 of the 11 counted runs are in the band of 39.998 s to 40.012 s. The median is 40.003 s, and its interval is 40.002 s to 40.003 s.",
       "runs": [
-        [40.001765, 40.001823, 40.002262, 40.002838, 40.002218, 40.002069],
-        [40.002251, 40.002868, 40.003082, 40.00293, 40.001777]
+        [40.002404, 40.00317, 40.002567, 40.004156, 40.002489, 40.002766],
+        [40.001718, 40.002464, 40.003118, 40.002887, 40.002241]
       ],
-      "warmups": [40.002401, 40.002822],
+      "warmups": [40.001229, 40.003266],
       "voids": null,
       "stages": null,
       "writes": null
@@ -190,16 +190,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 1.6,
-        "high": 1.701
+        "low": 1.603,
+        "high": 1.698
       },
-      "median": 1.664396,
-      "why": "11 of the 11 counted runs are in the band of 1.6 s to 1.701 s. The median is 1.664 s, and its interval is 1.636 s to 1.689 s.",
+      "median": 1.677506,
+      "why": "11 of the 11 counted runs are in the band of 1.603 s to 1.698 s. The median is 1.678 s, and its interval is 1.658 s to 1.689 s.",
       "runs": [
-        [1.690291, 1.68844, 1.649907, 1.62859, 1.676892, 1.649918],
-        [1.657488, 1.688929, 1.636446, 1.685567, 1.664396]
+        [1.657517, 1.691176, 1.665391, 1.676421, 1.686763, 1.689498],
+        [1.653785, 1.677506, 1.677962, 1.675739, 1.680501]
       ],
-      "warmups": [1.694454, 1.683426],
+      "warmups": [1.642152, 1.689984],
       "voids": null,
       "stages": null,
       "writes": null
@@ -249,16 +249,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 29.996,
-        "high": 30.014
+        "low": 29.999,
+        "high": 30.011
       },
-      "median": 30.008428,
-      "why": "11 of the 11 counted runs are in the band of 29.996 s to 30.014 s. The median is 30.008 s, and its interval is 30.008 s to 30.009 s.",
+      "median": 30.008387,
+      "why": "11 of the 11 counted runs are in the band of 29.999 s to 30.011 s. The median is 30.008 s, and its interval is 30.008 s to 30.009 s.",
       "runs": [
-        [30.008131, 30.008782, 30.009049, 30.008428, 30.008779, 30.00807],
-        [30.008175, 30.008599, 30.009419, 30.007929, 30.008308]
+        [30.008717, 30.009187, 30.008192, 30.008347, 30.00828, 30.010014],
+        [30.008281, 30.00843, 30.00801, 30.008387, 30.008473]
       ],
-      "warmups": [30.007626, 30.007708],
+      "warmups": [30.008522, 30.008463],
       "voids": null,
       "stages": null,
       "writes": null
@@ -280,16 +280,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 267.995,
-        "high": 272.74
+        "low": 267.998,
+        "high": 272.737
       },
-      "median": 271.767237,
-      "why": "11 of the 11 counted runs are in the band of 267.995 s to 272.74 s. The median is 271.767 s, and its interval is 268.343 s to 272.232 s.",
+      "median": 268.70756,
+      "why": "11 of the 11 counted runs are in the band of 267.998 s to 272.737 s. The median is 268.708 s, and its interval is 268.401 s to 272.173 s.",
       "runs": [
-        [268.279233, 268.606199, 272.042219, 268.365224, 271.81022, 272.265762],
-        [268.57115, 271.99519, 268.343237, 271.767237, 272.232202]
+        [268.290191, 268.635363, 272.053191, 268.40097, 268.70756, 272.173486],
+        [268.475566, 268.780769, 272.2445, 268.594655, 271.999067]
       ],
-      "warmups": [270.755015, 272.134264],
+      "warmups": [268.842956, 271.059839],
       "voids": null,
       "stages": null,
       "writes": null
@@ -311,16 +311,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 269.995,
-        "high": 303.412
+        "low": 269.998,
+        "high": 303.409
       },
-      "median": 292.724826,
-      "why": "11 of the 11 counted runs are in the band of 269.995 s to 303.412 s. The median is 292.725 s, and its interval is 292.537 s to 292.879 s.",
+      "median": 293.02511,
+      "why": "11 of the 11 counted runs are in the band of 269.998 s to 303.409 s. The median is 293.025 s, and its interval is 292.866 s to 293.231 s.",
       "runs": [
-        [292.878807, 292.783808, 292.724826, 292.571792, 292.536783, 292.419306],
-        [292.947842, 292.82278, 292.737752, 292.714814, 292.572496]
+        [293.231093, 293.139113, 293.02511, 292.931095, 292.866006, 292.746786],
+        [293.319075, 293.189128, 293.141132, 292.974035, 292.919849]
       ],
-      "warmups": [284.222893, 289.363859],
+      "warmups": [272.57418, 287.688171],
       "voids": null,
       "stages": null,
       "writes": null
@@ -342,16 +342,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 36.995,
-        "high": 38.156
+        "low": 36.998,
+        "high": 38.153
       },
-      "median": 37.25804,
-      "why": "11 of the 11 counted runs are in the band of 36.995 s to 38.156 s. The median is 37.258 s, and its interval is 37.24 s to 37.285 s.",
+      "median": 37.255034,
+      "why": "11 of the 11 counted runs are in the band of 36.998 s to 38.153 s. The median is 37.255 s, and its interval is 37.227 s to 37.285 s.",
       "runs": [
-        [37.251036, 37.285009, 37.249064, 37.276982, 37.25804, 37.274031],
-        [37.240034, 37.259028, 37.294004, 37.228029, 37.242015]
+        [37.22704, 37.239025, 37.255034, 37.271999, 37.234052, 37.240028],
+        [37.285022, 37.273021, 37.287028, 37.227032, 37.260036]
       ],
-      "warmups": [37.269014, 37.232032],
+      "warmups": [37.246046, 37.258047],
       "voids": null,
       "stages": null,
       "writes": null
@@ -373,16 +373,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 39.995,
-        "high": 40.015
+        "low": 39.998,
+        "high": 40.012
       },
-      "median": 40.001964,
-      "why": "11 of the 11 counted runs are in the band of 39.995 s to 40.015 s. The median is 40.002 s, and its interval is 40.002 s to 40.003 s.",
+      "median": 40.001499,
+      "why": "11 of the 11 counted runs are in the band of 39.998 s to 40.012 s. The median is 40.001 s, and its interval is 40.001 s to 40.003 s.",
       "runs": [
-        [40.004033, 40.001964, 40.002532, 40.001834, 40.00183, 40.002939],
-        [40.00204, 40.001858, 40.001857, 40.001997, 40.001562]
+        [40.000905, 40.001359, 40.002697, 40.003042, 40.001949, 40.00129],
+        [40.001272, 40.001368, 40.003362, 40.003172, 40.001499]
       ],
-      "warmups": [40.001609, 40.001369],
+      "warmups": [40.002002, 40.001892],
       "voids": null,
       "stages": null,
       "writes": null
@@ -404,16 +404,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 12.596,
-        "high": 26.756
+        "low": 12.599,
+        "high": 26.753
       },
-      "median": 12.824001,
-      "why": "11 of the 11 counted runs are in the band of 12.596 s to 26.756 s. The median is 12.824 s, and its interval is 12.649 s to 13.048 s.",
+      "median": 12.936053,
+      "why": "11 of the 11 counted runs are in the band of 12.599 s to 26.753 s. The median is 12.936 s, and its interval is 12.688 s to 13.08 s.",
       "runs": [
-        [12.711989, 12.808006, 12.880016, 12.912012, 13.071991, 12.648988],
-        [12.992026, 13.048002, 12.632015, 12.704011, 12.824001]
+        [12.776028, 12.879964, 12.936053, 13.032036, 13.080003, 12.664027],
+        [12.960017, 13.016001, 13.103987, 12.688002, 12.791982]
       ],
-      "warmups": [12.872005, 12.688006],
+      "warmups": [13.080002, 12.767994],
       "voids": null,
       "stages": null,
       "writes": null
@@ -435,16 +435,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 39.995,
-        "high": 40.015
+        "low": 39.998,
+        "high": 40.012
       },
-      "median": 40.001777,
-      "why": "11 of the 11 counted runs are in the band of 39.995 s to 40.015 s. The median is 40.002 s, and its interval is 40.001 s to 40.002 s.",
+      "median": 40.002052,
+      "why": "11 of the 11 counted runs are in the band of 39.998 s to 40.012 s. The median is 40.002 s, and its interval is 40.001 s to 40.003 s.",
       "runs": [
-        [40.001469, 40.00229, 40.001481, 40.001193, 40.001777, 40.002188],
-        [40.001107, 40.002138, 40.002802, 40.001949, 40.001072]
+        [40.002491, 40.00228, 40.001434, 40.001848, 40.002916, 40.002971],
+        [40.00254, 40.002052, 40.001164, 40.001645, 40.001432]
       ],
-      "warmups": [40.002348, 40.002533],
+      "warmups": [40.002911, 40.002215],
       "voids": null,
       "stages": null,
       "writes": null
@@ -466,16 +466,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 28.996,
-        "high": 29.116
+        "low": 28.999,
+        "high": 29.113
       },
-      "median": 29.005009,
-      "why": "11 of the 11 counted runs are in the band of 28.996 s to 29.116 s. The median is 29.005 s, and its interval is 29.005 s to 29.006 s.",
+      "median": 29.007157,
+      "why": "11 of the 11 counted runs are in the band of 28.999 s to 29.113 s. The median is 29.007 s, and its interval is 29.006 s to 29.009 s.",
       "runs": [
-        [29.00458, 29.004888, 29.005133, 29.005936, 29.005009, 29.004702],
-        [29.006045, 29.004786, 29.006165, 29.005251, 29.004188]
+        [29.007157, 29.006317, 29.00817, 29.00614, 29.008489, 29.006336],
+        [29.006003, 29.009593, 29.007706, 29.006493, 29.009305]
       ],
-      "warmups": [29.004307, 29.004605],
+      "warmups": [29.006715, 29.00713],
       "voids": null,
       "stages": null,
       "writes": null
@@ -497,16 +497,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 39.995,
-        "high": 40.015
+        "low": 39.998,
+        "high": 40.012
       },
-      "median": 40.002413,
-      "why": "11 of the 11 counted runs are in the band of 39.995 s to 40.015 s. The median is 40.002 s, and its interval is 40.001 s to 40.003 s.",
+      "median": 40.002318,
+      "why": "11 of the 11 counted runs are in the band of 39.998 s to 40.012 s. The median is 40.002 s, and its interval is 40.002 s to 40.003 s.",
       "runs": [
-        [40.002413, 40.002398, 40.002296, 40.002025, 40.000944, 40.003159],
-        [40.00258, 40.001487, 40.002423, 40.002983, 40.003087]
+        [40.003369, 40.001357, 40.002531, 40.002929, 40.002318, 40.002131],
+        [40.002115, 40.00261, 40.001925, 40.002238, 40.002755]
       ],
-      "warmups": [40.002703, 40.002183],
+      "warmups": [40.002103, 40.002297],
       "voids": null,
       "stages": null,
       "writes": null
@@ -528,16 +528,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 39.995,
-        "high": 40.015
+        "low": 39.998,
+        "high": 40.012
       },
-      "median": 40.001386,
-      "why": "11 of the 11 counted runs are in the band of 39.995 s to 40.015 s. The median is 40.001 s, and its interval is 40.001 s to 40.002 s.",
+      "median": 40.002324,
+      "why": "11 of the 11 counted runs are in the band of 39.998 s to 40.012 s. The median is 40.002 s, and its interval is 40.002 s to 40.003 s.",
       "runs": [
-        [40.00121, 40.001283, 40.00111, 40.001096, 40.00269, 40.001695],
-        [40.002366, 40.001386, 40.001329, 40.002241, 40.002316]
+        [40.001885, 40.001786, 40.002338, 40.002303, 40.002429, 40.001689],
+        [40.00284, 40.002663, 40.002786, 40.002324, 40.001746]
       ],
-      "warmups": [40.002046, 40.001958],
+      "warmups": [40.002017, 40.002519],
       "voids": null,
       "stages": null,
       "writes": null
@@ -559,16 +559,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 39.995,
-        "high": 40.015
+        "low": 39.998,
+        "high": 40.012
       },
-      "median": 40.002093,
-      "why": "11 of the 11 counted runs are in the band of 39.995 s to 40.015 s. The median is 40.002 s, and its interval is 40.001 s to 40.003 s.",
+      "median": 40.002149,
+      "why": "11 of the 11 counted runs are in the band of 39.998 s to 40.012 s. The median is 40.002 s, and its interval is 40.001 s to 40.003 s.",
       "runs": [
-        [40.00215, 40.001537, 40.002563, 40.001488, 40.00218, 40.00216],
-        [40.003204, 40.001395, 40.00203, 40.002093, 40.002046]
+        [40.003161, 40.002199, 40.001532, 40.002492, 40.001996, 40.001174],
+        [40.00191, 40.001043, 40.00332, 40.002646, 40.002149]
       ],
-      "warmups": [40.002102, 40.001717],
+      "warmups": [40.001964, 40.002682],
       "voids": null,
       "stages": null,
       "writes": null
@@ -590,16 +590,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 4.496,
-        "high": 4.616
+        "low": 4.499,
+        "high": 4.613
       },
-      "median": 4.506647,
-      "why": "11 of the 11 counted runs are in the band of 4.496 s to 4.616 s. The median is 4.507 s, and its interval is 4.506 s to 4.507 s.",
+      "median": 4.506313,
+      "why": "11 of the 11 counted runs are in the band of 4.499 s to 4.613 s. The median is 4.506 s, and its interval is 4.504 s to 4.507 s.",
       "runs": [
-        [4.506519, 4.505877, 4.507331, 4.507038, 4.505485, 4.50576],
-        [4.505865, 4.507433, 4.507322, 4.506647, 4.507064]
+        [4.506184, 4.506595, 4.508418, 4.506233, 4.504047, 4.506313],
+        [4.506651, 4.506516, 4.503731, 4.506709, 4.506313]
       ],
-      "warmups": [4.5066, 4.506987],
+      "warmups": [4.50756, 4.506229],
       "voids": null,
       "stages": null,
       "writes": null
@@ -621,16 +621,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 6.995,
-        "high": 7.015
+        "low": 6.998,
+        "high": 7.012
       },
-      "median": 7.002447,
-      "why": "11 of the 11 counted runs are in the band of 6.995 s to 7.015 s. The median is 7.002 s, and its interval is 7.002 s to 7.004 s.",
+      "median": 7.0027,
+      "why": "11 of the 11 counted runs are in the band of 6.998 s to 7.012 s. The median is 7.003 s, and its interval is 7.002 s to 7.003 s.",
       "runs": [
-        [7.003731, 7.003259, 7.002447, 7.002403, 7.004122, 7.001824],
-        [7.002424, 7.002489, 7.001883, 7.002608, 7.002339]
+        [7.002757, 7.002873, 7.002395, 7.003337, 7.001637, 7.00288],
+        [7.003006, 7.002685, 7.001973, 7.0027, 7.002104]
       ],
-      "warmups": [7.002428, 7.002836],
+      "warmups": [7.002936, 7.003845],
       "voids": null,
       "stages": null,
       "writes": null
@@ -652,16 +652,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 10.995,
-        "high": 11.015
+        "low": 10.998,
+        "high": 11.012
       },
-      "median": 11.002408,
-      "why": "11 of the 11 counted runs are in the band of 10.995 s to 11.015 s. The median is 11.002 s, and its interval is 11.002 s to 11.003 s.",
+      "median": 11.002337,
+      "why": "11 of the 11 counted runs are in the band of 10.998 s to 11.012 s. The median is 11.002 s, and its interval is 11.001 s to 11.003 s.",
       "runs": [
-        [11.002932, 11.002308, 11.001797, 11.002949, 11.002316, 11.001901],
-        [11.003365, 11.002553, 11.002408, 11.001742, 11.002438]
+        [11.001463, 11.001955, 11.002346, 11.002893, 11.001326, 11.002337],
+        [11.002736, 11.001799, 11.00242, 11.002344, 11.002135]
       ],
-      "warmups": [11.002986, 11.001997],
+      "warmups": [11.00164, 11.002183],
       "voids": null,
       "stages": null,
       "writes": null
@@ -711,16 +711,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 24.996,
-        "high": 25.014
+        "low": 24.999,
+        "high": 25.011
       },
-      "median": 25.008971,
-      "why": "11 of the 11 counted runs are in the band of 24.996 s to 25.014 s. The median is 25.009 s, and its interval is 25.008 s to 25.01 s.",
+      "median": 25.006609,
+      "why": "11 of the 11 counted runs are in the band of 24.999 s to 25.011 s. The median is 25.007 s, and its interval is 25.006 s to 25.007 s.",
       "runs": [
-        [25.0096, 25.009522, 25.008939, 25.00825, 25.009327, 25.009135],
-        [25.008326, 25.008881, 25.009249, 25.008491, 25.008971]
+        [25.006609, 25.007641, 25.006616, 25.006905, 25.006186, 25.006286],
+        [25.006269, 25.006639, 25.006529, 25.007446, 25.006597]
       ],
-      "warmups": [25.008584, 25.009551],
+      "warmups": [25.007009, 25.006588],
       "voids": null,
       "stages": null,
       "writes": null
@@ -742,16 +742,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 34.996,
-        "high": 35.014
+        "low": 34.999,
+        "high": 35.011
       },
-      "median": 35.007936,
-      "why": "11 of the 11 counted runs are in the band of 34.996 s to 35.014 s. The median is 35.008 s, and its interval is 35.007 s to 35.008 s.",
+      "median": 35.005403,
+      "why": "11 of the 11 counted runs are in the band of 34.999 s to 35.011 s. The median is 35.005 s, and its interval is 35.004 s to 35.006 s.",
       "runs": [
-        [35.008311, 35.007869, 35.007601, 35.007334, 35.007273, 35.007943],
-        [35.007148, 35.007999, 35.008033, 35.007936, 35.007982]
+        [35.005403, 35.005546, 35.005662, 35.004292, 35.005817, 35.005785],
+        [35.005032, 35.004381, 35.005086, 35.005832, 35.005124]
       ],
-      "warmups": [35.007985, 35.007834],
+      "warmups": [35.00455, 35.007777],
       "voids": null,
       "stages": null,
       "writes": null
@@ -801,16 +801,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 39.995,
-        "high": 40.015
+        "low": 39.998,
+        "high": 40.012
       },
-      "median": 40.002422,
-      "why": "11 of the 11 counted runs are in the band of 39.995 s to 40.015 s. The median is 40.002 s, and its interval is 40.001 s to 40.003 s.",
+      "median": 40.002586,
+      "why": "11 of the 11 counted runs are in the band of 39.998 s to 40.012 s. The median is 40.003 s, and its interval is 40.002 s to 40.003 s.",
       "runs": [
-        [40.001751, 40.002646, 40.002458, 40.001897, 40.002644, 40.002898],
-        [40.002422, 40.002681, 40.001304, 40.000722, 40.001341]
+        [40.001069, 40.002621, 40.001928, 40.00271, 40.002145, 40.003267],
+        [40.001854, 40.001634, 40.002586, 40.003469, 40.002827]
       ],
-      "warmups": [40.002173, 40.00225],
+      "warmups": [40.002159, 40.002146],
       "voids": null,
       "stages": null,
       "writes": null
@@ -826,23 +826,23 @@
         "low": 129.999,
         "high": 134.736,
         "window": null,
-        "text": "The algebra predicts that the keepalive of the kernel ends the idle socket of the pool with ETIMEDOUT. The band is 129.999 s to 134.736 s after the last segment on its socket. The prediction has no heartbeat-failed event of the monitor after the fault."
+        "text": "The algebra predicts that the keepalive of the kernel ends the idle socket of the pool with ETIMEDOUT. The band is 129.999 s to 134.736 s after the last segment on its socket. Then the monitor writes the server off at the timeout of its stream with MongoNetworkTimeoutError: 49.999 s to 50.033 s after the last segment on its socket."
       },
-      "decision": "fails",
-      "counted": 8,
-      "voided": 3,
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
       "band": {
-        "low": 129.995,
-        "high": 134.74
+        "low": 129.998,
+        "high": 134.737
       },
-      "median": 133.149183,
-      "why": "8 of the 8 counted runs are in the band of 129.995 s to 134.74 s. The median is 133.149 s, and its interval is 132.872 s to 133.585 s. Each counted run has a finding: the monitor reported heartbeat-failed 49.743 s after the fault, where the prediction has no such event.",
+      "median": 133.145687,
+      "why": "11 of the 11 counted runs are in the band of 129.998 s to 134.737 s. The median is 133.146 s, and its interval is 132.671 s to 133.461 s.",
       "runs": [
-        [133.526082, 132.872208, 133.066327, 133.416362],
-        [132.937381, 133.070443, 133.227922, 133.585367]
+        [132.994648, 133.165521, 133.349087, 133.529266, 132.671358, 132.879814],
+        [132.934977, 133.145687, 133.267302, 133.461066, 132.623489]
       ],
-      "warmups": [131.630394, 132.969395],
-      "voids": "3 runs are void: in each, the keepalive timer was 2 to 3 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "warmups": [132.659494, 130.619543],
+      "voids": null,
       "stages": null,
       "writes": null
     },
@@ -888,20 +888,20 @@
         "text": "The algebra predicts that the reply comes back at the third firing of the RTO timer. The band is 1.604 s to 1.697 s after the send of the request."
       },
       "decision": "holds",
-      "counted": 6,
-      "voided": 5,
+      "counted": 11,
+      "voided": 0,
       "band": {
-        "low": 1.6,
-        "high": 1.701
+        "low": 1.603,
+        "high": 1.698
       },
-      "median": 1.67911,
-      "why": "6 of the 6 counted runs are in the band of 1.6 s to 1.701 s. The median is 1.679 s, and its interval is 1.633 s to 1.688 s.",
+      "median": 1.642779,
+      "why": "11 of the 11 counted runs are in the band of 1.603 s to 1.698 s. The median is 1.643 s, and its interval is 1.632 s to 1.687 s.",
       "runs": [
-        [1.675885, 1.683069, 1.632912],
-        [1.687957, 1.682335, 1.633393]
+        [1.661841, 1.642779, 1.639796, 1.637172, 1.689116, 1.634743],
+        [1.647459, 1.627379, 1.632425, 1.644083, 1.686956]
       ],
-      "warmups": [1.661785, 1.640786],
-      "voids": "5 runs are void: in each, the retransmit timer was 2 to 6 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "warmups": [1.65486, 1.682975],
+      "voids": null,
       "stages": null,
       "writes": null
     },
@@ -919,20 +919,20 @@
         "text": "The algebra predicts that the keepalive of mongod ends its socket of the pool connection with ETIMEDOUT. The band is 308.999 s to 342.344 s after the last segment on its socket."
       },
       "decision": "holds",
-      "counted": 6,
-      "voided": 5,
+      "counted": 11,
+      "voided": 0,
       "band": {
-        "low": 308.995,
-        "high": 342.348
+        "low": 308.998,
+        "high": 342.345
       },
-      "median": 325.611006,
-      "why": "6 of the 6 counted runs are in the band of 308.995 s to 342.348 s. The median is 325.611 s, and its interval is 325.403 s to 326.079 s.",
+      "median": 325.871006,
+      "why": "11 of the 11 counted runs are in the band of 308.998 s to 342.345 s. The median is 325.871 s, and its interval is 325.441 s to 326.16 s.",
       "runs": [
-        [326.079011, 325.411026, 326.039016, 325.402989],
-        [325.568003, 325.654009]
+        [325.441024, 326.119018, 325.817019, 325.482996, 326.160018, 325.871006],
+        [325.188035, 325.87599, 325.543035, 326.209968, 325.924042]
       ],
-      "warmups": [312.628012, 321.488021],
-      "voids": "5 runs are void: in each, the keepalive timer was 2 to 6 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "warmups": [311.886993, 319.726053],
+      "voids": null,
       "stages": null,
       "writes": null
     },
@@ -953,16 +953,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": -0.004,
-        "high": 0.006
+        "low": -0.001,
+        "high": 0.003
       },
-      "median": 0.001381,
-      "why": "11 of the 11 counted runs are in the band of −4 ms to 6 ms. The median is 1.38 ms, and its interval is 1.27 ms to 1.69 ms.",
+      "median": 0.001585,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 3 ms. The median is 1.58 ms, and its interval is 1.27 ms to 2.08 ms.",
       "runs": [
-        [0.001514, 0.001453, 0.001687, 0.001298, 0.001294, 0.001964],
-        [0.001092, 0.00139, 0.001336, 0.001381, 0.001269]
+        [0.001585, 0.001613, 0.001273, 0.002085, 0.001811, 0.001684],
+        [0.00222, 0.001352, 0.001268, 0.001272, 0.001444]
       ],
-      "warmups": [0.001324, 0.001298],
+      "warmups": [0.002091, 0.001964],
       "voids": null,
       "stages": null,
       "writes": null
@@ -984,16 +984,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 39.995,
-        "high": 40.015
+        "low": 39.998,
+        "high": 40.012
       },
-      "median": 40.003012,
-      "why": "11 of the 11 counted runs are in the band of 39.995 s to 40.015 s. The median is 40.003 s, and its interval is 40.002 s to 40.004 s.",
+      "median": 40.002548,
+      "why": "11 of the 11 counted runs are in the band of 39.998 s to 40.012 s. The median is 40.003 s, and its interval is 40.002 s to 40.003 s.",
       "runs": [
-        [40.003668, 40.003475, 40.002827, 40.002136, 40.003778, 40.002688],
-        [40.003827, 40.00257, 40.00364, 40.003012, 40.002344]
+        [40.002059, 40.003357, 40.001023, 40.001599, 40.002548, 40.002346],
+        [40.003483, 40.003726, 40.002738, 40.00305, 40.00225]
       ],
-      "warmups": [40.002932, 40.002316],
+      "warmups": [40.002631, 40.002552],
       "voids": null,
       "stages": null,
       "writes": null
@@ -1015,23 +1015,23 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": -0.004,
-        "high": 0.016
+        "low": -0.001,
+        "high": 0.013
       },
-      "median": 0.000025,
-      "why": "11 of the 11 counted runs are in the band of −4 ms to 16 ms. The median is 25 µs, and its interval is 22 µs to 28 µs.",
+      "median": 0.000037,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 13 ms. The median is 37 µs, and its interval is 35 µs to 43 µs.",
       "runs": [
-        [0.000024],
-        [0.000025],
-        [0.000025],
-        [0.000028],
-        [0.000024],
-        [0.000023],
-        [0.000028],
-        [0.00009],
-        [0.000022],
-        [0.000026],
-        [0.000021]
+        [0.000036],
+        [0.000043],
+        [0.000037],
+        [0.000043],
+        [0.000035],
+        [0.000035],
+        [0.000036],
+        [0.000035],
+        [0.000042],
+        [0.000038],
+        [0.000041]
       ],
       "warmups": [null, null, null, null, null, null, null, null, null, null, null],
       "voids": null,
@@ -1075,24 +1075,24 @@
       "prediction": {
         "kind": "detects",
         "low": 12,
-        "high": 12.09,
+        "high": 12.131,
         "window": null,
-        "text": "The algebra predicts that the router forgets the flow and resets the two ends with ECONNRESET. The band is 12 s to 12.09 s after the last segment on its socket. The prediction has no heartbeat-failed event of the monitor after the fault."
+        "text": "The algebra predicts that the router forgets the flow and resets the two ends with ECONNRESET. The band is 12 s to 12.131 s after the last segment on its socket. The prediction has no heartbeat-failed event of the monitor after the fault."
       },
-      "decision": "fails",
+      "decision": "holds",
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 11.996,
-        "high": 12.094
+        "low": 11.999,
+        "high": 12.132
       },
-      "median": 12.069993,
-      "why": "10 of the 11 counted runs are in the band of 11.996 s to 12.094 s. The median is 12.07 s, and its interval is 12.045 s to 12.089 s.",
+      "median": 12.080388,
+      "why": "11 of the 11 counted runs are in the band of 11.999 s to 12.132 s. The median is 12.08 s, and its interval is 12.046 s to 12.089 s.",
       "runs": [
-        [12.081174, 12.042832, 12.063577, 12.065013, 12.069804, 12.044938],
-        [12.088816, 12.086017, 12.079333, 12.069993, 12.094537]
+        [12.088745, 12.073857, 12.045897, 12.085779, 12.088511, 12.084682],
+        [12.04611, 12.075216, 12.085179, 12.047929, 12.080388]
       ],
-      "warmups": [12.047911, 12.070347],
+      "warmups": [12.063862, 12.048609],
       "voids": null,
       "stages": null,
       "writes": null
@@ -1139,20 +1139,20 @@
         "text": "The algebra predicts that the first keepalive probe meets the reset of the router with ECONNRESET. The band is 12.999 s to 13.514 s after the last segment on its socket. The prediction has no heartbeat-failed event of the monitor after the fault."
       },
       "decision": "holds",
-      "counted": 10,
-      "voided": 1,
+      "counted": 11,
+      "voided": 0,
       "band": {
-        "low": 12.995,
-        "high": 13.518
+        "low": 12.998,
+        "high": 13.515
       },
-      "median": 13.223743,
-      "why": "10 of the 10 counted runs are in the band of 12.995 s to 13.518 s. The median is 13.224 s, and its interval is 13.053 s to 13.36 s.",
+      "median": 13.24782,
+      "why": "11 of the 11 counted runs are in the band of 12.998 s to 13.515 s. The median is 13.248 s, and its interval is 13.038 s to 13.456 s.",
       "runs": [
-        [13.053201, 13.359859, 13.097247, 13.307395, 13.329244],
-        [13.084239, 13.481987, 13.301247, 13.146238, 13.02397]
+        [13.178433, 13.037881, 13.400174, 13.249318, 13.099127, 13.459034],
+        [13.036409, 13.39707, 13.24782, 13.094821, 13.455511]
       ],
-      "warmups": [13.290313, 13.000901],
-      "voids": "One run is void: its keepalive timer was 2 jiffies behind its wheel slot. Thus the VM delayed it, not the kernel.",
+      "warmups": [13.219979, 13.088023],
+      "voids": null,
       "stages": null,
       "writes": null
     },
@@ -1198,20 +1198,20 @@
         "text": "The algebra predicts that the keepalive probes get no answer, and the keepalive of the kernel gives up with ETIMEDOUT. The band is 22.999 s to 24.152 s after the last segment on its socket. The prediction has no heartbeat-failed event of the monitor after the fault."
       },
       "decision": "holds",
-      "counted": 4,
-      "voided": 7,
+      "counted": 11,
+      "voided": 0,
       "band": {
-        "low": 22.995,
-        "high": 24.156
+        "low": 22.998,
+        "high": 24.153
       },
-      "median": 23.530021,
-      "why": "4 of the 4 counted runs are in the band of 22.995 s to 24.156 s. The median is 23.53 s, and its interval is 23.315 s to 23.628 s.",
+      "median": 23.496044,
+      "why": "11 of the 11 counted runs are in the band of 22.998 s to 24.153 s. The median is 23.496 s, and its interval is 23.299 s to 23.69 s.",
       "runs": [
-        [23.627556],
-        [23.314652, 23.480701, 23.57934]
+        [23.690013, 23.299272, 23.392505, 23.496044, 23.558649, 23.695651],
+        [23.385637, 23.495256, 23.569966, 23.657353, 23.256437]
       ],
-      "warmups": [23.534716, 23.517725],
-      "voids": "7 runs are void: in each, the keepalive timer was 2 to 4 jiffies behind its wheel slot. Thus the VM delayed them, not the kernel.",
+      "warmups": [23.4185, 23.602497],
+      "voids": null,
       "stages": null,
       "writes": null
     },
@@ -1280,74 +1280,74 @@
       "prediction": {
         "kind": "detects",
         "low": 0,
-        "high": 0.5,
+        "high": 1.183,
         "window": null,
-        "text": "The algebra predicts that the first write lands on the new primary. The band is 0 s to 500 ms after the fault."
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 0 s to 1.183 s after the fault."
       },
-      "decision": "fails",
+      "decision": "holds",
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": -0.004,
-        "high": 0.504
+        "low": -0.001,
+        "high": 1.184
       },
-      "median": 0.03396,
-      "why": "10 of the 11 counted runs are in the band of −4 ms to 504 ms. The median is 34 ms, and its interval is 29 ms to 44.2 ms.",
+      "median": 0.02769,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 1.184 s. The median is 27.7 ms, and its interval is 25.4 ms to 42.8 ms.",
       "runs": [
-        [0.03396, 0.042592, 0.044163, 0.035706, 0.028967, 0.029457],
-        [0.524981, 0.033319, 0.027077, 0.032875, 0.034527]
+        [0.026448, 0.047808, 0.03366, 0.022515, 0.042789, 0.025631],
+        [0.03008, 0.032724, 0.026835, 0.02769, 0.025381]
       ],
-      "warmups": [0.03387, 0.029359],
+      "warmups": [0.033053, 0.022847],
       "voids": null,
       "stages": [
         {
           "stage": "election-start",
-          "low": -0.004,
-          "high": 0.244,
-          "median": 0.002652,
+          "low": -0.001,
+          "high": 0.241,
+          "median": 0.002036,
           "decision": "holds"
         },
         {
           "stage": "elected",
-          "low": -0.004,
-          "high": 0.244,
-          "median": 0.004967,
+          "low": -0.001,
+          "high": 0.241,
+          "median": 0.004094,
           "decision": "holds"
         },
         {
           "stage": "caught-up",
-          "low": -0.004,
-          "high": 0.256,
-          "median": 0.007782,
+          "low": -0.001,
+          "high": 0.253,
+          "median": 0.006224,
           "decision": "holds"
         },
         {
           "stage": "writable",
-          "low": -0.004,
-          "high": 0.366,
-          "median": 0.013557,
+          "low": -0.001,
+          "high": 0.363,
+          "median": 0.010972,
           "decision": "holds"
         },
         {
           "stage": "old-primary-steps-down",
-          "low": -0.004,
-          "high": 0.12,
-          "median": 0.000782,
+          "low": -0.001,
+          "high": 0.117,
+          "median": 0.00067,
           "decision": "holds"
         },
         {
           "stage": "discovered",
-          "low": -0.004,
-          "high": 0.378,
-          "median": 0.017948,
+          "low": -0.001,
+          "high": 0.375,
+          "median": 0.014084,
           "decision": "holds"
         },
         {
           "stage": "first-write",
-          "low": -0.004,
-          "high": 0.506,
-          "median": 0.034509,
-          "decision": "fails"
+          "low": -0.001,
+          "high": 1.186,
+          "median": 0.028097,
+          "decision": "holds"
         }
       ],
       "writes": {
@@ -1379,87 +1379,87 @@
       "prediction": {
         "kind": "detects",
         "low": 29.999,
-        "high": 40.149,
+        "high": 40.348,
         "window": null,
-        "text": "The algebra predicts that the first write lands on the new primary. The band is 29.999 s to 40.149 s after the fault."
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 29.999 s to 40.348 s after the fault."
       },
       "decision": "holds",
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 29.995,
-        "high": 40.153
+        "low": 29.998,
+        "high": 40.349
       },
-      "median": 39.429652,
-      "why": "11 of the 11 counted runs are in the band of 29.995 s to 40.153 s. The median is 39.43 s, and its interval is 39.423 s to 39.443 s.",
+      "median": 39.443236,
+      "why": "11 of the 11 counted runs are in the band of 29.998 s to 40.349 s. The median is 39.443 s, and its interval is 39.423 s to 39.448 s.",
       "runs": [
-        [39.423456, 39.445876, 39.442512, 39.443311, 39.424862, 39.426665],
-        [39.443335, 39.40474, 39.429833, 39.429652, 39.426552]
+        [39.424702, 39.448194, 39.424071, 39.443236, 39.447062, 39.422972],
+        [39.444828, 39.444155, 39.429783, 39.474428, 39.42252]
       ],
-      "warmups": [39.415794, 39.424013],
+      "warmups": [39.42687, 39.427287],
       "voids": null,
       "stages": [
         {
           "stage": "member-down",
-          "low": 9.996,
-          "high": 12.026,
-          "median": 10.817288,
+          "low": 9.999,
+          "high": 12.023,
+          "median": 10.52078,
           "decision": "holds"
         },
         {
           "stage": "election-start",
-          "low": 9.836,
-          "high": 11.518,
-          "median": 10.842643,
+          "low": 9.839,
+          "high": 11.515,
+          "median": 10.62178,
           "decision": "holds"
         },
         {
           "stage": "elected",
-          "low": 9.836,
-          "high": 11.642,
-          "median": 10.844643,
+          "low": 9.839,
+          "high": 11.639,
+          "median": 10.62378,
           "decision": "holds"
         },
         {
           "stage": "caught-up",
-          "low": 9.996,
-          "high": 21.652,
-          "median": 11.964392,
+          "low": 9.999,
+          "high": 21.649,
+          "median": 11.654731,
           "decision": "holds"
         },
         {
           "stage": "writable",
-          "low": 9.996,
-          "high": 21.762,
-          "median": 11.967393,
+          "low": 9.999,
+          "high": 21.759,
+          "median": 11.657731,
           "decision": "holds"
         },
         {
           "stage": "old-primary-steps-down",
           "low": null,
           "high": null,
-          "median": 60.008109,
+          "median": 60.007731,
           "decision": null
         },
         {
           "stage": "discovered",
-          "low": 9.996,
-          "high": 21.774,
-          "median": 11.968995,
+          "low": 9.999,
+          "high": 21.771,
+          "median": 11.660791,
           "decision": "holds"
         },
         {
           "stage": "written-off",
-          "low": 29.995,
-          "high": 40.017,
-          "median": 39.422543,
+          "low": 29.998,
+          "high": 40.014,
+          "median": 39.423099,
           "decision": "holds"
         },
         {
           "stage": "first-write",
-          "low": 29.995,
-          "high": 40.155,
-          "median": 39.430139,
+          "low": 29.998,
+          "high": 40.351,
+          "median": 39.443665,
           "decision": "holds"
         }
       ],
@@ -1475,8 +1475,8 @@
           "max": 1
         },
         "unknown": {
-          "total": 2,
-          "held": 2
+          "total": 0,
+          "held": 0
         },
         "errors": [],
         "moved": 11,
@@ -1492,87 +1492,87 @@
       "prediction": {
         "kind": "detects",
         "low": 29.999,
-        "high": 40.149,
+        "high": 40.348,
         "window": null,
-        "text": "The algebra predicts that the first write lands on the new primary. The band is 29.999 s to 40.149 s after the fault."
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 29.999 s to 40.348 s after the fault."
       },
       "decision": "holds",
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 29.995,
-        "high": 40.153
+        "low": 29.998,
+        "high": 40.349
       },
-      "median": 39.441572,
-      "why": "11 of the 11 counted runs are in the band of 29.995 s to 40.153 s. The median is 39.442 s, and its interval is 39.437 s to 39.49 s.",
+      "median": 39.425995,
+      "why": "11 of the 11 counted runs are in the band of 29.998 s to 40.349 s. The median is 39.426 s, and its interval is 39.424 s to 39.442 s.",
       "runs": [
-        [39.437178, 39.44629, 39.490398, 39.488067, 39.441977, 39.441572],
-        [39.440531, 39.427905, 39.439784, 39.436862, 39.490607]
+        [39.424667, 39.426271, 39.425995, 39.425161, 39.423667, 39.424104],
+        [39.426141, 39.41977, 39.429714, 39.477728, 39.442453]
       ],
-      "warmups": [39.450014, 39.426252],
+      "warmups": [39.415215, 39.425185],
       "voids": null,
       "stages": [
         {
           "stage": "member-down",
-          "low": 9.996,
-          "high": 12.026,
-          "median": 11.061693,
+          "low": 9.999,
+          "high": 12.023,
+          "median": 10.620377,
           "decision": "holds"
         },
         {
           "stage": "election-start",
-          "low": 9.836,
-          "high": 11.518,
-          "median": 10.427857,
+          "low": 9.839,
+          "high": 11.515,
+          "median": 10.147552,
           "decision": "holds"
         },
         {
           "stage": "elected",
-          "low": 9.836,
-          "high": 11.642,
-          "median": 10.429857,
+          "low": 9.839,
+          "high": 11.639,
+          "median": 10.149552,
           "decision": "holds"
         },
         {
           "stage": "caught-up",
-          "low": 9.996,
-          "high": 21.652,
-          "median": 11.249693,
+          "low": 9.999,
+          "high": 21.649,
+          "median": 11.505741,
           "decision": "holds"
         },
         {
           "stage": "writable",
-          "low": 9.996,
-          "high": 21.762,
-          "median": 11.252693,
+          "low": 9.999,
+          "high": 21.759,
+          "median": 11.508741,
           "decision": "holds"
         },
         {
           "stage": "old-primary-steps-down",
-          "low": 9.836,
-          "high": 10.018,
-          "median": 9.957017,
+          "low": 9.839,
+          "high": 10.015,
+          "median": 9.959367,
           "decision": "holds"
         },
         {
           "stage": "discovered",
-          "low": 9.996,
-          "high": 21.774,
-          "median": 11.255673,
+          "low": 9.999,
+          "high": 21.771,
+          "median": 11.513231,
           "decision": "holds"
         },
         {
           "stage": "written-off",
-          "low": 29.995,
-          "high": 40.017,
-          "median": 39.431406,
+          "low": 29.998,
+          "high": 40.014,
+          "median": 39.418554,
           "decision": "holds"
         },
         {
           "stage": "first-write",
-          "low": 29.995,
-          "high": 40.155,
-          "median": 39.441969,
+          "low": 29.998,
+          "high": 40.351,
+          "median": 39.426619,
           "decision": "holds"
         }
       ],
@@ -1605,88 +1605,88 @@
       "prediction": {
         "kind": "detects",
         "low": 10,
-        "high": 21.896,
+        "high": 26.579,
         "window": null,
-        "text": "The algebra predicts that the first write lands on the new primary. The band is 10 s to 21.896 s after the fault."
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 10 s to 26.579 s after the fault."
       },
-      "decision": "fails",
+      "decision": "holds",
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 9.996,
-        "high": 21.9
+        "low": 9.999,
+        "high": 26.58
       },
-      "median": 19.341475,
-      "why": "9 of the 11 counted runs are in the band of 9.996 s to 21.9 s. The median is 19.341 s, and its interval is 18.132 s to 22.497 s.",
+      "median": 17.543638,
+      "why": "11 of the 11 counted runs are in the band of 9.999 s to 26.58 s. The median is 17.544 s, and its interval is 11.932 s to 19.41 s.",
       "runs": [
-        [18.131744, 20.97336, 19.341475, 11.017753, 19.015817, 19.076163],
-        [22.497182, 24.620293, 19.032732, 21.392952, 19.51206]
+        [17.376118, 17.472533, 17.543638, 11.931895, 11.512706, 17.688791],
+        [17.485842, 18.720988, 22.920735, 19.410267, 17.65844]
       ],
-      "warmups": [22.545453, 20.207089],
+      "warmups": [17.446967, 19.18971],
       "voids": null,
       "stages": [
         {
           "stage": "member-down",
-          "low": 9.996,
-          "high": 12.026,
-          "median": 10.731274,
+          "low": 9.999,
+          "high": 12.023,
+          "median": 10.873072,
           "decision": "holds"
         },
         {
           "stage": "election-start",
-          "low": 9.836,
-          "high": 11.518,
-          "median": 10.490316,
+          "low": 9.839,
+          "high": 11.515,
+          "median": 10.459042,
           "decision": "holds"
         },
         {
           "stage": "elected",
-          "low": 9.836,
-          "high": 11.642,
-          "median": 10.492316,
+          "low": 9.839,
+          "high": 11.639,
+          "median": 10.461042,
           "decision": "holds"
         },
         {
           "stage": "caught-up",
-          "low": 9.996,
-          "high": 21.652,
-          "median": 11.33882,
+          "low": 9.999,
+          "high": 21.649,
+          "median": 11.502498,
           "decision": "holds"
         },
         {
           "stage": "writable",
-          "low": 9.996,
-          "high": 21.762,
-          "median": 11.340819,
+          "low": 9.999,
+          "high": 21.759,
+          "median": 11.506498,
           "decision": "holds"
         },
         {
           "stage": "old-primary-steps-down",
-          "low": 9.836,
-          "high": 10.018,
-          "median": 9.958274,
+          "low": 9.839,
+          "high": 10.015,
+          "median": 9.96236,
           "decision": "holds"
         },
         {
           "stage": "discovered",
-          "low": 9.996,
-          "high": 21.774,
-          "median": 11.343034,
+          "low": 9.999,
+          "high": 21.771,
+          "median": 11.508749,
           "decision": "holds"
         },
         {
           "stage": "written-off",
           "low": null,
           "high": null,
-          "median": 40.582583,
+          "median": 41.331172,
           "decision": null
         },
         {
           "stage": "first-write",
-          "low": 9.996,
-          "high": 21.902,
-          "median": 19.34216,
-          "decision": "fails"
+          "low": 9.999,
+          "high": 26.582,
+          "median": 17.544407,
+          "decision": "holds"
         }
       ],
       "writes": {
@@ -1698,11 +1698,11 @@
         },
         "old": {
           "median": 0,
-          "max": 1
+          "max": 0
         },
         "unknown": {
-          "total": 1,
-          "held": 1
+          "total": 0,
+          "held": 0
         },
         "errors": [],
         "moved": 11,
@@ -1726,30 +1726,30 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": -0.004,
-        "high": 0.178
+        "low": -0.001,
+        "high": 0.175
       },
-      "median": 0.012615,
-      "why": "11 of the 11 counted runs are in the band of −4 ms to 178 ms. The median is 12.6 ms, and its interval is 7.58 ms to 19.9 ms.",
+      "median": 0.021116,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 175 ms. The median is 21.1 ms, and its interval is 12.5 ms to 27 ms.",
       "runs": [
-        [0.014386, 0.018394, 0.007543, 0.021447, 0.01991, 0.007816],
-        [0.017176, 0.009021, 0.012615, 0.012459, 0.00758]
+        [0.021909, 0.021116, 0.01768, 0.028579, 0.025426, 0.014937],
+        [0.023739, 0.012489, 0.017059, 0.027034, 0.011471]
       ],
-      "warmups": [0.019127, 0.009715],
+      "warmups": [0.019297, 0.028494],
       "voids": null,
       "stages": [
         {
           "stage": "member-down",
           "low": null,
           "high": null,
-          "median": 10.738552,
+          "median": 10.771893,
           "decision": null
         },
         {
           "stage": "first-write",
           "low": null,
           "high": null,
-          "median": 0.013052,
+          "median": 0.021696,
           "decision": null
         }
       ],
@@ -1761,12 +1761,12 @@
           "max": 0
         },
         "old": {
-          "median": 802,
+          "median": 809,
           "max": 813
         },
         "unknown": {
-          "total": 1,
-          "held": 1
+          "total": 0,
+          "held": 0
         },
         "errors": [],
         "moved": 0,
@@ -1790,23 +1790,23 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 25.716,
-        "high": 26.973
+        "low": 25.719,
+        "high": 26.97
       },
-      "median": 26.504337,
-      "why": "11 of the 11 counted runs are in the band of 25.716 s to 26.973 s. The median is 26.504 s, and its interval is 26.356 s to 26.787 s.",
+      "median": 26.535225,
+      "why": "11 of the 11 counted runs are in the band of 25.719 s to 26.97 s. The median is 26.535 s, and its interval is 26.479 s to 26.764 s.",
       "runs": [
-        [26.587081, 26.433974, 26.885905, 26.786724, 26.656057, 26.504239],
-        [26.6388, 26.504337, 26.400493, 26.330865, 26.355706]
+        [26.615207, 26.474034, 26.888695, 26.703004, 26.518229, 26.535225],
+        [26.478976, 26.763535, 26.510564, 26.481146, 26.574344]
       ],
-      "warmups": [26.614459, 26.65698],
+      "warmups": [26.751398, 26.624736],
       "voids": null,
       "stages": [
         {
           "stage": "first-write",
           "low": null,
           "high": null,
-          "median": 26.521689,
+          "median": 26.552328,
           "decision": null
         }
       ],
@@ -1818,12 +1818,12 @@
           "max": 0
         },
         "old": {
-          "median": 79,
-          "max": 79
+          "median": 78,
+          "max": 78
         },
         "unknown": {
-          "total": 0,
-          "held": 0
+          "total": 1,
+          "held": 1
         },
         "errors": [],
         "moved": 0,
@@ -1847,30 +1847,30 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": -0.004,
-        "high": 0.178
+        "low": -0.001,
+        "high": 0.175
       },
-      "median": 0.010554,
-      "why": "11 of the 11 counted runs are in the band of −4 ms to 178 ms. The median is 10.6 ms, and its interval is 5.62 ms to 57.4 ms.",
+      "median": 0.017812,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 175 ms. The median is 17.8 ms, and its interval is 12.1 ms to 25.1 ms.",
       "runs": [
-        [0.057393, 0.013873, 0.008024, 0.009421, 0.059753, 0.005129],
-        [0.056295, 0.005832, 0.010554, 0.015426, 0.005621]
+        [0.011693, 0.012146, 0.02513, 0.020369, 0.018469, 0.015968],
+        [0.021937, 0.025204, 0.017812, 0.015799, 0.01531]
       ],
-      "warmups": [0.00768, 0.006317],
+      "warmups": [0.02216, 0.026799],
       "voids": null,
       "stages": [
         {
           "stage": "member-down",
           "low": null,
           "high": null,
-          "median": 10.797672,
+          "median": 11.09266,
           "decision": null
         },
         {
           "stage": "first-write",
           "low": null,
           "high": null,
-          "median": 0.011198,
+          "median": 0.018292,
           "decision": null
         }
       ],
@@ -1882,8 +1882,8 @@
           "max": 0
         },
         "old": {
-          "median": 797,
-          "max": 798
+          "median": 811,
+          "max": 821
         },
         "unknown": {
           "total": 0,
@@ -1903,31 +1903,31 @@
       "prediction": {
         "kind": "detects",
         "low": 8,
-        "high": 8.114,
+        "high": 8.298,
         "window": null,
-        "text": "The algebra predicts that the first write after the fault lands on the same primary. The band is 8 s to 8.114 s after the fault. The prediction has no election after the fault."
+        "text": "The algebra predicts that the first write after the fault lands on the same primary. The band is 8 s to 8.298 s after the fault. The prediction has no election after the fault."
       },
       "decision": "holds",
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 7.996,
-        "high": 8.118
+        "low": 7.999,
+        "high": 8.299
       },
-      "median": 8.005166,
-      "why": "11 of the 11 counted runs are in the band of 7.996 s to 8.118 s. The median is 8.005 s, and its interval is 8.005 s to 8.006 s.",
+      "median": 8.004652,
+      "why": "11 of the 11 counted runs are in the band of 7.999 s to 8.299 s. The median is 8.005 s, and its interval is 8.004 s to 8.006 s.",
       "runs": [
-        [8.004957, 8.004937, 8.005366, 8.005743, 8.008558, 8.005753],
-        [8.005455, 8.004045, 8.005166, 8.004829, 8.004837]
+        [8.004652, 8.003814, 8.059231, 8.003647, 8.004459, 8.00307],
+        [8.004917, 8.004948, 8.005473, 8.003825, 8.005622]
       ],
-      "warmups": [8.004437, 8.007117],
+      "warmups": [8.003898, 8.00327],
       "voids": null,
       "stages": [
         {
           "stage": "first-write",
-          "low": 7.996,
-          "high": 8.12,
-          "median": 8.006385,
+          "low": 7.999,
+          "high": 8.301,
+          "median": 8.006233,
           "decision": "holds"
         }
       ],
@@ -1940,11 +1940,11 @@
         },
         "old": {
           "median": 77,
-          "max": 77
+          "max": 78
         },
         "unknown": {
-          "total": 0,
-          "held": 0
+          "total": 2,
+          "held": 2
         },
         "errors": [],
         "moved": 0,
@@ -1960,87 +1960,87 @@
       "prediction": {
         "kind": "detects",
         "low": 13,
-        "high": 13.262,
+        "high": 13.947,
         "window": null,
-        "text": "The algebra predicts that the first write lands on the new primary. The band is 13 s to 13.262 s after the fault."
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 13 s to 13.947 s after the fault."
       },
       "decision": "holds",
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 12.996,
-        "high": 13.266
+        "low": 12.999,
+        "high": 13.948
       },
-      "median": 13.063106,
-      "why": "11 of the 11 counted runs are in the band of 12.996 s to 13.266 s. The median is 13.063 s, and its interval is 13.017 s to 13.198 s.",
+      "median": 13.142576,
+      "why": "11 of the 11 counted runs are in the band of 12.999 s to 13.948 s. The median is 13.143 s, and its interval is 13.021 s to 13.173 s.",
       "runs": [
-        [13.020621, 13.138995, 13.214824, 13.198297, 13.020965, 13.012679],
-        [13.019996, 13.063106, 13.138579, 13.017289, 13.186529]
+        [13.02715, 13.086937, 13.019695, 13.166683, 13.15929, 13.16738],
+        [13.142576, 13.020898, 13.176768, 13.172561, 13.027127]
       ],
-      "warmups": [13.016859, 13.142068],
+      "warmups": [13.157366, 13.022633],
       "voids": null,
       "stages": [
         {
           "stage": "member-down",
-          "low": 9.996,
-          "high": 12.026,
-          "median": 10.523953,
+          "low": 9.999,
+          "high": 12.023,
+          "median": 10.536321,
           "decision": "holds"
         },
         {
           "stage": "election-start",
-          "low": 9.836,
-          "high": 11.518,
-          "median": 10.565175,
+          "low": 9.839,
+          "high": 11.515,
+          "median": 10.47199,
           "decision": "holds"
         },
         {
           "stage": "elected",
-          "low": 9.836,
-          "high": 11.642,
-          "median": 10.567175,
+          "low": 9.839,
+          "high": 11.639,
+          "median": 10.47399,
           "decision": "holds"
         },
         {
           "stage": "caught-up",
-          "low": 9.996,
-          "high": 13.018,
-          "median": 11.93429,
+          "low": 9.999,
+          "high": 13.015,
+          "median": 11.054664,
           "decision": "holds"
         },
         {
           "stage": "writable",
-          "low": 9.996,
-          "high": 13.128,
-          "median": 11.936289,
+          "low": 9.999,
+          "high": 13.125,
+          "median": 11.059664,
           "decision": "holds"
         },
         {
           "stage": "old-primary-steps-down",
           "low": null,
           "high": null,
-          "median": 13.002133,
+          "median": 13.005395,
           "decision": null
         },
         {
           "stage": "discovered",
-          "low": 9.996,
-          "high": 13.14,
-          "median": 11.938293,
+          "low": 9.999,
+          "high": 13.137,
+          "median": 11.06292,
           "decision": "holds"
         },
         {
           "stage": "written-off",
           "low": null,
           "high": null,
-          "median": 13.018169,
+          "median": 13.024104,
           "decision": null
         },
         {
           "stage": "first-write",
-          "low": 12.996,
-          "high": 13.268,
-          "median": 13.06336,
+          "low": 12.999,
+          "high": 13.95,
+          "median": 13.143498,
           "decision": "holds"
         }
       ],
@@ -2056,16 +2056,10 @@
           "max": 0
         },
         "unknown": {
-          "total": 1,
+          "total": 0,
           "held": 0
         },
-        "errors": [
-          {
-            "name": "MongoServerError",
-            "runs": 1,
-            "first": 13.010723
-          }
-        ],
+        "errors": [],
         "moved": 11,
         "stayed": 0
       }
@@ -2079,88 +2073,88 @@
       "prediction": {
         "kind": "detects",
         "low": 10,
-        "high": 21.896,
+        "high": 26.579,
         "window": null,
-        "text": "The algebra predicts that the first write lands on the new primary. The band is 10 s to 21.896 s after the fault."
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 10 s to 26.579 s after the fault."
       },
-      "decision": "fails",
+      "decision": "holds",
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 9.996,
-        "high": 21.9
+        "low": 9.999,
+        "high": 26.58
       },
-      "median": 18.972041,
-      "why": "8 of the 11 counted runs are in the band of 9.996 s to 21.9 s. The median is 18.972 s, and its interval is 17.957 s to 22.385 s.",
+      "median": 21.230992,
+      "why": "11 of the 11 counted runs are in the band of 9.999 s to 26.58 s. The median is 21.231 s, and its interval is 17.959 s to 22.814 s.",
       "runs": [
-        [17.957392, 22.112022, 18.977764, 19.187098, 17.577494, 18.972041],
-        [17.971358, 23.23009, 17.999978, 17.975687, 22.38523]
+        [18.743241, 19.185545, 17.959494, 22.786633, 22.56767, 23.265608],
+        [22.813522, 19.160516, 21.230992, 17.539682, 22.606173]
       ],
-      "warmups": [17.403618, 17.833222],
+      "warmups": [19.297869, 19.338007],
       "voids": null,
       "stages": [
         {
           "stage": "member-down",
-          "low": 9.996,
-          "high": 12.026,
-          "median": 10.760266,
+          "low": 9.999,
+          "high": 12.023,
+          "median": 10.507541,
           "decision": "holds"
         },
         {
           "stage": "election-start",
-          "low": 9.836,
-          "high": 11.518,
-          "median": 10.440251,
+          "low": 9.839,
+          "high": 11.515,
+          "median": 10.561701,
           "decision": "holds"
         },
         {
           "stage": "elected",
-          "low": 9.836,
-          "high": 11.642,
-          "median": 10.443251,
+          "low": 9.839,
+          "high": 11.639,
+          "median": 10.563701,
           "decision": "holds"
         },
         {
           "stage": "caught-up",
-          "low": 9.996,
-          "high": 21.652,
-          "median": 11.967519,
+          "low": 9.999,
+          "high": 21.649,
+          "median": 11.953624,
           "decision": "holds"
         },
         {
           "stage": "writable",
-          "low": 9.996,
-          "high": 21.762,
-          "median": 11.970519,
+          "low": 9.999,
+          "high": 21.759,
+          "median": 11.956624,
           "decision": "holds"
         },
         {
           "stage": "old-primary-steps-down",
           "low": null,
           "high": null,
-          "median": 60.006942,
+          "median": 60.009571,
           "decision": null
         },
         {
           "stage": "discovered",
-          "low": 9.996,
-          "high": 21.774,
-          "median": 11.972943,
+          "low": 9.999,
+          "high": 21.771,
+          "median": 11.958385,
           "decision": "holds"
         },
         {
           "stage": "written-off",
-          "low": 4.995,
-          "high": 7.017,
-          "median": 6.442731,
+          "low": 4.998,
+          "high": 7.014,
+          "median": 6.418716,
           "decision": "holds"
         },
         {
           "stage": "first-write",
-          "low": 9.996,
-          "high": 21.902,
-          "median": 18.972718,
-          "decision": "fails"
+          "low": 9.999,
+          "high": 26.582,
+          "median": 21.231671,
+          "decision": "holds"
         }
       ],
       "writes": {
@@ -2172,7 +2166,7 @@
         },
         "old": {
           "median": 0,
-          "max": 0
+          "max": 1
         },
         "unknown": {
           "total": 0,
@@ -2192,87 +2186,87 @@
       "prediction": {
         "kind": "detects",
         "low": 12.6,
-        "high": 27.354,
+        "high": 31.553,
         "window": null,
-        "text": "The algebra predicts that the first write lands on the new primary. The band is 12.6 s to 27.354 s after the fault."
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 12.6 s to 31.553 s after the fault."
       },
       "decision": "holds",
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 12.596,
-        "high": 27.358
+        "low": 12.599,
+        "high": 31.554
       },
-      "median": 17.251108,
-      "why": "11 of the 11 counted runs are in the band of 12.596 s to 27.358 s. The median is 17.251 s, and its interval is 13.372 s to 19.325 s.",
+      "median": 17.303043,
+      "why": "11 of the 11 counted runs are in the band of 12.599 s to 31.554 s. The median is 17.303 s, and its interval is 13.266 s to 18.992 s.",
       "runs": [
-        [17.441836, 17.251108, 13.37243, 13.295757, 18.263333, 22.774518],
-        [19.306708, 19.325217, 17.101984, 13.646688, 13.424914]
+        [17.259277, 13.122109, 17.696945, 25.509473, 17.303043, 13.265888],
+        [18.739755, 13.355272, 18.991509, 18.962632, 13.510136]
       ],
-      "warmups": [19.107168, 17.778888],
+      "warmups": [17.642146, 17.686771],
       "voids": null,
       "stages": [
         {
           "stage": "member-down",
-          "low": 9.996,
-          "high": 12.026,
-          "median": 11.098279,
+          "low": 9.999,
+          "high": 12.023,
+          "median": 10.965722,
           "decision": "holds"
         },
         {
           "stage": "election-start",
-          "low": 9.836,
-          "high": 11.518,
-          "median": 10.363789,
+          "low": 9.839,
+          "high": 11.515,
+          "median": 10.652786,
           "decision": "holds"
         },
         {
           "stage": "elected",
-          "low": 9.836,
-          "high": 11.642,
-          "median": 10.365789,
-          "decision": "holds"
+          "low": 9.839,
+          "high": 11.639,
+          "median": 10.750029,
+          "decision": "fails"
         },
         {
           "stage": "caught-up",
-          "low": 9.996,
-          "high": 21.652,
-          "median": 11.248447,
-          "decision": "holds"
+          "low": 9.999,
+          "high": 21.649,
+          "median": 11.254496,
+          "decision": "fails"
         },
         {
           "stage": "writable",
-          "low": 9.996,
-          "high": 21.762,
-          "median": 11.250447,
-          "decision": "holds"
+          "low": 9.999,
+          "high": 21.759,
+          "median": 11.257497,
+          "decision": "fails"
         },
         {
           "stage": "old-primary-steps-down",
-          "low": 9.836,
-          "high": 10.018,
-          "median": 9.962053,
+          "low": 9.839,
+          "high": 10.015,
+          "median": 9.966787,
           "decision": "holds"
         },
         {
           "stage": "discovered",
-          "low": 9.996,
-          "high": 21.774,
-          "median": 11.254934,
-          "decision": "holds"
+          "low": 9.999,
+          "high": 21.771,
+          "median": 11.260463,
+          "decision": "fails"
         },
         {
           "stage": "written-off",
-          "low": 29.995,
-          "high": 40.017,
-          "median": 13.367483,
+          "low": 29.998,
+          "high": 40.014,
+          "median": 13.2769,
           "decision": "fails"
         },
         {
           "stage": "first-write",
-          "low": 12.596,
-          "high": 27.36,
-          "median": 17.252237,
+          "low": 12.599,
+          "high": 31.556,
+          "median": 17.304018,
           "decision": "holds"
         }
       ],
@@ -2285,11 +2279,11 @@
         },
         "old": {
           "median": 0,
-          "max": 0
+          "max": 1
         },
         "unknown": {
-          "total": 1,
-          "held": 1
+          "total": 0,
+          "held": 0
         },
         "errors": [],
         "moved": 11,
@@ -2305,87 +2299,200 @@
       "prediction": {
         "kind": "detects",
         "low": 29.999,
-        "high": 40.149,
+        "high": 40.348,
         "window": null,
-        "text": "The algebra predicts that the first write lands on the new primary. The band is 29.999 s to 40.149 s after the fault."
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 29.999 s to 40.348 s after the fault."
       },
       "decision": "holds",
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 29.995,
-        "high": 40.153
+        "low": 29.998,
+        "high": 40.349
       },
-      "median": 39.456586,
-      "why": "11 of the 11 counted runs are in the band of 29.995 s to 40.153 s. The median is 39.457 s, and its interval is 39.446 s to 39.465 s.",
+      "median": 39.428916,
+      "why": "11 of the 11 counted runs are in the band of 29.998 s to 40.349 s. The median is 39.429 s, and its interval is 39.422 s to 39.447 s.",
       "runs": [
-        [39.46179, 39.450031, 39.465458, 39.457998, 39.453393, 39.456586],
-        [39.461458, 39.469719, 39.442176, 39.445969, 39.450407]
+        [39.441259, 39.444593, 39.44282, 39.421775, 39.428916, 39.423537],
+        [39.423105, 39.447217, 39.42111, 39.422279, 39.473846]
       ],
-      "warmups": [39.455199, 39.448569],
+      "warmups": [39.424091, 39.420428],
       "voids": null,
       "stages": [
         {
           "stage": "member-down",
-          "low": 9.996,
-          "high": 12.026,
-          "median": 10.455951,
+          "low": 9.999,
+          "high": 12.023,
+          "median": 11.132615,
           "decision": "holds"
         },
         {
           "stage": "election-start",
-          "low": 9.836,
-          "high": 11.518,
-          "median": 10.440194,
+          "low": 9.839,
+          "high": 11.515,
+          "median": 10.670561,
           "decision": "holds"
         },
         {
           "stage": "elected",
-          "low": 9.836,
-          "high": 11.642,
-          "median": 10.442193,
+          "low": 9.839,
+          "high": 11.639,
+          "median": 10.672561,
           "decision": "holds"
         },
         {
           "stage": "caught-up",
-          "low": 9.996,
-          "high": 21.652,
-          "median": 11.632194,
+          "low": 9.999,
+          "high": 21.649,
+          "median": 11.521763,
           "decision": "holds"
         },
         {
           "stage": "writable",
-          "low": 9.996,
-          "high": 21.762,
-          "median": 11.634193,
+          "low": 9.999,
+          "high": 21.759,
+          "median": 11.525763,
           "decision": "holds"
         },
         {
           "stage": "old-primary-steps-down",
-          "low": 9.836,
-          "high": 10.018,
-          "median": 9.963951,
+          "low": 9.839,
+          "high": 10.015,
+          "median": 9.965165,
           "decision": "holds"
         },
         {
           "stage": "discovered",
-          "low": 9.996,
-          "high": 21.774,
-          "median": 11.637449,
+          "low": 9.999,
+          "high": 21.771,
+          "median": 11.529453,
           "decision": "holds"
         },
         {
           "stage": "written-off",
-          "low": 29.995,
-          "high": 40.017,
-          "median": 39.45173,
+          "low": 29.998,
+          "high": 40.014,
+          "median": 39.416904,
           "decision": "holds"
         },
         {
           "stage": "first-write",
-          "low": 29.995,
-          "high": 40.155,
-          "median": 39.45686,
+          "low": 29.998,
+          "high": 40.351,
+          "median": 39.429306,
+          "decision": "holds"
+        }
+      ],
+      "writes": {
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 1
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 11,
+        "stayed": 0
+      }
+    },
+    {
+      "plan": "T11.border-off.39",
+      "catalog": "T11",
+      "name": "freeze-process at the primary, 29 s, inside the write-off",
+      "group": "T11",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 29,
+        "high": 29.451,
+        "window": null,
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 29 s to 29.451 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 28.999,
+        "high": 29.452
+      },
+      "median": 29.017754,
+      "why": "11 of the 11 counted runs are in the band of 28.999 s to 29.452 s. The median is 29.018 s, and its interval is 29.017 s to 29.022 s.",
+      "runs": [
+        [29.021238, 29.02169, 29.017754, 29.020545, 29.017578, 29.017671],
+        [29.024192, 29.021203, 29.017501, 29.015478, 29.016775]
+      ],
+      "warmups": [29.011937, 29.019139],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "member-down",
+          "low": 9.999,
+          "high": 12.023,
+          "median": 10.749047,
+          "decision": "holds"
+        },
+        {
+          "stage": "election-start",
+          "low": 9.839,
+          "high": 11.515,
+          "median": 10.499188,
+          "decision": "holds"
+        },
+        {
+          "stage": "elected",
+          "low": 9.839,
+          "high": 11.639,
+          "median": 10.501188,
+          "decision": "holds"
+        },
+        {
+          "stage": "caught-up",
+          "low": 9.999,
+          "high": 21.649,
+          "median": 11.289934,
+          "decision": "holds"
+        },
+        {
+          "stage": "writable",
+          "low": 9.999,
+          "high": 21.759,
+          "median": 11.292934,
+          "decision": "holds"
+        },
+        {
+          "stage": "old-primary-steps-down",
+          "low": null,
+          "high": null,
+          "median": 29.004934,
+          "decision": null
+        },
+        {
+          "stage": "discovered",
+          "low": 9.999,
+          "high": 21.771,
+          "median": 11.294771,
+          "decision": "holds"
+        },
+        {
+          "stage": "written-off",
+          "low": null,
+          "high": null,
+          "median": 29.019739,
+          "decision": null
+        },
+        {
+          "stage": "first-write",
+          "low": 28.999,
+          "high": 29.454,
+          "median": 29.019732,
           "decision": "holds"
         }
       ],
@@ -2410,119 +2517,6 @@
       }
     },
     {
-      "plan": "T11.border-off.39",
-      "catalog": "T11",
-      "name": "freeze-process at the primary, 29 s, inside the write-off",
-      "group": "T11",
-      "stage": "border",
-      "prediction": {
-        "kind": "detects",
-        "low": 29,
-        "high": 29.252,
-        "window": null,
-        "text": "The algebra predicts that the first write lands on the new primary. The band is 29 s to 29.252 s after the fault."
-      },
-      "decision": "holds",
-      "counted": 11,
-      "voided": 0,
-      "band": {
-        "low": 28.996,
-        "high": 29.256
-      },
-      "median": 29.024543,
-      "why": "11 of the 11 counted runs are in the band of 28.996 s to 29.256 s. The median is 29.025 s, and its interval is 29.019 s to 29.027 s.",
-      "runs": [
-        [29.028721, 29.0186, 29.022977, 29.026363, 29.024543, 29.025408],
-        [29.01929, 29.025799, 29.026744, 29.020521, 29.022256]
-      ],
-      "warmups": [29.026866, 29.019165],
-      "voids": null,
-      "stages": [
-        {
-          "stage": "member-down",
-          "low": 9.996,
-          "high": 12.026,
-          "median": 10.611965,
-          "decision": "holds"
-        },
-        {
-          "stage": "election-start",
-          "low": 9.836,
-          "high": 11.518,
-          "median": 10.388509,
-          "decision": "holds"
-        },
-        {
-          "stage": "elected",
-          "low": 9.836,
-          "high": 11.642,
-          "median": 10.390509,
-          "decision": "holds"
-        },
-        {
-          "stage": "caught-up",
-          "low": 9.996,
-          "high": 21.652,
-          "median": 10.703894,
-          "decision": "holds"
-        },
-        {
-          "stage": "writable",
-          "low": 9.996,
-          "high": 21.762,
-          "median": 10.706894,
-          "decision": "holds"
-        },
-        {
-          "stage": "old-primary-steps-down",
-          "low": null,
-          "high": null,
-          "median": 29.007206,
-          "decision": null
-        },
-        {
-          "stage": "discovered",
-          "low": 9.996,
-          "high": 21.774,
-          "median": 10.70875,
-          "decision": "holds"
-        },
-        {
-          "stage": "written-off",
-          "low": null,
-          "high": null,
-          "median": 29.025685,
-          "decision": null
-        },
-        {
-          "stage": "first-write",
-          "low": 28.996,
-          "high": 29.258,
-          "median": 29.026916,
-          "decision": "holds"
-        }
-      ],
-      "writes": {
-        "lost": {
-          "runs": 11,
-          "total": 0,
-          "median": 0,
-          "max": 0
-        },
-        "old": {
-          "median": 0,
-          "max": 0
-        },
-        "unknown": {
-          "total": 1,
-          "held": 1
-        },
-        "errors": [],
-        "moved": 11,
-        "stayed": 0
-      }
-    },
-    {
       "plan": "T11.border-off.40",
       "catalog": "T11",
       "name": "freeze-process at the primary, 41 s, outside the write-off",
@@ -2531,87 +2525,87 @@
       "prediction": {
         "kind": "detects",
         "low": 29.999,
-        "high": 40.149,
+        "high": 40.348,
         "window": null,
-        "text": "The algebra predicts that the first write lands on the new primary. The band is 29.999 s to 40.149 s after the fault."
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 29.999 s to 40.348 s after the fault."
       },
       "decision": "holds",
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 29.995,
-        "high": 40.153
+        "low": 29.998,
+        "high": 40.349
       },
-      "median": 39.460916,
-      "why": "11 of the 11 counted runs are in the band of 29.995 s to 40.153 s. The median is 39.461 s, and its interval is 39.457 s to 39.48 s.",
+      "median": 39.445514,
+      "why": "11 of the 11 counted runs are in the band of 29.998 s to 40.349 s. The median is 39.446 s, and its interval is 39.441 s to 39.451 s.",
       "runs": [
-        [39.478269, 39.456929, 39.45862, 39.458018, 39.460916, 39.463381],
-        [39.45658, 39.421023, 39.484669, 39.479571, 39.477605]
+        [39.444432, 39.443515, 39.444726, 39.448528, 39.441482, 39.449011],
+        [39.445514, 39.449213, 39.450751, 39.427312, 39.451178]
       ],
-      "warmups": [39.481142, 39.459984],
+      "warmups": [39.424714, 39.442988],
       "voids": null,
       "stages": [
         {
           "stage": "member-down",
-          "low": 9.996,
-          "high": 12.026,
-          "median": 10.426608,
+          "low": 9.999,
+          "high": 12.023,
+          "median": 10.885982,
           "decision": "holds"
         },
         {
           "stage": "election-start",
-          "low": 9.836,
-          "high": 11.518,
-          "median": 10.299899,
+          "low": 9.839,
+          "high": 11.515,
+          "median": 10.268871,
           "decision": "holds"
         },
         {
           "stage": "elected",
-          "low": 9.836,
-          "high": 11.642,
-          "median": 10.300899,
+          "low": 9.839,
+          "high": 11.639,
+          "median": 10.270872,
           "decision": "holds"
         },
         {
           "stage": "caught-up",
-          "low": 9.996,
-          "high": 21.652,
-          "median": 11.565373,
+          "low": 9.999,
+          "high": 21.649,
+          "median": 10.997117,
           "decision": "holds"
         },
         {
           "stage": "writable",
-          "low": 9.996,
-          "high": 21.762,
-          "median": 11.567373,
+          "low": 9.999,
+          "high": 21.759,
+          "median": 11.000117,
           "decision": "holds"
         },
         {
           "stage": "old-primary-steps-down",
           "low": null,
           "high": null,
-          "median": 41.002914,
+          "median": 41.003913,
           "decision": null
         },
         {
           "stage": "discovered",
-          "low": 9.996,
-          "high": 21.774,
-          "median": 11.569858,
+          "low": 9.999,
+          "high": 21.771,
+          "median": 11.002822,
           "decision": "holds"
         },
         {
           "stage": "written-off",
-          "low": 29.995,
-          "high": 40.017,
-          "median": 39.455512,
+          "low": 29.998,
+          "high": 40.014,
+          "median": 39.438769,
           "decision": "holds"
         },
         {
           "stage": "first-write",
-          "low": 29.995,
-          "high": 40.155,
-          "median": 39.461313,
+          "low": 29.998,
+          "high": 40.351,
+          "median": 39.446111,
           "decision": "holds"
         }
       ],
@@ -2644,87 +2638,87 @@
       "prediction": {
         "kind": "detects",
         "low": 39.84,
-        "high": 56.396,
+        "high": 57.079,
         "window": null,
-        "text": "The algebra predicts that the first write lands on the new primary. The band is 39.84 s to 56.396 s after the fault. The client meets MongoServerSelectionError 34.999 s to 37.031 s after the fault."
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 39.84 s to 57.079 s after the fault. The client meets MongoServerSelectionError 34.999 s to 37.031 s after the fault."
       },
       "decision": "holds",
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 39.836,
-        "high": 56.4
+        "low": 39.839,
+        "high": 57.08
       },
-      "median": 48.082641,
-      "why": "11 of the 11 counted runs are in the band of 39.836 s to 56.4 s. The median is 48.083 s, and its interval is 47.001 s to 52.525 s.",
+      "median": 47.300566,
+      "why": "11 of the 11 counted runs are in the band of 39.839 s to 57.08 s. The median is 47.301 s, and its interval is 46.669 s to 47.853 s.",
       "runs": [
-        [48.082641, 47.001196, 48.194228, 47.278817, 48.577146, 46.604187],
-        [48.121421, 47.640289, 52.525023, 47.015169, 55.216989]
+        [47.144463, 47.751789, 46.712501, 47.010864, 46.533872, 47.607445],
+        [47.300566, 46.66858, 47.852864, 48.255861, 47.312929]
       ],
-      "warmups": [47.340286, 47.418009],
+      "warmups": [47.206079, 51.413188],
       "voids": null,
       "stages": [
         {
           "stage": "member-down",
-          "low": 9.996,
-          "high": 12.026,
-          "median": 10.534158,
+          "low": 9.999,
+          "high": 12.023,
+          "median": 10.208109,
           "decision": "holds"
         },
         {
           "stage": "election-start",
-          "low": 39.836,
-          "high": 46.018,
-          "median": 42.966436,
+          "low": 39.839,
+          "high": 46.015,
+          "median": 40.941109,
           "decision": "holds"
         },
         {
           "stage": "elected",
-          "low": 39.836,
-          "high": 46.142,
-          "median": 42.968436,
+          "low": 39.839,
+          "high": 46.139,
+          "median": 40.943109,
           "decision": "holds"
         },
         {
           "stage": "caught-up",
-          "low": 39.836,
-          "high": 56.152,
-          "median": 46.079782,
+          "low": 39.839,
+          "high": 56.149,
+          "median": 45.296551,
           "decision": "holds"
         },
         {
           "stage": "writable",
-          "low": 39.836,
-          "high": 56.262,
-          "median": 46.082782,
+          "low": 39.839,
+          "high": 56.259,
+          "median": 45.30055,
           "decision": "holds"
         },
         {
           "stage": "old-primary-steps-down",
           "low": null,
           "high": null,
-          "median": 90.008366,
+          "median": 90.007109,
           "decision": null
         },
         {
           "stage": "discovered",
-          "low": 39.836,
-          "high": 56.274,
-          "median": 46.085579,
+          "low": 39.839,
+          "high": 56.271,
+          "median": 45.301756,
           "decision": "holds"
         },
         {
           "stage": "written-off",
-          "low": 4.995,
-          "high": 7.017,
-          "median": 6.438661,
+          "low": 4.998,
+          "high": 7.014,
+          "median": 6.436909,
           "decision": "holds"
         },
         {
           "stage": "first-write",
-          "low": 39.836,
-          "high": 56.402,
-          "median": 48.08328,
+          "low": 39.839,
+          "high": 57.082,
+          "median": 47.301341,
           "decision": "holds"
         }
       ],
@@ -2740,14 +2734,14 @@
           "max": 0
         },
         "unknown": {
-          "total": 11,
-          "held": 0
+          "total": 12,
+          "held": 1
         },
         "errors": [
           {
             "name": "MongoServerSelectionError",
             "runs": 11,
-            "first": 36.440851
+            "first": 36.438868
           }
         ],
         "moved": 11,
@@ -2763,94 +2757,94 @@
       "prediction": {
         "kind": "detects",
         "low": 10,
-        "high": 21.896,
+        "high": 22.08,
         "window": null,
-        "text": "The algebra predicts that the first write lands on the new primary. The band is 10 s to 21.896 s after the fault."
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 10 s to 22.08 s after the fault."
       },
       "decision": "holds",
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 9.996,
-        "high": 21.9
+        "low": 9.999,
+        "high": 22.081
       },
-      "median": 11.808194,
-      "why": "11 of the 11 counted runs are in the band of 9.996 s to 21.9 s. The median is 11.808 s, and its interval is 11.294 s to 21.129 s.",
+      "median": 11.833691,
+      "why": "11 of the 11 counted runs are in the band of 9.999 s to 22.081 s. The median is 11.834 s, and its interval is 10.839 s to 20.513 s.",
       "runs": [
-        [11.29362, 11.633503, 10.579159, 20.629968, 20.986696, 21.045159],
-        [11.791835, 11.615003, 21.129432, 21.46947, 11.808194]
+        [11.288146, 10.807467, 11.0464, 20.512873, 20.347418, 11.833691],
+        [10.838561, 11.205606, 20.445089, 11.979937, 20.932387]
       ],
-      "warmups": [11.25369, 10.150188],
+      "warmups": [11.433922, 11.933324],
       "voids": null,
       "stages": [
         {
           "stage": "member-down",
-          "low": 9.996,
-          "high": 12.026,
-          "median": 10.657279,
+          "low": 9.999,
+          "high": 12.023,
+          "median": 10.798286,
           "decision": "holds"
         },
         {
           "stage": "election-start",
-          "low": 9.836,
-          "high": 11.518,
-          "median": 10.821919,
+          "low": 9.839,
+          "high": 11.515,
+          "median": 10.335747,
           "decision": "holds"
         },
         {
           "stage": "elected",
-          "low": 9.836,
-          "high": 11.642,
-          "median": 10.823918,
+          "low": 9.839,
+          "high": 11.639,
+          "median": 10.337747,
           "decision": "holds"
         },
         {
           "stage": "caught-up",
-          "low": 9.996,
-          "high": 21.652,
-          "median": 11.800625,
+          "low": 9.999,
+          "high": 21.649,
+          "median": 11.823443,
           "decision": "holds"
         },
         {
           "stage": "writable",
-          "low": 9.996,
-          "high": 21.762,
-          "median": 11.802625,
+          "low": 9.999,
+          "high": 21.759,
+          "median": 11.825443,
           "decision": "holds"
         },
         {
           "stage": "old-primary-steps-down",
-          "low": 9.836,
-          "high": 10.018,
-          "median": 9.963472,
+          "low": 9.839,
+          "high": 10.015,
+          "median": 9.965286,
           "decision": "holds"
         },
         {
           "stage": "discovered",
-          "low": 9.996,
-          "high": 21.774,
-          "median": 11.804253,
+          "low": 9.999,
+          "high": 21.771,
+          "median": 11.828747,
           "decision": "holds"
         },
         {
           "stage": "written-off",
           "low": null,
           "high": null,
-          "median": 41.415754,
+          "median": 41.191106,
           "decision": null
         },
         {
           "stage": "first-write",
-          "low": 9.996,
-          "high": 21.902,
-          "median": 11.80839,
+          "low": 9.999,
+          "high": 22.083,
+          "median": 11.834106,
           "decision": "holds"
         }
       ],
       "writes": {
         "lost": {
           "runs": 11,
-          "total": 2147,
+          "total": 2150,
           "median": 195,
           "max": 196
         },
@@ -2876,88 +2870,88 @@
       "prediction": {
         "kind": "detects",
         "low": 9.84,
-        "high": 11.886,
+        "high": 22.364,
         "window": null,
-        "text": "The algebra predicts that the first write lands on the new primary. The band is 9.84 s to 11.886 s after the fault."
+        "text": "The algebra predicts that the first write lands on the new primary. The band is 9.84 s to 22.364 s after the fault."
       },
-      "decision": "fails",
+      "decision": "holds",
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 9.836,
-        "high": 11.89
+        "low": 9.839,
+        "high": 22.365
       },
-      "median": 11.257602,
-      "why": "6 of the 11 counted runs are in the band of 9.836 s to 11.89 s. The median is 11.258 s, and its interval is 10.465 s to 18.679 s.",
+      "median": 18.332206,
+      "why": "11 of the 11 counted runs are in the band of 9.839 s to 22.365 s. The median is 18.332 s, and its interval is 11.147 s to 18.856 s.",
       "runs": [
-        [18.797454, 18.006457, 10.540675, 10.387177, 18.343454, 18.164855],
-        [10.85272, 18.678798, 10.4647, 11.257602, 10.506987]
+        [18.586384, 11.179092, 19.26868, 18.076736, 18.149547, 18.332206],
+        [18.502243, 10.299867, 18.844652, 11.147108, 18.856225]
       ],
-      "warmups": [18.97766, 18.969981],
+      "warmups": [18.486065, 18.831756],
       "voids": null,
       "stages": [
         {
           "stage": "member-down",
-          "low": 9.996,
-          "high": 12.026,
-          "median": 10.690984,
+          "low": 9.999,
+          "high": 12.023,
+          "median": 10.549545,
           "decision": "holds"
         },
         {
           "stage": "election-start",
-          "low": 9.836,
-          "high": 11.518,
-          "median": 10.492983,
+          "low": 9.839,
+          "high": 11.515,
+          "median": 10.580814,
           "decision": "holds"
         },
         {
           "stage": "elected",
-          "low": 9.836,
-          "high": 11.642,
-          "median": 10.494982,
+          "low": 9.839,
+          "high": 11.639,
+          "median": 10.581814,
           "decision": "holds"
         },
         {
           "stage": "caught-up",
-          "low": 9.836,
-          "high": 11.642,
-          "median": 10.495983,
+          "low": 9.839,
+          "high": 11.639,
+          "median": 10.581814,
           "decision": "holds"
         },
         {
           "stage": "writable",
-          "low": 9.836,
-          "high": 11.752,
-          "median": 10.499983,
+          "low": 9.839,
+          "high": 11.749,
+          "median": 10.586814,
           "decision": "holds"
         },
         {
           "stage": "old-primary-steps-down",
-          "low": 9.836,
-          "high": 10.018,
-          "median": 9.966541,
+          "low": 9.839,
+          "high": 10.015,
+          "median": 9.965047,
           "decision": "holds"
         },
         {
           "stage": "discovered",
-          "low": 9.836,
-          "high": 11.764,
-          "median": 10.503051,
+          "low": 9.839,
+          "high": 11.761,
+          "median": 10.587731,
           "decision": "holds"
         },
         {
           "stage": "written-off",
           "low": null,
           "high": null,
-          "median": 41.151097,
+          "median": 41.515066,
           "decision": null
         },
         {
           "stage": "first-write",
-          "low": 9.836,
-          "high": 11.892,
-          "median": 11.258048,
-          "decision": "fails"
+          "low": 9.839,
+          "high": 22.367,
+          "median": 18.332857,
+          "decision": "holds"
         }
       ],
       "writes": {

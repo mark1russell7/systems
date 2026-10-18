@@ -10,24 +10,26 @@ import { Summary } from "../../../components/Ledger.tsx";
 
 <Summary of="sentinel" />
 
-These are the results of the T12 cells, from 2026-10-16. T12 is a replicated group under an external failover authority. The group has a primary and two replicas of Valkey 9.1.2, and three Sentinels with a quorum of 2. The client is ioredis 6.0.0 in Sentinel mode, at its defaults. It writes a stream of `SET` commands, with a pause of 50 ms after each reply.
+These are the results of the T12 cells, from 2026-10-17. T12 is a replicated group under an external failover authority. The group has a primary and two replicas of Valkey 9.1.2, and three Sentinels with a quorum of 2. The client is ioredis 6.0.0 in Sentinel mode, at its defaults. It writes a stream of `SET` commands, with a pause of 50 ms after each reply.
 
-CI started the cells on the hosted runners of GitHub, with one cell on each runner. The kernel is Linux 6.17, with HZ 1000. Each cell has 11 runs in 2 fresh environments, and each environment starts with one warm-up run that the verdict does not count. The 12 cells of the plan are from the run [38919703285](https://github.com/mark1russell7/systems/actions/runs/38919703285). The calibration of the stamps is from the run [38924457549](https://github.com/mark1russell7/systems/actions/runs/38924457549), after a fix to the harness.
+CI started the cells on the hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000. Each cell has 11 runs in 2 fresh environments, and each environment starts with one warm-up run that the verdict does not count. The full run of the catalogs at main, [39074841434](https://github.com/mark1russell7/systems/actions/runs/39074841434), did the 13 cells with each other catalog, in 12 shards.
 
 Of the 13 cells, 9 hold against the prediction of the algebra, and 4 are measurements only. No cell fails, and each stage of each failover is in its band. No run is void.
 
 ## What the cells found
 
-- **At the defaults, the Sentinels name a new primary 31.2 s after a crash.** A `fin` at the primary gives `+sdown` at 30.052 s and `+switch-master` at 31.205 s. The reconnect ladder of ioredis finds the new primary at 32.554 s. A primary that refuses each connection (`rst`) gives 32.713 s.
-- **A frozen primary keeps its client until the thaw.** ioredis has no timer for the group, thus its socket to the frozen primary stays open. After a freeze of 40 s, the Sentinels make the old primary a replica at 50.031 s, and that closes the client. The client writes to the new primary at 50.197 s.
+- **At the defaults, the Sentinels name a new primary 30.9 s after a crash.** A `fin` at the primary gives `+sdown` at 30.054 s and `+switch-master` at 30.916 s. The reconnect ladder of ioredis finds the new primary at 32.574 s. A primary that refuses each connection (`rst`) gives 32.668 s.
+- **A frozen primary keeps its client until the thaw.** ioredis has no timer for the group, thus its socket to the frozen primary stays open. After a freeze of 40 s, the Sentinels make the old primary a replica at 50.03 s, and that closes the client. The client writes to the new primary at 50.205 s.
 - **The thawed primary accepts writes that the group does not keep.** From the thaw to its conversion, the old primary accepts the writes of the client for 10 s. Thus the group lost 199 accepted writes in the median run. The freeze of 33 s lost 199 writes too. The freeze of 29 s ends inside `down-after-milliseconds`, thus no failover occurs, and no write is lost.
-- **The plain `SENTINEL FAILOVER` loses writes, and the coordinated one does not.** In the plain failover, the new primary is in place at 1.131 s. But the old primary accepts writes until the Sentinels convert it at 11.217 s, and the group lost 219 writes in the median run. In the coordinated failover, the client writes to the new primary at 1.247 s, and the group lost no write.
-- **The partition of DV-40 is a split brain.** The primary keeps its clients, and it loses its Sentinels and its replicas. The Sentinels name a new primary at 31.487 s, but the client writes to the old primary while the partition holds. The group lost 1,042 writes in the median run. After the lift, the client writes to the new primary at 52.855 s.
-- **A black hole at the primary cuts its clients too.** The client writes to the new primary at 52.858 s, after the lift. The old primary got almost no write, and the group lost 17 writes in all 11 runs.
-- **A partition from the clients only gives no failover.** The Sentinels see a live primary. The reply comes at the eighth firing of the RTO timer after the heal, at 52.727 s.
-- **The border of `down-after-milliseconds` holds on each side.** A freeze of 29 s ends before the 30 s of the Sentinels, and the same primary answers at 29.005 s. A freeze of 33 s gives a failover, and the client writes to the new primary at 43.159 s.
-- **The give-up of the offline queue holds on each side.** At its close 21, ioredis 6 fails each queued write with `MaxRetriesPerRequestError`, 71.35 s to 75.9 s after a crash. With `down-after-milliseconds` at 69 s, the client writes to the new primary at 73.519 s, before that error. At 76 s, each run met the error first, at 73.548 s, and the client wrote to the new primary at 78.656 s.
-- **The stamps of the observer are late by 0.705 ms at most.** The calibration read 397 stamps of the Sentinels. Their delay has a median of 0.208 ms, a 99th percentile of 0.552 ms and a maximum of 0.705 ms. Each stage band of these runs includes an error of 2 ms. After the calibration, the catalog changed it to 0.705 ms.
+- **The plain `SENTINEL FAILOVER` loses writes, and the coordinated one does not.** In the plain failover, the new primary is in place at 1.177 s. But the old primary accepts writes until the Sentinels convert it at 11.236 s, and the group lost 219 writes in the median run. In the coordinated failover, the client writes to the new primary at 1.249 s, and the group lost no write.
+- **The partition of DV-40 is a split brain.** The primary keeps its clients, and it loses its Sentinels and its replicas. The Sentinels name a new primary at 31.441 s, but the client writes to the old primary while the partition holds. The group lost 1,041 writes in the median run. After the lift, the client writes to the new primary at 52.78 s.
+- **A black hole at the primary cuts its clients too.** The client writes to the new primary at 52.642 s, after the lift. The old primary got almost no write, and the group lost 8 writes in all 11 runs.
+- **A partition from the clients only gives no failover.** The Sentinels see a live primary. The reply comes at the eighth firing of the RTO timer after the heal, at 52.737 s.
+- **The border of `down-after-milliseconds` holds on each side.** A freeze of 29 s ends before the 30 s of the Sentinels, and the same primary answers at 29.003 s. A freeze of 33 s gives a failover, and the client writes to the new primary at 43.18 s.
+- **The give-up of the offline queue holds on each side.** At its close 21, ioredis 6 fails each queued write with `MaxRetriesPerRequestError`, 71.35 s to 75.9 s after a crash. With `down-after-milliseconds` at 69 s, the client writes to the new primary at 73.465 s, before that error. At 76 s, each run met the error first, at 73.494 s, and the client wrote to the new primary at 78.641 s.
+- **The stamps of the observer are late by 1.003 ms at most.** The calibration read 402 stamps of the Sentinels. Their delay has a median of 0.254 ms, a 99th percentile of 0.815 ms and a maximum of 1.003 ms.
+  - Each stage band of these runs includes an error of 0.705 ms: the maximum of the first calibration, on 2026-10-16. The maximum of this run is 0.298 ms more.
+  - Each stage holds with that error. A larger error only makes each band wider, thus each stage holds with 1.003 ms too.
 
 ## The writes
 
@@ -49,7 +51,7 @@ These cells put a freeze on each side of `down-after-milliseconds`, and a failov
 
 ## The calibration of the stamps
 
-The observer subscribes to each Sentinel, and it stamps each event that it reads. The calibration compares each stamp with the write of the Sentinel, as the prober records that write. In the first CI run, the harness did not keep the subscriptions of the observer, thus the calibration gave no delay. This page shows the second CI run.
+The observer subscribes to each Sentinel, and it stamps each event that it reads. The calibration compares each stamp with the write of the Sentinel, as the prober records that write. The first calibration, on 2026-10-16, read 397 stamps with a maximum of 0.705 ms. The catalog took that time as the error of each stage band.
 
 <RunResults copy="sentinel" group="calibration" client:visible />
 

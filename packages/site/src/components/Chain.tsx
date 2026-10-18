@@ -5,7 +5,7 @@
  * its real width in pixels, so its text stays at its real size on a narrow page.
  */
 import type { ReactElement, ReactNode } from "react";
-import topologies from "../data/topologies-2026-10-16.json";
+import topologies from "../data/topologies-2026-10-17.json";
 import { code, joined } from "./CellFrame.tsx";
 import { useWidth } from "./Strip.tsx";
 

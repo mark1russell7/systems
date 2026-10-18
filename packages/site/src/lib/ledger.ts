@@ -5,14 +5,14 @@
  *
  * The first harness cells are not in the ledger, because the S1 cells replace them.
  */
-import faults from "../data/faults-2026-10-14.json";
+import faults from "../data/faults-2026-10-17.json";
 import harness from "../data/harness-2026-10-13.json";
-import http from "../data/http-2026-10-16.json";
+import http from "../data/http-2026-10-17.json";
 import kind from "../data/kind-2026-10-17.json";
-import mongodb from "../data/mongodb-2026-10-16.json";
+import mongodb from "../data/mongodb-2026-10-18.json";
 import r3 from "../data/r3-2026-10-17.json";
-import sentinel from "../data/sentinel-2026-10-16.json";
-import topologies from "../data/topologies-2026-10-16.json";
+import sentinel from "../data/sentinel-2026-10-17.json";
+import topologies from "../data/topologies-2026-10-17.json";
 
 /** The count of the cells of each decision. */
 export interface Tally {
@@ -99,6 +99,20 @@ const ciEntry = (key: string, label: string, copy: { readonly ranAt: string; rea
   voided: sum(copy.cells, (cell) => cell.voided),
 });
 
+/** A verdict of a topology cell, with the fields that the ledger reads. */
+interface TopologyVerdict {
+  readonly decision: string;
+  readonly counted: number;
+  readonly voided: number;
+}
+/** A topology cell: its verdict, and the verdict of its re-run, or null when the copy has no re-run of it. */
+interface TopologyCell {
+  readonly catalog: string;
+  readonly verdict: TopologyVerdict;
+  readonly rerun: { readonly verdict: TopologyVerdict } | null;
+}
+const topologyCells: readonly TopologyCell[] = topologies.cells;
+
 /** The entries of the ledger, in the sequence of the program: the calibration first, then each step. */
 export const LEDGER: readonly Entry[] = [
   harnessEntry("calibration", "results/calibration/", "Calibration", ["Stage 0"], stage0),
@@ -121,15 +135,15 @@ export const LEDGER: readonly Entry[] = [
     key: "topologies",
     href: "results/topologies/",
     label: "Middleboxes and proxies",
-    tags: unique(topologies.cells.map((cell) => cell.catalog)),
+    tags: unique(topologyCells.map((cell) => cell.catalog)),
     ranAt: topologies.ranAt,
     kernel: short(topologies.kernel),
     hz: topologies.hz,
-    cells: topologies.cells.length,
-    tally: tallyOf(topologies.cells.map((cell) => cell.verdict.decision)),
-    heldOnRerun: topologies.cells.filter((cell) => cell.verdict.decision === "fails" && cell.rerun?.verdict.decision === "holds").length,
-    counted: sum(topologies.cells, (cell) => cell.verdict.counted + (cell.rerun?.verdict.counted ?? 0)),
-    voided: sum(topologies.cells, (cell) => cell.verdict.voided + (cell.rerun?.verdict.voided ?? 0)),
+    cells: topologyCells.length,
+    tally: tallyOf(topologyCells.map((cell) => cell.verdict.decision)),
+    heldOnRerun: topologyCells.filter((cell) => cell.verdict.decision === "fails" && cell.rerun?.verdict.decision === "holds").length,
+    counted: sum(topologyCells, (cell) => cell.verdict.counted + (cell.rerun?.verdict.counted ?? 0)),
+    voided: sum(topologyCells, (cell) => cell.verdict.voided + (cell.rerun?.verdict.voided ?? 0)),
   },
   ciEntry("sentinel", "Valkey under Sentinel", sentinel),
   ciEntry("http", "HTTP keep-alive", http),

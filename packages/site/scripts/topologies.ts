@@ -5,7 +5,7 @@
 // Each folder is the output of the runner of @systems/cells: one raw record for each cell, and
 // rejudged.ndjson, the verdict of each record from the final `observe.ts`. A folder of a run at a
 // later harness has summary.ndjson only, and its verdicts are of that harness. A full run of the
-// catalogs holds each catalog: the export takes T03, T02, Toxiproxy and its slice of T01. A cell in a later folder
+// catalogs holds each catalog: the export takes T03, T02 and Toxiproxy. A cell in a later folder
 // is the re-run of the same cell of an earlier folder, thus the folder of the re-runs goes last.
 // The page shows the first run and the re-run. The script reads each record again with the code of
 // the harness (`judge`). It stops when that verdict disagrees with rejudged.ndjson, or when a
@@ -75,28 +75,16 @@ const { T03_CELLS, T03_FAULT_SPECS, T03_SPECS, o03Of } = await import("../../cel
 const { T02_CELLS } = await import("../../cells/src/t02.ts");
 const { TOX_CELLS } = await import("../../cells/src/toxiproxy.ts");
 
-/** These T01 cells are the slice of step 3: one cell of each family of manifestations, the two observers, the stall, the MTU black hole and one netem distribution. */
-const SLICE = [
-  "client idle, blackhole",
-  "client idle, fin",
-  "client in flight, blackhole, tcp_retries2 = 3",
-  "client in flight, unreachable-host, tcp_retries2 = 3",
-  "client in flight, freeze-process",
-  "client in flight, a 1 s stall",
-  "server idle, blackhole",
-  "server, a reply in flight, simplex-to-client, tcp_retries2 = 3",
-  "server, a long reply, mtu-blackhole, tcp_retries2 = 3",
-  "client stream, netem loss 5%",
-].map((name) => `T01 ${name}`);
-// a full run of the catalogs holds the cells of each catalog: this export takes its own
-const own = new Set([...T03_CELLS, ...T02_CELLS, ...TOX_CELLS].map((cell) => cell.name).concat(SLICE));
+// a full run of the catalogs holds the cells of each catalog: this export takes its own. The T01
+// cells are on the page of the network failures, from the same lab
+const own = new Set([...T03_CELLS, ...T02_CELLS, ...TOX_CELLS].map((cell) => cell.name));
 const every = new Set(ALL.map((cell) => cell.name));
 const strange = [...found.keys()].filter((name) => !every.has(name));
 if (strange.length > 0) throw new Error(`no catalog has the cells ${strange.join(", ")}`);
 for (const name of [...found.keys()]) if (!own.has(name)) found.delete(name);
 
-/** These are the Linux 6.6 values of the sysctls that a cell sets. The page shows only the sysctls that differ. */
-const LINUX_66: Readonly<Record<string, string>> = {
+/** These are the defaults of Linux 6.6 and 6.17 for the sysctls that a cell sets. The page shows only the sysctls that differ. */
+const LINUX: Readonly<Record<string, string>> = {
   "net.ipv4.tcp_syn_retries": "6",
   "net.ipv4.tcp_syn_linear_timeouts": "4",
   "net.ipv4.tcp_retries2": "15",
@@ -107,7 +95,7 @@ const LINUX_66: Readonly<Record<string, string>> = {
 };
 const changed = (sysctls: Readonly<Record<string, string>> | undefined) =>
   Object.entries(sysctls ?? {})
-    .filter(([name, value]) => LINUX_66[name] !== value)
+    .filter(([name, value]) => LINUX[name] !== value)
     .map(([name, value]) => ({ name, value }));
 const entries = (settings: Readonly<Record<string, string | number>> | undefined) =>
   Object.entries(settings ?? {}).map(([name, value]) => ({ name, value: String(value) }));
@@ -356,7 +344,7 @@ const groupOf = (catalog: string, cell: Cell): string => {
   if (catalog === "T03") return `${cell.observer === "server" ? "server" : "client"} ${modeOf(cell)}`;
   if (catalog === "T02") return cell.fault;
   if (catalog === "TOX") return cell.topology === undefined ? "direct" : cell.fault === "rst" || cell.fault === "blackhole" ? "close" : "toxic";
-  return "slice";
+  throw new Error(`${cell.name}: no group in the catalog ${catalog}`);
 };
 
 /** This function gives the bytes of the value that the setup of a cell puts in Redis, or null. */
@@ -366,13 +354,7 @@ const bytesOf = (cell: Cell): number | null => {
   return bytes === undefined ? null : Number(bytes);
 };
 
-/** These are the figures of the T01 cells on the page of the network failures, by name. */
-const faults = JSON.parse(readFileSync(fileURLToPath(new URL("../src/data/faults-2026-10-14.json", import.meta.url)), "utf8")) as {
-  readonly ranAt: string;
-  readonly cells: ReadonlyArray<{ readonly name: string; readonly verdict: { readonly decision: string; readonly median: number | null } }>;
-};
-
-const CATALOG = /^(T03|T02|TOX|T01) /;
+const CATALOG = /^(T03|T02|TOX) /;
 const cells = ALL.flatMap((catalog) => {
   const runsOf = found.get(catalog.name);
   if (runsOf === undefined) return [];
@@ -390,8 +372,6 @@ const cells = ALL.flatMap((catalog) => {
   const atRouter = id === "T03" && spec === undefined && T03_FAULT_SPECS.some((each) => each.name === name);
   if (id === "T03" && spec === undefined && !atRouter) throw new Error(`${cell.name}: no spec of T03`);
   const o03 = spec === undefined ? null : o03Of(spec);
-  const earlier = id === "T01" ? faults.cells.find((each) => each.name === name) : undefined;
-  if (id === "T01" && earlier === undefined) throw new Error(`${cell.name}: not on the page of the network failures`);
   const server = cell.observer === "server";
   return [
     {
@@ -434,7 +414,6 @@ const cells = ALL.flatMap((catalog) => {
       prediction: predictionOf(cell),
       ...judged(first),
       rerun: again === undefined ? null : judged(again),
-      faults: earlier === undefined ? null : { decision: earlier.verdict.decision, median: earlier.verdict.median },
     },
   ];
 });
@@ -461,8 +440,6 @@ const copy = {
   kernel: only("the kernel", manifests.map((manifest) => /^\d+(\.\d+)+/.exec(manifest.kernel)?.[0] ?? "")),
   hz: Number(only("HZ", manifests.map((manifest) => manifest.hz ?? ""))),
   target: only("the target", records.map((record) => record.cell.target.image.replace(/@.*$/, ""))),
-  /** This date is the day of the copy of the network failures that the T01 slice compares with. */
-  faultsRanAt: faults.ranAt,
   cells,
 };
 const out = fileURLToPath(new URL(`../src/data/topologies-${date}.json`, import.meta.url));

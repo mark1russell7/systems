@@ -1,13 +1,12 @@
 /**
  * The results of the topology cells of step 3. T03 goes through a NAT router, T02 through HAProxy, and TOX
- * has Toxiproxy as the subject. A slice of T01 checks the generalized lab. Each cell has the frame of
- * `CellFrame`, with its warm-ups and its re-run. A cell of T03 also shows when the router forgot the flow.
+ * has Toxiproxy as the subject. Each cell has the frame of `CellFrame`, with its warm-ups and its re-run.
+ * A cell of T03 also shows when the router forgot the flow.
  *
- * `Border` is the table of DV-12 on each side of the border of O03. `Slice` compares the slice of T01 with
- * the page of the network failures.
+ * `Border` is the table of DV-12 on each side of the border of O03.
  */
 import type { ReactElement, ReactNode } from "react";
-import topologies from "../data/topologies-2026-10-16.json";
+import topologies from "../data/topologies-2026-10-17.json";
 import { duration } from "../lib/format.ts";
 import CellFrame, { code, joined, setting, sysctl } from "./CellFrame.tsx";
 import { hopName } from "./Chain.tsx";
@@ -316,41 +315,6 @@ export function Border(): ReactElement {
         </span>
         <span>The measured window is the median, over the counted runs, of the time from the forget to the detection.</span>
       </p>
-    </div>
-  );
-}
-
-/** The table of the slice of T01. It gives the verdict and the median of each cell, on the page of the network failures and on the generalized lab. */
-export function Slice(): ReactElement {
-  const cells = topologies.cells.filter((cell) => cell.catalog === "T01");
-  const text = (median: number | null): string => (median === null ? "silent" : time(median));
-  return (
-    <div className="not-content sy-scroll">
-      <table className="sy-table">
-        <thead>
-          <tr>
-            <th>Cell</th>
-            <th>Faults page, {topologies.faultsRanAt}</th>
-            <th>This run, {topologies.ranAt}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {cells.map((cell) => (
-            <tr key={cell.name}>
-              <td>{cell.name}</td>
-              <td>{cell.faults === null ? "" : <Verdict decision={cell.faults.decision} text={text(cell.faults.median)} />}</td>
-              <td>
-                <Verdict decision={cell.verdict.decision} text={text(cell.verdict.median)} />
-                {cell.rerun === null ? null : (
-                  <span className="sy-again">
-                    <Verdict decision={cell.rerun.verdict.decision} text={text(cell.rerun.verdict.median)} /> on the re-run
-                  </span>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
     </div>
   );
 }

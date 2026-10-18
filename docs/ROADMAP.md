@@ -425,14 +425,14 @@ Each toxic gets a prediction from the source of Toxiproxy. A `reset_peer` toxic 
 
 ### LISTING · The listing of the router holds the softirqs
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** S1
 - **Started:** 2026-10-17
-- **Shipped:**
-- **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39057994070)
+- **Shipped:** 2026-10-17
+- **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39057994070), [#41](https://github.com/mark1russell7/systems/pull/41), [The next run](https://github.com/mark1russell7/systems/actions/runs/39074841434)
 
-The router of T03 lists the conntrack table each 50 ms. A listing walks each bucket of the table with the softirqs off, and a runner has 262144 buckets. One reply of 13,306 waited 6.8 ms in a listing, and one netem cell failed on it. The workflows give the table 16384 buckets.
+The router of T03 lists the conntrack table each 50 ms. A listing walks each bucket of the table with the softirqs off, and a runner has 262144 buckets. One reply of 13,306 waited 6.8 ms in a listing, and one netem cell failed on it. The workflows give the table 16384 buckets. In the next full run, each of the 234 cells holds or measures, and the longest time of a segment through the router was 0.315 ms.
 
 ### PG · PostgreSQL
 
@@ -577,14 +577,25 @@ The kind page shows the run of 2026-10-17, with each lone failure and its time.
 
 ### SITE-REFRESH · The catalog pages from a run of main
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** site
 - **Depends on:** DELACK, LISTING
 - **Started:** 2026-10-17
-- **Shipped:**
-- **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39057994070)
+- **Shipped:** 2026-10-17
+- **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39074841434), [#42](https://github.com/mark1russell7/systems/pull/42), [#53](https://github.com/mark1russell7/systems/pull/53)
 
-A full run of the catalogs at main gives each page its next copy. Its predictions have the delayed ACK and the EOF of Toxiproxy. The export scripts read the run of one catalog. For a full run on the runner, each script takes its own cells, at the HZ of the runner. The next full run comes after LISTING.
+The full run of the catalogs at main gives five pages their copies: the network failures, the topologies, HTTP, MongoDB and Valkey under Sentinel. Each export takes its own cells, at the HZ of the runner. Of the 203 cells of these pages, 183 hold and 20 measure, and no cell fails. The topologies page has no T01 slice, because the page of the network failures gives each T01 cell from the same lab.
+
+### STAMPS · The error of the Sentinel stamps from each calibration
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** SITE-REFRESH
+- **Started:** 2026-10-17
+- **Shipped:**
+- **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39074841434)
+
+Each stage band of T12 includes the error of the stamps of the observer: 0.705 ms, the maximum of the first calibration. The calibration of the full run read 402 stamps, with a maximum of 1.003 ms. Each stage holds, but the error must cover each calibration.
 
 ### CANONICAL · The canonical cells, measured to the close of Redis
 

@@ -5,13 +5,16 @@
  * median and the slowest reply of each run.
  */
 import type { ReactElement } from "react";
-import faults from "../data/faults-2026-10-14.json";
+import faults from "../data/faults-2026-10-17.json";
 import { duration } from "../lib/format.ts";
 import CellFrame, { code, joined, setting, sysctl } from "./CellFrame.tsx";
 
 type Cell = (typeof faults.cells)[number];
 
 const ms = (s: number): number => s * 1000;
+
+/** The version of the kernel of the runs, without its patch level: "6.17" for "6.17.0". */
+const LINUX = faults.kernel.split(".").slice(0, 2).join(".");
 
 /** This component tells what the cell sets: the sysctls of each side, the settings of Redis and the fault itself. */
 function Settings(props: { readonly cell: Cell }): ReactElement {
@@ -24,7 +27,7 @@ function Settings(props: { readonly cell: Cell }): ReactElement {
   if (settings.stall !== null) parts.push(<span key="stall">The stall lasts {duration(ms(settings.stall))} from the send of the request. </span>);
   if (settings.mtu !== null) parts.push(<span key="mtu">Each segment to the client that is longer than {settings.mtu} bytes drops. </span>);
   if (settings.netem !== null) parts.push(<span key="netem">The target applies {code(`netem ${settings.netem}`)} to each segment that it sends. </span>);
-  if (parts.length === 0) parts.push(<span key="none">The observer has the Linux 6.6 values of each TCP setting.</span>);
+  if (parts.length === 0) parts.push(<span key="none">The observer has the Linux {LINUX} values of each TCP setting.</span>);
   return <p className="sy-muted">{parts}</p>;
 }
 
