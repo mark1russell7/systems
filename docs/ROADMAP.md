@@ -544,7 +544,7 @@ Each stage band of T12 includes the error of the stamps of the observer: 0.705 m
 - **Depends on:** S1
 - **Started:** 2026-10-18
 - **Shipped:**
-- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [#76](https://github.com/mark1russell7/systems/pull/76), [#77](https://github.com/mark1russell7/systems/pull/77), [#78](https://github.com/mark1russell7/systems/pull/78), [#79](https://github.com/mark1russell7/systems/pull/79), [#80](https://github.com/mark1russell7/systems/pull/80), [#81](https://github.com/mark1russell7/systems/pull/81), [#82](https://github.com/mark1russell7/systems/pull/82), [#83](https://github.com/mark1russell7/systems/pull/83), [#84](https://github.com/mark1russell7/systems/pull/84)
+- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [#76](https://github.com/mark1russell7/systems/pull/76), [#77](https://github.com/mark1russell7/systems/pull/77), [#78](https://github.com/mark1russell7/systems/pull/78), [#79](https://github.com/mark1russell7/systems/pull/79), [#80](https://github.com/mark1russell7/systems/pull/80), [#81](https://github.com/mark1russell7/systems/pull/81), [#82](https://github.com/mark1russell7/systems/pull/82), [#83](https://github.com/mark1russell7/systems/pull/83), [#84](https://github.com/mark1russell7/systems/pull/84), [#85](https://github.com/mark1russell7/systems/pull/85)
 
 The next system of the S1 order, with its clients and PgBouncer. At its defaults and its borders, the plan of R3 has 329 cells with PostgreSQL. HikariCP with pgjdbc is the client of 160 of them, Npgsql of 47 and node-postgres of 36. T10, through a pooler, has 132 of them.
 
@@ -611,6 +611,7 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
   - HikariCP of the earlier epoch has no keepalive, thus nothing finds the black hole in 60 s.
   - The two documents of PgBouncer decide that no timer of PgBouncer ends a query first: its earliest is query_wait_timeout, 120 s.
   - The other T10 cells at the defaults wait. Some need Pgpool-II or Supavisor, and some need several clients, SIGHUP or a console command at a hop, or a fault timed to a reply.
+- The PostgreSQL page of the site shows the 44 cells of the catalogs from one run at main ([39127973566](https://github.com/mark1russell7/systems/actions/runs/39127973566)). Each holds, with 484 counted runs and no void run (#85).
 - Then the borders of T10.
 
 ### RABBIT · RabbitMQ
@@ -680,17 +681,16 @@ quantity 0.2.0, algebra 0.7.1, service 0.5.2, prober 0.3.1, harness 0.11.4 and k
 
 ### MACHINES · The first version of @mark1russell7/machines
 
-- **Status:** waiting on Mark
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
 - **Started:** 2026-10-16
-- **Shipped:**
-- **Links:** [packages/machines](https://github.com/mark1russell7/systems/tree/main/packages/machines)
-- **Waiting on Mark:** Touch your security key for the first publish of machines, in the session that owns npm. On 2026-10-17, npm refused it with a 429.
+- **Shipped:** 2026-10-18
+- **Links:** [packages/machines](https://github.com/mark1russell7/systems/tree/main/packages/machines), [npm](https://www.npmjs.com/package/@mark1russell7/machines)
 
-The one home of each machine document. Its first version is 0.3.7. Version 0.3.1 adds the two documents of PostgreSQL to 0.3.0, and 0.3.2 adds HikariCP over pgjdbc. Version 0.3.3 adds the slack of poll() for HikariCP, and 0.3.4 adds the start check of the pool. Version 0.3.5 gives a bound to the alarm of a PostgreSQL backend. Version 0.3.6 tells that the keepalive checks of HikariCP share one thread, and 0.3.7 adds the two documents of PgBouncer 1.26.1.
+The one home of each machine document. Its first version on npm is 0.3.7, published on 2026-10-18 with OIDC and provenance. Version 0.3.1 adds the two documents of PostgreSQL to 0.3.0, and 0.3.2 adds HikariCP over pgjdbc. Version 0.3.3 adds the slack of poll() for HikariCP, and 0.3.4 adds the start check of the pool. Version 0.3.5 gives a bound to the alarm of a PostgreSQL backend. Version 0.3.6 tells that the keepalive checks of HikariCP share one thread, and 0.3.7 adds the two documents of PgBouncer 1.26.1.
 
-The session that owns npm publishes it from main. Then release.yml publishes each later version.
+release.yml publishes each later version from main, as for the other packages.
 
 ### DELACK · The delayed ACK of Linux TCP
 
