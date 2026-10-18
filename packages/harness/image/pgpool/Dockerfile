@@ -13,7 +13,7 @@ RUN curl -fsSL -o /tmp/pgpool.tar.gz "https://codeload.github.com/pgpool/pgpool2
  && tar -xzf /tmp/pgpool.tar.gz -C /tmp \
  && cd "/tmp/pgpool2-${COMMIT}" \
  && autoreconf -fi \
- && ./configure --prefix=/usr/local --with-pgsql-includedir=/usr/include --with-pgsql-libdir=/usr/lib \
+ && ./configure --prefix=/usr/local --with-pgsql-includedir=/usr/include/postgresql --with-pgsql-libdir=/usr/lib \
  && make -j2 -C src \
  && make -C src install
 
