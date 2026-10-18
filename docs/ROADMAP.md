@@ -586,7 +586,7 @@ quantity 0.2.0, algebra 0.7.1, service 0.5.0, prober 0.3.1, harness 0.11.2 and k
 - **Links:** [packages/machines](https://github.com/mark1russell7/systems/tree/main/packages/machines)
 - **Waiting on Mark:** Touch your security key for the first publish of machines, in the session that owns npm. On 2026-10-17, npm refused it with a 429.
 
-The one home of each machine document. Its first version is 0.3.1: 0.3.0 and the two documents of PostgreSQL. The session that owns npm publishes it from main. Then release.yml publishes each later version.
+The one home of each machine document. Its first version is 0.3.2: 0.3.0, the two documents of PostgreSQL in 0.3.1, and HikariCP over pgjdbc in 0.3.2. The session that owns npm publishes it from main. Then release.yml publishes each later version.
 
 ### DELACK · The delayed ACK of Linux TCP
 
