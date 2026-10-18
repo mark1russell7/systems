@@ -177,7 +177,7 @@ A component gives its transports, dependencies and checks to the one service of 
 - **Shipped:**
 - **Links:** [#49](https://github.com/mark1russell7/systems/pull/49), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-A new entry, `@mark1russell7/service/http`, makes a `node:http` server a transport, as A8 of S6 tells. A small list of request and upgrade handlers lets several hosts use one port. `httpTransport` passes the conformance kit on a fake server, and CI starts it on real sockets. #49 has the entry.
+A new entry, `@mark1russell7/service/http`, makes a `node:http` server a transport, as A8 of S6 tells. A small list of request and upgrade handlers lets several hosts use one port. The transport gets the lifecycle at its start, and its keep-alive reads `life.keepAlive()`. `httpTransport` passes the conformance kit on a fake server, and CI starts it on real sockets. #49 has the entry.
 
 ### SYS-2 · Probes on their own port or on the app port
 
@@ -194,12 +194,12 @@ A new entry, `@mark1russell7/service/http`, makes a `node:http` server a transpo
 
 - **Status:** in progress
 - **Area:** server stack
-- **Depends on:** SYS-1, SYS-15
+- **Depends on:** SYS-1, SYS-15, SYS-6
 - **Started:** 2026-10-17
 - **Shipped:**
 - **Links:** [#49](https://github.com/mark1russell7/systems/pull/49), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-`writeOutcome` writes the status, `Retry-After` and `Connection: close` of a request outcome, and `outcomeResponse` gives them as data (#49). A helper, `handle()`, binds a request of `node:http` to the request tracking of the service. It waits for SYS-15 and SYS-6.
+`handle()` binds a request of `node:http` to `life.request`, and `writeOutcome` writes the stream of the request. A unary request gets one status and its value. A stream gets each item as it comes, and an end after the first item goes in the body. Each 503 gets `Retry-After`, and a 500 gets none. #49 has them. They use the lifecycle that each transport gets at its start (#48), and the streams of #50.
 
 ### SYS-15 · Request tracking from the start of each transport
 
@@ -320,7 +320,7 @@ A worker loop (A10 of S6) and a queue drain (A11) as `TransportImpl` factories. 
 - **Shipped:**
 - **Links:** [#40](https://github.com/mark1russell7/systems/pull/40), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-The image of the kind lab replaces its own transport, probe server and outcome map with `./http`. It starts from kind 0.1.4 (#40). The kind cells run only in CI.
+The image of the kind lab replaces its own transport, probe server and outcome map with `./http`. It starts from kind 0.1.4 (#40), in its own PR after #49. The kind cells run only in CI.
 
 ### REL-1 · Service 0.5.0 with ./http and the runner options
 

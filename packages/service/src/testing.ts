@@ -20,7 +20,7 @@ export type {
   SubjectFactory,
   TransportSubject,
 } from "./conformance.ts";
-export { transportConformance } from "./conformance.ts";
+export { detachedLifecycle, transportConformance } from "./conformance.ts";
 
 /**
  * A behavior is what a scripted check does when the runtime starts it:

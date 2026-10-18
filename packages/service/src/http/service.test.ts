@@ -2,15 +2,16 @@ import { describe, expect, it } from "vitest";
 import { service } from "../builder.ts";
 import type { LifecycleEvent } from "../events.ts";
 import { fakeClock, fakeProcess, seeded } from "../fakes.ts";
-import { httpTransport, pathOf, probeHandler, probeServer, writeOutcome } from "../http.ts";
+import { handle, httpTransport, ndjson, pathOf, probeHandler, probeServer } from "../http.ts";
 import type { HttpKnobs } from "../http.ts";
 import type { Lifecycle } from "../lifecycle.ts";
-import { FakeServer } from "./fake-server.ts";
+import { scriptedCheck } from "../testing.ts";
+import { FakeServer, pushedSource } from "./fake-server.ts";
 
 /**
  * The ./http entry under run(), on fake servers and the fake clock: the stages of the shutdown with
- * the transport, the probes on the port of the application and on their own port, and writeOutcome
- * over life.request. The same service on real sockets runs in CI only (HTTP_IT=1).
+ * the transport, the probes on the port of the application and on their own port, and handle() over
+ * life.request, unary and as a stream. The same service on real sockets runs in CI only (HTTP_IT=1).
  */
 
 const s = (value: number) => ({ value, unit: "s" });
@@ -20,14 +21,14 @@ const turns = async (count = 4): Promise<void> => {
 };
 const KNOBS: HttpKnobs = { server_idle_close: s(65), server_idle_sweep_interval: s(1), server_retry_after: s(1) };
 
-const rigged = () => {
+const rigged = (options: { readonly slowWarmUp?: boolean } = {}) => {
   const clock = fakeClock();
   const process = fakeProcess();
   const events: LifecycleEvent[] = [];
   const app = new FakeServer();
   const probesPort = new FakeServer();
-  let life: Lifecycle | null = null;
-  const http = httpTransport(app.asServer, KNOBS, { listen: { port: 8080 }, clock, keepAlive: () => life?.keepAlive() ?? false });
+  // the transport gets the lifecycle at its start: keep-alive and the requests come from it
+  const http = httpTransport(app.asServer, KNOBS, { listen: { port: 8080 }, clock });
   const probes = probeServer({ port: 9090, server: probesPort.asServer });
   const svc = service("app")
     .server("http", http.knobs, http)
@@ -41,35 +42,43 @@ const rigged = () => {
     .phase("close transports", s(1))
     .phase("stop the poller", s(1))
     .phase("close the health server", s(1))
-    .cooperativeWindow(s(1));
-  svc.controller("api").route("GET /work", { idempotent: true }).route("POST /once", { idempotent: false });
+    .cooperativeWindow(s(1))
+    .onRepeatSignal("ignore");
+  // a check that reports only, and whose first poll ends at its timeout: the warm-up takes 400 ms
+  if (options.slowWarmUp === true)
+    svc.check(
+      { name: "slow", dependency: null, step: "local-state", ownConnection: true, gates: null, poll: { interval: s(1), jitter: 0, timeout: s(0.4) } },
+      scriptedCheck("timeout").run,
+    );
+  svc.controller("api").route("GET /work", { idempotent: true }).route("POST /once", { idempotent: false }).route("GET /rows", { idempotent: true });
   // a window between the close of the transports and the close of the health server
   svc.onPhase("stop the poller", ({ clock: phaseClock }) => new Promise((resolve) => phaseClock.after(500, resolve)));
   const releases: Array<() => void> = [];
   http.mount(probeHandler(() => svc.health, { prefix: "/health" }));
-  http.mount(async (req, res) => {
-    const path = pathOf(req.url);
-    if (path !== "/work" && path !== "/once") return false;
-    const outcome = await life!.request("api", path === "/work" ? "GET /work" : "POST /once", (signal) =>
-      req.url?.includes("hold") === true
-        ? new Promise<string>((resolve, reject) => {
-            releases.push(() => resolve("held"));
-            signal.addEventListener("abort", () => reject(new Error("aborted")));
-          })
-        : "done",
-    );
-    writeOutcome(res, outcome, { keepAlive: () => life!.keepAlive(), retryAfter: s(1) });
-    return true;
-  });
-  const start = async (): Promise<Lifecycle> => {
+  const rows = pushedSource<{ row: number }>();
+  http.mount(
+    handle(
+      "api",
+      (req) => ({ "/work": "GET /work", "/once": "POST /once" })[pathOf(req.url)] ?? null,
+      (req, signal) =>
+        req.url?.includes("hold") === true
+          ? new Promise<string>((resolve, reject) => {
+              releases.push(() => resolve("held"));
+              signal.addEventListener("abort", () => reject(new Error("aborted")));
+            })
+          : "done",
+    ),
+  );
+  http.mount(handle("api", "GET /rows", () => rows.iterable, { stream: ndjson }));
+  const start = async (during: () => Promise<void> = async () => {}): Promise<Lifecycle> => {
     let ended = false;
     const running = svc.run({ clock, random: seeded(1), process, record: (event) => events.push(event) }).finally(() => (ended = true));
     for (let step = 0; step < 100 && !ended; step += 1) {
       await turns(1);
       await clock.advance(10);
+      if (!ended) await during();
     }
-    life = await running;
-    return life;
+    return await running;
   };
   /** This function moves the fake clock in steps of 10 ms, and lets the events of the fake servers come between them. */
   const step = async (ms: number): Promise<void> => {
@@ -81,7 +90,7 @@ const rigged = () => {
     await turns();
     await clock.advance(0);
   };
-  return { clock, process, events, app, probesPort, http, start, releases, step };
+  return { clock, process, events, app, probesPort, http, start, releases, step, rows };
 };
 
 const stage = (events: readonly LifecycleEvent[]): string | undefined => events.filter((event) => event.machine === "drain").at(-1)?.to;
@@ -155,7 +164,7 @@ describe("the ./http entry under run()", () => {
     const answer = await held;
     // each 503 gets Retry-After: the cut of an idempotent route can go again
     expect([answer.status, answer.headers.get("retry-after")]).toEqual([503, "1"]);
-    expect(JSON.parse(answer.body)).toMatchObject({ outcome: "cut", retryable: true });
+    expect(JSON.parse(answer.body)).toMatchObject({ end: "cut", retryable: true });
     await r.step(2000);
     expect(await life.done, life.errors.join("; ")).toBe(0);
   });
@@ -170,7 +179,42 @@ describe("the ./http entry under run()", () => {
     await r.step(3000);
     const answer = await held;
     expect([answer.status, answer.headers.get("retry-after")]).toEqual([500, undefined]);
-    expect(JSON.parse(answer.body)).toMatchObject({ outcome: "cut", retryable: false });
+    expect(JSON.parse(answer.body)).toMatchObject({ end: "cut", retryable: false });
+    await r.step(2000);
+    expect(await life.done, life.errors.join("; ")).toBe(0);
+  });
+
+  it("refuses a request while the warm-up runs with a retryable 503, because the transport has the lifecycle from its start", async () => {
+    const r = rigged({ slowWarmUp: true });
+    const answers: Array<[number, string | undefined, string | undefined]> = [];
+    const life = await r.start(async () => {
+      if (answers.length > 0 || !r.app.listening) return;
+      const answer = await r.app.request("/work");
+      answers.push([answer.status, answer.headers.get("retry-after"), answer.headers.get("connection")]);
+    });
+    expect(answers).toEqual([[503, "1", "close"]]);
+    expect(life.state).toBe("running");
+    expect((await r.app.request("/work")).status).toBe(200);
+  });
+
+  it("streams rows as they come, and the cooperative abort ends the stream after its first row in-band", async () => {
+    const r = rigged();
+    const life = await r.start();
+    const connection = r.app.connect();
+    const answer = connection.request("/rows");
+    r.rows.push({ row: 1 });
+    await r.step(0);
+    // the status and the first row went before the end of the stream
+    expect([connection.response?.statusCode, connection.response?.chunks]).toEqual([200, ['{"row":1}\n']]);
+    r.process.signal("SIGTERM");
+    // fail readiness (1 s), stop intake, then the cooperative abort at 3 s of the drain of 4 s
+    await r.step(1000);
+    await r.step(3000);
+    const whole = await answer;
+    expect([whole.status, whole.headers.get("retry-after"), whole.headers.get("content-type")]).toEqual([200, undefined, "application/x-ndjson; charset=utf-8"]);
+    const lines = whole.body.trim().split("\n").map((line) => JSON.parse(line));
+    expect(lines).toEqual([{ row: 1 }, { end: "cut", delivered: 1, retryable: true, cause: "the shutdown ended the stream" }]);
+    expect(r.rows.returned).toBe(true);
     await r.step(2000);
     expect(await life.done, life.errors.join("; ")).toBe(0);
   });

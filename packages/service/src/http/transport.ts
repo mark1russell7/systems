@@ -4,7 +4,7 @@ import type { IncomingMessage, Server, ServerEventMap, ServerResponse } from "no
 import type { ListenOptions, Socket } from "node:net";
 import type { Cancel, Clock } from "../clock.ts";
 import { realClock } from "../clock.ts";
-import type { TransportImpl } from "../lifecycle.ts";
+import type { Lifecycle, TransportImpl } from "../lifecycle.ts";
 
 /**
  * These are the knobs of an HTTP transport, by the names of the ordering law. The transport has no
@@ -43,12 +43,16 @@ export interface HttpTransportKnobs extends HttpKnobs {
 /** A mount stage is the stage of the shutdown at which a mount stops: the stop of the intake, or the close. */
 export type MountStage = "stop intake" | "close transports";
 
-/** A mount context gives each handler the signals of the shutdown. */
+/** A mount context gives each handler the signals of the shutdown, the lifecycle and the time of a retry. */
 export interface MountContext {
   /** This signal aborts when the intake stops. A long stream ends in its own protocol at it. */
   readonly intake: AbortSignal;
   /** This signal aborts at the cooperative abort of the drain, or at the close. The work in flight stops at it. */
   readonly signal: AbortSignal;
+  /** This lifecycle is the lifecycle that the transport got at its start, or null before the start. */
+  readonly life: Lifecycle | null;
+  /** This time is the knob `server_retry_after`: the `Retry-After` of each 503 of the handlers. */
+  readonly retryAfter: Quantity;
 }
 
 /**
@@ -93,8 +97,9 @@ export interface HttpTransportOptions {
   /** This clock is the clock of the lifecycle. The deadline of the drain and the sweep use it. */
   readonly clock?: Clock | undefined;
   /**
-   * This function tells if a response can keep its connection open, as `life.keepAlive()` does. The
-   * transport reads it when the headers of each response go. False gives `Connection: close`.
+   * This function tells if a response can keep its connection open. Without it, the transport reads
+   * `life.keepAlive()` of the lifecycle of its start. The transport reads it when the headers of
+   * each response go, and false gives `Connection: close`.
    */
   readonly keepAlive?: (() => boolean) | undefined;
   /** This function receives each error of a handler. The transport then answers 500, or it destroys the response. */
@@ -208,7 +213,16 @@ export const httpTransport = (server: Server, knobs: HttpKnobs, options: HttpTra
   const closedWaiters = new Set<() => void>();
   const intake = new AbortController();
   const cooperative = new AbortController();
-  const context: MountContext = { intake: intake.signal, signal: cooperative.signal };
+  // the lifecycle comes at the start, thus the context reads it at each request
+  let life: Lifecycle | null = null;
+  const context: MountContext = {
+    intake: intake.signal,
+    signal: cooperative.signal,
+    get life() {
+      return life;
+    },
+    retryAfter: knobs.server_retry_after,
+  };
   let intakeOpen = true;
   let listenerOpen = server.listening;
   let serverClosed = !server.listening;
@@ -228,7 +242,8 @@ export const httpTransport = (server: Server, knobs: HttpKnobs, options: HttpTra
     if (closing !== null && inFlight() === 0 && sockets.size === 0 && serverClosed)
       for (const done of [...closedWaiters]) done();
   };
-  const keepsAlive = (): boolean => intakeOpen && (options.keepAlive?.() ?? true);
+  // before its start, a transport has no lifecycle: a server that listens already keeps its connections
+  const keepsAlive = (): boolean => intakeOpen && (options.keepAlive?.() ?? life?.keepAlive() ?? true);
   const live = <T extends { readonly until: MountStage }>(mounts: readonly T[]): T[] =>
     intakeOpen ? [...mounts] : mounts.filter((mount) => mount.until === "close transports");
   const throughDrain = (): boolean =>
@@ -370,7 +385,8 @@ export const httpTransport = (server: Server, knobs: HttpKnobs, options: HttpTra
       upgradeMounts.push(entry);
       return remover(upgradeMounts, entry);
     },
-    async start() {
+    async start(_signal, given) {
+      life = given;
       if (closing !== null) throw new Error("the transport closed: a closed transport does not start again");
       // a listener that another owner adds after the transport answers too, thus the start refuses it
       if (server.listenerCount("request") > 1 || server.listenerCount("upgrade") > 1)

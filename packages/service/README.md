@@ -217,15 +217,17 @@ const delay = backoffDelay({ base: 1000, factor: 1.5, cap: 30_000, jitter: { kin
 
 ## The HTTP edge
 
-`@mark1russell7/service/http` is the edge of a service in Node. Of the modules of Node, it imports only `node:http` and `node:net`. The root of the package does not import it. It is not a framework: it has no routes, no body parser and no middleware.
+`@mark1russell7/service/http` is the edge of a service in Node. Of the modules of Node, it imports only `node:http` and `node:net`. The root of the package does not import it. It is not a framework: it has no routing language, no body parser and no middleware.
 
 | Export | Function |
 | --- | --- |
 | `httpTransport(server, knobs, options)` | A server of `node:http` as a transport of the lifecycle, with a list of mounts |
 | `probeServer({ port, host })` | A health server on a port of its own |
 | `probeHandler(health, { prefix })` | The probes as a request handler on the port of the application |
-| `writeOutcome(res, outcome, options)` | A request outcome as a response of `node:http` |
-| `outcomeResponse`, `probeResponse`, `pathOf` | The same answers as data, for any HTTP framework or none |
+| `handle(controller, route, work, options)` | A request handler that does each request of a route through `life.request` |
+| `writeOutcome(res, stream, options)` | The stream of a request as a response of `node:http`, unary or a stream |
+| `ndjson`, `sse` | The formats of a stream: NDJSON, and server-sent events |
+| `outcomeResponse`, `endRecord`, `probeResponse`, `pathOf` | The same answers as data, for any HTTP framework or none |
 
 - **The transport.** `httpTransport(server, knobs, options)` makes a server of `node:http` a transport of the lifecycle. Give `transport.knobs` to `svc.server(name, knobs, impl)`. Thus the declaration and the law read the same knobs.
 - **The knobs.** The transport has no defaults. `server_idle_sweep_interval` is the interval of the sweep of idle connections. `server_retry_after` goes in the `Retry-After` of each 503 of the transport.
@@ -235,43 +237,42 @@ const delay = backoffDelay({ base: 1000, factor: 1.5, cap: 30_000, jitter: { kin
 - **The count.** The count of the work in flight comes from events. Each response counts until its `close` event, and each upgraded connection counts until it closes. The transport polls nothing.
 - **The stop of the intake.** `stopIntake()` closes the listener, thus each new connection gets a refusal. It closes the idle connections at once, and again at each `server_idle_sweep_interval`. Each later response gets `Connection: close`, and each later request gets a retryable 503.
 - **The drain and the close.** `drain(deadline, signal)` ends when no work is in flight, or at the deadline. It gives the cooperative abort to the handlers. `close()` destroys each connection, the upgraded connections too. A second close gives the same promise.
-- **Keep-alive.** The option `keepAlive` reads `life.keepAlive()` when the headers of each response go. While it gives false, each response gets `Connection: close`. An upgrade does not get it.
+- **The lifecycle.** The transport gets the lifecycle at its start (`start(signal, life)`), before the warm-up. Each handler gets it in its context (`context.life`), with `server_retry_after` (`context.retryAfter`).
+- **Keep-alive.** The transport reads `life.keepAlive()` when the headers of each response go, or the option `keepAlive` in its place. While it gives false, each response gets `Connection: close`. That occurs during the warm-up too. An upgrade does not get it.
 - **The clock.** Give the transport the clock of the lifecycle (`options.clock`). The deadline of the drain and the sweep use it.
 - **The mounts.** `transport.mount(handler)` adds a request handler at the end of the list. The first handler that gives true answers the request. A handler that gives false lets the next handler try, and a request that no handler takes gets 404.
 - **The upgrades.** `transport.upgrade(path, handler)` gives an upgrade to its handler, by its path or by a function. An upgrade that no handler takes gets 404. Thus several faces and the routes of the application share one port.
 - **One owner of the listener.** The transport refuses a server that has a request or upgrade listener of its own. Mount that listener as a handler: `transport.mount((req, res) => (app(req, res), true))`.
-- **The signals of a handler.** Each handler gets a context. `context.intake` aborts when the intake stops, and `context.signal` aborts at the cooperative abort or at the close. A long stream ends in its own protocol at them.
+- **The signals of a handler.** `context.intake` aborts when the intake stops, and `context.signal` aborts at the cooperative abort or at the close. A long stream ends in its own protocol at them.
 - **A mount through the drain.** A mount with `{ until: "close transports" }` answers until the close. While it is mounted, the listener stays open through the drain, and each other request gets a retryable 503.
 - **The probes on their own port.** `probeServer({ port, host })` is a health server. It starts first and closes last, thus its probes answer through the whole shutdown.
 - **The probes on the port of the application.** `probeHandler(health, { prefix })` answers the same probes. Its mount answers until `close transports`, thus it answers through the drain. After the close of the transports, only a probe server answers.
 - **The probe paths.** The paths are `/startup`, `/readiness`, `/readiness/<controller>`, `/liveness` and `/report`, after the prefix. Each answer comes from the cache, as `application/health+json` with 200 or 503.
-- **The outcome of a request.** `writeOutcome(res, outcome, { keepAlive, retryAfter })` writes a `RequestOutcome`. A value gets 200. A failure of the route gets 500 with no detail, and not 503.
-- **Each 503 gets `Retry-After`.** A refusal gets 503: the service did not start, it stopped its intake, or a controller is not ready. A cut gets its own status: 503 for an idempotent route (A12), and 500 for each other route. Each 503 gets `Retry-After` (RFC 9110), and a 500 gets none.
+- **A route through the request tracking.** `handle(controller, route, work, options)` gives a request handler. Each request that it takes goes through `life.request`, thus the service admits it, counts it and can cut it.
+- **The route of a handler.** A route name takes a request whose method and path are that name, for example `POST /orders`. A function gives the name of a route or of a pattern (`controller.pattern`), or null for a request of another handler. `options.detail` gives the detail of a request for the function of a pattern.
+- **The work.** The work gets the request and a signal. The signal aborts when the shutdown cuts the request, at the cooperative abort, or when the client goes away.
+- **A unary response.** Without `options.stream`, the response waits for the end of the work. A value gets 200, and no value gets 204. A work that gives more than one value gets 500.
+- **A stream response.** With `options.stream` (`ndjson` or `sse`), the status 200 goes with the first item. Then each item goes as it comes, and the next item waits while the client reads slowly.
+- **The end of a stream.** An end after the first item goes in the body, as the last record (`endRecord`), with no status of its own. The cooperative abort and a cut end a stream in this way. When the client goes away, the work stops through `return()`.
+- **An end before the first byte.** A refusal gets 503: the service did not start, it stopped its intake, or a controller is not ready. A cut gets 503 for an idempotent route (A12), and 500 for each other route. A failure of the route gets 500 with no detail, and not 503.
+- **Each 503 gets `Retry-After`.** Each 503 gets the `Retry-After` of `server_retry_after` (RFC 9110), and a 500 gets none. A refusal of the transport after the stop of its intake gets it too.
+- **Another framework.** `writeOutcome(res, stream, options)` writes the stream of any `life.request` to a response of `node:http`. `outcomeResponse(items, end, options)` gives a unary response as data.
 
 ```ts
 import { createServer } from "node:http";
-import type { Lifecycle } from "@mark1russell7/service";
 import { service } from "@mark1russell7/service";
-import { httpTransport, pathOf, probeServer, writeOutcome } from "@mark1russell7/service/http";
+import { handle, httpTransport, ndjson, probeServer } from "@mark1russell7/service/http";
 
 const s = (value: number) => ({ value, unit: "s" });
-let life: Lifecycle | null = null;
 const http = httpTransport(
   createServer(),
   { server_idle_close: s(65), server_idle_sweep_interval: s(1), server_retry_after: s(1) },
-  { listen: { port: 8080 }, keepAlive: () => life?.keepAlive() ?? false },
+  { listen: { port: 8080 } },
 );
-http.mount(async (req, res) => {
-  if (req.method !== "POST" || pathOf(req.url) !== "/orders") return false;
-  const options = { keepAlive: life?.keepAlive() ?? false, retryAfter: s(1) };
-  if (life === null) {
-    // the transport starts before run() gives the lifecycle
-    writeOutcome(res, { kind: "refused", status: 503, retryable: true, cause: "the service starts" }, options);
-    return true;
-  }
-  writeOutcome(res, await life.request("orders", "POST /orders", (signal) => createOrder(signal)), options);
-  return true;
-});
+// a unary route: one status and one value
+http.mount(handle("orders", "POST /orders", (req, signal) => createOrder(req, signal)));
+// a stream: each row as it comes, and the end as the last line
+http.mount(handle("orders", "GET /orders/export", (_req, signal) => exportRows(signal), { stream: ndjson }));
 // a WebSocket server in its noServer mode shares the port
 http.upgrade("/ws", (req, socket, head) => wss.handleUpgrade(req, socket, head, (ws) => wss.emit("connection", ws, req)));
 
@@ -289,10 +290,11 @@ const app = service("app")
   .phase("stop the poller", s(1))
   .phase("tear down dependencies", s(2))
   .phase("close the health server", s(1))
-  .cooperativeWindow(s(5));
-app.controller("orders").requires("db").route("POST /orders", { idempotent: false });
+  .cooperativeWindow(s(5))
+  .onRepeatSignal("ignore");
+app.controller("orders").requires("db").route("POST /orders", { idempotent: false }).route("GET /orders/export", { idempotent: true });
 
-life = await app.run(); // the process exits after SIGTERM, with 0 or 1
+const life = await app.run(); // the process exits after SIGTERM, with 0 or 1
 ```
 
 ## The testing subpath
@@ -304,6 +306,7 @@ life = await app.run(); // the process exits after SIGTERM, with 0 or 1
 - `seeded(seed)` gives a seeded random number generator for the jitter (`start({ random })`).
 - `scriptedCheck(behavior)` gives a check whose behavior a test sets: `"ok"`, `"error"`, `"indeterminate"`, `"throw"`, `"timeout"` or `"hang"`.
 - `quietServer()` starts a TCP echo server that can go quiet. Its connections stay open while it is quiet, as with a frozen peer.
+- `detachedLifecycle()` gives a lifecycle with no service, for the start of a transport in a test.
 - `transportConformance(make, options)` generates the conformance test of a transport. `make` gives a subject: the transport, a way to offer new work and a way to hold work in flight. The cases check that `stopIntake` refuses new work, and that the count is correct and comes from events. They also check that `drain` holds to its deadline and gives the cooperative abort, and that `close` is idempotent and bounded. The fake clock makes the cases fast, and the real clock measures them.
 - `contractCases(declare)` generates the contract test of a declaration. The cases are the service at rest, each dependency unavailable, each dependency degraded by 100 ms, each recovery, and a negative control. A dependency that no check exercises is a finding, and so is a check whose timeout a latency of 100 ms fails.
 
@@ -447,7 +450,8 @@ for await (const event of stream) {
 - **The options of the runner.** These tests cover the requests of a transport while the startup runs, the policy of a repeat signal, the profiles and the process triggers. They also cover the exit codes, a first Ctrl-C that aborts at once, and the flush of the output.
 - **The composition.** Two components, each with a transport, a dependency and a check, share one service and one `run()`. The parts start and stop in their sequence, and the process exits one time.
 - **The process port.** The port of Node, on a fake host: the signals, the end of stdin, the close of the IPC channel, the flush and the exit.
-- **The HTTP edge.** The transport, the mounts, the upgrades, the probes and the outcomes run on fake servers and the fake clock, with no socket. A service under `run()` drains a held request, and its probes answer through the drain.
+- **The HTTP edge.** The transport, the mounts, the upgrades, the probes and `handle` run on fake servers and the fake clock, with no socket. A service under `run()` drains a held request, and its probes answer through the drain. A request during the warm-up gets 503, and a stream ends in-band after its first item.
+- **The headers of the outcomes.** Each path of the request tracker gets its status. Each 503 gets `Retry-After`: the refusals, the retryable cut and the cut of a unary stream. No 500 gets it.
 - **The conformance of a transport.** A reference transport passes each case, and each of nine mutations of it fails the case of its part. The HTTP transport passes each case on a fake server, for its requests and its upgrades.
 - **On real sockets.** `HTTP_IT=1` starts the tests of the HTTP edge on the loopback. They cover the conformance on the fake clock and on the real clock, keep-alive and the stop of the intake. They also cover the upgrades, the probe server and a service after SIGTERM. They measure time, thus only CI starts them (`http.yml`), on Node 22.19, 24 and 26. CI keeps the raw records of each job as an artifact.
 - **Against a real Redis.** `REDIS_IT=1` starts the tests of the client against Redis 7.4. `REDIS_F6=1` starts the F6 matrix in the VM of Docker. The injector of `@mark1russell7/harness` makes the network faults, and an agent in the namespaces of Redis makes the process faults. All of them use one monotonic clock.

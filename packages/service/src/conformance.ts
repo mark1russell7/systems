@@ -2,7 +2,8 @@ import type { Clock } from "./clock.ts";
 import { realClock } from "./clock.ts";
 import type { ContractCase } from "./contract.ts";
 import { fakeClock } from "./fakes.ts";
-import type { TransportImpl } from "./lifecycle.ts";
+import type { Health } from "./health.ts";
+import type { Lifecycle, TransportImpl } from "./lifecycle.ts";
 
 /** A held work is one unit of work that stays in flight until the test releases it. */
 export interface HeldWork {
@@ -18,6 +19,8 @@ export interface HeldWork {
  */
 export interface TransportSubject {
   readonly impl: TransportImpl;
+  /** This lifecycle goes to `start()`. Without it, the kit gives a detached lifecycle. */
+  readonly life?: Lifecycle | undefined;
   /** This method offers one unit of new work. It gives true when the transport took it, and false when it refused it. */
   offer(): Promise<boolean>;
   /** This method starts one unit of work that stays in flight until its release. The promise ends when the transport has it. */
@@ -25,6 +28,31 @@ export interface TransportSubject {
   /** This method frees what the subject holds outside the transport: its clients and their sockets. */
   dispose?(): Promise<void> | void;
 }
+
+/**
+ * This function gives a detached lifecycle: a lifecycle with no service, for the start of a
+ * transport in a test. Its state is `running`, it keeps each connection, and nothing is in flight. Each request
+ * and each use of its health throws, because no service declares a route.
+ */
+export const detachedLifecycle = (): Lifecycle => {
+  const none = (): never => {
+    throw new Error("a detached lifecycle has no service: give the transport the lifecycle of a service");
+  };
+  const health = { verdict: none, probe: none, subscribe: none, forceFail: none, drain: none, stop: none } as Health;
+  return {
+    health,
+    state: "running",
+    exitCode: null,
+    errors: [],
+    started: Promise.resolve(),
+    done: new Promise<number>(() => {}),
+    signal: new AbortController().signal,
+    shutdown: none,
+    request: none,
+    inFlight: () => 0,
+    keepAlive: () => true,
+  };
+};
 
 /** A subject factory makes a new subject for each case, on the clock of the case. */
 export type SubjectFactory = (clock: Clock) => TransportSubject | Promise<TransportSubject>;
@@ -149,7 +177,7 @@ export const transportConformance = (make: SubjectFactory, options: ConformanceO
       const time = timeOf();
       const subject = await make(time.clock);
       try {
-        await subject.impl.start(new AbortController().signal);
+        await subject.impl.start(new AbortController().signal, subject.life ?? detachedLifecycle());
         await body(subject, time, title);
       } finally {
         try {

@@ -23,7 +23,8 @@ const runtime = async (): Promise<{ health: Health; check: ReturnType<typeof scr
     .liveness({ type: "window", failAfter: s(5) })
     .startup(s(10))
     .phase("fail readiness", s(1))
-    .cooperativeWindow(s(1));
+    .cooperativeWindow(s(1))
+    .onRepeatSignal("ignore");
   svc.controller("orders").requires("db").route("GET /orders", { idempotent: true });
   const health = await svc.start({ clock, random: seeded(1) });
   return { health, check, clock };

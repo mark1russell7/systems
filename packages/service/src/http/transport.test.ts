@@ -3,6 +3,7 @@ import { fakeClock } from "../fakes.ts";
 import type { HttpKnobs, MountContext } from "../http.ts";
 import { httpTransport, pathOf, probeHandler } from "../http.ts";
 import type { Health } from "../health.ts";
+import { detachedLifecycle } from "../testing.ts";
 import { FakeServer } from "./fake-server.ts";
 
 /**
@@ -17,7 +18,7 @@ const started = async (knobs: HttpKnobs = KNOBS, options: Parameters<typeof http
   const server = new FakeServer();
   const clock = fakeClock();
   const transport = httpTransport(server.asServer, knobs, { listen: { port: 8080 }, clock, ...options });
-  await transport.start(new AbortController().signal);
+  await transport.start(new AbortController().signal, detachedLifecycle());
   return { server, clock, transport };
 };
 
@@ -102,7 +103,7 @@ describe("the knobs of the transport", () => {
     const later = new FakeServer();
     const transport = httpTransport(later.asServer, KNOBS, { listen: { port: 1 } });
     later.on("upgrade", () => {});
-    await expect(transport.start(new AbortController().signal)).rejects.toThrow(/mount it as a handler/);
+    await expect(transport.start(new AbortController().signal, detachedLifecycle())).rejects.toThrow(/mount it as a handler/);
   });
 });
 
@@ -117,7 +118,7 @@ describe("the start", () => {
     const server = new FakeServer();
     server.failListen = new Error("EADDRINUSE");
     const transport = httpTransport(server.asServer, KNOBS, { listen: { port: 8080 } });
-    await expect(transport.start(new AbortController().signal)).rejects.toThrow("EADDRINUSE");
+    await expect(transport.start(new AbortController().signal, detachedLifecycle())).rejects.toThrow("EADDRINUSE");
   });
 
   it("takes a function that makes the server listen, or a server that listens already", async () => {
@@ -125,19 +126,19 @@ describe("the start", () => {
     const listen = vi.fn(async () => {
       server.listening = true;
     });
-    await httpTransport(server.asServer, KNOBS, { listen }).start(new AbortController().signal);
+    await httpTransport(server.asServer, KNOBS, { listen }).start(new AbortController().signal, detachedLifecycle());
     expect(listen).toHaveBeenCalledWith(server);
     const listening = new FakeServer();
     listening.listening = true;
-    await httpTransport(listening.asServer, KNOBS).start(new AbortController().signal);
+    await httpTransport(listening.asServer, KNOBS).start(new AbortController().signal, detachedLifecycle());
     expect(listening.listens).toEqual([]);
   });
 
   it("refuses a server that does not listen, without listen options, and a closed transport", async () => {
     const transport = httpTransport(new FakeServer().asServer, KNOBS);
-    await expect(transport.start(new AbortController().signal)).rejects.toThrow(/has no listen options/);
+    await expect(transport.start(new AbortController().signal, detachedLifecycle())).rejects.toThrow(/has no listen options/);
     await transport.close();
-    await expect(transport.start(new AbortController().signal)).rejects.toThrow(/does not start again/);
+    await expect(transport.start(new AbortController().signal, detachedLifecycle())).rejects.toThrow(/does not start again/);
   });
 });
 
@@ -250,6 +251,36 @@ describe("the mounts", () => {
 });
 
 describe("keep-alive (S6 A13)", () => {
+  it("reads life.keepAlive() of the lifecycle of its start, without the option", async () => {
+    let ready = false;
+    const server = new FakeServer();
+    const transport = httpTransport(server.asServer, KNOBS, { listen: { port: 8080 } });
+    transport.mount((_req, res) => {
+      res.end("x");
+      return true;
+    });
+    await transport.start(new AbortController().signal, { ...detachedLifecycle(), keepAlive: () => ready });
+    expect((await server.request("/")).headers.get("connection")).toBe("close");
+    ready = true;
+    expect((await server.request("/")).headers.get("connection")).toBeUndefined();
+  });
+
+  it("gives each handler the lifecycle of its start and the knob server_retry_after", async () => {
+    const server = new FakeServer();
+    const transport = httpTransport(server.asServer, KNOBS, { listen: { port: 8080 } });
+    let seen: MountContext | undefined;
+    transport.mount((_req, res, context) => {
+      seen = context;
+      res.end();
+      return true;
+    });
+    const life = detachedLifecycle();
+    await transport.start(new AbortController().signal, life);
+    await server.request("/");
+    expect(seen?.life).toBe(life);
+    expect(seen?.retryAfter).toEqual(s(2));
+  });
+
   it("closes each connection while keepAlive() is false, from when the headers go", async () => {
     let keep = false;
     const { server, transport } = await started(KNOBS, { keepAlive: () => keep });

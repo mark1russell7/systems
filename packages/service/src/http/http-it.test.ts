@@ -11,10 +11,9 @@ import type { LifecycleEvent } from "../events.ts";
 import { fakeProcess } from "../fakes.ts";
 import type { Health } from "../health.ts";
 import type { HttpKnobs } from "../http.ts";
-import { httpTransport, pathOf, probeHandler, probeServer, writeOutcome } from "../http.ts";
-import type { Lifecycle } from "../lifecycle.ts";
+import { handle, httpTransport, ndjson, pathOf, probeHandler, probeServer } from "../http.ts";
 import type { ConformanceRecord, TransportSubject } from "../testing.ts";
-import { transportConformance } from "../testing.ts";
+import { detachedLifecycle, transportConformance } from "../testing.ts";
 
 /**
  * CI-1: the ./http entry on real sockets of the loopback, opt-in with HTTP_IT=1. These tests measure
@@ -234,7 +233,7 @@ describe.skipIf(!RUN)("keep-alive on real sockets (S6 A13)", () => {
       res.end("ok.");
       return true;
     });
-    await transport.start(new AbortController().signal);
+    await transport.start(new AbortController().signal, detachedLifecycle());
     try {
       const client = await raw(portOf(server));
       client.send(GET("/"));
@@ -260,7 +259,7 @@ describe.skipIf(!RUN)("keep-alive on real sockets (S6 A13)", () => {
       res.end("ok.");
       return true;
     });
-    await transport.start(new AbortController().signal);
+    await transport.start(new AbortController().signal, detachedLifecycle());
     try {
       const closing = await raw(portOf(server));
       closing.send(GET("/"));
@@ -295,7 +294,7 @@ describe.skipIf(!RUN)("the stop of the intake on real sockets (S6 A8)", () => {
       res.end("ok.");
       return true;
     });
-    await transport.start(new AbortController().signal);
+    await transport.start(new AbortController().signal, detachedLifecycle());
     const port = portOf(server);
     try {
       const idle = await raw(port);
@@ -332,7 +331,7 @@ describe.skipIf(!RUN)("the stop of the intake on real sockets (S6 A8)", () => {
       finish = () => res.end("end.");
       return true;
     });
-    await transport.start(new AbortController().signal);
+    await transport.start(new AbortController().signal, detachedLifecycle());
     try {
       const client = await raw(portOf(server));
       client.send(GET("/first"));
@@ -364,7 +363,7 @@ describe.skipIf(!RUN)("the stop of the intake on real sockets (S6 A8)", () => {
       res.end("app.");
       return true;
     });
-    await transport.start(new AbortController().signal);
+    await transport.start(new AbortController().signal, detachedLifecycle());
     const port = portOf(server);
     try {
       transport.stopIntake();
@@ -392,7 +391,7 @@ describe.skipIf(!RUN)("the upgrades on real sockets", () => {
       res.end("plain.");
       return true;
     });
-    await transport.start(new AbortController().signal);
+    await transport.start(new AbortController().signal, detachedLifecycle());
     const port = portOf(server);
     try {
       const ws = await raw(port);
@@ -425,7 +424,8 @@ describe.skipIf(!RUN)("probeServer on a real port", () => {
       .liveness({ type: "window", failAfter: s(5) })
       .startup(s(5))
       .phase("fail readiness", s(1))
-      .cooperativeWindow(s(1));
+      .cooperativeWindow(s(1))
+      .onRepeatSignal("ignore");
     const health = await svc.start();
     const probes = probeServer({ port: 0, host: HOST });
     await probes.listen(health);
@@ -460,9 +460,9 @@ describe.skipIf(!RUN)("a service under run() on real sockets and the real clock"
   const running = async (mounted: boolean) => {
     const process = fakeProcess();
     const events: LifecycleEvent[] = [];
-    let life: Lifecycle | null = null;
     const app = createServer();
-    const http = httpTransport(app, KNOBS, { listen: { port: 0, host: HOST }, keepAlive: () => life?.keepAlive() ?? false });
+    // the transport gets the lifecycle at its start: keep-alive and the requests come from it
+    const http = httpTransport(app, KNOBS, { listen: { port: 0, host: HOST } });
     const probes = probeServer({ port: 0, host: HOST });
     const svc = service("it")
       .server("http", http.knobs, http)
@@ -470,21 +470,30 @@ describe.skipIf(!RUN)("a service under run() on real sockets and the real clock"
       .readiness({ type: "debounce", interval: s(1), failAfter: 3, recoverAfter: 1 })
       .liveness({ type: "window", failAfter: s(5) })
       .startup(s(5))
-      .cooperativeWindow(ms(500));
+      .cooperativeWindow(ms(500))
+      .onRepeatSignal("ignore");
     for (const [stage, cap] of Object.entries(CAPS)) svc.phase(stage, ms(cap));
-    svc.controller("api").route("GET /work", { idempotent: true });
+    svc.controller("api").route("GET /work", { idempotent: true }).route("GET /rows", { idempotent: true });
     // a window between the close of the transports and the close of the health server
     svc.onPhase("stop the poller", ({ clock }) => new Promise((resolve) => clock.after(200, resolve)));
     const releases: Array<() => void> = [];
     if (mounted) http.mount(probeHandler(() => svc.health, { prefix: "/health" }));
-    http.mount(async (req, res) => {
-      const outcome = await life!.request("api", "GET /work", () =>
+    // a stream of rows: one row at once, then the next row only after its release
+    const rows = async function* (signal: AbortSignal): AsyncGenerator<{ row: number }> {
+      yield { row: 1 };
+      await new Promise<void>((resolve) => {
+        releases.push(resolve);
+        signal.addEventListener("abort", () => resolve());
+      });
+      if (!signal.aborted) yield { row: 2 };
+    };
+    http.mount(handle("api", "GET /rows", (_req, signal) => rows(signal), { stream: ndjson }));
+    http.mount(
+      handle("api", (req) => (pathOf(req.url) === "/rows" ? null : "GET /work"), (req) =>
         req.url?.includes("hold") === true ? new Promise<string>((resolve) => releases.push(() => resolve("held"))) : "done",
-      );
-      writeOutcome(res, outcome, { keepAlive: () => life!.keepAlive(), retryAfter: s(1) });
-      return true;
-    });
-    life = await svc.run({ process, record: (event) => events.push(event) });
+      ),
+    );
+    const life = await svc.run({ process, record: (event) => events.push(event) });
     const stage = (): string | undefined => events.filter((event) => event.machine === "drain").at(-1)?.to;
     return { life, process, events, stage, releases, appPort: portOf(app), probePort: portOf(probes.server) };
   };
@@ -541,6 +550,28 @@ describe.skipIf(!RUN)("a service under run() on real sockets and the real clock"
     // each 503 gets Retry-After: the cut of an idempotent route can go again
     expect([answer.status, answer.headers["retry-after"]]).toEqual([503, "1"]);
     expect(now() - began).toBeLessThanOrEqual(CAPS.drain + SLACK);
+    expect(await r.life.done).toBe(0);
+  });
+
+  it("streams a row at once, and the cooperative abort ends the stream after it in-band: 200, no Retry-After", async () => {
+    const r = await running(false);
+    const client = await raw(r.appPort);
+    client.send(GET("/rows"));
+    await client.until((text) => text.includes('{"row":1}'));
+    expect(client.text().startsWith("HTTP/1.1 200 OK\r\n")).toBe(true);
+    expect(client.text().toLowerCase()).toContain("content-type: application/x-ndjson");
+    r.process.signal("SIGTERM");
+    const began = now();
+    await client.until((text) => text.includes('"end":"cut"'), 5000);
+    // the cooperative abort comes at the cap less the window: 1500 - 500 ms after the start of the drain
+    measure("run", "in-band end of a stream after SIGTERM", CAPS["fail readiness"] + 1000, now() - began);
+    expect(client.text().toLowerCase()).not.toContain("retry-after");
+    // the body is chunked: each chunk is a size line, then the data
+    const line = client
+      .text()
+      .split(/\r?\n/)
+      .find((part) => part.includes('"end"'))!;
+    expect(JSON.parse(line)).toEqual({ end: "cut", delivered: 1, retryable: true, cause: "the shutdown ended the stream" });
     expect(await r.life.done).toBe(0);
   });
 });

@@ -261,12 +261,17 @@ try {
       // the edge of a service in Node, with no socket: the server does not listen
       const httpEntry = await load("@mark1russell7/service/http");
       const refusal = httpEntry.outcomeResponse(
-        { kind: "refused", status: 503, retryable: true, cause: "the service stopped its intake" },
+        [],
+        { kind: "refused", status: 503, retryable: true, cause: "the service stopped its intake", delivered: 0 },
         { keepAlive: false, retryAfter: s(1) },
       );
       check(
         refusal.status === 503 && refusal.headers["retry-after"] === "1" && refusal.headers.connection === "close",
         "service/http gives a refusal 503 with Retry-After and Connection: close",
+      );
+      check(
+        typeof httpEntry.handle("api", "GET /work", () => "x") === "function" && httpEntry.ndjson.end({ kind: "done", delivered: 2 }) === '{"end":"done","delivered":2}\n',
+        "service/http gives handle() and the NDJSON format of a stream",
       );
       const { createServer } = await import("node:http");
       const edge = httpEntry.httpTransport(createServer(), { server_idle_close: s(65), server_idle_sweep_interval: s(1), server_retry_after: s(1) });

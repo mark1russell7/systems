@@ -127,12 +127,16 @@ describe("the http entry: Node only, on node:http and node:net", () => {
 
   it("gives its functions, and the root does not give them", () => {
     expect(Object.keys(httpEntry).sort()).toEqual([
+      "endRecord",
+      "handle",
       "httpTransport",
+      "ndjson",
       "outcomeResponse",
       "pathOf",
       "probeHandler",
       "probeResponse",
       "probeServer",
+      "sse",
       "writeOutcome",
     ]);
     for (const name of Object.keys(httpEntry)) expect(root, name).not.toHaveProperty(name);

@@ -31,6 +31,7 @@ export class FakeResponse extends EventEmitter {
   statusCode = 200;
   headersSent = false;
   writableEnded = false;
+  writableFinished = false;
   shouldKeepAlive = true;
   readonly headers: Map<string, string> = new Map();
   readonly chunks: string[] = [];
@@ -63,6 +64,7 @@ export class FakeResponse extends EventEmitter {
     if (chunk !== undefined) this.write(chunk);
     else if (!this.headersSent) this.writeHead(this.statusCode);
     this.writableEnded = true;
+    this.writableFinished = true;
     this.emit("finish");
     process.nextTick(() => this.emit("close"));
     return this;
@@ -70,6 +72,10 @@ export class FakeResponse extends EventEmitter {
   destroy(): this {
     this.socket.destroy();
     return this;
+  }
+  /** This flag tells if the socket of the response is destroyed. */
+  get destroyed(): boolean {
+    return this.socket.destroyed;
   }
   /** This flag tells if the connection closes after the response. */
   get last(): boolean {
@@ -88,6 +94,8 @@ export interface FakeAnswer {
 export class FakeConnection {
   idle = true;
   upgraded = false;
+  /** This response is the response of the last request on the connection, for a test that reads a stream as it comes. */
+  response: FakeResponse | null = null;
   constructor(
     readonly server: FakeServer,
     readonly socket: FakeSocket,
@@ -98,6 +106,7 @@ export class FakeConnection {
     this.idle = false;
     const req = Object.assign(new EventEmitter(), { url, method, headers: {} });
     const res = new FakeResponse(this.socket);
+    this.response = res;
     return new Promise<FakeAnswer>((resolve, reject) => {
       const lost = (): void => reject(new Error("ECONNRESET: the connection closed before the answer"));
       this.socket.once("close", lost);
@@ -187,3 +196,61 @@ export class FakeServer extends EventEmitter {
     return this as unknown as Server;
   }
 }
+
+/** A pushed source is an async iterable whose items, end and failure a test gives. Its `return()` ends it. */
+export interface PushedSource<T> {
+  readonly iterable: AsyncIterable<T>;
+  push(value: T): void;
+  finish(): void;
+  fail(error: unknown): void;
+  /** This flag tells if a reader stopped the source through `return()`. */
+  readonly returned: boolean;
+}
+
+/** This function makes a pushed source, a stream of a work for the tests of a stream. */
+export const pushedSource = <T>(): PushedSource<T> => {
+  const queue: Array<IteratorResult<T>> = [];
+  let wake: (() => void) | null = null;
+  let failure: unknown = null;
+  let returned = false;
+  const poke = (): void => {
+    wake?.();
+    wake = null;
+  };
+  const iterable: AsyncIterable<T> = {
+    [Symbol.asyncIterator]: () => ({
+      async next(): Promise<IteratorResult<T>> {
+        for (;;) {
+          if (failure !== null) throw failure;
+          if (returned) return { value: undefined, done: true };
+          const step = queue.shift();
+          if (step !== undefined) return step;
+          await new Promise<void>((resolve) => (wake = resolve));
+        }
+      },
+      async return(): Promise<IteratorResult<T>> {
+        returned = true;
+        poke();
+        return { value: undefined, done: true };
+      },
+    }),
+  };
+  return {
+    iterable,
+    push: (value) => {
+      queue.push({ value, done: false });
+      poke();
+    },
+    finish: () => {
+      queue.push({ value: undefined, done: true });
+      poke();
+    },
+    fail: (error) => {
+      failure = error;
+      poke();
+    },
+    get returned() {
+      return returned;
+    },
+  };
+};
