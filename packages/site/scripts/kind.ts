@@ -113,6 +113,10 @@ const predictionOf = (cell: KindCell) => {
       const parts = [`The algebra predicts that each failed request starts in a window. The window opens ${opens}${closes}.`];
       if (p.nodes === "paused") parts.push("Only the clients of the paused node fail.");
       if (p.certain) parts.push("At least one request fails.");
+      if (p.afterReset !== undefined)
+        parts.push(
+          `A request after the window can also fail with a ${p.afterReset.outcome}, on a port that a reset of the same client closed up to ${time(s(p.afterReset.life))} before it: the CLOSE entry of that reset keeps its NAT to the pod.`,
+        );
       return { kind: p.kind, band: null, text: parts.join(" ") };
     }
     case "removal":
