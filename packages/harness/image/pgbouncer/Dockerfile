@@ -2,7 +2,8 @@
 # pgbouncer.org and checks its SHA-256 before it builds. The C sources of that tarball are those of
 # the tag pgbouncer_1_26_1, which the machine documents pgbouncer-client and pgbouncer-server cite.
 # The configuration of a cell goes in by its files: /etc/pgbouncer/pgbouncer.ini and
-# /etc/pgbouncer/userlist.txt. PgBouncer does not start as root, thus it runs as its own user.
+# /etc/pgbouncer/userlist.txt. PgBouncer does not start as root, thus it runs as its own user. The
+# build makes only the program: the man pages of the tarball need pandoc, which the image does not hold.
 FROM alpine:3.23@sha256:865b95f46d98cf867a156fe4a135ad3fe50d2056aa3f25ed31662dff6da4eb62 AS build
 RUN apk add --no-cache build-base pkgconf libevent-dev openssl-dev curl
 ARG VERSION=1.26.1
@@ -12,8 +13,8 @@ RUN curl -fsSL -o /tmp/pgbouncer.tar.gz "https://www.pgbouncer.org/downloads/fil
  && tar -xzf /tmp/pgbouncer.tar.gz -C /tmp \
  && cd "/tmp/pgbouncer-${VERSION}" \
  && ./configure --prefix=/usr/local --without-cares --without-pam --without-ldap --without-systemd \
- && make -j2 \
- && make install
+ && make -j2 pgbouncer \
+ && install -m 0755 pgbouncer /usr/local/bin/pgbouncer
 
 FROM alpine:3.23@sha256:865b95f46d98cf867a156fe4a135ad3fe50d2056aa3f25ed31662dff6da4eb62
 RUN apk add --no-cache libevent openssl \
