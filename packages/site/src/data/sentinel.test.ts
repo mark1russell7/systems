@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import sentinel from "./sentinel-2026-10-16.json";
+import sentinel from "./sentinel-2026-10-17.json";
 
 type Cell = (typeof sentinel.cells)[number];
 
@@ -39,52 +39,52 @@ describe("the copy of the T12 cells holds the figures of their CI runs", () => {
   });
 
   it("gives the failover of a crash, a refusal and a planned failover in their bands", () => {
-    expect([FIN.median, FIN.band]).toEqual([32.554128, { low: 31.346, high: 39.351 }]);
-    expect(stage(FIN, "+sdown")?.median).toBe(30.051842);
-    expect(stage(FIN, "+switch-master")?.median).toBe(31.205188);
-    expect(cell("T12.defaults.10", "rst at the primary: each peer refused").median).toBe(32.713181);
-    expect(PLANNED.median).toBe(11.36443);
-    expect(stage(PLANNED, "+switch-master")?.median).toBe(1.131125);
-    expect(stage(PLANNED, "+convert-to-slave")?.median).toBe(11.217295);
-    expect(COORDINATED.median).toBe(1.246527);
+    expect([FIN.median, FIN.band]).toEqual([32.574067, { low: 31.349, high: 39.348 }]);
+    expect(stage(FIN, "+sdown")?.median).toBe(30.05415);
+    expect(stage(FIN, "+switch-master")?.median).toBe(30.915655);
+    expect(cell("T12.defaults.10", "rst at the primary: each peer refused").median).toBe(32.668267);
+    expect(PLANNED.median).toBe(11.409228);
+    expect(stage(PLANNED, "+switch-master")?.median).toBe(1.176676);
+    expect(stage(PLANNED, "+convert-to-slave")?.median).toBe(11.235746);
+    expect(COORDINATED.median).toBe(1.24868);
     // each stage that has a band holds, in each cell
     expect(sentinel.cells.flatMap((each) => each.stages.filter((one) => one.decision !== null && one.decision !== "holds"))).toEqual([]);
   });
 
   it("keeps a frozen primary until its conversion, and loses the writes that it accepts after the thaw", () => {
-    expect(FREEZE.median).toBe(50.197044);
-    expect(stage(FREEZE, "+convert-to-slave")?.median).toBe(50.03123);
-    expect(FREEZE.writes.lost).toEqual({ runs: 11, total: 2188, median: 199, max: 200 });
+    expect(FREEZE.median).toBe(50.205055);
+    expect(stage(FREEZE, "+convert-to-slave")?.median).toBe(50.029507);
+    expect(FREEZE.writes.lost).toEqual({ runs: 11, total: 2189, median: 199, max: 199 });
     expect(cell("T12.border-off.2", "freeze-process at the primary, 33 s, outside down-after-milliseconds 30 s").writes.lost.median).toBe(199);
     const inside = cell("T12.border-off.1", "freeze-process at the primary, 29 s, inside down-after-milliseconds 30 s");
-    expect([inside.median, inside.writes.lost.total, inside.writes.moved]).toEqual([29.00473, 0, 0]);
+    expect([inside.median, inside.writes.lost.total, inside.writes.moved]).toEqual([29.003193, 0, 0]);
   });
 
   it("loses writes in a plain failover and in a split brain, and none in a coordinated failover", () => {
     expect(PLANNED.writes.lost.median).toBe(219);
     expect(COORDINATED.writes.lost.total).toBe(0);
-    expect([SPLIT.median, SPLIT.writes.lost.median, SPLIT.writes.moved]).toEqual([52.855355, 1042, 11]);
-    expect(cell("T12.defaults.6", "blackhole at the primary, 40 s").writes.lost.total).toBe(17);
-    expect(cell("T12.defaults.1", "partition:partial, the primary cut from the clients, a 40 s stall").median).toBe(52.727413);
+    expect([SPLIT.median, SPLIT.writes.lost.median, SPLIT.writes.moved]).toEqual([52.780188, 1041, 11]);
+    expect(cell("T12.defaults.6", "blackhole at the primary, 40 s").writes.lost.total).toBe(8);
+    expect(cell("T12.defaults.1", "partition:partial, the primary cut from the clients, a 40 s stall").median).toBe(52.736977);
   });
 
   it("meets MaxRetriesPerRequestError only outside the give-up of the offline queue", () => {
     const inside = cell("T12.border-off.15", "fin at the primary, down-after-milliseconds 69 s, inside the give-up of the offline queue");
     const outside = cell("T12.border-off.16", "fin at the primary, down-after-milliseconds 76 s, outside the give-up of the offline queue");
-    expect([inside.median, outside.median]).toEqual([73.518659, 78.655654]);
+    expect([inside.median, outside.median]).toEqual([73.464973, 78.640692]);
     expect(inside.writes.errors.map((each) => each.name)).not.toContain("MaxRetriesPerRequestError");
-    expect(outside.writes.errors.find((each) => each.name === "MaxRetriesPerRequestError")).toEqual({ name: "MaxRetriesPerRequestError", runs: 11, first: 73.548285 });
+    expect(outside.writes.errors.find((each) => each.name === "MaxRetriesPerRequestError")).toEqual({ name: "MaxRetriesPerRequestError", runs: 11, first: 73.494415 });
   });
 
-  it("gives the delay of the stamps from the second run of the calibration", () => {
-    expect(sentinel.stamps).toEqual({ count: 397, median: 0.000208, p99: 0.000552, max: 0.000705 });
-    expect(sentinel.stampBound).toBe(0.002);
-    expect([CALIBRATION.first, CALIBRATION.repeated === null]).toEqual(["measured", false]);
-    expect(sentinel.cells.filter((each) => each.first !== null)).toHaveLength(1);
+  it("gives the delay of the stamps, and the error of the first calibration that the stage bands include", () => {
+    expect(sentinel.stamps).toEqual({ count: 402, median: 0.000254, p99: 0.000815, max: 0.001003 });
+    expect(sentinel.stampBound).toBe(0.000705);
+    expect(CALIBRATION.decision).toBe("measured");
+    expect(sentinel.cells.filter((each) => each.first !== null)).toEqual([]);
   });
 
   it("names no machine: no boot id, image digest, namespace inode, address, user or path", () => {
-    const text = readFileSync(new URL("./sentinel-2026-10-16.json", import.meta.url), "utf8");
+    const text = readFileSync(new URL("./sentinel-2026-10-17.json", import.meta.url), "utf8");
     expect(text).not.toMatch(/boot_id|sha256|digest|netns|inode|[0-9a-f]{12,}|\b\d{1,3}(\.\d{1,3}){3}\b/i);
     expect(text).not.toMatch(/@|[A-Za-z]:[\\/]|\\\\|\/(home|Users|tmp|var|mnt|opt)\/|AppData|azure|WSL|microsoft/i);
   });

@@ -1,19 +1,19 @@
 {
   "source": "the raw records of the runners of GitHub, judged again by the harness. A re-run replaces the first run of its cell",
-  "ranAt": "2026-10-16",
+  "ranAt": "2026-10-17",
   "units": "s",
-  "noise": 0.004,
+  "noise": 0.001,
   "runs": 11,
   "kernel": "6.17.0",
   "hz": 1000,
   "target": "valkey/valkey:9.1",
   "quorum": 2,
-  "stampBound": 0.002,
+  "stampBound": 0.000705,
   "stamps": {
-    "count": 397,
-    "median": 0.000208,
-    "p99": 0.000552,
-    "max": 0.000705
+    "count": 402,
+    "median": 0.000254,
+    "p99": 0.000815,
+    "max": 0.001003
   },
   "cells": [
     {
@@ -38,81 +38,81 @@
       "counted": 11,
       "voided": 0,
       "band": null,
-      "median": 52.855355,
-      "why": "The median is 52.855 s from the fault, and the counted runs measured 52.612 s to 53.234 s.",
+      "median": 52.780188,
+      "why": "The median is 52.78 s from the fault, and the counted runs measured 50.293 s to 53.15 s.",
       "runs": [
-        [52.936798, 53.121742, 53.195033, 52.886426, 52.705624, 52.845846],
-        [52.830513, 52.62964, 52.612101, 53.23426, 52.855355]
+        [53.149929, 52.727329, 50.292924, 52.829826, 50.373226, 52.891568],
+        [52.822448, 52.839397, 52.644981, 52.780188, 52.694927]
       ],
-      "warmups": [53.076944, 52.919471],
+      "warmups": [53.074715, 53.126168],
       "voids": null,
       "stages": [
         {
           "stage": "+sdown",
-          "low": 29.997,
-          "high": 31.207,
-          "median": 30.203249,
+          "low": 30,
+          "high": 31.202705,
+          "median": 30.344548,
           "decision": "holds"
         },
         {
           "stage": "+odown",
-          "low": 29.997,
-          "high": 31.309,
-          "median": 30.376172,
+          "low": 30,
+          "high": 31.304705,
+          "median": 30.3447,
           "decision": "holds"
         },
         {
           "stage": "+try-failover",
           "low": null,
           "high": null,
-          "median": 30.37622,
+          "median": 30.344814,
           "decision": null
         },
         {
           "stage": "+elected-leader",
-          "low": 30.049,
-          "high": 31.413,
-          "median": 30.443252,
+          "low": 30.052,
+          "high": 31.408705,
+          "median": 30.428486,
           "decision": "holds"
         },
         {
           "stage": "+selected-slave",
-          "low": 30.101,
-          "high": 31.513,
-          "median": 30.514709,
+          "low": 30.104,
+          "high": 31.508705,
+          "median": 30.49126,
           "decision": "holds"
         },
         {
           "stage": "+promoted-slave",
-          "low": 30.153,
-          "high": 32.717,
-          "median": 31.403845,
+          "low": 30.156,
+          "high": 32.712705,
+          "median": 31.368138,
           "decision": "holds"
         },
         {
           "stage": "+switch-master",
-          "low": 30.153,
-          "high": 32.819,
-          "median": 31.486667,
+          "low": 30.156,
+          "high": 32.814705,
+          "median": 31.440615,
           "decision": "holds"
         },
         {
           "stage": "+convert-to-slave",
           "low": null,
           "high": null,
-          "median": 52.718318,
+          "median": 52.630486,
           "decision": null
         }
       ],
       "writes": {
         "lost": {
           "runs": 11,
-          "total": 11462,
-          "median": 1042,
-          "max": 1048
+          "total": 11360,
+          "median": 1041,
+          "max": 1047
         },
         "old": {
-          "median": 1042,
+          "median": 1041,
           "max": 1048
         },
         "unknown": {
@@ -123,7 +123,7 @@
           {
             "name": "ECONNRESET",
             "runs": 1,
-            "first": 52.707557
+            "first": 50.304064
           }
         ],
         "moved": 11,
@@ -154,16 +154,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 51.443,
-        "high": 53.213
+        "low": 51.446,
+        "high": 53.21
       },
-      "median": 52.727413,
-      "why": "11 of the 11 counted runs are in the band of 51.443 s to 53.213 s. The median is 52.727 s, and its interval is 52.546 s to 52.908 s.",
+      "median": 52.736977,
+      "why": "11 of the 11 counted runs are in the band of 51.446 s to 53.21 s. The median is 52.737 s, and its interval is 52.524 s to 52.865 s.",
       "runs": [
-        [52.932589, 52.872627, 52.773971, 52.727413, 52.575601, 52.510006],
-        [52.700027, 52.642671, 52.545699, 52.908196, 52.830673]
+        [52.812208, 52.784164, 52.720723, 52.593696, 52.47269, 52.864747],
+        [52.736977, 52.523684, 52.536551, 52.948963, 52.850621]
       ],
-      "warmups": [52.592164, 52.852141],
+      "warmups": [52.699121, 52.82689],
       "voids": null,
       "stages": [],
       "writes": {
@@ -210,82 +210,82 @@
       "counted": 11,
       "voided": 0,
       "band": null,
-      "median": 52.858309,
-      "why": "The median is 52.858 s from the fault, and the counted runs measured 50.247 s to 53.112 s.",
+      "median": 52.642342,
+      "why": "The median is 52.642 s from the fault, and the counted runs measured 50.199 s to 53.138 s.",
       "runs": [
-        [50.466284, 52.865684, 53.003445, 52.90974, 52.708369, 53.112014],
-        [52.858309, 52.755707, 50.246931, 52.899006, 52.592045]
+        [50.562781, 52.666985, 52.664067, 50.321722, 52.663222, 50.223827],
+        [52.610489, 50.198625, 52.642342, 53.137893, 52.677187]
       ],
-      "warmups": [50.447732, 52.873196],
+      "warmups": [53.116552, 50.202639],
       "voids": null,
       "stages": [
         {
           "stage": "+sdown",
-          "low": 29.997,
-          "high": 31.207,
-          "median": 30.304396,
+          "low": 30,
+          "high": 31.202705,
+          "median": 30.192095,
           "decision": "holds"
         },
         {
           "stage": "+odown",
-          "low": 29.997,
-          "high": 31.309,
-          "median": 30.392148,
+          "low": 30,
+          "high": 31.304705,
+          "median": 30.210836,
           "decision": "holds"
         },
         {
           "stage": "+try-failover",
           "low": null,
           "high": null,
-          "median": 30.392227,
+          "median": 30.210863,
           "decision": null
         },
         {
           "stage": "+elected-leader",
-          "low": 30.049,
-          "high": 31.413,
-          "median": 30.450668,
+          "low": 30.052,
+          "high": 31.408705,
+          "median": 30.277556,
           "decision": "holds"
         },
         {
           "stage": "+selected-slave",
-          "low": 30.101,
-          "high": 31.513,
-          "median": 30.522156,
+          "low": 30.104,
+          "high": 31.508705,
+          "median": 30.344433,
           "decision": "holds"
         },
         {
           "stage": "+promoted-slave",
-          "low": 30.153,
-          "high": 32.717,
-          "median": 31.43537,
+          "low": 30.156,
+          "high": 32.712705,
+          "median": 31.269404,
           "decision": "holds"
         },
         {
           "stage": "+switch-master",
-          "low": 30.153,
-          "high": 32.819,
-          "median": 31.515357,
+          "low": 30.156,
+          "high": 32.814705,
+          "median": 31.346748,
           "decision": "holds"
         },
         {
           "stage": "+convert-to-slave",
           "low": null,
           "high": null,
-          "median": 52.686414,
+          "median": 52.536397,
           "decision": null
         }
       ],
       "writes": {
         "lost": {
           "runs": 11,
-          "total": 17,
+          "total": 8,
           "median": 0,
-          "max": 6
+          "max": 4
         },
         "old": {
           "median": 0,
-          "max": 6
+          "max": 4
         },
         "unknown": {
           "total": 0,
@@ -320,85 +320,85 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 50.046,
-        "high": 50.407
+        "low": 50.049,
+        "high": 50.404
       },
-      "median": 50.197044,
-      "why": "11 of the 11 counted runs are in the band of 50.046 s to 50.407 s. The median is 50.197 s, and its interval is 50.104 s to 50.249 s.",
+      "median": 50.205055,
+      "why": "11 of the 11 counted runs are in the band of 50.049 s to 50.404 s. The median is 50.205 s, and its interval is 50.101 s to 50.259 s.",
       "runs": [
-        [50.249466, 50.104354, 50.140617, 50.145419, 50.217266, 50.2298],
-        [50.076995, 50.265053, 50.237259, 50.120154, 50.197044]
+        [50.197735, 50.101398, 50.28297, 50.093189, 50.234236, 50.250974],
+        [50.100941, 50.205055, 50.198931, 50.258751, 50.240978]
       ],
-      "warmups": [50.263739, 50.265039],
+      "warmups": [50.099705, 50.206921],
       "voids": null,
       "stages": [
         {
           "stage": "+sdown",
-          "low": 29.997,
-          "high": 31.207,
-          "median": 30.317391,
+          "low": 30,
+          "high": 31.202705,
+          "median": 30.22886,
           "decision": "holds"
         },
         {
           "stage": "+odown",
-          "low": 29.997,
-          "high": 31.309,
-          "median": 30.333321,
+          "low": 30,
+          "high": 31.304705,
+          "median": 30.228929,
           "decision": "holds"
         },
         {
           "stage": "+try-failover",
           "low": null,
           "high": null,
-          "median": 30.333392,
+          "median": 30.228971,
           "decision": null
         },
         {
           "stage": "+elected-leader",
-          "low": 30.049,
-          "high": 31.413,
-          "median": 30.392364,
+          "low": 30.052,
+          "high": 31.408705,
+          "median": 30.287847,
           "decision": "holds"
         },
         {
           "stage": "+selected-slave",
-          "low": 30.101,
-          "high": 31.513,
-          "median": 30.47559,
+          "low": 30.104,
+          "high": 31.508705,
+          "median": 30.364613,
           "decision": "holds"
         },
         {
           "stage": "+promoted-slave",
-          "low": 30.153,
-          "high": 32.717,
-          "median": 31.339077,
+          "low": 30.156,
+          "high": 32.712705,
+          "median": 31.271498,
           "decision": "holds"
         },
         {
           "stage": "+switch-master",
-          "low": 30.153,
-          "high": 32.819,
-          "median": 31.425447,
+          "low": 30.156,
+          "high": 32.814705,
+          "median": 31.35247,
           "decision": "holds"
         },
         {
           "stage": "+convert-to-slave",
           "low": null,
           "high": null,
-          "median": 50.03123,
+          "median": 50.029507,
           "decision": null
         }
       ],
       "writes": {
         "lost": {
           "runs": 11,
-          "total": 2188,
+          "total": 2189,
           "median": 199,
-          "max": 200
+          "max": 199
         },
         "old": {
           "median": 199,
-          "max": 200
+          "max": 199
         },
         "unknown": {
           "total": 0,
@@ -433,72 +433,72 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 31.346,
-        "high": 39.351
+        "low": 31.349,
+        "high": 39.348
       },
-      "median": 32.554128,
-      "why": "11 of the 11 counted runs are in the band of 31.346 s to 39.351 s. The median is 32.554 s, and its interval is 32.368 s to 32.736 s.",
+      "median": 32.574067,
+      "why": "11 of the 11 counted runs are in the band of 31.349 s to 39.348 s. The median is 32.574 s, and its interval is 32.33 s to 32.864 s.",
       "runs": [
-        [32.580396, 32.554128, 32.533251, 32.368066, 32.736257, 32.736547],
-        [32.612107, 32.37468, 32.351875, 32.496375, 32.582134]
+        [32.329904, 32.716692, 32.574067, 32.217942, 32.957779, 32.463526],
+        [32.499555, 32.729427, 32.864118, 32.738504, 32.53052]
       ],
-      "warmups": [32.496059, 32.45441],
+      "warmups": [32.850203, 32.553067],
       "voids": null,
       "stages": [
         {
           "stage": "+sdown",
-          "low": 29.997,
-          "high": 30.209,
-          "median": 30.051842,
+          "low": 30,
+          "high": 30.204705,
+          "median": 30.05415,
           "decision": "holds"
         },
         {
           "stage": "+odown",
-          "low": 29.997,
-          "high": 30.311,
-          "median": 30.051907,
+          "low": 30,
+          "high": 30.306705,
+          "median": 30.056581,
           "decision": "holds"
         },
         {
           "stage": "+try-failover",
           "low": null,
           "high": null,
-          "median": 30.051936,
+          "median": 30.05672,
           "decision": null
         },
         {
           "stage": "+elected-leader",
-          "low": 30.049,
-          "high": 30.415,
-          "median": 30.127573,
+          "low": 30.052,
+          "high": 30.410705,
+          "median": 30.130813,
           "decision": "holds"
         },
         {
           "stage": "+selected-slave",
-          "low": 30.101,
-          "high": 30.515,
-          "median": 30.195465,
+          "low": 30.104,
+          "high": 30.510705,
+          "median": 30.19743,
           "decision": "holds"
         },
         {
           "stage": "+promoted-slave",
-          "low": 30.153,
-          "high": 31.719,
-          "median": 31.129742,
+          "low": 30.156,
+          "high": 31.714705,
+          "median": 30.862188,
           "decision": "holds"
         },
         {
           "stage": "+switch-master",
-          "low": 30.153,
-          "high": 31.821,
-          "median": 31.205188,
+          "low": 30.156,
+          "high": 31.816705,
+          "median": 30.915655,
           "decision": "holds"
         },
         {
           "stage": "+convert-to-slave",
           "low": null,
           "high": null,
-          "median": 45.024025,
+          "median": 44.977928,
           "decision": null
         }
       ],
@@ -521,12 +521,12 @@
           {
             "name": "ECONNREFUSED",
             "runs": 11,
-            "first": 0.120454
+            "first": 0.175258
           },
           {
             "name": "Error",
             "runs": 11,
-            "first": 0.582514
+            "first": 0.639616
           }
         ],
         "moved": 11,
@@ -557,71 +557,71 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 10.15,
-        "high": 12.017
+        "low": 10.153,
+        "high": 12.014
       },
-      "median": 11.36443,
-      "why": "11 of the 11 counted runs are in the band of 10.15 s to 12.017 s. The median is 11.364 s, and its interval is 11.334 s to 11.487 s.",
+      "median": 11.409228,
+      "why": "11 of the 11 counted runs are in the band of 10.153 s to 12.014 s. The median is 11.409 s, and its interval is 11.376 s to 11.465 s.",
       "runs": [
-        [11.427106, 11.389545, 11.361451, 11.355041, 11.348757, 11.465404],
-        [11.487474, 11.36443, 11.505927, 11.33414, 11.246882]
+        [11.382148, 11.452047, 11.375767, 11.416668, 11.20597, 11.464578],
+        [11.3806, 11.467799, 11.409228, 11.414228, 11.402515]
       ],
-      "warmups": [11.26609, 11.429349],
+      "warmups": [11.352675, 11.540463],
       "voids": null,
       "stages": [
         {
           "stage": "+try-failover",
           "low": null,
           "high": null,
-          "median": 0.000674,
+          "median": 0.000583,
           "decision": null
         },
         {
           "stage": "+elected-leader",
-          "low": -0.004,
-          "high": 0.108,
-          "median": 0.040881,
+          "low": -0.001,
+          "high": 0.103705,
+          "median": 0.056966,
           "decision": "holds"
         },
         {
           "stage": "+selected-slave",
-          "low": 0.048,
-          "high": 0.208,
-          "median": 0.111827,
+          "low": 0.051,
+          "high": 0.203705,
+          "median": 0.119398,
           "decision": "holds"
         },
         {
           "stage": "+promoted-slave",
-          "low": 0.1,
-          "high": 1.412,
-          "median": 1.071452,
+          "low": 0.103,
+          "high": 1.407705,
+          "median": 1.099892,
           "decision": "holds"
         },
         {
           "stage": "+switch-master",
-          "low": 0.1,
-          "high": 1.514,
-          "median": 1.131125,
+          "low": 0.103,
+          "high": 1.509705,
+          "median": 1.176676,
           "decision": "holds"
         },
         {
           "stage": "+convert-to-slave",
           "low": null,
           "high": null,
-          "median": 11.217295,
+          "median": 11.235746,
           "decision": null
         }
       ],
       "writes": {
         "lost": {
           "runs": 11,
-          "total": 2406,
+          "total": 2405,
           "median": 219,
-          "max": 220
+          "max": 221
         },
         "old": {
           "median": 223,
-          "max": 225
+          "max": 224
         },
         "unknown": {
           "total": 0,
@@ -656,48 +656,48 @@
       "counted": 11,
       "voided": 0,
       "band": null,
-      "median": 1.246527,
-      "why": "The median is 1.247 s from the fault, and the counted runs measured 1.124 s to 2.294 s.",
+      "median": 1.24868,
+      "why": "The median is 1.249 s from the fault, and the counted runs measured 1.211 s to 1.324 s.",
       "runs": [
-        [2.294135, 1.246527, 1.232286, 1.265642, 1.296498, 1.124163],
-        [1.19812, 1.168335, 1.280064, 1.259322, 1.17872]
+        [1.24868, 1.255026, 1.225939, 1.286, 1.315455, 1.224558],
+        [1.210652, 1.323982, 1.242005, 1.250044, 1.2439]
       ],
-      "warmups": [1.346889, 1.375535],
+      "warmups": [1.197585, 2.165985],
       "voids": null,
       "stages": [
         {
           "stage": "+try-failover",
           "low": null,
           "high": null,
-          "median": 0.000766,
+          "median": 0.000494,
           "decision": null
         },
         {
           "stage": "+elected-leader",
           "low": null,
           "high": null,
-          "median": 0.029588,
+          "median": 0.04399,
           "decision": null
         },
         {
           "stage": "+selected-slave",
           "low": null,
           "high": null,
-          "median": 0.109683,
+          "median": 0.109101,
           "decision": null
         },
         {
           "stage": "+promoted-slave",
           "low": null,
           "high": null,
-          "median": 1.071127,
+          "median": 1.051086,
           "decision": null
         },
         {
           "stage": "+switch-master",
           "low": null,
           "high": null,
-          "median": 1.148032,
+          "median": 1.12676,
           "decision": null
         }
       ],
@@ -745,72 +745,72 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 31.346,
-        "high": 39.401
+        "low": 31.349,
+        "high": 39.398
       },
-      "median": 32.713181,
-      "why": "11 of the 11 counted runs are in the band of 31.346 s to 39.401 s. The median is 32.713 s, and its interval is 32.452 s to 32.867 s.",
+      "median": 32.668267,
+      "why": "11 of the 11 counted runs are in the band of 31.349 s to 39.398 s. The median is 32.668 s, and its interval is 32.537 s to 32.866 s.",
       "runs": [
-        [32.590371, 33.076977, 32.866906, 32.712238, 32.848187, 32.317894],
-        [32.713181, 32.742307, 32.555115, 32.743006, 32.451832]
+        [32.86627, 32.53742, 32.667321, 32.846043, 32.86683, 32.537223],
+        [32.674215, 32.442212, 32.581945, 32.668267, 32.7256]
       ],
-      "warmups": [32.574647, 32.726561],
+      "warmups": [32.769771, 32.947389],
       "voids": null,
       "stages": [
         {
           "stage": "+sdown",
-          "low": 29.997,
-          "high": 31.207,
-          "median": 30.17812,
+          "low": 30,
+          "high": 31.202705,
+          "median": 30.244545,
           "decision": "holds"
         },
         {
           "stage": "+odown",
-          "low": 29.997,
-          "high": 31.309,
-          "median": 30.283161,
+          "low": 30,
+          "high": 31.304705,
+          "median": 30.249828,
           "decision": "holds"
         },
         {
           "stage": "+try-failover",
           "low": null,
           "high": null,
-          "median": 30.283289,
+          "median": 30.249853,
           "decision": null
         },
         {
           "stage": "+elected-leader",
-          "low": 30.049,
-          "high": 31.413,
-          "median": 30.338764,
+          "low": 30.052,
+          "high": 31.408705,
+          "median": 30.316823,
           "decision": "holds"
         },
         {
           "stage": "+selected-slave",
-          "low": 30.101,
-          "high": 31.513,
-          "median": 30.43955,
+          "low": 30.104,
+          "high": 31.508705,
+          "median": 30.373682,
           "decision": "holds"
         },
         {
           "stage": "+promoted-slave",
-          "low": 30.153,
-          "high": 32.717,
-          "median": 30.969923,
+          "low": 30.156,
+          "high": 32.712705,
+          "median": 30.914684,
           "decision": "holds"
         },
         {
           "stage": "+switch-master",
-          "low": 30.153,
-          "high": 32.819,
-          "median": 31.02652,
+          "low": 30.156,
+          "high": 32.814705,
+          "median": 30.970656,
           "decision": "holds"
         },
         {
           "stage": "+convert-to-slave",
           "low": null,
           "high": null,
-          "median": 45.006811,
+          "median": 45.092916,
           "decision": null
         }
       ],
@@ -833,17 +833,17 @@
           {
             "name": "ECONNRESET",
             "runs": 11,
-            "first": 0.011019
+            "first": 0.013829
           },
           {
             "name": "ECONNREFUSED",
             "runs": 11,
-            "first": 0.134583
+            "first": 0.200616
           },
           {
             "name": "Error",
             "runs": 11,
-            "first": 0.652489
+            "first": 0.676847
           }
         ],
         "moved": 11,
@@ -874,16 +874,16 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 28.996,
-        "high": 29.016
+        "low": 28.999,
+        "high": 29.013
       },
-      "median": 29.00473,
-      "why": "11 of the 11 counted runs are in the band of 28.996 s to 29.016 s. The median is 29.005 s, and its interval is 29.005 s to 29.005 s.",
+      "median": 29.003193,
+      "why": "11 of the 11 counted runs are in the band of 28.999 s to 29.013 s. The median is 29.003 s, and its interval is 29.003 s to 29.004 s.",
       "runs": [
-        [29.00491, 29.004843, 29.004815, 29.004711, 29.004764, 29.004707],
-        [29.00473, 29.008457, 29.004568, 29.004574, 29.004302]
+        [29.003514, 29.003189, 29.00303, 29.003156, 29.003193, 29.003039],
+        [29.003214, 29.003293, 29.003531, 29.003234, 29.003067]
       ],
-      "warmups": [29.005706, 29.005587],
+      "warmups": [29.003542, 29.003615],
       "voids": null,
       "stages": [],
       "writes": {
@@ -930,79 +930,79 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 43.046,
-        "high": 43.407
+        "low": 43.049,
+        "high": 43.404
       },
-      "median": 43.159414,
-      "why": "11 of the 11 counted runs are in the band of 43.046 s to 43.407 s. The median is 43.159 s, and its interval is 43.106 s to 43.232 s.",
+      "median": 43.180205,
+      "why": "11 of the 11 counted runs are in the band of 43.049 s to 43.404 s. The median is 43.18 s, and its interval is 43.085 s to 43.257 s.",
       "runs": [
-        [43.215136, 43.232381, 43.155547, 43.180261, 43.159414, 43.106365],
-        [43.079699, 43.131878, 43.231459, 43.137153, 43.244346]
+        [43.094499, 43.263734, 43.232702, 43.085187, 43.256517, 43.247793],
+        [43.164186, 43.22086, 43.12665, 43.085383, 43.180205]
       ],
-      "warmups": [43.186475, 43.102082],
+      "warmups": [43.258434, 43.184367],
       "voids": null,
       "stages": [
         {
           "stage": "+sdown",
-          "low": 29.997,
-          "high": 31.207,
-          "median": 30.248498,
+          "low": 30,
+          "high": 31.202705,
+          "median": 30.177399,
           "decision": "holds"
         },
         {
           "stage": "+odown",
-          "low": 29.997,
-          "high": 31.309,
-          "median": 30.311874,
+          "low": 30,
+          "high": 31.304705,
+          "median": 30.177475,
           "decision": "holds"
         },
         {
           "stage": "+try-failover",
           "low": null,
           "high": null,
-          "median": 30.311931,
+          "median": 30.17753,
           "decision": null
         },
         {
           "stage": "+elected-leader",
-          "low": 30.049,
-          "high": 31.413,
-          "median": 30.375011,
+          "low": 30.052,
+          "high": 31.408705,
+          "median": 30.264345,
           "decision": "holds"
         },
         {
           "stage": "+selected-slave",
-          "low": 30.101,
-          "high": 31.513,
-          "median": 30.476083,
+          "low": 30.104,
+          "high": 31.508705,
+          "median": 30.349808,
           "decision": "holds"
         },
         {
           "stage": "+promoted-slave",
-          "low": 30.153,
-          "high": 32.717,
-          "median": 31.350215,
+          "low": 30.156,
+          "high": 32.712705,
+          "median": 31.202798,
           "decision": "holds"
         },
         {
           "stage": "+switch-master",
-          "low": 30.153,
-          "high": 32.819,
-          "median": 31.406422,
+          "low": 30.156,
+          "high": 32.814705,
+          "median": 31.287154,
           "decision": "holds"
         },
         {
           "stage": "+convert-to-slave",
           "low": null,
           "high": null,
-          "median": 43.037049,
+          "median": 43.023277,
           "decision": null
         }
       ],
       "writes": {
         "lost": {
           "runs": 11,
-          "total": 2185,
+          "total": 2188,
           "median": 199,
           "max": 199
         },
@@ -1043,72 +1043,72 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 69.153,
-        "high": 75.954
+        "low": 69.156,
+        "high": 75.951
       },
-      "median": 73.518659,
-      "why": "11 of the 11 counted runs are in the band of 69.153 s to 75.954 s. The median is 73.519 s, and its interval is 73.207 s to 73.872 s.",
+      "median": 73.464973,
+      "why": "11 of the 11 counted runs are in the band of 69.156 s to 75.951 s. The median is 73.465 s, and its interval is 73.103 s to 73.769 s.",
       "runs": [
-        [73.611928, 73.221814, 73.20655, 73.262659, 73.766376, 73.090908],
-        [74.236419, 73.746829, 73.433702, 73.872327, 73.518659]
+        [73.666755, 73.223583, 73.464973, 73.086986, 73.558536, 73.609307],
+        [73.238551, 73.158359, 73.103297, 73.7693, 73.901905]
       ],
-      "warmups": [73.446944, 73.466841],
+      "warmups": [73.341749, 73.703842],
       "voids": null,
       "stages": [
         {
           "stage": "+sdown",
-          "low": 68.997,
-          "high": 69.209,
-          "median": 69.051106,
+          "low": 69,
+          "high": 69.204705,
+          "median": 69.045395,
           "decision": "holds"
         },
         {
           "stage": "+odown",
-          "low": 68.997,
-          "high": 69.311,
-          "median": 69.052809,
+          "low": 69,
+          "high": 69.306705,
+          "median": 69.045483,
           "decision": "holds"
         },
         {
           "stage": "+try-failover",
           "low": null,
           "high": null,
-          "median": 69.05288,
+          "median": 69.045528,
           "decision": null
         },
         {
           "stage": "+elected-leader",
-          "low": 69.049,
-          "high": 69.415,
-          "median": 69.135076,
+          "low": 69.052,
+          "high": 69.410705,
+          "median": 69.107753,
           "decision": "holds"
         },
         {
           "stage": "+selected-slave",
-          "low": 69.101,
-          "high": 69.515,
-          "median": 69.217762,
+          "low": 69.104,
+          "high": 69.510705,
+          "median": 69.185823,
           "decision": "holds"
         },
         {
           "stage": "+promoted-slave",
-          "low": 69.153,
-          "high": 70.719,
-          "median": 69.541622,
+          "low": 69.156,
+          "high": 70.714705,
+          "median": 69.780375,
           "decision": "holds"
         },
         {
           "stage": "+switch-master",
-          "low": 69.153,
-          "high": 70.821,
-          "median": 69.604374,
+          "low": 69.156,
+          "high": 70.816705,
+          "median": 69.881915,
           "decision": "holds"
         },
         {
           "stage": "+convert-to-slave",
           "low": null,
           "high": null,
-          "median": 85.925971,
+          "median": 85.916598,
           "decision": null
         }
       ],
@@ -1131,17 +1131,17 @@
           {
             "name": "ECONNREFUSED",
             "runs": 11,
-            "first": 0.211158
+            "first": 0.183518
           },
           {
             "name": "Error",
             "runs": 11,
-            "first": 0.747534
+            "first": 0.621325
           },
           {
             "name": "ECONNRESET",
             "runs": 1,
-            "first": 0.002736
+            "first": 0.002214
           }
         ],
         "moved": 11,
@@ -1172,72 +1172,72 @@
       "counted": 11,
       "voided": 0,
       "band": {
-        "low": 76.346,
-        "high": 86.412
+        "low": 76.349,
+        "high": 86.409
       },
-      "median": 78.655654,
-      "why": "11 of the 11 counted runs are in the band of 76.346 s to 86.412 s. The median is 78.656 s, and its interval is 78.36 s to 78.863 s.",
+      "median": 78.640692,
+      "why": "11 of the 11 counted runs are in the band of 76.349 s to 86.409 s. The median is 78.641 s, and its interval is 78.227 s to 78.856 s.",
       "runs": [
-        [78.360122, 78.292021, 78.68709, 78.44387, 78.818649, 78.861354],
-        [78.646106, 78.369796, 78.863183, 78.655654, 78.903874]
+        [78.026483, 78.85594, 78.227428, 78.819079, 78.450874, 78.434082],
+        [78.640692, 78.913952, 78.783664, 78.838741, 78.563137]
       ],
-      "warmups": [78.566809, 78.437471],
+      "warmups": [78.677244, 78.50835],
       "voids": null,
       "stages": [
         {
           "stage": "+sdown",
-          "low": 75.997,
-          "high": 76.209,
-          "median": 76.049627,
+          "low": 76,
+          "high": 76.204705,
+          "median": 76.052579,
           "decision": "holds"
         },
         {
           "stage": "+odown",
-          "low": 75.997,
-          "high": 76.311,
-          "median": 76.056559,
+          "low": 76,
+          "high": 76.306705,
+          "median": 76.067735,
           "decision": "holds"
         },
         {
           "stage": "+try-failover",
           "low": null,
           "high": null,
-          "median": 76.056615,
+          "median": 76.067784,
           "decision": null
         },
         {
           "stage": "+elected-leader",
-          "low": 76.049,
-          "high": 76.415,
-          "median": 76.12549,
+          "low": 76.052,
+          "high": 76.410705,
+          "median": 76.124764,
           "decision": "holds"
         },
         {
           "stage": "+selected-slave",
-          "low": 76.101,
-          "high": 76.515,
-          "median": 76.209618,
+          "low": 76.104,
+          "high": 76.510705,
+          "median": 76.208047,
           "decision": "holds"
         },
         {
           "stage": "+promoted-slave",
-          "low": 76.153,
-          "high": 77.719,
-          "median": 76.839942,
+          "low": 76.156,
+          "high": 77.714705,
+          "median": 76.696802,
           "decision": "holds"
         },
         {
           "stage": "+switch-master",
-          "low": 76.153,
-          "high": 77.821,
-          "median": 76.912388,
+          "low": 76.156,
+          "high": 77.816705,
+          "median": 76.797066,
           "decision": "holds"
         },
         {
           "stage": "+convert-to-slave",
           "low": null,
           "high": null,
-          "median": 91.015867,
+          "median": 90.97885,
           "decision": null
         }
       ],
@@ -1258,24 +1258,19 @@
         },
         "errors": [
           {
-            "name": "ECONNRESET",
-            "runs": 1,
-            "first": 0.0019
-          },
-          {
             "name": "ECONNREFUSED",
             "runs": 11,
-            "first": 0.193583
+            "first": 0.172535
           },
           {
             "name": "Error",
             "runs": 11,
-            "first": 0.650377
+            "first": 0.632678
           },
           {
             "name": "MaxRetriesPerRequestError",
             "runs": 11,
-            "first": 73.548285
+            "first": 73.494415
           }
         ],
         "moved": 11,
@@ -1306,64 +1301,64 @@
       "counted": 11,
       "voided": 0,
       "band": null,
-      "median": 11.323616,
-      "why": "The median is 11.324 s from the fault, and the counted runs measured 11.217 s to 11.402 s.",
+      "median": 11.312937,
+      "why": "The median is 11.313 s from the fault, and the counted runs measured 10.858 s to 11.492 s.",
       "runs": [
-        [11.268839, 11.219964, 11.237001, 11.402377, 11.335439, 11.217115],
-        [11.400711, 11.238288, 11.323616, 11.354853, 11.356536]
+        [11.301984, 11.241776, 11.359991, 11.404763, 11.379455, 11.466367],
+        [11.312937, 10.858036, 11.300165, 11.492192, 11.286905]
       ],
-      "warmups": [11.392624, 11.412772],
+      "warmups": [11.35137, 11.340888],
       "voids": null,
       "stages": [
         {
           "stage": "+try-failover",
           "low": null,
           "high": null,
-          "median": 0.000606,
+          "median": 0.000686,
           "decision": null
         },
         {
           "stage": "+elected-leader",
-          "low": -0.004,
-          "high": 0.108,
-          "median": 0.040962,
+          "low": -0.001,
+          "high": 0.103705,
+          "median": 0.019517,
           "decision": "holds"
         },
         {
           "stage": "+selected-slave",
-          "low": 0.048,
-          "high": 0.208,
-          "median": 0.099539,
+          "low": 0.051,
+          "high": 0.203705,
+          "median": 0.113075,
           "decision": "holds"
         },
         {
           "stage": "+promoted-slave",
-          "low": 0.1,
-          "high": 1.412,
-          "median": 1.068909,
+          "low": 0.103,
+          "high": 1.407705,
+          "median": 1.042565,
           "decision": "holds"
         },
         {
           "stage": "+switch-master",
-          "low": 0.1,
-          "high": 1.514,
-          "median": 1.141655,
+          "low": 0.103,
+          "high": 1.509705,
+          "median": 1.127437,
           "decision": "holds"
         },
         {
           "stage": "+convert-to-slave",
           "low": null,
           "high": null,
-          "median": 11.158733,
+          "median": 11.185608,
           "decision": null
         }
       ],
       "writes": {
         "lost": {
           "runs": 11,
-          "total": 2398,
+          "total": 2386,
           "median": 218,
-          "max": 220
+          "max": 219
         },
         "old": {
           "median": 221,
@@ -1377,8 +1372,8 @@
         "moved": 11,
         "stayed": 0
       },
-      "first": "measured",
-      "repeated": "In the first CI run, the harness did not keep the subscriptions of the observer, thus the calibration gave no delay of a stamp. After a fix, CI did the calibration again."
+      "first": null,
+      "repeated": null
     }
   ]
 }

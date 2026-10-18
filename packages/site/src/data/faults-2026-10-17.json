@@ -1,12 +1,12 @@
 {
   "source": "the prober's eBPF records, judged again by the harness. A rerun replaces the first run of its cell",
   "topology": "T01",
-  "ranAt": "2026-10-14",
+  "ranAt": "2026-10-17",
   "units": "s",
-  "noise": 0.004,
+  "noise": 0.001,
   "runs": 11,
-  "kernel": "6.6.87.2",
-  "hz": 250,
+  "kernel": "6.17.0",
+  "hz": 1000,
   "target": "redis:7.4",
   "cells": [
     {
@@ -40,8 +40,8 @@
         "timer": "keepalive",
         "errno": "ETIMEDOUT",
         "from": "last-received",
-        "low": 10.996,
-        "high": 11.352,
+        "low": 10.999,
+        "high": 11.704,
         "window": null,
         "why": null
       },
@@ -50,18 +50,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 10.992,
-          "high": 11.356
+          "low": 10.998,
+          "high": 11.705
         },
-        "median": 11.179075,
-        "why": "11 of 11 runs inside [10.992, 11.356] s; median 11.179075 s, its interval [11.09098, 11.284944] s"
+        "median": 11.440005,
+        "why": "11 of 11 runs inside [10.998, 11.705] s; median 11.440005 s, its interval [11.230212, 11.600125] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.160095,
+          "elapsed": 11.539143,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -69,7 +69,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.179075,
+          "elapsed": 11.286725,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -77,7 +77,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.244182,
+          "elapsed": 11.600125,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -85,7 +85,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.284944,
+          "elapsed": 11.340679,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -93,7 +93,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.09098,
+          "elapsed": 11.648997,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -101,7 +101,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.083429,
+          "elapsed": 11.440005,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -109,7 +109,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.124332,
+          "elapsed": 11.145647,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -117,7 +117,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.268061,
+          "elapsed": 11.442958,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -125,7 +125,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.299778,
+          "elapsed": 11.230212,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -133,7 +133,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.164929,
+          "elapsed": 11.49323,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -141,7 +141,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.202451,
+          "elapsed": 11.288412,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -184,8 +184,8 @@
         "timer": "keepalive",
         "errno": "ETIMEDOUT",
         "from": "last-received",
-        "low": 10.996,
-        "high": 11.352,
+        "low": 10.999,
+        "high": 11.704,
         "window": null,
         "why": null
       },
@@ -194,18 +194,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 10.992,
-          "high": 11.356
+          "low": 10.998,
+          "high": 11.705
         },
-        "median": 11.114431,
-        "why": "11 of 11 runs inside [10.992, 11.356] s; median 11.114431 s, its interval [11.059465, 11.158752] s"
+        "median": 11.42667,
+        "why": "11 of 11 runs inside [10.998, 11.705] s; median 11.42667 s, its interval [11.274915, 11.594425] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.084318,
+          "elapsed": 11.527293,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -213,7 +213,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.059465,
+          "elapsed": 11.276304,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -221,7 +221,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.070191,
+          "elapsed": 11.594425,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -229,7 +229,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.137746,
+          "elapsed": 11.378158,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -237,7 +237,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.158752,
+          "elapsed": 11.637141,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -245,7 +245,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.227212,
+          "elapsed": 11.42667,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -253,7 +253,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.112668,
+          "elapsed": 11.192544,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -261,7 +261,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.054207,
+          "elapsed": 11.49159,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -269,7 +269,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.114431,
+          "elapsed": 11.274915,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -277,7 +277,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.156626,
+          "elapsed": 11.545607,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -285,7 +285,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.146176,
+          "elapsed": 11.337671,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -328,8 +328,8 @@
         "timer": "keepalive",
         "errno": "ETIMEDOUT",
         "from": "last-received",
-        "low": 10.996,
-        "high": 11.352,
+        "low": 10.999,
+        "high": 11.704,
         "window": null,
         "why": null
       },
@@ -338,18 +338,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 10.992,
-          "high": 11.356
+          "low": 10.998,
+          "high": 11.705
         },
-        "median": 11.190703,
-        "why": "11 of 11 runs inside [10.992, 11.356] s; median 11.190703 s, its interval [11.11476, 11.250966] s"
+        "median": 11.451311,
+        "why": "11 of 11 runs inside [10.998, 11.705] s; median 11.451311 s, its interval [11.290809, 11.648149] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.150593,
+          "elapsed": 11.653137,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -357,7 +357,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.165916,
+          "elapsed": 11.44632,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -365,7 +365,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.250966,
+          "elapsed": 11.196806,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -373,7 +373,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.246197,
+          "elapsed": 11.496413,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -381,7 +381,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.219635,
+          "elapsed": 11.290809,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -389,7 +389,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.216439,
+          "elapsed": 11.547402,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -397,7 +397,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.113873,
+          "elapsed": 11.306308,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -405,7 +405,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.11476,
+          "elapsed": 11.607924,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -413,7 +413,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.146045,
+          "elapsed": 11.388218,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -421,7 +421,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.190703,
+          "elapsed": 11.648149,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -429,7 +429,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.270294,
+          "elapsed": 11.451311,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -472,8 +472,8 @@
         "timer": "keepalive",
         "errno": "ETIMEDOUT",
         "from": "last-received",
-        "low": 10.996,
-        "high": 11.352,
+        "low": 10.999,
+        "high": 11.704,
         "window": null,
         "why": null
       },
@@ -482,18 +482,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 10.992,
-          "high": 11.356
+          "low": 10.998,
+          "high": 11.705
         },
-        "median": 11.261083,
-        "why": "11 of 11 runs inside [10.992, 11.356] s; median 11.261083 s, its interval [11.090359, 11.286273] s"
+        "median": 11.39862,
+        "why": "11 of 11 runs inside [10.998, 11.705] s; median 11.39862 s, its interval [11.197442, 11.5542] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.090359,
+          "elapsed": 11.438052,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -501,7 +501,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.203338,
+          "elapsed": 11.196433,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -509,7 +509,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.274014,
+          "elapsed": 11.503068,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -517,7 +517,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.292381,
+          "elapsed": 11.243451,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -525,7 +525,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.261083,
+          "elapsed": 11.5542,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -533,7 +533,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.272259,
+          "elapsed": 11.347206,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -541,7 +541,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.050639,
+          "elapsed": 11.545422,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -549,7 +549,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.188635,
+          "elapsed": 11.343472,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -557,7 +557,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.278611,
+          "elapsed": 11.604334,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -565,7 +565,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.286273,
+          "elapsed": 11.39862,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -573,7 +573,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.24838,
+          "elapsed": 11.197442,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -616,8 +616,8 @@
         "timer": "keepalive",
         "errno": "ETIMEDOUT",
         "from": "last-received",
-        "low": 10.996,
-        "high": 11.352,
+        "low": 10.999,
+        "high": 11.704,
         "window": null,
         "why": null
       },
@@ -626,18 +626,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 10.992,
-          "high": 11.356
+          "low": 10.998,
+          "high": 11.705
         },
-        "median": 11.144183,
-        "why": "11 of 11 runs inside [10.992, 11.356] s; median 11.144183 s, its interval [11.078177, 11.234556] s"
+        "median": 11.395853,
+        "why": "11 of 11 runs inside [10.998, 11.705] s; median 11.395853 s, its interval [11.200252, 11.558003] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.078177,
+          "elapsed": 11.395853,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -645,7 +645,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.060702,
+          "elapsed": 11.194015,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -653,7 +653,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.144183,
+          "elapsed": 11.459716,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -661,7 +661,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.123792,
+          "elapsed": 11.25354,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -669,7 +669,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.199325,
+          "elapsed": 11.558003,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -677,7 +677,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.205813,
+          "elapsed": 11.303459,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -685,7 +685,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.234556,
+          "elapsed": 11.626562,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -693,7 +693,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.270347,
+          "elapsed": 11.402946,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -701,7 +701,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.078512,
+          "elapsed": 11.200252,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -709,7 +709,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.102325,
+          "elapsed": 11.499802,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -717,7 +717,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.152986,
+          "elapsed": 11.253436,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -755,8 +755,8 @@
         "timer": "keepalive",
         "errno": "ETIMEDOUT",
         "from": "last-received",
-        "low": 10.996,
-        "high": 11.352,
+        "low": 10.999,
+        "high": 11.704,
         "window": null,
         "why": null
       },
@@ -765,18 +765,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 10.992,
-          "high": 11.356
+          "low": 10.998,
+          "high": 11.705
         },
-        "median": 11.168449,
-        "why": "11 of 11 runs inside [10.992, 11.356] s; median 11.168449 s, its interval [11.07186, 11.283483] s"
+        "median": 11.393188,
+        "why": "11 of 11 runs inside [10.998, 11.705] s; median 11.393188 s, its interval [11.191527, 11.599225] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.215357,
+          "elapsed": 11.292087,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -784,7 +784,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.150948,
+          "elapsed": 11.599225,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -792,7 +792,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.175707,
+          "elapsed": 11.393188,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -800,7 +800,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.245098,
+          "elapsed": 11.649885,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -808,7 +808,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.286512,
+          "elapsed": 11.439388,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -816,7 +816,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.051242,
+          "elapsed": 11.191527,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -824,7 +824,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.149063,
+          "elapsed": 11.150335,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -832,7 +832,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.283483,
+          "elapsed": 11.397288,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -840,7 +840,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.07186,
+          "elapsed": 11.195031,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -848,7 +848,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.121792,
+          "elapsed": 11.499353,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -856,7 +856,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.168449,
+          "elapsed": 11.29271,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -894,8 +894,8 @@
         "timer": "keepalive",
         "errno": "ETIMEDOUT",
         "from": "last-received",
-        "low": 10.996,
-        "high": 11.352,
+        "low": 10.999,
+        "high": 11.704,
         "window": null,
         "why": null
       },
@@ -904,18 +904,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 10.992,
-          "high": 11.356
+          "low": 10.998,
+          "high": 11.705
         },
-        "median": 11.237265,
-        "why": "11 of 11 runs inside [10.992, 11.356] s; median 11.237265 s, its interval [11.075722, 11.269727] s"
+        "median": 11.370887,
+        "why": "11 of 11 runs inside [10.998, 11.705] s; median 11.370887 s, its interval [11.221492, 11.630014] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.106487,
+          "elapsed": 11.370887,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -923,7 +923,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.237836,
+          "elapsed": 11.641815,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -931,7 +931,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.255771,
+          "elapsed": 11.345732,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -939,7 +939,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.269727,
+          "elapsed": 11.179854,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -947,7 +947,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.064706,
+          "elapsed": 11.380479,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -955,7 +955,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.094339,
+          "elapsed": 11.221492,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -963,7 +963,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.152603,
+          "elapsed": 11.473299,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -971,7 +971,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.237265,
+          "elapsed": 11.257349,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -979,7 +979,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.269307,
+          "elapsed": 11.588614,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -987,7 +987,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.075722,
+          "elapsed": 11.326715,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -995,7 +995,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 11.293049,
+          "elapsed": 11.630014,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -1043,18 +1043,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": -0.004,
-          "high": 0.005
+          "low": -0.001,
+          "high": 0.002
         },
-        "median": 0.000065,
-        "why": "11 of 11 runs inside [-0.004, 0.005] s; median 0.000065 s, its interval [0.00006, 0.000075] s"
+        "median": 0.000049,
+        "why": "11 of 11 runs inside [-0.001, 0.002] s; median 0.000049 s, its interval [0.000046, 0.000055] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "EOF",
-          "elapsed": 0.00006,
+          "elapsed": 0.000055,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -1062,7 +1062,7 @@
         {
           "environment": 1,
           "outcome": "EOF",
-          "elapsed": 0.000088,
+          "elapsed": 0.000047,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -1070,7 +1070,7 @@
         {
           "environment": 2,
           "outcome": "EOF",
-          "elapsed": 0.000062,
+          "elapsed": 0.000051,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -1078,7 +1078,7 @@
         {
           "environment": 3,
           "outcome": "EOF",
-          "elapsed": 0.00007,
+          "elapsed": 0.000049,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -1086,7 +1086,7 @@
         {
           "environment": 4,
           "outcome": "EOF",
-          "elapsed": 0.00006,
+          "elapsed": 0.000048,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -1094,7 +1094,7 @@
         {
           "environment": 5,
           "outcome": "EOF",
-          "elapsed": 0.000069,
+          "elapsed": 0.000052,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -1102,7 +1102,7 @@
         {
           "environment": 6,
           "outcome": "EOF",
-          "elapsed": 0.000061,
+          "elapsed": 0.000053,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -1110,7 +1110,7 @@
         {
           "environment": 7,
           "outcome": "EOF",
-          "elapsed": 0.00006,
+          "elapsed": 0.000046,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -1118,7 +1118,7 @@
         {
           "environment": 8,
           "outcome": "EOF",
-          "elapsed": 0.000068,
+          "elapsed": 0.000055,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -1126,7 +1126,7 @@
         {
           "environment": 9,
           "outcome": "EOF",
-          "elapsed": 0.000065,
+          "elapsed": 0.000046,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -1134,7 +1134,7 @@
         {
           "environment": 10,
           "outcome": "EOF",
-          "elapsed": 0.000075,
+          "elapsed": 0.000048,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -1177,7 +1177,7 @@
         "errno": "ETIMEDOUT",
         "from": "first-retransmission",
         "low": 3,
-        "high": 6.616,
+        "high": 6.416,
         "window": null,
         "why": null
       },
@@ -1186,18 +1186,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 2.996,
-          "high": 6.62
+          "low": 2.999,
+          "high": 6.417
         },
-        "median": 6.320082,
-        "why": "11 of 11 runs inside [2.996, 6.62] s; median 6.320082 s, its interval [6.231938, 6.388142] s"
+        "median": 6.176001,
+        "why": "11 of 11 runs inside [2.999, 6.417] s; median 6.176001 s, its interval [6.160005, 6.184008] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.380091,
+          "elapsed": 6.159999,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1205,7 +1205,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.364064,
+          "elapsed": 6.184008,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1213,7 +1213,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.300076,
+          "elapsed": 6.176026,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1221,7 +1221,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.228018,
+          "elapsed": 6.168001,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1229,7 +1229,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.231938,
+          "elapsed": 6.183992,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1237,7 +1237,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.388142,
+          "elapsed": 6.176005,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1245,7 +1245,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.296089,
+          "elapsed": 6.160044,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1253,7 +1253,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.392083,
+          "elapsed": 6.176001,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1261,7 +1261,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.320082,
+          "elapsed": 6.199995,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1269,7 +1269,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.347942,
+          "elapsed": 6.160005,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1277,7 +1277,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.232153,
+          "elapsed": 6.176001,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1325,7 +1325,7 @@
         "errno": "EHOSTUNREACH",
         "from": "first-retransmission",
         "low": 3,
-        "high": 3.268,
+        "high": 3.329,
         "window": null,
         "why": null
       },
@@ -1334,18 +1334,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 2.996,
-          "high": 3.272
+          "low": 2.999,
+          "high": 3.33
         },
-        "median": 3.067951,
-        "why": "11 of 11 runs inside [2.996, 3.272] s; median 3.067951 s, its interval [3.06005, 3.072207] s"
+        "median": 3.119992,
+        "why": "11 of 11 runs inside [2.999, 3.33] s; median 3.119992 s, its interval [3.119983, 3.120012] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.072207,
+          "elapsed": 3.119999,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1353,7 +1353,7 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.07998,
+          "elapsed": 3.119971,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1361,7 +1361,7 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.063986,
+          "elapsed": 3.11999,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1369,7 +1369,7 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.064078,
+          "elapsed": 3.119991,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1377,7 +1377,7 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.067951,
+          "elapsed": 3.11999,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1385,7 +1385,7 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.06005,
+          "elapsed": 3.119992,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1393,7 +1393,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.068023,
+          "elapsed": 3.120012,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1401,7 +1401,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.072021,
+          "elapsed": 3.120027,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1409,7 +1409,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.067976,
+          "elapsed": 3.119998,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1417,7 +1417,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.064005,
+          "elapsed": 3.120004,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1425,7 +1425,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.059918,
+          "elapsed": 3.119983,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1473,7 +1473,7 @@
         "errno": "ENETUNREACH",
         "from": "first-retransmission",
         "low": 3,
-        "high": 3.268,
+        "high": 3.329,
         "window": null,
         "why": null
       },
@@ -1482,18 +1482,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 2.996,
-          "high": 3.272
+          "low": 2.999,
+          "high": 3.33
         },
-        "median": 3.067951,
-        "why": "11 of 11 runs inside [2.996, 3.272] s; median 3.067951 s, its interval [3.063931, 3.068142] s"
+        "median": 3.119999,
+        "why": "11 of 11 runs inside [2.999, 3.33] s; median 3.119999 s, its interval [3.119977, 3.120039] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ENETUNREACH",
-          "elapsed": 3.067951,
+          "elapsed": 3.119987,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1501,7 +1501,7 @@
         {
           "environment": 0,
           "outcome": "ENETUNREACH",
-          "elapsed": 3.068142,
+          "elapsed": 3.120013,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1509,7 +1509,7 @@
         {
           "environment": 0,
           "outcome": "ENETUNREACH",
-          "elapsed": 3.075983,
+          "elapsed": 3.120003,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1517,7 +1517,7 @@
         {
           "environment": 0,
           "outcome": "ENETUNREACH",
-          "elapsed": 3.060053,
+          "elapsed": 3.119988,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1525,7 +1525,7 @@
         {
           "environment": 0,
           "outcome": "ENETUNREACH",
-          "elapsed": 3.068092,
+          "elapsed": 3.119999,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1533,7 +1533,7 @@
         {
           "environment": 0,
           "outcome": "ENETUNREACH",
-          "elapsed": 3.063966,
+          "elapsed": 3.120046,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1541,7 +1541,7 @@
         {
           "environment": 1,
           "outcome": "ENETUNREACH",
-          "elapsed": 3.067963,
+          "elapsed": 3.119958,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1549,7 +1549,7 @@
         {
           "environment": 1,
           "outcome": "ENETUNREACH",
-          "elapsed": 3.068008,
+          "elapsed": 3.119997,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1557,7 +1557,7 @@
         {
           "environment": 1,
           "outcome": "ENETUNREACH",
-          "elapsed": 3.064087,
+          "elapsed": 3.119977,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1565,7 +1565,7 @@
         {
           "environment": 1,
           "outcome": "ENETUNREACH",
-          "elapsed": 3.064064,
+          "elapsed": 3.120011,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1573,7 +1573,7 @@
         {
           "environment": 1,
           "outcome": "ENETUNREACH",
-          "elapsed": 3.063931,
+          "elapsed": 3.120039,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -1621,7 +1621,7 @@
         "errno": "ECONNREFUSED",
         "from": "first-retransmission",
         "low": 3,
-        "high": 6.616,
+        "high": 6.416,
         "window": null,
         "why": null
       },
@@ -1630,18 +1630,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 2.996,
-          "high": 6.62
+          "low": 2.999,
+          "high": 6.417
         },
-        "median": 6.320128,
-        "why": "11 of 11 runs inside [2.996, 6.62] s; median 6.320128 s, its interval [6.232137, 6.360043] s"
+        "median": 6.183977,
+        "why": "11 of 11 runs inside [2.999, 6.417] s; median 6.183977 s, its interval [6.160015, 6.199998] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ECONNREFUSED",
-          "elapsed": 6.348035,
+          "elapsed": 6.192001,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1649,7 +1649,7 @@
         {
           "environment": 0,
           "outcome": "ECONNREFUSED",
-          "elapsed": 6.292004,
+          "elapsed": 6.160015,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1657,7 +1657,7 @@
         {
           "environment": 0,
           "outcome": "ECONNREFUSED",
-          "elapsed": 6.324019,
+          "elapsed": 6.183977,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1665,7 +1665,7 @@
         {
           "environment": 0,
           "outcome": "ECONNREFUSED",
-          "elapsed": 6.212037,
+          "elapsed": 6.192004,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1673,7 +1673,7 @@
         {
           "environment": 0,
           "outcome": "ECONNREFUSED",
-          "elapsed": 6.360043,
+          "elapsed": 6.167969,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1681,7 +1681,7 @@
         {
           "environment": 0,
           "outcome": "ECONNREFUSED",
-          "elapsed": 6.276056,
+          "elapsed": 6.200014,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1689,7 +1689,7 @@
         {
           "environment": 1,
           "outcome": "ECONNREFUSED",
-          "elapsed": 6.336104,
+          "elapsed": 6.144002,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1697,7 +1697,7 @@
         {
           "environment": 1,
           "outcome": "ECONNREFUSED",
-          "elapsed": 6.256144,
+          "elapsed": 6.199998,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1705,7 +1705,7 @@
         {
           "environment": 1,
           "outcome": "ECONNREFUSED",
-          "elapsed": 6.232137,
+          "elapsed": 6.175978,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1713,7 +1713,7 @@
         {
           "environment": 1,
           "outcome": "ECONNREFUSED",
-          "elapsed": 6.380174,
+          "elapsed": 6.183997,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1721,7 +1721,7 @@
         {
           "environment": 1,
           "outcome": "ECONNREFUSED",
-          "elapsed": 6.320128,
+          "elapsed": 6.175937,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1769,7 +1769,7 @@
         "errno": "EHOSTUNREACH",
         "from": "first-retransmission",
         "low": 3,
-        "high": 6.616,
+        "high": 6.416,
         "window": null,
         "why": null
       },
@@ -1778,18 +1778,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 2.996,
-          "high": 6.62
+          "low": 2.999,
+          "high": 6.417
         },
-        "median": 6.348004,
-        "why": "11 of 11 runs inside [2.996, 6.62] s; median 6.348004 s, its interval [6.235996, 6.447976] s"
+        "median": 6.16801,
+        "why": "11 of 11 runs inside [2.999, 6.417] s; median 6.16801 s, its interval [6.167963, 6.175991] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 6.320004,
+          "elapsed": 6.175988,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1797,7 +1797,7 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 6.363973,
+          "elapsed": 6.168043,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1805,7 +1805,7 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 6.447976,
+          "elapsed": 6.167976,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1813,7 +1813,7 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 6.283944,
+          "elapsed": 6.159999,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1821,7 +1821,7 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 6.423958,
+          "elapsed": 6.167996,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1829,7 +1829,7 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 6.324069,
+          "elapsed": 6.176018,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1837,7 +1837,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 6.235996,
+          "elapsed": 6.167963,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1845,7 +1845,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 6.348004,
+          "elapsed": 6.167999,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1853,7 +1853,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 6.44808,
+          "elapsed": 6.168017,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1861,7 +1861,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 6.228173,
+          "elapsed": 6.175991,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1869,7 +1869,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 6.424151,
+          "elapsed": 6.16801,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1912,7 +1912,7 @@
         "errno": "ETIMEDOUT",
         "from": "first-retransmission",
         "low": 3,
-        "high": 6.616,
+        "high": 6.416,
         "window": null,
         "why": null
       },
@@ -1921,18 +1921,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 2.996,
-          "high": 6.62
+          "low": 2.999,
+          "high": 6.417
         },
-        "median": 6.300104,
-        "why": "11 of 11 runs inside [2.996, 6.62] s; median 6.300104 s, its interval [6.255994, 6.416174] s"
+        "median": 6.176024,
+        "why": "11 of 11 runs inside [2.999, 6.417] s; median 6.176024 s, its interval [6.167981, 6.192026] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.255994,
+          "elapsed": 6.167981,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1940,7 +1940,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.300104,
+          "elapsed": 6.192,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1948,7 +1948,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.371974,
+          "elapsed": 6.191979,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1956,7 +1956,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.395978,
+          "elapsed": 6.175996,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1964,7 +1964,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.416174,
+          "elapsed": 6.192026,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1972,7 +1972,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.268065,
+          "elapsed": 6.200012,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1980,7 +1980,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.432033,
+          "elapsed": 6.168007,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1988,7 +1988,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.287946,
+          "elapsed": 6.167979,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -1996,7 +1996,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.216164,
+          "elapsed": 6.176024,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -2004,7 +2004,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.376041,
+          "elapsed": 6.183969,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -2012,7 +2012,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.288094,
+          "elapsed": 6.175978,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -2055,7 +2055,7 @@
         "errno": "ETIMEDOUT",
         "from": "first-retransmission",
         "low": 3,
-        "high": 6.616,
+        "high": 6.416,
         "window": null,
         "why": null
       },
@@ -2064,18 +2064,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 2.996,
-          "high": 6.62
+          "low": 2.999,
+          "high": 6.417
         },
-        "median": 6.324078,
-        "why": "11 of 11 runs inside [2.996, 6.62] s; median 6.324078 s, its interval [6.26, 6.396113] s"
+        "median": 6.183994,
+        "why": "11 of 11 runs inside [2.999, 6.417] s; median 6.183994 s, its interval [6.167993, 6.191993] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.324078,
+          "elapsed": 6.167993,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -2083,7 +2083,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.396113,
+          "elapsed": 6.191986,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -2091,7 +2091,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.39191,
+          "elapsed": 6.168,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -2099,7 +2099,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.26,
+          "elapsed": 6.183994,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -2107,7 +2107,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.264012,
+          "elapsed": 6.184012,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -2115,7 +2115,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.411944,
+          "elapsed": 6.191993,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -2123,7 +2123,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.276107,
+          "elapsed": 6.167964,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -2131,7 +2131,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.376048,
+          "elapsed": 6.183981,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -2139,7 +2139,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.344,
+          "elapsed": 6.184004,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -2147,7 +2147,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.312019,
+          "elapsed": 6.192008,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -2155,7 +2155,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.21196,
+          "elapsed": 6.18398,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -2207,18 +2207,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": -0.004,
-          "high": 0.005
+          "low": -0.001,
+          "high": 0.002
         },
-        "median": 0.000066,
-        "why": "11 of 11 runs inside [-0.004, 0.005] s; median 0.000066 s, its interval [0.000057, 0.000096] s"
+        "median": 0.000042,
+        "why": "11 of 11 runs inside [-0.001, 0.002] s; median 0.000042 s, its interval [0.000035, 0.000046] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "EOF",
-          "elapsed": 0.000096,
+          "elapsed": 0.000046,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -2226,7 +2226,7 @@
         {
           "environment": 1,
           "outcome": "EOF",
-          "elapsed": 0.000065,
+          "elapsed": 0.00004,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -2234,7 +2234,7 @@
         {
           "environment": 2,
           "outcome": "EOF",
-          "elapsed": 0.000066,
+          "elapsed": 0.000041,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -2242,7 +2242,7 @@
         {
           "environment": 3,
           "outcome": "EOF",
-          "elapsed": 0.000061,
+          "elapsed": 0.000046,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -2250,7 +2250,7 @@
         {
           "environment": 4,
           "outcome": "EOF",
-          "elapsed": 0.000099,
+          "elapsed": 0.000042,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -2258,7 +2258,7 @@
         {
           "environment": 5,
           "outcome": "EOF",
-          "elapsed": 0.000078,
+          "elapsed": 0.000044,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -2266,7 +2266,7 @@
         {
           "environment": 6,
           "outcome": "EOF",
-          "elapsed": 0.00007,
+          "elapsed": 0.000042,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -2274,7 +2274,7 @@
         {
           "environment": 7,
           "outcome": "EOF",
-          "elapsed": 0.000056,
+          "elapsed": 0.000036,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -2282,7 +2282,7 @@
         {
           "environment": 8,
           "outcome": "EOF",
-          "elapsed": 0.000062,
+          "elapsed": 0.000043,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -2290,7 +2290,7 @@
         {
           "environment": 9,
           "outcome": "EOF",
-          "elapsed": 0.000057,
+          "elapsed": 0.000028,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -2298,7 +2298,7 @@
         {
           "environment": 10,
           "outcome": "EOF",
-          "elapsed": 0.000089,
+          "elapsed": 0.000035,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -2341,7 +2341,7 @@
         "errno": "ETIMEDOUT",
         "from": "first-retransmission",
         "low": 12.6,
-        "high": 26.52,
+        "high": 26.688,
         "window": null,
         "why": null
       },
@@ -2350,18 +2350,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 12.596,
-          "high": 26.524
+          "low": 12.599,
+          "high": 26.689
         },
-        "median": 12.920006,
-        "why": "11 of 11 runs inside [12.596, 26.524] s; median 12.920006 s, its interval [12.887988, 13.02011] s"
+        "median": 12.888007,
+        "why": "11 of 11 runs inside [12.599, 26.689] s; median 12.888007 s, its interval [12.76801, 13.079989] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 13.012037,
+          "elapsed": 12.888007,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -2369,7 +2369,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 12.884014,
+          "elapsed": 12.768038,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -2377,7 +2377,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 12.90006,
+          "elapsed": 13.080004,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -2385,7 +2385,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 12.959975,
+          "elapsed": 12.945013,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -2393,7 +2393,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 12.887988,
+          "elapsed": 12.76801,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -2401,7 +2401,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 12.908063,
+          "elapsed": 13.079989,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -2409,7 +2409,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 13.076007,
+          "elapsed": 13.04,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -2417,7 +2417,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 12.888021,
+          "elapsed": 12.872021,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -2425,7 +2425,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 13.02011,
+          "elapsed": 12.664028,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -2433,7 +2433,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 12.936043,
+          "elapsed": 13.039964,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -2441,7 +2441,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 12.920006,
+          "elapsed": 12.816005,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -2489,7 +2489,7 @@
         "errno": "EHOSTUNREACH",
         "from": "first-retransmission",
         "low": 12.6,
-        "high": 13.056,
+        "high": 13.313,
         "window": null,
         "why": null
       },
@@ -2498,99 +2498,99 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 12.596,
-          "high": 13.06
+          "low": 12.599,
+          "high": 13.314
         },
-        "median": 12.671953,
-        "why": "11 of 11 runs inside [12.596, 13.06] s; median 12.671953 s, its interval [12.659963, 12.692015] s"
+        "median": 12.687998,
+        "why": "11 of 11 runs inside [12.599, 13.314] s; median 12.687998 s, its interval [12.687977, 12.688015] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 12.659963,
-          "retransmissions": 63,
+          "elapsed": 12.687977,
+          "retransmissions": 62,
           "replies": null,
           "void": null
         },
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 12.671953,
-          "retransmissions": 63,
+          "elapsed": 12.688004,
+          "retransmissions": 62,
           "replies": null,
           "void": null
         },
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 12.65198,
-          "retransmissions": 63,
+          "elapsed": 12.687985,
+          "retransmissions": 62,
           "replies": null,
           "void": null
         },
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 12.680026,
-          "retransmissions": 63,
+          "elapsed": 12.68802,
+          "retransmissions": 62,
           "replies": null,
           "void": null
         },
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 12.680003,
-          "retransmissions": 63,
+          "elapsed": 12.687984,
+          "retransmissions": 62,
           "replies": null,
           "void": null
         },
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 12.692015,
-          "retransmissions": 63,
+          "elapsed": 12.687998,
+          "retransmissions": 62,
           "replies": null,
           "void": null
         },
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 12.667961,
-          "retransmissions": 63,
+          "elapsed": 12.68796,
+          "retransmissions": 62,
           "replies": null,
           "void": null
         },
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 12.704104,
-          "retransmissions": 63,
+          "elapsed": 12.687998,
+          "retransmissions": 62,
           "replies": null,
           "void": null
         },
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 12.672064,
-          "retransmissions": 63,
+          "elapsed": 12.688004,
+          "retransmissions": 62,
           "replies": null,
           "void": null
         },
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 12.65997,
-          "retransmissions": 63,
+          "elapsed": 12.688015,
+          "retransmissions": 62,
           "replies": null,
           "void": null
         },
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 12.667941,
-          "retransmissions": 63,
+          "elapsed": 12.68799,
+          "retransmissions": 62,
           "replies": null,
           "void": null
         }
@@ -2632,7 +2632,7 @@
         "errno": "ETIMEDOUT",
         "from": "first-retransmission",
         "low": 3,
-        "high": 6.936,
+        "high": 6.736,
         "window": null,
         "why": null
       },
@@ -2641,18 +2641,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 2.996,
-          "high": 6.94
+          "low": 2.999,
+          "high": 6.737
         },
-        "median": 3.224214,
-        "why": "11 of 11 runs inside [2.996, 6.94] s; median 3.224214 s, its interval [3.208032, 3.231975] s"
+        "median": 3.151991,
+        "why": "11 of 11 runs inside [2.999, 6.737] s; median 3.151991 s, its interval [3.128028, 3.176014] s"
       },
-      "firstRun": "holds",
+      "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 3.220005,
+          "elapsed": 3.167992,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -2660,7 +2660,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 3.219982,
+          "elapsed": 3.128028,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -2668,7 +2668,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 3.231975,
+          "elapsed": 3.151991,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -2676,7 +2676,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 3.204114,
+          "elapsed": 3.159982,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -2684,7 +2684,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 3.208032,
+          "elapsed": 3.127993,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -2692,7 +2692,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 3.228156,
+          "elapsed": 3.159989,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -2700,7 +2700,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 3.22404,
+          "elapsed": 3.143985,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -2708,7 +2708,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 3.232068,
+          "elapsed": 3.144005,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -2716,7 +2716,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 3.228002,
+          "elapsed": 3.136015,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -2724,7 +2724,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 3.224214,
+          "elapsed": 3.176014,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -2732,7 +2732,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 3.228034,
+          "elapsed": 3.184007,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -2780,7 +2780,7 @@
         "errno": "EHOSTUNREACH",
         "from": "first-retransmission",
         "low": 3,
-        "high": 3.284,
+        "high": 3.341,
         "window": null,
         "why": null
       },
@@ -2789,42 +2789,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 2.996,
-          "high": 3.288
+          "low": 2.999,
+          "high": 3.342
         },
-        "median": 3.139939,
-        "why": "11 of 11 runs inside [2.996, 3.288] s; median 3.139939 s, its interval [3.136048, 3.140054] s"
+        "median": 3.136,
+        "why": "11 of 11 runs inside [2.999, 3.342] s; median 3.136 s, its interval [3.135987, 3.136008] s"
       },
-      "firstRun": "holds",
+      "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.140054,
-          "retransmissions": 15,
-          "replies": null,
-          "void": null
-        },
-        {
-          "environment": 0,
-          "outcome": "EHOSTUNREACH",
-          "elapsed": 3.136049,
-          "retransmissions": 15,
-          "replies": null,
-          "void": null
-        },
-        {
-          "environment": 0,
-          "outcome": "EHOSTUNREACH",
-          "elapsed": 3.136048,
-          "retransmissions": 15,
-          "replies": null,
-          "void": null
-        },
-        {
-          "environment": 0,
-          "outcome": "EHOSTUNREACH",
-          "elapsed": 3.136057,
+          "elapsed": 3.135982,
           "retransmissions": 15,
           "replies": null,
           "void": null
@@ -2840,7 +2816,31 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.137245,
+          "elapsed": 3.136021,
+          "retransmissions": 15,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.136,
+          "retransmissions": 15,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.136008,
+          "retransmissions": 15,
+          "replies": null,
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "EHOSTUNREACH",
+          "elapsed": 3.13599,
           "retransmissions": 15,
           "replies": null,
           "void": null
@@ -2848,7 +2848,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.140037,
+          "elapsed": 3.13599,
           "retransmissions": 15,
           "replies": null,
           "void": null
@@ -2856,7 +2856,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.140055,
+          "elapsed": 3.135988,
           "retransmissions": 15,
           "replies": null,
           "void": null
@@ -2864,7 +2864,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.140014,
+          "elapsed": 3.135987,
           "retransmissions": 15,
           "replies": null,
           "void": null
@@ -2872,7 +2872,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.139939,
+          "elapsed": 3.136,
           "retransmissions": 15,
           "replies": null,
           "void": null
@@ -2880,7 +2880,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.139983,
+          "elapsed": 3.136001,
           "retransmissions": 15,
           "replies": null,
           "void": null
@@ -2923,7 +2923,7 @@
         "errno": "ETIMEDOUT",
         "from": "first-retransmission",
         "low": 3,
-        "high": 8.44,
+        "high": 8.52,
         "window": null,
         "why": null
       },
@@ -2932,18 +2932,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 2.996,
-          "high": 8.444
+          "low": 2.999,
+          "high": 8.521
         },
-        "median": 4.416115,
-        "why": "11 of 11 runs inside [2.996, 8.444] s; median 4.416115 s, its interval [4.352221, 4.548023] s"
+        "median": 4.30403,
+        "why": "11 of 11 runs inside [2.999, 8.521] s; median 4.30403 s, its interval [4.264005, 4.312009] s"
       },
-      "firstRun": "holds",
+      "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 4.512049,
+          "elapsed": 4.28001,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -2951,7 +2951,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 4.576031,
+          "elapsed": 4.264005,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -2959,7 +2959,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 4.51196,
+          "elapsed": 4.312008,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -2967,7 +2967,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 4.384065,
+          "elapsed": 4.312001,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -2975,7 +2975,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 4.543997,
+          "elapsed": 4.311982,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -2983,7 +2983,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 4.383974,
+          "elapsed": 4.29602,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -2991,7 +2991,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 4.548023,
+          "elapsed": 4.304016,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -2999,7 +2999,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 4.416115,
+          "elapsed": 4.264005,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3007,7 +3007,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 4.411954,
+          "elapsed": 4.312009,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3015,7 +3015,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 4.352038,
+          "elapsed": 4.31201,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3023,7 +3023,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 4.352221,
+          "elapsed": 4.30403,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3071,7 +3071,7 @@
         "errno": "EHOSTUNREACH",
         "from": "first-retransmission",
         "low": 3,
-        "high": 3.656,
+        "high": 3.389,
         "window": null,
         "why": null
       },
@@ -3080,18 +3080,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 2.996,
-          "high": 3.66
+          "low": 2.999,
+          "high": 3.39
         },
-        "median": 3.04014,
-        "why": "11 of 11 runs inside [2.996, 3.66] s; median 3.04014 s, its interval [3.039954, 3.044019] s"
+        "median": 3.039997,
+        "why": "11 of 11 runs inside [2.999, 3.39] s; median 3.039997 s, its interval [3.039987, 3.04001] s"
       },
-      "firstRun": "holds",
+      "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.044013,
+          "elapsed": 3.039973,
           "retransmissions": 11,
           "replies": null,
           "void": null
@@ -3099,7 +3099,7 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.040143,
+          "elapsed": 3.04001,
           "retransmissions": 11,
           "replies": null,
           "void": null
@@ -3107,7 +3107,7 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.044068,
+          "elapsed": 3.040003,
           "retransmissions": 11,
           "replies": null,
           "void": null
@@ -3115,7 +3115,7 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.040111,
+          "elapsed": 3.040017,
           "retransmissions": 11,
           "replies": null,
           "void": null
@@ -3123,7 +3123,7 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.040404,
+          "elapsed": 3.03999,
           "retransmissions": 11,
           "replies": null,
           "void": null
@@ -3131,7 +3131,7 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.039954,
+          "elapsed": 3.039993,
           "retransmissions": 11,
           "replies": null,
           "void": null
@@ -3139,7 +3139,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.044019,
+          "elapsed": 3.039997,
           "retransmissions": 11,
           "replies": null,
           "void": null
@@ -3147,7 +3147,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.04014,
+          "elapsed": 3.040004,
           "retransmissions": 11,
           "replies": null,
           "void": null
@@ -3155,7 +3155,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.039653,
+          "elapsed": 3.04,
           "retransmissions": 11,
           "replies": null,
           "void": null
@@ -3163,7 +3163,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.040025,
+          "elapsed": 3.039994,
           "retransmissions": 11,
           "replies": null,
           "void": null
@@ -3171,7 +3171,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.040007,
+          "elapsed": 3.039987,
           "retransmissions": 11,
           "replies": null,
           "void": null
@@ -3336,8 +3336,8 @@
         "timer": null,
         "errno": null,
         "from": null,
-        "low": 1.616,
-        "high": 1.705,
+        "low": 1.604,
+        "high": 1.697,
         "window": 20,
         "why": null
       },
@@ -3346,18 +3346,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 1.612,
-          "high": 1.709
+          "low": 1.603,
+          "high": 1.698
         },
-        "median": 1.681265,
-        "why": "11 of 11 runs inside [1.612, 1.709] s; median 1.681265 s, its interval [1.6725, 1.68608] s"
+        "median": 1.658458,
+        "why": "11 of 11 runs inside [1.603, 1.698] s; median 1.658458 s, its interval [1.638664, 1.665276] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 1.686855,
+          "elapsed": 1.633965,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3365,7 +3365,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 1.673733,
+          "elapsed": 1.665276,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3373,7 +3373,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 1.662992,
+          "elapsed": 1.670828,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3381,7 +3381,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 1.681265,
+          "elapsed": 1.642644,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3389,7 +3389,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 1.6725,
+          "elapsed": 1.664864,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3397,7 +3397,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 1.681745,
+          "elapsed": 1.658458,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3405,7 +3405,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 1.68608,
+          "elapsed": 1.638664,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3413,7 +3413,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 1.676526,
+          "elapsed": 1.661273,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3421,7 +3421,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 1.676232,
+          "elapsed": 1.650707,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3429,7 +3429,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 1.684886,
+          "elapsed": 1.662285,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3437,7 +3437,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 1.684901,
+          "elapsed": 1.654106,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3462,8 +3462,8 @@
         "timer": null,
         "errno": null,
         "from": null,
-        "low": 1.776,
-        "high": 1.885,
+        "low": 1.764,
+        "high": 1.877,
         "window": 20,
         "why": null
       },
@@ -3472,18 +3472,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 1.772,
-          "high": 1.889
+          "low": 1.763,
+          "high": 1.878
         },
-        "median": 1.863253,
-        "why": "11 of 11 runs inside [1.772, 1.889] s; median 1.863253 s, its interval [1.853933, 1.875421] s"
+        "median": 1.816395,
+        "why": "11 of 11 runs inside [1.763, 1.878] s; median 1.816395 s, its interval [1.806483, 1.857214] s"
       },
-      "firstRun": "fails",
+      "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 1.862865,
+          "elapsed": 1.8617,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3491,7 +3491,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 1.863271,
+          "elapsed": 1.857214,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3499,7 +3499,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 1.875421,
+          "elapsed": 1.853671,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3507,7 +3507,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 1.863253,
+          "elapsed": 1.803051,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3515,7 +3515,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 1.854728,
+          "elapsed": 1.816395,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3523,7 +3523,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 1.853271,
+          "elapsed": 1.818757,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3531,7 +3531,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 1.857212,
+          "elapsed": 1.811758,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3539,7 +3539,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 1.853933,
+          "elapsed": 1.80823,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3547,7 +3547,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 1.876536,
+          "elapsed": 1.820662,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3555,7 +3555,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 1.872093,
+          "elapsed": 1.806483,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3563,7 +3563,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 1.868488,
+          "elapsed": 1.80724,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -3588,8 +3588,8 @@
         "timer": null,
         "errno": null,
         "from": null,
-        "low": 1.204,
-        "high": 1.413,
+        "low": 1.201,
+        "high": 1.385,
         "window": 20,
         "why": null
       },
@@ -3599,17 +3599,17 @@
         "voided": 0,
         "band": {
           "low": 1.2,
-          "high": 1.417
+          "high": 1.386
         },
-        "median": 1.375213,
-        "why": "11 of 11 runs inside [1.2, 1.417] s; median 1.375213 s, its interval [1.365061, 1.386446] s"
+        "median": 1.349414,
+        "why": "11 of 11 runs inside [1.2, 1.386] s; median 1.349414 s, its interval [1.334294, 1.36279] s"
       },
-      "firstRun": "holds",
+      "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 1.392882,
+          "elapsed": 1.321244,
           "retransmissions": 3,
           "replies": null,
           "void": null
@@ -3617,7 +3617,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 1.37645,
+          "elapsed": 1.334887,
           "retransmissions": 3,
           "replies": null,
           "void": null
@@ -3625,7 +3625,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 1.365821,
+          "elapsed": 1.360338,
           "retransmissions": 3,
           "replies": null,
           "void": null
@@ -3633,7 +3633,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 1.376757,
+          "elapsed": 1.341441,
           "retransmissions": 3,
           "replies": null,
           "void": null
@@ -3641,7 +3641,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 1.365061,
+          "elapsed": 1.34745,
           "retransmissions": 3,
           "replies": null,
           "void": null
@@ -3649,7 +3649,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 1.364867,
+          "elapsed": 1.36279,
           "retransmissions": 3,
           "replies": null,
           "void": null
@@ -3657,7 +3657,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 1.375213,
+          "elapsed": 1.372012,
           "retransmissions": 3,
           "replies": null,
           "void": null
@@ -3665,7 +3665,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 1.386446,
+          "elapsed": 1.334294,
           "retransmissions": 3,
           "replies": null,
           "void": null
@@ -3673,7 +3673,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 1.377196,
+          "elapsed": 1.355207,
           "retransmissions": 3,
           "replies": null,
           "void": null
@@ -3681,7 +3681,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 1.374067,
+          "elapsed": 1.351101,
           "retransmissions": 3,
           "replies": null,
           "void": null
@@ -3689,7 +3689,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 1.369464,
+          "elapsed": 1.349414,
           "retransmissions": 3,
           "replies": null,
           "void": null
@@ -3714,8 +3714,8 @@
         "timer": null,
         "errno": null,
         "from": null,
-        "low": 6.504,
-        "high": 6.889,
+        "low": 6.426,
+        "high": 6.649,
         "window": 20,
         "why": null
       },
@@ -3724,18 +3724,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 6.5,
-          "high": 6.893
+          "low": 6.425,
+          "high": 6.65
         },
-        "median": 6.713709,
-        "why": "11 of 11 runs inside [6.5, 6.893] s; median 6.713709 s, its interval [6.663753, 6.772604] s"
+        "median": 6.592403,
+        "why": "11 of 11 runs inside [6.425, 6.65] s; median 6.592403 s, its interval [6.580052, 6.614321] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 6.77002,
+          "elapsed": 6.580052,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -3743,7 +3743,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 6.713709,
+          "elapsed": 6.557306,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -3751,7 +3751,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 6.684302,
+          "elapsed": 6.6157,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -3759,7 +3759,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 6.683202,
+          "elapsed": 6.588161,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -3767,7 +3767,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 6.772604,
+          "elapsed": 6.614321,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -3775,7 +3775,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 6.677676,
+          "elapsed": 6.592403,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -3783,7 +3783,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 6.663753,
+          "elapsed": 6.588556,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -3791,7 +3791,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 6.762532,
+          "elapsed": 6.592366,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -3799,7 +3799,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 6.740968,
+          "elapsed": 6.601987,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -3807,7 +3807,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 6.648525,
+          "elapsed": 6.606635,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -3815,7 +3815,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 6.838059,
+          "elapsed": 6.600438,
           "retransmissions": 6,
           "replies": null,
           "void": null
@@ -3840,8 +3840,8 @@
         "timer": null,
         "errno": null,
         "from": null,
-        "low": 4.844,
-        "high": 5.349,
+        "low": 4.811,
+        "high": 5.125,
         "window": 20,
         "why": null
       },
@@ -3850,18 +3850,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 4.84,
-          "high": 5.353
+          "low": 4.81,
+          "high": 5.126
         },
-        "median": 5.270445,
-        "why": "11 of 11 runs inside [4.84, 5.353] s; median 5.270445 s, its interval [5.12606, 5.306094] s"
+        "median": 4.989664,
+        "why": "11 of 11 runs inside [4.81, 5.126] s; median 4.989664 s, its interval [4.970823, 5.020611] s"
       },
-      "firstRun": "holds",
+      "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 5.24882,
+          "elapsed": 4.989664,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -3869,7 +3869,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 5.141806,
+          "elapsed": 4.974621,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -3877,7 +3877,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 5.312944,
+          "elapsed": 4.963157,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -3885,7 +3885,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 5.12606,
+          "elapsed": 4.982312,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -3893,7 +3893,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 5.270445,
+          "elapsed": 5.022552,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -3901,7 +3901,7 @@
         {
           "environment": 0,
           "outcome": "answered",
-          "elapsed": 5.273012,
+          "elapsed": 5.00479,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -3909,7 +3909,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 5.306094,
+          "elapsed": 4.981065,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -3917,7 +3917,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 5.194178,
+          "elapsed": 4.970823,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -3925,7 +3925,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 5.289616,
+          "elapsed": 5.020611,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -3933,7 +3933,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 5.289349,
+          "elapsed": 5.015738,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -3941,7 +3941,7 @@
         {
           "environment": 1,
           "outcome": "answered",
-          "elapsed": 5.112403,
+          "elapsed": 5.005132,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -3975,8 +3975,8 @@
         "timer": "keepalive",
         "errno": "ETIMEDOUT",
         "from": "last-received",
-        "low": 7.996,
-        "high": 8.352,
+        "low": 7.999,
+        "high": 8.704,
         "window": null,
         "why": null
       },
@@ -3985,18 +3985,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 7.992,
-          "high": 8.356
+          "low": 7.998,
+          "high": 8.705
         },
-        "median": 8.214532,
-        "why": "11 of 11 runs inside [7.992, 8.356] s; median 8.214532 s, its interval [8.077356, 8.305066] s"
+        "median": 8.26989,
+        "why": "11 of 11 runs inside [7.998, 8.705] s; median 8.26989 s, its interval [8.095524, 8.460219] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.305066,
+          "elapsed": 8.249915,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4004,7 +4004,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.072004,
+          "elapsed": 8.460219,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4012,7 +4012,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.077356,
+          "elapsed": 8.172226,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4020,7 +4020,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.242407,
+          "elapsed": 8.38818,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4028,7 +4028,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.276376,
+          "elapsed": 8.095524,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4036,7 +4036,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.113792,
+          "elapsed": 8.26989,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4044,7 +4044,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.192739,
+          "elapsed": 8.367338,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4052,7 +4052,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.114747,
+          "elapsed": 8.086164,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4060,7 +4060,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.323972,
+          "elapsed": 8.313945,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4068,7 +4068,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.278969,
+          "elapsed": 8.542323,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4076,7 +4076,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.214532,
+          "elapsed": 8.207953,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4115,8 +4115,8 @@
         "timer": "keepalive",
         "errno": "ETIMEDOUT",
         "from": "last-received",
-        "low": 7.996,
-        "high": 8.352,
+        "low": 7.999,
+        "high": 8.704,
         "window": null,
         "why": null
       },
@@ -4125,18 +4125,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 7.992,
-          "high": 8.356
+          "low": 7.998,
+          "high": 8.705
         },
-        "median": 8.191096,
-        "why": "11 of 11 runs inside [7.992, 8.356] s; median 8.191096 s, its interval [8.114777, 8.303815] s"
+        "median": 8.348831,
+        "why": "11 of 11 runs inside [7.998, 8.705] s; median 8.348831 s, its interval [8.113616, 8.543215] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.142092,
+          "elapsed": 8.419505,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4144,7 +4144,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.191096,
+          "elapsed": 8.106296,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4152,7 +4152,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.101493,
+          "elapsed": 8.348831,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4160,7 +4160,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.324802,
+          "elapsed": 8.545429,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4168,7 +4168,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.303815,
+          "elapsed": 8.239164,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4176,7 +4176,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.24298,
+          "elapsed": 8.456959,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4184,7 +4184,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.208937,
+          "elapsed": 8.200614,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4192,7 +4192,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.181294,
+          "elapsed": 8.371519,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4200,7 +4200,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.142557,
+          "elapsed": 8.113616,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4208,7 +4208,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.114777,
+          "elapsed": 8.327613,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4216,7 +4216,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.232961,
+          "elapsed": 8.543215,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4250,8 +4250,8 @@
         "timer": "keepalive",
         "errno": "ETIMEDOUT",
         "from": "last-received",
-        "low": 7.996,
-        "high": 8.352,
+        "low": 7.999,
+        "high": 8.704,
         "window": null,
         "why": null
       },
@@ -4260,18 +4260,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 7.992,
-          "high": 8.356
+          "low": 7.998,
+          "high": 8.705
         },
-        "median": 8.140602,
-        "why": "11 of 11 runs inside [7.992, 8.356] s; median 8.140602 s, its interval [8.103552, 8.291202] s"
+        "median": 8.314381,
+        "why": "11 of 11 runs inside [7.998, 8.705] s; median 8.314381 s, its interval [8.151142, 8.574426] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.140602,
+          "elapsed": 8.151142,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4279,7 +4279,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.318738,
+          "elapsed": 8.3872,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4287,7 +4287,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.107159,
+          "elapsed": 8.574426,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4295,7 +4295,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.291202,
+          "elapsed": 8.314381,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4303,7 +4303,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.270235,
+          "elapsed": 8.510785,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4311,7 +4311,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.237936,
+          "elapsed": 8.196361,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4319,7 +4319,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.13533,
+          "elapsed": 8.454478,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4327,7 +4327,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.243757,
+          "elapsed": 8.575843,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4335,7 +4335,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.137692,
+          "elapsed": 8.259918,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4343,7 +4343,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.103552,
+          "elapsed": 8.074278,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4351,7 +4351,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.081445,
+          "elapsed": 8.313379,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4385,8 +4385,8 @@
         "timer": "keepalive",
         "errno": "ETIMEDOUT",
         "from": "last-received",
-        "low": 7.996,
-        "high": 8.352,
+        "low": 7.999,
+        "high": 8.704,
         "window": null,
         "why": null
       },
@@ -4395,18 +4395,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 7.992,
-          "high": 8.356
+          "low": 7.998,
+          "high": 8.705
         },
-        "median": 8.24768,
-        "why": "11 of 11 runs inside [7.992, 8.356] s; median 8.24768 s, its interval [8.118153, 8.264051] s"
+        "median": 8.344803,
+        "why": "11 of 11 runs inside [7.998, 8.705] s; median 8.344803 s, its interval [8.139113, 8.506556] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.264051,
+          "elapsed": 8.357481,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4414,7 +4414,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.118153,
+          "elapsed": 8.090751,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4422,7 +4422,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.078023,
+          "elapsed": 8.292493,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4430,7 +4430,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.257765,
+          "elapsed": 8.506556,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4438,7 +4438,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.272173,
+          "elapsed": 8.189906,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4446,7 +4446,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.251015,
+          "elapsed": 8.4294,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4454,7 +4454,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.153902,
+          "elapsed": 8.139113,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4462,7 +4462,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.250245,
+          "elapsed": 8.344803,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4470,7 +4470,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.24768,
+          "elapsed": 8.546886,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4478,7 +4478,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.162943,
+          "elapsed": 8.276135,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4486,7 +4486,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 8.183986,
+          "elapsed": 8.502849,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4530,18 +4530,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": -0.004,
-          "high": 0.005
+          "low": -0.001,
+          "high": 0.002
         },
-        "median": 0.000063,
-        "why": "11 of 11 runs inside [-0.004, 0.005] s; median 0.000063 s, its interval [0.000058, 0.000087] s"
+        "median": 0.000042,
+        "why": "11 of 11 runs inside [-0.001, 0.002] s; median 0.000042 s, its interval [0.000038, 0.000048] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "EOF",
-          "elapsed": 0.000067,
+          "elapsed": 0.000038,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4549,7 +4549,7 @@
         {
           "environment": 0,
           "outcome": "EOF",
-          "elapsed": 0.000058,
+          "elapsed": 0.000041,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4557,7 +4557,7 @@
         {
           "environment": 0,
           "outcome": "EOF",
-          "elapsed": 0.000091,
+          "elapsed": 0.000051,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4565,7 +4565,7 @@
         {
           "environment": 0,
           "outcome": "EOF",
-          "elapsed": 0.000067,
+          "elapsed": 0.000042,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4573,7 +4573,7 @@
         {
           "environment": 0,
           "outcome": "EOF",
-          "elapsed": 0.000058,
+          "elapsed": 0.000043,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4581,7 +4581,7 @@
         {
           "environment": 0,
           "outcome": "EOF",
-          "elapsed": 0.000058,
+          "elapsed": 0.000048,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4589,7 +4589,7 @@
         {
           "environment": 1,
           "outcome": "EOF",
-          "elapsed": 0.000076,
+          "elapsed": 0.000044,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4597,7 +4597,7 @@
         {
           "environment": 1,
           "outcome": "EOF",
-          "elapsed": 0.000063,
+          "elapsed": 0.000035,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4605,7 +4605,7 @@
         {
           "environment": 1,
           "outcome": "EOF",
-          "elapsed": 0.000059,
+          "elapsed": 0.000041,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4613,7 +4613,7 @@
         {
           "environment": 1,
           "outcome": "EOF",
-          "elapsed": 0.000062,
+          "elapsed": 0.000047,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4621,7 +4621,7 @@
         {
           "environment": 1,
           "outcome": "EOF",
-          "elapsed": 0.000087,
+          "elapsed": 0.000039,
           "retransmissions": 0,
           "replies": null,
           "void": null
@@ -4661,7 +4661,7 @@
         "errno": "ETIMEDOUT",
         "from": "first-retransmission",
         "low": 3,
-        "high": 6.616,
+        "high": 6.416,
         "window": null,
         "why": null
       },
@@ -4670,18 +4670,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 2.996,
-          "high": 6.62
+          "low": 2.999,
+          "high": 6.417
         },
-        "median": 6.280069,
-        "why": "11 of 11 runs inside [2.996, 6.62] s; median 6.280069 s, its interval [6.247873, 6.32799] s"
+        "median": 6.183992,
+        "why": "11 of 11 runs inside [2.999, 6.417] s; median 6.183992 s, its interval [6.152007, 6.192027] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.248026,
+          "elapsed": 6.152007,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -4689,7 +4689,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.304006,
+          "elapsed": 6.14402,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -4697,7 +4697,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.336052,
+          "elapsed": 6.200016,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -4705,7 +4705,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.280069,
+          "elapsed": 6.192027,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -4713,7 +4713,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.32799,
+          "elapsed": 6.183992,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -4721,7 +4721,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.320084,
+          "elapsed": 6.184009,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -4729,7 +4729,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.264073,
+          "elapsed": 6.191992,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -4737,7 +4737,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.247873,
+          "elapsed": 6.18399,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -4745,7 +4745,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.28803,
+          "elapsed": 6.176015,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -4753,7 +4753,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.227949,
+          "elapsed": 6.167998,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -4761,7 +4761,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.272048,
+          "elapsed": 6.19199,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -4806,7 +4806,7 @@
         "errno": "EHOSTUNREACH",
         "from": "first-retransmission",
         "low": 3,
-        "high": 3.268,
+        "high": 3.329,
         "window": null,
         "why": null
       },
@@ -4815,18 +4815,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 2.996,
-          "high": 3.272
+          "low": 2.999,
+          "high": 3.33
         },
-        "median": 3.060195,
-        "why": "11 of 11 runs inside [2.996, 3.272] s; median 3.060195 s, its interval [3.05996, 3.068088] s"
+        "median": 3.120009,
+        "why": "11 of 11 runs inside [2.999, 3.33] s; median 3.120009 s, its interval [3.119992, 3.120074] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.068053,
+          "elapsed": 3.12001,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -4834,7 +4834,7 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.063951,
+          "elapsed": 3.120008,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -4842,7 +4842,7 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.060032,
+          "elapsed": 3.119992,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -4850,7 +4850,7 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.060058,
+          "elapsed": 3.120984,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -4858,7 +4858,7 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.05996,
+          "elapsed": 3.120009,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -4866,7 +4866,7 @@
         {
           "environment": 0,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.05994,
+          "elapsed": 3.12,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -4874,7 +4874,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.07194,
+          "elapsed": 3.120074,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -4882,7 +4882,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.059994,
+          "elapsed": 3.119986,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -4890,7 +4890,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.068088,
+          "elapsed": 3.119993,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -4898,7 +4898,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.060195,
+          "elapsed": 3.120016,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -4906,7 +4906,7 @@
         {
           "environment": 1,
           "outcome": "EHOSTUNREACH",
-          "elapsed": 3.064144,
+          "elapsed": 3.120031,
           "retransmissions": 16,
           "replies": null,
           "void": null
@@ -4946,7 +4946,7 @@
         "errno": "ETIMEDOUT",
         "from": "first-retransmission",
         "low": 3,
-        "high": 6.616,
+        "high": 6.416,
         "window": null,
         "why": null
       },
@@ -4955,18 +4955,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 2.996,
-          "high": 6.62
+          "low": 2.999,
+          "high": 6.417
         },
-        "median": 6.272043,
-        "why": "11 of 11 runs inside [2.996, 6.62] s; median 6.272043 s, its interval [6.216017, 6.427947] s"
+        "median": 6.175997,
+        "why": "11 of 11 runs inside [2.999, 6.417] s; median 6.175997 s, its interval [6.159987, 6.191995] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.272043,
+          "elapsed": 6.17601,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -4974,7 +4974,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.208078,
+          "elapsed": 6.159987,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -4982,7 +4982,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.35213,
+          "elapsed": 6.192001,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -4990,7 +4990,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.295978,
+          "elapsed": 6.176026,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -4998,7 +4998,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.235949,
+          "elapsed": 6.168011,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -5006,7 +5006,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.272074,
+          "elapsed": 6.191994,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -5014,7 +5014,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.451961,
+          "elapsed": 6.151985,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -5022,7 +5022,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.235931,
+          "elapsed": 6.175997,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -5030,7 +5030,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.427947,
+          "elapsed": 6.168014,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -5038,7 +5038,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.216017,
+          "elapsed": 6.159991,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -5046,7 +5046,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.255986,
+          "elapsed": 6.191995,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -5086,7 +5086,7 @@
         "errno": "ETIMEDOUT",
         "from": "first-retransmission",
         "low": 3,
-        "high": 6.616,
+        "high": 6.416,
         "window": null,
         "why": null
       },
@@ -5095,18 +5095,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 2.996,
-          "high": 6.62
+          "low": 2.999,
+          "high": 6.417
         },
-        "median": 6.316031,
-        "why": "11 of 11 runs inside [2.996, 6.62] s; median 6.316031 s, its interval [6.228063, 6.384096] s"
+        "median": 6.176022,
+        "why": "11 of 11 runs inside [2.999, 6.417] s; median 6.176022 s, its interval [6.167994, 6.191972] s"
       },
       "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.424025,
+          "elapsed": 6.175998,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -5114,7 +5114,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.247949,
+          "elapsed": 6.160012,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -5122,7 +5122,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.340016,
+          "elapsed": 6.184012,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -5130,7 +5130,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.228016,
+          "elapsed": 6.167994,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -5138,7 +5138,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.331914,
+          "elapsed": 6.183957,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -5146,7 +5146,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.368085,
+          "elapsed": 6.168008,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -5154,7 +5154,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.384096,
+          "elapsed": 6.191972,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -5162,7 +5162,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.279993,
+          "elapsed": 6.176022,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -5170,7 +5170,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.228063,
+          "elapsed": 6.200037,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -5178,7 +5178,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.272013,
+          "elapsed": 6.184011,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -5186,7 +5186,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.316031,
+          "elapsed": 6.168016,
           "retransmissions": 5,
           "replies": null,
           "void": null
@@ -5362,7 +5362,7 @@
         "errno": "ETIMEDOUT",
         "from": "first-retransmission",
         "low": 3,
-        "high": 6.616,
+        "high": 6.416,
         "window": null,
         "why": null
       },
@@ -5371,18 +5371,18 @@
         "counted": 11,
         "voided": 0,
         "band": {
-          "low": 2.996,
-          "high": 6.62
+          "low": 2.999,
+          "high": 6.417
         },
-        "median": 6.380175,
-        "why": "11 of 11 runs inside [2.996, 6.62] s; median 6.380175 s, its interval [6.320187, 6.436538] s"
+        "median": 6.160024,
+        "why": "11 of 11 runs inside [2.999, 6.417] s; median 6.160024 s, its interval [6.144018, 6.184013] s"
       },
-      "firstRun": "fails",
+      "firstRun": null,
       "runs": [
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.448064,
+          "elapsed": 6.144004,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -5390,7 +5390,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.347999,
+          "elapsed": 6.144018,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -5398,7 +5398,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.380175,
+          "elapsed": 6.160024,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -5406,7 +5406,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.436538,
+          "elapsed": 6.160044,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -5414,7 +5414,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.204016,
+          "elapsed": 6.184013,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -5422,7 +5422,7 @@
         {
           "environment": 0,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.348058,
+          "elapsed": 6.184034,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -5430,7 +5430,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.32819,
+          "elapsed": 6.168035,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -5438,7 +5438,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.320187,
+          "elapsed": 6.152049,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -5446,7 +5446,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.416164,
+          "elapsed": 6.159991,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -5454,7 +5454,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.420008,
+          "elapsed": 6.159983,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -5462,7 +5462,7 @@
         {
           "environment": 1,
           "outcome": "ETIMEDOUT",
-          "elapsed": 6.408015,
+          "elapsed": 6.176041,
           "retransmissions": 4,
           "replies": null,
           "void": null
@@ -5497,8 +5497,8 @@
         "counted": 11,
         "voided": 0,
         "band": null,
-        "median": 0.000226,
-        "why": "11 runs, 1100 replies: median 0.000226 s, slowest 0.422486 s, 50 retransmissions, 0 connections ended"
+        "median": 0.000131,
+        "why": "11 runs, 1100 replies: median 0.000131 s, p99 0.217139 s, slowest 0.432645 s, 43 retransmissions, 0 connections ended"
       },
       "firstRun": null,
       "runs": [
@@ -5506,12 +5506,64 @@
           "environment": 0,
           "outcome": "answered",
           "elapsed": null,
-          "retransmissions": 5,
+          "retransmissions": 2,
           "replies": {
             "count": 100,
-            "fastest": 0.000103,
-            "median": 0.000247,
-            "slowest": 0.221629
+            "fastest": 0.000083,
+            "median": 0.000128,
+            "slowest": 0.212803
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 3,
+          "replies": {
+            "count": 100,
+            "fastest": 0.0001,
+            "median": 0.0001325,
+            "slowest": 0.217567
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 7,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000099,
+            "median": 0.0001385,
+            "slowest": 0.21915
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 6,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000104,
+            "median": 0.000131,
+            "slowest": 0.21909
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 2,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000104,
+            "median": 0.000131,
+            "slowest": 0.217134
           },
           "void": null
         },
@@ -5522,100 +5574,48 @@
           "retransmissions": 4,
           "replies": {
             "count": 100,
-            "fastest": 0.000133,
-            "median": 0.0002235,
-            "slowest": 0.221575
+            "fastest": 0.000098,
+            "median": 0.00013,
+            "slowest": 0.217003
           },
           "void": null
         },
         {
-          "environment": 0,
+          "environment": 1,
           "outcome": "answered",
           "elapsed": null,
-          "retransmissions": 5,
+          "retransmissions": 2,
           "replies": {
             "count": 100,
-            "fastest": 0.000117,
-            "median": 0.000208,
-            "slowest": 0.422486
+            "fastest": 0.000095,
+            "median": 0.000125,
+            "slowest": 0.217139
           },
           "void": null
         },
         {
-          "environment": 0,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 5,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000113,
-            "median": 0.000201,
-            "slowest": 0.218456
-          },
-          "void": null
-        },
-        {
-          "environment": 0,
+          "environment": 1,
           "outcome": "answered",
           "elapsed": null,
           "retransmissions": 7,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000094,
+            "median": 0.0001295,
+            "slowest": 0.432645
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 5,
           "replies": {
             "count": 100,
             "fastest": 0.000103,
-            "median": 0.0002095,
-            "slowest": 0.219284
-          },
-          "void": null
-        },
-        {
-          "environment": 0,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 2,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000119,
-            "median": 0.0002205,
-            "slowest": 0.212845
-          },
-          "void": null
-        },
-        {
-          "environment": 1,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 7,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000125,
-            "median": 0.0002265,
-            "slowest": 0.214415
-          },
-          "void": null
-        },
-        {
-          "environment": 1,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 5,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000122,
-            "median": 0.0002035,
-            "slowest": 0.214629
-          },
-          "void": null
-        },
-        {
-          "environment": 1,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 5,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000123,
-            "median": 0.0002305,
-            "slowest": 0.21935
+            "median": 0.000133,
+            "slowest": 0.218054
           },
           "void": null
         },
@@ -5626,9 +5626,9 @@
           "retransmissions": 2,
           "replies": {
             "count": 100,
-            "fastest": 0.00013,
-            "median": 0.000254,
-            "slowest": 0.213723
+            "fastest": 0.000096,
+            "median": 0.0001295,
+            "slowest": 0.219032
           },
           "void": null
         },
@@ -5639,9 +5639,9 @@
           "retransmissions": 3,
           "replies": {
             "count": 100,
-            "fastest": 0.000127,
-            "median": 0.000258,
-            "slowest": 0.215926
+            "fastest": 0.000096,
+            "median": 0.0001305,
+            "slowest": 0.218059
           },
           "void": null
         }
@@ -5675,8 +5675,8 @@
         "counted": 11,
         "voided": 0,
         "band": null,
-        "median": 0.000272,
-        "why": "11 runs, 1100 replies: median 0.000272 s, slowest 1.529651 s, 179 retransmissions, 0 connections ended"
+        "median": 0.000147,
+        "why": "11 runs, 1100 replies: median 0.000147 s, p99 0.435113 s, slowest 3.245696 s, 155 retransmissions, 0 connections ended"
       },
       "firstRun": null,
       "runs": [
@@ -5684,25 +5684,12 @@
           "environment": 0,
           "outcome": "answered",
           "elapsed": null,
-          "retransmissions": 16,
+          "retransmissions": 12,
           "replies": {
             "count": 100,
-            "fastest": 0.000127,
-            "median": 0.0002455,
-            "slowest": 0.432039
-          },
-          "void": null
-        },
-        {
-          "environment": 0,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 17,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000124,
-            "median": 0.0002645,
-            "slowest": 0.43086
+            "fastest": 0.000104,
+            "median": 0.0001475,
+            "slowest": 1.737676
           },
           "void": null
         },
@@ -5713,9 +5700,35 @@
           "retransmissions": 23,
           "replies": {
             "count": 100,
-            "fastest": 0.000125,
-            "median": 0.0003065,
-            "slowest": 1.529651
+            "fastest": 0.000107,
+            "median": 0.000152,
+            "slowest": 0.433069
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 4,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000103,
+            "median": 0.0001505,
+            "slowest": 0.637554
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 5,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000093,
+            "median": 0.0001475,
+            "slowest": 3.245696
           },
           "void": null
         },
@@ -5726,22 +5739,9 @@
           "retransmissions": 16,
           "replies": {
             "count": 100,
-            "fastest": 0.000123,
-            "median": 0.000289,
-            "slowest": 0.661611
-          },
-          "void": null
-        },
-        {
-          "environment": 0,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 8,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000127,
-            "median": 0.0002775,
-            "slowest": 0.858742
+            "fastest": 0.000102,
+            "median": 0.000148,
+            "slowest": 0.838508
           },
           "void": null
         },
@@ -5752,9 +5752,9 @@
           "retransmissions": 17,
           "replies": {
             "count": 100,
-            "fastest": 0.00012,
-            "median": 0.0002555,
-            "slowest": 0.673692
+            "fastest": 0.000102,
+            "median": 0.000141,
+            "slowest": 0.856506
           },
           "void": null
         },
@@ -5762,12 +5762,12 @@
           "environment": 1,
           "outcome": "answered",
           "elapsed": null,
-          "retransmissions": 20,
+          "retransmissions": 19,
           "replies": {
             "count": 100,
-            "fastest": 0.000129,
-            "median": 0.000261,
-            "slowest": 0.866981
+            "fastest": 0.000096,
+            "median": 0.000145,
+            "slowest": 0.852526
           },
           "void": null
         },
@@ -5775,12 +5775,38 @@
           "environment": 1,
           "outcome": "answered",
           "elapsed": null,
-          "retransmissions": 4,
+          "retransmissions": 14,
           "replies": {
             "count": 100,
-            "fastest": 0.000119,
-            "median": 0.0002555,
-            "slowest": 0.665384
+            "fastest": 0.000102,
+            "median": 0.000147,
+            "slowest": 0.432978
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 13,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000096,
+            "median": 0.000144,
+            "slowest": 0.435113
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 14,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000094,
+            "median": 0.000147,
+            "slowest": 0.854063
           },
           "void": null
         },
@@ -5791,391 +5817,9 @@
           "retransmissions": 18,
           "replies": {
             "count": 100,
-            "fastest": 0.0001,
-            "median": 0.000257,
-            "slowest": 0.887809
-          },
-          "void": null
-        },
-        {
-          "environment": 1,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 20,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000152,
-            "median": 0.000275,
-            "slowest": 0.430683
-          },
-          "void": null
-        },
-        {
-          "environment": 1,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 20,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000173,
-            "median": 0.00033,
-            "slowest": 0.432654
-          },
-          "void": null
-        }
-      ]
-    },
-    {
-      "name": "client stream, netem duplicate 10%",
-      "manifestation": "netem",
-      "position": "client stream",
-      "settings": {
-        "observer": [],
-        "peer": [],
-        "redis": [],
-        "latency": null,
-        "stall": null,
-        "mtu": null,
-        "netem": "duplicate 10%"
-      },
-      "prediction": {
-        "kind": "measured",
-        "timer": null,
-        "errno": null,
-        "from": null,
-        "low": null,
-        "high": null,
-        "window": null,
-        "why": "a duplicate costs nothing but a duplicate ACK"
-      },
-      "verdict": {
-        "decision": "measured",
-        "counted": 11,
-        "voided": 0,
-        "band": null,
-        "median": 0.000236,
-        "why": "11 runs, 1100 replies: median 0.000236 s, slowest 0.000679 s, 0 retransmissions, 0 connections ended"
-      },
-      "firstRun": null,
-      "runs": [
-        {
-          "environment": 0,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000166,
-            "median": 0.0002385,
-            "slowest": 0.000471
-          },
-          "void": null
-        },
-        {
-          "environment": 0,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000141,
-            "median": 0.000265,
-            "slowest": 0.00066
-          },
-          "void": null
-        },
-        {
-          "environment": 0,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000153,
-            "median": 0.0002445,
-            "slowest": 0.000534
-          },
-          "void": null
-        },
-        {
-          "environment": 0,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000094,
-            "median": 0.000203,
-            "slowest": 0.000535
-          },
-          "void": null
-        },
-        {
-          "environment": 0,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000131,
-            "median": 0.000201,
-            "slowest": 0.000447
-          },
-          "void": null
-        },
-        {
-          "environment": 0,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000101,
-            "median": 0.000212,
-            "slowest": 0.000457
-          },
-          "void": null
-        },
-        {
-          "environment": 1,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000129,
-            "median": 0.000214,
-            "slowest": 0.000474
-          },
-          "void": null
-        },
-        {
-          "environment": 1,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000138,
-            "median": 0.00025,
-            "slowest": 0.000679
-          },
-          "void": null
-        },
-        {
-          "environment": 1,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000164,
-            "median": 0.0002395,
-            "slowest": 0.000518
-          },
-          "void": null
-        },
-        {
-          "environment": 1,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000148,
-            "median": 0.0002425,
-            "slowest": 0.000639
-          },
-          "void": null
-        },
-        {
-          "environment": 1,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.00012,
-            "median": 0.000242,
-            "slowest": 0.000448
-          },
-          "void": null
-        }
-      ]
-    },
-    {
-      "name": "client stream, netem delay 10ms reorder 25% 50%",
-      "manifestation": "netem",
-      "position": "client stream",
-      "settings": {
-        "observer": [],
-        "peer": [],
-        "redis": [],
-        "latency": null,
-        "stall": null,
-        "mtu": null,
-        "netem": "delay 10ms reorder 25% 50%"
-      },
-      "prediction": {
-        "kind": "measured",
-        "timer": null,
-        "errno": null,
-        "from": null,
-        "low": null,
-        "high": null,
-        "window": null,
-        "why": "a segment out of order can start a fast retransmission"
-      },
-      "verdict": {
-        "decision": "measured",
-        "counted": 11,
-        "voided": 0,
-        "band": null,
-        "median": 0.010307,
-        "why": "11 runs, 1100 replies: median 0.010307 s, slowest 0.010712 s, 0 retransmissions, 0 connections ended"
-      },
-      "firstRun": null,
-      "runs": [
-        {
-          "environment": 0,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000134,
-            "median": 0.010228,
-            "slowest": 0.010449
-          },
-          "void": null
-        },
-        {
-          "environment": 0,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000143,
-            "median": 0.0103095,
-            "slowest": 0.010712
-          },
-          "void": null
-        },
-        {
-          "environment": 0,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000135,
-            "median": 0.010267,
-            "slowest": 0.010487
-          },
-          "void": null
-        },
-        {
-          "environment": 0,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000213,
-            "median": 0.0103525,
-            "slowest": 0.010594
-          },
-          "void": null
-        },
-        {
-          "environment": 0,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000204,
-            "median": 0.0103695,
-            "slowest": 0.010515
-          },
-          "void": null
-        },
-        {
-          "environment": 0,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000222,
-            "median": 0.010339,
-            "slowest": 0.010521
-          },
-          "void": null
-        },
-        {
-          "environment": 1,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000153,
-            "median": 0.0103685,
-            "slowest": 0.010609
-          },
-          "void": null
-        },
-        {
-          "environment": 1,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000187,
-            "median": 0.010272,
-            "slowest": 0.010443
-          },
-          "void": null
-        },
-        {
-          "environment": 1,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000168,
-            "median": 0.010279,
-            "slowest": 0.010521
-          },
-          "void": null
-        },
-        {
-          "environment": 1,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000182,
-            "median": 0.0102785,
-            "slowest": 0.010501
-          },
-          "void": null
-        },
-        {
-          "environment": 1,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 0,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000228,
-            "median": 0.0103185,
-            "slowest": 0.010577
+            "fastest": 0.000106,
+            "median": 0.0001425,
+            "slowest": 1.493576
           },
           "void": null
         }
@@ -6209,8 +5853,8 @@
         "counted": 11,
         "voided": 0,
         "band": null,
-        "median": 0.000243,
-        "why": "11 runs, 1100 replies: median 0.000243 s, slowest 0.435978 s, 59 retransmissions, 0 connections ended"
+        "median": 0.00007,
+        "why": "11 runs, 1100 replies: median 0.00007 s, p99 0.217895 s, slowest 0.851577 s, 44 retransmissions, 0 connections ended"
       },
       "firstRun": null,
       "runs": [
@@ -6218,12 +5862,12 @@
           "environment": 0,
           "outcome": "answered",
           "elapsed": null,
-          "retransmissions": 5,
+          "retransmissions": 4,
           "replies": {
             "count": 100,
-            "fastest": 0.000095,
-            "median": 0.0002335,
-            "slowest": 0.428815
+            "fastest": 0.000044,
+            "median": 0.0000625,
+            "slowest": 0.217895
           },
           "void": null
         },
@@ -6234,74 +5878,61 @@
           "retransmissions": 3,
           "replies": {
             "count": 100,
-            "fastest": 0.000105,
-            "median": 0.000191,
-            "slowest": 0.219809
+            "fastest": 0.000045,
+            "median": 0.0000715,
+            "slowest": 0.435109
           },
           "void": null
         },
         {
           "environment": 0,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 6,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000126,
-            "median": 0.0002375,
-            "slowest": 0.430193
-          },
-          "void": null
-        },
-        {
-          "environment": 0,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 3,
-          "replies": {
-            "count": 100,
-            "fastest": 0.00012,
-            "median": 0.0002215,
-            "slowest": 0.214581
-          },
-          "void": null
-        },
-        {
-          "environment": 0,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 10,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000126,
-            "median": 0.000226,
-            "slowest": 0.43153
-          },
-          "void": null
-        },
-        {
-          "environment": 0,
-          "outcome": "answered",
-          "elapsed": null,
-          "retransmissions": 7,
-          "replies": {
-            "count": 100,
-            "fastest": 0.000181,
-            "median": 0.000285,
-            "slowest": 0.22542
-          },
-          "void": null
-        },
-        {
-          "environment": 1,
           "outcome": "answered",
           "elapsed": null,
           "retransmissions": 2,
           "replies": {
             "count": 100,
-            "fastest": 0.000112,
-            "median": 0.000189,
-            "slowest": 0.21507
+            "fastest": 0.000049,
+            "median": 0.000072,
+            "slowest": 0.21417
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 5,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000046,
+            "median": 0.0000775,
+            "slowest": 0.218408
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 5,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000046,
+            "median": 0.0000675,
+            "slowest": 0.218376
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 4,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000047,
+            "median": 0.000066,
+            "slowest": 0.2179
           },
           "void": null
         },
@@ -6309,12 +5940,12 @@
           "environment": 1,
           "outcome": "answered",
           "elapsed": null,
-          "retransmissions": 7,
+          "retransmissions": 0,
           "replies": {
             "count": 100,
-            "fastest": 0.000123,
-            "median": 0.000232,
-            "slowest": 0.435978
+            "fastest": 0.000047,
+            "median": 0.000068,
+            "slowest": 0.000311
           },
           "void": null
         },
@@ -6325,9 +5956,9 @@
           "retransmissions": 6,
           "replies": {
             "count": 100,
-            "fastest": 0.000158,
-            "median": 0.0002915,
-            "slowest": 0.219247
+            "fastest": 0.000048,
+            "median": 0.0000705,
+            "slowest": 0.216548
           },
           "void": null
         },
@@ -6335,12 +5966,12 @@
           "environment": 1,
           "outcome": "answered",
           "elapsed": null,
-          "retransmissions": 3,
+          "retransmissions": 4,
           "replies": {
             "count": 100,
-            "fastest": 0.000135,
-            "median": 0.0002345,
-            "slowest": 0.21582
+            "fastest": 0.000048,
+            "median": 0.000061,
+            "slowest": 0.430027
           },
           "void": null
         },
@@ -6351,9 +5982,22 @@
           "retransmissions": 7,
           "replies": {
             "count": 100,
-            "fastest": 0.000149,
-            "median": 0.0003105,
-            "slowest": 0.221571
+            "fastest": 0.000053,
+            "median": 0.00007,
+            "slowest": 0.851577
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 4,
+          "replies": {
+            "count": 100,
+            "fastest": 0.000045,
+            "median": 0.0000765,
+            "slowest": 0.414328
           },
           "void": null
         }
@@ -6387,8 +6031,8 @@
         "counted": 11,
         "voided": 0,
         "band": null,
-        "median": 0.020018,
-        "why": "11 runs, 1100 replies: median 0.020018 s, slowest 0.030356 s, 0 retransmissions, 0 connections ended"
+        "median": 0.019837,
+        "why": "11 runs, 1100 replies: median 0.019837 s, p99 0.030001 s, slowest 0.030213 s, 0 retransmissions, 0 connections ended"
       },
       "firstRun": null,
       "runs": [
@@ -6399,9 +6043,9 @@
           "retransmissions": 0,
           "replies": {
             "count": 100,
-            "fastest": 0.010673,
-            "median": 0.0189245,
-            "slowest": 0.030097
+            "fastest": 0.010192,
+            "median": 0.0200105,
+            "slowest": 0.030083
           },
           "void": null
         },
@@ -6412,9 +6056,9 @@
           "retransmissions": 0,
           "replies": {
             "count": 100,
-            "fastest": 0.010436,
-            "median": 0.020247,
-            "slowest": 0.03011
+            "fastest": 0.010221,
+            "median": 0.0198365,
+            "slowest": 0.029736
           },
           "void": null
         },
@@ -6425,9 +6069,9 @@
           "retransmissions": 0,
           "replies": {
             "count": 100,
-            "fastest": 0.010425,
-            "median": 0.0191985,
-            "slowest": 0.030277
+            "fastest": 0.010252,
+            "median": 0.020536,
+            "slowest": 0.030072
           },
           "void": null
         },
@@ -6438,9 +6082,9 @@
           "retransmissions": 0,
           "replies": {
             "count": 100,
-            "fastest": 0.010322,
-            "median": 0.021663,
-            "slowest": 0.030324
+            "fastest": 0.010569,
+            "median": 0.0200535,
+            "slowest": 0.030001
           },
           "void": null
         },
@@ -6451,9 +6095,9 @@
           "retransmissions": 0,
           "replies": {
             "count": 100,
-            "fastest": 0.010563,
-            "median": 0.0212155,
-            "slowest": 0.029111
+            "fastest": 0.010369,
+            "median": 0.0174015,
+            "slowest": 0.029768
           },
           "void": null
         },
@@ -6464,9 +6108,9 @@
           "retransmissions": 0,
           "replies": {
             "count": 100,
-            "fastest": 0.010348,
-            "median": 0.019983,
-            "slowest": 0.030198
+            "fastest": 0.010359,
+            "median": 0.0205355,
+            "slowest": 0.029875
           },
           "void": null
         },
@@ -6477,9 +6121,9 @@
           "retransmissions": 0,
           "replies": {
             "count": 100,
-            "fastest": 0.010772,
-            "median": 0.0203955,
-            "slowest": 0.030356
+            "fastest": 0.010137,
+            "median": 0.018693,
+            "slowest": 0.030213
           },
           "void": null
         },
@@ -6490,9 +6134,9 @@
           "retransmissions": 0,
           "replies": {
             "count": 100,
-            "fastest": 0.010627,
-            "median": 0.0206675,
-            "slowest": 0.030196
+            "fastest": 0.010194,
+            "median": 0.0194985,
+            "slowest": 0.029308
           },
           "void": null
         },
@@ -6503,9 +6147,9 @@
           "retransmissions": 0,
           "replies": {
             "count": 100,
-            "fastest": 0.010403,
-            "median": 0.0198675,
-            "slowest": 0.029683
+            "fastest": 0.010308,
+            "median": 0.0200415,
+            "slowest": 0.03007
           },
           "void": null
         },
@@ -6516,9 +6160,9 @@
           "retransmissions": 0,
           "replies": {
             "count": 100,
-            "fastest": 0.010452,
-            "median": 0.020731,
-            "slowest": 0.030218
+            "fastest": 0.010196,
+            "median": 0.0201695,
+            "slowest": 0.03012
           },
           "void": null
         },
@@ -6529,9 +6173,721 @@
           "retransmissions": 0,
           "replies": {
             "count": 100,
-            "fastest": 0.010494,
-            "median": 0.019353,
-            "slowest": 0.030351
+            "fastest": 0.010434,
+            "median": 0.020697,
+            "slowest": 0.030009
+          },
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client stream, a 256 KiB reply, netem delay 10ms reorder 25% 50%",
+      "manifestation": "netem",
+      "position": "client stream",
+      "settings": {
+        "observer": [],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": "delay 10ms reorder 25% 50%"
+      },
+      "prediction": {
+        "kind": "measured",
+        "timer": null,
+        "errno": null,
+        "from": null,
+        "low": null,
+        "high": null,
+        "window": null,
+        "why": "a segment out of order gets a SACK, and three can start a fast retransmission"
+      },
+      "verdict": {
+        "decision": "measured",
+        "counted": 11,
+        "voided": 0,
+        "band": null,
+        "median": 0.071033,
+        "why": "11 runs, 110 replies: median 0.071033 s, p99 0.261958 s, slowest 0.281995 s, 0 retransmissions, 0 connections ended. Reordering: 648 arrivals out of order and 867 duplicate arrivals at the client, its kernel counted 1180 segments out of order, the server held up to 90 segments SACKed, got 889 DSACKs, sent 711 fast retransmissions, saw 274 reorderings, and its reordering degree went to 180"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.091596,
+            "median": 0.136362,
+            "slowest": 0.24164
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.060858,
+            "median": 0.076274,
+            "slowest": 0.261958
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.010598,
+            "median": 0.0107775,
+            "slowest": 0.051943
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.030773,
+            "median": 0.0533005,
+            "slowest": 0.091385
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.060938,
+            "median": 0.1013415,
+            "slowest": 0.19196
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.020551,
+            "median": 0.0257595,
+            "slowest": 0.054442
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.060654,
+            "median": 0.070935,
+            "slowest": 0.09123
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.111221,
+            "median": 0.1817895,
+            "slowest": 0.201849
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.121382,
+            "median": 0.1617425,
+            "slowest": 0.281995
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.030578,
+            "median": 0.050785,
+            "slowest": 0.251774
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.020588,
+            "median": 0.025781,
+            "slowest": 0.054127
+          },
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client stream, a 256 KiB reply, netem duplicate 10%",
+      "manifestation": "netem",
+      "position": "client stream",
+      "settings": {
+        "observer": [],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": "duplicate 10%"
+      },
+      "prediction": {
+        "kind": "measured",
+        "timer": null,
+        "errno": null,
+        "from": null,
+        "low": null,
+        "high": null,
+        "window": null,
+        "why": "a duplicate gets a DSACK, and costs nothing but its ACK"
+      },
+      "verdict": {
+        "decision": "measured",
+        "counted": 11,
+        "voided": 0,
+        "band": null,
+        "median": 0.001232,
+        "why": "11 runs, 110 replies: median 0.001232 s, p99 0.003374 s, slowest 0.004824 s, 0 retransmissions, 0 connections ended. Reordering: 0 arrivals out of order and 741 duplicate arrivals at the client, its kernel counted 0 segments out of order, the server held up to 0 segments SACKed, got 1827 DSACKs, sent 0 fast retransmissions, saw 0 reorderings, and its reordering degree went to 3"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.000959,
+            "median": 0.0011695,
+            "slowest": 0.003374
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.001022,
+            "median": 0.0013885,
+            "slowest": 0.00163
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.001026,
+            "median": 0.0011975,
+            "slowest": 0.001687
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.001041,
+            "median": 0.0014715,
+            "slowest": 0.00209
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.001035,
+            "median": 0.0012175,
+            "slowest": 0.001945
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.000985,
+            "median": 0.001185,
+            "slowest": 0.001762
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.000988,
+            "median": 0.0012235,
+            "slowest": 0.001593
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.001031,
+            "median": 0.0012335,
+            "slowest": 0.001391
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.001007,
+            "median": 0.0012965,
+            "slowest": 0.004824
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.001103,
+            "median": 0.0012195,
+            "slowest": 0.00167
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.000996,
+            "median": 0.001329,
+            "slowest": 0.002508
+          },
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client stream, a 256 KiB reply, netem loss 5%",
+      "manifestation": "netem",
+      "position": "client stream",
+      "settings": {
+        "observer": [],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": "loss 5%"
+      },
+      "prediction": {
+        "kind": "measured",
+        "timer": null,
+        "errno": null,
+        "from": null,
+        "low": null,
+        "high": null,
+        "window": null,
+        "why": "a lost segment gets a SACK recovery, with segments in flight after it"
+      },
+      "verdict": {
+        "decision": "measured",
+        "counted": 11,
+        "voided": 0,
+        "band": null,
+        "median": 0.000761,
+        "why": "11 runs, 110 replies: median 0.000761 s, p99 0.255122 s, slowest 0.614756 s, 0 retransmissions, 0 connections ended. Reordering: 1146 arrivals out of order and 0 duplicate arrivals at the client, its kernel counted 1315 segments out of order, the server held up to 131 segments SACKed, got 0 DSACKs, sent 277 fast retransmissions, saw 0 reorderings, and its reordering degree went to 3"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.000622,
+            "median": 0.000798,
+            "slowest": 0.004111
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.000552,
+            "median": 0.0006495,
+            "slowest": 0.004194
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.000704,
+            "median": 0.0009265,
+            "slowest": 0.207891
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.000616,
+            "median": 0.00075,
+            "slowest": 0.209109
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.000588,
+            "median": 0.0006705,
+            "slowest": 0.001231
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.000569,
+            "median": 0.0008415,
+            "slowest": 0.255122
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.000581,
+            "median": 0.000699,
+            "slowest": 0.001164
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.000667,
+            "median": 0.001051,
+            "slowest": 0.209787
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.000628,
+            "median": 0.0006825,
+            "slowest": 0.004131
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.000594,
+            "median": 0.0007285,
+            "slowest": 0.614756
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.000611,
+            "median": 0.000773,
+            "slowest": 0.003973
+          },
+          "void": null
+        }
+      ]
+    },
+    {
+      "name": "client stream, a 256 KiB reply, netem corrupt 5%",
+      "manifestation": "netem",
+      "position": "client stream",
+      "settings": {
+        "observer": [],
+        "peer": [],
+        "redis": [],
+        "latency": null,
+        "stall": null,
+        "mtu": null,
+        "netem": "corrupt 5%"
+      },
+      "prediction": {
+        "kind": "measured",
+        "timer": null,
+        "errno": null,
+        "from": null,
+        "low": null,
+        "high": null,
+        "window": null,
+        "why": "a corrupt segment fails its checksum, as a lost one does"
+      },
+      "verdict": {
+        "decision": "measured",
+        "counted": 11,
+        "voided": 0,
+        "band": null,
+        "median": 0.001473,
+        "why": "11 runs, 110 replies: median 0.001473 s, p99 0.205149 s, slowest 0.206114 s, 1 retransmissions, 0 connections ended. Reordering: 1808 arrivals out of order and 1 duplicate arrivals at the client, its kernel counted 2090 segments out of order, the server held up to 177 segments SACKed, got 0 DSACKs, sent 98 fast retransmissions, saw 0 reorderings, and its reordering degree went to 3"
+      },
+      "firstRun": null,
+      "runs": [
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.001103,
+            "median": 0.001392,
+            "slowest": 0.003588
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.000904,
+            "median": 0.001234,
+            "slowest": 0.001761
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.001015,
+            "median": 0.0015995,
+            "slowest": 0.002299
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.001316,
+            "median": 0.0018715,
+            "slowest": 0.002139
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.001262,
+            "median": 0.001654,
+            "slowest": 0.206114
+          },
+          "void": null
+        },
+        {
+          "environment": 0,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.000994,
+            "median": 0.0012385,
+            "slowest": 0.205149
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.001024,
+            "median": 0.001255,
+            "slowest": 0.001682
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.001427,
+            "median": 0.001757,
+            "slowest": 0.002143
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 1,
+          "replies": {
+            "count": 10,
+            "fastest": 0.001234,
+            "median": 0.00149,
+            "slowest": 0.002982
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.001006,
+            "median": 0.0014095,
+            "slowest": 0.005421
+          },
+          "void": null
+        },
+        {
+          "environment": 1,
+          "outcome": "answered",
+          "elapsed": null,
+          "retransmissions": 0,
+          "replies": {
+            "count": 10,
+            "fastest": 0.001064,
+            "median": 0.0013815,
+            "slowest": 0.00182
           },
           "void": null
         }

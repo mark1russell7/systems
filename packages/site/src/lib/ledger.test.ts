@@ -10,14 +10,16 @@ describe("the ledger of the results", () => {
   it("counts the cells of each page as the text of the page gives them", () => {
     expect(tally("calibration")).toEqual([6, 6, 0, 0, 0]);
     expect(tally("cells")).toEqual([12, 12, 0, 0, 0]);
-    // faults: "Of the 45 cells, 39 hold ... The other 6 cells are measurements only"
-    expect(tally("faults")).toEqual([45, 39, 0, 6, 0]);
-    // topologies: "Of 42 cells, 29 hold, 8 are measurements only, and 5 fail", and three held on a re-run
-    expect(tally("topologies")).toEqual([42, 29, 5, 8, 0]);
-    expect(entryOf("topologies").heldOnRerun).toBe(3);
+    // faults: "Of the 47 cells, 39 hold ... The other 8 cells are measurements only"
+    expect(tally("faults")).toEqual([47, 39, 0, 8, 0]);
+    // topologies: "Of the 46 cells, 39 hold against the prediction of the algebra, and 7 are measurements only"
+    expect(tally("topologies")).toEqual([46, 39, 0, 7, 0]);
+    expect(entryOf("topologies").heldOnRerun).toBe(0);
     expect(tally("sentinel")).toEqual([13, 9, 0, 4, 0]);
-    expect(tally("http")).toEqual([39, 34, 4, 1, 0]);
-    expect(tally("mongodb")).toEqual([58, 51, 7, 0, 0]);
+    // http: "Of the 39 cells, 38 hold against the prediction of the algebra, and 1 is a measurement only"
+    expect(tally("http")).toEqual([39, 38, 0, 1, 0]);
+    // mongodb: "Each of the 58 cells holds against the prediction of the algebra"
+    expect(tally("mongodb")).toEqual([58, 58, 0, 0, 0]);
     expect(tally("kind")).toEqual([31, 22, 4, 2, 3]);
     // r3: "Of the 115 cells of the queue, 114 hold and 1 is a measurement only", the 9 that failed first
     // held on a re-run, and 6 canonical cells: 1 holds and 5 measure
@@ -26,26 +28,29 @@ describe("the ledger of the results", () => {
   });
 
   it("counts the runs of each page as the text of the page gives them", () => {
-    // mongodb: "The cells have 617 counted runs and 21 void runs"
-    expect([entryOf("mongodb").counted, entryOf("mongodb").voided]).toEqual([617, 21]);
-    // http: "Of the 429 runs, 7 are void"
-    expect([entryOf("http").counted + entryOf("http").voided, entryOf("http").voided]).toEqual([429, 7]);
+    // mongodb: "The cells have 638 counted runs, and no run is void"
+    expect([entryOf("mongodb").counted, entryOf("mongodb").voided]).toEqual([638, 0]);
+    // http: "No run of the 429 is void"
+    expect([entryOf("http").counted + entryOf("http").voided, entryOf("http").voided]).toEqual([429, 0]);
+    // faults: "No run of the 517 is void", and topologies: "no run of the 506 is void"
+    expect([entryOf("faults").counted, entryOf("faults").voided]).toEqual([517, 0]);
+    expect([entryOf("topologies").counted, entryOf("topologies").voided]).toEqual([506, 0]);
     // kind: "No run of the 341 is void"
     expect([entryOf("kind").counted, entryOf("kind").voided]).toEqual([341, 0]);
   });
 
   it("gives the kernel, the clock and the catalogs of each page", () => {
-    expect(LEDGER.map((entry) => `${entry.kernel} ${entry.hz}`)).toEqual(["6.6 250", "6.6 250", "6.6 250", "6.6 250", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000"]);
+    expect(LEDGER.map((entry) => `${entry.kernel} ${entry.hz}`)).toEqual(["6.6 250", "6.6 250", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000"]);
     expect(entryOf("r3").tags).toEqual(["T01", "T03"]);
-    expect(entryOf("topologies").tags).toEqual(["T01", "T03", "T02", "TOX"]);
+    expect(entryOf("topologies").tags).toEqual(["T03", "T02", "TOX"]);
     expect(entryOf("sentinel").tags).toEqual(["T12"]);
     expect(entryOf("kind").tags).toEqual(["T07", "T18"]);
   });
 
   it("adds the pages into one total", () => {
-    expect([TOTAL.pages, TOTAL.cells]).toEqual([9, 367]);
-    expect(TOTAL.tally).toEqual({ holds: 317, fails: 20, measured: 27, calibration: 3 });
+    expect([TOTAL.pages, TOTAL.cells]).toEqual([9, 373]);
+    expect(TOTAL.tally).toEqual({ holds: 338, fails: 4, measured: 28, calibration: 3 });
     expect(TOTAL.tally.holds + TOTAL.tally.fails + TOTAL.tally.measured + TOTAL.tally.calibration).toBe(TOTAL.cells);
-    expect([TOTAL.first, TOTAL.last]).toEqual(["2026-10-13", "2026-10-17"]);
+    expect([TOTAL.first, TOTAL.last]).toEqual(["2026-10-13", "2026-10-18"]);
   });
 });

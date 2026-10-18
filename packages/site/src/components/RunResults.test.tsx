@@ -33,9 +33,9 @@ describe("the components of the CI runs", () => {
     const html = parts.map((part) => renderToString(part));
     const frames = html.slice(0, 12).map((each) => each.split('class="sy-frame').length - 1);
     expect(frames).toEqual([8, 4, 1, 21, 8, 10, 8, 18, 9, 6, 7, 10]);
-    // the border of undici at 100 ms fails by less than a millisecond, thus the table gives 4 decimals
-    expect(html[14]).toContain("5.9124 s");
-    expect(html[14]).toContain("5.9079 s");
+    // the border of undici at 100 ms closes 6.5 ms before the end of its band: the table gives 4 decimals from 1 s
+    expect(html[14]).toContain("5.9126 s");
+    expect(html[14]).toContain("5.9191 s");
     expect(html[22]).toContain("1 of 11 runs disagrees");
   });
 });

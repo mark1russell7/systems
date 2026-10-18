@@ -6,11 +6,11 @@
  * strip chart when its main value is a time.
  */
 import type { ReactElement } from "react";
-import http from "../data/http-2026-10-16.json";
+import http from "../data/http-2026-10-17.json";
 import kind from "../data/kind-2026-10-17.json";
-import mongodb from "../data/mongodb-2026-10-16.json";
+import mongodb from "../data/mongodb-2026-10-18.json";
 import r3 from "../data/r3-2026-10-17.json";
-import sentinel from "../data/sentinel-2026-10-16.json";
+import sentinel from "../data/sentinel-2026-10-17.json";
 import { count as digits, duration, reading } from "../lib/format.ts";
 import { axisOf, code, joined, predictionText, runsText } from "./CellFrame.tsx";
 import Frame, { type ReadoutItem } from "./Frame.tsx";

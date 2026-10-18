@@ -60,8 +60,8 @@ for (const folder of folders) {
   }
 }
 
-/** These are the Linux 6.6 values of the sysctls that a cell sets. The page shows only the sysctls that differ. */
-const LINUX_66: Readonly<Record<string, string>> = {
+/** These are the defaults of Linux 6.6 and 6.17 for the sysctls that a cell sets. The page shows only the sysctls that differ. */
+const LINUX: Readonly<Record<string, string>> = {
   "net.ipv4.tcp_syn_retries": "6",
   "net.ipv4.tcp_syn_linear_timeouts": "4",
   "net.ipv4.tcp_retries2": "15",
@@ -72,7 +72,7 @@ const LINUX_66: Readonly<Record<string, string>> = {
 };
 const changed = (sysctls: Readonly<Record<string, string>> | undefined) =>
   Object.entries(sysctls ?? {})
-    .filter(([name, value]) => LINUX_66[name] !== value)
+    .filter(([name, value]) => LINUX[name] !== value)
     .map(([name, value]) => ({ name, value }));
 
 /** This function rounds a time in seconds to 0.1 µs, so that no binary fraction reaches the copy. */
