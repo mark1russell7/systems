@@ -38,9 +38,11 @@ export const HIKARI_DRIVER = "HikariCP 7.1.0 over pgjdbc 42.7.13 on Temurin 21.0
 export interface HikariSpec {
   readonly plan: string;
   readonly name: string;
-  readonly fault: "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none" | "blackhole" | "app-stall" | "middlebox-forget" | "mtu-blackhole";
+  readonly fault: "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none" | "blackhole" | "simplex" | "app-stall" | "middlebox-forget" | "mtu-blackhole";
   readonly mode: "idle" | "inflight";
   readonly icmp?: "host" | "net" | "port" | "admin";
+  /** This direction is the one that a simplex fault drops: the segments to the server, or to the client. */
+  readonly drops?: "to-server" | "to-client";
   /** This time is the length of a stall, in seconds. */
   readonly stall?: number;
   /** These are the sysctls of Linux TCP at the client that differ from Linux 6.6. */
@@ -61,7 +63,7 @@ export interface HikariSpec {
   readonly mtu?: number;
   /** This time is the window of an idle flow through a router, in seconds. Without it, the window is two and a half idle timeouts. */
   readonly hold?: number;
-  /** This hop is a pooler between the client and the server, for a cell of T10. */
+  /** This hop is a pooler between the client and the server, for a cell of T10. In T03 it is after the router. */
   readonly pooler?: ProxyHop;
   /** This time is the most that the pooler adds to a reply, in seconds: one more round trip and one step of its loop. */
   readonly poolerLatency?: number;
@@ -377,8 +379,14 @@ const atForget = (spec: HikariSpec, driver: KnobValues, linux: KnobValues): Pred
 /** This function gives the prediction of a cell for the harness. */
 export const hikariPrediction = (spec: HikariSpec): Prediction => {
   // a stall is the stall of Linux TCP: the classic measurement of the socket of the client times it
-  if (spec.fault === "stall")
-    return predict({ name: spec.name, fault: "stall", manifestation: "blackhole", observer: "client", mode: "inflight", stall: spec.stall!, linux: spec.linux ?? {} });
+  if (spec.fault === "stall") {
+    const stalled = predict({ name: spec.name, fault: "stall", manifestation: "blackhole", observer: "client", mode: "inflight", stall: spec.stall!, linux: spec.linux ?? {} });
+    // through a pooler, the first segment back can be its reply to the retransmitted query, which comes
+    // one step of the pooler later: a socket in pingpong mode delays its ACK (tcp_in_quickack_mode, Linux)
+    if (spec.poolerLatency === undefined || stalled.detects !== false || stalled.recovers === undefined) return stalled;
+    const high = seconds(stalled.recovers.high, "the latest return") + spec.poolerLatency;
+    return { ...stalled, recovers: { ...stalled.recovers, high: s(high) } };
+  }
   const rtt = { low: { value: 0, unit: "ms" }, high: { value: PG_RTT_MS, unit: "ms" } } as const;
   const driver = given(hikariValues(RTT_MS, spec.options));
   const linux = given(linuxValues(spec.linux));
@@ -405,7 +413,8 @@ export const hikariPrediction = (spec: HikariSpec): Prediction => {
   // closes the socket: the kernel stamps the change from ESTABLISHED to FIN_WAIT1
   const keepalive = timerOf(HIKARICP_PGJDBC, "keepalive", driver).duration;
   const keepaliveOn = !("unknown" in keepalive) && keepalive.value !== "infinite";
-  if (spec.fault === "blackhole" && spec.mode === "idle" && keepaliveOn) {
+  // a simplex drop to the client takes the answer of the check, and the check meets a black hole too
+  if ((spec.fault === "blackhole" || (spec.fault === "simplex" && spec.drops === "to-client")) && spec.mode === "idle" && keepaliveOn) {
     const check = hikariFirstOn("probing", manifestationOf(spec), driver, linux);
     if (check.kind !== "timer" || check.layer !== "driver") throw new Error(`${spec.plan}: no timer of the pool ends the check of the keepalive`);
     return { detects: true, timer: check.timer, errno: "CLOSED", from: "first-sent", low: s(check.band.lo), high: s(check.band.hi), startsBy: s(latestCheck(driver, check.band)) };
@@ -439,15 +448,17 @@ const driverOptionsOf = (options: Readonly<Record<string, number>>): Record<stri
   Object.fromEntries(Object.entries(options).map(([name, value]) => [HIKARICP_PGJDBC.knobs[name]!.key.startsWith("pgjdbc ") ? `dataSource.${name}` : name, value]));
 
 /**
- * This function gives the topology of a cell with a pooler or a router: one hop, named for the tier
- * of the cell. The router sends the ICMP errors of an unreachable host at the router, at no rate limit.
+ * This function gives the topology of a cell with a pooler or a router, named for the tier of the
+ * cell. A cell with both has the chain of the two: the router, and then the pooler. The router sends
+ * the ICMP errors of an unreachable host at the router, at no rate limit.
  */
 const topologyOf = (spec: HikariSpec): Pick<Cell, "topology"> => {
-  if (spec.pooler !== undefined) return { topology: { name: spec.plan.split(".")[0]!, hops: [spec.pooler] } };
-  if (spec.router === undefined) return {};
+  const name = spec.plan.split(".")[0]!;
+  if (spec.router === undefined) return spec.pooler === undefined ? {} : { topology: { name, hops: [spec.pooler] } };
   const hop = routerHop(spec.router.form, spec.router.idle);
   const icmp = spec.fault === "unreachable" && spec.toward !== undefined;
-  return { topology: { name: spec.plan.split(".")[0]!, hops: [icmp ? { ...hop, sysctls: { "net.ipv4.icmp_ratelimit": "0" } } : hop] } };
+  const router = icmp ? { ...hop, sysctls: { "net.ipv4.icmp_ratelimit": "0" } } : hop;
+  return { topology: { name, hops: spec.pooler === undefined ? [router] : [router, spec.pooler] } };
 };
 
 /** This function gives the harness cell of a spec. */
@@ -461,6 +472,7 @@ export const hikariCell = (spec: HikariSpec): Cell => ({
   ...(spec.fault === "unreachable" && spec.toward === undefined ? { targetSysctls: { "net.ipv4.icmp_ratelimit": "0" } } : {}),
   ...(spec.stall === undefined ? {} : { stall: s(spec.stall) }),
   ...(spec.icmp === undefined ? {} : { icmp: spec.icmp }),
+  ...(spec.drops === undefined ? {} : { drops: spec.drops }),
   ...(spec.options === undefined ? {} : { driverOptions: driverOptionsOf(spec.options) }),
   ...(spec.before === true ? { before: true } : {}),
   ...topologyOf(spec),

@@ -95,6 +95,10 @@ A change to the version of a system changes its sources too. Each fact of the do
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
 
+### 0.3.12
+
+- **The send timeout of the client socket of Supavisor.** Supavisor 2.9.13 locks ranch 2.2.0. ranch gives each client socket a send timeout of 30 s that closes the socket (src/ranch_tcp.erl:108-109). Thus a write of a reply that waits 30 s ends the client. `supavisor-client` gives it as a source and a note, with no timer. A write waits only when the client takes no data, and on a broken path the FIN of the close waits behind the data.
+
 ### 0.3.11
 
 - **The connect timer of PgBouncer can fire early.** libevent 2.1 counts a timeout from its cached time of the pass, not from the clock (event.c, `event_add_nolock` with `gettime` and `tv_cache`). Thus server_connect_timeout can fire up to one pass early, and its band has an early slack of 10 ms. In run 39160356281 the timer closed the socket at 127.998993 s, 1.007 ms before 128 s.
