@@ -16,7 +16,7 @@ import {
 } from "./application.ts";
 import type { Cell, KernelRecord, ProbeEvent, Reference, Run } from "./cell.ts";
 import type { DriverStepTime } from "./driver.ts";
-import { measureDriver } from "./driver.ts";
+import { measureDriver, proxiedClose } from "./driver.ts";
 import type { GroupMeasured } from "./timeline.ts";
 import { measureGroup } from "./timeline.ts";
 import { INJECT, delayVoids, noiseOf, requestWords } from "./verdict.ts";
@@ -624,6 +624,9 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
                 each.ev === "state" &&
                 oldState(each) === 1,
             );
+    // behind a proxy, a pooler keeps its connection to the target across its clients: the run can
+    // reuse one that it did not open, and the close of the target closes each of them at once
+    if (record === undefined && from === "peer-closed" && peerCookie === undefined) return proxiedClose(run);
     return record?.mono;
   };
   // in a topology, the bytes after the request and the instant that a router forgot the flow

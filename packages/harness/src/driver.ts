@@ -157,8 +157,30 @@ export const referenceOf = (run: Run, from: Reference, role: string, data: boole
   }
   // the close of the peer: the socket of the target leaves ESTABLISHED
   const peer = socket === undefined ? undefined : peerPlace(run, socket.local);
-  return peer?.records.find((record) => record.ev === "state" && oldState(record) === 1)?.mono;
+  const closed = peer?.records.find((record) => record.ev === "state" && oldState(record) === 1)?.mono;
+  if (closed !== undefined || run.topology === undefined) return closed;
+  return proxiedClose(run);
 };
+
+/**
+ * This function gives the close of the target behind a proxy. It is the first socket of the target
+ * toward the last hop that leaves ESTABLISHED after the outset. A proxy opens its own connection to the
+ * target, with a port of its own, and a pooler keeps it across its clients. Thus no socket of the
+ * target has the port of the client, and the one of the run can be older than the run. The death of
+ * the process of the target closes each of them at once.
+ */
+export const proxiedClose = (run: Run): number | undefined => {
+  if (run.topology === undefined) return undefined;
+  const hop = run.topology.targetPeer;
+  const outset = outsetOf(run);
+  return run.kernel.find(
+    (record) =>
+      record.netns === run.targetNetns && record.ev === "state" && oldState(record) === 1 && record.mono >= outset && record.dst !== undefined && ipOf(record.dst) === hop,
+  )?.mono;
+};
+
+/** This function gives the address of an address with its port. */
+const ipOf = (address: string): string => address.slice(0, address.lastIndexOf(":"));
 
 /** This function gives the first line of the client that matches, after an instant. */
 const lineAfter = (events: readonly ProbeEvent[], match: LineMatch, after: number): ProbeEvent | undefined =>
