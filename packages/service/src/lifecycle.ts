@@ -258,7 +258,11 @@ export const lifecycle = (
   let healthListening = false;
   const connected: Array<[string, DependencyHandle]> = [];
   const startedTransports: Array<[string, TransportImpl]> = [];
-  let startup: Promise<void> = Promise.resolve();
+  // the startup exists before any part starts: a transport that asks for the shutdown in its start waits for it
+  let startupEnded: () => void = () => {};
+  const startup = new Promise<void>((resolve) => {
+    startupEnded = resolve;
+  });
   let offs: Array<() => void> = [];
 
   /** This function ends the process with a code, one time, and removes each handler of a trigger. */
@@ -442,9 +446,7 @@ export const lifecycle = (
     get errors() {
       return [...errors];
     },
-    get started() {
-      return startup;
-    },
+    started: startup,
     done,
     signal: service.signal,
     shutdown,
@@ -458,7 +460,7 @@ export const lifecycle = (
     port.on(trigger, () => triggered(trigger)),
   );
 
-  startup = (async (): Promise<void> => {
+  void (async (): Promise<void> => {
     runtime.beginStartup();
     const started = (what: string): void => record("gate", "starting", "starting", "component.started", what);
     try {
@@ -489,6 +491,8 @@ export const lifecycle = (
       fail(cause);
       if (exitState === "running") moveExit("stopping", "startup.fail", cause);
       else if (exitState === "stopping") record("exit", exitState, exitState, "startup.fail", cause);
+    } finally {
+      startupEnded();
     }
   })();
   // a failed startup shuts down what started. An exit request during the startup waits for it

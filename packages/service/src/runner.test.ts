@@ -140,6 +140,32 @@ describe("request tracking from the start of each transport (SYS-15)", () => {
   });
 });
 
+describe("a transport that asks for the shutdown in its start (SYS-15)", () => {
+  it("gets its shutdown after the startup ends, also when it starts in the same turn as run()", async () => {
+    const svc: ServiceBuilder = service("stream").profile(ephemeral);
+    let startedSeen: Promise<void> | null = null;
+    svc.server("stdio", {}, {
+      start: (_signal, life) => {
+        // the input of a stdio transport can end at once: the transport asks for the shutdown
+        startedSeen = life.started;
+        void life.shutdown("the input ended");
+      },
+      stopIntake() {},
+      drain() {},
+      inFlight: () => 0,
+      close() {},
+    });
+    svc.controller("tools").route("tools/call", { idempotent: false });
+    const { life, events, exit } = await runOn(svc);
+    expect(startedSeen).toBe(life.started);
+    expect(await exit()).toBe(0);
+    const opened = events.findIndex((event) => event.machine === "gate" && event.to === "open");
+    const drained = events.findIndex((event) => event.machine === "drain");
+    expect(opened).toBeGreaterThanOrEqual(0);
+    expect(drained).toBeGreaterThan(opened);
+  });
+});
+
 describe("the policy of a repeat signal (SYS-9)", () => {
   it("with exit, exits 1 at once on a second SIGINT, and records exit.repeat", async () => {
     const r = rig();
