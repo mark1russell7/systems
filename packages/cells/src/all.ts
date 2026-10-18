@@ -6,6 +6,7 @@ import { HTTP_CAL_CELLS, HTTP_HARNESS_CELLS } from "./http/cells.ts";
 import { MONGO_CELLS } from "./mongo/harness.ts";
 import { T01_HIKARI } from "./pg/hikari.ts";
 import { T01_PG } from "./pg/t01.ts";
+import { T03_HIKARI } from "./pg/t03.ts";
 import { T02_CELLS } from "./t02.ts";
 import { T03_CELLS } from "./t03.ts";
 import { T12_CAL, T12_CELLS } from "./t12.ts";
@@ -28,7 +29,7 @@ export interface Subjects {
  * calibration of the stamps of its Sentinels come next. The HTTP cells of T01 and T03 come next,
  * with the calibration of the handling time of the Node clients. The WS cells follow, then the
  * WST cells: the same client through a router or a proxy. The MongoDB cells of T01, T03 and T11
- * come next, and the PostgreSQL cells of T01 come last.
+ * come next, and the PostgreSQL cells of T01 and T03 come last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: SUBJECTS.procedures, ...given };
@@ -47,6 +48,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...MONGO_CELLS,
     ...T01_PG,
     ...T01_HIKARI,
+    ...T03_HIKARI,
   ];
 };
 

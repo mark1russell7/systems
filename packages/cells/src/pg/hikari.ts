@@ -38,7 +38,7 @@ export const HIKARI_DRIVER = "HikariCP 7.1.0 over pgjdbc 42.7.13 on Temurin 21.0
 export interface HikariSpec {
   readonly plan: string;
   readonly name: string;
-  readonly fault: "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none" | "blackhole" | "app-stall" | "middlebox-forget";
+  readonly fault: "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none" | "blackhole" | "app-stall" | "middlebox-forget" | "mtu-blackhole";
   readonly mode: "idle" | "inflight";
   readonly icmp?: "host" | "net" | "port" | "admin";
   /** This time is the length of a stall, in seconds. */
@@ -55,6 +55,12 @@ export interface HikariSpec {
   readonly server?: Readonly<Record<string, number>>;
   /** This router is between the client and the server: its form and its idle timeout, in whole seconds. */
   readonly router?: HikariRouter;
+  /** This side is the side of the router that the rules face, for a fault at the router. */
+  readonly toward?: "client" | "target";
+  /** This size is the largest packet that an MTU black hole lets through, in bytes. */
+  readonly mtu?: number;
+  /** This time is the window of an idle flow through a router, in seconds. Without it, the window is two and a half idle timeouts. */
+  readonly hold?: number;
 }
 
 /** A router of a cell is the form of the router of the harness and its idle timeout, in whole seconds. */
@@ -322,8 +328,8 @@ const atForget = (spec: HikariSpec, driver: KnobValues, linux: KnobValues): Pred
   if (router === undefined) throw new Error(`${spec.plan}: a forgotten flow needs a router`);
   const conntrack = routerValues(router.idle);
   const verdict = o03({ doc: HIKARICP_PGJDBC, values: driver }, conntrack, PG_RTT_MS / 1000);
-  // the window holds two and a half idle timeouts of the router
-  if (verdict.holds) return { detects: false, window: s(2.5 * router.idle), driver: { socket: "pool", quiet: [...QUIET] } };
+  // the window holds two and a half idle timeouts of the router, or the hold of the cell
+  if (verdict.holds) return { detects: false, window: s(spec.hold ?? 2.5 * router.idle), driver: { socket: "pool", quiet: [...QUIET] } };
   if (router.form !== "silent-drop") throw new Error(`${spec.plan}: this catalog measures a forgotten flow only at a silent drop, not at ${router.form}`);
   // the delayed ACK of the reply is the last segment of the flow: the idle time counts from it.
   // The keepalive counts from the creation of the connection, which comes before that reply
@@ -347,7 +353,15 @@ export const hikariPrediction = (spec: HikariSpec): Prediction => {
   const linux = given(linuxValues(spec.linux));
   if (spec.before === true) return atStart(spec, driver);
   if (spec.fault === "app-stall") return atHold(spec, driver, linux);
-  if (spec.fault === "middlebox-forget") return atForget(spec, driver, linux);
+  // an idle flow through a router, with no fault: O03 decides whether the router forgets it
+  if (spec.fault === "middlebox-forget" || (spec.fault === "none" && spec.router !== undefined && spec.mode === "idle")) return atForget(spec, driver, linux);
+  // an MTU black hole at the router takes each long segment of the reply, and the short ones pass:
+  // for the query, the server holds its reply, as a frozen process does. Nothing ends the query
+  if (spec.fault === "mtu-blackhole") {
+    const held = hikariFirstOn("querying", MANIFESTATIONS["freeze-process"], driver, linux);
+    if (held.kind !== "silent") throw new Error(`${spec.plan}: a detector ends a read that the MTU stops`);
+    return { detects: false, window: s(60), driver: { socket: "pool", quiet: [...QUIET] } };
+  }
   // a reset answers the query at once: the kernel reports it on the socket of the connection
   if (spec.fault === "rst") {
     const errno = transitionOn(LINUX_TCP, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET";
@@ -393,6 +407,17 @@ export const hikariNameOf = (spec: HikariSpec): string => `${spec.plan} hikaricp
 const driverOptionsOf = (options: Readonly<Record<string, number>>): Record<string, number> =>
   Object.fromEntries(Object.entries(options).map(([name, value]) => [HIKARICP_PGJDBC.knobs[name]!.key.startsWith("pgjdbc ") ? `dataSource.${name}` : name, value]));
 
+/**
+ * This function gives the topology of a cell with a router: one hop, named for the tier of the
+ * cell. The router sends the ICMP errors of an unreachable host at the router, at no rate limit.
+ */
+const topologyOf = (spec: HikariSpec): Pick<Cell, "topology"> => {
+  if (spec.router === undefined) return {};
+  const hop = routerHop(spec.router.form, spec.router.idle);
+  const icmp = spec.fault === "unreachable" && spec.toward !== undefined;
+  return { topology: { name: spec.plan.split(".")[0]!, hops: [icmp ? { ...hop, sysctls: { "net.ipv4.icmp_ratelimit": "0" } } : hop] } };
+};
+
 /** This function gives the harness cell of a spec. */
 export const hikariCell = (spec: HikariSpec): Cell => ({
   name: hikariNameOf(spec),
@@ -401,12 +426,14 @@ export const hikariCell = (spec: HikariSpec): Cell => ({
   probe: { mode: spec.mode, keepalive: false, driver: { name: "hikari", ...(spec.inflight === undefined ? {} : { inflight: spec.inflight }) } },
   fault: spec.fault,
   prediction: hikariPrediction(spec),
-  ...(spec.fault === "unreachable" ? { targetSysctls: { "net.ipv4.icmp_ratelimit": "0" } } : {}),
+  ...(spec.fault === "unreachable" && spec.toward === undefined ? { targetSysctls: { "net.ipv4.icmp_ratelimit": "0" } } : {}),
   ...(spec.stall === undefined ? {} : { stall: s(spec.stall) }),
   ...(spec.icmp === undefined ? {} : { icmp: spec.icmp }),
   ...(spec.options === undefined ? {} : { driverOptions: driverOptionsOf(spec.options) }),
   ...(spec.before === true ? { before: true } : {}),
-  ...(spec.router === undefined ? {} : { topology: { name: "T01", hops: [routerHop(spec.router.form, spec.router.idle)] } }),
+  ...topologyOf(spec),
+  ...(spec.router !== undefined && spec.toward !== undefined ? { faultAt: { hop: "nat", toward: spec.toward } } : {}),
+  ...(spec.mtu === undefined ? {} : { mtu: spec.mtu }),
   runs: RUNS,
   // a killed server cannot serve the next run: each run of a fin has its own environment
   environments: spec.fault === "fin" ? RUNS : 2,
