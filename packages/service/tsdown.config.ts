@@ -7,8 +7,9 @@ import { defineConfig } from "tsdown";
  */
 export default defineConfig({
   // the runtime, the seams for tests (a fake clock and a quiet server, which uses node:net), the
-  // Redis client, which loads ioredis only when it connects, and the timers without node: or zod
-  entry: ["src/index.ts", "src/testing.ts", "src/redis.ts", "src/clock.ts", "src/heartbeat.ts", "src/backoff.ts"],
+  // Redis client, which loads ioredis only when it connects, the timers without node: or zod, and
+  // the edge of a service in Node (node:http and node:net only)
+  entry: ["src/index.ts", "src/testing.ts", "src/redis.ts", "src/clock.ts", "src/heartbeat.ts", "src/backoff.ts", "src/http.ts"],
   outDir: "build",
   format: "esm",
   platform: "neutral",

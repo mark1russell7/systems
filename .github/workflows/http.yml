@@ -1,0 +1,64 @@
+# Runs the opt-in tests of the ./http entry of @mark1russell7/service on real sockets of the
+# loopback, on GitHub's runners. ci.yml runs the same parts on fake servers and the fake clock only.
+#
+#   http   HTTP_IT=1: the conformance kit of a transport on real sockets (the fake clock and the real
+#          clock), keep-alive, the stop of the intake, the upgrades, the probe server, and a service
+#          under run() after SIGTERM. Each job of the matrix is one version of Node. Each one uploads
+#          its raw records (HTTP_RECORDS) as an artifact.
+#
+# These tests measure time, thus they run only here, on a runner with no other load.
+# A pull request that changes the service package or this file runs them.
+# Start it with: gh workflow run http.yml -R mark1russell7/systems
+name: HTTP
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/http.yml"
+      - "packages/service/**"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/http.yml"
+      - "packages/service/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: http-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  http:
+    name: http (Node ${{ matrix.node }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        # the floor of "engines", the current LTS, and the version of ci.yml
+        node: ["22.19", "24", "26"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The pnpm version comes from "packageManager" in package.json
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: The ./http entry on real sockets
+        env:
+          HTTP_IT: "1"
+          HTTP_RECORDS: ${{ runner.temp }}/http-records
+        run: pnpm --filter @mark1russell7/service exec vitest run src/http/http-it.test.ts --reporter=default --reporter=junit --outputFile.junit="$RUNNER_TEMP/http-records/junit.xml"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: http-records-node-${{ matrix.node }}
+          path: ${{ runner.temp }}/http-records
+          if-no-files-found: warn

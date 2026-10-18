@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import * as backoffEntry from "./backoff.ts";
 import * as clockEntry from "./clock.ts";
 import * as heartbeatEntry from "./heartbeat.ts";
+import * as httpEntry from "./http.ts";
 import * as root from "./index.ts";
 import * as redisEntry from "./redis.ts";
 
@@ -110,5 +111,40 @@ describe("the timer entries: a client in a browser can import them", () => {
   it("keep the exports of 0.3 that moved: heartbeatDetection in the Redis entry, and replay in the root", () => {
     expect(redisEntry.heartbeatDetection).toBe(root.heartbeatDetection);
     expect(typeof root.replay).toBe("function");
+  });
+});
+
+describe("the http entry: Node only, on node:http and node:net", () => {
+  it("loads no node: module other than node:http and node:net, and no package other than quantity", () => {
+    const { packages } = reach("http.ts");
+    expect(packages.filter((name) => name.startsWith("node:")).every((name) => name === "node:http" || name === "node:net")).toBe(true);
+    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/quantity"]);
+  });
+
+  it("does not load the fakes of its tests", () => {
+    expect(reach("http.ts").files.filter((file) => file.includes("fake"))).toEqual([]);
+  });
+
+  it("gives its functions, and the root does not give them", () => {
+    expect(Object.keys(httpEntry).sort()).toEqual([
+      "endRecord",
+      "handle",
+      "httpTransport",
+      "ndjson",
+      "outcomeResponse",
+      "pathOf",
+      "probeHandler",
+      "probeResponse",
+      "probeServer",
+      "sse",
+      "writeOutcome",
+    ]);
+    for (const name of Object.keys(httpEntry)) expect(root, name).not.toHaveProperty(name);
+  });
+});
+
+describe("the root entry: free of node: modules", () => {
+  it("loads no node: module", () => {
+    expect(reach("index.ts").packages.filter((name) => name.startsWith("node:"))).toEqual([]);
   });
 });

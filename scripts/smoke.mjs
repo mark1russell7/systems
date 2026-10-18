@@ -258,6 +258,31 @@ try {
       check(dead && heartbeatEntry.detectionTime(1000, 400, 2) === 2400, "service/heartbeat finds a silent peer in 2.4 s");
       const clockEntry = await load("@mark1russell7/service/clock");
       check(typeof clockEntry.platformClock({ unref: true }).now() === "number", "service/clock gives the clock of the platform");
+      // the edge of a service in Node, with no socket: the server does not listen
+      const httpEntry = await load("@mark1russell7/service/http");
+      const refusal = httpEntry.outcomeResponse(
+        [],
+        { kind: "refused", status: 503, retryable: true, cause: "the service stopped its intake", delivered: 0 },
+        { keepAlive: false, retryAfter: s(1) },
+      );
+      check(
+        refusal.status === 503 && refusal.headers["retry-after"] === "1" && refusal.headers.connection === "close",
+        "service/http gives a refusal 503 with Retry-After and Connection: close",
+      );
+      check(
+        typeof httpEntry.handle("api", "GET /work", () => "x") === "function" && httpEntry.ndjson.end({ kind: "done", delivered: 2 }) === '{"end":"done","delivered":2}\n',
+        "service/http gives handle() and the NDJSON format of a stream",
+      );
+      const { createServer } = await import("node:http");
+      const edge = httpEntry.httpTransport(createServer(), { server_idle_close: s(65), server_idle_sweep_interval: s(1), server_retry_after: s(1) });
+      const buffer = edge.server.keepAliveTimeoutBuffer ?? 0;
+      check(
+        edge.server.keepAliveTimeout + buffer === 65000 && edge.knobs.server_idle_close_buffer.value === buffer && edge.inFlight() === 0,
+        "service/http makes a server of node:http a transport, whose real idle close is server_idle_close",
+      );
+      const conformance = testing.transportConformance(() => ({ impl: edge, offer: async () => true, hold: async () => ({ release: async () => {}, aborted: false }) }));
+      check(conformance.length === 12, "service/testing generates the 12 cases of the conformance of a transport");
+      await edge.close();
     }
     if (name === "@mark1russell7/prober")
       check(module.RECORD_KINDS.length === 15 && module.RECORD_KINDS.at(-1) === "tx", "prober has 15 record kinds, the write last");
