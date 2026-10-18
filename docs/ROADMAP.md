@@ -357,6 +357,17 @@ The image of the kind lab replaces its own transport, probe server and outcome m
 
 A change of the version on main makes `release.yml` publish it. It is a MINOR, because SYS-6 changes `RequestFn` and the outcome type before 1.0. The client, jarvis and Graph then use it from npm.
 
+### REL-4 · Service 0.5.1 with the worker loop, the queue drain and the IPC trigger
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** SYS-14, SYS-21
+- **Started:** 2026-10-18
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+This release publishes `workerLoop`, `queueDrain`, `redeliverOnce`, the trigger `ipc-message` and the hold of the process (#66). It is a PATCH, because each change adds an export or an option before 1.0, and nothing is removed. Graph (GRAPH-6) and jarvis (JAR-4) then use the helpers from npm.
+
 ### SYS-17 · The harness takes its test subjects as data
 
 - **Status:** later
