@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { ServerResponse } from "node:http";
 import { outcomeResponse, writeOutcome } from "../http.ts";
 import type { OutcomeOptions } from "../http.ts";
+import type { Controller } from "../description.ts";
+import { fakeClock } from "../fakes.ts";
 import type { RequestOutcome } from "../requests.ts";
+import { tracker } from "../requests.ts";
 import { FakeResponse, FakeSocket } from "./fake-server.ts";
 
 /** SYS-3 (its first part): a request outcome as a status, a Retry-After and a Connection: close. */
@@ -38,9 +41,9 @@ describe("outcomeResponse: each outcome as a response", () => {
     expect(JSON.parse(refused.body as string)).toEqual({ outcome: "refused", retryable: true, cause: "the service stopped its intake" });
   });
 
-  it("gives a cut its own status with no Retry-After: 503 when the route can go again, and 500 when it cannot", () => {
+  it("gives a cut its own status: 503 with Retry-After when the route can go again, and 500 with none when it cannot", () => {
     const again = outcomeResponse({ kind: "cut", status: 503, retryable: true, cause: "the drain reached its deadline" }, OPTIONS);
-    expect([again.status, again.headers["retry-after"]]).toEqual([503, undefined]);
+    expect([again.status, again.headers["retry-after"]]).toEqual([503, "2"]);
     const once = outcomeResponse({ kind: "cut", status: 500, retryable: false, cause: "the drain reached its deadline" }, OPTIONS);
     expect([once.status, once.headers["retry-after"]]).toEqual([500, undefined]);
   });
@@ -90,5 +93,60 @@ describe("writeOutcome: the response of node:http", () => {
     res.writeHead(200);
     writeOutcome(res as unknown as ServerResponse, { kind: "failed", error: new Error("late") }, OPTIONS);
     expect(socket.destroyed).toBe(true);
+  });
+});
+
+describe("Retry-After on each 503 and on no 500, from the outcomes of the request tracker (RFC 9110, S6 A12)", () => {
+  const controllers: Controller[] = [
+    { name: "api", requires: [], routes: { "GET /work": { idempotent: true }, "POST /once": { idempotent: false } } },
+  ];
+  const hang = (): Promise<never> => new Promise<never>(() => {});
+
+  /** This function gives the real outcome of each path, from a tracker on the fake clock. */
+  const paths = async (): Promise<Array<[string, RequestOutcome<unknown>]>> => {
+    const clock = fakeClock();
+    const starting = tracker(controllers, clock, () => "the service has not started");
+    const startup = await starting.request("api", "GET /work", () => "x");
+    const running = tracker(controllers, clock, () => null);
+    const again = running.request("api", "GET /work", hang);
+    const once = running.request("api", "POST /once", hang);
+    running.stopIntake();
+    const stopped = await running.request("api", "GET /work", () => "x");
+    const drained = running.drain(clock.now() + 1000);
+    await clock.advance(1000);
+    await drained;
+    const failing = tracker(controllers, clock, () => null);
+    const failed = await failing.request("api", "POST /once", () => {
+      throw new Error("the route failed");
+    });
+    return [
+      ["the refusal at the startup", startup],
+      ["the refusal after the intake stopped", stopped],
+      ["the retryable cut of an idempotent route", await again],
+      ["the cut of a route that is not idempotent", await once],
+      ["a failure of the route", failed],
+    ];
+  };
+
+  it("gives each path the status and the Retry-After of its rule", async () => {
+    const answers = (await paths()).map(([path, outcome]) => {
+      const response = outcomeResponse(outcome, OPTIONS);
+      return [path, response.status, response.headers["retry-after"]];
+    });
+    expect(answers).toEqual([
+      ["the refusal at the startup", 503, "2"],
+      ["the refusal after the intake stopped", 503, "2"],
+      ["the retryable cut of an idempotent route", 503, "2"],
+      ["the cut of a route that is not idempotent", 500, undefined],
+      ["a failure of the route", 500, undefined],
+    ]);
+  });
+
+  it("writes the same header to the response of node:http on each path", async () => {
+    for (const [path, outcome] of await paths()) {
+      const res = new FakeResponse(new FakeSocket());
+      writeOutcome(res as unknown as ServerResponse, outcome, OPTIONS);
+      expect(res.getHeader("retry-after"), path).toBe(res.statusCode === 503 ? "2" : undefined);
+    }
   });
 });

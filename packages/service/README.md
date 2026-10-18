@@ -228,7 +228,7 @@ const delay = backoffDelay({ base: 1000, factor: 1.5, cap: 30_000, jitter: { kin
 | `outcomeResponse`, `probeResponse`, `pathOf` | The same answers as data, for any HTTP framework or none |
 
 - **The transport.** `httpTransport(server, knobs, options)` makes a server of `node:http` a transport of the lifecycle. Give `transport.knobs` to `svc.server(name, knobs, impl)`. Thus the declaration and the law read the same knobs.
-- **The knobs.** The transport has no defaults. `server_idle_sweep_interval` is the interval of the sweep of idle connections. `server_retry_after` goes in the `Retry-After` of each refusal of the transport.
+- **The knobs.** The transport has no defaults. `server_idle_sweep_interval` is the interval of the sweep of idle connections. `server_retry_after` goes in the `Retry-After` of each 503 of the transport.
 - **The idle close.** `server_idle_close` is the real idle close of the server, which O01 compares with the idle time of a client. Node closes an idle connection at `keepAliveTimeout` plus `keepAliveTimeoutBuffer`. Thus the transport sets `keepAliveTimeout` to `server_idle_close` less the buffer of the server.
 - **The hint.** The buffer stays, thus the hint of each response (`Keep-Alive: timeout=…`) is less than the real close. A Node without a buffer gives 0. The transport refuses a `server_idle_close` at or below the buffer. A time without a bound stops the timer.
 - **The three times.** `transport.knobs` adds `server_idle_close_hint` and `server_idle_close_buffer` to the knobs of the caller. Thus the declaration shows the hint, the buffer and the real close.
@@ -246,7 +246,7 @@ const delay = backoffDelay({ base: 1000, factor: 1.5, cap: 30_000, jitter: { kin
 - **The probes on the port of the application.** `probeHandler(health, { prefix })` answers the same probes. Its mount answers until `close transports`, thus it answers through the drain. After the close of the transports, only a probe server answers.
 - **The probe paths.** The paths are `/startup`, `/readiness`, `/readiness/<controller>`, `/liveness` and `/report`, after the prefix. Each answer comes from the cache, as `application/health+json` with 200 or 503.
 - **The outcome of a request.** `writeOutcome(res, outcome, { keepAlive, retryAfter })` writes a `RequestOutcome`. A value gets 200. A failure of the route gets 500 with no detail, and not 503.
-- **Only a refusal gets `Retry-After`.** A refusal gets 503 with `Retry-After`: the service did not start, it stopped its intake, or a controller is not ready. A cut gets its own status with no `Retry-After`: 503 for an idempotent route, and 500 for each other route.
+- **Each 503 gets `Retry-After`.** A refusal gets 503: the service did not start, it stopped its intake, or a controller is not ready. A cut gets its own status: 503 for an idempotent route (A12), and 500 for each other route. Each 503 gets `Retry-After` (RFC 9110), and a 500 gets none.
 
 ```ts
 import { createServer } from "node:http";

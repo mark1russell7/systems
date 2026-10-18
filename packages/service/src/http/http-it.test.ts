@@ -538,8 +538,8 @@ describe.skipIf(!RUN)("a service under run() on real sockets and the real clock"
     const began = now();
     const answer = await held;
     measure("run", "cut of a held request after the start of the drain", CAPS.drain, now() - began);
-    // a cut started its work, thus only a refusal gets Retry-After
-    expect([answer.status, answer.headers["retry-after"]]).toEqual([503, undefined]);
+    // each 503 gets Retry-After: the cut of an idempotent route can go again
+    expect([answer.status, answer.headers["retry-after"]]).toEqual([503, "1"]);
     expect(now() - began).toBeLessThanOrEqual(CAPS.drain + SLACK);
     expect(await r.life.done).toBe(0);
   });

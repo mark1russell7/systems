@@ -42,14 +42,15 @@ const rigged = () => {
     .phase("stop the poller", s(1))
     .phase("close the health server", s(1))
     .cooperativeWindow(s(1));
-  svc.controller("api").route("GET /work", { idempotent: true });
+  svc.controller("api").route("GET /work", { idempotent: true }).route("POST /once", { idempotent: false });
   // a window between the close of the transports and the close of the health server
   svc.onPhase("stop the poller", ({ clock: phaseClock }) => new Promise((resolve) => phaseClock.after(500, resolve)));
   const releases: Array<() => void> = [];
   http.mount(probeHandler(() => svc.health, { prefix: "/health" }));
   http.mount(async (req, res) => {
-    if (pathOf(req.url) !== "/work") return false;
-    const outcome = await life!.request("api", "GET /work", (signal) =>
+    const path = pathOf(req.url);
+    if (path !== "/work" && path !== "/once") return false;
+    const outcome = await life!.request("api", path === "/work" ? "GET /work" : "POST /once", (signal) =>
       req.url?.includes("hold") === true
         ? new Promise<string>((resolve, reject) => {
             releases.push(() => resolve("held"));
@@ -152,9 +153,24 @@ describe("the ./http entry under run()", () => {
     await r.step(1000);
     await r.step(3000);
     const answer = await held;
-    // a cut started its work, thus only a refusal gets Retry-After
-    expect([answer.status, answer.headers.get("retry-after")]).toEqual([503, undefined]);
+    // each 503 gets Retry-After: the cut of an idempotent route can go again
+    expect([answer.status, answer.headers.get("retry-after")]).toEqual([503, "1"]);
     expect(JSON.parse(answer.body)).toMatchObject({ outcome: "cut", retryable: true });
+    await r.step(2000);
+    expect(await life.done, life.errors.join("; ")).toBe(0);
+  });
+
+  it("answers the cut of a route that is not idempotent with 500 and no Retry-After", async () => {
+    const r = rigged();
+    const life = await r.start();
+    const held = r.app.request("/once?hold", "POST");
+    await r.step(0);
+    r.process.signal("SIGTERM");
+    await r.step(1000);
+    await r.step(3000);
+    const answer = await held;
+    expect([answer.status, answer.headers.get("retry-after")]).toEqual([500, undefined]);
+    expect(JSON.parse(answer.body)).toMatchObject({ outcome: "cut", retryable: false });
     await r.step(2000);
     expect(await life.done, life.errors.join("; ")).toBe(0);
   });
