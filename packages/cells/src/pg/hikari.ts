@@ -20,6 +20,11 @@ import { PG_RTT_MS, PG_TARGET } from "./t01.ts";
  * composes them. At the defaults, pgjdbc sets no keepalive and no read timeout, thus only the
  * kernel ends a query in flight. HikariCP reads no idle socket: it finds a dead idle connection
  * only at its keepalive, at a phase from the creation of the connection.
+ *
+ * A borrow checks a connection that was idle for more than 500 ms (aliveBypassWindowMs). The
+ * harness sends the second query 0.3 s after the reply to the first one: 307 to 406 ms in the run
+ * 39105479743. Thus the borrow does not check the connection, and the second query is the segment
+ * in flight.
  */
 
 /** This text is the version of the client that each cell loads, as the image pins it. */
@@ -29,14 +34,19 @@ export const HIKARI_DRIVER = "HikariCP 7.1.0 over pgjdbc 42.7.13 on Temurin 21.0
 export interface HikariSpec {
   readonly plan: string;
   readonly name: string;
-  readonly fault: "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none";
+  readonly fault: "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none" | "blackhole";
   readonly mode: "idle" | "inflight";
   readonly icmp?: "host" | "net" | "port" | "admin";
   /** This time is the length of a stall, in seconds. */
   readonly stall?: number;
   /** These are the sysctls of Linux TCP at the client that differ from Linux 6.6. */
   readonly linux?: Readonly<Record<string, Extent>>;
+  /** These are the knobs of the document that differ from the defaults, by its names and in its units. */
+  readonly options?: Readonly<Record<string, number>>;
 }
+
+/** This value is the slowest poll of a check that R3 binds for the borders of O13: 10 s. */
+export const HIKARI_SLOWEST_POLL = 10;
 
 /** These are the cells of T01 over hikaricp-pgjdbc and postgresql that this catalog starts, at the defaults. */
 export const T01_HIKARI_SPECS: readonly HikariSpec[] = [
@@ -53,6 +63,17 @@ export const T01_HIKARI_SPECS: readonly HikariSpec[] = [
   { plan: "T01.defaults.55", name: "freeze-process, a query in flight", fault: "freeze-process", mode: "inflight" },
   { plan: "T01.defaults.56", name: "a 1 s stall, a query in flight", fault: "stall", mode: "inflight", stall: 1 },
   { plan: "T01.defaults.57", name: "event:idle, no fault: the pool keeps its idle connection", fault: "none", mode: "idle" },
+  // ---- O13: the read timeout of pgjdbc against the slowest poll of a check
+  ...([
+    ["T01.border-off.187", 9, "inside"],
+    ["T01.border-off.188", 11, "outside"],
+  ] as const).map(([plan, at, side]): HikariSpec => ({
+    plan,
+    name: `blackhole, a query in flight, socketTimeout ${at} s: ${side} O13 against a poll of ${HIKARI_SLOWEST_POLL} s`,
+    fault: "blackhole",
+    mode: "inflight",
+    options: { socketTimeout: at },
+  })),
 ];
 
 /** This reason is the reason of the cells that need a router between the client and the server. */
@@ -70,8 +91,6 @@ export const T01_HIKARI_WAITING: readonly Waiting[] = [
   { plan: "T01.border-off.152", trigger: "border", why: ROUTER },
   { plan: "T01.border-off.173", trigger: "border", why: "the client of the harness sends one text for each query: the cell needs a slow query only after the client is ready" },
   { plan: "T01.border-off.174", trigger: "border", why: "the client of the harness sends one text for each query: the cell needs a slow query only after the client is ready" },
-  { plan: "T01.border-off.187", trigger: "border", why: "the next step of this catalog: socketTimeout on each side of the slowest poll of 10 s" },
-  { plan: "T01.border-off.188", trigger: "border", why: "the next step of this catalog: socketTimeout on each side of the slowest poll of 10 s" },
   { plan: "T01.border-off.197", trigger: "border", why: "the next step of this catalog: the start of the pool against the startup budget of 30 s" },
   { plan: "T01.border-off.198", trigger: "border", why: "the next step of this catalog: the start of the pool against the startup budget of 30 s" },
   { plan: "T01.border-off.237", trigger: "border", why: "the cell needs a virtual IP that kube-vip moves, which the PG catalog does not have" },
@@ -82,12 +101,17 @@ export const T01_HIKARI_WAITING: readonly Waiting[] = [
  * This function gives the values of the knobs of HikariCP and pgjdbc: their defaults, at a round
  * trip in ms. A knob at the value that turns its timer off has no bound (`infinite`).
  */
-export const hikariValues = (rttMs = RTT_MS): Record<string, Extent> => {
+export const hikariValues = (rttMs = RTT_MS, options: Readonly<Record<string, number>> = {}): Record<string, Extent> => {
   const out: Record<string, Extent> = {};
   for (const [name, knob] of Object.entries(HIKARICP_PGJDBC.knobs)) {
-    if (knob.unit === null || knob.default === null) continue;
-    out[name] = { value: knob.off !== undefined && knob.default === knob.off ? "infinite" : knob.default, unit: knob.unit };
+    if (knob.unit === null) continue;
+    // an option of the cell replaces the default, in the unit of the knob
+    const value = options[name] ?? knob.default;
+    if (value === null) continue;
+    out[name] = { value: knob.off !== undefined && value === knob.off ? "infinite" : value, unit: knob.unit };
   }
+  const unknown = Object.keys(options).filter((name) => HIKARICP_PGJDBC.knobs[name]?.unit == null);
+  if (unknown.length > 0) throw new Error(`hikaricp-pgjdbc has no knob with a unit for ${unknown.join(", ")}`);
   out["hz"] = { value: HZ, unit: "Hz" };
   out["rtt"] = { value: rttMs, unit: "ms" };
   return out;
@@ -157,7 +181,7 @@ export const hikariPrediction = (spec: HikariSpec): Prediction => {
   if (spec.fault === "stall")
     return predict({ name: spec.name, fault: "stall", manifestation: "blackhole", observer: "client", mode: "inflight", stall: spec.stall!, linux: spec.linux ?? {} });
   const rtt = { low: { value: 0, unit: "ms" }, high: { value: PG_RTT_MS, unit: "ms" } } as const;
-  const driver = given(hikariValues());
+  const driver = given(hikariValues(RTT_MS, spec.options));
   const linux = given(linuxValues(spec.linux));
   // a reset answers the query at once: the kernel reports it on the socket of the connection
   if (spec.fault === "rst") {
@@ -169,7 +193,13 @@ export const hikariPrediction = (spec: HikariSpec): Prediction => {
   if (first.kind === "delivered")
     return { detects: true, timer: `the server ends the connection: ${first.event}`, errno: first.name, from: "peer-closed", low: s(0), high: s(PG_RTT_MS / 1000), rtt, driver: { socket: "pool" } };
   if (first.kind === "silent") return { detects: false, window: s(60), driver: { socket: "pool", quiet: [...QUIET] } };
-  if (first.layer === "driver") throw new Error(`${spec.plan}: a timer of the pool, ${first.timer}, fires first, which this catalog does not measure yet`);
+  if (first.layer === "driver") {
+    // a read timeout of pgjdbc closes the socket and fails the query with its SQLState: the fail
+    // line of that query ends the band. The read starts at the send of the query
+    if (first.timer !== "socket_timeout") throw new Error(`${spec.plan}: a timer of the pool, ${first.timer}, fires first, which this catalog does not measure yet`);
+    const ends = { ev: "fail", where: { n: 2 }, name: "sqlState" };
+    return { detects: true, timer: first.timer, errno: first.name, from: "request-sent", low: s(first.band.lo), high: s(first.band.hi), driver: { socket: "pool", ends } };
+  }
   // the kernel gives up on the query: its retransmissions count from the first one
   const from = first.timer === "retrans_giveup" ? "first-retransmission" : "last-received";
   return { detects: true, timer: first.timer, errno: first.name, from, low: s(first.band.lo), high: s(first.band.hi), driver: { socket: "pool" } };
@@ -177,6 +207,13 @@ export const hikariPrediction = (spec: HikariSpec): Prediction => {
 
 /** This function gives the name of a cell: its cell of the plan, its tuple of systems, and what it does. */
 export const hikariNameOf = (spec: HikariSpec): string => `${spec.plan} hikaricp-pgjdbc to postgresql, ${spec.name}`;
+
+/**
+ * This function gives the options of the client of a cell. A knob of pgjdbc goes to its data
+ * source (`dataSource.`). A knob of HikariCP goes to HikariConfig.
+ */
+const driverOptionsOf = (options: Readonly<Record<string, number>>): Record<string, number> =>
+  Object.fromEntries(Object.entries(options).map(([name, value]) => [HIKARICP_PGJDBC.knobs[name]!.key.startsWith("pgjdbc ") ? `dataSource.${name}` : name, value]));
 
 /** This function gives the harness cell of a spec. */
 export const hikariCell = (spec: HikariSpec): Cell => ({
@@ -189,6 +226,7 @@ export const hikariCell = (spec: HikariSpec): Cell => ({
   ...(spec.fault === "unreachable" ? { targetSysctls: { "net.ipv4.icmp_ratelimit": "0" } } : {}),
   ...(spec.stall === undefined ? {} : { stall: s(spec.stall) }),
   ...(spec.icmp === undefined ? {} : { icmp: spec.icmp }),
+  ...(spec.options === undefined ? {} : { driverOptions: driverOptionsOf(spec.options) }),
   runs: RUNS,
   // a killed server cannot serve the next run: each run of a fin has its own environment
   environments: spec.fault === "fin" ? RUNS : 2,

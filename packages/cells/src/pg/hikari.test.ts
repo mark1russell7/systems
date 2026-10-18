@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { given, predict } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
 import { linuxValues } from "../mongo/model.ts";
-import { T01_HIKARI, T01_HIKARI_SPECS, T01_HIKARI_WAITING, hikariFirstOn, hikariValues } from "./hikari.ts";
+import { HIKARI_SLOWEST_POLL, T01_HIKARI, T01_HIKARI_SPECS, T01_HIKARI_WAITING, hikariFirstOn, hikariValues } from "./hikari.ts";
 import { PG_TARGET } from "./t01.ts";
 
 const cell = (plan: string) => {
@@ -64,5 +64,27 @@ describe("the HikariCP catalog of T01", () => {
     }
     const stall = cell("T01.defaults.56").prediction;
     expect(stall.detects === false && stall.recovers !== undefined).toBe(true);
+  });
+
+  it("puts the read timeout of pgjdbc on each side of the slowest poll (O13), with the SQLState of an I/O error", () => {
+    const [inside, outside] = ["T01.border-off.187", "T01.border-off.188"].map(cell);
+    for (const each of [inside!, outside!]) {
+      expect(each.prediction, each.name).toMatchObject({
+        detects: true,
+        timer: "socket_timeout",
+        errno: "08006",
+        from: "request-sent",
+        driver: { ends: { ev: "fail", where: { n: 2 }, name: "sqlState" } },
+      });
+    }
+    if (inside!.prediction.detects !== true || outside!.prediction.detects !== true) return;
+    expect(valueIn(inside!.prediction.high, "s")).toBeLessThan(HIKARI_SLOWEST_POLL);
+    expect(valueIn(outside!.prediction.low, "s")).toBeGreaterThan(HIKARI_SLOWEST_POLL);
+    // a knob of pgjdbc goes to the data source of the client
+    expect(inside!.driverOptions).toEqual({ "dataSource.socketTimeout": 9 });
+  });
+
+  it("refuses an option that is not a knob of the document", () => {
+    expect(() => hikariValues(1, { socket_timeout: 9 })).toThrow(/no knob/);
   });
 });
