@@ -99,6 +99,7 @@ export {
   nodeClientImage,
   nodeHttpImage,
   openLab,
+  pgClientImage,
   proceduresImage,
   routerImage,
   routesOf,

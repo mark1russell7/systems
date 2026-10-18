@@ -36,6 +36,19 @@ const GROUP: Group = {
 };
 
 const MONGO = "mongo:9.0.4@sha256:f90507905ce6e52e4a63d0ff8964fc254fa4d37ccbe56c56f4bc0186eb02edea";
+/**
+ * PostgreSQL 17.11 as the child of a shell, with trust authentication. The entrypoint first starts
+ * a server on a Unix socket only, to initialize the cluster. Thus the line of the TCP listener
+ * tells that the real server serves. A `fin` fault kills each postgres process with SIGKILL.
+ */
+const POSTGRES: Target = {
+  image: "postgres:17.11@sha256:2d2b8998d31037bf721cfdf764d76ba74171b4fab3431b7f72c27c56ddbdf9e3",
+  port: 5432,
+  ready: 'listening on IPv4 address "0.0.0.0", port 5432',
+  program: "postgres",
+  command: ["sh", "-c", "POSTGRES_HOST_AUTH_METHOD=trust docker-entrypoint.sh postgres & echo $! > /tmp/server.pid; while :; do sleep 3600; done"],
+  kill: ["sh", "-c", 'for p in /proc/[0-9]*; do [ "$(cat "$p/comm" 2>/dev/null)" = postgres ] && kill -KILL "${p#/proc/}"; done; true'],
+};
 const SET: ReplicaSet = {
   name: "rs0",
   image: MONGO,
@@ -131,6 +144,24 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
     const [read] = result.measured;
     expect(read).toMatchObject({ outcome: { kind: "error", errno: "ECONNRESET" }, void: null, finding: null });
     expect(result.manifests[0]?.client.kind).toBe("mongodb");
+  }, 600_000);
+
+  it("resets a query of node-postgres in flight, and the pool gives the error of the socket", async () => {
+    const s = (value: number) => ({ value, unit: "s" });
+    const cell: Cell = {
+      name: "lab pg, rst, a query in flight",
+      target: POSTGRES,
+      sysctls: {},
+      probe: { mode: "inflight", keepalive: false, driver: { name: "pg" } },
+      fault: "rst",
+      prediction: { detects: true, timer: "the reset of the request", errno: "ECONNRESET", from: "request-sent", low: s(0), high: s(1) },
+      runs: 1,
+      environments: 1,
+    };
+    const result = await runCell(cell);
+    const [read] = result.measured;
+    expect(read).toMatchObject({ outcome: { kind: "error", errno: "ECONNRESET" }, void: null, finding: null });
+    expect(result.manifests[0]?.client.kind).toBe("pg");
   }, 600_000);
 
   it("fails a group of Valkey over with a planned failover, and the client writes to the new primary", async () => {

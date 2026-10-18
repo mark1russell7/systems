@@ -101,6 +101,12 @@ const MONGO: Image = {
   dockerfile: "harness/image/mongo/Dockerfile",
   from: ["harness/image/mongo"],
 };
+/** This image holds the PostgreSQL client: node-postgres (pg 8.23.1 with pg-pool 3.14.0) on Node 24.21.0. */
+const PG: Image = {
+  name: "loom-harness-pg",
+  dockerfile: "harness/image/pg/Dockerfile",
+  from: ["harness/image/pg"],
+};
 /** This image holds `@procedures/client` 0.7.0 on Node 24.21.0: its WebSocket client as a client of the harness, and the script of its server. */
 const PROCEDURES: Image = {
   name: "loom-harness-procedures",
@@ -189,6 +195,8 @@ export const goHttpImage = (): Promise<string> => build(GO_HTTP);
 export const nodeHttpImage = (): Promise<string> => build(NODE_HTTP);
 /** This function gives the image of the MongoDB client. */
 export const mongoClientImage = (): Promise<string> => build(MONGO);
+/** This function gives the image of the PostgreSQL client. */
+export const pgClientImage = (): Promise<string> => build(PG);
 /** This function gives the image of `@procedures/client`: its WebSocket client and its server. */
 export const proceduresImage = (): Promise<string> => build(PROCEDURES);
 
@@ -623,6 +631,12 @@ export const clientOf = async (
     return {
       clientImage: await mongoClientImage(),
       command: ["node", "/opt/harness/mongo/client-mongo.mjs"],
+      clientKind: kind,
+    };
+  if (kind === "pg")
+    return {
+      clientImage: await pgClientImage(),
+      command: ["node", "/opt/harness/pg/client-pg.mjs"],
       clientKind: kind,
     };
   if (kind === "procedures-ws")

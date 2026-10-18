@@ -618,10 +618,10 @@ export type HarnessImage = "procedures";
 /**
  * A client is what the runs of a cell use: the TCP client of the harness, or a driver on its
  * socket. The HTTP clients are the `http.Transport` of Go (`go-http`), the `http.Agent` of Node
- * (`http-agent`) and an HTTP/1.1 `Client` of undici (`undici`). The MongoDB driver is `mongodb`, and the WebSocket client of
- * `@procedures/client` is `procedures-ws`.
+ * (`http-agent`) and an HTTP/1.1 `Client` of undici (`undici`). The MongoDB driver is `mongodb`, node-postgres is `pg`, and
+ * the WebSocket client of `@procedures/client` is `procedures-ws`.
  */
-export type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici" | "mongodb" | "procedures-ws";
+export type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici" | "mongodb" | "pg" | "procedures-ws";
 
 /**
  * A WebSocket probe is the workload and the settings of the WebSocket client of
@@ -736,10 +736,13 @@ export interface Cell {
      * - ioredis 6 on Node, whose keepAlive is the keepalive delay of the socket.
      * - the MongoDB driver on Node, against the replica set `set`. Its operation is a write, or
      *   the read of a long document (`read-long`). `Cell.driverOptions` are its options.
+     * - node-postgres on Node, as a `pg.Pool` against one server. Its operation is `query`, or
+     *   `SELECT 1`. `Cell.driverOptions` are the options of its pool.
      */
     readonly driver?:
       | { readonly name: "ioredis"; readonly keepAlive: Quantity }
-      | { readonly name: "mongodb"; readonly set: string; readonly op?: "write" | "read-long" };
+      | { readonly name: "mongodb"; readonly set: string; readonly op?: "write" | "read-long" }
+      | { readonly name: "pg"; readonly query?: string };
     /** This workload is the workload of an HTTP client (`Cell.client` is an HTTP client). The client then ignores `keepalive` and `userTimeout`. */
     readonly http?: HttpProbe;
     /** These are the settings of the WebSocket client (`Cell.client` is `procedures-ws`). The client then ignores `keepalive` and `userTimeout`. */
