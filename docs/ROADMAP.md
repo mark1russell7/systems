@@ -346,14 +346,16 @@ A change of the version on main makes `release.yml` publish it. It is a MINOR, b
 
 ### SYS-17 · The harness takes its test subjects as data
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** server stack
 - **Depends on:** S6
-- **Started:**
+- **Started:** 2026-10-18
 - **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#65](https://github.com/mark1russell7/systems/pull/65), [The WS run](https://github.com/mark1russell7/systems/actions/runs/39098182909), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 `@mark1russell7/harness` accepts the image of a subject as data (D16). Thus another repository can give its own subject, with its own release in it.
+
+The source of an image is an image pinned by digest, a build context, or an image that the harness ships. Each build has a digest on each `FROM` and a lockfile for each manifest. The procedures image is the shipped subject `SUBJECTS.procedures`. The WS and WST catalogs take a subject, and `cells.yml` takes one as JSON (`subject`). #65 has the change, and `image/procedures` stays until SYS-18.
 
 ### SYS-18 · The procedures image leaves the harness
 
