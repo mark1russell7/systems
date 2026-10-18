@@ -916,6 +916,13 @@ export interface Cell {
   readonly runs: number;
   readonly environments: number;
   /**
+   * This flag tells that the fault can change the environment for the runs after it, as a fin does.
+   * Then the warm-up of each environment is a dry run, without the fault, and a cell with this flag
+   * has an environment for each run. For example, behind a black hole Pgpool-II can detach its only
+   * server, and then it refuses each new client.
+   */
+  readonly fresh?: true;
+  /**
    * This count is the number of environments at the same time, each with its own prober. Without
    * it, the count is one. The calibration does its reference cells at 1, 4 and 8, to find how
    * many environments the machine holds before its noise increases.

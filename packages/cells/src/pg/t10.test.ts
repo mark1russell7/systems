@@ -186,6 +186,9 @@ describe("the HikariCP catalog of T10, through PgBouncer", () => {
     expect(cell("T10.defaults.2").prediction).toEqual(cell("T01.defaults.55", T01_HIKARI).prediction);
     // the keepalive sends its empty query through Pgpool-II, which forwards it: the read timeout of the check
     expect(cell("T10.defaults.11").prediction).toEqual(cell("T01.defaults.52", T01_HIKARI).prediction);
+    // behind the black hole Pgpool-II can detach its only server: each run has its own environment, with a dry warm-up
+    expect([cell("T10.defaults.11").fresh, cell("T10.defaults.11").environments]).toEqual([true, cell("T10.defaults.11").runs]);
+    expect(cell("T10.defaults.2").fresh).toBeUndefined();
     // O07: the error of the server crosses one more hop, and the read timeout of the client is the same
     const inside = cell("T10.border-off.97").prediction;
     const direct = cell("T01.border-off.173", T01_HIKARI).prediction;

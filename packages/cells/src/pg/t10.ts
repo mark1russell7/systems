@@ -215,6 +215,8 @@ export interface T10Spec extends HikariSpec {
   readonly poolerLinux?: Readonly<Record<string, Extent>>;
   /** This flag makes the server socket of PgBouncer the observer, in place of the socket of the client. */
   readonly observesPooler?: true;
+  /** This flag gives each run an environment of its own, with a dry warm-up: the fault changes the pooler for the runs after it. */
+  readonly fresh?: true;
 }
 
 /** This function puts a spec behind PgBouncer: the hop with the settings of the spec, and the latency that PgBouncer adds to a reply. */
@@ -319,11 +321,19 @@ export const T10_HIKARI_SPECS: readonly T10Spec[] = [
     fault: "freeze-process",
     mode: "inflight",
   }),
+  // The pool keeps one connection (minimumIdle 1), and each run has a new environment. In run 39150949618, at the
+  // fixed size of 10, the warm-up held. In the next run, the check of the observed connection got an error 0.1 ms
+  // after its empty query, and the client after it got no connection from Pgpool-II. The pool of 10 checks its
+  // connections one after the other, each into the black hole, and it opens a new connection after each failed
+  // check. Pgpool-II then connects to the server through the black hole, and pgpool-session gives a failover for a
+  // failed connect: with its only server detached, Pgpool-II ends each session and refuses each new client
   throughPgpool({
     plan: "T10.defaults.11",
-    name: "blackhole behind Pgpool-II, idle: the keepalive checks the connection through the pooler, and its read timeout closes it",
+    name: "blackhole behind Pgpool-II, idle, minimumIdle 1: the keepalive checks the connection through the pooler, and its read timeout closes it",
     fault: "blackhole",
     mode: "idle",
+    options: { minimumIdle: 1 },
+    fresh: true,
   }),
   // ---- O07 through Pgpool-II: the read timeout of pgjdbc against the statement deadline of the server
   ...([
@@ -547,11 +557,13 @@ const POOLER_SOCKET = { hop: "pgbouncer", toward: "target" } as const;
  * These are the HikariCP cells of T10 for the harness. A cell that observes the server socket of
  * PgBouncer has a fresh environment for each run, as a fin has. The judge finds the server socket
  * that PgBouncer opens in the run. In a second run of an environment, PgBouncer used an older
- * server. Also, its last failed login held the pool in its backoff (CI 39140133521).
+ * server. Also, its last failed login held the pool in its backoff (CI 39140133521). A cell whose
+ * fault changes Pgpool-II has a fresh environment for each run too, and its warm-up has no fault.
  */
 export const T10_HIKARI: readonly Cell[] = T10_HIKARI_SPECS.map((spec) => ({
   ...hikariCell(spec),
   ...(spec.observesPooler === true ? { observer: POOLER_SOCKET, environments: RUNS } : {}),
+  ...(spec.fresh === true ? { environments: RUNS, fresh: true as const } : {}),
   prediction: t10Prediction(spec),
 }));
 
