@@ -14,6 +14,7 @@ import { IOREDIS_STATUS, LINUX_TCP, NF_CONNTRACK_TCP, REDIS_CLIENT } from "./jso
 import { MONGOD_REPL } from "./mongo/mongod-replication.ts";
 import { MONGOD_SESSION } from "./mongo/mongod-session.ts";
 import { MONGODB_NODE } from "./mongo/mongodb-node.ts";
+import { HIKARICP_PGJDBC } from "./pg/hikaricp-pgjdbc.ts";
 import { NODE_POSTGRES } from "./pg/node-postgres.ts";
 import { POSTGRES_SESSION } from "./pg/postgres-session.ts";
 import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "./procedures-ws.ts";
@@ -21,6 +22,7 @@ import { SENTINEL } from "./sentinel.ts";
 
 export {
   GO_TRANSPORT,
+  HIKARICP_PGJDBC,
   IOREDIS_SENTINEL,
   IOREDIS_STATUS,
   LINUX_TCP,
@@ -83,4 +85,5 @@ export const MACHINES: Readonly<Record<string, Machine>> = byId([
   MONGOD_SESSION,
   NODE_POSTGRES,
   POSTGRES_SESSION,
+  HIKARICP_PGJDBC,
 ]);

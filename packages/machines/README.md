@@ -42,8 +42,9 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `MONGOD_SESSION` | `mongod-session` | One client connection of mongod 9.0.4 | server | 6 implemented |
 | `NODE_POSTGRES` | `node-postgres` | node-postgres 8.23.1 with pg-pool 3.14.0: one client of a `pg.Pool` | driver | 30 implemented, 2 documented, 1 derived |
 | `POSTGRES_SESSION` | `postgres-session` | One client connection of a PostgreSQL 17.11 backend | server | 40 implemented, 2 documented |
+| `HIKARICP_PGJDBC` | `hikaricp-pgjdbc` | HikariCP 7.1.0 over pgjdbc 42.7.13: one connection of a pool | driver | 37 implemented, 1 documented, 2 derived |
 
-Thirteen documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel and the replication of mongod operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
+Fourteen documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel and the replication of mongod operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
 
 The package also gives these parts:
 
@@ -88,6 +89,15 @@ A document changes only for one of two reasons:
 A change to the version of a system changes its sources too. Each fact of the document then cites the new version.
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
+
+### 0.3.2
+
+- **`hikaricp-pgjdbc`.** HikariCP 7.1.0 over pgjdbc 42.7.13, for one connection of a pool, from the tags `HikariCP-7.1.0` and `REL42.7.13`. The plan of R3 gives most of its PostgreSQL cells to this client.
+  - HikariCP reads no idle socket. It checks a connection only at a borrow, after more than 500 ms of idle time, and at its keepalive. The keepalive comes each 96 to 120 s from the creation of the connection, and a use does not move it. Each check is an empty query with a read timeout of 5 s.
+  - At the defaults, no timer of pgjdbc bounds a statement or the startup: `socketTimeout` is 0. The connect timeout of 10 s bounds only the TCP connect and the SSLRequest of sslmode `prefer`.
+  - An I/O error of a statement is 08006, and HikariCP closes the connection at once. The lifetime of a connection is 22.5 to 30 min. At the defaults the pool has a fixed size of 10, thus its idle timer has no effect.
+  - The login timeout that HikariCP gives the JVM does not apply, because pgjdbc reads its own `loginTimeout`, which is 0.
+  - No prediction of the snapshot moves.
 
 ### 0.3.1
 
