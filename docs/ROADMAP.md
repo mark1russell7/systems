@@ -474,12 +474,18 @@ Each stage band of T12 includes the error of the stamps of the observer: 0.705 m
 - **Depends on:** S1
 - **Started:** 2026-10-18
 - **Shipped:**
-- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62)
+- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [The run of the six cells](https://github.com/mark1russell7/systems/actions/runs/39096843868), [The run of the idle cell](https://github.com/mark1russell7/systems/actions/runs/39098339096)
 
 The next system of the S1 order, with its clients and PgBouncer. The plan of R3 has 514 PG cells in 8 templates, and most of them are T10, through PgBouncer.
 
 - The first step is two machine documents from their sources: node-postgres 8.23.1 with pg-pool 3.14.0, and a backend of PostgreSQL 17.11 (machines 0.3.1, #62).
-- Then the harness gets a PostgreSQL target, and T01 and T03 get their cells, as the MongoDB catalog did. PgBouncer and T10 come after them.
+- The harness has a client of node-postgres and a target of PostgreSQL 17.11 (harness 0.11.2, #64).
+- The six T01 cells at the defaults hold, with 11 runs each on the runner of GitHub (#64):
+  - A reset of a query in flight gives ECONNRESET in 0.6 ms. A FIN to an idle client gives EOF in 18 µs.
+  - An unreachable host gives EHOSTUNREACH at 3.120 s, when the kernel stops with `tcp_retries2 = 3`.
+  - A stall of 1 s recovers in 1.643 s. A frozen server has no detector in 60 s.
+  - Behind a black hole, the pool ends its idle client at its idle timer, 10.004 s after the last segment. The kernel stamps the FIN of the pool. The pool emits `remove` only when the socket closes, and behind a black hole the FIN gets no answer.
+- Then T03 gets its cells through the NAT router, as the MongoDB catalog did. PgBouncer and T10 come after them.
 
 ### RABBIT · RabbitMQ
 
@@ -525,7 +531,9 @@ T07 is the lifecycle of the endpoints of a Service, and T18 is a fleet whose rea
 - **Shipped:** 2026-10-18
 - **Links:** [#35](https://github.com/mark1russell7/systems/pull/35), [#56](https://github.com/mark1russell7/systems/pull/56), [The run at main](https://github.com/mark1russell7/systems/actions/runs/39090689204), [#59](https://github.com/mark1russell7/systems/pull/59)
 
-One failure is a late propagation. The others are SYNs that met an entry in SYN_SENT on their port, from a SYN with no answer up to 120 s before. The agent of kind 0.1.4 reads the conntrack table of each node each second, through netlink on a runner. It showed the old entry of a lone timeout on its port, 35 s old. The first SYNs came between the runs, where the lab keeps no line. Thus the lab deletes these entries before each run. Then the T07 run had no timeout. One refusal is left in nftables mode, 34 ms after a deletion, probably the ICMP error of a reject rule. kind 0.1.5 counts these errors.
+One failure is a late propagation. The others are SYNs that met an entry in SYN_SENT on their port, from a SYN with no answer up to 120 s before. The agent of kind 0.1.4 reads the conntrack table of each node each second, through netlink on a runner. It showed the old entry of a lone timeout on its port, 35 s old.
+
+The first SYNs came between the runs, where the lab keeps no line. Thus the lab deletes these entries before each run. Then the T07 run had no timeout. One refusal is left in nftables mode, 34 ms after a deletion, probably the ICMP error of a reject rule. kind 0.1.5 counts these errors.
 
 The run of #50 gives a cause in the model of conntrack, not in the lab. The deleted pod reset a connection, and conntrack kept its flow in CLOSE for 10 s, with the NAT to that pod. A SYN on a CLOSE entry looks up again only after a FIN, or after a reset from the client. Thus a client that used the same port 6.8 s later sent its SYN to the deleted pod, and the request timed out. From kind 0.1.6, a window can give that mechanism (`afterReset`), and the catalog gives it to a deletion without a hold in iptables and nftables. Judged again with the catalog, the run of #50 has no failure.
 
@@ -542,7 +550,7 @@ The run at main of 2026-10-18 has no failure either: 26 cells hold. The same cel
 - **Shipped:** 2026-10-17
 - **Links:** [npm](https://www.npmjs.com/~mark1russell7)
 
-quantity 0.2.0, algebra 0.7.1, service 0.5.0, prober 0.3.1, harness 0.11.1 and kind 0.1.7. CI publishes each version change of main.
+quantity 0.2.0, algebra 0.7.1, service 0.5.0, prober 0.3.1, harness 0.11.2 and kind 0.1.7. CI publishes each version change of main.
 
 ### MACHINES · The first version of @mark1russell7/machines
 
