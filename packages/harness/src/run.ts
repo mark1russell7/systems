@@ -593,8 +593,8 @@ export const spread = (runs: number, environments: number): number[] =>
   ).filter((count) => count > 0);
 
 /**
- * This function tells if the fault of a cell ends its environment: a server that stopped cannot serve
- * the next run, and a cell can say that its fault changes the environment (`fresh`).
+ * This function tells if the fault of a cell ends its environment. A server that stopped cannot serve
+ * the next run. Also, a cell can say that its fault changes the environment (`fresh`).
  */
 const endsEnvironment = (cell: Cell): boolean =>
   cell.fresh === true || (cell.fault === "fin" && (cell.observer === undefined || cell.observer === "client"));
