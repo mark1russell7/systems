@@ -141,6 +141,18 @@ describe("a run in a topology, measured from the records of each namespace", () 
     ];
     expect(socketOf(hop, run({ kernel: proxied }))).toEqual({ netns: HOP, cookie: 9 });
     expect(socketOf({ ...ROUTER, observer: { hop: "nat", toward: "client" } }, run({ kernel: proxied }))).toBeUndefined();
+    // a pooler that reuses a server it opened before the run: the socket that carries the request, not the
+    // first one that it opens in the run (run 39160356281). The query of the run is its second sent line
+    const query = T + 300_000_000;
+    const pooled = run({
+      events: [...events, { ev: "sent", t: query, n: 2 }],
+      kernel: [
+        k("tx", query + 50_000, { netns: HOP, cookie: 4, src: "172.22.0.3:40990", dst: "172.22.0.2:6379", seg: { seq: 1, len: { value: 52, unit: "B" } } }),
+        k("state", query + 5_000_000_000, { netns: HOP, cookie: 4, src: "172.22.0.3:40990", dst: "172.22.0.2:6379", old: 1, new: 4 }),
+        k("state", query + 5_004_000_000, { netns: HOP, cookie: 12, src: "172.22.0.3:41010", dst: "172.22.0.2:6379", old: 2, new: 1 }),
+      ],
+    });
+    expect(socketOf(hop, pooled)).toEqual({ netns: HOP, cookie: 4 });
   });
 
   it("times a reply from the first segment with data: a proxy can acknowledge the request first", () => {
