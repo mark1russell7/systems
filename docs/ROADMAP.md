@@ -131,9 +131,9 @@ The groups A, B and E of the S6 draft move from jarvis into this repository, in 
 - **Depends on:** S6
 - **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [#46](https://github.com/mark1russell7/systems/pull/46), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#49](https://github.com/mark1russell7/systems/pull/49), [#46](https://github.com/mark1russell7/systems/pull/46), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-S6 is in progress, and the items of the server stack are on this roadmap. The README of the service names the `./http` exports before they exist. SYS-1 to SYS-3 give those exports and correct the example.
+S6 is in progress, and the items of the server stack are on this roadmap. The README of the service named the `./http` exports before they existed. #49 gives those exports and corrects the example.
 
 ### SYS-8 · The composition of components in one service
 
@@ -153,9 +153,9 @@ A component gives its transports, dependencies and checks to the one service of 
 - **Depends on:** S6
 - **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#49](https://github.com/mark1russell7/systems/pull/49), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-`@mark1russell7/service/testing` gets a suite that checks each `TransportImpl`. The intake stops, the drain keeps its deadline and its signal, the count is true, and a close has a bound.
+`@mark1russell7/service/testing` gets `transportConformance`, 12 cases for each `TransportImpl`. The intake stops, the drain keeps its deadline and its signal, the count is true, and a close has a bound. A reference transport passes, and each of nine mutations of it fails its case. #49 has the kit.
 
 ### CI-1 · Real sockets and drain times in CI
 
@@ -164,9 +164,9 @@ A component gives its transports, dependencies and checks to the one service of 
 - **Depends on:** SYS-4
 - **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#49](https://github.com/mark1russell7/systems/pull/49), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-CI starts the conformance kit on real sockets, with the keep-alive and drain times of `./http`. These timed tests are only for CI.
+`http.yml` starts the conformance kit on real sockets, with the keep-alive and drain times of `./http`, on Node 22.19, 24 and 26. Each job keeps its raw records as an artifact. These timed tests are only for CI. #49 has the workflow.
 
 ### SYS-1 · The HTTP listener as a transport
 
@@ -175,9 +175,9 @@ CI starts the conformance kit on real sockets, with the keep-alive and drain tim
 - **Depends on:** SYS-4, CI-1, DOC-5
 - **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#49](https://github.com/mark1russell7/systems/pull/49), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-A new entry, `@mark1russell7/service/http`, makes a `node:http` server a transport, as A8 of S6 tells. A small list of request and upgrade handlers lets several hosts use one port.
+A new entry, `@mark1russell7/service/http`, makes a `node:http` server a transport, as A8 of S6 tells. A small list of request and upgrade handlers lets several hosts use one port. `httpTransport` passes the conformance kit on a fake server, and CI starts it on real sockets. #49 has the entry.
 
 ### SYS-2 · Probes on their own port or on the app port
 
@@ -186,9 +186,9 @@ A new entry, `@mark1russell7/service/http`, makes a `node:http` server a transpo
 - **Depends on:** SYS-1
 - **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#49](https://github.com/mark1russell7/systems/pull/49), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-`./http` gets a probe server on its own port, and a probe handler for an app port. Both answer from the cache of the health runtime.
+`probeServer` answers on its own port, and it closes last. `probeHandler` answers on an app port until `close transports`, thus its mount keeps the listener open through the drain. Both answer from the cache of the health runtime. #49 has them.
 
 ### SYS-3 · An HTTP answer from each request outcome
 
@@ -197,9 +197,9 @@ A new entry, `@mark1russell7/service/http`, makes a `node:http` server a transpo
 - **Depends on:** SYS-1, SYS-15
 - **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#49](https://github.com/mark1russell7/systems/pull/49), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-`./http` writes the status, `Retry-After` and `Connection: close` of a request outcome. A helper binds a request of `node:http` to the request tracking of the service.
+`writeOutcome` writes the status, `Retry-After` and `Connection: close` of a request outcome, and `outcomeResponse` gives them as data (#49). A helper, `handle()`, binds a request of `node:http` to the request tracking of the service. It waits for SYS-15 and SYS-6.
 
 ### SYS-15 · Request tracking from the start of each transport
 
