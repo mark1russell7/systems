@@ -50,6 +50,18 @@ export const localDev: Profile = {
 };
 
 /**
+ * This profile is for a background host on the computer of a developer, under a supervisor or a
+ * command that stops it. It has the caps of `localDev`. A repeat signal has no effect, thus the
+ * host ends its drain. It has no process trigger: a background host has no parent on stdin.
+ */
+export const daemon: Profile = {
+  phases: localDev.phases!.map((each) => ({ ...each })),
+  cooperativeWindow: localDev.cooperativeWindow!,
+  cooperativeFloor: "half",
+  onRepeatSignal: "ignore",
+};
+
+/**
  * This profile is for a small process: a command that runs one time, or a child process on stdio.
  * It has no checks and no probes, and its policies gate nothing. The cooperative abort occurs at the
  * start of the drain, thus a first Ctrl-C stops the work at once. A second signal exits at once.

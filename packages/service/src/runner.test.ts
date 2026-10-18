@@ -3,7 +3,7 @@ import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import type { LifecycleEvent } from "./events.ts";
 import type { Lifecycle, Profile, RequestEnd, Rule, ServiceBuilder, TransportImpl } from "./index.ts";
-import { drainMachine, ephemeral, kubernetes, lint, localDev, service } from "./index.ts";
+import { DECLARATION_RULE, daemon, drainMachine, ephemeral, kubernetes, lint, localDev, service } from "./index.ts";
 import { CAPS, exited, rig, run } from "./rig.ts";
 import { fakeClock, fakeProcess, seeded } from "./testing.ts";
 
@@ -194,23 +194,42 @@ describe("the policy of a repeat signal (SYS-9)", () => {
     expect(r.clock.pending).toBe(0);
   });
 
-  it("with ignore, or without a declaration, keeps the behavior of 0.4: one shutdown and one exit", async () => {
-    for (const declared of [true, false]) {
-      const r = rig();
-      if (declared) r.svc.onRepeatSignal("ignore");
-      expect(r.svc.describe().shutdown.onRepeatSignal).toBe(declared ? "ignore" : undefined);
-      const life = await run(r);
-      r.process.signal("SIGINT");
-      await r.clock.advance(500);
-      r.process.signal("SIGINT");
-      expect(await exited(r, life)).toBe(0);
-      expect(r.process.exits).toEqual([0]);
-      expect(exitSteps(r.events)).toEqual([
-        "running -> stopping on exit.request",
-        "stopping -> stopping on exit.repeat",
-        "stopping -> exited on shutdown.done",
-      ]);
-    }
+  it("with ignore, keeps the behavior of 0.4: one shutdown and one exit", async () => {
+    const r = rig();
+    r.svc.onRepeatSignal("ignore");
+    expect(r.svc.describe().shutdown.onRepeatSignal).toBe("ignore");
+    const life = await run(r);
+    r.process.signal("SIGINT");
+    await r.clock.advance(500);
+    r.process.signal("SIGINT");
+    expect(await exited(r, life)).toBe(0);
+    expect(r.process.exits).toEqual([0]);
+    expect(exitSteps(r.events)).toEqual([
+      "running -> stopping on exit.request",
+      "stopping -> stopping on exit.repeat",
+      "stopping -> exited on shutdown.done",
+    ]);
+  });
+
+  it("is necessary: describe() and run() refuse a declaration without it, and lint() names a description without it", async () => {
+    const bare = () =>
+      service("bare")
+        .readiness({ type: "window", failAfter: s(0) })
+        .liveness({ type: "window", failAfter: s(0) })
+        .startup(s(1))
+        .phase("drain", s(1))
+        .cooperativeWindow(s(1));
+    expect(() => bare().describe()).toThrow(/bare does not declare what a repeat signal does, "ignore" or "exit" \(svc.onRepeatSignal\): the runtime has no defaults/);
+    await expect(bare().run({ process: fakeProcess() })).rejects.toThrow(/what a repeat signal does/);
+    const scenario = podScenario(30, 0);
+    const declared = bare().onRepeatSignal("exit").describe();
+    expect(lint(declared, scenario, [O10]).map((finding) => finding.rule)).toEqual(["O10"]);
+    // a description from another source, for example the JSON of 0.4, can lack the field
+    const { onRepeatSignal: _dropped, ...shutdown } = declared.shutdown;
+    const old = { ...declared, shutdown } as unknown as typeof declared;
+    const [finding, ...rest] = lint(old, scenario, [O10]);
+    expect(finding).toMatchObject({ rule: DECLARATION_RULE, scope: "bare", verdict: "depends", unbound: ["shutdown.onRepeatSignal"] });
+    expect(rest.map((each) => each.rule)).toEqual(["O10"]);
   });
 
   it("with exit, exits at once on a signal during the startup after a first request", async () => {
@@ -270,13 +289,13 @@ describe("profiles as data (SYS-10)", () => {
   it("gives the phase block of jarvis and of the kind lab at the defaults of Kubernetes", () => {
     const byHand = policies(service("jarvis"));
     for (const [name, cap] of block) byHand.phase(name, s(cap));
-    byHand.cooperativeWindow(s(5));
+    byHand.cooperativeWindow(s(5)).onRepeatSignal("ignore");
     const byProfile = policies(service("jarvis")).profile(kubernetes({ grace: s(30), preStop: s(0) }));
     const hand = byHand.describe();
     const profiled = byProfile.describe();
     expect(profiled.shutdown.phases).toEqual(hand.shutdown.phases);
     expect(profiled.shutdown.cooperativeWindow).toEqual(hand.shutdown.cooperativeWindow);
-    // the profile also says the rules that 0.4 kept without a declaration
+    // the profile also says the floor of 0.4, and that the repeat SIGTERM of a pod has no effect
     expect(profiled.shutdown).toMatchObject({ cooperativeFloor: "half", onRepeatSignal: "ignore" });
     expect({ ...profiled, shutdown: null }).toEqual({ ...hand, shutdown: null });
   });
@@ -315,6 +334,30 @@ describe("profiles as data (SYS-10)", () => {
     const svc = policies(service("dev")).profile(changed);
     expect(svc.describe().shutdown).toMatchObject({ onRepeatSignal: "ignore", cooperativeWindow: s(1) });
     expect(() => svc.profile(localDev)).toThrow(/already has a shutdown phase named stop intake/);
+  });
+
+  it("declares the policy of a repeat signal in each profile: an exit for a terminal, no effect for a supervised host", () => {
+    expect([localDev, ephemeral, daemon, kubernetes({ grace: s(30), preStop: s(0) })].map((profile) => profile.onRepeatSignal)).toEqual([
+      "exit",
+      "exit",
+      "ignore",
+      "ignore",
+    ]);
+  });
+
+  it("gives a background host the caps of local development, no effect for a repeat signal, and no process trigger", () => {
+    expect(daemon.phases).toEqual(localDev.phases);
+    expect(daemon.phases).not.toBe(localDev.phases);
+    expect(daemon.cooperativeWindow).toEqual(localDev.cooperativeWindow);
+    expect(daemon.onRepeatSignal).toBe("ignore");
+    expect(daemon.triggers).toBeUndefined();
+    const svc = service("host")
+      .profile(daemon)
+      .readiness({ type: "window", failAfter: s(0) })
+      .liveness({ type: "window", failAfter: s(0) })
+      .startup(s(10));
+    expect(svc.describe().shutdown).toMatchObject({ onRepeatSignal: "ignore" });
+    expect(svc.describe().shutdown).not.toHaveProperty("triggers");
   });
 
   it("gives local development 10 s of caps, no readiness hold, and an exit on a second signal", () => {

@@ -131,8 +131,8 @@ export interface ServiceDescription {
     readonly cooperativeWindow: Extent;
     /** This floor is the earliest time of the cooperative abort. Without a declaration, the floor is `half`. */
     readonly cooperativeFloor?: CooperativeFloor | undefined;
-    /** This policy tells what a signal does while the shutdown runs. Without a declaration, the signal has no effect. */
-    readonly onRepeatSignal?: RepeatSignal | undefined;
+    /** This policy tells what a signal does while the shutdown runs. Each declaration gives it, because the runtime has no defaults. */
+    readonly onRepeatSignal: RepeatSignal;
     /** These triggers start the shutdown, in addition to the exit signals. Each one is opt-in. */
     readonly triggers?: readonly ProcessTrigger[] | undefined;
     /** These codes replace the exit code 0 by the trigger. Without a code, a clean shutdown exits 0. */

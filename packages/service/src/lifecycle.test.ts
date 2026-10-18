@@ -236,6 +236,7 @@ describe("the declaration of a lifecycle has no defaults", () => {
       .readiness({ type: "debounce", interval: s(1), failAfter: 3, recoverAfter: 1 })
       .liveness({ type: "window", failAfter: s(5) })
       .startup(s(10))
+      .onRepeatSignal("ignore")
       .cooperativeWindow(s(1));
 
   it("refuses the stages of the shutdown out of their sequence", () => {

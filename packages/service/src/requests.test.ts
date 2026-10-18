@@ -355,6 +355,7 @@ describe("dynamic routes: a pattern, and the idempotency of each request from a 
         .liveness({ type: "window", failAfter: s(0) })
         .startup(s(1))
         .phase("drain", s(1))
+        .onRepeatSignal("ignore")
         .cooperativeWindow(s(1));
       svc.controller("c").pattern(pattern, operations, () => Object.keys(operations)[0]!);
       return () => svc.describe();

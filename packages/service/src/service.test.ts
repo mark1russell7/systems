@@ -66,6 +66,7 @@ const declared = () =>
     .startup(s(60))
     .phase("fail readiness", s(2))
     .phase("drain", s(15))
+    .onRepeatSignal("ignore")
     .cooperativeWindow(s(5));
 
 describe("composed with plain calls, exported as data with nothing started", () => {
@@ -86,7 +87,7 @@ describe("composed with plain calls, exported as data with nothing started", () 
 
   it("refuses a service that leaves something to a default, and names it", () => {
     expect(() => service("bare").describe()).toThrow(
-      /bare does not declare readiness .*liveness .*a startup budget .*shutdown phases .*cooperative window/,
+      /bare does not declare readiness .*liveness .*a startup budget .*shutdown phases .*cooperative window.*what a repeat signal does, "ignore" or "exit" \(svc.onRepeatSignal\)/,
     );
     expect(() =>
       declared()
@@ -110,6 +111,7 @@ describe("composed with plain calls, exported as data with nothing started", () 
       .liveness({ type: "window", failAfter: s(45) })
       .startup(s(60))
       .phase("fail readiness", s(2))
+      .onRepeatSignal("ignore")
       .cooperativeWindow(s(5));
     const health = await svc.start({ clock: fakeClock() });
     svc.dependency("late", { system: null, knobs: {}, operations: {} });
@@ -234,6 +236,7 @@ describe("the ordering law's evaluator", () => {
       .readiness({ type: "debounce", interval: s(5), failAfter: 3, recoverAfter: 1 })
       .liveness({ type: "window", failAfter: s(45) })
       .startup(s(60))
+      .onRepeatSignal("ignore")
       .cooperativeWindow(s(1));
     if (hold !== null) svc.phase("fail readiness", s(hold));
     return svc.phase("stop the poller", s(1)).describe();

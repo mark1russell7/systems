@@ -31,6 +31,7 @@ for (const posture of config.postures) {
     .startup(config.startup)
     .phase("stop the poller", config.phaseCap)
     .phase("tear down dependencies", config.phaseCap)
+    .onRepeatSignal("ignore")
     .cooperativeWindow(config.cooperative);
   client.attach(svc, { poll: config.poll, steps: { "round-trip": posture === "reports" ? null : posture } });
   const exits = [];

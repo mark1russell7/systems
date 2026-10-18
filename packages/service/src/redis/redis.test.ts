@@ -377,6 +377,7 @@ describe("the checks of each step of the connection (B7, B14)", () => {
       .liveness({ type: "window", failAfter: s(6) })
       .startup(s(10))
       .phase("tear down dependencies", s(2))
+      .onRepeatSignal("ignore")
       .cooperativeWindow(s(1));
     client.attach(svc, { poll: { interval: s(1), jitter: 0.2, timeout: ms(400) }, steps: { "round-trip": "readiness" } });
     expect(client.problems(svc.describe())).toEqual([

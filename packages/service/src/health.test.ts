@@ -34,6 +34,7 @@ const app = (
     .liveness(WEDGE)
     .startup(s(60))
     .phase("drain", s(15))
+    .onRepeatSignal("ignore")
     .cooperativeWindow(s(5));
   for (const coupling of couplings) svc.couple(coupling);
   svc.controller("api").requires("db");
@@ -84,6 +85,7 @@ describe("the start: one warm-up sweep, then the loops (A2, B8)", () => {
       .liveness(WEDGE)
       .startup(s(2))
       .phase("drain", s(1))
+      .onRepeatSignal("ignore")
       .cooperativeWindow(s(1));
     const starting = svc.start({ clock });
     await clock.advance(3000);
@@ -100,6 +102,7 @@ describe("the start: one warm-up sweep, then the loops (A2, B8)", () => {
         .liveness(WEDGE)
         .startup(s(1))
         .phase("drain", s(1))
+        .onRepeatSignal("ignore")
         .cooperativeWindow(s(1))
         .start(),
     ).rejects.toThrow(/check x has no function: the runtime has no defaults/);
@@ -109,6 +112,7 @@ describe("the start: one warm-up sweep, then the loops (A2, B8)", () => {
       .liveness(WEDGE)
       .startup(s(1))
       .phase("drain", s(1))
+      .onRepeatSignal("ignore")
       .cooperativeWindow(s(1));
     expect(() => zero.describe()).toThrow(/debounce polls at an interval that is not above zero/);
     expect(() => zero.describe()).toThrow(/fails after 0 polls, not a whole number above zero/);
@@ -122,6 +126,7 @@ describe("the start: one warm-up sweep, then the loops (A2, B8)", () => {
       .liveness(WEDGE)
       .startup(s(1))
       .phase("drain", s(1))
+      .onRepeatSignal("ignore")
       .cooperativeWindow(s(1));
     expect(() => svc.describe()).toThrow(/check x polls every 2 s, but the readiness debounce counts polls every 5 s/);
   });
@@ -211,6 +216,7 @@ describe("the edges", () => {
       .liveness({ type: "debounce", interval: s(5), failAfter: 3, recoverAfter: 2 })
       .startup(s(60))
       .phase("drain", s(1))
+      .onRepeatSignal("ignore")
       .cooperativeWindow(s(1));
     const health = await svc.start({ clock });
     await clock.advance(600_000);
@@ -348,6 +354,7 @@ describe("the edges", () => {
       .liveness(WEDGE)
       .startup(s(60))
       .phase("drain", s(1))
+      .onRepeatSignal("ignore")
       .cooperativeWindow(s(1));
     // the sweep waits for the slow check, which ends when the fake clock moves
     const starting = svc.start({ clock, random: seeded(7) });

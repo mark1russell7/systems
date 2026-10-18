@@ -226,7 +226,7 @@ export const lifecycle = (
   const service = new AbortController();
   const errors: string[] = [];
   const exitCodes = description.shutdown.exitCodes ?? {};
-  const repeatPolicy = description.shutdown.onRepeatSignal ?? "ignore";
+  const repeatPolicy = description.shutdown.onRepeatSignal;
   let state: LifecycleState = "starting";
   let exitCode: number | null = null;
   // the code of the first exit request that gives one
@@ -466,9 +466,9 @@ export const lifecycle = (
   );
 
   void (async (): Promise<void> => {
-    runtime.beginStartup();
     const started = (what: string): void => record("gate", "starting", "starting", "component.started", what);
     try {
+      runtime.beginStartup();
       if (components.healthServer !== null) {
         await components.healthServer.listen(runtime);
         healthListening = true;

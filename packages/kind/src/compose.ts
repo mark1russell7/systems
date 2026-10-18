@@ -32,7 +32,9 @@ export const compose = (name: string, declaration: Declaration, parts: Parts = {
     .readiness(declaration.readiness)
     .liveness(declaration.liveness)
     .startup(declaration.startup)
-    .cooperativeWindow(declaration.cooperativeWindow);
+    .cooperativeWindow(declaration.cooperativeWindow)
+    // the kubelet sends SIGTERM one time and SIGKILL at the end of the grace: a repeat signal has no effect
+    .onRepeatSignal("ignore");
   for (const coupling of declaration.couplings) svc.couple(coupling);
   if (declaration.redis !== null) {
     if (parts.redis === undefined) throw new Error(`${name} declares Redis, thus its composition needs the client`);

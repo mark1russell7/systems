@@ -36,6 +36,7 @@ const sample = (
     .liveness({ type: "window", failAfter: s(5) })
     .startup(s(10))
     .phase("drain", s(4))
+    .onRepeatSignal("ignore")
     .cooperativeWindow(s(1));
   svc.controller("orders").requires("db").route("POST /orders", { idempotent: false });
   svc.controller("catalog").requires("cache").route("GET /items", { idempotent: true });
@@ -86,6 +87,7 @@ describe("the contract test of a declaration (F3)", () => {
         .liveness({ type: "window", failAfter: s(5) })
         .startup(s(10))
         .phase("drain", s(4))
+        .onRepeatSignal("ignore")
         .cooperativeWindow(s(1)),
     );
     const blind = crossed.find((each) => each.name === "shop: db unavailable")!;

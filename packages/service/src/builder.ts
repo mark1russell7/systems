@@ -57,7 +57,7 @@ import { watchdog } from "./watchdog.ts";
  * The graph has one source, thus its parts cannot disagree. A dependency or a check can join
  * after the start. It starts tripped, and the export is partial. The runtime has no defaults of
  * its own. Thus `describe()` refuses a service that does not declare a policy, its startup budget
- * or its shutdown, and it tells which.
+ * or its shutdown, and it tells which. The shutdown includes what a repeat signal does.
  *
  * `start()` starts only the health runtime. `run()` starts the whole lifecycle: the startup in its
  * sequence, the exit signals, the capped phases of the shutdown, and the exit of the process.
@@ -453,6 +453,8 @@ export const service = (name: string): ServiceBuilder => {
       if (phases.length === 0) missing.push("its shutdown phases (svc.phase)");
       if (cooperative === undefined)
         missing.push("a cooperative window, or no bound (svc.cooperativeWindow)");
+      if (repeat === undefined)
+        missing.push(`what a repeat signal does, "ignore" or "exit" (svc.onRepeatSignal)`);
       if (missing.length > 0)
         throw new Error(
           `${name} does not declare ${missing.join("; ")}: the runtime has no defaults`,
@@ -539,7 +541,7 @@ export const service = (name: string): ServiceBuilder => {
           phases: phases.map((entry) => ({ ...entry })),
           cooperativeWindow: cooperative!,
           ...(floor === undefined ? {} : { cooperativeFloor: floor }),
-          ...(repeat === undefined ? {} : { onRepeatSignal: repeat }),
+          onRepeatSignal: repeat!,
           ...(triggers.length === 0 ? {} : { triggers: [...triggers] }),
           ...(Object.keys(exitCodes).length === 0 ? {} : { exitCodes: { ...exitCodes } }),
         },

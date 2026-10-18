@@ -113,6 +113,7 @@ export const rig = (options: RigOptions = {}): Rig => {
     .readiness({ type: "debounce", interval: s(1), failAfter: 3, recoverAfter: 1 })
     .liveness({ type: "window", failAfter: s(5) })
     .startup(s(options.budget ?? 10))
+    .onRepeatSignal("ignore")
     .cooperativeWindow(options.window ?? s(1));
   svc
     .controller("api")
