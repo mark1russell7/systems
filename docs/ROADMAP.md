@@ -219,7 +219,7 @@ The transports start before the startup ends, but `run()` gives `life.request` o
 - **Depends on:** S6
 - **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#50](https://github.com/mark1russell7/systems/pull/50), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 A controller can declare a path pattern, and a function gives the idempotency of each request. Thus the service tracks a registry of procedures that changes while it operates.
 
@@ -230,9 +230,9 @@ A controller can declare a path pattern, and a function gives the idempotency of
 - **Depends on:** SYS-1
 - **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#50](https://github.com/mark1russell7/systems/pull/50), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-A request stays in flight until its stream ends. A failure after the first item ends the stream with an error line, not a 503. The cooperative abort ends the stream. This change breaks the API, thus it comes in service 0.5.0.
+A request stays in flight until its stream ends. A failure after the first item ends the stream with an error line, not a 503. The cooperative abort ends the stream. This change breaks the API, thus it comes in service 0.5.0. The client streams and the conformance kit of SYS-4 complete the item.
 
 ### SYS-7 · A stop when stdin closes, and a minimal profile
 
