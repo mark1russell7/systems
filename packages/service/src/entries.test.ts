@@ -147,4 +147,9 @@ describe("the root entry: free of node: modules", () => {
   it("loads no node: module", () => {
     expect(reach("index.ts").packages.filter((name) => name.startsWith("node:"))).toEqual([]);
   });
+
+  it("gives the worker loop and the queue drain, which load only quantity (SYS-14)", () => {
+    for (const name of ["workerLoop", "queueDrain", "redeliverOnce"]) expect(root, name).toHaveProperty(name);
+    for (const entry of ["worker.ts", "queue.ts"]) expect(reach(entry).packages, entry).toEqual(["@mark1russell7/quantity"]);
+  });
 });

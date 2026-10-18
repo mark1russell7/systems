@@ -75,6 +75,8 @@ export interface FakeProcess extends ProcessPort {
   signal(name: ExitSignal): void;
   /** This method sends a trigger to each handler of it: a signal, or a process trigger, for example `stdin-close`. */
   trigger(name: ExitTrigger): void;
+  /** This method sends a message of the IPC channel to each handler of the trigger `ipc-message`. */
+  message(value: unknown): void;
   /** These are the exit codes, in sequence. A correct runtime exits one time. */
   readonly exits: readonly number[];
   /** This count is the number of handlers that are registered. */
@@ -85,6 +87,10 @@ export interface FakeProcess extends ProcessPort {
   readonly log: readonly string[];
   /** This count is the number of flushes of the output. */
   readonly flushes: number;
+  /** This count is the number of holds of the process that are not released. */
+  readonly holds: number;
+  /** These counts are the holds that were not released at each exit, in sequence. */
+  readonly heldAtExit: readonly number[];
 }
 
 /** These options shape a fake process. */
@@ -97,15 +103,17 @@ export interface FakeProcessOptions {
 
 /** This function makes a fake process. */
 export const fakeProcess = (options: FakeProcessOptions = {}): FakeProcess => {
-  const handlers = new Map<ExitTrigger, Set<() => void>>();
+  const handlers = new Map<ExitTrigger, Set<(message?: unknown) => void>>();
   const exits: number[] = [];
   const log: string[] = [];
   let flushes = 0;
+  let holds = 0;
+  const heldAtExit: number[] = [];
   const stamp = (what: string): void => {
     log.push(options.clock === undefined ? what : `${options.clock.now()} ${what}`);
   };
-  const send = (name: ExitTrigger): void => {
-    for (const handler of [...(handlers.get(name) ?? [])]) handler();
+  const send = (name: ExitTrigger, message?: unknown): void => {
+    for (const handler of [...(handlers.get(name) ?? [])]) handler(message);
   };
   return {
     on(trigger, handler) {
@@ -122,12 +130,23 @@ export const fakeProcess = (options: FakeProcessOptions = {}): FakeProcess => {
       flushes += 1;
       stamp("flushed");
     },
+    hold() {
+      holds += 1;
+      let held = true;
+      return () => {
+        if (!held) return;
+        held = false;
+        holds -= 1;
+      };
+    },
     exit(code) {
       stamp(`exit ${code}`);
+      heldAtExit.push(holds);
       exits.push(code);
     },
-    signal: send,
-    trigger: send,
+    signal: (name) => send(name),
+    trigger: (name) => send(name),
+    message: (value) => send("ipc-message", value),
     get exits() {
       return [...exits];
     },
@@ -144,6 +163,12 @@ export const fakeProcess = (options: FakeProcessOptions = {}): FakeProcess => {
     },
     get flushes() {
       return flushes;
+    },
+    get holds() {
+      return holds;
+    },
+    get heldAtExit() {
+      return [...heldAtExit];
     },
   };
 };

@@ -313,14 +313,27 @@ The process exits with the code of its work. A first Ctrl-C can abort at once, a
 
 ### SYS-14 · A worker loop and a queue drain
 
-- **Status:** blocked
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** SYS-4
-- **Started:**
-- **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Started:** 2026-10-18
+- **Shipped:** 2026-10-18
+- **Links:** [#66](https://github.com/mark1russell7/systems/pull/66), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-A worker loop (A10 of S6) and a queue drain (A11) as `TransportImpl` factories. Both pass the conformance kit of SYS-4.
+`workerLoop` (A10 of S6) and `queueDrain` (A11) are `TransportImpl` factories in the root of the service. Each lane of a loop does one iteration at a time, and its sleeps and backoffs are on the clock. The drain takes jobs under a concurrency, applies the declared redelivery policy, and gives back each job that it did not start. Each unit can go through `life.request`. `lint()` applies O20 to each consumer and worker. Both pass the conformance kit of SYS-4.
+
+The lifecycle holds its process from its start to its exit, thus a process with only workers does not end while it waits. The helpers come to npm in the next PATCH of the service. They are for the heartbeat of jarvis (JAR-4), the workers of Graph (GRAPH-6, GRAPH-10) and the job queues of OTH-4.
+
+### SYS-21 · A stop from a message of the IPC channel
+
+- **Status:** done
+- **Area:** server stack
+- **Depends on:** SYS-7
+- **Started:** 2026-10-18
+- **Shipped:** 2026-10-18
+- **Links:** [#66](https://github.com/mark1russell7/systems/pull/66), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+Windows cannot give a child a SIGTERM that the child can catch, thus the entry of Graph also stops at the IPC message `shutdown` (CI-4 of Graph). `svc.trigger("ipc-message", { match, as })` declares the message as data, and it starts the staged shutdown of SIGTERM with its exit code. `process.yml` tests a real child on Linux and on Windows.
 
 ### SYS-11 · The kind lab on ./http
 
@@ -343,6 +356,17 @@ The image of the kind lab replaces its own transport, probe server and outcome m
 - **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 A change of the version on main makes `release.yml` publish it. It is a MINOR, because SYS-6 changes `RequestFn` and the outcome type before 1.0. The client, jarvis and Graph then use it from npm.
+
+### REL-4 · Service 0.5.1 with the worker loop, the queue drain and the IPC trigger
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** SYS-14, SYS-21
+- **Started:** 2026-10-18
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+This release publishes `workerLoop`, `queueDrain`, `redeliverOnce`, the trigger `ipc-message` and the hold of the process (#66). It is a PATCH, because each change adds an export or an option before 1.0, and nothing is removed. Graph (GRAPH-6) and jarvis (JAR-4) then use the helpers from npm.
 
 ### SYS-17 · The harness takes its test subjects as data
 

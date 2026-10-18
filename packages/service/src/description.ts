@@ -1,6 +1,6 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import type { Operation } from "./operation.ts";
-import type { ExitTrigger, ProcessTrigger } from "./process.ts";
+import type { ExitSignal, ExitTrigger, MessageShape, ProcessTrigger } from "./process.ts";
 import type { RoutePattern } from "./routes.ts";
 import type { Poll, Timing } from "./timing.ts";
 
@@ -108,6 +108,18 @@ export type CooperativeFloor = "half" | "none";
 /** These exit codes replace the code 0 of a clean shutdown, by the trigger of the shutdown. */
 export type ExitCodes = Readonly<Partial<Record<ExitTrigger, number>>>;
 
+/**
+ * A message trigger is a message of the IPC channel that starts the shutdown, for the trigger
+ * `ipc-message`. With `as`, the message is that exit signal: it has its exit code and the policy of a
+ * repeat signal. Without `as`, the message is the trigger `ipc-message`.
+ */
+export interface MessageTrigger {
+  /** This shape is the message that starts the shutdown, for example `"shutdown"`. */
+  readonly match: MessageShape;
+  /** This signal is the exit signal that the message replaces, for example `SIGTERM` on Windows. */
+  readonly as?: ExitSignal | undefined;
+}
+
 /** A service description is the whole graph of a service, as data. */
 export interface ServiceDescription {
   readonly format: typeof FORMAT;
@@ -135,6 +147,8 @@ export interface ServiceDescription {
     readonly onRepeatSignal: RepeatSignal;
     /** These triggers start the shutdown, in addition to the exit signals. Each one is opt-in. */
     readonly triggers?: readonly ProcessTrigger[] | undefined;
+    /** These messages of the IPC channel start the shutdown. The trigger `ipc-message` needs one at the least. */
+    readonly messages?: readonly MessageTrigger[] | undefined;
     /** These codes replace the exit code 0 by the trigger. Without a code, a clean shutdown exits 0. */
     readonly exitCodes?: ExitCodes | undefined;
   };

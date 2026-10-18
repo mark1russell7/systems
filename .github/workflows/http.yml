@@ -5,6 +5,8 @@
 #          clock), keep-alive, the stop of the intake, the upgrades, the probe server, and a service
 #          under run() after SIGTERM. Each job of the matrix is one version of Node. Each one uploads
 #          its raw records (HTTP_RECORDS) as an artifact.
+#   units  WORKERS_IT=1: the conformance kit of the worker loop and of the queue drain on the real
+#          clock. Their raw records (WORKERS_RECORDS) go in the same artifact.
 #
 # These tests measure time, thus they run only here, on a runner with no other load.
 # A pull request that changes the service package or this file runs them.
@@ -56,6 +58,12 @@ jobs:
           HTTP_IT: "1"
           HTTP_RECORDS: ${{ runner.temp }}/http-records
         run: pnpm --filter @mark1russell7/service exec vitest run src/http/http-it.test.ts --reporter=default --reporter=junit --outputFile.junit="$RUNNER_TEMP/http-records/junit.xml"
+      - name: The worker loop and the queue drain on the real clock
+        if: always()
+        env:
+          WORKERS_IT: "1"
+          WORKERS_RECORDS: ${{ runner.temp }}/http-records
+        run: pnpm --filter @mark1russell7/service exec vitest run src/worker.test.ts src/queue.test.ts -t "on the real clock" --reporter=default --reporter=junit --outputFile.junit="$RUNNER_TEMP/http-records/junit-units.xml"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
