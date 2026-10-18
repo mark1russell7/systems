@@ -7,7 +7,7 @@ import type { Extent, Quantity, Unknown } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Binding, Rule } from "@mark1russell7/service";
 import { evaluate, verdictOf } from "@mark1russell7/service";
-import { HZ, REDIS, seconds } from "./catalog.ts";
+import { HZ, REDIS, given, s, seconds } from "./catalog.ts";
 
 /** This target is Redis with a command that closes the connection of each client (`CLIENT KILL`). */
 export const REDIS_CLOSING: Target = {
@@ -27,6 +27,13 @@ export const router = (form: RouterHop["form"], idle: number): RouterHop => ({
   idle: { value: idle, unit: "s" },
   pump: ROUTER_PUMP,
 });
+
+/** This function gives the values of conntrack for a router: its idle timeout in seconds, and the lag of its DESTROY. */
+export const routerValues = (idle: number): KnobValues =>
+  given({
+    nf_conntrack_tcp_timeout_established: s(idle),
+    gc_lag_max: s(valueIn(ROUTER_PUMP, "s") + 2 * valueIn(LISTING, "s")),
+  });
 
 /** This image is HAProxy 3.2.25, pinned by digest: the proxy of T02. */
 export const HAPROXY_IMAGE =

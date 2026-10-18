@@ -1,13 +1,15 @@
 import type { Detector, KnobValues, Manifestation } from "@mark1russell7/algebra";
 import { detection, errnoOf, overValues, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
-import type { Cell, Prediction } from "@mark1russell7/harness";
-import { HIKARICP_PGJDBC, LINUX_TCP } from "@mark1russell7/machines";
+import type { Cell, Prediction, RouterHop } from "@mark1russell7/harness";
+import { HIKARICP_PGJDBC, LINUX_TCP, NF_CONNTRACK_TCP } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import { HZ, RTT_MS, RUNS, count, given, predict, s, seconds, sysctlsOf } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
 import type { Waiting } from "../mongo/cells.ts";
 import type { Span } from "../mongo/model.ts";
-import { linuxValues, span } from "../mongo/model.ts";
+import { linuxValues, plus, span, spanOf } from "../mongo/model.ts";
+import { PRESETS } from "../mongo/t03.ts";
+import { ackDelay, o03, router as routerHop, routerValues } from "../topologies.ts";
 import type { Deadline } from "./server.ts";
 import { SLOW_QUERY, STATEMENT_DEADLINE, pgTargetWith, statementDeadline } from "./server.ts";
 import { APP_STALL, PG_RTT_MS, PG_TARGET } from "./t01.ts";
@@ -36,7 +38,7 @@ export const HIKARI_DRIVER = "HikariCP 7.1.0 over pgjdbc 42.7.13 on Temurin 21.0
 export interface HikariSpec {
   readonly plan: string;
   readonly name: string;
-  readonly fault: "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none" | "blackhole" | "app-stall";
+  readonly fault: "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none" | "blackhole" | "app-stall" | "middlebox-forget";
   readonly mode: "idle" | "inflight";
   readonly icmp?: "host" | "net" | "port" | "admin";
   /** This time is the length of a stall, in seconds. */
@@ -51,7 +53,26 @@ export interface HikariSpec {
   readonly inflight?: string;
   /** These are the settings of the server that differ from the defaults, by the names and in the units of `postgres-session`. */
   readonly server?: Readonly<Record<string, number>>;
+  /** This router is between the client and the server: its form and its idle timeout, in whole seconds. */
+  readonly router?: HikariRouter;
 }
+
+/** A router of a cell is the form of the router of the harness and its idle timeout, in whole seconds. */
+export interface HikariRouter {
+  readonly form: RouterHop["form"];
+  readonly idle: number;
+  readonly preset: string;
+}
+
+/**
+ * This factor divides the idle timeout of the router of the borders of O03, and the keepalive of the
+ * pool. HikariCP turns a keepaliveTime below 30 s off (HikariConfig.java:1101-1152), thus the factor
+ * is 4, and not the 20 of the MongoDB catalog. The 240 s of the Azure LB become 60 s.
+ */
+export const HIKARI_K = 4;
+
+/** This router is the Azure LB at its default, with its idle timeout divided by HIKARI_K: a silent drop at 60 s. */
+export const HIKARI_ROUTER: HikariRouter = { ...PRESETS.azureLb, idle: PRESETS.azureLb.idle / HIKARI_K, preset: `${PRESETS.azureLb.preset}, divided by ${HIKARI_K}` };
 
 /** This value is the startup budget of a pod that R3 binds for the borders of O15: 30 s. */
 export const HIKARI_STARTUP_BUDGET = 30;
@@ -83,6 +104,18 @@ export const T01_HIKARI_SPECS: readonly HikariSpec[] = [
     mode: "inflight",
     inflight: `SELECT pg_sleep(${APP_STALL})`,
   },
+  // ---- O03: the keepalive of the pool against a router that forgets an idle flow, each divided by HIKARI_K
+  ...([
+    ["T01.border-off.151", 55, "inside"],
+    ["T01.border-off.152", 80, "outside"],
+  ] as const).map(([plan, at, side]): HikariSpec => ({
+    plan,
+    name: `middlebox-forget, idle, keepaliveTime ${at} s: ${side} O03 against a ${HIKARI_ROUTER.form} router at ${HIKARI_ROUTER.idle} s`,
+    fault: "middlebox-forget",
+    mode: "idle",
+    router: HIKARI_ROUTER,
+    options: { keepaliveTime: at * 1000 },
+  })),
   // ---- O13: the read timeout of pgjdbc against the slowest poll of a check
   ...([
     ["T01.border-off.187", 9, "inside"],
@@ -122,15 +155,12 @@ export const T01_HIKARI_SPECS: readonly HikariSpec[] = [
 ];
 
 /** This reason is the reason of the cells that need a router between the client and the server. */
-const ROUTER = "the cell needs a router between the client and the server, and the PG catalog has no chain yet";
 /** These are the cells of the plan over these systems that this catalog does not start, each with its reason. */
 export const T01_HIKARI_WAITING: readonly Waiting[] = [
   { plan: "T01.defaults.58", trigger: "event:server-restart-same-ip", why: "the harness has no restart of a target with its address" },
   { plan: "T01.defaults.61", trigger: "timed:mid-commit", why: "the harness has no injector that times a fault to a reply" },
   { plan: "T01.defaults.62", trigger: "in-process:event-loop", why: "no document gives the delay of the threads of the JVM in a pause of the process" },
   { plan: "T01.defaults.63", trigger: "workload:write-write-read", why: "pgjdbc sets TCP_NODELAY on each socket (PGStream.java:299-302), thus Nagle holds no write: the pattern does not occur" },
-  { plan: "T01.border-off.151", trigger: "border", why: ROUTER },
-  { plan: "T01.border-off.152", trigger: "border", why: ROUTER },
   { plan: "T01.border-off.237", trigger: "border", why: "the cell needs a virtual IP that kube-vip moves, which the PG catalog does not have" },
   { plan: "T01.border-off.238", trigger: "border", why: "the cell needs a virtual IP that kube-vip moves, which the PG catalog does not have" },
 ];
@@ -280,6 +310,33 @@ const atHold = (spec: HikariSpec, driver: KnobValues, linux: KnobValues): Predic
   return { detects: true, timer: own.timer, errno: "CLOSED", from: "request-sent", low: s(own.band.lo), high: s(own.band.hi) };
 };
 
+/**
+ * This function gives the prediction of an idle connection through a router that forgets an idle
+ * flow. O03 decides it: the keepalive of the pool against the idle timeout of conntrack. When O03
+ * holds, the keepalive refreshes the flow, and nothing occurs in the window. When O03 fails, the
+ * router forgets the flow before the first keepalive. A silent drop then takes the empty query of
+ * the check, as a black hole does. The read timeout of the check closes the socket.
+ */
+const atForget = (spec: HikariSpec, driver: KnobValues, linux: KnobValues): Prediction => {
+  const router = spec.router;
+  if (router === undefined) throw new Error(`${spec.plan}: a forgotten flow needs a router`);
+  const conntrack = routerValues(router.idle);
+  const verdict = o03({ doc: HIKARICP_PGJDBC, values: driver }, conntrack, PG_RTT_MS / 1000);
+  // the window holds two and a half idle timeouts of the router
+  if (verdict.holds) return { detects: false, window: s(2.5 * router.idle), driver: { socket: "pool", quiet: [...QUIET] } };
+  if (router.form !== "silent-drop") throw new Error(`${spec.plan}: this catalog measures a forgotten flow only at a silent drop, not at ${router.form}`);
+  // the delayed ACK of the reply is the last segment of the flow: the idle time counts from it.
+  // The keepalive counts from the creation of the connection, which comes before that reply
+  const forget = plus(ackDelay(RTT_MS), spanOf(NF_CONNTRACK_TCP, "expire_established", conntrack));
+  const keepalive = timerOf(HIKARICP_PGJDBC, "keepalive", driver);
+  const earliest = seconds(keepalive.duration, "the keepalive") - seconds(keepalive.early, "its variance");
+  if (!(earliest > forget.hi)) throw new Error(`${spec.plan}: the first keepalive can come before the router forgets the flow`);
+  const check = hikariFirstOn("probing", MANIFESTATIONS.blackhole, driver, linux);
+  if (check.kind !== "timer" || check.layer !== "driver") throw new Error(`${spec.plan}: no timer of the pool ends the check of the keepalive`);
+  const latest = seconds(keepalive.duration, "the keepalive") + seconds(keepalive.lateness, "its lateness");
+  return { detects: true, timer: check.timer, errno: "CLOSED", from: "first-sent", low: s(check.band.lo), high: s(check.band.hi), startsBy: s(latest) };
+};
+
 /** This function gives the prediction of a cell for the harness. */
 export const hikariPrediction = (spec: HikariSpec): Prediction => {
   // a stall is the stall of Linux TCP: the classic measurement of the socket of the client times it
@@ -290,6 +347,7 @@ export const hikariPrediction = (spec: HikariSpec): Prediction => {
   const linux = given(linuxValues(spec.linux));
   if (spec.before === true) return atStart(spec, driver);
   if (spec.fault === "app-stall") return atHold(spec, driver, linux);
+  if (spec.fault === "middlebox-forget") return atForget(spec, driver, linux);
   // a reset answers the query at once: the kernel reports it on the socket of the connection
   if (spec.fault === "rst") {
     const errno = transitionOn(LINUX_TCP, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET";
@@ -348,6 +406,7 @@ export const hikariCell = (spec: HikariSpec): Cell => ({
   ...(spec.icmp === undefined ? {} : { icmp: spec.icmp }),
   ...(spec.options === undefined ? {} : { driverOptions: driverOptionsOf(spec.options) }),
   ...(spec.before === true ? { before: true } : {}),
+  ...(spec.router === undefined ? {} : { topology: { name: "T01", hops: [routerHop(spec.router.form, spec.router.idle)] } }),
   runs: RUNS,
   // a killed server cannot serve the next run: each run of a fin has its own environment
   environments: spec.fault === "fin" ? RUNS : 2,

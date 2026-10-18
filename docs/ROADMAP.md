@@ -544,7 +544,7 @@ Each stage band of T12 includes the error of the stamps of the observer: 0.705 m
 - **Depends on:** S1
 - **Started:** 2026-10-18
 - **Shipped:**
-- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [6 cells](https://github.com/mark1russell7/systems/actions/runs/39096843868), [Idle cell](https://github.com/mark1russell7/systems/actions/runs/39098339096), [7 cells](https://github.com/mark1russell7/systems/actions/runs/39101376487), [Connect cells](https://github.com/mark1russell7/systems/actions/runs/39103033893), [#76](https://github.com/mark1russell7/systems/pull/76), [Keepalive cell](https://github.com/mark1russell7/systems/actions/runs/39111986991), [#77](https://github.com/mark1russell7/systems/pull/77), [Start cells](https://github.com/mark1russell7/systems/actions/runs/39114190902), [#78](https://github.com/mark1russell7/systems/pull/78), [O07 cells](https://github.com/mark1russell7/systems/actions/runs/39113772326)
+- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [6 cells](https://github.com/mark1russell7/systems/actions/runs/39096843868), [Idle cell](https://github.com/mark1russell7/systems/actions/runs/39098339096), [7 cells](https://github.com/mark1russell7/systems/actions/runs/39101376487), [Connect cells](https://github.com/mark1russell7/systems/actions/runs/39103033893), [#76](https://github.com/mark1russell7/systems/pull/76), [Keepalive cell](https://github.com/mark1russell7/systems/actions/runs/39111986991), [#77](https://github.com/mark1russell7/systems/pull/77), [Start cells](https://github.com/mark1russell7/systems/actions/runs/39114190902), [#78](https://github.com/mark1russell7/systems/pull/78), [O07 cells](https://github.com/mark1russell7/systems/actions/runs/39113772326), [#79](https://github.com/mark1russell7/systems/pull/79), [O03 cells](https://github.com/mark1russell7/systems/actions/runs/39116194760)
 
 The next system of the S1 order, with its clients and PgBouncer. At its defaults and its borders, the plan of R3 has 329 cells with PostgreSQL. HikariCP with pgjdbc is the client of 160 of them, Npgsql of 47 and node-postgres of 36. T10, through a pooler, has 132 of them.
 
@@ -573,15 +573,19 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
   - The borders of O13 hold (#75). A read timeout of 9 s and 11 s closes the socket of a query in a black hole. The two are on each side of the slowest poll of 10 s.
     - The JDK waits for a read in poll(), and Linux ends that wait up to 0.1 % of its time late. The first cells measured it: 11.35 ms late at 11 s. The document gets that slack (machines 0.3.3).
     - The close of the socket ends the band. The fail line comes up to 9 ms later, when a new JVM builds the exception of pgjdbc.
-  - The keepalive of the pool holds behind a black hole, with 11 runs (#76). It came 96.3 to 103.2 s after the connection, inside the 96 to 120 s of the document.
+  - The keepalive of the pool holds behind a black hole, with 11 runs (#76).
     - Its empty query is the first segment after the fault. The read timeout of the check closes the socket 5.003 s after that query (validationTimeout 5 s).
     - The harness counts from that segment (reference `first-sent`, harness 0.11.5).
+    - The keepalive tasks of the pool share one thread (HikariPool.java:644-651). Behind the black hole, each check waits for the checks before it, and each one takes 5 s. Thus the check of the observed connection came 106 to 135 s after the connection, and not in the 96 to 120 s of its own keepalive.
   - The start of the pool holds, with 11 runs for each cell (#77). The pool tries once, and after a failure it sleeps 1 s. At the default `initializationFailTimeout` of 1 ms, the start then fails with PoolInitializationException (machines 0.3.4).
     - A reset of the first connect fails the start at 1.008 s.
     - The borders of O15 hold. Behind a black hole, a `connectTimeout` of 28 s fails the start at 29.026 s, and 30 s at 31.030 s. The two are on each side of the startup budget of 30 s.
     - The client starts the code of a connect and of a pool before its first line (harness 0.11.6). It also starts SecureRandom, which HikariCP reads for the UUID of each new connection. Before that, the first connect of a cell was 22 ms late.
   - The server holds the query in flight 5 s, and nothing ends it: the reply comes at 5.004 s (#78).
-  - The other 8 T01 cells of HikariCP wait, each with its reason. The next ones are the borders of O03 through a router.
+  - The borders of O03 hold through a router that forgets an idle flow in silence, with 11 runs each (#79). The cells divide each timer by 4, thus the router forgets at 60 s. HikariCP turns a keepalive below 30 s off, so the factor of 20 of the MongoDB catalog cannot apply.
+    - Inside, a keepaliveTime of 55 s refreshes the flow, and nothing occurs in 150 s.
+    - Outside, a keepaliveTime of 80 s comes after the router forgot the flow. The router drops the empty query of the check, and its read timeout closes the socket 5.004 s later.
+  - The other 6 T01 cells of HikariCP wait, each with its reason.
 - The borders of O07 hold for node-postgres and for HikariCP, with 11 runs each (#78). The server has a `statement_timeout` of 10 s, and the query in flight sleeps 20 s.
   - Inside, the timer of the client is longer: pg at 10.5 s and HikariCP at 11 s. The server ends the query with ERROR 57014 at 10.002 s (pg) and at 10.004 s (HikariCP).
   - Outside, the timer of the client is shorter. pg gives up at 9.503 s, and the read timeout of HikariCP closes its socket at 9.010 s. The server goes on with the statement.
