@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,6 +9,7 @@ import {
   SHIPPED_CLIENTS,
   SHIPPED_NAMES,
   SUBJECTS,
+  buildOnce,
   imageProblems,
   inContext,
   planOf,
@@ -126,6 +127,23 @@ describe("the image sources", () => {
     const unlocked = contextWith({ Dockerfile: APP.Dockerfile, "package.json": APP["package.json"], "app.mjs": APP["app.mjs"] });
     expect(() => planOf(build(unlocked))).toThrow(/package.json has no lockfile/);
     expect(() => planOf(build(contextWith({ "app.mjs": APP["app.mjs"] })))).toThrow(/the context has no Dockerfile/);
+  });
+
+  it("drops a failed build from its cache, thus a later cell builds again after a fault of Docker or of the network", async () => {
+    const plan = builtOf(build(contextWith(APP), { name: "flaky" }));
+    const staged: string[][] = [];
+    const flaky = async (context: string) => {
+      staged.push(readdirSync(context).sort());
+      if (staged.length === 1) throw new Error("the daemon went away");
+    };
+    await expect(buildOnce(plan, flaky)).rejects.toThrow(/the daemon went away/);
+    await expect(buildOnce(plan, flaky)).resolves.toBe(plan.tag);
+    // a build that worked stays: the third call builds nothing
+    await expect(buildOnce(plan, flaky)).resolves.toBe(plan.tag);
+    expect(staged).toEqual([
+      ["Dockerfile", "app.mjs", "npm-lock.json", "package.json"],
+      ["Dockerfile", "app.mjs", "npm-lock.json", "package.json"],
+    ]);
   });
 
   it("finds each FROM that no digest pins", () => {

@@ -320,27 +320,44 @@ export const planOf = (source: string | ImageSource): ImagePlan => {
   return plan;
 };
 
+/** This function builds a staged context with Docker, through Testcontainers. */
+const dockerBuild = async (context: string, plan: Extract<ImagePlan, { readonly kind: "build" }>): Promise<void> => {
+  const { GenericContainer } = await import("testcontainers");
+  await GenericContainer.fromDockerfile(context, plan.dockerfile).build(plan.tag, { deleteOnExit: false });
+};
+
 const built = new Map<string, Promise<string>>();
 
-/** This function builds the image of a plan one time for each process, from a new context that it copies the files into. Docker keeps its layers between runs. */
-const buildOnce = (plan: Extract<ImagePlan, { readonly kind: "build" }>): Promise<string> => {
+/**
+ * This function builds the image of a plan one time for each process, from a new context that it
+ * copies the files into. Docker keeps its layers between runs. A build that fails leaves the cache.
+ * Thus a later cell builds again after a fault of Docker or of the network.
+ */
+export const buildOnce = (
+  plan: Extract<ImagePlan, { readonly kind: "build" }>,
+  builder: (context: string, plan: Extract<ImagePlan, { readonly kind: "build" }>) => Promise<void> = dockerBuild,
+): Promise<string> => {
   let tag = built.get(plan.tag);
   if (tag === undefined) {
-    tag = (async () => {
-      const { GenericContainer } = await import("testcontainers");
+    const building = (async () => {
       const context = mkdtempSync(join(tmpdir(), `${plan.tag.split(":")[0]!.replaceAll("/", "-")}-`));
       try {
         for (const { file, at } of plan.files) {
           mkdirSync(dirname(join(context, at)), { recursive: true });
           copyFileSync(file, join(context, at));
         }
-        await GenericContainer.fromDockerfile(context, plan.dockerfile).build(plan.tag, { deleteOnExit: false });
+        await builder(context, plan);
       } finally {
         rmSync(context, { recursive: true, force: true });
       }
       return plan.tag;
     })();
-    built.set(plan.tag, tag);
+    // a failed build does not stay: the next caller tries again
+    building.catch(() => {
+      if (built.get(plan.tag) === building) built.delete(plan.tag);
+    });
+    built.set(plan.tag, building);
+    tag = building;
   }
   return tag;
 };
