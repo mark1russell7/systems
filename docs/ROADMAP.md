@@ -544,7 +544,7 @@ Each stage band of T12 includes the error of the stamps of the observer: 0.705 m
 - **Depends on:** S1
 - **Started:** 2026-10-18
 - **Shipped:**
-- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [Defaults](https://github.com/mark1russell7/systems/actions/runs/39096843868), [Idle](https://github.com/mark1russell7/systems/actions/runs/39098339096), [Seven](https://github.com/mark1russell7/systems/actions/runs/39101376487), [Connect](https://github.com/mark1russell7/systems/actions/runs/39103033893), [#76](https://github.com/mark1russell7/systems/pull/76), [Keepalive](https://github.com/mark1russell7/systems/actions/runs/39111986991), [#77](https://github.com/mark1russell7/systems/pull/77), [Start](https://github.com/mark1russell7/systems/actions/runs/39114190902), [#78](https://github.com/mark1russell7/systems/pull/78), [O07](https://github.com/mark1russell7/systems/actions/runs/39113772326), [#79](https://github.com/mark1russell7/systems/pull/79), [O03](https://github.com/mark1russell7/systems/actions/runs/39116194760), [#80](https://github.com/mark1russell7/systems/pull/80), [T03](https://github.com/mark1russell7/systems/actions/runs/39116595665), [#81](https://github.com/mark1russell7/systems/pull/81), [Server](https://github.com/mark1russell7/systems/actions/runs/39118515216), [#82](https://github.com/mark1russell7/systems/pull/82), [Queue](https://github.com/mark1russell7/systems/actions/runs/39119618959), [#83](https://github.com/mark1russell7/systems/pull/83), [Pooler](https://github.com/mark1russell7/systems/actions/runs/39123543199)
+- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [#76](https://github.com/mark1russell7/systems/pull/76), [#77](https://github.com/mark1russell7/systems/pull/77), [#78](https://github.com/mark1russell7/systems/pull/78), [#79](https://github.com/mark1russell7/systems/pull/79), [#80](https://github.com/mark1russell7/systems/pull/80), [#81](https://github.com/mark1russell7/systems/pull/81), [#82](https://github.com/mark1russell7/systems/pull/82), [#83](https://github.com/mark1russell7/systems/pull/83), [#84](https://github.com/mark1russell7/systems/pull/84)
 
 The next system of the S1 order, with its clients and PgBouncer. At its defaults and its borders, the plan of R3 has 329 cells with PostgreSQL. HikariCP with pgjdbc is the client of 160 of them, Npgsql of 47 and node-postgres of 36. T10, through a pooler, has 132 of them.
 
@@ -605,7 +605,13 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
   - The documents come from its C source at its tag (machines 0.3.7): one client connection, and one server connection of a pool. Each timer of PgBouncer is a check of its janitor, each 333.3 ms.
   - At the defaults PgBouncer checks an idle server older than 30 s with the empty query before its next use, and no timer bounds that check.
   - The hop builds PgBouncer from its release tarball, by its SHA-256 (harness 0.11.9). Its lab test passes: a reset of the server reaches a client of node-postgres as FATAL 08P01 "server conn crashed?".
-- Then the cells of T10.
+- The first three T10 cells of HikariCP hold through PgBouncer, with 11 runs each (#84). A fault at the server is between PgBouncer and the server.
+  - Behind a black hole of the server, the keepalive of HikariCP sends its empty query to PgBouncer, and no reply comes. Its read timeout closes the socket at 5.002 s, as on the direct pair.
+  - The server holds the query in flight 5 s, and nothing ends it: the reply comes at 5.006 s.
+  - HikariCP of the earlier epoch has no keepalive, thus nothing finds the black hole in 60 s.
+  - The two documents of PgBouncer decide that no timer of PgBouncer ends a query first: its earliest is query_wait_timeout, 120 s.
+  - The other T10 cells at the defaults wait. Some need Pgpool-II or Supavisor, and some need several clients, SIGHUP or a console command at a hop, or a fault timed to a reply.
+- Then the borders of T10.
 
 ### RABBIT · RabbitMQ
 
