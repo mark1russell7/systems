@@ -294,8 +294,8 @@ describe("the MongoDB catalogs", () => {
   it("counts a forgotten flow from the client's delayed ACK of the last reply", () => {
     const both = T03_MONGO.find((each) => each.spec.plan === "T03.border-off.8")!.prediction;
     expect(both.bands[0]).toMatchObject({ name: "ECONNRESET", low: { value: 12 } });
-    // 12 s, the listing of the router, and an ACK at most 40 ms and a jiffy late
-    expect(both.bands[0]!.high.value).toBeCloseTo(12.09 + 0.04 + 1 / HZ, 6);
+    // 12 s, the listing of the router and the slack of its pump, and an ACK at most 40 ms and a jiffy late
+    expect(both.bands[0]!.high.value).toBeCloseTo(12.095 + 0.04 + 1 / HZ, 6);
   });
 
   it("gives the group cells of T11 their stages, and no failover to a cut that keeps the majority", () => {

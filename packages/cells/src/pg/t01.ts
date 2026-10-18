@@ -1,7 +1,7 @@
 import type { Detector, KnobValues, Manifestation } from "@mark1russell7/algebra";
 import { detection, errnoOf, overValues, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
 import type { Cell, Prediction, RouterHop, Target } from "@mark1russell7/harness";
-import { LINUX_TCP, NODE_POSTGRES } from "@mark1russell7/machines";
+import { LINUX_TCP, NF_CONNTRACK_TCP, NODE_POSTGRES } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import { HZ, RTT_MS, RUNS, count, given, predict, s, seconds, sysctlsOf } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
@@ -9,7 +9,7 @@ import type { Waiting } from "../mongo/cells.ts";
 import type { Span } from "../mongo/model.ts";
 import { linuxValues, span, spanOf } from "../mongo/model.ts";
 import { PRESETS } from "../mongo/t03.ts";
-import { ackDelay, o03From, router as routerHop, routerValues } from "../topologies.ts";
+import { ackDelay, conntrackValues, o03From, router as routerHop } from "../topologies.ts";
 import { SLOW_QUERY, STATEMENT_DEADLINE, pgTargetWith, statementDeadline } from "./server.ts";
 
 /**
@@ -332,11 +332,16 @@ const atForget = (spec: PgSpec, driver: KnobValues): Prediction => {
   const router = spec.router;
   if (router === undefined || spec.observer !== "server") throw new Error(`${spec.plan}: a forgotten flow of the pool needs a router and the server as the observer`);
   if (router.form !== "silent-drop") throw new Error(`${spec.plan}: this catalog measures a forgotten flow only at a silent drop, not at ${router.form}`);
-  const conntrack = routerValues(router.idle);
+  const conntrack = conntrackValues(router.idle);
   const idle = timerOf(NODE_POSTGRES, "idle_timeout", driver);
   const verdict = o03From(idle, conntrack, PG_RTT_MS / 1000);
   const window = s(2.5 * router.idle);
-  if (!verdict.holds) return { detects: false, window };
+  if (!verdict.holds) {
+    // the router forgets the flow at its idle timeout from the last segment through it: the ACK of the
+    // client, which is also the last segment that the server gets
+    const forget = spanOf(NF_CONNTRACK_TCP, "expire_established", conntrack);
+    return { detects: false, window, middlebox: { forgets: { low: s(forget.lo), high: s(forget.hi) } } };
+  }
   // the last segment that the server gets before the FIN is the ACK of the client for the last
   // reply: the delayed ACK comes up to its own delay after the release of the client to the pool
   const pool = span(seconds(idle.duration, "the idle timer") - seconds(idle.early, "early"), seconds(idle.duration, "the idle timer") + seconds(idle.lateness, "its lateness"));

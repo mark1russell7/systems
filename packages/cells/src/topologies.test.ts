@@ -51,14 +51,14 @@ describe("the catalogs of the topologies", () => {
   it("predicts DV-12's three cases from conntrack and Linux TCP when O03 does not hold", () => {
     for (const form of ["reset-both", "reset-next", "silent-drop"])
       expect(band(T03_CELLS, `T03 client idle, ${form}, keepidle 4 s`)).toBe("silent");
-    // a reset to both ends at the forget: 5 s, late by the pump and two listings at most. The router
+    // a reset to both ends at the forget: 5 s, late by the pump, two listings and the slack of the pump at most. The router
     // counts from the ACK of the last reply, at once or 40 ms and a jiffy later at HZ 250
     expect(band(T03_CELLS, "T03 client idle, reset-both, keepidle 6 s")).toEqual({
       timer: "expire_established",
       errno: "ECONNRESET",
       from: "last-received",
       low: 5,
-      high: 5.134,
+      high: 5.139,
     });
     // a reset to the next packet: the first keepalive probe, at 6 s on the wheel, one round trip later
     expect(band(T03_CELLS, "T03 client idle, reset-next, keepidle 6 s")).toMatchObject({ errno: "ECONNRESET", low: 5.996, high: 6.257 });
@@ -69,7 +69,7 @@ describe("the catalogs of the topologies", () => {
     expect(band(T03_CELLS, "T03 client in flight after 8 s idle, recreate")).toEqual({ replies: [0, 0.001] });
     // the server: both ends reset, a dropped probe from outside, or the reset of the router's own stack.
     // The last segment is the client's ACK of the reply, at once or 40 ms and a jiffy late
-    expect(band(T03_CELLS, "T03 server idle, reset-both, tcp-keepalive 6 s")).toMatchObject({ low: 5, high: 5.134 });
+    expect(band(T03_CELLS, "T03 server idle, reset-both, tcp-keepalive 6 s")).toMatchObject({ low: 5, high: 5.139 });
     expect(band(T03_CELLS, "T03 server idle, reset-next, tcp-keepalive 6 s")).toMatchObject({ errno: "ETIMEDOUT", low: 11.996, high: 12.352 });
     expect(band(T03_CELLS, "T03 server idle, none, tcp-keepalive 6 s")).toMatchObject({ errno: "ECONNRESET", low: 5.996 });
     expect(band(T03_CELLS, "T03 server idle, reset-both, tcp-keepalive 4 s")).toBe("silent");
@@ -157,12 +157,12 @@ describe("the catalogs of the topologies", () => {
     expect(band(T03_CELLS, "T03 client idle, blackhole at the router, keepidle 6 s, reset-both, the router forgets the flow")).toMatchObject({
       errno: "ECONNRESET",
       low: 5,
-      high: 5.134,
+      high: 5.139,
     });
     // in flight, each retransmission refreshes the flow, until a wait of 6.528 s: then one idle timeout later
     expect(
       band(T03_CELLS, "T03 client in flight, blackhole at the router, tcp_retries2 = 8, reset-both, the router forgets the flow"),
-    ).toEqual({ timer: "expire_established", errno: "ECONNRESET", from: "request-sent", low: 11.504, high: 11.978 });
+    ).toEqual({ timer: "expire_established", errno: "ECONNRESET", from: "request-sent", low: 11.504, high: 11.983 });
   });
 
   it("names the first round trips that each band assumes", () => {

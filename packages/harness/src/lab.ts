@@ -37,6 +37,14 @@ export const PUMP: Quantity = { value: 0.1, unit: "s" };
  * longer listing writes a `pump-slow` line, and a run with one near its detection is void.
  */
 export const LISTING: Quantity = { value: 20, unit: "ms" };
+/**
+ * This time is how late the pump of a router can be beyond its interval and its two listings. The
+ * pump sleeps after each listing, and the sleep can end late. The watcher also reads and stamps each
+ * event within a millisecond. Thus a DESTROY follows an expiry within the interval of the pump, two
+ * listings and this slack. It is an assumption: in run 39116866471, two of 11 forgets came 1.6 ms
+ * and 2.2 ms after the pump and two listings.
+ */
+export const PUMP_SLACK: Quantity = { value: 5, unit: "ms" };
 
 /**
  * A network fault is a fault that the injector applies as a filter rule. It is a black hole (both

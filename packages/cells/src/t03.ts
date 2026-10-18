@@ -34,7 +34,7 @@ import type { ManifestationName } from "./manifestations.ts";
 import { MANIFESTATIONS } from "./manifestations.ts";
 import { assuming } from "./rtt.ts";
 import type { O03Verdict } from "./topologies.ts";
-import { LISTING, ROUTER_PUMP, ackDelay, o03, router } from "./topologies.ts";
+import { ackDelay, conntrackValues, o03, router } from "./topologies.ts";
 
 /** This time is the idle timeout of the router, nf_conntrack_tcp_timeout_established: 5 s, a cloud NAT's 350 s scaled by 70. */
 export const IDLE = 5;
@@ -99,11 +99,7 @@ export const T03_SPECS: readonly T03Spec[] = [
 ];
 
 /** These are the values of the conntrack document for the router of T03: its idle timeout, and the lag of its DESTROY. */
-export const routerValues: KnobValues = given({
-  nf_conntrack_tcp_timeout_established: s(IDLE),
-  // the pump lists the table every PUMP, and each listing takes LISTING at most
-  gc_lag_max: s(valueIn(ROUTER_PUMP, "s") + 2 * valueIn(LISTING, "s")),
-});
+export const routerValues: KnobValues = conntrackValues(IDLE);
 
 /** This function gives the values of Linux TCP at the client of a spec, at a round trip in ms. */
 const clientValues = (spec: T03Spec, rttMs = RTT_MS): Record<string, Extent> => ({

@@ -94,7 +94,7 @@ export {
 export type { Decision, GroupVerdict, Interval, ReconnectVerdict, Spread, StageVerdict, Verdict } from "./verdict.ts";
 export { INJECT, NOISE, RELATIVE, STEPS, delayVoids, groupVerdictOf, medianInterval, noiseOf, quantileOf, requestWords, spreadOf, verdictOf } from "./verdict.ts";
 export type { Agent, FaultSide, Lab, Manifest, ManifestHop, NetworkFault, Probe } from "./lab.ts";
-export { LISTING, PUMP, deviceOf, endpointAfter, hzOf, openLab, routesOf, templated, toxicBody } from "./lab.ts";
+export { LISTING, PUMP, PUMP_SLACK, deviceOf, endpointAfter, hzOf, openLab, routesOf, templated, toxicBody } from "./lab.ts";
 export type { ImagePlan } from "./image.ts";
 export {
   CLIENT_NAMES,

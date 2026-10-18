@@ -1,7 +1,7 @@
 import type { KnobValues, Machine, TimerBounds } from "@mark1russell7/algebra";
 import { evaluate as evaluateTime, realizationOf } from "@mark1russell7/algebra";
 import type { ProxyHop, RouterHop, Target } from "@mark1russell7/harness";
-import { LISTING } from "@mark1russell7/harness";
+import { LISTING, PUMP_SLACK } from "@mark1russell7/harness";
 import { LINUX_TCP, NF_CONNTRACK_TCP } from "@mark1russell7/machines";
 import type { Extent, Quantity, Unknown } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
@@ -15,9 +15,9 @@ export const REDIS_CLOSING: Target = {
   close: ["redis-cli", "CLIENT", "KILL", "TYPE", "normal"],
 };
 
-/** This time is the interval of the listing of the router of T03: 0.05 s. A DESTROY follows an expiry within it and two listings (`LISTING`). */
+/** This time is the interval of the listing of the router of T03: 0.05 s. A DESTROY follows an expiry within it, two listings (`LISTING`) and the slack of the pump (`PUMP_SLACK`). */
 export const ROUTER_PUMP: Quantity = { value: 0.05, unit: "s" };
-export { LISTING };
+export { LISTING, PUMP_SLACK };
 
 /** This function gives a router hop of T03, with its form and its idle timeout in whole seconds. */
 export const router = (form: RouterHop["form"], idle: number): RouterHop => ({
@@ -28,11 +28,15 @@ export const router = (form: RouterHop["form"], idle: number): RouterHop => ({
   pump: ROUTER_PUMP,
 });
 
-/** This function gives the values of conntrack for a router: its idle timeout in seconds, and the lag of its DESTROY. */
-export const routerValues = (idle: number): KnobValues =>
+/**
+ * This function gives the values of conntrack for a router: its idle timeout in seconds, and the lag
+ * of its DESTROY. The pump lists the table each ROUTER_PUMP, each listing takes LISTING at most, and
+ * the pump can be late by PUMP_SLACK.
+ */
+export const conntrackValues = (idle: number): KnobValues =>
   given({
     nf_conntrack_tcp_timeout_established: s(idle),
-    gc_lag_max: s(valueIn(ROUTER_PUMP, "s") + 2 * valueIn(LISTING, "s")),
+    gc_lag_max: s(valueIn(ROUTER_PUMP, "s") + 2 * valueIn(LISTING, "s") + valueIn(PUMP_SLACK, "s")),
   });
 
 /** This image is HAProxy 3.2.25, pinned by digest: the proxy of T02. */

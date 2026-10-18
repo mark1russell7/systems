@@ -65,10 +65,10 @@ describe("the WST catalog", () => {
 
   it("predicts what the client sees when the router forgets the flow before the ping", () => {
     expect(band("client idle, router reset-both at 5 s, heartbeat 4 s and 1 s")).toEqual({ silent: 15 });
-    // the forget: the delayed ACK of the last reply, then 5 s, late by the pump and two listings
+    // the forget: the delayed ACK of the last reply, then 5 s, late by the pump, two listings and the slack of the pump
     const forget = forgetOf(1);
     expect(forget.lo).toBe(5);
-    expect(forget.hi).toBeCloseTo(0.04 + 1 / HZ + 5.09, 9);
+    expect(forget.hi).toBeCloseTo(0.04 + 1 / HZ + 5.095, 9);
     expect(band("client idle, router reset-both at 5 s, heartbeat 6 s and 1 s")).toEqual({
       timer: "expire_established",
       errno: "ECONNRESET",

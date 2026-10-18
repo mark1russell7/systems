@@ -5,11 +5,11 @@ import { GO_TRANSPORT, LINUX_TCP, NF_CONNTRACK_TCP, NODE_HTTP_AGENT, NODE_HTTP_S
 import type { Extent } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Spec } from "../catalog.ts";
-import { HZ, LINUX_66, RTT_MS, WINDOW, count, given, ms, predictAt, q, s, seconds } from "../catalog.ts";
+import { HZ, LINUX_66, RTT_MS, WINDOW, count, given, ms, predictAt, q, seconds } from "../catalog.ts";
 import type { ManifestationName } from "../manifestations.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
 import { assuming } from "../rtt.ts";
-import { LISTING, ROUTER_PUMP } from "../topologies.ts";
+import { conntrackValues } from "../topologies.ts";
 import type { Decision, HttpClient, Interval, Ordering, Race, RequestOutcome } from "./race.ts";
 import {
   DISPATCH,
@@ -798,11 +798,7 @@ export const raceRtt = (spec: HttpSpec): { low: number; high: number } | null =>
 
 /** This function gives the window of a router forget, in seconds: expire_established at the idle of the router. */
 const forgetLow = (router: HttpRouter): number => {
-  const values = given({
-    nf_conntrack_tcp_timeout_established: s(router.idle),
-    gc_lag_max: s(valueIn(ROUTER_PUMP, "s") + 2 * valueIn(LISTING, "s")),
-  });
-  const bounds = timerOf(NF_CONNTRACK_TCP, "expire_established", values);
+  const bounds = timerOf(NF_CONNTRACK_TCP, "expire_established", conntrackValues(router.idle));
   return seconds(bounds.duration, "expire_established") - seconds(bounds.early, "the early bound of the forget");
 };
 

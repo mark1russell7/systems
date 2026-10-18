@@ -9,7 +9,7 @@ import type { Waiting } from "../mongo/cells.ts";
 import type { Span } from "../mongo/model.ts";
 import { linuxValues, plus, span, spanOf } from "../mongo/model.ts";
 import { PRESETS } from "../mongo/t03.ts";
-import { ackDelay, o03, router as routerHop, routerValues } from "../topologies.ts";
+import { ackDelay, conntrackValues, o03, router as routerHop } from "../topologies.ts";
 import type { Deadline } from "./server.ts";
 import { SLOW_QUERY, STATEMENT_DEADLINE, pgTargetWith, statementDeadline } from "./server.ts";
 import { APP_STALL, PG_RTT_MS, PG_TARGET } from "./t01.ts";
@@ -326,7 +326,7 @@ const atHold = (spec: HikariSpec, driver: KnobValues, linux: KnobValues): Predic
 const atForget = (spec: HikariSpec, driver: KnobValues, linux: KnobValues): Prediction => {
   const router = spec.router;
   if (router === undefined) throw new Error(`${spec.plan}: a forgotten flow needs a router`);
-  const conntrack = routerValues(router.idle);
+  const conntrack = conntrackValues(router.idle);
   const verdict = o03({ doc: HIKARICP_PGJDBC, values: driver }, conntrack, PG_RTT_MS / 1000);
   // the window holds two and a half idle timeouts of the router, or the hold of the cell
   if (verdict.holds) return { detects: false, window: s(spec.hold ?? 2.5 * router.idle), driver: { socket: "pool", quiet: [...QUIET] } };
