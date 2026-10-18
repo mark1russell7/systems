@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Cell, DriverBand, Prediction, Run } from "./cell.ts";
+import type { Cell, DriverBand, KernelRecord, Prediction, Run } from "./cell.ts";
 import { fieldOf, matches, measureDriver, settled, socketAt } from "./driver.ts";
 import { measure } from "./observe.ts";
 import { verdictOf } from "./verdict.ts";
@@ -175,6 +175,31 @@ describe("a band of a driver with more than one socket", () => {
       ],
     });
     expect(measure(fin, record)).toMatchObject({ outcome: { kind: "eof" }, elapsed: s(0.0025), void: null, finding: null });
+  });
+
+  it("times the connect of a pooler into a black hole from its SYN, to its own close in SYN_SENT or to the give-up of its kernel", () => {
+    const connect = (errno: string, low: number, high: number) =>
+      cellOf(
+        { detects: true, timer: "server_connect_timeout", errno, from: "syn-sent", low: s(low), high: s(high), driver: { socket: "upstream" } },
+        { probe: { mode: "idle", keepalive: false, driver: { name: "hikari" } }, before: true },
+      );
+    // the client starts into the fault. PgBouncer, at 10.0.1.5, connects to the server by itself: no line of the client names that socket
+    const hop = (records: readonly KernelRecord[]): Run =>
+      run({
+        events: [{ ev: "connecting", t: at(0.5) }],
+        topology: { targetPeer: "10.0.1.5", hops: { pgbouncer: { netns: 5, client: "10.0.0.8", target: "10.0.1.2:5432" } } },
+        kernel: [...records, { ev: "clock", mono: at(200), lost: 0 }],
+      });
+    const syn = { ev: "state", mono: at(0.6), netns: 5, cookie: 21, src: "10.0.1.5:40000", dst: "10.0.1.2:5432", old: 7, new: 2 } as KernelRecord;
+    // inside: the connect timer of PgBouncer closes its socket in SYN_SENT, with no error and no FIN
+    const given = hop([syn, { ...syn, mono: at(125.6), old: 2, new: 7 } as KernelRecord]);
+    expect(measure(connect("CLOSED", 125, 125.4), given)).toMatchObject({ outcome: { kind: "closed" }, elapsed: s(125), void: null, finding: null });
+    expect(settled(connect("CLOSED", 125, 125.4), given)).toBe(true);
+    // outside: the kernel of PgBouncer gives up on the SYNs first, and it reports ETIMEDOUT before the close
+    const gaveUp = hop([syn, { ev: "error", mono: at(131.6), netns: 5, cookie: 21, src: "10.0.1.5:40000", err: 110 } as KernelRecord, { ...syn, mono: at(131.6), old: 2, new: 7 } as KernelRecord]);
+    expect(measure(connect("ETIMEDOUT", 130.9, 131.1), gaveUp)).toMatchObject({ outcome: { kind: "error", errno: "ETIMEDOUT" }, elapsed: s(131), void: null, finding: null });
+    // a pooler that opened no connect in the run: the prober saw nothing of the socket
+    expect(measure(connect("CLOSED", 125, 125.4), hop([])).void).toBe("the prober saw nothing of the upstream socket");
   });
 
   it("times a selection that starts into a fault from the client's start, and a silent reply from the fault", () => {

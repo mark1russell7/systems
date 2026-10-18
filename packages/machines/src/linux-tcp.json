@@ -256,6 +256,15 @@
         ],
         "unit": "s"
       },
+      "lateness": {
+        "model": "linux.syn-giveup-lateness",
+        "knobs": [
+          "tcp_syn_retries",
+          "tcp_syn_linear_timeouts",
+          "hz"
+        ],
+        "unit": "s"
+      },
       "arms": [
         "enter:SYN_SENT"
       ],
@@ -264,7 +273,7 @@
         "rx.rst"
       ],
       "fires": "timer.syn.exhausted",
-      "note": "6.6: linear 1 s waits for the first tcp_syn_linear_timeouts retransmissions, then doubling; 131 s at the defaults"
+      "note": "6.6: linear 1 s waits for the first tcp_syn_linear_timeouts retransmissions, then doubling; 131 s at the defaults. Each wait is a timer of the wheel, rounded up at its level: up to 6.08 s late in all at HZ 1000, because the wait of 64 s can be 4.096 s late"
     },
     "retransmit": {
       "duration": {

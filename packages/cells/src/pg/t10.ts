@@ -1,7 +1,7 @@
-import type { KnobValues, Machine } from "@mark1russell7/algebra";
-import { detection, timerOf, transitionOn } from "@mark1russell7/algebra";
+import type { Detector, KnobValues, Machine } from "@mark1russell7/algebra";
+import { detection, errnoOf, overValues, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
 import type { Cell, Prediction, ProxyHop } from "@mark1russell7/harness";
-import { HIKARICP_PGJDBC, PGBOUNCER_CLIENT, PGBOUNCER_SERVER, PGPOOL_SESSION } from "@mark1russell7/machines";
+import { HIKARICP_PGJDBC, LINUX_TCP, PGBOUNCER_CLIENT, PGBOUNCER_SERVER, PGPOOL_SESSION } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import { RTT_MS, RUNS, count, given, predict, s, seconds, sysctlsOf } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
@@ -217,6 +217,8 @@ export interface T10Spec extends HikariSpec {
   readonly observesPooler?: true;
   /** This flag gives each run an environment of its own, with a dry warm-up: the fault changes the pooler for the runs after it. */
   readonly fresh?: true;
+  /** This flag observes the connect of PgBouncer to the server, for a client that starts into a black hole of the server. */
+  readonly upstream?: true;
 }
 
 /** This function puts a spec behind PgBouncer: the hop with the settings of the spec, and the latency that PgBouncer adds to a reply. */
@@ -237,6 +239,12 @@ const HELD_TIMEOUT = 10;
 
 /** These are the read timeouts of pgjdbc that the borders of the give-up of PgBouncer bind, in seconds. At tcp_retries2 = 4, the kernel gives up 6.2 s to 13.344 s after the first retransmission. */
 const POOLER_GIVEUP = { inside: 5, outside: 15 } as const;
+
+/**
+ * These are the values of server_connect_timeout that the border of the give-up of the SYNs binds, in
+ * seconds. The give-up is 131 s at the defaults, and the wheel can make it up to 6.08 s late at HZ 1000.
+ */
+const SYN_BORDER = { inside: 128, outside: 140 } as const;
 
 /** This value is the query_timeout of PgBouncer that its borders bind, in seconds, against a hold of APP_STALL. */
 const POOLER_TIMEOUT = { inside: APP_STALL + 1, outside: APP_STALL - 1 } as const;
@@ -298,6 +306,25 @@ export const T10_HIKARI_SPECS: readonly T10Spec[] = [
       options: { socketTimeout: at, minimumIdle: 1 },
       poolerLinux: { tcp_retries2: count(4) },
       observesPooler: true,
+    }),
+  ),
+  // ---- K-proxy-timeouts: server_connect_timeout of PgBouncer against the give-up of its kernel on the SYNs, 131 s at
+  // the defaults. The client starts into a black hole of the server, and PgBouncer connects for its first login: the
+  // pool needs the parameters of a server for its welcome. The cells observe that socket of PgBouncer from its SYN.
+  // A failed connect holds the pool in its backoff for server_login_retry (15 s) from its launch, and each run is
+  // longer than that: the next run of the environment gets a new connect
+  ...([
+    ["T10.border-off.83", SYN_BORDER.inside, "inside: the connect timer of PgBouncer closes its socket in SYN_SENT"],
+    ["T10.border-off.84", SYN_BORDER.outside, "outside: the kernel of PgBouncer gives up on the SYNs first"],
+  ] as const).map(([plan, at, side]) =>
+    behind({
+      plan,
+      name: `blackhole of the server before the client starts, the connect of PgBouncer, server_connect_timeout ${at} s: ${side}`,
+      fault: "blackhole",
+      mode: "inflight",
+      before: true,
+      pgbouncer: { server_connect_timeout: at },
+      upstream: true,
     }),
   ),
   // ---- K-client-timeouts: a frozen server with its kernel up acknowledges the query, and only the timer of the client ends it
@@ -405,11 +432,6 @@ const REASONS: ReadonlyArray<readonly [number, number, string]> = [
   [77, 78, NOT_THIS],
   [79, 80, NOT_THIS],
   [81, 82, "PgBouncer has no timer for one read: query_timeout bounds a whole query, which T10.border-off.7 and .8 place"],
-  [
-    83,
-    84,
-    "the connect timer of PgBouncer closes its server socket in SYN_SENT, with no error and no FIN. The judge of the harness reads no end of a socket there",
-  ],
   [85, 86, NOT_THIS],
   [87, 88, ONE_QUERY],
   [101, 102, "the cell needs PgBouncer in a pod of kind, which the PG catalog does not have"],
@@ -491,6 +513,7 @@ const endOf = (prediction: Prediction): number => {
  * cell, and no timer of PgBouncer can come before its end.
  */
 export const t10Prediction = (spec: T10Spec): Prediction => {
+  if (spec.upstream === true) return atUpstreamConnect(spec);
   if (spec.observesPooler === true) return atPoolerSocket(spec);
   if (spec.via === "pgpool") {
     // the band of the client is the band of the cell: no timer of Pgpool-II comes before its end,
@@ -548,6 +571,45 @@ const atPoolerSocket = (spec: T10Spec): Prediction => {
   }
   if (client.kind === "silent" || client.band.lo > seconds(giveup.high, "the give-up") + FIRST_RTO) return giveup;
   throw new Error(`${spec.plan}: the read timeout and the give-up of PgBouncer can each come first`);
+};
+
+/** This function tells if the duration of a detector has a bound. */
+const finite = (d: Detector): boolean => !("unknown" in d.duration) && d.duration.value !== "infinite";
+
+/**
+ * This function gives the prediction of the connect of PgBouncer into a black hole of the server
+ * (K-proxy-timeouts, against T_syn). The client starts into the fault, and PgBouncer connects to the
+ * server for its first login. The cell observes that socket of PgBouncer from its SYN.
+ *
+ * The algebra composes pgbouncer-server over Linux TCP, as for a client: `connecting` is SYN_SENT.
+ * The connect timer of PgBouncer closes the socket in SYN_SENT, with no error and no FIN
+ * (pbs.connect-failed). Else the kernel of PgBouncer gives up on the SYNs first and reports its error.
+ */
+const atUpstreamConnect = (spec: T10Spec): Prediction => {
+  if (spec.before !== true || spec.fault !== "blackhole") throw new Error(`${spec.plan}: this catalog observes the connect of PgBouncer only for a client that starts into a black hole`);
+  const values = pgbouncerValues(PGBOUNCER_SERVER, spec.pgbouncer);
+  const own = detection(PGBOUNCER_SERVER, { state: "connecting", inFlight: true }, { name: "blackhole", passes: [] }, values);
+  const lower = overValues(PGBOUNCER_SERVER, values, given(linuxValues(spec.poolerLinux)));
+  const socket = PGBOUNCER_SERVER.over?.states["connecting"];
+  if (socket === undefined) throw new Error("pgbouncer-server maps no state of Linux TCP for connecting");
+  const below = detection(LINUX_TCP, { state: socket, inFlight: true }, MANIFESTATIONS.blackhole, lower);
+  const all = [
+    ...own.detectors.filter(finite).map((d) => ({ d, layer: "proxy" as const })),
+    ...below.detectors.filter(finite).map((d) => ({ d, layer: "kernel" as const })),
+  ]
+    .map((each) => {
+      const bounds = each.layer === "proxy" ? timerOf(PGBOUNCER_SERVER, each.d.timer, values) : timerUnder(LINUX_TCP, each.d.timer, lower, MANIFESTATIONS.blackhole);
+      const duration = seconds(bounds.duration, each.d.timer);
+      return { ...each, band: span(duration - seconds(bounds.early, "early"), duration + seconds(bounds.lateness, "lateness")) };
+    })
+    .sort((a, b) => a.band.lo - b.band.lo);
+  const [first, next] = all;
+  if (first === undefined) throw new Error(`${spec.plan}: no timer ends the connect of PgBouncer`);
+  if (next !== undefined && next.band.lo <= first.band.hi) throw new Error(`${spec.plan}: ${first.d.timer} and ${next.d.timer} can each end the connect of PgBouncer first`);
+  if (first.layer === "proxy" && transitionOn(PGBOUNCER_SERVER, "connecting", first.d.fires)?.to !== "backoff")
+    throw new Error(`${spec.plan}: pgbouncer-server does not close the server at ${first.d.fires}`);
+  const errno = first.layer === "proxy" ? "CLOSED" : (errnoOf(LINUX_TCP, socket, first.d, MANIFESTATIONS.blackhole) ?? "ETIMEDOUT");
+  return { detects: true, timer: first.d.timer, errno, from: "syn-sent", low: s(first.band.lo), high: s(first.band.hi), driver: { socket: "upstream" } };
 };
 
 /** This observer is the server socket of PgBouncer: its socket toward the target. */

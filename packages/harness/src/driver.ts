@@ -105,8 +105,27 @@ const peerPlace = (run: Run, local: string): KernelPlace | undefined => {
   return placeOf(run, run.targetNetns, (record) => record.dst === peer);
 };
 
-/** This function gives the kernel place of a socket of a role at an instant. The role `server` is a socket of the target. */
+/**
+ * This function gives the socket that a hop of the topology opens toward its target in the run. It is
+ * the first one that moves to SYN_SENT after the outset. A pooler connects to the server by itself,
+ * thus no line of the client names that socket. The last hop goes first, because it faces the target.
+ */
+const upstreamOf = (run: Run): KernelPlace | undefined => {
+  if (run.topology === undefined) return undefined;
+  const outset = outsetOf(run);
+  for (const hop of Object.values(run.topology.hops).reverse()) {
+    const place = placeOf(run, hop.netns, (record) => record.ev === "state" && newState(record) === 2 && record.mono >= outset && record.dst === hop.target);
+    if (place !== undefined) return place;
+  }
+  return undefined;
+};
+
+/**
+ * This function gives the kernel place of a socket of a role at an instant. The role `server` is a
+ * socket of the target, and the role `upstream` is the socket that a hop opens toward the target.
+ */
 const kernelOf = (run: Run, role: string, at: number): { socket: DriverSocket | undefined; place: KernelPlace | undefined } => {
+  if (role === "upstream") return { socket: undefined, place: upstreamOf(run) };
   if (role === "server") {
     const pool = socketAt(run.events, "pool", at);
     return { socket: pool, place: pool === undefined ? undefined : peerPlace(run, pool.local) };
@@ -151,6 +170,8 @@ export const referenceOf = (run: Run, from: Reference, role: string, data: boole
   }
   if (from === "first-sent")
     return place.records.find((record) => record.ev === "tx" && record.mono > before && (record.seg?.len.value ?? 0) > 0)?.mono;
+  // the connect of the socket: its change to SYN_SENT, which the kernel stamps when it sends the SYN
+  if (from === "syn-sent") return place.records.find((record) => record.ev === "state" && newState(record) === 2)?.mono;
   if (from === "first-retransmission") {
     const request = run.events.filter((event) => event.ev === "sent")[1]?.t ?? before;
     return place.records.find((record) => record.ev === "retrans" && record.why === "rto" && record.mono > request)?.mono;
@@ -189,12 +210,20 @@ const lineAfter = (events: readonly ProbeEvent[], match: LineMatch, after: numbe
 /** This function gives the name of the error of a line: the field that the match names, or `name`. */
 const nameOf = (line: ProbeEvent, match: LineMatch): string => String(fieldOf(line, match.name ?? "name") ?? line.ev);
 
-/** This function gives the report of the kernel on a socket after an instant: an error, or the end of the file (CLOSE_WAIT). */
+/**
+ * This function gives the report of the kernel on a socket after an instant: an error, or the end of
+ * the file (CLOSE_WAIT). With neither, a close of the socket in SYN_SENT is the end. The program gave
+ * up on its connect, and the kernel reports no error and sends no FIN. A refused connect also leaves
+ * SYN_SENT, but it has its error.
+ */
 const reportOf = (place: KernelPlace, after: number): { at: number; outcome: Outcome } | undefined => {
   const report = place.records.find(
     (record) => record.mono > after && ((record.ev === "error" && (record.err ?? 0) !== 0) || (record.ev === "state" && newState(record) === 8)),
   );
-  if (report === undefined) return undefined;
+  if (report === undefined) {
+    const given = place.records.find((record) => record.mono > after && record.ev === "state" && oldState(record) === 2 && newState(record) === 7);
+    return given === undefined ? undefined : { at: given.mono, outcome: { kind: "closed" } };
+  }
   return report.ev === "error"
     ? { at: report.mono, outcome: { kind: "error", errno: ERRNO[report.err!] ?? `E${report.err}` } }
     : { at: report.mono, outcome: { kind: "eof" } };
@@ -376,7 +405,7 @@ export const measureDriver = (cell: Cell, run: Run): Measured => {
   if (reference === undefined)
     return { ...base, ...nothing, ...stepped, outcome, void: voided, finding: `it ended without its reference event (${prediction.from} on the ${driver.socket} socket)` };
   if (driver.ends === undefined && prediction.from === "last-received" && place !== undefined) voided ??= delayed(place, reference, ended, run.hz, noiseOf(cell));
-  const name = outcome.kind === "error" ? outcome.errno : outcome.kind === "eof" ? "EOF" : "silent";
+  const name = outcome.kind === "error" ? outcome.errno : outcome.kind === "eof" ? "EOF" : outcome.kind === "closed" ? "CLOSED" : "silent";
   if (prediction.errno !== "OK" && name !== prediction.errno) findings.unshift(`it ended with ${name}, not ${prediction.errno}`);
   // the client's own view: its first error line after the report of the kernel
   const seen = report === undefined ? undefined : events.find((event) => event.t >= report.at && (event.ev === "error" || event.ev === "socket-error"));

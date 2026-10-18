@@ -93,6 +93,10 @@ A change to the version of a system changes its sources too. Each fact of the do
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
 
+### 0.3.9
+
+- **The SYN give-up of Linux TCP has its lateness.** Each wait of the SYN is a timer of the wheel, which rounds it up at its level. At the defaults and HZ 1000, the wait of 64 s can be 4.096 s late. Thus the give-up is 131 s to 137.08 s. At HZ 250 it is up to 5.056 s late. The lateness needs `@mark1russell7/algebra` 0.7.2.
+
 ### 0.3.8
 
 - **Pgpool-II 4.7.3, with one backend.** A new document, `pgpool-session`, from the C source at the tag V4_7_3. It is one session of a client in its child process, on the socket of the client:

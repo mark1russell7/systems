@@ -250,6 +250,16 @@ const retransBudget = (retries: bigint, min: Rational, max: Rational): Rational 
 const TCP_TIMEOUT_INIT = whole(1n);
 const TCP_RTO_MAX = whole(120n);
 
+/**
+ * This function gives each wait of the SYN of a connect, from 6.5. The first tcp_syn_linear_timeouts
+ * retransmissions wait the initial RTO, and the wait after the last of them too. Then each wait
+ * doubles, up to TCP_RTO_MAX. The connect gives up at the end of the last wait.
+ */
+const synWaits = (retries: bigint, linear: bigint): Rational[] => [
+  ...Array.from({ length: Number(linear + 1n) }, () => TCP_TIMEOUT_INIT),
+  ...Array.from({ length: Number(retries) }, (_, at) => capped(TCP_TIMEOUT_INIT, BigInt(at + 1), TCP_RTO_MAX)),
+];
+
 /** This function gives the whole jiffies of a time at HZ, rounded up, as msecs_to_jiffies and usecs_to_jiffies round. */
 const jiffiesOf = (seconds: Rational, hz: Rational): bigint => r.ceil(r.mul(seconds, hz)).n;
 
@@ -453,15 +463,29 @@ const MODELS: Readonly<Record<string, Model>> = {
   // others double it, and the SYN gives up after syn_retries + linear_timeouts retransmissions
   "linux.syn-giveup": {
     knobs: [null, null],
-    seconds: ([retries, linear]) => {
-      const n = integer(retries!, "tcp_syn_retries");
-      let total = r.mul(whole(integer(linear!, "tcp_syn_linear_timeouts") + 1n), TCP_TIMEOUT_INIT);
-      for (let i = 1n; i <= n; i += 1n)
-        total = r.add(total, capped(TCP_TIMEOUT_INIT, i, TCP_RTO_MAX));
-      return total;
-    },
+    seconds: ([retries, linear]) =>
+      synWaits(integer(retries!, "tcp_syn_retries"), integer(linear!, "tcp_syn_linear_timeouts")).reduce(
+        (total, wait) => r.add(total, wait),
+        whole(0n),
+      ),
     source:
       "net/ipv4/tcp_timer.c tcp_write_timeout and Documentation/networking/ip-sysctl.rst at v6.6",
+  },
+  // the rounding of each of those waits on the timer wheel, at the level that its length puts it in:
+  // 6.08 s at the defaults and HZ 1000, because the last wait of 64 s can be 4.096 s late
+  "linux.syn-giveup-lateness": {
+    knobs: [null, null, "Hz"],
+    seconds: ([retries, linear, hz]) =>
+      r.div(
+        whole(
+          synWaits(integer(retries!, "tcp_syn_retries"), integer(linear!, "tcp_syn_linear_timeouts")).reduce(
+            (total, wait) => total + granularity(jiffiesOf(wait, hz!)),
+            0n,
+          ),
+        ),
+        hz!,
+      ),
+    source: "net/ipv4/tcp_timer.c tcp_retransmit_timer and kernel/time/timer.c calc_wheel_index at v6.6",
   },
   // the default retryStrategy of ioredis 6: min(2^(times - 1) × 50, 5000) ms, plus a jitter of up
   // to 199 ms, which the lateness of the timer carries. Its times counts attempts from 1 after the

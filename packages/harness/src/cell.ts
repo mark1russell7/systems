@@ -257,6 +257,9 @@ export interface Toxic {
  * A check of a pool on an idle connection counts from the first segment with data that the socket
  * sends after the fault (`first-sent`). The keepalive of HikariCP comes at a phase from the
  * creation of its connection, thus no line of the client gives its time. The kernel stamps it.
+ *
+ * A connect timer counts from the change of its socket to SYN_SENT (`syn-sent`). A pooler connects
+ * to the server by itself, thus the kernel stamps that connect, and no line of the client does.
  */
 export type Reference =
   | "last-received"
@@ -266,7 +269,8 @@ export type Reference =
   | "fault"
   | "client-start"
   | "ping-sent"
-  | "first-sent";
+  | "first-sent"
+  | "syn-sent";
 
 /**
  * This prediction tells when a connection moves again after a stall. That occurs at the first
