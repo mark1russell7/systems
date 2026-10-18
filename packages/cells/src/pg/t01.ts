@@ -5,6 +5,7 @@ import { LINUX_TCP, NODE_POSTGRES } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import { HZ, RTT_MS, RUNS, count, given, predict, s, seconds, sysctlsOf } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
+import type { Waiting } from "../mongo/cells.ts";
 import type { Span } from "../mongo/model.ts";
 import { linuxValues, span, spanOf } from "../mongo/model.ts";
 
@@ -45,17 +46,35 @@ export const PG_DRIVER = "pg 8.23.1 with pg-pool 3.14.0 on Node 24.21.0";
 export interface PgSpec {
   readonly plan: string;
   readonly name: string;
-  readonly fault: "blackhole" | "rst" | "fin" | "unreachable" | "freeze-process" | "stall";
+  readonly fault: "blackhole" | "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none" | "app-stall";
   readonly mode: "idle" | "inflight";
   readonly icmp?: "host" | "net" | "port" | "admin";
   /** This time is the length of a stall, in seconds. */
   readonly stall?: number;
   /** These are the sysctls of Linux TCP at the client that differ from Linux 6.6. */
   readonly linux?: Readonly<Record<string, Extent>>;
+  /** This flag starts the client into a fault that holds already: its first connect meets it. */
+  readonly before?: true;
+  /** These are the options of the pool that differ from the defaults, by the names and in the units of pg. */
+  readonly options?: Readonly<Record<string, number>>;
+  /** This text is the query of each query of the client. Without it, the client sends `SELECT 1`. */
+  readonly query?: string;
 }
 
-/** These are the cells of T01 over pg-8.23 and postgresql, at the defaults. */
+/**
+ * These are the two values of the service that R3 binds for the borders of pg. They are the slowest
+ * poll of a check (O13) and the startup budget of a pod (O15). A border cell puts the timer of the
+ * pool on each side of its value.
+ */
+export const SLOWEST_POLL = 10;
+export const STARTUP_BUDGET = 30;
+
+/** This time is the hold of the server in the app-stall cell: `pg_sleep` of each query, in seconds. */
+export const APP_STALL = 5;
+
+/** These are the cells of T01 over pg-8.23 and postgresql: the defaults, then the borders of the law. */
 export const T01_PG_SPECS: readonly PgSpec[] = [
+  { plan: "T01.defaults.9", name: "rst at connect: the server refuses before the client starts", fault: "rst", mode: "inflight", before: true },
   { plan: "T01.defaults.122", name: "blackhole, idle: the pool ends its idle client before any detector", fault: "blackhole", mode: "idle" },
   { plan: "T01.defaults.123", name: "rst, a query in flight", fault: "rst", mode: "inflight" },
   { plan: "T01.defaults.124", name: "fin, idle", fault: "fin", mode: "idle" },
@@ -69,18 +88,76 @@ export const T01_PG_SPECS: readonly PgSpec[] = [
   },
   { plan: "T01.defaults.126", name: "freeze-process, a query in flight", fault: "freeze-process", mode: "inflight" },
   { plan: "T01.defaults.127", name: "a 1 s stall, a query in flight", fault: "stall", mode: "inflight", stall: 1 },
+  { plan: "T01.defaults.128", name: "event:idle, no fault: the pool ends its idle client at its idle timer", fault: "none", mode: "idle" },
+  {
+    plan: "T01.defaults.130",
+    name: `app-stall: the server holds each reply ${APP_STALL} s, and nothing ends the query`,
+    fault: "app-stall",
+    mode: "inflight",
+    query: `SELECT pg_sleep(${APP_STALL})`,
+  },
+  // ---- O13: the timer of a query against the slowest poll of a check
+  ...([
+    ["T01.border-off.179", 9.5, "inside"],
+    ["T01.border-off.180", 10.5, "outside"],
+  ] as const).map(([plan, at, side]): PgSpec => ({
+    plan,
+    name: `blackhole, a query in flight, query_timeout ${at} s: ${side} O13 against a poll of ${SLOWEST_POLL} s`,
+    fault: "blackhole",
+    mode: "inflight",
+    options: { query_timeout: at * 1000 },
+  })),
+  // ---- O15: the timer of the connect against the startup budget of a pod
+  ...([
+    ["T01.border-off.191", 29, "inside"],
+    ["T01.border-off.192", 31, "outside"],
+  ] as const).map(([plan, at, side]): PgSpec => ({
+    plan,
+    name: `blackhole before the connect, connectionTimeoutMillis ${at} s: ${side} O15 against a startup budget of ${STARTUP_BUDGET} s`,
+    fault: "blackhole",
+    mode: "inflight",
+    before: true,
+    options: { connectionTimeoutMillis: at * 1000 },
+  })),
+];
+
+/** This reason is the reason of the O03 cells of a pool client through a router. */
+const POOLED =
+  "the cell needs a router between the client and the server, and the PG catalog has no chain yet. On each side of the border the pool closes its idle client at its own timer: only the socket of the server shows that the router forgot the flow";
+/** This reason is the reason of the O03 cells of a client that the application holds. */
+const HELD = "the client of the harness gives its client back to the pool after each query: it has no mode for a client that the application holds";
+/** This reason is the reason of the O07 cells. */
+const SLOW = "the client of the harness sends one text for each query, thus a slow query delays its first reply too: the cell needs a slow query only after the client is ready";
+
+/** These are the cells of the plan over these systems that this catalog does not start, each with its reason. */
+export const T01_PG_WAITING: readonly Waiting[] = [
+  { plan: "T01.defaults.129", trigger: "event:server-restart-same-ip", why: "the harness has no restart of a target with its address" },
+  { plan: "T01.defaults.131", trigger: "timed:mid-commit", why: "the harness has no injector that times a fault to a reply" },
+  { plan: "T01.defaults.132", trigger: "in-process:event-loop", why: "no document gives the sequence of the timers of Node that are late after a block of its event loop" },
+  { plan: "T01.defaults.133", trigger: "workload:write-write-read", why: "pg sets TCP_NODELAY before the connect (connection.js:40-52), thus Nagle holds no write: the pattern does not occur" },
+  { plan: "T01.border-off.157", trigger: "border", why: POOLED },
+  { plan: "T01.border-off.158", trigger: "border", why: POOLED },
+  { plan: "T01.border-off.159", trigger: "border", why: HELD },
+  { plan: "T01.border-off.160", trigger: "border", why: HELD },
+  { plan: "T01.border-off.171", trigger: "border", why: SLOW },
+  { plan: "T01.border-off.172", trigger: "border", why: SLOW },
 ];
 
 /**
  * This function gives the values of the knobs of node-postgres: the defaults of 8.23.1, at a round
  * trip in ms. A knob at the value that turns its timer off has no bound (`infinite`).
  */
-export const pgValues = (rttMs = RTT_MS): Record<string, Extent> => {
+export const pgValues = (rttMs = RTT_MS, options: Readonly<Record<string, number>> = {}): Record<string, Extent> => {
   const out: Record<string, Extent> = {};
   for (const [name, knob] of Object.entries(NODE_POSTGRES.knobs)) {
-    if (knob.default === null || knob.unit === null) continue;
-    out[name] = { value: knob.off !== undefined && knob.default === knob.off ? "infinite" : knob.default, unit: knob.unit };
+    if (knob.unit === null) continue;
+    // an option of the cell replaces the default, in the unit of the knob, as pg reads it
+    const value = options[name] ?? knob.default;
+    if (value === null) continue;
+    out[name] = { value: knob.off !== undefined && value === knob.off ? "infinite" : value, unit: knob.unit };
   }
+  const unknown = Object.keys(options).filter((name) => NODE_POSTGRES.knobs[name]?.unit == null);
+  if (unknown.length > 0) throw new Error(`node-postgres has no knob with a unit for ${unknown.join(", ")}`);
   out["hz"] = { value: HZ, unit: "Hz" };
   out["rtt"] = { value: rttMs, unit: "ms" };
   return out;
@@ -98,17 +175,22 @@ export type First =
 
 const finite = (d: Detector): boolean => !("unknown" in d.duration) && d.duration.value !== "infinite";
 
+/** A client state is the state of the client of a cell at the fault. It is idle in the pool, a query in flight, or the first connect. */
+export type ClientState = "pooled" | "querying" | "connecting";
+
 /**
  * This function gives the first detection on the socket of the client. It composes the document of
  * node-postgres over Linux TCP. The timers of the pool see what the fault lets through. The timers
- * of the kernel use the keepalive that pg sets. An idle client is `pooled`, and a client with a
- * query in flight is `querying`.
+ * of the kernel use the keepalive that pg sets. The document maps each state of the client to a
+ * state of the socket: `connecting` is SYN_SENT, and the others are ESTABLISHED.
  */
-export const firstOn = (inFlight: boolean, manifestation: Manifestation, driver: KnobValues, linux: KnobValues): First => {
-  const state = inFlight ? "querying" : "pooled";
+export const firstOn = (state: ClientState, manifestation: Manifestation, driver: KnobValues, linux: KnobValues): First => {
+  const inFlight = state !== "pooled";
   const own = detection(NODE_POSTGRES, { state, inFlight }, { name: manifestation.name, passes: [] }, driver);
   const lower = overValues(NODE_POSTGRES, driver, linux);
-  const below = detection(LINUX_TCP, { state: "ESTABLISHED", inFlight }, manifestation, lower);
+  const socket = NODE_POSTGRES.over?.states[state];
+  if (socket === undefined) throw new Error(`node-postgres maps no state of Linux TCP for ${state}`);
+  const below = detection(LINUX_TCP, { state: socket, inFlight }, manifestation, lower);
   const [delivered] = below.delivered;
   if (delivered !== undefined) return { kind: "delivered", event: delivered.event, name: delivered.errno ?? "EOF" };
   const all = [
@@ -126,23 +208,57 @@ export const firstOn = (inFlight: boolean, manifestation: Manifestation, driver:
   const name =
     winner.layer === "driver"
       ? (transitionOn(NODE_POSTGRES, state, winner.d.fires)?.errno ?? winner.d.fires)
-      : (errnoOf(LINUX_TCP, "ESTABLISHED", winner.d, manifestation) ?? "ETIMEDOUT");
+      : (errnoOf(LINUX_TCP, socket, winner.d, manifestation) ?? "ETIMEDOUT");
   return { kind: "timer", timer: winner.d.timer, layer: winner.layer, name, band: winner.band };
 };
 
 /** This range is the first round trip that each band of a reset or a FIN assumes: 0 to 2 ms on the direct pair. */
 export const PG_RTT_MS = 2;
 
+/**
+ * This manifestation is no fault: each incoming event of Linux TCP gets through. A cell with no
+ * fault reads it.
+ */
+const NO_FAULT: Manifestation = { name: "none", passes: Object.keys(LINUX_TCP.events).filter((event) => event.startsWith("rx.")) };
+
 /** This function gives the manifestation of a fault to the kernel of the client. */
 const manifestationOf = (spec: PgSpec): Manifestation => {
   if (spec.fault === "unreachable") return MANIFESTATIONS[`unreachable-${spec.icmp ?? "host"}` as keyof typeof MANIFESTATIONS];
   if (spec.fault === "freeze-process") return MANIFESTATIONS["freeze-process"];
   if (spec.fault === "fin") return MANIFESTATIONS.fin;
+  if (spec.fault === "none") return NO_FAULT;
   return MANIFESTATIONS.blackhole;
 };
 
 /** These lines of the client must not occur in the window of a silent cell. They are a failure of the query and an error of the socket. */
 const QUIET = [{ ev: "fail" }, { ev: "socket-error" }] as const;
+
+/**
+ * This function gives the prediction of a cell whose fault holds before the client starts. Its
+ * first connect meets the fault, and the fail line of its first query ends the band. The band
+ * counts from the first line of the client.
+ */
+const atConnect = (spec: PgSpec, driver: KnobValues, linux: KnobValues, slack: number): Prediction => {
+  const fails = (name: "code" | "message") => ({ socket: "pool", ends: { ev: "fail", where: { n: 1 }, name } });
+  // a reset of the SYN refuses the connect at once. Two steps of Node come after it: the error of
+  // the socket, and the callback of the checkout
+  if (spec.fault === "rst") {
+    const errno = transitionOn(LINUX_TCP, "SYN_SENT", "rx.rst")?.errno ?? "ECONNREFUSED";
+    return { detects: true, timer: "the reset of the connect", errno, from: "client-start", low: s(0), high: s(PG_RTT_MS / 1000 + 2 * slack), driver: fails("code") };
+  }
+  const first = firstOn("connecting", manifestationOf(spec), driver, linux);
+  if (first.kind !== "timer") throw new Error(`${spec.plan}: no timer ends the first connect`);
+  // a timer of the pool fails the query with its own message, and the kernel with the code of the socket
+  return {
+    detects: true,
+    timer: first.timer,
+    errno: first.name,
+    from: "client-start",
+    low: s(first.band.lo),
+    high: s(first.band.hi),
+    driver: fails(first.layer === "driver" ? "message" : "code"),
+  };
+};
 
 /** This function gives the prediction of a cell for the harness. */
 export const pgPrediction = (spec: PgSpec): Prediction => {
@@ -150,19 +266,39 @@ export const pgPrediction = (spec: PgSpec): Prediction => {
   if (spec.fault === "stall")
     return predict({ name: spec.name, fault: "stall", manifestation: "blackhole", observer: "client", mode: "inflight", stall: spec.stall!, linux: spec.linux ?? {} });
   const rtt = { low: { value: 0, unit: "ms" }, high: { value: PG_RTT_MS, unit: "ms" } } as const;
-  const driver = given(pgValues());
+  const driver = given(pgValues(RTT_MS, spec.options));
   const linux = given(linuxValues(spec.linux));
   const slack = seconds(timerOf(NODE_POSTGRES, "idle_timeout", driver).lateness, "the slack of Node");
+  if (spec.before === true) return atConnect(spec, driver, linux, slack);
   // a reset answers the query at once
   if (spec.fault === "rst") {
     const errno = transitionOn(LINUX_TCP, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET";
     return { detects: true, timer: "the reset of the query", errno, from: "request-sent", low: s(0), high: s(PG_RTT_MS / 1000), rtt, driver: { socket: "pool" } };
   }
-  const first = firstOn(spec.mode === "inflight", manifestationOf(spec), driver, linux);
+  // the server holds the reply while its kernel acknowledges the query, as for a frozen process:
+  // nothing ends the query at the defaults, and the reply comes after the hold
+  if (spec.fault === "app-stall") {
+    const held = firstOn("querying", MANIFESTATIONS["freeze-process"], driver, linux);
+    if (held.kind !== "silent") throw new Error(`${spec.plan}: ${held.kind === "timer" ? held.timer : held.event} ends the query in the hold`);
+    const reply = { from: "request-sent", ends: { ev: "ack", where: { n: 2 } } } as const;
+    return {
+      detects: false,
+      window: s(6 * APP_STALL),
+      replies: { low: s(APP_STALL), high: s(APP_STALL + PG_RTT_MS / 1000 + 2 * slack) },
+      driver: { socket: "pool", reply, quiet: [...QUIET] },
+    };
+  }
+  const first = firstOn(spec.mode === "inflight" ? "querying" : "pooled", manifestationOf(spec), driver, linux);
   if (first.kind === "delivered")
     return { detects: true, timer: `the server ends the connection: ${first.event}`, errno: first.name, from: "peer-closed", low: s(0), high: s(PG_RTT_MS / 1000 + slack), rtt, driver: { socket: "pool" } };
   if (first.kind === "silent") return { detects: false, window: s(60), driver: { socket: "pool", quiet: [...QUIET] } };
   const band = first.band;
+  if (first.layer === "driver" && first.timer !== "idle_timeout") {
+    // a timer of the pool fails the query into the fault: the fail line of that query ends the band.
+    // The timer starts at client.query, thus the band counts from the send of the query
+    const ends = { ev: "fail", where: { n: 2 }, name: "message" };
+    return { detects: true, timer: first.timer, errno: first.name, from: "request-sent", low: s(band.lo), high: s(band.hi), driver: { socket: "pool", ends } };
+  }
   if (first.layer === "driver") {
     // the pool ends its idle client: its own close. The kernel stamps the FIN that it sends, from
     // ESTABLISHED to FIN_WAIT1. The line `remove` of the pool does not mark it: the pool emits it
@@ -182,9 +318,11 @@ export const pgCell = (spec: PgSpec): Cell => ({
   name: nameOf(spec),
   target: PG_TARGET,
   sysctls: sysctlsOf(linuxValues(spec.linux)),
-  probe: { mode: spec.mode, keepalive: false, driver: { name: "pg" } },
+  probe: { mode: spec.mode, keepalive: false, driver: { name: "pg", ...(spec.query === undefined ? {} : { query: spec.query }) } },
   fault: spec.fault,
   prediction: pgPrediction(spec),
+  ...(spec.before === true ? { before: true } : {}),
+  ...(spec.options === undefined ? {} : { driverOptions: spec.options }),
   ...(spec.fault === "unreachable" ? { targetSysctls: { "net.ipv4.icmp_ratelimit": "0" } } : {}),
   ...(spec.stall === undefined ? {} : { stall: s(spec.stall) }),
   ...(spec.icmp === undefined ? {} : { icmp: spec.icmp }),
