@@ -8,6 +8,8 @@
 //
 // The lines:
 // - start: the versions of pg, pg-pool and Node, the mode and the options of the pool.
+// - connecting: the first query, which makes the first connection of the pool. Its stamp is the
+//   stamp of the first sent line. The pool arms its connect timer in that call.
 // - socket, socket-end, socket-error: each socket of the pool, with its local address.
 // - connected: the first socket. The TCP client of the harness names its own socket so.
 // - pool: each event of the pool: connect, acquire, release, remove, and error with its errno.
@@ -118,6 +120,8 @@ setTimeout(() => {
 const operate = async (n) => {
   const at = now();
   const reply = pool.query(query);
+  // a band of a cell that starts into a fault counts from the start of the first connect
+  if (n === 1) emit("connecting", { at: `${host}:${port}` }, at);
   emit("sent", { n }, at);
   try {
     const result = await reply;
