@@ -863,14 +863,15 @@ code.sy-tag {
   line-height: 1.45;
 }
 
+/* The rule in the sans face: in the mono face, the O of O07 reads as a zero. */
 .sy-border figcaption strong {
-  font-family: var(--font-mono);
+  font-weight: 600;
   color: var(--color-ink);
 }
 
 .sy-border-row {
   display: grid;
-  grid-template-columns: 6.5rem minmax(0, 1fr);
+  grid-template-columns: 8rem minmax(0, 1fr);
   gap: var(--space-2);
   align-items: center;
 }
@@ -952,11 +953,15 @@ code.sy-tag {
   transform: translate(-50%, -50%);
 }
 
+/* A note is on the line of the border, with the surface behind its text. */
 .sy-border-note {
-  inset-inline: 0;
+  z-index: 1;
+  inset-inline-start: 0.5rem;
+  max-width: calc(100% - 0.5rem);
   top: 50%;
   transform: translateY(-50%);
-  padding-inline-start: 0.75rem;
+  padding: 0.05rem 0.35rem;
+  background: var(--color-surface);
   color: var(--color-ink-muted);
   font-style: italic;
   line-height: 1.3;
