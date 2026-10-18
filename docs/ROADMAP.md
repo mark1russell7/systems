@@ -680,17 +680,16 @@ quantity 0.2.0, algebra 0.7.1, service 0.5.2, prober 0.3.1, harness 0.11.4 and k
 
 ### MACHINES · The first version of @mark1russell7/machines
 
-- **Status:** waiting on Mark
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
 - **Started:** 2026-10-16
-- **Shipped:**
-- **Links:** [packages/machines](https://github.com/mark1russell7/systems/tree/main/packages/machines)
-- **Waiting on Mark:** Touch your security key for the first publish of machines, in the session that owns npm. On 2026-10-17, npm refused it with a 429.
+- **Shipped:** 2026-10-18
+- **Links:** [packages/machines](https://github.com/mark1russell7/systems/tree/main/packages/machines), [npm](https://www.npmjs.com/package/@mark1russell7/machines)
 
-The one home of each machine document. Its first version is 0.3.7. Version 0.3.1 adds the two documents of PostgreSQL to 0.3.0, and 0.3.2 adds HikariCP over pgjdbc. Version 0.3.3 adds the slack of poll() for HikariCP, and 0.3.4 adds the start check of the pool. Version 0.3.5 gives a bound to the alarm of a PostgreSQL backend. Version 0.3.6 tells that the keepalive checks of HikariCP share one thread, and 0.3.7 adds the two documents of PgBouncer 1.26.1.
+The one home of each machine document. Its first version on npm is 0.3.7, published on 2026-10-18 with OIDC and provenance. Version 0.3.1 adds the two documents of PostgreSQL to 0.3.0, and 0.3.2 adds HikariCP over pgjdbc. Version 0.3.3 adds the slack of poll() for HikariCP, and 0.3.4 adds the start check of the pool. Version 0.3.5 gives a bound to the alarm of a PostgreSQL backend. Version 0.3.6 tells that the keepalive checks of HikariCP share one thread, and 0.3.7 adds the two documents of PgBouncer 1.26.1.
 
-The session that owns npm publishes it from main. Then release.yml publishes each later version.
+release.yml publishes each later version from main, as for the other packages.
 
 ### DELACK · The delayed ACK of Linux TCP
 
