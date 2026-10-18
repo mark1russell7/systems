@@ -19,6 +19,11 @@ export const SV = "v2.9.13";
  * At the defaults the handler writes a heartbeat to an idle client each 60 s: a ParameterStatus of
  * application_name. A failed write ends the client. client_idle_timeout does not end a session in
  * 2.9.13: its timer fires an event that no clause handles. Each client socket has SO_KEEPALIVE.
+ *
+ * Each client socket also has the send timeout of ranch: a write to the client that waits 30 s fails,
+ * and the BEAM closes the socket. This document gives it no timer. A write waits when the client takes no
+ * data: a broken path, or a client that reads nothing. On a broken path, the FIN of the close waits
+ * behind the data that the kernel did not send.
  */
 export const SUPAVISOR_CLIENT: Machine = machineSchema.parse({
   format: "mark1russell7.machine/1",
@@ -36,6 +41,14 @@ export const SUPAVISOR_CLIENT: Machine = machineSchema.parse({
     { ref: `${SV} lib/supavisor/tenants/tenant.ex:28-32 the defaults of a tenant: default_pool_size 15, default_max_clients 1000, client_idle_timeout 0, client_heartbeat_interval 60 s`, rung: "implemented" },
     { ref: `${SV} lib/supavisor/tenants/user.ex:16-19 a user: mode_type transaction or session, pool_size, pool_checkout_timeout 60_000 ms, max_clients`, rung: "implemented" },
     { ref: `${SV} lib/supavisor/application.ex:71-83 each listener is ranch_tcp with keepalive true: each client socket has SO_KEEPALIVE`, rung: "implemented" },
+    {
+      ref: `ranch 2.2.0, the version of mix.lock at ${SV}: src/ranch_tcp.erl:108-109 a listener sets send_timeout 30000 and send_timeout_close true, and each accepted socket has the options of its listener. Thus a write to the client that waits 30 s fails, and the BEAM closes the socket. The server connection ignores the result of each write of a reply to the client (lib/supavisor/db_handler.ex:890-905)`,
+      rung: "implemented",
+    },
+    {
+      ref: `${SV} run 39170773426 of mark1russell7/systems, T03.defaults.59: behind an MTU black hole at a router, each of 11 runs had a reply of 2 MB in flight. The client socket of Supavisor left ESTABLISHED for FIN_WAIT1 30.068 to 30.086 s after the fault, and the client got nothing in 60 s`,
+      rung: "observed",
+    },
     { ref: `${SV} lib/supavisor/client_handler.ex:21-23, :123, :198 a state_timeout of 5_000 ms in :handshake, and 2_500 ms for a TLS handshake`, rung: "implemented" },
     { ref: `${SV} lib/supavisor/client_handler.ex:315, :600, :627 an event timeout of 15_000 ms on each wait of the authentication`, rung: "implemented" },
     { ref: `${SV} lib/supavisor/client_handler.ex:901-911 handle_actions arms the event timeout of client_idle_timeout, then the event timeout of the heartbeat. A gen_statem has one event timeout: the second action replaces the first`, rung: "implemented" },
@@ -177,6 +190,6 @@ export const SUPAVISOR_CLIENT: Machine = machineSchema.parse({
     states: { handshake: "ESTABLISHED", auth: "ESTABLISHED", idle: "ESTABLISHED", checkout: "ESTABLISHED", busy: "ESTABLISHED" },
     sets: {},
     ends: "client.gone",
-    note: "The socket of the client. ranch sets SO_KEEPALIVE and no other keepalive option, thus the three keepalive sysctls of the namespace apply",
+    note: "The socket of the client. ranch sets SO_KEEPALIVE and no other keepalive option, thus the three keepalive sysctls of the namespace apply. It also sets a send timeout of 30 s that closes the socket. That close has no timer here: the kernel sends the FIN only after the data before it, an assumption of this document",
   },
 });

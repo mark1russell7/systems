@@ -213,12 +213,15 @@ export const SUPAVISOR_LATENCY: number = PG_RTT_MS / 1000 + seconds(pgbouncerVal
 /** These are the options of a client of node-postgres through Supavisor: its user names the tenant, and its password is the password of that user. */
 const SUPAVISOR_PG = { user: SUPAVISOR_USER.name, password: SUPAVISOR_USER.password } as const;
 
+/** These are the options of a client of HikariCP through Supavisor, for its HikariConfig: the user of the tenant and its password. */
+export const SUPAVISOR_HIKARI = { username: SUPAVISOR_USER.name, password: SUPAVISOR_USER.password } as const;
+
 /**
  * This function checks that no timer of Supavisor ends a client before the band of its cell ends. Between
  * two transactions and in a transaction, only the heartbeat acts on the client, and it starts again each
  * 60 s: it ends nothing.
  */
-const supavisorAllows = (plan: string, state: "idle" | "busy", ends: number): void => {
+export const supavisorAllows = (plan: string, state: "idle" | "busy", ends: number): void => {
   const values = pgbouncerValues(SUPAVISOR_CLIENT);
   const own = detection(SUPAVISOR_CLIENT, { state, inFlight: state === "busy" }, { name: "blackhole", passes: [] }, values);
   for (const detector of own.detectors) {

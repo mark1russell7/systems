@@ -544,7 +544,7 @@ Each stage band of T12 includes the error of the stamps of the observer: 0.705 m
 - **Depends on:** S1
 - **Started:** 2026-10-18
 - **Shipped:**
-- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [#76](https://github.com/mark1russell7/systems/pull/76), [#77](https://github.com/mark1russell7/systems/pull/77), [#78](https://github.com/mark1russell7/systems/pull/78), [#79](https://github.com/mark1russell7/systems/pull/79), [#80](https://github.com/mark1russell7/systems/pull/80), [#81](https://github.com/mark1russell7/systems/pull/81), [#82](https://github.com/mark1russell7/systems/pull/82), [#83](https://github.com/mark1russell7/systems/pull/83), [#84](https://github.com/mark1russell7/systems/pull/84), [#85](https://github.com/mark1russell7/systems/pull/85), [#86](https://github.com/mark1russell7/systems/pull/86), [#90](https://github.com/mark1russell7/systems/pull/90), [#91](https://github.com/mark1russell7/systems/pull/91), [#92](https://github.com/mark1russell7/systems/pull/92)
+- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [#76](https://github.com/mark1russell7/systems/pull/76), [#77](https://github.com/mark1russell7/systems/pull/77), [#78](https://github.com/mark1russell7/systems/pull/78), [#79](https://github.com/mark1russell7/systems/pull/79), [#80](https://github.com/mark1russell7/systems/pull/80), [#81](https://github.com/mark1russell7/systems/pull/81), [#82](https://github.com/mark1russell7/systems/pull/82), [#83](https://github.com/mark1russell7/systems/pull/83), [#84](https://github.com/mark1russell7/systems/pull/84), [#85](https://github.com/mark1russell7/systems/pull/85), [#86](https://github.com/mark1russell7/systems/pull/86), [#90](https://github.com/mark1russell7/systems/pull/90), [#91](https://github.com/mark1russell7/systems/pull/91), [#92](https://github.com/mark1russell7/systems/pull/92), [#93](https://github.com/mark1russell7/systems/pull/93), [#94](https://github.com/mark1russell7/systems/pull/94), [#95](https://github.com/mark1russell7/systems/pull/95)
 
 The next system of the S1 order, with its clients and PgBouncer. At its defaults and its borders, the plan of R3 has 329 cells with PostgreSQL. HikariCP with pgjdbc is the client of 160 of them, Npgsql of 47 and node-postgres of 36. T10, through a pooler, has 132 of them.
 
@@ -596,7 +596,7 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
     - A fault at the router toward the client is the same fault for the socket of the client. A black hole of an idle connection, an unreachable host, a FIN and a stall each hold the band of their T01 cell.
     - An MTU black hole at the router takes each long segment of a reply of 2 MB. Nothing ends the read in 60 s.
     - The keepalive keeps an idle flow through the Azure NAT form (240 s) and the AWS NAT form (350 s). Nothing occurs in 300 s and in 400 s.
-    - The 8 T03 cells with Supavisor 2.9 wait: the harness has no Supavisor hop.
+    - The 8 T03 cells with Supavisor 2.9 waited for a hop of Supavisor, which #92 adds.
 - The borders of O07 hold for node-postgres and for HikariCP, with 11 runs each (#78). The server has a `statement_timeout` of 10 s, and the query in flight sleeps 20 s.
   - Inside, the timer of the client is longer: pg at 10.5 s and HikariCP at 11 s. The server ends the query with ERROR 57014 at 10.002 s (pg) and at 10.004 s (HikariCP).
   - Outside, the timer of the client is shorter. pg gives up at 9.503 s, and the read timeout of HikariCP closes its socket at 9.010 s. The server goes on with the statement.
@@ -652,7 +652,13 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
 - The fixes for two runs of the full PostgreSQL run 39160356281, which had 2 failures:
   - Behind PgBouncer, the judge read a socket that the run opened, but PgBouncer sent the query through a server from the warm-up. Thus the judge reads the socket of the hop that carries the request (harness 0.11.14).
   - The connect timer of PgBouncer closed its socket at 127.998993 s, 1 ms early. libevent counts a timeout from its cached time of the pass. Thus the band has an early slack of 10 ms (machines 0.3.11).
-- Then the T03 cells with a router in front of Supavisor.
+- Seven T03 cells of HikariCP have the chain of R3 for Supavisor 2.9 (machines 0.3.12). A router of a cloud preset is in front of Supavisor, and Supavisor is in front of the server. Each holds in run 39170773426, with 11 runs (#94).
+  - A fault at the router acts between the client and Supavisor. Each band is the band of the same fault at the router alone, and no timer of Supavisor ends the client in the band.
+  - Behind a simplex drop to the client, the empty query of the check reaches Supavisor, but its answer does not come back. The read timeout of the check closes the socket 5.003 s after that query, as behind a black hole (5.005 s).
+  - An unreachable host with tcp_retries2 = 3 gives EHOSTUNREACH 3.120 s after the first retransmission. Through the Azure NAT form and the AWS NAT form, the keepalive keeps the flow for 300 s and 400 s.
+  - After a stall, the first segment back can be the reply of Supavisor, one step of Supavisor later. The median is 1.662 s, and a warm-up came at 1.6988 s, after the band of the router alone.
+  - ranch gives each client socket of Supavisor a send timeout of 30 s that closes it. Behind the MTU black hole, the FIN of that close waits behind the long segments, thus the client gets nothing in 60 s. In run 39170773426, the socket of Supavisor closed 30.068 to 30.086 s after the fault.
+  - T03.defaults.61 waits: a fin through Supavisor is the race of T10.defaults.3.
 
 ### RABBIT · RabbitMQ
 
