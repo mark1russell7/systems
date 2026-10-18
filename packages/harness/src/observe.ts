@@ -599,8 +599,9 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
   // the pings of a heartbeat of the program, at the kernel's stamps of their writes
   const pings = pingsOf(lines, socket, named, noiseOf(cell));
   // keepalive counts from the last segment received before the fault. The budget of the give-up
-  // counts from the first retransmission of the RTO timer, not from the tail loss probe before it.
-  // A reset counts from the send of the client. The kernel has no record of that send, thus the
+  // counts from the first retransmission of the RTO timer after the fault holds, not from the tail
+  // loss probe before it. A retransmission before the fault is of an earlier segment, for example
+  // the SYN of the connect of a proxy in a fresh environment. A reset counts from the send of the client. The kernel has no record of that send, thus the
   // stamp is the stamp of the client. A toxic counts from the start of its commit. A heartbeat
   // counts from the write of its first ping that got no answer before the detection
   const before = run.fault?.t1 ?? ready.t;
@@ -613,7 +614,7 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
       from === "last-received"
         ? socket.filter((each) => each.ev === "rx" && each.mono <= before).at(-1)
         : from === "first-retransmission"
-          ? retransmitted.find((each) => each.why === "rto")
+          ? retransmitted.find((each) => each.why === "rto" && each.mono > before)
           : from === "first-sent"
             ? socket.find((each) => each.ev === "tx" && each.mono > before && (each.seg?.len.value ?? 0) > 0)
             : kernel.find(

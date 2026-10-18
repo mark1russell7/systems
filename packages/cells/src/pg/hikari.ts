@@ -285,28 +285,40 @@ const atStart = (spec: HikariSpec, driver: KnobValues): Prediction => {
   };
 };
 
+/** This function gives how long the server holds the query in flight of an app-stall, in seconds: the time of its pg_sleep. */
+export const heldOf = (spec: HikariSpec): number => {
+  const held = /pg_sleep\(([0-9.]+)\)/.exec(spec.inflight ?? "")?.[1];
+  if (held === undefined) throw new Error(`${spec.plan}: an app-stall needs a query in flight with pg_sleep`);
+  return Number(held);
+};
+
 /**
  * This function gives the prediction of a cell whose server holds the query in flight. The kernel
  * of the server acknowledges the query, as for a frozen process. At the defaults nothing ends the
- * query, and its reply comes after the hold. With a statement deadline (O07), the first of two
- * timers ends the query: the read timeout of pgjdbc, or the statement timer of the server. The
- * server then fails the query with ERROR 57014 and keeps the session.
+ * query, and its reply comes after the hold. A read timeout of pgjdbc ends the query when it comes
+ * before the reply, and the reply comes when the hold ends first. With a statement deadline (O07),
+ * the first of two timers ends the query: the read timeout of pgjdbc, or the statement timer of the
+ * server. The server then fails the query with ERROR 57014 and keeps the session.
  */
 const atHold = (spec: HikariSpec, driver: KnobValues, linux: KnobValues): Prediction => {
   const own = hikariFirstOn("querying", MANIFESTATIONS["freeze-process"], driver, linux);
   if (own.kind === "delivered") throw new Error(`${spec.plan}: ${own.event} ends the query in the hold`);
   // one step of the JVM reads the reply or the error of the server
   const slack = seconds(timerOf(HIKARICP_PGJDBC, "start_check", driver).lateness, "the slack of the JVM");
-  const server: Deadline | null = spec.server === undefined ? null : statementDeadline(spec.server, PG_RTT_MS, slack);
+  const pooler = spec.poolerLatency ?? 0;
+  const server: Deadline | null = spec.server === undefined ? null : statementDeadline(spec.server, PG_RTT_MS, slack + pooler);
   if (server === null) {
-    if (own.kind !== "silent") throw new Error(`${spec.plan}: ${own.timer} ends the query in the hold`);
-    const reply = { from: "request-sent", ends: { ev: "ack", where: { n: 2 } } } as const;
-    return {
-      detects: false,
-      window: s(6 * APP_STALL),
-      replies: { low: s(APP_STALL), high: s(APP_STALL + PG_RTT_MS / 1000 + slack + (spec.poolerLatency ?? 0)) },
-      driver: { socket: "pool", reply, quiet: [...QUIET] },
-    };
+    const held = heldOf(spec);
+    const replies = span(held, held + PG_RTT_MS / 1000 + slack + pooler);
+    // the reply comes before each timer of the client: nothing ends the query
+    if (own.kind === "silent" || own.band.lo > replies.hi) {
+      const reply = { from: "request-sent", ends: { ev: "ack", where: { n: 2 } } } as const;
+      return { detects: false, window: s(6 * held), replies: { low: s(replies.lo), high: s(replies.hi) }, driver: { socket: "pool", reply, quiet: [...QUIET] } };
+    }
+    if (!(own.band.hi < replies.lo)) throw new Error(`${spec.plan}: ${own.timer} and the reply can each come first`);
+    // the read timeout closes the socket before the reply, as in a black hole (O13)
+    if (own.layer !== "driver" || own.timer !== "socket_timeout") throw new Error(`${spec.plan}: ${own.timer} ends the query in the hold, which this catalog does not measure yet`);
+    return { detects: true, timer: own.timer, errno: "CLOSED", from: "request-sent", low: s(own.band.lo), high: s(own.band.hi) };
   }
   if (own.kind === "timer" && own.band.lo <= server.band.hi && server.band.lo <= own.band.hi)
     throw new Error(`${spec.plan}: ${own.timer} and statement_timeout can both end the query first`);
