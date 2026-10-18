@@ -570,7 +570,10 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
   - Its machine document is in machines 0.3.2 (#70). HikariCP reads no idle socket. Its keepalive checks an idle connection each 96 to 120 s from its creation, and at the defaults no timer of pgjdbc bounds a query.
   - The harness has its client, on Temurin 21.0.12.1 (harness 0.11.4, #71). Its lab test resets a query in flight.
   - Its first six T01 cells hold, with 11 runs each (#73). A reset of a query gives ECONNRESET in 0.6 ms, and the FIN of a stopped server gives EOF in 12 µs. An unreachable host gives EHOSTUNREACH at 3.120 s at `tcp_retries2 = 3`. A stall of 1 s recovers in 1.656 s. A freeze and an idle pool have no detector in 60 s.
-  - The other 17 T01 cells of HikariCP wait, each with its reason. The next ones are the keepalive behind a black hole, and the borders of O13 and O15.
+  - The borders of O13 hold (#75). A read timeout of 9 s and 11 s closes the socket of a query in a black hole. The two are on each side of the slowest poll of 10 s.
+    - The JDK waits for a read in poll(), and Linux ends that wait up to 0.1 % of its time late. The first cells measured it: 11.35 ms late at 11 s. The document gets that slack (machines 0.3.3).
+    - The close of the socket ends the band. The fail line comes up to 9 ms later, when a new JVM builds the exception of pgjdbc.
+  - The other 15 T01 cells of HikariCP wait, each with its reason. The next ones are the keepalive behind a black hole, and the borders of O15.
 - Then PgBouncer and T10.
 
 ### RABBIT · RabbitMQ
@@ -648,7 +651,7 @@ quantity 0.2.0, algebra 0.7.1, service 0.5.2, prober 0.3.1, harness 0.11.4 and k
 - **Links:** [packages/machines](https://github.com/mark1russell7/systems/tree/main/packages/machines)
 - **Waiting on Mark:** Touch your security key for the first publish of machines, in the session that owns npm. On 2026-10-17, npm refused it with a 429.
 
-The one home of each machine document. Its first version is 0.3.2: 0.3.0, the two documents of PostgreSQL in 0.3.1, and HikariCP over pgjdbc in 0.3.2. The session that owns npm publishes it from main. Then release.yml publishes each later version.
+The one home of each machine document. Its first version is 0.3.3. It adds the two documents of PostgreSQL (0.3.1), HikariCP over pgjdbc (0.3.2) and the slack of poll() for HikariCP (0.3.3) to 0.3.0. The session that owns npm publishes it from main. Then release.yml publishes each later version.
 
 ### DELACK · The delayed ACK of Linux TCP
 
