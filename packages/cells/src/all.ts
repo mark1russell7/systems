@@ -3,6 +3,7 @@ import { CAL_CELLS } from "./calibration.ts";
 import { CELLS } from "./catalog.ts";
 import { HTTP_CAL_CELLS, HTTP_HARNESS_CELLS } from "./http/cells.ts";
 import { MONGO_CELLS } from "./mongo/harness.ts";
+import { T01_PG } from "./pg/t01.ts";
 import { T02_CELLS } from "./t02.ts";
 import { T03_CELLS } from "./t03.ts";
 import { T12_CAL, T12_CELLS } from "./t12.ts";
@@ -15,7 +16,7 @@ import { WS_CELLS } from "./ws.ts";
  * calibration of each proxy. T12 and the calibration of the stamps of its Sentinels come next. The
  * HTTP cells of T01 and T03 come next, with the calibration of the handling time of the Node
  * clients. The WS cells follow, then the WST cells: the same client through a router or a proxy.
- * The MongoDB cells of T01, T03 and T11 come last.
+ * The MongoDB cells of T01, T03 and T11 come next, and the PostgreSQL cells of T01 come last.
  */
 export const ALL: readonly Cell[] = [
   ...CELLS,
@@ -30,4 +31,5 @@ export const ALL: readonly Cell[] = [
   ...WS_CELLS,
   ...WST_CELLS,
   ...MONGO_CELLS,
+  ...T01_PG,
 ];

@@ -118,6 +118,14 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
     args.push("--max-s", String(Math.ceil(longest * 2 + 10)));
     return args;
   }
+  if (probe.driver?.name === "pg") {
+    // node-postgres: its query, and the options of its pool
+    if (probe.driver.query !== undefined) args.push("--query", probe.driver.query);
+    if (cell.before === true) args.push("--before");
+    if (cell.driverOptions !== undefined) args.push("--options", JSON.stringify(cell.driverOptions));
+    args.push("--max-s", String(Math.ceil(longest * 2 + 10)));
+    return args;
+  }
   if (probe.driver !== undefined) {
     // a driver sets its socket options from its own options: the keepAlive of ioredis
     args.push("--keepalive-ms", String(valueIn(probe.driver.keepAlive, "ms")));
