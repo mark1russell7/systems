@@ -105,6 +105,21 @@ describe("the HikariCP catalog of T10, through PgBouncer", () => {
     expect(pgbouncerFirst("linked", { query_timeout: 4 })).toMatchObject({ timer: "query_timeout", errno: "08P01" });
   });
 
+  it("places the read timeout on each side of the give-up of the kernel of PgBouncer, on its server socket", () => {
+    const [inside, outside] = [cell("T10.border-off.43"), cell("T10.border-off.44")];
+    for (const each of [inside, outside]) {
+      expect(each.observer, each.name).toEqual({ hop: "pgbouncer", toward: "target" });
+      const [hop] = each.topology?.hops ?? [];
+      expect(hop !== undefined && "sysctls" in hop ? hop.sysctls?.["net.ipv4.tcp_retries2"] : null, each.name).toBe("4");
+    }
+    // inside: the read timeout of 5 s closes the client, and PgBouncer closes the server that was not ready
+    expect(inside.prediction).toMatchObject({ detects: true, timer: "socket_timeout", errno: "CLOSED", from: "request-sent", low: { value: 5, unit: "s" } });
+    // outside: at tcp_retries2 = 4 the kernel of PgBouncer gives up 6.2 s after its first retransmission, before 15 s
+    expect(outside.prediction).toMatchObject({ detects: true, timer: "retrans_giveup", errno: "ETIMEDOUT", from: "first-retransmission", low: { value: 6.2, unit: "s" } });
+    // the other cells observe the client
+    expect(cell("T10.border-off.45").observer).toBeUndefined();
+  });
+
   it("places the read timeout on each side of a frozen server whose kernel acknowledges the query", () => {
     const inside = cell("T10.border-off.45").prediction;
     if (inside.detects !== false) throw new Error("a silent cell");

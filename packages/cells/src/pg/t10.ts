@@ -3,12 +3,13 @@ import { detection, timerOf, transitionOn } from "@mark1russell7/algebra";
 import type { Cell, Prediction, ProxyHop } from "@mark1russell7/harness";
 import { HIKARICP_PGJDBC, PGBOUNCER_CLIENT, PGBOUNCER_SERVER } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
-import { RTT_MS, given, s, seconds } from "../catalog.ts";
+import { RTT_MS, count, given, predict, s, seconds, sysctlsOf } from "../catalog.ts";
+import { MANIFESTATIONS } from "../manifestations.ts";
 import type { Alias, Waiting } from "../mongo/cells.ts";
 import type { Span } from "../mongo/model.ts";
-import { span } from "../mongo/model.ts";
+import { linuxValues, span } from "../mongo/model.ts";
 import type { HikariSpec } from "./hikari.ts";
-import { hikariCell, hikariPrediction, hikariValues } from "./hikari.ts";
+import { hikariCell, hikariFirstOn, hikariPrediction, hikariValues } from "./hikari.ts";
 import { SLOW_QUERY, STATEMENT_DEADLINE } from "./server.ts";
 import type { PgSpec } from "./t01.ts";
 import { APP_STALL, PG_RTT_MS, pgCell, pgPrediction } from "./t01.ts";
@@ -45,8 +46,11 @@ const pgbouncerIni = (settings: Readonly<Record<string, number>>): string =>
     "",
   ].join("\n");
 
-/** This function gives the hop of PgBouncer 1.26.1 in transaction pooling, from the image that the harness ships, with the settings of a cell. */
-export const pgbouncerHop = (settings: Readonly<Record<string, number>> = {}): ProxyHop => {
+/**
+ * This function gives the hop of PgBouncer 1.26.1 in transaction pooling, from the image that the
+ * harness ships. It has the settings of a cell, and the sysctls of its namespace when a cell gives them.
+ */
+export const pgbouncerHop = (settings: Readonly<Record<string, number>> = {}, sysctls?: Readonly<Record<string, string>>): ProxyHop => {
   const unknown = Object.keys(settings).filter((name) => PGBOUNCER_CLIENT.knobs[name]?.unit == null && PGBOUNCER_SERVER.knobs[name]?.unit == null);
   if (unknown.length > 0) throw new Error(`no document of PgBouncer has a knob with a unit for ${unknown.join(", ")}`);
   return {
@@ -56,6 +60,7 @@ export const pgbouncerHop = (settings: Readonly<Record<string, number>> = {}): P
     port: 6432,
     files: { "/etc/pgbouncer/pgbouncer.ini": pgbouncerIni(settings), "/etc/pgbouncer/userlist.txt": '"postgres" ""\n' },
     ready: "process up: PgBouncer 1.26.1",
+    ...(sysctls === undefined ? {} : { sysctls }),
     settings: {
       pool_mode: "transaction",
       ignore_startup_parameters: "extra_float_digits",
@@ -145,16 +150,27 @@ export const PGBOUNCER_LATENCY: number = PG_RTT_MS / 1000 + seconds(pgbouncerVal
 /** A spec of T10 is a spec of HikariCP with the settings of PgBouncer that differ from its defaults, by the names of the documents. */
 export interface T10Spec extends HikariSpec {
   readonly pgbouncer?: Readonly<Record<string, number>>;
+  /** These are the knobs of Linux TCP in the namespace of PgBouncer that differ from Linux 6.6. */
+  readonly poolerLinux?: Readonly<Record<string, Extent>>;
+  /** This flag makes the server socket of PgBouncer the observer, in place of the socket of the client. */
+  readonly observesPooler?: true;
 }
 
 /** This function puts a spec behind PgBouncer: the hop with the settings of the spec, and the latency that PgBouncer adds to a reply. */
-const behind = (spec: Omit<T10Spec, "pooler" | "poolerLatency">): T10Spec => ({ ...spec, pooler: pgbouncerHop(spec.pgbouncer), poolerLatency: PGBOUNCER_LATENCY });
+const behind = (spec: Omit<T10Spec, "pooler" | "poolerLatency">): T10Spec => ({
+  ...spec,
+  pooler: pgbouncerHop(spec.pgbouncer, spec.poolerLinux === undefined ? undefined : sysctlsOf(linuxValues(spec.poolerLinux))),
+  poolerLatency: PGBOUNCER_LATENCY,
+});
 
 /** This query sleeps for a time, as a server that holds the query in flight: its kernel acknowledges the query. */
 const sleep = (seconds: number): string => `SELECT pg_sleep(${seconds})`;
 
 /** This value is the read timeout of pgjdbc that the borders of a held query bind: 10 s. */
 const HELD_TIMEOUT = 10;
+
+/** These are the read timeouts of pgjdbc that the borders of the give-up of PgBouncer bind, in seconds. At tcp_retries2 = 4, the kernel gives up 6.2 s to 13.344 s after the first retransmission. */
+const POOLER_GIVEUP = { inside: 5, outside: 15 } as const;
 
 /** This value is the query_timeout of PgBouncer that its borders bind, in seconds, against a hold of APP_STALL. */
 const POOLER_TIMEOUT = { inside: APP_STALL + 1, outside: APP_STALL - 1 } as const;
@@ -197,6 +213,22 @@ export const T10_HIKARI_SPECS: readonly T10Spec[] = [
       mode: "inflight",
       inflight: sleep(APP_STALL),
       pgbouncer: { query_timeout: at },
+    }),
+  ),
+  // ---- K-client-timeouts: a query in flight to a dead host, the timer of the client against the give-up of the kernel.
+  // Behind PgBouncer the kernel that gives up is the kernel of PgBouncer, on its server socket, which the cell observes
+  ...([
+    ["T10.border-off.43", POOLER_GIVEUP.inside, "inside: the read timeout comes first, and PgBouncer closes its server socket"],
+    ["T10.border-off.44", POOLER_GIVEUP.outside, "outside: the kernel of PgBouncer gives up on its server socket first"],
+  ] as const).map(([plan, at, side]) =>
+    behind({
+      plan,
+      name: `blackhole of the server behind PgBouncer, a query in flight, tcp_retries2 = 4 at PgBouncer, socketTimeout ${at} s: ${side}`,
+      fault: "blackhole",
+      mode: "inflight",
+      options: { socketTimeout: at },
+      poolerLinux: { tcp_retries2: count(4) },
+      observesPooler: true,
     }),
   ),
   // ---- K-client-timeouts: a frozen server with its kernel up acknowledges the query, and only the timer of the client ends it
@@ -261,11 +293,6 @@ const REASONS: ReadonlyArray<readonly [number, number, string]> = [
   [35, 36, "the cell needs a virtual IP that kube-vip moves, which the PG catalog does not have"],
   [37, 40, NOT_THIS],
   [41, 42, PGPOOL],
-  [
-    43,
-    44,
-    "behind PgBouncer the socket of the client sends no retransmission. The kernel of PgBouncer gives up on its server socket, and no cell of this catalog observes that socket",
-  ],
   [49, 54, NOT_THIS],
   [55, 56, "HikariCP has no reconnect schedule: a borrow that finds no connection waits up to connectionTimeout, 30 s, while the pool adds connections"],
   [57, 58, "pgjdbc and HikariCP make one attempt for each query: neither retries a query"],
@@ -278,7 +305,7 @@ const REASONS: ReadonlyArray<readonly [number, number, string]> = [
   [
     83,
     84,
-    "the connect timer of PgBouncer acts on its server socket, which no cell of this catalog observes. The client sees the login of PgBouncer, which client_login_timeout bounds",
+    "the connect timer of PgBouncer closes its server socket in SYN_SENT, with no error and no FIN. The judge of the harness reads no end of a socket there",
   ],
   [85, 86, NOT_THIS],
   [87, 88, ONE_QUERY],
@@ -351,6 +378,7 @@ const endOf = (prediction: Prediction): number => {
  * cell, and no timer of PgBouncer can come before its end.
  */
 export const t10Prediction = (spec: T10Spec): Prediction => {
+  if (spec.observesPooler === true) return atPoolerSocket(spec);
   const client = hikariPrediction(spec);
   const ends = endOf(client);
   const settings = spec.pgbouncer ?? {};
@@ -369,8 +397,48 @@ export const t10Prediction = (spec: T10Spec): Prediction => {
   return client;
 };
 
+/**
+ * This time bounds the first retransmission of the RTO timer on the server socket of PgBouncer, in
+ * seconds from the send of the query. It is one step of PgBouncer, the probe of the tail loss and one
+ * RTO. Each of them is up to 200 ms and a round trip at the defaults.
+ */
+const FIRST_RTO = 1;
+
+/**
+ * This function gives the prediction of a query in flight into a black hole between PgBouncer and
+ * the server. The observer is the server socket of PgBouncer. The kernel of PgBouncer acknowledges
+ * the query of the client. Thus the client has only its own timers, as for a frozen server.
+ *
+ * When the read timeout of the client comes first, PgBouncer reads the close of its client. It
+ * closes the server, which was not ready (pbs.client-gone-dirty). Its socket goes from ESTABLISHED
+ * to FIN_WAIT1, one step of PgBouncer later. Else the kernel of PgBouncer gives up on its server
+ * socket, as Linux TCP gives.
+ */
+const atPoolerSocket = (spec: T10Spec): Prediction => {
+  if (spec.fault !== "blackhole" || spec.mode !== "inflight") throw new Error(`${spec.plan}: this catalog observes the server socket of PgBouncer only for a query in flight into a black hole`);
+  const driver = given(hikariValues(RTT_MS, spec.options));
+  const client = hikariFirstOn("querying", MANIFESTATIONS["freeze-process"], driver, given(linuxValues(spec.linux)));
+  if (client.kind === "delivered") throw new Error(`${spec.plan}: ${client.event} reaches the client through PgBouncer`);
+  const giveup = predict({ name: spec.name, fault: "blackhole", manifestation: "blackhole", observer: "client", mode: "inflight", linux: spec.poolerLinux ?? {} });
+  if (giveup.detects !== true || giveup.timer !== "retrans_giveup") throw new Error(`${spec.plan}: the kernel of PgBouncer does not give up on its server socket`);
+  if (client.kind === "timer" && client.band.hi < seconds(giveup.low, "the give-up")) {
+    const gone = PGBOUNCER_SERVER.transitions.find((each) => each.id === "pbs.client-gone-dirty");
+    if (gone === undefined || gone.to !== "ended") throw new Error(`${spec.plan}: pgbouncer-server does not close a server that is not ready when its client goes`);
+    return { detects: true, timer: client.timer, errno: "CLOSED", from: "request-sent", low: s(client.band.lo), high: s(client.band.hi + PGBOUNCER_LATENCY) };
+  }
+  if (client.kind === "silent" || client.band.lo > seconds(giveup.high, "the give-up") + FIRST_RTO) return giveup;
+  throw new Error(`${spec.plan}: the read timeout and the give-up of PgBouncer can each come first`);
+};
+
+/** This observer is the server socket of PgBouncer: its socket toward the target. */
+const POOLER_SOCKET = { hop: "pgbouncer", toward: "target" } as const;
+
 /** These are the HikariCP cells of T10 for the harness. */
-export const T10_HIKARI: readonly Cell[] = T10_HIKARI_SPECS.map((spec) => ({ ...hikariCell(spec), prediction: t10Prediction(spec) }));
+export const T10_HIKARI: readonly Cell[] = T10_HIKARI_SPECS.map((spec) => ({
+  ...hikariCell(spec),
+  ...(spec.observesPooler === true ? { observer: POOLER_SOCKET } : {}),
+  prediction: t10Prediction(spec),
+}));
 
 /** This function gives the settings of PgBouncer for a cell of node-postgres: the settings of its hop, as numbers. */
 const settingsOf = (spec: PgSpec): Record<string, number> => {
