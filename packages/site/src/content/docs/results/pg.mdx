@@ -7,8 +7,12 @@ description: The PostgreSQL cells on the runners of GitHub, with node-postgres a
 
 import RunResults from "../../../components/RunResults.tsx";
 import { Summary } from "../../../components/Ledger.tsx";
+import CellMap from "../../../components/CellMap.tsx";
+import Borders from "../../../components/Borders.tsx";
 
 <Summary of="pg" />
+
+<CellMap copy="pg" />
 
 These are the results of the PostgreSQL cells, from 2026-10-18. The server is PostgreSQL 17.11. Two clients use it, each as one pool at its defaults:
 
@@ -71,6 +75,12 @@ Each of the 44 cells holds against the prediction of the algebra. The cells have
 - **PgBouncer does not answer a query by itself.** Behind a black hole of the server, the keepalive of HikariCP sends its empty query to PgBouncer, and no reply comes. The read timeout of the check closes the socket at 5.005 s, as on the direct pair.
 - **PgBouncer adds no timer to a query.** The server holds the query 5 s, and the reply comes at 5.003 s. The two documents of PgBouncer decide that no timer of PgBouncer ends a query first: at the defaults, its earliest is `query_wait_timeout`, 120 s.
 - **HikariCP of the earlier epoch has no keepalive.** With a `keepaliveTime` of 0, nothing finds the black hole in 60 s.
+
+## The borders
+
+A border has two cells of one client: a setting inside the border, and a setting outside it. Each chart shows the two cells on one axis of time. The dashed line is the border, and the mark above each track is the setting of its cell. The bar is the band of the prediction, and each dot is a counted run. Thus the chart shows on which side of the border each setting is, and what ended each run.
+
+<Borders copy="pg" />
 
 ## The cells that wait
 

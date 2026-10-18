@@ -24,6 +24,11 @@ const VIEWPORTS = [
 const SCHEMES = ["light", "dark"];
 // a full page longer than this is cut: the top of a page is what a reader sees first
 const MAX_HEIGHT = 7000;
+// the widgets of the results that get a shot of their own, by a short name
+const WIDGETS = [
+  ["map", ".sy-map"],
+  ["borders", ".sy-borders"],
+];
 
 // the pages of the site: each index.html under dist, as the path that GitHub Pages serves
 const pagesOf = async (dir, prefix = "") => {
@@ -89,8 +94,13 @@ for (const viewport of VIEWPORTS) {
         }
         return { width, scroll: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight, wide };
       });
-      const name = `${(page.replace(/\/$/, "") || "home").replaceAll("/", "-")}-${viewport.name}-${scheme}.jpg`;
-      await tab.screenshot({ path: path.join(out, name), type: "jpeg", quality: 72, fullPage: true, clip: { x: 0, y: 0, width: viewport.width, height: Math.min(measured.height, MAX_HEIGHT) } });
+      const stem = `${(page.replace(/\/$/, "") || "home").replaceAll("/", "-")}-${viewport.name}-${scheme}`;
+      await tab.screenshot({ path: path.join(out, `${stem}.jpg`), type: "jpeg", quality: 72, fullPage: true, clip: { x: 0, y: 0, width: viewport.width, height: Math.min(measured.height, MAX_HEIGHT) } });
+      // a widget far down a long page is past the cut of the page: each one also gets a shot of its own
+      for (const [part, selector] of WIDGETS) {
+        const widget = tab.locator(selector).first();
+        if ((await widget.count()) > 0) await widget.screenshot({ path: path.join(out, `${stem}-${part}.jpg`), type: "jpeg", quality: 80 });
+      }
       rows.push({ page, viewport: viewport.name, scheme, ...measured, errors: [...new Set(errors)] });
       await tab.close();
     }

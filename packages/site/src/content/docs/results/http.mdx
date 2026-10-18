@@ -7,8 +7,11 @@ description: The HTTP cells on the runners of GitHub, with the server of Node 24
 
 import RunResults, { RaceBorder } from "../../../components/RunResults.tsx";
 import { Summary } from "../../../components/Ledger.tsx";
+import CellMap from "../../../components/CellMap.tsx";
 
 <Summary of="http" />
+
+<CellMap copy="http" />
 
 These are the results of the HTTP cells, from 2026-10-17. The server is the `http.Server` of Node 24.21.0, as a script on the stock Node image. The clients are the `http.Agent` of Node 24.21.0, an HTTP/1.1 `Client` of undici 8.12.2 and the `http.Transport` of Go 1.27.2. The cells of T01 are a direct pair. The cells of T03 put a NAT router between the client and the server.
 
