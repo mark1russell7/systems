@@ -4,7 +4,8 @@ import { given, predict } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
 import { linuxValues } from "../mongo/model.ts";
 import { HIKARI_SLOWEST_POLL, HIKARI_STARTUP_BUDGET, T01_HIKARI, T01_HIKARI_SPECS, T01_HIKARI_WAITING, hikariFirstOn, hikariValues } from "./hikari.ts";
-import { PG_TARGET } from "./t01.ts";
+import { SLOW_QUERY, STATEMENT_DEADLINE } from "./server.ts";
+import { APP_STALL, PG_TARGET } from "./t01.ts";
 
 const cell = (plan: string) => {
   const found = T01_HIKARI.find((each) => each.name.startsWith(`${plan} hikaricp-pgjdbc to postgresql, `));
@@ -23,7 +24,9 @@ describe("the HikariCP catalog of T01", () => {
     expect(T01_HIKARI.map((each) => each.name.split(" ")[0])).toEqual(T01_HIKARI_SPECS.map((spec) => spec.plan));
     for (const each of T01_HIKARI) expect(each.name).toMatch(/^T01\.(defaults|border-off)\.\d+ hikaricp-pgjdbc to postgresql, /);
     expect(new Set(T01_HIKARI.map((each) => each.name)).size).toBe(T01_HIKARI.length);
-    expect(T01_HIKARI.every((each) => each.probe.driver?.name === "hikari" && each.target === PG_TARGET)).toBe(true);
+    expect(T01_HIKARI.every((each) => each.probe.driver?.name === "hikari" && each.target.image === PG_TARGET.image)).toBe(true);
+    // only a cell with a setting of the server has its own command
+    expect(T01_HIKARI.filter((each) => each.target !== PG_TARGET).map((each) => each.name.split(" ")[0])).toEqual(["T01.border-off.173", "T01.border-off.174"]);
   });
 
   it("gives each cell of the plan over these systems a cell or a reason to wait, once", () => {
@@ -106,6 +109,34 @@ describe("the HikariCP catalog of T01", () => {
     expect(valueIn(inside!.prediction.high, "s")).toBeLessThan(HIKARI_STARTUP_BUDGET);
     expect(valueIn(outside!.prediction.low, "s")).toBeGreaterThan(HIKARI_STARTUP_BUDGET);
     expect(inside!.driverOptions).toEqual({ "dataSource.connectTimeout": 28 });
+  });
+
+  it("holds the query of an app-stall with no detector, and times its reply at the hold of the server", () => {
+    const stall = cell("T01.defaults.60");
+    expect(stall.probe.driver).toEqual({ name: "hikari", inflight: `SELECT pg_sleep(${APP_STALL})` });
+    const p = stall.prediction;
+    expect(p.detects).toBe(false);
+    if (p.detects !== false) return;
+    expect(valueIn(p.replies!.low, "s")).toBe(APP_STALL);
+    expect(valueIn(p.replies!.high, "s")).toBeLessThan(APP_STALL + 0.05);
+    expect(p.driver?.reply).toEqual({ from: "request-sent", ends: { ev: "ack", where: { n: 2 } } });
+  });
+
+  it("puts the read timeout of pgjdbc on each side of the statement deadline of the server (O07), with a slow query only in flight", () => {
+    const [inside, outside] = ["T01.border-off.173", "T01.border-off.174"].map(cell);
+    for (const each of [inside!, outside!]) {
+      expect(each.probe.driver, each.name).toEqual({ name: "hikari", inflight: SLOW_QUERY });
+      expect(each.target.command?.join(" "), each.name).toContain(`docker-entrypoint.sh postgres -c statement_timeout=${STATEMENT_DEADLINE * 1000} &`);
+    }
+    // inside, the statement timer of the server ends the query first, with its ERROR 57014
+    expect(inside!.prediction).toMatchObject({ detects: true, timer: "statement_timeout", errno: "57014", from: "request-sent", driver: { ends: { ev: "fail", where: { n: 2 }, name: "sqlState" } } });
+    // outside, the read timeout closes the socket first, and the server goes on with the statement
+    expect(outside!.prediction).toMatchObject({ detects: true, timer: "socket_timeout", errno: "CLOSED", from: "request-sent" });
+    if (inside!.prediction.detects !== true || outside!.prediction.detects !== true) return;
+    expect(valueIn(inside!.prediction.low, "s")).toBe(STATEMENT_DEADLINE);
+    expect(valueIn(inside!.prediction.high, "s")).toBeLessThan(11);
+    expect(valueIn(outside!.prediction.high, "s")).toBeLessThan(STATEMENT_DEADLINE);
+    expect(inside!.driverOptions).toEqual({ "dataSource.socketTimeout": 11 });
   });
 
   it("refuses an option that is not a knob of the document", () => {

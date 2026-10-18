@@ -8,6 +8,7 @@ import { MANIFESTATIONS } from "../manifestations.ts";
 import type { Waiting } from "../mongo/cells.ts";
 import type { Span } from "../mongo/model.ts";
 import { linuxValues, span, spanOf } from "../mongo/model.ts";
+import { SLOW_QUERY, STATEMENT_DEADLINE, pgTargetWith, statementDeadline } from "./server.ts";
 
 /**
  * The PostgreSQL catalog of T01: node-postgres (pg 8.23.1 with pg-pool 3.14.0) and one server of
@@ -59,6 +60,10 @@ export interface PgSpec {
   readonly options?: Readonly<Record<string, number>>;
   /** This text is the query of each query of the client. Without it, the client sends `SELECT 1`. */
   readonly query?: string;
+  /** This text is the query in flight. Without it, the query in flight is `query`, as each other query. */
+  readonly inflight?: string;
+  /** These are the settings of the server that differ from the defaults, by the names and in the units of `postgres-session`. */
+  readonly server?: Readonly<Record<string, number>>;
 }
 
 /**
@@ -96,6 +101,19 @@ export const T01_PG_SPECS: readonly PgSpec[] = [
     mode: "inflight",
     query: `SELECT pg_sleep(${APP_STALL})`,
   },
+  // ---- O07: the timer of a query against the statement deadline of the server
+  ...([
+    ["T01.border-off.171", 10.5, "inside"],
+    ["T01.border-off.172", 9.5, "outside"],
+  ] as const).map(([plan, at, side]): PgSpec => ({
+    plan,
+    name: `app-stall in flight, query_timeout ${at} s: ${side} O07 against a statement_timeout of ${STATEMENT_DEADLINE} s`,
+    fault: "app-stall",
+    mode: "inflight",
+    inflight: SLOW_QUERY,
+    server: { statement_timeout: STATEMENT_DEADLINE * 1000 },
+    options: { query_timeout: at * 1000 },
+  })),
   // ---- O13: the timer of a query against the slowest poll of a check
   ...([
     ["T01.border-off.179", 9.5, "inside"],
@@ -126,8 +144,6 @@ const POOLED =
   "the cell needs a router between the client and the server, and the PG catalog has no chain yet. On each side of the border the pool closes its idle client at its own timer: only the socket of the server shows that the router forgot the flow";
 /** This reason is the reason of the O03 cells of a client that the application holds. */
 const HELD = "the client of the harness gives its client back to the pool after each query: it has no mode for a client that the application holds";
-/** This reason is the reason of the O07 cells. */
-const SLOW = "the client of the harness sends one text for each query, thus a slow query delays its first reply too: the cell needs a slow query only after the client is ready";
 
 /** These are the cells of the plan over these systems that this catalog does not start, each with its reason. */
 export const T01_PG_WAITING: readonly Waiting[] = [
@@ -139,8 +155,6 @@ export const T01_PG_WAITING: readonly Waiting[] = [
   { plan: "T01.border-off.158", trigger: "border", why: POOLED },
   { plan: "T01.border-off.159", trigger: "border", why: HELD },
   { plan: "T01.border-off.160", trigger: "border", why: HELD },
-  { plan: "T01.border-off.171", trigger: "border", why: SLOW },
-  { plan: "T01.border-off.172", trigger: "border", why: SLOW },
 ];
 
 /**
@@ -260,6 +274,31 @@ const atConnect = (spec: PgSpec, driver: KnobValues, linux: KnobValues, slack: n
   };
 };
 
+/**
+ * This function gives the prediction of a cell whose server holds the query in flight, with a
+ * statement deadline (O07). The kernel of the server acknowledges the query, as for a frozen
+ * process. The first of two timers ends the query: query_timeout of the pool, or the statement
+ * timer of the server. The server then fails the query with ERROR 57014 and keeps the session.
+ * Two steps of Node read the error: the callback of the query, and the release to the pool.
+ */
+const atDeadline = (spec: PgSpec, driver: KnobValues, linux: KnobValues, slack: number): Prediction => {
+  const own = firstOn("querying", MANIFESTATIONS["freeze-process"], driver, linux);
+  if (own.kind === "delivered") throw new Error(`${spec.plan}: ${own.event} ends the query in the hold`);
+  const server = statementDeadline(spec.server!, PG_RTT_MS, 2 * slack);
+  if (server === null) throw new Error(`${spec.plan}: the server has no statement deadline`);
+  if (own.kind === "timer" && own.band.lo <= server.band.hi && server.band.lo <= own.band.hi)
+    throw new Error(`${spec.plan}: ${own.timer} and statement_timeout can both end the query first`);
+  // the server ends the query first: the fail line of the query gives the SQLSTATE of its error
+  if (own.kind === "silent" || server.band.hi < own.band.lo) {
+    const ends = { ev: "fail", where: { n: 2 }, name: "code" };
+    return { detects: true, timer: "statement_timeout", errno: server.errno, from: "request-sent", low: s(server.band.lo), high: s(server.band.hi), driver: { socket: "pool", ends } };
+  }
+  // the timer of the pool fails the query first, as in a black hole (O13). The server goes on with the statement
+  if (own.layer !== "driver") throw new Error(`${spec.plan}: the kernel ends the query first, with ${own.timer}`);
+  const ends = { ev: "fail", where: { n: 2 }, name: "message" };
+  return { detects: true, timer: own.timer, errno: own.name, from: "request-sent", low: s(own.band.lo), high: s(own.band.hi), driver: { socket: "pool", ends } };
+};
+
 /** This function gives the prediction of a cell for the harness. */
 export const pgPrediction = (spec: PgSpec): Prediction => {
   // a stall is the stall of Linux TCP: the classic measurement of the socket of the client times it
@@ -275,6 +314,9 @@ export const pgPrediction = (spec: PgSpec): Prediction => {
     const errno = transitionOn(LINUX_TCP, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET";
     return { detects: true, timer: "the reset of the query", errno, from: "request-sent", low: s(0), high: s(PG_RTT_MS / 1000), rtt, driver: { socket: "pool" } };
   }
+  // the server holds the query, and its statement deadline ends it: the first of two timers ends
+  // the query, the timer of the pool or the statement timer of the server (O07)
+  if (spec.fault === "app-stall" && spec.server !== undefined) return atDeadline(spec, driver, linux, slack);
   // the server holds the reply while its kernel acknowledges the query, as for a frozen process:
   // nothing ends the query at the defaults, and the reply comes after the hold
   if (spec.fault === "app-stall") {
@@ -316,9 +358,13 @@ export const nameOf = (spec: PgSpec): string => `${spec.plan} pg-8.23 to postgre
 /** This function gives the harness cell of a spec. */
 export const pgCell = (spec: PgSpec): Cell => ({
   name: nameOf(spec),
-  target: PG_TARGET,
+  target: spec.server === undefined ? PG_TARGET : pgTargetWith(PG_TARGET, spec.server),
   sysctls: sysctlsOf(linuxValues(spec.linux)),
-  probe: { mode: spec.mode, keepalive: false, driver: { name: "pg", ...(spec.query === undefined ? {} : { query: spec.query }) } },
+  probe: {
+    mode: spec.mode,
+    keepalive: false,
+    driver: { name: "pg", ...(spec.query === undefined ? {} : { query: spec.query }), ...(spec.inflight === undefined ? {} : { inflight: spec.inflight }) },
+  },
   fault: spec.fault,
   prediction: pgPrediction(spec),
   ...(spec.before === true ? { before: true } : {}),
