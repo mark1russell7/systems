@@ -1,5 +1,6 @@
 import { overValues, timerOf, transitionOn } from "@mark1russell7/algebra";
-import type { Cell, MiddleboxForm, Prediction } from "@mark1russell7/harness";
+import type { Cell, MiddleboxForm, Prediction, Subject } from "@mark1russell7/harness";
+import { SUBJECTS, subjectClient } from "@mark1russell7/harness";
 import { LINUX_TCP, NF_CONNTRACK_TCP, PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "@mark1russell7/machines";
 import { RTT_MS, RUNS, WINDOW, given, q, seconds, sysctlsOf } from "./catalog.ts";
 import type { Span } from "./mongo/model.ts";
@@ -26,10 +27,10 @@ import {
 } from "./ws.ts";
 
 /**
- * This module is the WST catalog: the WebSocket client and server of `@procedures/client` 0.7.0
- * through a topology. The router of T03 forgets an idle flow at 5 s, and HAProxy of T02 closes an
- * idle connection at its own timeouts. The client and the server are the client and the server of
- * the WS catalog, with the same documents and settings.
+ * This module is the WST catalog: the WebSocket client and server of a procedures subject through
+ * a topology. The router of T03 forgets an idle flow at 5 s, and HAProxy of T02 closes an idle
+ * connection at its own timeouts. The client and the server are the client and the server of the
+ * WS catalog, on the same subject, with the same documents and settings.
  */
 
 /** These are the times of a heartbeat below the idle timeout of the hop: a ping each 4 s, against 5 s. */
@@ -346,15 +347,15 @@ export const predictWstAt = (spec: WstSpec, rttMs: number): Prediction => {
 export const predictWst = (spec: WstSpec): Prediction => assuming((rtt) => predictWstAt(spec, rtt), RTT_MS);
 
 /**
- * This function gives the cell of the harness for a WST spec. The target is the procedures server
- * of the WS catalog, and HAProxy serves its port. The namespace of the observer gets the knobs of
- * Linux TCP. The cells go one at a time, as the cells of T03: the listing of a router evicts the
- * expired flows of each namespace.
+ * This function gives the cell of the harness for a WST spec, on a subject. The target is the
+ * procedures server of the WS catalog, and HAProxy serves its port. The namespace of the observer
+ * gets the knobs of Linux TCP. The cells go one at a time, as the cells of T03: the listing of a
+ * router evicts the expired flows of each namespace.
  */
-export const wstCellOf = (spec: WstSpec): Cell => {
+export const wstCellOf = (spec: WstSpec, subject: Subject = SUBJECTS.procedures): Cell => {
   const ws = asWs(spec);
   const server = ws.observer === "server";
-  const target = wsServer(ws.server);
+  const target = wsServer(ws.server, false, subject);
   const namespace = sysctlsOf(linuxValues(ws, RTT_MS));
   const hop =
     spec.hop.kind === "router"
@@ -363,7 +364,7 @@ export const wstCellOf = (spec: WstSpec): Cell => {
   return {
     name: `WST ${spec.name}`,
     target,
-    client: "procedures-ws",
+    client: subjectClient(subject),
     sysctls: server ? {} : namespace,
     probe: { mode: "idle", keepalive: false, ws: probeOf(ws) },
     fault: spec.fault,
@@ -377,5 +378,8 @@ export const wstCellOf = (spec: WstSpec): Cell => {
   };
 };
 
-/** These are the cells of the WST catalog, in the sequence of the specs. */
-export const WST_CELLS: readonly Cell[] = WST_SPECS.map(wstCellOf);
+/** This function gives the cells of the WST catalog on a subject, in the sequence of the specs. */
+export const wstCells = (subject: Subject): readonly Cell[] => WST_SPECS.map((spec) => wstCellOf(spec, subject));
+
+/** These are the cells of the WST catalog on the subject that the harness ships. */
+export const WST_CELLS: readonly Cell[] = wstCells(SUBJECTS.procedures);

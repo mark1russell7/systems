@@ -1,22 +1,23 @@
 import type { KnobValues, Manifestation } from "@mark1russell7/algebra";
 import { errnoOf, overValues, stackedDetection, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
-import type { Cell, Fault, Prediction, Reconnects, Reference, Target, WsProbe } from "@mark1russell7/harness";
-import { NOISE } from "@mark1russell7/harness";
+import type { Cell, Fault, Prediction, Reconnects, Reference, Subject, Target, WsProbe } from "@mark1russell7/harness";
+import { NOISE, SUBJECTS, programOf, subjectClient } from "@mark1russell7/harness";
 import { LINUX_TCP, PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Spec } from "./catalog.ts";
 import { HZ, LINUX_66, RTT_MS, RUNS, WINDOW, count, given, ms, predictAt, q, s, seconds, sysctlsOf } from "./catalog.ts";
-import { NODE_IMAGE } from "./http/cells.ts";
 import type { ManifestationName } from "./manifestations.ts";
 import { MANIFESTATIONS } from "./manifestations.ts";
 import { assuming } from "./rtt.ts";
 
 /**
- * This module is the WS catalog: the WebSocket client and server of `@procedures/client` 0.3.0
- * on a direct pair. The client is the harness client `procedures-ws`, and the target starts the
- * server script of the same image. Each cell gives each setting of the client and of the server.
- * It also gives each knob of Linux TCP at the observer, thus nothing comes from a default.
+ * This module is the WS catalog: the WebSocket client and server of a procedures subject on a
+ * direct pair. The subject is data (`Subject`): the harness ships one, `SUBJECTS.procedures`, and
+ * another repository can give its own. The client is the `client` program of the subject, and the
+ * target starts its `server` program from the same image. Each cell gives each setting of the
+ * client and of the server. It also gives each knob of Linux TCP at the observer, thus nothing
+ * comes from a default.
  *
  * The predictions compose the documents `PROCEDURES_WS_CLIENT` and `PROCEDURES_WS_SERVER` of
  * `@mark1russell7/machines` over Linux TCP (`stackedDetection`). Thus the heartbeat of the client
@@ -52,19 +53,19 @@ export interface WsServerSettings {
 const PORT = 8080;
 
 /**
- * This function gives the procedures server as a target. It is the image of the harness with
- * `@procedures/client` 0.3.0, and its server script with the settings of a cell. A held server is
- * the child of a shell, thus a `fin` fault can stop it while the container stays up.
+ * This function gives the procedures server as a target. The target operates the image of the
+ * subject, and it starts the `server` program of the subject with the settings of a cell. A held
+ * server is the child of a shell, thus a `fin` fault can stop it while the container stays up.
  */
-export const wsServer = (settings: WsServerSettings, held = false): Target => {
+export const wsServer = (settings: WsServerSettings, held = false, subject: Subject = SUBJECTS.procedures): Target => {
   const heartbeat =
     settings.heartbeat === null
       ? ["--heartbeat", "off"]
       : ["--heartbeat", "on", "--heartbeat-interval-ms", String(settings.heartbeat.interval), "--heartbeat-misses", String(settings.heartbeat.misses)];
-  const run = ["node", "/opt/harness/procedures/server-ws.mjs", "--port", String(PORT), "--tcp-keepalive", "off", ...heartbeat];
+  const run = [...programOf(subject, "server"), "--port", String(PORT), "--tcp-keepalive", "off", ...heartbeat];
   return {
-    image: NODE_IMAGE,
-    harness: "procedures",
+    image: subject.base,
+    subject: subject.image,
     port: PORT,
     ready: '"ev":"listening"',
     lines: true,
@@ -447,18 +448,18 @@ export const probeOf = (spec: WsSpec): WsProbe => {
 };
 
 /**
- * This function gives the cell of the harness for a spec. The namespace of the observer gets the
- * knobs of Linux TCP as sysctls. A client `fin` holds the server under a shell, and each run then
- * has its own environment.
+ * This function gives the cell of the harness for a spec, on a subject. The namespace of the
+ * observer gets the knobs of Linux TCP as sysctls. A client `fin` holds the server under a shell,
+ * and each run then has its own environment.
  */
-export const wsCellOf = (spec: WsSpec): Cell => {
+export const wsCellOf = (spec: WsSpec, subject: Subject = SUBJECTS.procedures): Cell => {
   const server = spec.observer === "server";
   const namespace = sysctlsOf(linuxValues(spec, RTT_MS));
   const killsServer = spec.fault === "fin" && !server;
   return {
     name: `WS ${spec.name}`,
-    target: wsServer(spec.server, killsServer),
-    client: "procedures-ws",
+    target: wsServer(spec.server, killsServer, subject),
+    client: subjectClient(subject),
     sysctls: server ? {} : namespace,
     probe: { mode: spec.mode, keepalive: false, ws: probeOf(spec) },
     fault: spec.fault,
@@ -470,5 +471,8 @@ export const wsCellOf = (spec: WsSpec): Cell => {
   };
 };
 
-/** These are the cells of the WS catalog, in the sequence of the specs. */
-export const WS_CELLS: readonly Cell[] = WS_SPECS.map(wsCellOf);
+/** This function gives the cells of the WS catalog on a subject, in the sequence of the specs. */
+export const wsCells = (subject: Subject): readonly Cell[] => WS_SPECS.map((spec) => wsCellOf(spec, subject));
+
+/** These are the cells of the WS catalog on the subject that the harness ships. */
+export const WS_CELLS: readonly Cell[] = wsCells(SUBJECTS.procedures);

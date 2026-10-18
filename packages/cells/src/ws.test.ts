@@ -1,8 +1,11 @@
 import { algebraProblems, machineProblems } from "@mark1russell7/algebra";
+import type { Subject } from "@mark1russell7/harness";
+import { SUBJECTS } from "@mark1russell7/harness";
 import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER, nodeEarlySeconds, nodeLateSeconds } from "@mark1russell7/machines";
 import { describe, expect, it } from "vitest";
 import { HZ } from "./catalog.ts";
-import { WS_CELLS, WS_SPECS } from "./ws.ts";
+import { NODE_IMAGE } from "./http/cells.ts";
+import { WS_CELLS, WS_SPECS, wsCells } from "./ws.ts";
 
 const round = (value: number) => Math.round(value * 1e9) / 1e9;
 const cell = (name: string) => {
@@ -38,7 +41,8 @@ describe("the WS catalog", () => {
     for (const each of WS_CELLS) {
       expect(each.name.startsWith("WS ")).toBe(true);
       expect(each.client).toBe("procedures-ws");
-      expect(each.target).toMatchObject({ harness: "procedures", lines: true });
+      expect(each.target).toMatchObject({ image: NODE_IMAGE, subject: { kind: "shipped", name: "procedures" }, lines: true });
+      expect(each.target).not.toHaveProperty("harness");
       if (each.prediction.detects === true) expect(each.prediction.high.value, each.name).toBeGreaterThanOrEqual(each.prediction.low.value);
     }
   });
@@ -154,5 +158,34 @@ describe("the WS catalog", () => {
     const fin = cell("client idle, fin of the server, three tries refused");
     expect(fin.environments).toBe(11);
     expect(fin.target.kill).toBeDefined();
+  });
+});
+
+describe("the subject of the WS catalog", () => {
+  const caller: Subject = {
+    name: "procedures",
+    image: { kind: "pinned", image: `ghcr.io/owner/procedures-subject:0.8.0@sha256:${"ab".repeat(32)}` },
+    base: NODE_IMAGE,
+    programs: { client: ["node", "/opt/subject/client-ws.mjs"], server: ["node", "/opt/subject/server-ws.mjs"] },
+  };
+
+  it("runs on the subject that the harness ships, whose base is the Node image of the catalogs", () => {
+    expect(SUBJECTS.procedures.base).toBe(NODE_IMAGE);
+    expect(wsCells(SUBJECTS.procedures)).toEqual(WS_CELLS);
+  });
+
+  it("runs each cell on a subject that a caller gives, with the same settings and the same predictions", () => {
+    const cells = wsCells(caller);
+    expect(cells.map((each) => each.name)).toEqual(WS_CELLS.map((each) => each.name));
+    for (const [at, each] of cells.entries()) {
+      const shipped = WS_CELLS[at]!;
+      expect(each.client, each.name).toEqual({ image: caller.image, command: ["node", "/opt/subject/client-ws.mjs"] });
+      expect(each.target.subject, each.name).toEqual(caller.image);
+      expect(each.target.image, each.name).toBe(NODE_IMAGE);
+      // the server of the caller gets the settings of the cell, as the shipped server does
+      const command = (each.target.command ?? []).join(" ");
+      expect(command, each.name).toBe((shipped.target.command ?? []).join(" ").replaceAll("/opt/harness/procedures/", "/opt/subject/"));
+      expect({ ...each, client: shipped.client, target: shipped.target }, each.name).toEqual(shipped);
+    }
   });
 });

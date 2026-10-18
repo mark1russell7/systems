@@ -1,18 +1,4 @@
 import { createHash } from "node:crypto";
-import {
-  copyFileSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  readdirSync,
-  realpathSync,
-  rmSync,
-  statSync,
-} from "node:fs";
-import { createRequire } from "node:module";
-import { tmpdir } from "node:os";
-import { dirname, join, relative } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { StartedNetwork, StartedTestContainer } from "testcontainers";
 import type * as Testcontainers from "testcontainers";
 import type { Quantity } from "@mark1russell7/quantity";
@@ -24,6 +10,7 @@ import type {
   FaultPlace,
   Hop,
   HopPlace,
+  ImageSource,
   KernelRecord,
   MiddleboxEvent,
   ProbeEvent,
@@ -33,176 +20,10 @@ import type {
   Topology,
   Toxic,
 } from "./cell.ts";
-
-/**
- * These are the roots of the two packages that the images read: this package, and the prober
- * that Node resolves for it. In a workspace, they are two folders side by side. From npm, the
- * prober is a link, and a Docker build context does not follow a link. Thus each image builds
- * from a context that the harness copies from the two roots.
- */
-const ROOTS: Readonly<Record<string, string>> = {
-  harness: fileURLToPath(new URL("..", import.meta.url)),
-  prober: dirname(
-    realpathSync(createRequire(import.meta.url).resolve("@mark1russell7/prober/package.json")),
-  ),
-};
-
-/** This function gives the path of a part of an image, which is `<package>/<path>` in the context. */
-const pathOf = (part: string): string => {
-  const [root, ...rest] = part.split("/");
-  const base = ROOTS[root!];
-  if (base === undefined) throw new Error(`${part} is in no package that the images read`);
-  return join(base, ...rest);
-};
+import { SHIPPED_CLIENTS, harnessImage, imageOf, routerImage, targetImageOf } from "./image.ts";
 
 /** This function loads Testcontainers when a lab first opens. Code that only measures and judges does not load it. */
 export const containers = (): Promise<typeof Testcontainers> => import("testcontainers");
-
-/** An image is an image that the harness builds: its Dockerfile, and each file or folder that the Dockerfile reads. */
-interface Image {
-  readonly name: string;
-  readonly dockerfile: string;
-  readonly from: readonly string[];
-}
-
-/** This image holds the prober, the TCP client, the injector and the namespace admin. */
-const HARNESS: Image = {
-  name: "loom-harness",
-  dockerfile: "harness/image/Dockerfile",
-  from: [
-    "harness/image/Dockerfile",
-    "harness/image/native",
-    "prober/bpf",
-    "prober/native",
-    "prober/fixtures",
-  ],
-};
-/** This image holds the Node client: ioredis 6.0.0 on Node 24.21.0. */
-const NODE: Image = {
-  name: "loom-harness-node",
-  dockerfile: "harness/image/node/Dockerfile",
-  from: ["harness/image/node"],
-};
-/** This image holds the Go HTTP client: the http.Transport of Go 1.27.2. */
-const GO_HTTP: Image = {
-  name: "loom-harness-go-http",
-  dockerfile: "harness/image/go-http/Dockerfile",
-  from: ["harness/image/go-http"],
-};
-/** This image holds the Node HTTP clients: the http.Agent of Node 24.21.0, and undici 8.12.2. */
-const NODE_HTTP: Image = {
-  name: "loom-harness-node-http",
-  dockerfile: "harness/image/node-http/Dockerfile",
-  from: ["harness/image/node-http"],
-};
-/** This image holds the MongoDB client: the driver mongodb 7.7.0 on Node 24.21.0, and its step-down script. */
-const MONGO: Image = {
-  name: "loom-harness-mongo",
-  dockerfile: "harness/image/mongo/Dockerfile",
-  from: ["harness/image/mongo"],
-};
-/** This image holds the PostgreSQL client: node-postgres (pg 8.23.1 with pg-pool 3.14.0) on Node 24.21.0. */
-const PG: Image = {
-  name: "loom-harness-pg",
-  dockerfile: "harness/image/pg/Dockerfile",
-  from: ["harness/image/pg"],
-};
-/** This image holds `@procedures/client` 0.7.0 on Node 24.21.0: its WebSocket client as a client of the harness, and the script of its server. */
-const PROCEDURES: Image = {
-  name: "loom-harness-procedures",
-  dockerfile: "harness/image/procedures/Dockerfile",
-  from: ["harness/image/procedures"],
-};
-/** This image is the router of a middlebox chain: NAT and conntrack, with a form for a forgotten flow. */
-const ROUTER: Image = {
-  name: "loom-harness-router",
-  dockerfile: "harness/image/router/Dockerfile",
-  from: ["harness/image/router"],
-};
-
-/** This function gives each file under a path, in a stable sequence, but not the output of a local build. */
-const sources = (path: string): string[] => {
-  if (statSync(path).isFile()) return [path];
-  const entries = readdirSync(path, { withFileTypes: true });
-  return entries
-    .filter((entry) => entry.name !== "target" && entry.name !== "node_modules")
-    .flatMap((entry) => sources(join(path, entry.name)))
-    .sort();
-};
-
-/** This function gives each file of an image, with its path in the build context. */
-const filesOf = (image: Image): Array<{ readonly file: string; readonly at: string }> =>
-  image.from.flatMap((part) => {
-    const base = pathOf(part);
-    return sources(base).map((file) => ({
-      file,
-      at: join(part, relative(base, file)).replaceAll("\\", "/"),
-    }));
-  });
-
-/** This function gives the tag of an image from its content. Thus a changed probe or client cannot operate as an old one. */
-const imageTag = (image: Image): string => {
-  const hash = createHash("sha256");
-  for (const { file, at } of filesOf(image)) {
-    hash.update(at);
-    hash.update(readFileSync(file));
-  }
-  return `${image.name}:${hash.digest("hex").slice(0, 12)}`;
-};
-
-/** This function copies the files of an image into a new build context, and gives its path. */
-const stage = (image: Image): string => {
-  const context = mkdtempSync(join(tmpdir(), `${image.name}-`));
-  for (const { file, at } of filesOf(image)) {
-    mkdirSync(dirname(join(context, at)), { recursive: true });
-    copyFileSync(file, join(context, at));
-  }
-  return context;
-};
-
-const built = new Map<string, Promise<string>>();
-/** This function builds an image one time for each process. Docker keeps its layers between runs. */
-const build = (image: Image): Promise<string> => {
-  let tag = built.get(image.name);
-  if (tag === undefined) {
-    tag = (async () => {
-      const name = imageTag(image);
-      const { GenericContainer } = await containers();
-      const context = stage(image);
-      try {
-        await GenericContainer.fromDockerfile(context, image.dockerfile).build(name, {
-          deleteOnExit: false,
-        });
-      } finally {
-        rmSync(context, { recursive: true, force: true });
-      }
-      return name;
-    })();
-    built.set(image.name, tag);
-  }
-  return tag;
-};
-
-/** This function gives the image of the harness. */
-export const harnessImage = (): Promise<string> => build(HARNESS);
-/** This function gives the image of the Node client. */
-export const nodeClientImage = (): Promise<string> => build(NODE);
-/** This function gives the image of the router. */
-export const routerImage = (): Promise<string> => build(ROUTER);
-/** This function gives the image of the Go HTTP client. */
-export const goHttpImage = (): Promise<string> => build(GO_HTTP);
-/** This function gives the image of the Node HTTP clients. */
-export const nodeHttpImage = (): Promise<string> => build(NODE_HTTP);
-/** This function gives the image of the MongoDB client. */
-export const mongoClientImage = (): Promise<string> => build(MONGO);
-/** This function gives the image of the PostgreSQL client. */
-export const pgClientImage = (): Promise<string> => build(PG);
-/** This function gives the image of `@procedures/client`: its WebSocket client and its server. */
-export const proceduresImage = (): Promise<string> => build(PROCEDURES);
-
-/** This function gives the image that a target operates: its stock image, or an image of the harness (`Target.harness`). */
-export const targetImageOf = (target: Target): Promise<string> =>
-  target.harness === "procedures" ? proceduresImage() : Promise.resolve(target.image);
 
 /**
  * This time is the interval of the listing of a router, when its hop does not set one. A listing
@@ -286,6 +107,8 @@ export interface Manifest {
   /** This record is the target, and its settings as it read them back. */
   readonly target: {
     readonly image: string;
+    /** This source is the image of the subject that the target operates (`Target.subject`), with its stock base. */
+    readonly subject?: ImageSource;
     /** This name is the image of the harness that the target operates, with its stock base (`Target.harness`). */
     readonly harness?: string;
     readonly base?: string;
@@ -299,8 +122,11 @@ export interface Manifest {
     readonly first?: ProbeEvent;
   };
   readonly harness: { readonly image: string; readonly id: string; readonly packages: string[] };
-  /** This record is the client of each run: the TCP client of the harness, a driver, or an image that the cell gives. */
-  readonly client: { readonly kind: Client | "image"; readonly image: string };
+  /**
+   * This record is the client of each run: the TCP client of the harness, a driver, or an image that
+   * the cell gives. `source` is the source of its image, when it is not a stock image by its name.
+   */
+  readonly client: { readonly kind: Client | "image"; readonly image: string; readonly source?: ImageSource };
   /** These are the namespaces that the prober watched, by inode. */
   readonly netns: {
     readonly client: number;
@@ -608,44 +434,22 @@ export const netnsOf = async (container: StartedTestContainer): Promise<number> 
   return Number(inode);
 };
 
-/** This function gives the image and the command of the client of each run, and its kind for the manifest. */
+/**
+ * This function gives the image and the command of the client of each run, its kind for the
+ * manifest, and the source of its image. A client by its name is a client that the harness ships
+ * (`SHIPPED_CLIENTS`). A client image gives its own image and command.
+ */
 export const clientOf = async (
   kind: Client | ClientImage,
-  image: string,
-): Promise<{ clientImage: string; command: readonly string[]; clientKind: Client | "image" }> => {
-  if (typeof kind === "object") return { clientImage: kind.image, command: kind.command, clientKind: "image" };
-  if (kind === "ioredis")
-    return {
-      clientImage: await nodeClientImage(),
-      command: ["node", "/opt/harness/node/client-ioredis.mjs"],
-      clientKind: kind,
-    };
-  if (kind === "go-http") return { clientImage: await goHttpImage(), command: ["/opt/harness/client-go"], clientKind: kind };
-  if (kind === "http-agent" || kind === "undici")
-    return {
-      clientImage: await nodeHttpImage(),
-      command: ["node", `/opt/harness/node-http/client-${kind === "undici" ? "undici" : "agent"}.mjs`],
-      clientKind: kind,
-    };
-  if (kind === "mongodb")
-    return {
-      clientImage: await mongoClientImage(),
-      command: ["node", "/opt/harness/mongo/client-mongo.mjs"],
-      clientKind: kind,
-    };
-  if (kind === "pg")
-    return {
-      clientImage: await pgClientImage(),
-      command: ["node", "/opt/harness/pg/client-pg.mjs"],
-      clientKind: kind,
-    };
-  if (kind === "procedures-ws")
-    return {
-      clientImage: await proceduresImage(),
-      command: ["node", "/opt/harness/procedures/client-ws.mjs"],
-      clientKind: kind,
-    };
-  return { clientImage: image, command: ["/opt/harness/client"], clientKind: kind };
+): Promise<{ clientImage: string; command: readonly string[]; clientKind: Client | "image"; source?: ImageSource }> => {
+  const client = typeof kind === "string" ? (Object.hasOwn(SHIPPED_CLIENTS, kind) ? SHIPPED_CLIENTS[kind] : undefined) : kind;
+  if (client === undefined) throw new Error(`the harness ships no client ${String(kind)}`);
+  return {
+    clientImage: await imageOf(client.image),
+    command: client.command,
+    clientKind: typeof kind === "string" ? kind : "image",
+    ...(typeof client.image === "string" ? {} : { source: client.image }),
+  };
 };
 
 /** These are the containers of one hop of a lab, and the addresses that its rules and the measurement read. */
@@ -698,7 +502,7 @@ export const openLab = async (
   topology?: Topology,
 ): Promise<Lab> => {
   const image = await harnessImage();
-  const { clientImage, command, clientKind } = await clientOf(kind, image);
+  const { clientImage, command, clientKind, source } = await clientOf(kind);
   const hops = topology?.hops ?? [];
   const { GenericContainer, Network, Wait, getContainerRuntimeClient } = await containers();
   const runtime = await getContainerRuntimeClient();
@@ -1191,7 +995,11 @@ export const openLab = async (
           docker: `${runtime.info.containerRuntime.serverVersion} on ${runtime.info.containerRuntime.operatingSystem}`,
           target: {
             image: targetImage,
-            ...(target.harness === undefined ? {} : { harness: target.harness, base: target.image }),
+            ...(target.subject !== undefined
+              ? { subject: target.subject, base: target.image }
+              : target.harness === undefined
+                ? {}
+                : { harness: target.harness, base: target.image }),
             id: (await inspect(server)).Image,
             settings,
             sysctls: targetSysctls,
@@ -1209,7 +1017,7 @@ export const openLab = async (
             id: (await inspect(client)).Image,
             packages: (await output(client, ["apk", "info", "-v"])).split("\n").sort(),
           },
-          client: { kind: clientKind, image: clientImage },
+          client: { kind: clientKind, image: clientImage, ...(source === undefined ? {} : { source }) },
           netns,
           sysctls,
           ...(inChain.length === 0 ? {} : { hops: await hopsOf() }),

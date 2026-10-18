@@ -30,6 +30,7 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./schema": "./src/schema.ts",
     "./package.json": "./package.json"
   },
   "files": [
@@ -109,6 +110,10 @@
       ".": {
         "types": "./build/index.d.ts",
         "default": "./build/index.js"
+      },
+      "./schema": {
+        "types": "./build/schema.d.ts",
+        "default": "./build/schema.js"
       },
       "./package.json": "./package.json"
     }
