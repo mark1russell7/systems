@@ -5,6 +5,7 @@ import { ALL } from "../all.ts";
 import { T01_HIKARI } from "../pg/hikari.ts";
 import { T01_PG } from "../pg/t01.ts";
 import { T03_HIKARI } from "../pg/t03.ts";
+import { T10_HIKARI } from "../pg/t10.ts";
 import { MONGO_CELLS, MONGO_ONE, MEMBER_STAMPS, SET_DEFAULTS, longestWait } from "./harness.ts";
 
 const named = (prefix: string): Cell => {
@@ -17,7 +18,7 @@ describe("the MongoDB cells, for the harness", () => {
   it("gives each cell of the three catalogs once, with a name of its own, before the PostgreSQL cells at the end of the catalogs", () => {
     expect(MONGO_CELLS).toHaveLength(58);
     expect(new Set(ALL.map((cell) => cell.name)).size).toBe(ALL.length);
-    const pg = [...T01_PG, ...T01_HIKARI, ...T03_HIKARI];
+    const pg = [...T01_PG, ...T01_HIKARI, ...T03_HIKARI, ...T10_HIKARI];
     expect(ALL.slice(-(MONGO_CELLS.length + pg.length), -pg.length)).toEqual(MONGO_CELLS);
     expect(ALL.slice(-pg.length)).toEqual(pg);
   });

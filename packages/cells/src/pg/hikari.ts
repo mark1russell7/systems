@@ -1,6 +1,6 @@
 import type { Detector, KnobValues, Manifestation } from "@mark1russell7/algebra";
 import { detection, errnoOf, overValues, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
-import type { Cell, Prediction, RouterHop } from "@mark1russell7/harness";
+import type { Cell, Prediction, ProxyHop, RouterHop } from "@mark1russell7/harness";
 import { HIKARICP_PGJDBC, LINUX_TCP, NF_CONNTRACK_TCP } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import { HZ, RTT_MS, RUNS, count, given, predict, s, seconds, sysctlsOf } from "../catalog.ts";
@@ -61,6 +61,10 @@ export interface HikariSpec {
   readonly mtu?: number;
   /** This time is the window of an idle flow through a router, in seconds. Without it, the window is two and a half idle timeouts. */
   readonly hold?: number;
+  /** This hop is a pooler between the client and the server, for a cell of T10. */
+  readonly pooler?: ProxyHop;
+  /** This time is the most that the pooler adds to a reply, in seconds: one more round trip and one step of its loop. */
+  readonly poolerLatency?: number;
 }
 
 /** A router of a cell is the form of the router of the harness and its idle timeout, in whole seconds. */
@@ -300,7 +304,7 @@ const atHold = (spec: HikariSpec, driver: KnobValues, linux: KnobValues): Predic
     return {
       detects: false,
       window: s(6 * APP_STALL),
-      replies: { low: s(APP_STALL), high: s(APP_STALL + PG_RTT_MS / 1000 + slack) },
+      replies: { low: s(APP_STALL), high: s(APP_STALL + PG_RTT_MS / 1000 + slack + (spec.poolerLatency ?? 0)) },
       driver: { socket: "pool", reply, quiet: [...QUIET] },
     };
   }
@@ -387,7 +391,9 @@ export const hikariPrediction = (spec: HikariSpec): Prediction => {
   // before it, which the run waits for (startsBy). Its empty query is the first segment that the
   // socket sends after the fault, and the read timeout of the check counts from it. pgjdbc then
   // closes the socket: the kernel stamps the change from ESTABLISHED to FIN_WAIT1
-  if (spec.fault === "blackhole" && spec.mode === "idle") {
+  const keepalive = timerOf(HIKARICP_PGJDBC, "keepalive", driver).duration;
+  const keepaliveOn = !("unknown" in keepalive) && keepalive.value !== "infinite";
+  if (spec.fault === "blackhole" && spec.mode === "idle" && keepaliveOn) {
     const check = hikariFirstOn("probing", manifestationOf(spec), driver, linux);
     if (check.kind !== "timer" || check.layer !== "driver") throw new Error(`${spec.plan}: no timer of the pool ends the check of the keepalive`);
     return { detects: true, timer: check.timer, errno: "CLOSED", from: "first-sent", low: s(check.band.lo), high: s(check.band.hi), startsBy: s(latestCheck(driver, check.band)) };
@@ -421,10 +427,11 @@ const driverOptionsOf = (options: Readonly<Record<string, number>>): Record<stri
   Object.fromEntries(Object.entries(options).map(([name, value]) => [HIKARICP_PGJDBC.knobs[name]!.key.startsWith("pgjdbc ") ? `dataSource.${name}` : name, value]));
 
 /**
- * This function gives the topology of a cell with a router: one hop, named for the tier of the
- * cell. The router sends the ICMP errors of an unreachable host at the router, at no rate limit.
+ * This function gives the topology of a cell with a pooler or a router: one hop, named for the tier
+ * of the cell. The router sends the ICMP errors of an unreachable host at the router, at no rate limit.
  */
 const topologyOf = (spec: HikariSpec): Pick<Cell, "topology"> => {
+  if (spec.pooler !== undefined) return { topology: { name: spec.plan.split(".")[0]!, hops: [spec.pooler] } };
   if (spec.router === undefined) return {};
   const hop = routerHop(spec.router.form, spec.router.idle);
   const icmp = spec.fault === "unreachable" && spec.toward !== undefined;
