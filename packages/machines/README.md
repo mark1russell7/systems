@@ -43,8 +43,10 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `NODE_POSTGRES` | `node-postgres` | node-postgres 8.23.1 with pg-pool 3.14.0: one client of a `pg.Pool` | driver | 30 implemented, 2 documented, 1 derived |
 | `POSTGRES_SESSION` | `postgres-session` | One client connection of a PostgreSQL 17.11 backend | server | 41 implemented, 2 documented |
 | `HIKARICP_PGJDBC` | `hikaricp-pgjdbc` | HikariCP 7.1.0 over pgjdbc 42.7.13: one connection of a pool | driver | 41 implemented, 1 documented, 2 derived |
+| `PGBOUNCER_CLIENT` | `pgbouncer-client` | PgBouncer 1.26.1 in transaction pooling: one client connection | proxy | 29 implemented |
+| `PGBOUNCER_SERVER` | `pgbouncer-server` | PgBouncer 1.26.1 in transaction pooling: one server connection of a pool | proxy | 26 implemented |
 
-Fourteen documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel and the replication of mongod operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
+Sixteen documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel and the replication of mongod operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
 
 The package also gives these parts:
 
@@ -89,6 +91,14 @@ A document changes only for one of two reasons:
 A change to the version of a system changes its sources too. Each fact of the document then cites the new version.
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
+
+### 0.3.7
+
+- **PgBouncer 1.26.1, in transaction pooling.** Two new documents, each from the C source at the tag pgbouncer_1_26_1. Each of them operates on one socket, on Linux TCP:
+  - `pgbouncer-client` is one client connection: its login, its wait in the queue, and its transactions. Between two transactions PgBouncer reads the socket, and in the queue it does not.
+  - `pgbouncer-server` is one server connection of a pool: its connect and its login, its checks, and its close. It also gives the wait of the pool after a failed login (`server_login_retry`).
+  - Each timer of PgBouncer is a check of its janitor, each 333.3 ms, thus up to one period late. Only the TCP connect has its own timer, of libevent.
+  - At the defaults, an idle server older than 30 s gets the empty query as a check before its next use. No timer bounds the reply of the check.
 
 ### 0.3.6
 
