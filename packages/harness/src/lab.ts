@@ -627,6 +627,7 @@ export const openLab = async (
       const next = endpointOf(at + 1);
       let proxy = new GenericContainer(await imageOf(hop.image)).withNetwork(targetSide);
       if (hop.command !== undefined) proxy = proxy.withCommand([...hop.command]);
+      if (hop.environment !== undefined) proxy = proxy.withEnvironment({ ...hop.environment });
       if (hop.files !== undefined)
         proxy = proxy.withCopyContentToContainer(
           Object.entries(hop.files).map(([path, content]) => ({ content: templated(content, next), target: path })),

@@ -45,7 +45,8 @@ A topology (`Topology`) is the chain of hops from the client to the target, as d
   | `recreate` | nothing | passes, and the flow starts again | dropped |
   | `none` | nothing | passes, and the flow starts again | a reset from the stack of the router |
 
-- **A proxy** (`ProxyHop`) is a stock image, pinned by digest, that ends each TCP connection and opens its own to the next hop. Its files go into it before it starts, and `{{next}}` in them is the address and port of the next hop. An injector sidecar shares its namespace. A privileged sidecar sets its sysctls when the hop names them.
+- **A proxy** (`ProxyHop`) is a stock image, pinned by digest, that ends each TCP connection and opens its own to the next hop. Its files go into it before it starts, and `{{next}}` in them is the address and port of the next hop. Its `command` and its `environment` replace those of its image. An injector sidecar shares its namespace. A privileged sidecar sets its sysctls when the hop names them.
+  - The lab keeps the last 60 lines of the output of each proxy. A proxy that does not start gives them in its error.
 
 The element before a router reaches the networks after the router through it. Its privileged sidecar, or the router itself, adds each route. A router translates the address of the side of the client, thus the target and each later hop see the router as the peer.
 
