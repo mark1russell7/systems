@@ -75,6 +75,8 @@ export interface FakeProcess extends ProcessPort {
   signal(name: ExitSignal): void;
   /** This method sends a trigger to each handler of it: a signal, or a process trigger, for example `stdin-close`. */
   trigger(name: ExitTrigger): void;
+  /** This method sends a message of the IPC channel to each handler of the trigger `ipc-message`. */
+  message(value: unknown): void;
   /** These are the exit codes, in sequence. A correct runtime exits one time. */
   readonly exits: readonly number[];
   /** This count is the number of handlers that are registered. */
@@ -97,15 +99,15 @@ export interface FakeProcessOptions {
 
 /** This function makes a fake process. */
 export const fakeProcess = (options: FakeProcessOptions = {}): FakeProcess => {
-  const handlers = new Map<ExitTrigger, Set<() => void>>();
+  const handlers = new Map<ExitTrigger, Set<(message?: unknown) => void>>();
   const exits: number[] = [];
   const log: string[] = [];
   let flushes = 0;
   const stamp = (what: string): void => {
     log.push(options.clock === undefined ? what : `${options.clock.now()} ${what}`);
   };
-  const send = (name: ExitTrigger): void => {
-    for (const handler of [...(handlers.get(name) ?? [])]) handler();
+  const send = (name: ExitTrigger, message?: unknown): void => {
+    for (const handler of [...(handlers.get(name) ?? [])]) handler(message);
   };
   return {
     on(trigger, handler) {
@@ -126,8 +128,9 @@ export const fakeProcess = (options: FakeProcessOptions = {}): FakeProcess => {
       stamp(`exit ${code}`);
       exits.push(code);
     },
-    signal: send,
-    trigger: send,
+    signal: (name) => send(name),
+    trigger: (name) => send(name),
+    message: (value) => send("ipc-message", value),
     get exits() {
       return [...exits];
     },

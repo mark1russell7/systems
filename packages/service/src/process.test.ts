@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import { describe, expect, it } from "vitest";
 import type { HostStream, ProcessHost } from "./process.ts";
-import { processPortOf } from "./process.ts";
+import { isMessageShape, matchesMessage, processPortOf } from "./process.ts";
 
 /**
  * The port of the process of Node, on a fake host: the signals, the end of stdin, the close of the
@@ -79,6 +79,36 @@ describe("the port of the process of Node", () => {
     fake.emit("disconnect");
     fake.emit("disconnect");
     expect(calls).toBe(1);
+  });
+
+  it("gives each message of the IPC channel to the handler of ipc-message, until its removal (SYS-21)", () => {
+    const fake = host();
+    const seen: unknown[] = [];
+    const off = processPortOf(() => fake).on("ipc-message", (message) => void seen.push(message));
+    fake.emit("message", "shutdown");
+    fake.emit("message", { type: "stop" });
+    off();
+    fake.emit("message", "late");
+    expect(seen).toEqual(["shutdown", { type: "stop" }]);
+    expect(fake.listenerCount("message")).toBe(0);
+  });
+
+  it("matches a message with a shape of JSON: equal values, the fields of an object, and an array item by item", () => {
+    expect(matchesMessage("shutdown", "shutdown")).toBe(true);
+    expect(matchesMessage("shutdown", "Shutdown")).toBe(false);
+    expect(matchesMessage({ type: "stop" }, { type: "stop", reason: "deploy" })).toBe(true);
+    expect(matchesMessage({ type: "stop" }, { kind: "stop" })).toBe(false);
+    expect(matchesMessage({ type: "stop", from: { name: "ci" } }, { type: "stop", from: { name: "ci", pid: 1 } })).toBe(true);
+    expect(matchesMessage(["stop", 1], ["stop", 1])).toBe(true);
+    expect(matchesMessage(["stop", 1], ["stop", 1, 2])).toBe(false);
+    expect(matchesMessage(null, null)).toBe(true);
+    expect(matchesMessage({}, "shutdown")).toBe(false);
+    expect(matchesMessage({ type: "stop" }, ["stop"])).toBe(false);
+    expect(isMessageShape({ a: [1, "b", null, true] })).toBe(true);
+    expect(isMessageShape({ a: undefined })).toBe(false);
+    expect(isMessageShape(() => {})).toBe(false);
+    expect(isMessageShape(new Date())).toBe(false);
+    expect(isMessageShape(Number.NaN)).toBe(false);
   });
 
   it("ends the flush only when stdout and stderr have written each line before it", async () => {

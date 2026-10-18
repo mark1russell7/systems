@@ -8,6 +8,7 @@ import type {
   Dependency,
   ExitCodes,
   Gate,
+  MessageTrigger,
   Phase,
   RepeatSignal,
   ServiceDescription,
@@ -31,7 +32,7 @@ import type { Operation } from "./operation.ts";
 import { operationProblems } from "./operation.ts";
 import type { CheckFn } from "./poller.ts";
 import type { ExitTrigger, ProcessTrigger } from "./process.ts";
-import { EXIT_SIGNALS, PROCESS_TRIGGERS, isExitCode } from "./process.ts";
+import { EXIT_SIGNALS, PROCESS_TRIGGERS, isExitCode, isExitSignal, isMessageShape } from "./process.ts";
 import type { Profile } from "./profiles.ts";
 import type { OperationOf, RoutePattern } from "./routes.ts";
 import { routePatternProblems } from "./routes.ts";
@@ -104,6 +105,11 @@ export interface ServiceBuilder {
   onRepeatSignal(policy: RepeatSignal): ServiceBuilder;
   /** This method declares process triggers that start the shutdown, in addition to the exit signals. */
   trigger(...triggers: ProcessTrigger[]): ServiceBuilder;
+  /**
+   * This method declares a message of the IPC channel that starts the shutdown, as data. With `as`,
+   * the message is that exit signal: `svc.trigger("ipc-message", { match: "shutdown", as: "SIGTERM" })`.
+   */
+  trigger(trigger: "ipc-message", message: MessageTrigger): ServiceBuilder;
   /** This method declares the exit code of a clean shutdown that a trigger starts, in place of 0. */
   exitCode(trigger: ExitTrigger, code: number): ServiceBuilder;
   /** This method declares each field of a profile, as the method of that field does. */
@@ -161,6 +167,7 @@ const shutdownProblems = (
   repeat: RepeatSignal | undefined,
   triggers: readonly ProcessTrigger[],
   exitCodes: ExitCodes,
+  messages: readonly MessageTrigger[],
 ): string[] => {
   const problems: string[] = [];
   if (floor !== undefined && floor !== "half" && floor !== "none")
@@ -170,6 +177,14 @@ const shutdownProblems = (
   for (const trigger of triggers)
     if (!PROCESS_TRIGGERS.includes(trigger))
       problems.push(`the trigger ${String(trigger)} is not a process trigger (${PROCESS_TRIGGERS.join(", ")})`);
+  if (triggers.includes("ipc-message") && messages.length === 0)
+    problems.push(`the trigger ipc-message has no message to match: declare it with svc.trigger("ipc-message", { match })`);
+  for (const message of messages) {
+    if (!isMessageShape(message.match))
+      problems.push(`the match of a message trigger is not a value of JSON: ${String(message.match)}`);
+    if (message.as !== undefined && !isExitSignal(message.as))
+      problems.push(`a message trigger stands for ${String(message.as)}, not an exit signal (${EXIT_SIGNALS.join(", ")})`);
+  }
   for (const [trigger, code] of Object.entries(exitCodes)) {
     const known = (EXIT_SIGNALS as readonly string[]).includes(trigger) || triggers.includes(trigger as ProcessTrigger);
     if (!known) problems.push(`the exit code of ${trigger} names no exit signal and no declared trigger`);
@@ -203,6 +218,7 @@ export const service = (name: string): ServiceBuilder => {
   let floor: CooperativeFloor | undefined;
   let repeat: RepeatSignal | undefined;
   const triggers: ProcessTrigger[] = [];
+  const messages: MessageTrigger[] = [];
   const exitCodes: Partial<Record<ExitTrigger, number>> = {};
   let started = false;
   let partial = false;
@@ -420,9 +436,15 @@ export const service = (name: string): ServiceBuilder => {
       repeat = policy;
       return builder;
     },
-    trigger(...given) {
+    trigger(...given: ReadonlyArray<ProcessTrigger | MessageTrigger>) {
       composing("a trigger");
-      for (const each of given) if (!triggers.includes(each)) triggers.push(each);
+      const [first, message] = given;
+      if (first === "ipc-message" && typeof message === "object" && message !== null) {
+        if (!triggers.includes("ipc-message")) triggers.push("ipc-message");
+        messages.push({ ...message });
+        return builder;
+      }
+      for (const each of given) if (typeof each === "string" && !triggers.includes(each)) triggers.push(each);
       return builder;
     },
     exitCode(trigger, code) {
@@ -441,6 +463,7 @@ export const service = (name: string): ServiceBuilder => {
       if (given.cooperativeFloor !== undefined) builder.cooperativeFloor(given.cooperativeFloor);
       if (given.onRepeatSignal !== undefined) builder.onRepeatSignal(given.onRepeatSignal);
       if (given.triggers !== undefined) builder.trigger(...given.triggers);
+      for (const message of given.messages ?? []) builder.trigger("ipc-message", message);
       for (const [trigger, code] of Object.entries(given.exitCodes ?? {}))
         if (code !== undefined) builder.exitCode(trigger as ExitTrigger, code);
       return builder;
@@ -506,7 +529,7 @@ export const service = (name: string): ServiceBuilder => {
           problems.push(...operationProblems(`dependency ${dependency.name}`, name, operation));
       for (const phase of phases)
         if (!isTime(phase.cap)) problems.push(`phase ${phase.name}'s cap is not a time`);
-      problems.push(...shutdownProblems(floor, repeat, triggers, exitCodes));
+      problems.push(...shutdownProblems(floor, repeat, triggers, exitCodes, messages));
       // the stages of the shutdown keep their sequence: readiness fails first, the health server closes last
       const ranked = phases.map((phase) => phase.name).filter((each) => stageRank(each) >= 0);
       for (let at = 1; at < ranked.length; at += 1)
@@ -543,6 +566,7 @@ export const service = (name: string): ServiceBuilder => {
           ...(floor === undefined ? {} : { cooperativeFloor: floor }),
           onRepeatSignal: repeat!,
           ...(triggers.length === 0 ? {} : { triggers: [...triggers] }),
+          ...(messages.length === 0 ? {} : { messages: messages.map((each) => ({ ...each })) }),
           ...(Object.keys(exitCodes).length === 0 ? {} : { exitCodes: { ...exitCodes } }),
         },
       };

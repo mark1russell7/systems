@@ -17,6 +17,7 @@ export type {
   Dependency,
   ExitCodes,
   Gate,
+  MessageTrigger,
   Phase,
   RepeatSignal,
   ServiceDescription,
@@ -62,8 +63,17 @@ export type {
   TransportImpl,
 } from "./lifecycle.ts";
 export { STAGES, cooperativeAbortAt, stageRank } from "./lifecycle.ts";
-export type { ExitSignal, ExitTrigger, HostStream, ProcessHost, ProcessPort, ProcessTrigger } from "./process.ts";
-export { EXIT_SIGNALS, PROCESS_TRIGGERS, isExitCode, isExitSignal, nodeProcess, processPortOf } from "./process.ts";
+export type { ExitSignal, ExitTrigger, HostStream, MessageShape, ProcessHost, ProcessPort, ProcessTrigger } from "./process.ts";
+export {
+  EXIT_SIGNALS,
+  PROCESS_TRIGGERS,
+  isExitCode,
+  isExitSignal,
+  isMessageShape,
+  matchesMessage,
+  nodeProcess,
+  processPortOf,
+} from "./process.ts";
 export type { PodTiming, Profile } from "./profiles.ts";
 export { daemon, ephemeral, kubernetes, localDev } from "./profiles.ts";
 export type { RequestEnd, RequestEvent, RequestFn, RequestOptions, RequestStream, RequestWork } from "./requests.ts";
