@@ -75,10 +75,11 @@ export interface JobSettle<J> {
   /** This function removes the job from the queue without a success: the action `reject`, or a cut job that cannot go again. */
   reject(job: J, error: unknown): void | PromiseLike<void>;
   /**
-   * This function gives the count of deliveries of a job from the queue, 1 at the first. Without it,
-   * the drain counts the deliveries of each job that it puts back, by the value of the job.
+   * This function gives the count of deliveries of a job from the queue, 1 at the first. The queue
+   * knows it, for example `x-delivery-count` of RabbitMQ or `ApproximateReceiveCount` of SQS. A
+   * queue in memory counts for itself. The drain has no default, because a broker gives a new object at each delivery.
    */
-  readonly delivery?: ((job: J) => number) | undefined;
+  delivery(job: J): number;
 }
 
 /** A job context is what the drain gives the handler of each job. */
@@ -112,7 +113,10 @@ export interface QueueDrainOptions<J> {
    * it and can cut it. The idempotency of the route tells if a cut job goes back on the queue.
    */
   readonly request?: UnitRequest<J> | undefined;
-  /** This function receives each failure: of a take, of a job, of a settle and of a policy. The job is undefined for a take. */
+  /**
+   * This function receives each failure: of a take, of a job, of a settle and of a policy. It also
+   * receives the end of a source while the intake is open. The job is undefined for a take and for that end.
+   */
   readonly onError?: ((error: unknown, job: J | undefined) => void) | undefined;
 }
 
@@ -182,8 +186,6 @@ export const queueDrain = <J>(knobs: QueueKnobs, options: QueueDrainOptions<J>):
   // each job until its settle ends, and each job that goes back: the close waits for them
   const pending = new Set<Promise<unknown>>();
   const active = new Set<Active<J>>();
-  // the deliveries of each job that went back, when the queue does not count them
-  const deliveries = new Map<J, number>();
   let refusals = 0;
   let pausedUntil = Number.NEGATIVE_INFINITY;
   let cancelSource: () => void = () => {};
@@ -203,12 +205,6 @@ export const queueDrain = <J>(knobs: QueueKnobs, options: QueueDrainOptions<J>):
       pending.delete(work);
     };
     work.then(forget, forget);
-  };
-  const remember = (job: J, delivery: number): void => {
-    if (settle.delivery === undefined) deliveries.set(job, delivery);
-  };
-  const forget = (job: J): void => {
-    deliveries.delete(job);
   };
   /** This function tells the queue the end of a job, one time. A throw of the queue is a failure. */
   const once = async (unit: Active<J>, tell: () => void | PromiseLike<void>): Promise<void> => {
@@ -245,32 +241,21 @@ export const queueDrain = <J>(knobs: QueueKnobs, options: QueueDrainOptions<J>):
 
   const settleEnd = (unit: Active<J>, end: UnitEnd, delivery: number): Promise<void> => {
     const { job } = unit;
-    if (end.kind === "done") {
-      forget(job);
-      return once(unit, () => settle.ack(job));
-    }
+    if (end.kind === "done") return once(unit, () => settle.ack(job));
     if (end.kind === "refused") {
       report(new Error(`the service refused the job: ${end.cause}`), job);
       return once(unit, () => settle.requeue(job, "unstarted"));
     }
     if (end.kind === "cut") {
       // a cut is not a failure. Only a route that can go again puts the job back (S6 A12)
-      if (end.retryable) {
-        remember(job, delivery);
-        return once(unit, () => settle.requeue(job, "cut"));
-      }
-      forget(job);
+      if (end.retryable) return once(unit, () => settle.requeue(job, "cut"));
       const cut = new Error(end.cause);
       return once(unit, () => settle.reject(job, cut));
     }
     const { error } = end;
     report(error, job);
     const action = actionOf(job, error, delivery);
-    if (action === "requeue") {
-      remember(job, delivery);
-      return once(unit, () => settle.requeue(job, "failed"));
-    }
-    forget(job);
+    if (action === "requeue") return once(unit, () => settle.requeue(job, "failed"));
     return once(unit, () => (action === "ack" ? settle.ack(job) : settle.reject(job, error)));
   };
 
@@ -280,7 +265,14 @@ export const queueDrain = <J>(knobs: QueueKnobs, options: QueueDrainOptions<J>):
     active.add(unit);
     const abort = new AbortController();
     const remove = running.add(abort);
-    const delivery = settle.delivery?.(job) ?? (deliveries.get(job) ?? 0) + 1;
+    let delivery: number;
+    try {
+      delivery = settle.delivery(job);
+    } catch (error) {
+      // a count that the queue cannot give is not a first delivery: the job does not go back for free
+      report(error, job);
+      delivery = Number.POSITIVE_INFINITY;
+    }
     keep(
       (async () => {
         const end = await runUnit({
@@ -363,7 +355,11 @@ export const queueDrain = <J>(knobs: QueueKnobs, options: QueueDrainOptions<J>):
         continue;
       }
       failures = 0;
-      if (first.kind === "end") return;
+      if (first.kind === "end") {
+        // the source ended while the intake is open: the drain takes no more jobs, thus it says so
+        report(new Error(`the source of ${OWNER} ended while its intake was open: it takes no more jobs`), undefined);
+        return;
+      }
       if (first.kind === "none") {
         await rests.sleep(poll, since);
         continue;

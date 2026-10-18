@@ -35,11 +35,21 @@ const gate = (): { promise: Promise<void>; open: () => void } => {
 const aborted = (given: AbortSignal): Promise<void> =>
   new Promise((resolve) => (given.aborted ? resolve() : given.addEventListener("abort", () => resolve(), { once: true })));
 
-/** This function gives a settle that writes each end to a log, and an in-process queue that takes back each requeued job. */
-const inProcess = <J>(jobs: J[]): { log: string[]; settle: JobSettle<J> } => {
+/**
+ * This function gives a queue in memory: a take that counts the deliveries of each job, as a broker
+ * does, and a settle that writes each end to a log and takes back each requeued job.
+ */
+const inProcess = <J>(jobs: J[]): { log: string[]; settle: JobSettle<J>; take: () => J | null } => {
   const log: string[] = [];
+  const counts = new Map<J, number>();
   return {
     log,
+    take: () => {
+      const job = jobs.shift();
+      if (job === undefined) return null;
+      counts.set(job, (counts.get(job) ?? 0) + 1);
+      return job;
+    },
     settle: {
       ack: (job) => void log.push(`ack ${String(job)}`),
       requeue: (job, cause) => {
@@ -47,6 +57,7 @@ const inProcess = <J>(jobs: J[]): { log: string[]; settle: JobSettle<J> } => {
         jobs.push(job);
       },
       reject: (job, error) => void log.push(`reject ${String(job)}: ${(error as Error).message}`),
+      delivery: (job) => counts.get(job) ?? 1,
     },
   };
 };
@@ -76,11 +87,11 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
   it("takes a job while a slot is free, acks each success, and polls when the source has no job", async () => {
     const clock = fakeClock();
     const jobs = ["a", "b", "c"];
-    const { log, settle } = inProcess(jobs);
+    const { log, settle, take } = inProcess(jobs);
     const holds = new Map<string, () => void>();
     const drain = queueDrain(KNOBS, {
       clock,
-      source: () => jobs.shift() ?? null,
+      source: take,
       settle,
       redelivery: redeliverOnce("reject"),
       handle: (job, { signal: given }) =>
@@ -124,12 +135,12 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
   it("puts a first failure back one time, then applies the policy of the queue, and acks a poison message", async () => {
     const clock = fakeClock();
     const jobs = ["bad", "poison"];
-    const { log, settle } = inProcess(jobs);
+    const { log, settle, take } = inProcess(jobs);
     const deliveries: string[] = [];
     const errors: string[] = [];
     const drain = queueDrain({ ...KNOBS, concurrency: count(1) }, {
       clock,
-      source: () => jobs.shift() ?? null,
+      source: take,
       settle,
       redelivery: redeliverOnce("reject", (error) => (error as Error).message === "poison"),
       onError: (error, job) => void errors.push(`${String(job)}: ${(error as Error).message}`),
@@ -147,33 +158,82 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
     await drain.close();
   });
 
-  it("uses the count of deliveries of the queue when the queue gives it", async () => {
+  it("uses the count of deliveries of the queue: a broker gives a new object at each delivery", async () => {
     const clock = fakeClock();
-    const jobs = ["redelivered"];
-    const { log, settle } = inProcess(jobs);
-    const drain = queueDrain(KNOBS, {
+    // a broker: each delivery is a new object, and the broker counts the deliveries of each message
+    const counts = new Map<string, number>();
+    const pending = ["m1"];
+    const log: string[] = [];
+    const seen: number[] = [];
+    const drain = queueDrain({ ...KNOBS, concurrency: count(1) }, {
       clock,
-      source: () => jobs.shift() ?? null,
-      settle: { ...settle, delivery: () => 3 },
+      source: () => {
+        const id = pending.shift();
+        if (id === undefined) return null;
+        counts.set(id, (counts.get(id) ?? 0) + 1);
+        return { id, receiveCount: counts.get(id)! };
+      },
+      settle: {
+        ack: (message) => void log.push(`ack ${message.id}`),
+        requeue: (message, cause) => {
+          log.push(`requeue ${message.id} ${cause}`);
+          pending.push(message.id);
+        },
+        reject: (message) => void log.push(`reject ${message.id}`),
+        delivery: (message) => message.receiveCount,
+      },
       redelivery: redeliverOnce("reject"),
-      handle: () => {
+      handle: (_message, { delivery }) => {
+        seen.push(delivery);
         throw new Error("the job failed");
       },
     });
     await drain.start(signal(), detachedLifecycle());
     await clock.advance(0);
-    expect(log).toEqual(["reject redelivered: the job failed"]);
+    // the first failure goes back one time, and the second one gets the policy of the queue
+    expect(seen).toEqual([1, 2]);
+    expect(log).toEqual(["requeue m1 failed", "reject m1"]);
+    await drain.close();
+  });
+
+  it("gives a job whose count the queue cannot give no requeue for free", async () => {
+    const clock = fakeClock();
+    const jobs = ["lost"];
+    const { log, settle, take } = inProcess(jobs);
+    const errors: string[] = [];
+    const seen: number[] = [];
+    const drain = queueDrain(KNOBS, {
+      clock,
+      source: take,
+      settle: {
+        ...settle,
+        delivery: () => {
+          throw new Error("the broker gave no count");
+        },
+      },
+      redelivery: redeliverOnce("reject"),
+      onError: (error) => void errors.push((error as Error).message),
+      handle: (_job, { delivery }) => {
+        seen.push(delivery);
+        throw new Error("the job failed");
+      },
+    });
+    await drain.start(signal(), detachedLifecycle());
+    await clock.advance(0);
+    expect(seen).toEqual([Number.POSITIVE_INFINITY]);
+    expect(log).toEqual(["reject lost: the job failed"]);
+    expect(errors).toEqual(["the broker gave no count", "the job failed"]);
     await drain.close();
   });
 
   it("rejects a job when the policy throws or gives no action", async () => {
     const clock = fakeClock();
     const jobs = ["one", "two"];
-    const { log, settle } = inProcess(jobs);
+    const { log, settle, take } = inProcess(jobs);
     const errors: string[] = [];
     const drain = queueDrain(KNOBS, {
       clock,
-      source: () => jobs.shift() ?? null,
+      source: take,
       settle,
       redelivery: ({ job }) => {
         if (job === "one") throw new Error("the policy failed");
@@ -258,18 +318,56 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
     await drain.close();
   });
 
-  it("stops at the end of an iterable source", async () => {
+  it("stops at the end of an iterable source while its intake is open, and reports it", async () => {
     const clock = fakeClock();
     const { log, settle } = inProcess<string>([]);
+    const errors: Array<[string, unknown]> = [];
     async function* two(): AsyncGenerator<string> {
       yield "a";
       yield "b";
     }
-    const drain = queueDrain(KNOBS, { clock, source: two(), settle, redelivery: redeliverOnce("reject"), handle: () => {} });
+    const drain = queueDrain(KNOBS, {
+      clock,
+      source: two(),
+      settle,
+      redelivery: redeliverOnce("reject"),
+      onError: (error, job) => void errors.push([(error as Error).message, job]),
+      handle: () => {},
+    });
     await drain.start(signal(), detachedLifecycle());
     await clock.advance(0);
     expect(log).toEqual(["ack a", "ack b"]);
+    expect(errors).toEqual([["the source of queueDrain ended while its intake was open: it takes no more jobs", undefined]]);
     expect(clock.pending).toBe(0);
+    await drain.close();
+    // a source that ends after the stop of the intake is not a failure
+    expect(errors).toHaveLength(1);
+  });
+
+  it("reports an async generator that throws, and then its end", async () => {
+    const clock = fakeClock();
+    const { log, settle } = inProcess<string>([]);
+    const errors: string[] = [];
+    async function* broken(): AsyncGenerator<string> {
+      yield "a";
+      throw new Error("the stream broke");
+    }
+    const drain = queueDrain(KNOBS, {
+      clock,
+      random: () => 0,
+      source: broken(),
+      settle,
+      redelivery: redeliverOnce("reject"),
+      onError: (error) => void errors.push((error as Error).message),
+      handle: () => {},
+    });
+    await drain.start(signal(), detachedLifecycle());
+    await clock.advance(0);
+    expect(log).toEqual(["ack a"]);
+    expect(errors).toEqual(["the stream broke"]);
+    // after the backoff, the next take finds the generator at its end
+    await clock.advance(1000);
+    expect(errors).toEqual(["the stream broke", "the source of queueDrain ended while its intake was open: it takes no more jobs"]);
     await drain.close();
   });
 
@@ -306,11 +404,11 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
   it("drains the jobs in flight with the cooperative abort, and a cut job that cannot go again gets reject", async () => {
     const clock = fakeClock();
     const jobs = ["a"];
-    const { log, settle } = inProcess(jobs);
+    const { log, settle, take } = inProcess(jobs);
     const errors: unknown[] = [];
     const drain = queueDrain(KNOBS, {
       clock,
-      source: () => jobs.shift() ?? null,
+      source: take,
       settle,
       redelivery: redeliverOnce("requeue"),
       onError: (error) => void errors.push(error),
@@ -340,10 +438,10 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
   it("holds the close to its close_bound, rejects a job that does not end, and closes the source", async () => {
     const clock = fakeClock();
     const jobs = ["stuck"];
-    const { log, settle } = inProcess(jobs);
+    const { log, settle, take } = inProcess(jobs);
     const drain = queueDrain(KNOBS, {
       clock,
-      source: () => jobs.shift() ?? null,
+      source: take,
       settle,
       redelivery: redeliverOnce("reject"),
       // the job ignores its abort
@@ -367,10 +465,10 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
   it("takes each job that comes with a concurrency without a bound", async () => {
     const clock = fakeClock();
     const jobs = Array.from({ length: 12 }, (_, at) => `job ${at}`);
-    const { settle } = inProcess(jobs);
+    const { settle, take } = inProcess(jobs);
     const drain = queueDrain({ ...KNOBS, concurrency: { value: "infinite", unit: "count" } }, {
       clock,
-      source: () => jobs.shift() ?? null,
+      source: take,
       settle,
       redelivery: redeliverOnce("reject"),
       handle: (_job, { signal: given }) => aborted(given),
@@ -421,10 +519,10 @@ describe("queueDrain in a service: the declaration, the law and the request trac
   it("puts each job through life.request: a cut job of an idempotent route goes back, and another gets reject", async () => {
     const clock = fakeClock();
     const jobs = ["safe", "unsafe"];
-    const { log, settle } = inProcess(jobs);
+    const { log, settle, take } = inProcess(jobs);
     const drain = queueDrain(KNOBS, {
       clock,
-      source: () => jobs.shift() ?? null,
+      source: take,
       settle,
       redelivery: redeliverOnce("reject"),
       request: { controller: "jobs", route: (job) => `RUN ${job}` },
@@ -502,7 +600,7 @@ const queueSubject =
       {
         clock,
         source: () => tasks.shift() ?? null,
-        settle: { ack: () => {}, requeue: () => {}, reject: () => {} },
+        settle: { ack: () => {}, requeue: () => {}, reject: () => {}, delivery: () => 1 },
         redelivery: redeliverOnce("reject"),
         ...(tracked ? { request: { controller: "jobs", route: "RUN" } } : {}),
         handle: (task, { signal: given }) => task.run(given),
