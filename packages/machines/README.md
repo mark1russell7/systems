@@ -42,7 +42,7 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `MONGOD_SESSION` | `mongod-session` | One client connection of mongod 9.0.4 | server | 6 implemented |
 | `NODE_POSTGRES` | `node-postgres` | node-postgres 8.23.1 with pg-pool 3.14.0: one client of a `pg.Pool` | driver | 30 implemented, 2 documented, 1 derived |
 | `POSTGRES_SESSION` | `postgres-session` | One client connection of a PostgreSQL 17.11 backend | server | 40 implemented, 2 documented |
-| `HIKARICP_PGJDBC` | `hikaricp-pgjdbc` | HikariCP 7.1.0 over pgjdbc 42.7.13: one connection of a pool | driver | 37 implemented, 1 documented, 2 derived |
+| `HIKARICP_PGJDBC` | `hikaricp-pgjdbc` | HikariCP 7.1.0 over pgjdbc 42.7.13: one connection of a pool | driver | 39 implemented, 1 documented, 2 derived |
 
 Fourteen documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel and the replication of mongod operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
 
@@ -89,6 +89,12 @@ A document changes only for one of two reasons:
 A change to the version of a system changes its sources too. Each fact of the document then cites the new version.
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
+
+### 0.3.3
+
+- **\`hikaricp-pgjdbc\`: the slack of poll().** The JDK waits for a read or a connect with a timeout in poll() (NioSocketImpl.java at \`jdk-21.0.12+8\`). Linux ends the wait of poll() up to 0.1 % of its time late, at most 100 ms (fs/select.c of Linux 6.6). Thus four timers get that lateness with the slack of the JVM: the connect, the SSLRequest, the read timeout and the check.
+  - The cells of O13 measured it: a read timeout of 11 s closed its socket up to 11.35 ms late (run 39109649303).
+  - The bands of the HikariCP cells with these timers move in the snapshot. No other document changes.
 
 ### 0.3.2
 
