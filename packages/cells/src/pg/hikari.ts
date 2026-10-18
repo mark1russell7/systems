@@ -117,7 +117,7 @@ export const hikariValues = (rttMs = RTT_MS, options: Readonly<Record<string, nu
   return out;
 };
 
-/** A client state is the state of the connection of a cell at the fault: idle in the pool, a query in flight, or a check of the keepalive. */
+/** A client state is the state of the connection of a cell at the fault. It is idle in the pool, a query in flight, or a check of the keepalive. */
 export type HikariState = "pooled" | "querying" | "probing";
 
 /** A first detection is the detector that fires first on the socket of the connection, an event that the fault delivers, or none. */
