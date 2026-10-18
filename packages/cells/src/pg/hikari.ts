@@ -43,7 +43,12 @@ export interface HikariSpec {
   readonly linux?: Readonly<Record<string, Extent>>;
   /** These are the knobs of the document that differ from the defaults, by its names and in its units. */
   readonly options?: Readonly<Record<string, number>>;
+  /** This flag starts the client into a fault that holds already: the start of its pool meets it. */
+  readonly before?: true;
 }
+
+/** This value is the startup budget of a pod that R3 binds for the borders of O15: 30 s. */
+export const HIKARI_STARTUP_BUDGET = 30;
 
 /** This value is the slowest poll of a check that R3 binds for the borders of O13: 10 s. */
 export const HIKARI_SLOWEST_POLL = 10;
@@ -64,6 +69,7 @@ export const T01_HIKARI_SPECS: readonly HikariSpec[] = [
   { plan: "T01.defaults.55", name: "freeze-process, a query in flight", fault: "freeze-process", mode: "inflight" },
   { plan: "T01.defaults.56", name: "a 1 s stall, a query in flight", fault: "stall", mode: "inflight", stall: 1 },
   { plan: "T01.defaults.57", name: "event:idle, no fault: the pool keeps its idle connection", fault: "none", mode: "idle" },
+  { plan: "T01.defaults.59", name: "rst at the start: the server refuses the check of the pool", fault: "rst", mode: "inflight", before: true },
   // ---- O13: the read timeout of pgjdbc against the slowest poll of a check
   ...([
     ["T01.border-off.187", 9, "inside"],
@@ -75,6 +81,18 @@ export const T01_HIKARI_SPECS: readonly HikariSpec[] = [
     mode: "inflight",
     options: { socketTimeout: at },
   })),
+  // ---- O15: the start of the pool against the startup budget of a pod
+  ...([
+    ["T01.border-off.197", 28, "inside"],
+    ["T01.border-off.198", 30, "outside"],
+  ] as const).map(([plan, at, side]): HikariSpec => ({
+    plan,
+    name: `blackhole before the start, connectTimeout ${at} s: the start of the pool fails ${side} O15 against a budget of ${HIKARI_STARTUP_BUDGET} s`,
+    fault: "blackhole",
+    mode: "inflight",
+    before: true,
+    options: { connectTimeout: at },
+  })),
 ];
 
 /** This reason is the reason of the cells that need a router between the client and the server. */
@@ -82,7 +100,6 @@ const ROUTER = "the cell needs a router between the client and the server, and t
 /** These are the cells of the plan over these systems that this catalog does not start, each with its reason. */
 export const T01_HIKARI_WAITING: readonly Waiting[] = [
   { plan: "T01.defaults.58", trigger: "event:server-restart-same-ip", why: "the harness has no restart of a target with its address" },
-  { plan: "T01.defaults.59", trigger: "rst", why: "a reset at the first connect ends the start of the pool after the sleep of 1 s of its check, and the first use of the classes of the pool is in that band: no document gives its time" },
   { plan: "T01.defaults.60", trigger: "app-stall", why: "the client of the harness sends one text for each query, thus a slow query delays its first reply too, and the first connect of the JVM takes most of the 15 s that the harness waits for it" },
   { plan: "T01.defaults.61", trigger: "timed:mid-commit", why: "the harness has no injector that times a fault to a reply" },
   { plan: "T01.defaults.62", trigger: "in-process:event-loop", why: "no document gives the delay of the threads of the JVM in a pause of the process" },
@@ -91,8 +108,6 @@ export const T01_HIKARI_WAITING: readonly Waiting[] = [
   { plan: "T01.border-off.152", trigger: "border", why: ROUTER },
   { plan: "T01.border-off.173", trigger: "border", why: "the client of the harness sends one text for each query: the cell needs a slow query only after the client is ready" },
   { plan: "T01.border-off.174", trigger: "border", why: "the client of the harness sends one text for each query: the cell needs a slow query only after the client is ready" },
-  { plan: "T01.border-off.197", trigger: "border", why: "the next step of this catalog: the start of the pool against the startup budget of 30 s" },
-  { plan: "T01.border-off.198", trigger: "border", why: "the next step of this catalog: the start of the pool against the startup budget of 30 s" },
   { plan: "T01.border-off.237", trigger: "border", why: "the cell needs a virtual IP that kube-vip moves, which the PG catalog does not have" },
   { plan: "T01.border-off.238", trigger: "border", why: "the cell needs a virtual IP that kube-vip moves, which the PG catalog does not have" },
 ];
@@ -175,6 +190,38 @@ const manifestationOf = (spec: HikariSpec): Manifestation => {
 /** These lines of the client must not occur in the window of a silent cell: a failure of a query. */
 const QUIET = [{ ev: "fail" }] as const;
 
+/**
+ * This function gives the prediction of a cell whose fault holds before the client starts. The
+ * start of the pool makes one try, and after a failure it sleeps 1 s (start_check). At the
+ * default initializationFailTimeout of 1 ms, the start then fails, and the constructor of the pool
+ * throws. The fail line of the first query ends the band, with the SQLState of the try. The
+ * band counts from the connecting line of the client, which comes after the warm-up of its classes.
+ */
+const atStart = (spec: HikariSpec, driver: KnobValues): Prediction => {
+  const fails = { socket: "pool", ends: { ev: "fail", where: { n: 1 }, name: "sqlState" } };
+  const check = timerOf(HIKARICP_PGJDBC, "start_check", driver);
+  const sleep = span(seconds(check.duration, "the start check"), seconds(check.duration, "the start check") + seconds(check.lateness, "its lateness"));
+  const failed = transitionOn(HIKARICP_PGJDBC, "connecting", "peer.rst")?.errno ?? "08001";
+  // a reset of the SYN refuses the try at once
+  if (spec.fault === "rst")
+    return { detects: true, timer: "start_check", errno: failed, from: "client-start", low: s(sleep.lo), high: s(sleep.hi + PG_RTT_MS / 1000), driver: fails };
+  // a black hole: the connect timeout of pgjdbc ends the try. At sslmode prefer, one more
+  // connect with SSL off gets the 1 ms left of the budget, and it waits in poll() for that 1 ms
+  // (ConnectionFactoryImpl.java:195-208, :378-382)
+  const connect = timerOf(HIKARICP_PGJDBC, "connect_timeout", driver);
+  const wait = span(seconds(connect.duration, "the connect timeout"), seconds(connect.duration, "the connect timeout") + seconds(connect.lateness, "its lateness"));
+  const retry = span(0.001, 0.001 + seconds(check.lateness, "the slack of the JVM"));
+  return {
+    detects: true,
+    timer: "connect_timeout",
+    errno: failed,
+    from: "client-start",
+    low: s(wait.lo + retry.lo + sleep.lo),
+    high: s(wait.hi + retry.hi + sleep.hi),
+    driver: fails,
+  };
+};
+
 /** This function gives the prediction of a cell for the harness. */
 export const hikariPrediction = (spec: HikariSpec): Prediction => {
   // a stall is the stall of Linux TCP: the classic measurement of the socket of the client times it
@@ -183,6 +230,7 @@ export const hikariPrediction = (spec: HikariSpec): Prediction => {
   const rtt = { low: { value: 0, unit: "ms" }, high: { value: PG_RTT_MS, unit: "ms" } } as const;
   const driver = given(hikariValues(RTT_MS, spec.options));
   const linux = given(linuxValues(spec.linux));
+  if (spec.before === true) return atStart(spec, driver);
   // a reset answers the query at once: the kernel reports it on the socket of the connection
   if (spec.fault === "rst") {
     const errno = transitionOn(LINUX_TCP, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET";
@@ -240,6 +288,7 @@ export const hikariCell = (spec: HikariSpec): Cell => ({
   ...(spec.stall === undefined ? {} : { stall: s(spec.stall) }),
   ...(spec.icmp === undefined ? {} : { icmp: spec.icmp }),
   ...(spec.options === undefined ? {} : { driverOptions: driverOptionsOf(spec.options) }),
+  ...(spec.before === true ? { before: true } : {}),
   runs: RUNS,
   // a killed server cannot serve the next run: each run of a fin has its own environment
   environments: spec.fault === "fin" ? RUNS : 2,
