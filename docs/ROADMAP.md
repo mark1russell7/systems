@@ -504,14 +504,14 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
 
 ### KIND · Kubernetes endpoints in kind
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** S2
 - **Started:** 2026-10-15
-- **Shipped:**
-- **Links:** [The results](https://mark1russell7.github.io/systems/results/kind/), [#34](https://github.com/mark1russell7/systems/pull/34)
+- **Shipped:** 2026-10-18
+- **Links:** [The results](https://mark1russell7.github.io/systems/results/kind/), [#34](https://github.com/mark1russell7/systems/pull/34), [The run at main](https://github.com/mark1russell7/systems/actions/runs/39090689204), [#59](https://github.com/mark1russell7/systems/pull/59)
 
-T07 is the lifecycle of the endpoints of a Service, and T18 is a fleet whose readiness needs Redis. Of 31 cells, 22 hold, and 4 fail on one or two lone requests.
+T07 is the lifecycle of the endpoints of a Service, and T18 is a fleet whose readiness needs Redis. In the run at main of 2026-10-18, 26 of the 31 cells hold, 3 are calibrations and 2 are measurements, and no cell fails. KIND-LONE gave the cause of each lone failure of 2026-10-17.
 
 ### KIND-LONE · The cause of the lone failures in kind
 
