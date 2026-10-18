@@ -4,7 +4,8 @@
 //
 // The PostgreSQL cells put two clients against one server of PostgreSQL 17.11: node-postgres
 // (pg 8.23.1 with pg-pool 3.14.0) and HikariCP 7.1.0 over pgjdbc 42.7.13. T01 is the direct pair,
-// T03 has a router of a cloud preset between them, and T10 has PgBouncer 1.26.1. Each folder is
+// T03 has a router of a cloud preset between them, and T10 has a pooler: PgBouncer 1.26.1, Pgpool-II
+// 4.7.3 or Supavisor 2.9.13. Each folder is
 // the output of one shard of the workflow Cells on a runner of GitHub: the raw record of each
 // cell, summary.ndjson and runner.txt.
 // The script reads each record again with the code of the harness (`judge`), and it stops when that
@@ -34,10 +35,12 @@ const { T03_HIKARI } = await import("../../cells/src/pg/t03.ts");
 const { T10_HIKARI, T10_PG } = await import("../../cells/src/pg/t10.ts");
 const { ALL } = await import("../../cells/src/all.ts");
 
-/** These are the PostgreSQL cells of the catalogs, each with its client. */
+/** These are the PostgreSQL cells of the catalogs, each with its client, by their topology: T01, then T03, then T10. */
 const CATALOG = [
-  ...[...T01_PG, ...T10_PG].map((cell) => ({ cell, client: "node-postgres" })),
-  ...[...T01_HIKARI, ...T03_HIKARI, ...T10_HIKARI].map((cell) => ({ cell, client: "HikariCP" })),
+  ...T01_PG.map((cell) => ({ cell, client: "node-postgres" })),
+  ...[...T01_HIKARI, ...T03_HIKARI].map((cell) => ({ cell, client: "HikariCP" })),
+  ...T10_PG.map((cell) => ({ cell, client: "node-postgres" })),
+  ...T10_HIKARI.map((cell) => ({ cell, client: "HikariCP" })),
 ];
 
 /** This function gives the pooler of a cell of T10, by the name of its hop: PgBouncer, Pgpool-II or Supavisor. */

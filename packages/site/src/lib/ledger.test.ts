@@ -20,8 +20,8 @@ describe("the ledger of the results", () => {
     expect(tally("http")).toEqual([39, 38, 0, 1, 0]);
     // mongodb: "Each of the 58 cells holds against the prediction of the algebra"
     expect(tally("mongodb")).toEqual([58, 58, 0, 0, 0]);
-    // pg: "Each of the 44 cells holds against the prediction of the algebra"
-    expect(tally("pg")).toEqual([44, 44, 0, 0, 0]);
+    // pg: "Each of the 65 cells holds against the prediction of the algebra"
+    expect(tally("pg")).toEqual([65, 65, 0, 0, 0]);
     expect(tally("kind")).toEqual([31, 26, 0, 2, 3]);
     // r3: "Of the 115 cells of the queue, 114 hold and 1 is a measurement only", the 9 that failed first
     // held on a re-run, and 6 canonical cells: 1 holds and 5 measure
@@ -32,8 +32,8 @@ describe("the ledger of the results", () => {
   it("counts the runs of each page as the text of the page gives them", () => {
     // mongodb: "The cells have 638 counted runs, and no run is void"
     expect([entryOf("mongodb").counted, entryOf("mongodb").voided]).toEqual([638, 0]);
-    // pg: "The cells have 484 counted runs, and no run is void"
-    expect([entryOf("pg").counted, entryOf("pg").voided]).toEqual([484, 0]);
+    // pg: "The cells have 715 counted runs, and no run is void"
+    expect([entryOf("pg").counted, entryOf("pg").voided]).toEqual([715, 0]);
     // http: "No run of the 429 is void"
     expect([entryOf("http").counted + entryOf("http").voided, entryOf("http").voided]).toEqual([429, 0]);
     // faults: "No run of the 517 is void", and topologies: "no run of the 506 is void"
@@ -53,8 +53,8 @@ describe("the ledger of the results", () => {
   });
 
   it("adds the pages into one total", () => {
-    expect([TOTAL.pages, TOTAL.cells]).toEqual([10, 417]);
-    expect(TOTAL.tally).toEqual({ holds: 386, fails: 0, measured: 28, calibration: 3 });
+    expect([TOTAL.pages, TOTAL.cells]).toEqual([10, 438]);
+    expect(TOTAL.tally).toEqual({ holds: 407, fails: 0, measured: 28, calibration: 3 });
     expect(TOTAL.tally.holds + TOTAL.tally.fails + TOTAL.tally.measured + TOTAL.tally.calibration).toBe(TOTAL.cells);
     expect([TOTAL.first, TOTAL.last]).toEqual(["2026-10-13", "2026-10-18"]);
   });
