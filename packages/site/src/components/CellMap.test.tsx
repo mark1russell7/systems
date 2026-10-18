@@ -1,7 +1,7 @@
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import Borders, { bordersOf, onAxis } from "./Borders.tsx";
-import CellMap, { rowsOf } from "./CellMap.tsx";
+import CellMap, { labelled, rowsOf } from "./CellMap.tsx";
 import RunResults, { COPIES, cellId, type Copy } from "./RunResults.tsx";
 
 const ids = (html: string, pattern: RegExp): string[] => [...html.matchAll(pattern)].map((match) => match[1]!);
@@ -44,6 +44,8 @@ describe("the map of the cells", () => {
       ["border", 10],
     ]);
     const html = renderToString(<CellMap copy="pg" />);
+    // a row of one stage shows it when it is not the defaults: the borders of node-postgres through PgBouncer
+    expect(rows.map(labelled)).toEqual([true, true, false, true, false, false, true, true]);
     // React puts a comment between the two parts of the label
     expect(html).toMatch(/class="sy-map-via">through (?:<!-- -->)?Supavisor</);
     expect(rows[0]!.clusters.map((cluster) => [cluster.stage, cluster.cells.length])).toEqual([
