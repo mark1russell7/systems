@@ -611,6 +611,7 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
   - HikariCP of the earlier epoch has no keepalive, thus nothing finds the black hole in 60 s.
   - The two documents of PgBouncer decide that no timer of PgBouncer ends a query first: its earliest is query_wait_timeout, 120 s.
   - The other T10 cells at the defaults wait. Some need Pgpool-II or Supavisor, and some need several clients, SIGHUP or a console command at a hop, or a fault timed to a reply.
+- The PostgreSQL page of the site shows the 44 cells of the catalogs from one run at main ([39127973566](https://github.com/mark1russell7/systems/actions/runs/39127973566)). Each holds, with 484 counted runs and no void run.
 - Then the borders of T10.
 
 ### RABBIT · RabbitMQ

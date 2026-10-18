@@ -23,7 +23,8 @@ const FINDINGS: ReadonlyArray<{ readonly page: string; readonly tag: string; rea
   },
   { page: "http", tag: "T01", anchor: "what-the-cells-found", text: <>The pools of Node close late by a few milliseconds.</> },
   { page: "mongodb", tag: "T01 · T03", anchor: "what-the-cells-found", text: <>The monitor of the driver is not quiet under an ICMP host unreachable.</> },
-  { page: "pg", tag: "T01", anchor: "what-the-cells-found", text: <>No timer of node-postgres ends a query at its defaults.</> },
+  { page: "pg", tag: "T01", anchor: "node-postgres", text: <>No timer of node-postgres ends a query at its defaults.</> },
+  { page: "pg", tag: "T01 · T10", anchor: "hikaricp", text: <>Behind a black hole, the keepalive checks of HikariCP wait in one queue.</> },
   { page: "kind", tag: "T07", anchor: "what-the-cells-found", text: <>A stale conntrack entry catches a later connection.</> },
   { page: "calibration", tag: "Stage 0", anchor: "what-the-calibration-sets", text: <>More environments do not change the spread of keepalive.</> },
 ];
