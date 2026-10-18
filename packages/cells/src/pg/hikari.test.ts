@@ -66,16 +66,12 @@ describe("the HikariCP catalog of T01", () => {
     expect(stall.detects === false && stall.recovers !== undefined).toBe(true);
   });
 
-  it("puts the read timeout of pgjdbc on each side of the slowest poll (O13), with the SQLState of an I/O error", () => {
+  it("puts the read timeout of pgjdbc on each side of the slowest poll (O13), at the close of the socket", () => {
     const [inside, outside] = ["T01.border-off.187", "T01.border-off.188"].map(cell);
     for (const each of [inside!, outside!]) {
-      expect(each.prediction, each.name).toMatchObject({
-        detects: true,
-        timer: "socket_timeout",
-        errno: "08006",
-        from: "request-sent",
-        driver: { ends: { ev: "fail", where: { n: 2 }, name: "sqlState" } },
-      });
+      expect(each.prediction, each.name).toMatchObject({ detects: true, timer: "socket_timeout", errno: "CLOSED", from: "request-sent" });
+      // the kernel stamps the close of pgjdbc: no driver band, thus no line of the client ends it
+      expect(each.prediction.detects === true && each.prediction.driver, each.name).toBeUndefined();
     }
     if (inside!.prediction.detects !== true || outside!.prediction.detects !== true) return;
     expect(valueIn(inside!.prediction.high, "s")).toBeLessThan(HIKARI_SLOWEST_POLL);

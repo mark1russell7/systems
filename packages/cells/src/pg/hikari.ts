@@ -194,11 +194,12 @@ export const hikariPrediction = (spec: HikariSpec): Prediction => {
     return { detects: true, timer: `the server ends the connection: ${first.event}`, errno: first.name, from: "peer-closed", low: s(0), high: s(PG_RTT_MS / 1000), rtt, driver: { socket: "pool" } };
   if (first.kind === "silent") return { detects: false, window: s(60), driver: { socket: "pool", quiet: [...QUIET] } };
   if (first.layer === "driver") {
-    // a read timeout of pgjdbc closes the socket and fails the query with its SQLState: the fail
-    // line of that query ends the band. The read starts at the send of the query
+    // a read timeout of pgjdbc closes the socket at once (abort), and then fails the query with
+    // 08006. The kernel stamps the close, from ESTABLISHED to FIN_WAIT1. The fail line comes 2 to 9
+    // ms after the band: a new JVM builds the exception of pgjdbc and loads its messages, and
+    // HikariCP evicts the connection (run 39108284771). The read starts at the send of the query
     if (first.timer !== "socket_timeout") throw new Error(`${spec.plan}: a timer of the pool, ${first.timer}, fires first, which this catalog does not measure yet`);
-    const ends = { ev: "fail", where: { n: 2 }, name: "sqlState" };
-    return { detects: true, timer: first.timer, errno: first.name, from: "request-sent", low: s(first.band.lo), high: s(first.band.hi), driver: { socket: "pool", ends } };
+    return { detects: true, timer: first.timer, errno: "CLOSED", from: "request-sent", low: s(first.band.lo), high: s(first.band.hi) };
   }
   // the kernel gives up on the query: its retransmissions count from the first one
   const from = first.timer === "retrans_giveup" ? "first-retransmission" : "last-received";
