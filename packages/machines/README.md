@@ -46,8 +46,8 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `PGBOUNCER_CLIENT` | `pgbouncer-client` | PgBouncer 1.26.1 in transaction pooling: one client connection | proxy | 29 implemented |
 | `PGBOUNCER_SERVER` | `pgbouncer-server` | PgBouncer 1.26.1 in transaction pooling: one server connection of a pool | proxy | 26 implemented |
 | `PGPOOL_SESSION` | `pgpool-session` | Pgpool-II 4.7.3 with one backend: one session of a client in its child process | proxy | 15 implemented |
-| `SUPAVISOR_CLIENT` | `supavisor-client` | Supavisor 2.9.13 in transaction mode: one client connection | proxy | 14 implemented |
-| `SUPAVISOR_SERVER` | `supavisor-server` | Supavisor 2.9.13 in transaction mode: one server connection of the pool of a tenant | proxy | 8 implemented |
+| `SUPAVISOR_CLIENT` | `supavisor-client` | Supavisor 2.9.13 in transaction mode: one client connection | proxy | 15 implemented |
+| `SUPAVISOR_SERVER` | `supavisor-server` | Supavisor 2.9.13 in transaction mode: one server connection of the pool of a tenant | proxy | 10 implemented, 1 observed |
 
 Nineteen documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel and the replication of mongod operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
 
@@ -98,8 +98,9 @@ In this repository, a snapshot of the predictions of the cells (`packages/cells/
 ### 0.3.10
 
 - **Supavisor 2.9.13, in transaction mode.** Two new documents, each from the Elixir source at the tag v2.9.13:
-  - `supavisor-client`: one client connection. Between two transactions the client holds no server connection, thus a fault of the server does not reach an idle client. At the defaults Supavisor writes a heartbeat to an idle client each 60 s. A checkout waits up to 15 s for a server connection, then FATAL XX000. Each client socket has SO_KEEPALIVE.
+  - `supavisor-client`: one client connection. Between two transactions the client holds no server connection, thus a fault of the server reaches an idle client only through the pool. At the defaults Supavisor writes a heartbeat to an idle client each 60 s. A checkout waits up to 15 s for a server connection, then FATAL XX000. Each client socket has SO_KEEPALIVE.
   - `supavisor-server`: one server connection of the pool. The connect has a timeout of 5 s, and a failed connect gives FATAL 08006 to a client that waits for it. The next connect of the pool waits the rest of 2.5 s. The server socket has no keepalive.
+  - A server that shuts down can end each idle client of the tenant. When a login of the pool gets 57P03, Supavisor shuts the pool down gracefully: each client outside a transaction gets FATAL 57P01 and its close. In run 39164922565 that came in 6 of 11 runs, and the other 5 met a refused connect, which keeps the pool.
   - In 2.9.13, client_idle_timeout ends no session. Its timer fires an event that no clause of the client handler takes, thus the document gives it no timer.
 
 ### 0.3.9

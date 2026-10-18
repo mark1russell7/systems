@@ -228,8 +228,6 @@ describe("the HikariCP catalog of T10, through PgBouncer", () => {
     const claims = JSON.parse(Buffer.from(SUPAVISOR_TOKEN.split(".")[1]!, "base64url").toString());
     expect(claims).toEqual({ role: "service_role", exp: 4102444800 });
     expect(SUPAVISOR_IMAGE).toMatch(/^supabase\/supavisor:2\.9\.13@sha256:[0-9a-f]{64}$/);
-    const hikari = T10_HIKARI.find((each) => each.name.startsWith("T10.defaults.3 "));
-    expect(hikari?.driverOptions).toMatchObject({ username: "postgres.harness", password: "postgres" });
     const pg = T10_PG.find((each) => each.name.startsWith("T10.defaults.31 "));
     expect(pg?.driverOptions).toMatchObject({ user: "postgres.harness", password: "postgres" });
   });
@@ -254,14 +252,5 @@ describe("the HikariCP catalog of T10, through PgBouncer", () => {
     const heldDirect = pg("T01.defaults.130");
     if (held.detects !== false || heldDirect.detects !== false || held.replies === undefined || heldDirect.replies === undefined) throw new Error("replying cells");
     expect(valueIn(held.replies.high, "s")).toBeCloseTo(valueIn(heldDirect.replies.high, "s") + SUPAVISOR_LATENCY, 9);
-  });
-
-  it("ends the check of HikariCP through Supavisor after the server stopped at the failed connect of the pool: FATAL 08006, then the FIN", () => {
-    const fin = T10_HIKARI.find((each) => each.name.startsWith("T10.defaults.3 "));
-    expect(fin?.prediction).toMatchObject({ detects: true, errno: "EOF", from: "first-sent", low: { value: 0, unit: "s" } });
-    // the rest of the cooldown of 2.5 s and one connect of 5 s, each up to 10 ms late, and one step of Supavisor
-    if (fin?.prediction.detects !== true) throw new Error("a detecting cell");
-    expect(valueIn(fin.prediction.high, "s")).toBeCloseTo(7.52 + SUPAVISOR_LATENCY, 9);
-    expect(fin.environments).toBe(fin.runs);
   });
 });

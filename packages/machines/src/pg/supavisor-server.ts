@@ -35,6 +35,12 @@ export const SUPAVISOR_SERVER: Machine = machineSchema.parse({
     { ref: `${SV} lib/supavisor/db_handler.ex:551-574 a close of the server socket: in the authentication a failed connect, else the DbHandler stops with db_termination`, rung: "implemented" },
     { ref: `${SV} lib/supavisor/db_handler.ex:575-585 the exit of the client that holds the connection: Terminate to the server, close, stop`, rung: "implemented" },
     { ref: `${SV} lib/supavisor/circuit_breaker.ex:28-35 100 failed connects of a tenant in 150 s block its new connections for 30 s`, rung: "implemented" },
+    { ref: `${SV} lib/supavisor/db_handler.ex:69-76, :362-372, :297-301 an ErrorResponse at the authentication: 57P03 (the server shuts down) shuts the pool down gracefully, 3D000, 42501 and 22023 shut it down, and 28P01 and 28000 keep it`, rung: "implemented" },
+    { ref: `${SV} lib/supavisor/manager.ex:107-118, lib/supavisor/client_handler.ex:545-556 the graceful shutdown of a pool: each client outside a transaction gets FATAL 57P01 'terminating connection due to administrator command' and its close. A client in a transaction gets it after the transaction`, rung: "implemented" },
+    {
+      ref: `${SV} run 39164922565 of mark1russell7/systems: the server stopped, and the next connect of the pool got 57P03 in 6 of 11 runs. Each idle client then got FATAL 57P01 and its close, 8 to 10 ms after the server closed its connections. In 5 runs the connect came after the server, and the pool stayed`,
+      rung: "observed",
+    },
   ],
   states: {
     "[none]": { initial: true, pseudo: true, note: "The pool starts a DbHandler" },
@@ -54,11 +60,13 @@ export const SUPAVISOR_SERVER: Machine = machineSchema.parse({
     "peer.fin": { kind: "peer", note: "The server closes the connection" },
     "peer.rst": { kind: "peer", note: "A reset of the connection of the server" },
     "socket.error": { kind: "local", note: "The socket of the server fails with its own error" },
+    "rx.shutting-down": { kind: "rx", note: "An ErrorResponse 57P03 at the authentication: the server shuts down" },
     "timer.cooldown": { kind: "timer", note: "The rest of 2.5 s from the last failed connect of the pool" },
     "timer.connect": { kind: "timer", note: "The timeout of gen_tcp.connect" },
     "timer.auth": { kind: "timer", note: "The state timeout of the authentication" },
     "tx.terminate": { kind: "tx", note: "The Terminate message, then the close of the socket" },
     "tx.error": { kind: "tx", note: "FATAL 08006 'Failed to connect to database' to the client that waits for the connection" },
+    "tx.pool-shutdown": { kind: "local", note: "The graceful shutdown of the pool: FATAL 57P01 and the close of each client outside a transaction" },
   },
   knobs: {
     cooldown: { key: "the cooldown of the pool after a failed connect", scope: "process", unit: "ms", default: 2500, note: "lib/supavisor/db_handler.ex:66: a constant of the source" },
@@ -121,6 +129,15 @@ export const SUPAVISOR_SERVER: Machine = machineSchema.parse({
       source: "lib/supavisor/db_handler.ex:282-289, :329-331, :551-555, :1072-1085, :292-321",
     },
     { id: "ssv.authenticated", from: "authentication", to: "idle", on: "rx.ready-for-query", source: "lib/supavisor/db_handler.ex:380-390" },
+    {
+      id: "ssv.server-shutting-down",
+      from: "authentication",
+      to: "ended",
+      on: "rx.shutting-down",
+      emits: ["tx.pool-shutdown"],
+      note: "57P03 at the login: Supavisor shuts the whole pool down gracefully, thus a server that shuts down can end each idle client of the tenant",
+      source: "lib/supavisor/db_handler.ex:69-76, :362-372, :297-301",
+    },
     { id: "ssv.checkout", from: "idle", to: "busy", on: "local.checkout", source: "lib/supavisor/db_handler.ex:500-512" },
     { id: "ssv.release", from: "busy", to: "idle", on: "rx.ready-for-query", source: "lib/supavisor/db_handler.ex:415-425" },
     {

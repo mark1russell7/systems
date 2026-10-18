@@ -1,7 +1,7 @@
 import type { Detector, KnobValues, Machine } from "@mark1russell7/algebra";
 import { detection, errnoOf, overValues, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
 import type { Cell, Prediction, ProxyHop } from "@mark1russell7/harness";
-import { HIKARICP_PGJDBC, LINUX_TCP, PGBOUNCER_CLIENT, PGBOUNCER_SERVER, PGPOOL_SESSION, SUPAVISOR_CLIENT, SUPAVISOR_SERVER } from "@mark1russell7/machines";
+import { HIKARICP_PGJDBC, LINUX_TCP, PGBOUNCER_CLIENT, PGBOUNCER_SERVER, PGPOOL_SESSION, SUPAVISOR_CLIENT } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import { RTT_MS, RUNS, count, given, predict, s, seconds, sysctlsOf } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
@@ -210,8 +210,7 @@ const pgpoolAllows = (plan: string, state: "idle" | "waiting", ends: number): vo
 /** This time is the most that Supavisor adds to a reply: one more round trip, and one step of its handlers. */
 export const SUPAVISOR_LATENCY: number = PG_RTT_MS / 1000 + seconds(pgbouncerValues(SUPAVISOR_CLIENT)("slack"), "the slack of Supavisor");
 
-/** These are the options of a client of Supavisor: its user names the tenant, and its password is the password of that user. */
-const SUPAVISOR_HIKARI = { username: SUPAVISOR_USER.name, password: SUPAVISOR_USER.password } as const;
+/** These are the options of a client of node-postgres through Supavisor: its user names the tenant, and its password is the password of that user. */
 const SUPAVISOR_PG = { user: SUPAVISOR_USER.name, password: SUPAVISOR_USER.password } as const;
 
 /**
@@ -232,8 +231,8 @@ const supavisorAllows = (plan: string, state: "idle" | "busy", ends: number): vo
 
 /** A spec of T10 is a spec of HikariCP with the settings of PgBouncer that differ from its defaults, by the names of the documents. */
 export interface T10Spec extends HikariSpec {
-  /** This name is the pooler of the cell: PgBouncer, Pgpool-II or Supavisor. */
-  readonly via?: "pgpool" | "supavisor";
+  /** This name is the pooler of the cell: PgBouncer, or Pgpool-II. */
+  readonly via?: "pgpool";
   readonly pgbouncer?: Readonly<Record<string, number>>;
   /** These are the knobs of Linux TCP in the namespace of PgBouncer that differ from Linux 6.6. */
   readonly poolerLinux?: Readonly<Record<string, Extent>>;
@@ -255,8 +254,6 @@ const behind = (spec: Omit<T10Spec, "pooler" | "poolerLatency">): T10Spec => ({
 /** This function puts a spec behind Pgpool-II: its hop at the defaults, and the latency that it adds to a reply. */
 const throughPgpool = (spec: Omit<T10Spec, "pooler" | "poolerLatency" | "via">): T10Spec => ({ ...spec, via: "pgpool", pooler: PGPOOL_HOP, poolerLatency: PGPOOL_LATENCY });
 
-/** This function puts a spec behind Supavisor: its hop at the defaults, and the latency that it adds to a reply. */
-const throughSupavisor = (spec: Omit<T10Spec, "pooler" | "poolerLatency" | "via">): T10Spec => ({ ...spec, via: "supavisor", pooler: SUPAVISOR_HOP, poolerLatency: SUPAVISOR_LATENCY });
 
 /** This query sleeps for a time, as a server that holds the query in flight: its kernel acknowledges the query. */
 const sleep = (seconds: number): string => `SELECT pg_sleep(${seconds})`;
@@ -404,14 +401,6 @@ export const T10_HIKARI_SPECS: readonly T10Spec[] = [
       options: { socketTimeout: at },
     }),
   ),
-  // ---- Supavisor 2.9.13 in transaction mode, at its defaults. A fault at the server is between Supavisor and the server.
-  // An idle client holds no server connection, thus the FIN of the server does not reach it: its next query meets the pool
-  throughSupavisor({
-    plan: "T10.defaults.3",
-    name: "fin behind Supavisor, idle: the check of the pool meets the pool of Supavisor, which reconnects, and gets FATAL 08006",
-    fault: "fin",
-    mode: "idle",
-  }),
   // ---- K-client-timeouts: the rule of the Command Timeout of Npgsql, a timer of the client against a server that
   // goes on with the statement. Here it is the read timeout of pgjdbc against the statement deadline, as O07 in T01
   ...([
@@ -473,6 +462,11 @@ const REASONS: ReadonlyArray<readonly [number, number, string]> = [
 
 /** These are the cells of the plan over HikariCP in T10 that this catalog does not start, each with its reason. */
 export const T10_HIKARI_WAITING: readonly Waiting[] = [
+  {
+    plan: "T10.defaults.3",
+    trigger: "fin",
+    why: "through Supavisor the end of the idle client depends on a race in the shutdown of the server. When the next login of the pool gets 57P03, Supavisor shuts the pool down and closes each idle client at once. Else the client ends at its next check, with FATAL 08006 (run 39164922565: 6 and 5 of 11 runs)",
+  },
   { plan: "T10.defaults.13", trigger: "event:session", why: "the cell needs two clients on one server connection of PgBouncer, one that sets the state of the session and one that reads it. The harness starts one client" },
   { plan: "T10.defaults.14", trigger: "event:PAUSE", why: "PAUSE is a command of the console of PgBouncer: Pgpool-II has no command that holds the queries of its clients" },
   { plan: "T10.defaults.15", trigger: "event:reload", why: "the harness has no fault that sends SIGHUP to the program of a hop" },
@@ -571,31 +565,6 @@ const endOf = (prediction: Prediction): number => {
 };
 
 /**
- * This function gives the check of HikariCP through Supavisor after the server stopped (T10.defaults.3).
- * The idle connection holds no server connection, thus the FIN of the server does not reach it. The
- * keepalive of the pool sends its empty query, and Supavisor checks a server connection out of its pool,
- * which reconnects. The call waits for the connect of a DbHandler, at most the rest of the cooldown of
- * 2.5 s and one connect. The failed connect answers it with FATAL 08006 (ssv.connect-failed), and
- * Supavisor closes the client. The kernel of the client stamps the FIN, from ESTABLISHED to CLOSE_WAIT.
- */
-const atSupavisorReconnect = (spec: T10Spec): Prediction => {
-  if (spec.fault !== "fin" || spec.mode !== "idle") throw new Error(`${spec.plan}: this catalog measures HikariCP through Supavisor only for the FIN of the server and an idle pool`);
-  const server = pgbouncerValues(SUPAVISOR_SERVER);
-  const bound = (doc: Machine, timer: string, values: KnobValues): number => {
-    const bounds = timerOf(doc, timer, values);
-    return seconds(bounds.duration, timer) + seconds(bounds.lateness, `the lateness of ${timer}`);
-  };
-  const wait = bound(SUPAVISOR_SERVER, "cooldown", server) + bound(SUPAVISOR_SERVER, "connect_timeout", server);
-  const call = seconds(timerOf(SUPAVISOR_CLIENT, "checkout_timeout", pgbouncerValues(SUPAVISOR_CLIENT)).duration, "the checkout");
-  if (!(wait < call)) throw new Error(`${spec.plan}: the checkout of Supavisor can time out before the connect of the server fails`);
-  if (SUPAVISOR_SERVER.transitions.find((each) => each.id === "ssv.connect-failed")?.errno !== "08006") throw new Error(`${spec.plan}: supavisor-server gives no FATAL 08006 at a failed connect`);
-  // the check comes at a phase from the creation of the connection, as on the direct pair: the run waits for it
-  const direct = hikariPrediction({ ...spec, fault: "blackhole" });
-  if (direct.detects !== true || direct.startsBy === undefined) throw new Error(`${spec.plan}: the keepalive of HikariCP gives no check of the idle connection`);
-  return { detects: true, timer: "the checkout of Supavisor fails at the connect of the server", errno: "EOF", from: "first-sent", low: s(0), high: s(wait + SUPAVISOR_LATENCY), startsBy: direct.startsBy };
-};
-
-/**
  * This function gives the prediction of a cell through PgBouncer. When a timer of PgBouncer ends the
  * query before the band of the client, PgBouncer sends the client a FATAL ErrorResponse and closes
  * it. The FATAL reaches the client after one way, and one step of the JVM reads it. Thus the fail
@@ -603,7 +572,6 @@ const atSupavisorReconnect = (spec: T10Spec): Prediction => {
  * cell, and no timer of PgBouncer can come before its end.
  */
 export const t10Prediction = (spec: T10Spec): Prediction => {
-  if (spec.via === "supavisor") return atSupavisorReconnect(spec);
   if (spec.upstream === true) return atUpstreamConnect(spec);
   if (spec.observesPooler === true) return atPoolerSocket(spec);
   if (spec.via === "pgpool") {
@@ -717,7 +685,6 @@ export const T10_HIKARI: readonly Cell[] = T10_HIKARI_SPECS.map((spec) => ({
   ...hikariCell(spec),
   ...(spec.observesPooler === true ? { observer: POOLER_SOCKET, environments: RUNS } : {}),
   ...(spec.fresh === true ? { environments: RUNS, fresh: true as const } : {}),
-  ...(spec.via === "supavisor" ? { driverOptions: { ...hikariCell(spec).driverOptions, ...SUPAVISOR_HIKARI } } : {}),
   prediction: t10Prediction(spec),
 }));
 

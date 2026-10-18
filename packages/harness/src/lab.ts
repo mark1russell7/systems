@@ -46,7 +46,7 @@ export const LISTING: Quantity = { value: 20, unit: "ms" };
  */
 export const PUMP_SLACK: Quantity = { value: 5, unit: "ms" };
 
-/** This count is how many of the last lines of a proxy hop the lab keeps: the error of a hop that does not start gives them. */
+/** This count is how many of the last lines of a proxy hop the lab keeps. The error of a hop that does not start gives them. */
 const TAIL_LINES = 60;
 
 /**

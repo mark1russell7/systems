@@ -13,7 +13,8 @@ export const SV = "v2.9.13";
  *
  * Between two transactions the client holds no server connection. A message of the client checks one
  * out of the pool of the tenant, and ReadyForQuery of the server checks it in. Thus a fault of the
- * server does not reach an idle client: its next query meets the pool.
+ * server reaches an idle client only through the pool. Its next query meets the pool, or the pool
+ * shuts down and closes it, as after 57P03 at a login of the pool.
  *
  * At the defaults the handler writes a heartbeat to an idle client each 60 s: a ParameterStatus of
  * application_name. A failed write ends the client. client_idle_timeout does not end a session in
@@ -46,6 +47,7 @@ export const SUPAVISOR_CLIENT: Machine = machineSchema.parse({
     { ref: `${SV} lib/supavisor/client_handler.ex:697-703 a Sync of the client in :busy goes to the server, and handle_actions arms the heartbeat in :busy too`, rung: "implemented" },
     { ref: `${SV} lib/supavisor/client_handler.ex:90, :485-497 and lib/supavisor/errors/db_handler_exited_error.ex:15-25 the handler traps exits. The exit of its server connection ends the client: after a fatal error of the server that the client got, or with no ErrorResponse for the close of the server (db_termination)`, rung: "implemented" },
     { ref: `${SV} lib/supavisor/client_handler.ex:556-566, :1016-1022 a close or an error of the client socket ends the client`, rung: "implemented" },
+    { ref: `${SV} lib/supavisor/client_handler.ex:545-556 and lib/supavisor/protocol/server.ex:183-190 the graceful shutdown of the pool: a client outside a transaction gets FATAL 57P01 'terminating connection due to administrator command' and its close, and a client in a transaction waits for its end (postpone)`, rung: "implemented" },
   ],
   states: {
     "[none]": { initial: true, pseudo: true, note: "Before ranch accepts the connection" },
@@ -65,6 +67,7 @@ export const SUPAVISOR_CLIENT: Machine = machineSchema.parse({
     "server.ready": { kind: "local", note: "The server connection reads ReadyForQuery: the end of the transaction" },
     "server.exit": { kind: "peer", note: "The server connection of the client ends: the server closed it, reset it, or sent a fatal error" },
     "client.gone": { kind: "peer", note: "The client closes its connection, or a read or a write of its socket fails" },
+    "pool.shutdown": { kind: "local", note: "The pool of the tenant shuts down gracefully, for example after 57P03 at a login of the pool" },
     "timer.handshake": { kind: "timer", note: "The state timeout of the handshake" },
     "timer.auth": { kind: "timer", note: "The timeout of a wait of the authentication" },
     "timer.heartbeat": { kind: "timer", note: "client_heartbeat_interval with no event of the handler" },
@@ -158,6 +161,16 @@ export const SUPAVISOR_CLIENT: Machine = machineSchema.parse({
       source: "lib/supavisor/client_handler.ex:485-497, lib/supavisor/errors/db_handler_exited_error.ex:15-25",
     },
     { id: "scl.gone", from: ["handshake", "auth", "idle", "checkout", "busy"], to: "ended", on: "client.gone", source: "lib/supavisor/client_handler.ex:556-566, :1016-1022" },
+    {
+      id: "scl.pool-shutdown",
+      from: "idle",
+      to: "ended",
+      on: "pool.shutdown",
+      errno: "57P01",
+      emits: ["tx.error"],
+      note: "FATAL 57P01 'terminating connection due to administrator command', then the close. A client in a transaction gets it at the end of the transaction",
+      source: "lib/supavisor/client_handler.ex:545-556, lib/supavisor/protocol/server.ex:183-190",
+    },
   ],
   over: {
     machine: "systems.machine.linux-tcp",
