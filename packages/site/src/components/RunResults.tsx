@@ -63,6 +63,8 @@ export interface RunCell {
   readonly stage?: string;
   /** This name is the client of a cell, in a copy that has more than one: node-postgres or HikariCP. */
   readonly client?: string;
+  /** This name is the pooler between the client and the server, for a cell of T10: PgBouncer, Pgpool-II or Supavisor. */
+  readonly via?: string;
   readonly ordering?: string | null;
   readonly requests?: ReadonlyArray<{ readonly outcome: string; readonly count: number }>;
 }
@@ -296,11 +298,18 @@ export default function RunResults(props: {
   readonly group: string;
   readonly stage?: string;
   readonly pool?: string;
+  /** This name selects the cells through one pooler of T10: PgBouncer, Pgpool-II or Supavisor. */
+  readonly via?: string;
 }): ReactElement {
   const cells = (COPIES[props.copy] ?? []).filter(
-    (cell) => cell.group === props.group && (props.stage === undefined || cell.stage === props.stage) && (props.pool === undefined || cell.client === props.pool),
+    (cell) =>
+      cell.group === props.group &&
+      (props.stage === undefined || cell.stage === props.stage) &&
+      (props.pool === undefined || cell.client === props.pool) &&
+      (props.via === undefined || cell.via === props.via),
   );
-  if (cells.length === 0) throw new Error(`no cell of ${props.copy} has the group ${props.group}${props.pool === undefined ? "" : ` and the client ${props.pool}`}`);
+  if (cells.length === 0)
+    throw new Error(`no cell of ${props.copy} has the group ${props.group}${props.pool === undefined ? "" : ` and the client ${props.pool}`}${props.via === undefined ? "" : ` through ${props.via}`}`);
   return (
     <div className="not-content sy-cells">
       {cells.map((cell) => (

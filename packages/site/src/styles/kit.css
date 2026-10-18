@@ -711,6 +711,10 @@ code.sy-tag {
   color: var(--color-ink-muted);
 }
 
+.sy-map-via {
+  color: var(--color-ink-muted);
+}
+
 .sy-tile {
   display: inline-grid;
   place-items: center;
