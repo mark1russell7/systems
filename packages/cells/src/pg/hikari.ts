@@ -51,6 +51,7 @@ export const HIKARI_SLOWEST_POLL = 10;
 /** These are the cells of T01 over hikaricp-pgjdbc and postgresql that this catalog starts, at the defaults. */
 export const T01_HIKARI_SPECS: readonly HikariSpec[] = [
   { plan: "T01.defaults.2", name: "rst, a query in flight", fault: "rst", mode: "inflight" },
+  { plan: "T01.defaults.52", name: "blackhole, idle: the keepalive of the pool checks the connection, and the read timeout closes it", fault: "blackhole", mode: "idle" },
   { plan: "T01.defaults.53", name: "fin, idle", fault: "fin", mode: "idle" },
   {
     plan: "T01.defaults.54",
@@ -80,7 +81,6 @@ export const T01_HIKARI_SPECS: readonly HikariSpec[] = [
 const ROUTER = "the cell needs a router between the client and the server, and the PG catalog has no chain yet";
 /** These are the cells of the plan over these systems that this catalog does not start, each with its reason. */
 export const T01_HIKARI_WAITING: readonly Waiting[] = [
-  { plan: "T01.defaults.52", trigger: "blackhole", why: "the keepalive of the pool comes at a phase from the creation of its connection: the cell needs a reference at the empty query of the keepalive, which the harness does not give yet" },
   { plan: "T01.defaults.58", trigger: "event:server-restart-same-ip", why: "the harness has no restart of a target with its address" },
   { plan: "T01.defaults.59", trigger: "rst", why: "a reset at the first connect ends the start of the pool after the sleep of 1 s of its check, and the first use of the classes of the pool is in that band: no document gives its time" },
   { plan: "T01.defaults.60", trigger: "app-stall", why: "the client of the harness sends one text for each query, thus a slow query delays its first reply too, and the first connect of the JVM takes most of the 15 s that the harness waits for it" },
@@ -117,8 +117,8 @@ export const hikariValues = (rttMs = RTT_MS, options: Readonly<Record<string, nu
   return out;
 };
 
-/** A client state is the state of the connection of a cell at the fault: idle in the pool, or a query in flight. */
-export type HikariState = "pooled" | "querying";
+/** A client state is the state of the connection of a cell at the fault: idle in the pool, a query in flight, or a check of the keepalive. */
+export type HikariState = "pooled" | "querying" | "probing";
 
 /** A first detection is the detector that fires first on the socket of the connection, an event that the fault delivers, or none. */
 export type HikariFirst =
@@ -133,7 +133,7 @@ const finite = (d: Detector): boolean => !("unknown" in d.duration) && d.duratio
  * document of HikariCP over pgjdbc over Linux TCP, as the PG catalog of node-postgres does.
  */
 export const hikariFirstOn = (state: HikariState, manifestation: Manifestation, driver: KnobValues, linux: KnobValues): HikariFirst => {
-  const inFlight = state === "querying";
+  const inFlight = state !== "pooled";
   const own = detection(HIKARICP_PGJDBC, { state, inFlight }, { name: manifestation.name, passes: [] }, driver);
   const lower = overValues(HIKARICP_PGJDBC, driver, linux);
   const socket = HIKARICP_PGJDBC.over?.states[state];
@@ -187,6 +187,18 @@ export const hikariPrediction = (spec: HikariSpec): Prediction => {
   if (spec.fault === "rst") {
     const errno = transitionOn(LINUX_TCP, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET";
     return { detects: true, timer: "the reset of the query", errno, from: "request-sent", low: s(0), high: s(PG_RTT_MS / 1000), rtt, driver: { socket: "pool" } };
+  }
+  // behind a black hole, the keepalive of the pool is the only check of an idle connection. It
+  // comes at a phase from the creation of the connection: at most one delay after the reply, which
+  // the run waits for (startsBy). Its empty query is the first segment that the socket sends after
+  // the fault, and the read timeout of the check counts from it. pgjdbc then closes the socket:
+  // the kernel stamps the change from ESTABLISHED to FIN_WAIT1
+  if (spec.fault === "blackhole" && spec.mode === "idle") {
+    const check = hikariFirstOn("probing", manifestationOf(spec), driver, linux);
+    if (check.kind !== "timer" || check.layer !== "driver") throw new Error(`${spec.plan}: no timer of the pool ends the check of the keepalive`);
+    const keepalive = timerOf(HIKARICP_PGJDBC, "keepalive", driver);
+    const latest = seconds(keepalive.duration, "the keepalive") + seconds(keepalive.lateness, "its lateness");
+    return { detects: true, timer: check.timer, errno: "CLOSED", from: "first-sent", low: s(check.band.lo), high: s(check.band.hi), startsBy: s(latest) };
   }
   const first = hikariFirstOn(spec.mode === "inflight" ? "querying" : "pooled", manifestationOf(spec), driver, linux);
   // the FIN of a killed server: the kernel moves the socket to CLOSE_WAIT at once, as pgjdbc reads nothing

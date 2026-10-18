@@ -80,6 +80,17 @@ describe("the HikariCP catalog of T01", () => {
     expect(inside!.driverOptions).toEqual({ "dataSource.socketTimeout": 9 });
   });
 
+  it("times the keepalive behind a black hole from its empty query, up to one delay after the reply", () => {
+    const p = cell("T01.defaults.52").prediction;
+    expect(p).toMatchObject({ detects: true, timer: "validation_timeout", errno: "CLOSED", from: "first-sent" });
+    if (p.detects !== true) return;
+    // the check of 5 s, with the slack of poll() and of the JVM
+    expect([valueIn(p.low, "s"), valueIn(p.high, "s")]).toEqual([5, 5.015]);
+    // the keepalive comes at most 120 s after the creation of the connection, thus after the reply
+    expect(valueIn(p.startsBy!, "s")).toBeCloseTo(120.01, 6);
+    expect(p.driver).toBeUndefined();
+  });
+
   it("refuses an option that is not a knob of the document", () => {
     expect(() => hikariValues(1, { socket_timeout: 9 })).toThrow(/no knob/);
   });
