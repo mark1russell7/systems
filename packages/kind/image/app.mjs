@@ -2,9 +2,11 @@
 // health server, its Redis client when the cell has Redis, and each stage of the shutdown. The
 // declaration comes from the CONFIG variable of the pod, and compose.ts is the same composition that
 // lint() reads. Each line on stdout is JSON, stamped on CLOCK_MONOTONIC (process.hrtime), the clock
-// of every container of the VM.
+// of every container of the VM. The listener, the probes and the answers are the ./http entry of the
+// service: the lab has no transport of its own.
 import { existsSync, readFileSync } from "node:fs";
 import http from "node:http";
+import { handle, httpTransport, pathOf, probeServer } from "@mark1russell7/service/http";
 import { redisClient } from "@mark1russell7/service/redis";
 import { CONTROLLER, ROUTE, compose } from "./compose.ts";
 
@@ -23,6 +25,7 @@ const clock = {
 const say = (line) => process.stdout.write(`${JSON.stringify({ ...line, t: now(), p: pod })}\n`);
 const record = (event) =>
   say({ ev: "rec", at: event.at, m: event.machine, i: event.instance, from: event.from, to: event.to, on: event.on, d: event.detail ?? null });
+const s = (value) => ({ value, unit: "s" });
 
 // the seam of the stall: SIGUSR2 blocks the event loop for the milliseconds in /tmp/lab-stall
 process.on("SIGUSR2", () => {
@@ -54,85 +57,64 @@ const redis =
 const FLAG = process.env.LAB_FLAG ?? "/tmp/lab-fail";
 const flag = () => (existsSync(FLAG) ? "error" : "ok");
 
-// the server transport: a new connection for each request, and Connection: close while the service is not ready.
-// The lifecycle comes with the start of the transport, thus a request before the end of the startup
-// gets the refusal of the service: 503, retryable
-const sockets = new Set();
-let inFlight = 0;
-const serve = (life) => async (req, res) => {
-  inFlight += 1;
-  try {
-    // a unary work is a stream of one item: the item is the answer, else the end gives the status
-    const { items, end } = await life
-      .request(CONTROLLER, ROUTE, async (signal) => {
-        if (redis !== undefined) {
-          const sent = await redis.send("GET", ["lab"], { signal });
-          if (sent.outcome !== "ok") throw new Error(`redis ${sent.outcome}: ${sent.error}`);
-        }
-        return pod;
-      })
-      .collect();
-    const headers = { "content-type": "text/plain" };
-    if (!life.keepAlive()) headers.connection = "close";
-    if (end.kind === "done") res.writeHead(200, headers).end(String(items[0]));
-    else if (end.kind === "failed") res.writeHead(503, headers).end(`failed: ${end.error?.message ?? end.error}`);
-    else res.writeHead(end.status ?? 500, headers).end(`${end.kind}: ${end.cause}`);
-  } finally {
-    inFlight -= 1;
-  }
-};
+// the knobs of the listener. The real idle close is the one of Node 24.21 before the ./http entry:
+// keepAliveTimeout 5 s and its buffer of 1 s. The clients send each request on a new connection, with
+// Connection: close. The sweep comes each second after the stop of the intake (S6 A8), and each 503
+// tells a client to try again after 1 s
+const KNOBS = { server_idle_close: s(6), server_idle_sweep_interval: s(1), server_retry_after: s(1) };
+
+// the server transport: the transport gets the lifecycle at its start, thus a request before the end
+// of the startup gets the refusal of the service (503, retryable), and Connection: close while the
+// service is not ready
 const server = http.createServer();
-server.on("connection", (socket) => {
-  sockets.add(socket);
-  socket.on("close", () => sockets.delete(socket));
-});
-const transport = {
-  start: (_signal, life) =>
-    new Promise((resolve, reject) => {
-      server.on("request", serve(life));
-      server.once("error", reject);
-      server.listen(config.port, () => {
-        say({ ev: "app", what: "listening", port: config.port });
-        resolve();
-      });
-    }),
+server.on("listening", () => say({ ev: "app", what: "listening", port: config.port }));
+const transport = httpTransport(server, KNOBS, { listen: { port: config.port }, clock });
+// each request of the port is the one route. A failure of the route answers 503, as the lab always
+// did: the T07 and T18 cells count the 503s, and T18 predicts them while Redis is down. Each 503 gets
+// Retry-After from the rule of the transport
+transport.mount(
+  handle(
+    CONTROLLER,
+    () => ROUTE,
+    async (_req, signal) => {
+      if (redis !== undefined) {
+        const sent = await redis.send("GET", ["lab"], { signal });
+        if (sent.outcome !== "ok") throw new Error(`redis ${sent.outcome}: ${sent.error}`);
+      }
+      return pod;
+    },
+    {
+      failed: (error) => ({
+        status: 503,
+        headers: { "content-type": "text/plain; charset=utf-8" },
+        body: `failed: ${error?.message ?? error}`,
+      }),
+    },
+  ),
+);
+// the lifecycle stops the intake of the transport, and the line tells when
+const lab = {
+  start: (signal, life) => transport.start(signal, life),
   stopIntake: () => {
-    // the listener closes: a new connection is refused from here on
-    server.close();
-    server.closeIdleConnections();
+    transport.stopIntake();
     say({ ev: "app", what: "intake-stopped" });
   },
-  drain: async (deadline) => {
-    while (inFlight > 0 && now() < deadline) await new Promise((resolve) => setTimeout(resolve, 10));
-  },
-  inFlight: () => inFlight,
-  close: () => {
-    for (const socket of sockets) socket.destroy();
-  },
+  drain: (deadline, signal) => transport.drain(deadline, signal),
+  inFlight: () => transport.inFlight(),
+  close: () => transport.close(),
 };
 
-// the health server: each probe answers from the cache, and each answer is a line
-const probes = http.createServer((req, res) => {
-  const kind = (req.url ?? "/").slice(1).split("?")[0];
-  if (!["startup", "readiness", "liveness", "report"].includes(kind) || health === null) {
-    res.writeHead(404).end();
-    return;
-  }
-  const answer = health.probe(kind);
-  say({ ev: "probe", k: kind, s: answer.status });
-  res.writeHead(answer.status, { "content-type": answer.contentType }).end(JSON.stringify(answer.body));
+// the health server: each probe answers from the cache on its own port, and each answer is a line
+const KINDS = new Set(["startup", "readiness", "liveness", "report"]);
+const probesServer = http.createServer();
+const probes = probeServer({ port: config.healthPort, server: probesServer, server_retry_after: KNOBS.server_retry_after });
+// the line of each probe comes when its answer goes, and it writes nothing itself
+probesServer.on("request", (req, res) => {
+  const kind = pathOf(req.url).slice(1);
+  if (KINDS.has(kind)) res.once("finish", () => say({ ev: "probe", k: kind, s: res.statusCode }));
 });
-let health = null;
-const healthServer = {
-  listen: (runtime) =>
-    new Promise((resolve) => {
-      health = runtime;
-      probes.listen(config.healthPort, resolve);
-    }),
-  close: () => new Promise((resolve) => probes.close(() => resolve())),
-};
 
-const svc = compose(config.name, declaration, { redis, flag, http: transport, health: healthServer });
+const svc = compose(config.name, declaration, { redis, flag, http: lab, health: probes });
 const exits = { on: (signal, handler) => (process.on(signal, handler), () => process.off(signal, handler)), exit: (code) => {
   say({ ev: "app", what: "exit", code, errors: svc.lifecycle?.errors ?? [] });
   process.exit(code);

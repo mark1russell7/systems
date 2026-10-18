@@ -324,14 +324,14 @@ A worker loop (A10 of S6) and a queue drain (A11) as `TransportImpl` factories. 
 
 ### SYS-11 · The kind lab on ./http
 
-- **Status:** blocked
+- **Status:** in progress
 - **Area:** server stack
 - **Depends on:** SYS-1, SYS-2, SYS-3
-- **Started:**
+- **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [#40](https://github.com/mark1russell7/systems/pull/40), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#49](https://github.com/mark1russell7/systems/pull/49), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-The image of the kind lab replaces its own transport, probe server and outcome map with `./http`. It starts from kind 0.1.4 (#40), in its own PR after #49. The kind cells run only in CI.
+The image of the kind lab replaces its own transport, probe server and outcome map with `./http`: `httpTransport`, `probeServer` and `handle()`. A failure of the route keeps its 503 through the hook `failed`, thus the T07 and T18 cells count the same outcomes. The kind cells run only in CI.
 
 ### REL-1 · Service 0.5.0 with ./http and the runner options
 
