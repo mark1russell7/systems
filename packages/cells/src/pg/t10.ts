@@ -3,7 +3,7 @@ import { detection, timerOf, transitionOn } from "@mark1russell7/algebra";
 import type { Cell, Prediction, ProxyHop } from "@mark1russell7/harness";
 import { HIKARICP_PGJDBC, PGBOUNCER_CLIENT, PGBOUNCER_SERVER } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
-import { RTT_MS, count, given, predict, s, seconds, sysctlsOf } from "../catalog.ts";
+import { RTT_MS, RUNS, count, given, predict, s, seconds, sysctlsOf } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
 import type { Alias, Waiting } from "../mongo/cells.ts";
 import type { Span } from "../mongo/model.ts";
@@ -436,10 +436,15 @@ const atPoolerSocket = (spec: T10Spec): Prediction => {
 /** This observer is the server socket of PgBouncer: its socket toward the target. */
 const POOLER_SOCKET = { hop: "pgbouncer", toward: "target" } as const;
 
-/** These are the HikariCP cells of T10 for the harness. */
+/**
+ * These are the HikariCP cells of T10 for the harness. A cell that observes the server socket of
+ * PgBouncer has a fresh environment for each run, as a fin has. The judge finds the server socket
+ * that PgBouncer opens in the run. In a second run of an environment, PgBouncer used an older
+ * server. Also, its last failed login held the pool in its backoff (CI 39140133521).
+ */
 export const T10_HIKARI: readonly Cell[] = T10_HIKARI_SPECS.map((spec) => ({
   ...hikariCell(spec),
-  ...(spec.observesPooler === true ? { observer: POOLER_SOCKET } : {}),
+  ...(spec.observesPooler === true ? { observer: POOLER_SOCKET, environments: RUNS } : {}),
   prediction: t10Prediction(spec),
 }));
 

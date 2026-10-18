@@ -109,6 +109,8 @@ describe("the HikariCP catalog of T10, through PgBouncer", () => {
     const [inside, outside] = [cell("T10.border-off.43"), cell("T10.border-off.44")];
     for (const each of [inside, outside]) {
       expect(each.observer, each.name).toEqual({ hop: "pgbouncer", toward: "target" });
+      // each run has a fresh environment: the judge finds the server socket that PgBouncer opens in the run
+      expect(each.environments, each.name).toBe(each.runs);
       const [hop] = each.topology?.hops ?? [];
       expect(hop !== undefined && "sysctls" in hop ? hop.sysctls?.["net.ipv4.tcp_retries2"] : null, each.name).toBe("4");
     }
