@@ -1,15 +1,15 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { algebraProblems, machineProblems, machineSchema } from "@mark1russell7/algebra";
+import { algebraProblems, detection, machineProblems, machineSchema, timerOf } from "@mark1russell7/algebra";
 import { describe, expect, it } from "vitest";
 import * as root from "./index.ts";
-import { IOREDIS_STATUS, LINUX_TCP, MACHINES, MANIFESTATIONS } from "./index.ts";
+import { IOREDIS_STATUS, LINUX_TCP, MACHINES, MANIFESTATIONS, PGPOOL_SESSION } from "./index.ts";
 
 describe("the machine documents", () => {
   it("holds each document once, by its identifier, each a consistent mark1russell7.machine/1 document", () => {
     const documents = Object.values(root).filter(
       (value): value is Machine => typeof value === "object" && value !== null && "format" in value,
     );
-    expect(documents.length).toBe(20);
+    expect(documents.length).toBe(21);
     expect(Object.keys(MACHINES).sort()).toEqual(documents.map((doc) => doc.id).sort());
     for (const [id, doc] of Object.entries(MACHINES)) {
       expect(doc.id, id).toBe(id);
@@ -57,6 +57,27 @@ describe("the machine documents", () => {
       "over: ends stream.vanished",
       "over: sets keepidle from knob nonesuch",
     ]);
+  });
+
+  it("gives Pgpool-II no timer that ends a query in flight, and a probe of the client each 30 s", () => {
+    const doc = PGPOOL_SESSION;
+    const values = (name: string) => {
+      const knob = doc.knobs[name];
+      if (knob === undefined || knob.unit === null || knob.default === null) return undefined;
+      return { value: knob.off !== undefined && knob.default === knob.off ? ("infinite" as const) : knob.default, unit: knob.unit };
+    };
+    // a wait for the backend: the probe starts again each 30 s, thus it is no detector
+    const waiting = detection(doc, { state: "waiting", inFlight: true }, { name: "blackhole", passes: [] }, values);
+    expect(waiting.detectors).toEqual([]);
+    expect(doc.timers["probe"]?.backoff).toEqual({ resets: ["enter:waiting"] });
+    expect(timerOf(doc, "probe", values).duration).toEqual({ value: 30, unit: "s" });
+    // between two queries: client_idle_limit is off at the defaults, and one tick after its limit when set
+    expect(timerOf(doc, "client_idle_limit", values).duration).toEqual({ value: "infinite", unit: "s" });
+    const set = (name: string) => (name === "client_idle_limit" ? { value: 12, unit: "s" } : values(name));
+    expect(timerOf(doc, "client_idle_limit", set).duration).toEqual({ value: 13, unit: "s" });
+    // the FIN of the backend ends the session with a FATAL error, and a reset with a request of failover
+    expect(doc.transitions.find((t) => t.id === "pps.backend-eof")).toMatchObject({ to: "ended", errno: "XX000", emits: ["tx.error"] });
+    expect(doc.transitions.find((t) => t.id === "pps.backend-error")).toMatchObject({ to: "ended", emits: ["tx.failover"] });
   });
 
   it("lets only a timer with a backoff read how many times it has fired", () => {
