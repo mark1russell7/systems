@@ -1,0 +1,56 @@
+# Takes a screenshot of each page of the site at a phone width (390 px) and a desktop width (1280 px),
+# in light and in dark, and uploads them with a report: each page that is wider than its screen, the
+# elements that make it wider, and each error of a page. The visual checks of the site run here and not
+# on a local machine, because the shared machine has little free memory.
+#
+# Start it with: gh workflow run site-shots.yml -R mark1russell7/systems --ref <branch>
+name: Site shots
+
+on:
+  pull_request:
+    paths: ["packages/site/**", ".github/workflows/site-shots.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: site-shots-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shots:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # The pnpm version comes from "packageManager" in package.json
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 26
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # The site as pages.yml builds it, at the base that GitHub Pages serves
+      - run: pnpm --filter @systems/site run build
+        env:
+          SITE_BASE: /systems
+          ASTRO_TELEMETRY_DISABLED: "1"
+      # Only this job uses Playwright, thus it stays out of the lockfile of the repository
+      - name: Playwright and its Chromium
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-audit --no-fund playwright@1.64.0
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: The shots
+        env:
+          PW_DIR: ${{ runner.temp }}/pw
+        run: node packages/site/scripts/shots.mjs packages/site/dist "$RUNNER_TEMP/shots"
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: site-shots
+          path: ${{ runner.temp }}/shots/
+          if-no-files-found: warn
+          retention-days: 14
