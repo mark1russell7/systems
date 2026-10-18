@@ -716,25 +716,25 @@ The document of Linux TCP has the delayed-ACK timer of Linux 6.6. Each idle forg
 
 ### IMPORT · The corpus imports the machine documents
 
-- **Status:** blocked
+- **Status:** done
 - **Area:** corpus
 - **Depends on:** MACHINES
 - **Started:** 2026-10-17
-- **Shipped:**
+- **Shipped:** 2026-10-18
 - **Links:**
 
-jarvis imports the 15 documents of `@mark1russell7/machines` by a procedure. The work is complete, and it waits for npm to serve the package.
+jarvis imports the documents of `@mark1russell7/machines` by a procedure. It takes machines 0.3.7 from npm, and it is in jarvis since 2026-10-18.
 
 ### LAND · The CI records of 2026-10-17 in the corpus
 
-- **Status:** blocked
+- **Status:** done
 - **Area:** corpus
 - **Depends on:** IMPORT
 - **Started:** 2026-10-17
-- **Shipped:**
+- **Shipped:** 2026-10-18
 - **Links:**
 
-The full catalog run (234 cells), the kind run (31 cells) and the 5 canonical cells are landed in the same work as the import. They ship with it.
+The full catalog run (234 cells), the kind run (31 cells) and the 5 canonical cells are in the corpus, with the import. Each record of a run is in the store of the corpus.
 
 ## The site
 
