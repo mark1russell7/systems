@@ -169,6 +169,24 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
     expect(result.manifests[0]?.client.kind).toBe("pg");
   }, 600_000);
 
+  it("resets a query of HikariCP in flight, and the kernel reports the reset of its socket", async () => {
+    const s = (value: number) => ({ value, unit: "s" });
+    const cell: Cell = {
+      name: "lab hikari, rst, a query in flight",
+      target: POSTGRES,
+      sysctls: {},
+      probe: { mode: "inflight", keepalive: false, driver: { name: "hikari" } },
+      fault: "rst",
+      prediction: { detects: true, timer: "the reset of the request", errno: "ECONNRESET", from: "request-sent", low: s(0), high: s(1) },
+      runs: 1,
+      environments: 1,
+    };
+    const result = await runCell(cell);
+    const [read] = result.measured;
+    expect(read).toMatchObject({ outcome: { kind: "error", errno: "ECONNRESET" }, void: null, finding: null });
+    expect(result.manifests[0]?.client.kind).toBe("hikari");
+  }, 600_000);
+
   it("fails a group of Valkey over with a planned failover, and the client writes to the new primary", async () => {
     const cell: Cell = {
       name: "lab group, event:planned SENTINEL FAILOVER",

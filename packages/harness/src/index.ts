@@ -112,6 +112,7 @@ export {
   nodeClientImage,
   nodeHttpImage,
   pgClientImage,
+  hikariClientImage,
   planOf,
   proceduresImage,
   programOf,
