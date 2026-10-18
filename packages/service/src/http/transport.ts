@@ -1,9 +1,9 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
-import { convertible, valueIn } from "@mark1russell7/quantity";
 import type { IncomingMessage, Server, ServerEventMap, ServerResponse } from "node:http";
 import type { ListenOptions, Socket } from "node:net";
 import type { Cancel, Clock } from "../clock.ts";
 import { realClock } from "../clock.ts";
+import { millisecondsOf as knobMilliseconds } from "../knobs.ts";
 import type { Lifecycle, TransportImpl } from "../lifecycle.ts";
 
 /**
@@ -147,15 +147,8 @@ export const pathOf = (url: string | undefined): string => {
 };
 
 /** This function gives a knob in milliseconds, or infinity for a time without a bound. */
-const millisecondsOf = (knobs: Readonly<Record<string, Extent | undefined>>, name: string, owner = "httpTransport"): number => {
-  const amount = knobs[name];
-  if (amount === undefined) throw new Error(`${owner} needs the knob ${name}: it has no defaults`);
-  if (!convertible(amount.unit, "s")) throw new Error(`the knob ${name} is not a time`);
-  if (amount.value === "infinite") return Number.POSITIVE_INFINITY;
-  const value = valueIn(amount, "ms");
-  if (!(value >= 0)) throw new Error(`the knob ${name} is less than zero`);
-  return value;
-};
+const millisecondsOf = (knobs: Readonly<Record<string, Extent | undefined>>, name: string, owner = "httpTransport"): number =>
+  knobMilliseconds(knobs, name, owner);
 
 /**
  * This function gives the `Retry-After` of the knob `server_retry_after`, in whole seconds, rounded

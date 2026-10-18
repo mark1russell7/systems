@@ -1,6 +1,6 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
-import { convertExact, rationals as r } from "@mark1russell7/quantity";
-import type { Dependency, ServiceDescription } from "./description.ts";
+import { convertExact, convertible, rationals as r } from "@mark1russell7/quantity";
+import type { Dependency, ServiceDescription, Transport } from "./description.ts";
 import type { Binding, Bound, Evaluated, Rule, Verdict } from "./law.ts";
 import { evaluate, symbolsOf, verdictOf } from "./law.ts";
 import { failSpan } from "./timing.ts";
@@ -11,7 +11,8 @@ import { failSpan } from "./timing.ts";
  * The scenario binds the symbols of the platform (preStop, grace, the probes of the kubelet,
  * propagation) and of each dependency (its failover time, the idle close of its server). Thus the
  * service gives the inequalities, and the scenario gives the values. A rule about a client
- * applies one time for each dependency.
+ * applies one time for each dependency. A rule about a consumer applies one time for each consumer
+ * and each worker.
  */
 
 /** A scenario gives the values of the platform and of each dependency, by the `symbol@hop` of the law. */
@@ -26,6 +27,8 @@ export interface Scenario {
   readonly probes: { readonly readiness: Quantity; readonly liveness: Quantity };
   /** These are the values of each dependency, by its name: failover_time@dependency, server_idle_close@server. */
   readonly dependencies?: Readonly<Record<string, Readonly<Record<string, Extent>>>> | undefined;
+  /** These are the values of the source of each consumer and worker, by its name and by the `symbol@hop` of the law: lease_duration@broker. */
+  readonly transports?: Readonly<Record<string, Readonly<Record<string, Extent>>>> | undefined;
 }
 
 /** A finding is the verdict of one rule for one scope: the service, or the client of a dependency. */
@@ -54,6 +57,7 @@ export const SERVICE_RULES: readonly string[] = [
   "O17",
   "O18",
   "O19",
+  "O20",
   "O21",
   "O22",
   "O23",
@@ -66,6 +70,14 @@ const secondsOf = (amount: Quantity): number =>
 /** This function gives an amount, or no bound, as the law binds it. */
 const boundOf = (amount: Extent): Bound =>
   amount.value === "infinite" ? "inf" : secondsOf(amount);
+/** This function tells if a unit is a time. A unit that the package does not know is not a time. */
+const isTime = (unit: string): boolean => {
+  try {
+    return convertible(unit, "s");
+  } catch {
+    return false;
+  }
+};
 /** This function gives the largest of some numbers of seconds, or undefined when there are none. */
 const most = (values: readonly number[]): number | undefined =>
   values.length === 0 ? undefined : Math.max(...values);
@@ -163,7 +175,28 @@ const dependencyBindings = (dependency: Dependency, scenario: Scenario): Record<
   return bind;
 };
 
+/**
+ * These are the hops of the law at which the knobs of a transport bind, by its kind. A worker does
+ * its units as a consumer does, thus both bind at `consumer` (O20). A server binds at no hop yet.
+ */
+const TRANSPORT_HOPS: Readonly<Record<Transport["kind"], string | null>> = { server: null, consumer: "consumer", worker: "consumer" };
+
+/**
+ * This function gives the time knobs of a transport at the hop of its kind, and the values of the
+ * scenario for its source. A knob with a hop in its name binds at that hop. A count binds no symbol.
+ */
+const transportBindings = (transport: Transport, hop: string, scenario: Scenario): Record<string, Bound> => {
+  const bind: Record<string, Bound> = {};
+  for (const [knob, amount] of Object.entries(transport.knobs)) {
+    if (!isTime(amount.unit)) continue;
+    bind[knob.includes("@") ? knob : `${knob}@${hop}`] = boundOf(amount);
+  }
+  for (const [symbol, amount] of Object.entries(scenario.transports?.[transport.name] ?? {})) bind[symbol] = boundOf(amount);
+  return bind;
+};
+
 const SCOPED = /@(client|dependency|server)$/;
+const TRANSPORT_SCOPED = /@consumer$/;
 
 /** This identifier is the rule of the findings about a field that the declaration does not give. */
 export const DECLARATION_RULE = "declaration";
@@ -189,9 +222,9 @@ const declarationFindings = (svc: ServiceDescription): Finding[] =>
     : [];
 
 /**
- * This function applies each service rule to a declaration and a scenario: one time for the
- * service, and one time for each client. It also gives a finding for each necessary field that the
- * description does not give (`DECLARATION_RULE`).
+ * This function applies each service rule to a declaration and a scenario. A rule applies one time
+ * for the service, for each client, or for each consumer and worker. The function also gives a
+ * finding for each necessary field that the description does not give (`DECLARATION_RULE`).
  */
 export const lint = (
   svc: ServiceDescription,
@@ -203,12 +236,17 @@ export const lint = (
   for (const rule of rules) {
     if (!SERVICE_RULES.includes(rule.id)) continue;
     const symbols = symbolsOf(rule);
-    const scopes: Array<[string, Binding]> = symbols.some((symbol) => SCOPED.test(symbol))
-      ? svc.dependencies.map((dependency) => [
-          dependency.name,
-          { ...service, ...dependencyBindings(dependency, scenario) },
-        ])
-      : [[svc.name, service]];
+    const scopes: Array<[string, Binding]> = symbols.some((symbol) => TRANSPORT_SCOPED.test(symbol))
+      ? svc.transports.flatMap((transport): Array<[string, Binding]> => {
+          const hop = TRANSPORT_HOPS[transport.kind];
+          return hop === null ? [] : [[transport.name, { ...service, ...transportBindings(transport, hop, scenario) }]];
+        })
+      : symbols.some((symbol) => SCOPED.test(symbol))
+        ? svc.dependencies.map((dependency) => [
+            dependency.name,
+            { ...service, ...dependencyBindings(dependency, scenario) },
+          ])
+        : [[svc.name, service]];
     for (const [scope, bind] of scopes) {
       const evaluated = evaluate(rule, bind);
       findings.push({
