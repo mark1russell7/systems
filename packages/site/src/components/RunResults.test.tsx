@@ -36,6 +36,8 @@ describe("the components of the CI runs", () => {
     // the border of undici at 100 ms closes 6.5 ms before the end of its band: the table gives 4 decimals from 1 s
     expect(html[14]).toContain("5.9126 s");
     expect(html[14]).toContain("5.9191 s");
-    expect(html[22]).toContain("1 of 11 runs disagrees");
+    // the mode table: each cell gives its median run, and no run of the copy disagrees
+    expect(html[22]).toContain("in the median run");
+    expect(html[22]).not.toContain("disagree");
   });
 });
