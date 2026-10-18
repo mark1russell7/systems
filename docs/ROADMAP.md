@@ -656,7 +656,7 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
   - A fault at the router acts between the client and Supavisor. Each band is the band of the same fault at the router alone, and no timer of Supavisor ends the client in the band.
   - Behind a simplex drop to the client, the empty query of the check reaches Supavisor, but its answer does not come back. The read timeout of the check closes the socket 5 s after that query, as behind a black hole.
   - After a stall, the first segment back can be the reply of Supavisor, one step of Supavisor later.
-  - ranch gives each client socket of Supavisor a send timeout of 30 s that closes it. Behind the MTU black hole, the FIN of that close waits behind the long segments, thus the client gets nothing in 60 s.
+  - ranch gives each client socket of Supavisor a send timeout of 30 s that closes it. Behind the MTU black hole, the FIN of that close waits behind the long segments, thus the client gets nothing in 60 s. In run 39170773426, the socket of Supavisor closed 30.068 to 30.086 s after the fault.
   - T03.defaults.61 waits: a fin through Supavisor is the race of T10.defaults.3.
 
 ### RABBIT · RabbitMQ

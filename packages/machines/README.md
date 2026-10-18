@@ -97,7 +97,7 @@ In this repository, a snapshot of the predictions of the cells (`packages/cells/
 
 ### 0.3.12
 
-- **The send timeout of the client socket of Supavisor.** Supavisor 2.9.13 locks ranch 2.2.0. ranch gives each client socket a send timeout of 30 s that closes the socket (src/ranch_tcp.erl:108-109). Thus a write of a reply that waits 30 s ends the client. `supavisor-client` gives it as a source and a note, with no timer. A write waits only when the client takes no data, and on a broken path the FIN of the close waits behind the data.
+- **The send timeout of the client socket of Supavisor.** Supavisor 2.9.13 locks ranch 2.2.0. ranch gives each client socket a send timeout of 30 s that closes the socket (src/ranch_tcp.erl:108-109). Thus a write of a reply that waits 30 s ends the client. `supavisor-client` gives it as a source and a note, with no timer. A write waits only when the client takes no data, and on a broken path the FIN of the close waits behind the data. In run 39170773426, behind an MTU black hole, the socket closed 30.068 to 30.086 s after the fault in each of 11 runs.
 
 ### 0.3.11
 

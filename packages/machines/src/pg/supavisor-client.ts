@@ -45,6 +45,10 @@ export const SUPAVISOR_CLIENT: Machine = machineSchema.parse({
       ref: `ranch 2.2.0, the version of mix.lock at ${SV}: src/ranch_tcp.erl:108-109 a listener sets send_timeout 30000 and send_timeout_close true, and each accepted socket has the options of its listener. Thus a write to the client that waits 30 s fails, and the BEAM closes the socket. The server connection ignores the result of each write of a reply to the client (lib/supavisor/db_handler.ex:890-905)`,
       rung: "implemented",
     },
+    {
+      ref: `${SV} run 39170773426 of mark1russell7/systems, T03.defaults.59: behind an MTU black hole at a router, each of 11 runs had a reply of 2 MB in flight. The client socket of Supavisor left ESTABLISHED for FIN_WAIT1 30.068 to 30.086 s after the fault, and the client got nothing in 60 s`,
+      rung: "observed",
+    },
     { ref: `${SV} lib/supavisor/client_handler.ex:21-23, :123, :198 a state_timeout of 5_000 ms in :handshake, and 2_500 ms for a TLS handshake`, rung: "implemented" },
     { ref: `${SV} lib/supavisor/client_handler.ex:315, :600, :627 an event timeout of 15_000 ms on each wait of the authentication`, rung: "implemented" },
     { ref: `${SV} lib/supavisor/client_handler.ex:901-911 handle_actions arms the event timeout of client_idle_timeout, then the event timeout of the heartbeat. A gen_statem has one event timeout: the second action replaces the first`, rung: "implemented" },
