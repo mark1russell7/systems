@@ -40,7 +40,7 @@ interface Writes {
   readonly stayed: number;
 }
 /** A run cell is a harness cell of a copy of a CI run. Each time is in seconds. */
-interface RunCell {
+export interface RunCell {
   readonly plan: string | null;
   readonly catalog: string;
   readonly name: string;
@@ -67,12 +67,25 @@ interface RunCell {
   readonly requests?: ReadonlyArray<{ readonly outcome: string; readonly count: number }>;
 }
 
-const COPIES: Readonly<Record<string, readonly RunCell[]>> = {
+/** A copy is the copy of one CI run that a page of results shows. */
+export type Copy = "sentinel" | "http" | "mongodb" | "pg" | "r3";
+
+export const COPIES: Readonly<Record<Copy, readonly RunCell[]>> = {
   sentinel: sentinel.cells,
   http: http.cells,
   mongodb: mongodb.cells,
   pg: pg.cells,
   r3: r3.cells,
+};
+
+/**
+ * This function gives the ID of the frame of a cell on its page. One plan ID can name more than one cell (a
+ * border of HTTP has two), thus the ID also has a short hash of the client and the name of the cell.
+ */
+export const cellId = (cell: RunCell): string => {
+  let hash = 5381;
+  for (const char of `${cell.client ?? ""} ${cell.name}`) hash = ((hash * 33) ^ char.charCodeAt(0)) >>> 0;
+  return `cell-${(cell.plan ?? cell.catalog).toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${hash.toString(36)}`;
 };
 
 const ms = (s: number): number => s * 1000;
@@ -237,6 +250,7 @@ function RunFrame(props: { readonly cell: RunCell }): ReactElement {
   ];
   return (
     <Frame
+      id={cellId(cell)}
       name={cell.name}
       label={cell.name}
       tag={cell.plan ?? cell.catalog}
@@ -278,7 +292,7 @@ function RunFrame(props: { readonly cell: RunCell }): ReactElement {
  * because Astro reads each `client:` attribute as a directive.
  */
 export default function RunResults(props: {
-  readonly copy: "sentinel" | "http" | "mongodb" | "pg" | "r3";
+  readonly copy: Copy;
   readonly group: string;
   readonly stage?: string;
   readonly pool?: string;

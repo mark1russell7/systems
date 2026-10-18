@@ -654,6 +654,328 @@ code.sy-tag {
   color: var(--color-ink);
 }
 
+/* ------------------------------------------------------------------ the map of the cells of a page */
+
+.sy-map {
+  display: grid;
+  gap: var(--space-2);
+  margin-block: var(--space-5);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  font-size: var(--text-xs);
+}
+
+.sy-map-hint {
+  margin: 0;
+  color: var(--color-ink-muted);
+}
+
+/* The line of a tile is under its row, as wide as the row: it never goes past the edge of a narrow screen. */
+.sy-map-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(7rem, 11rem) minmax(0, 1fr);
+  gap: var(--space-2) var(--space-3);
+  align-items: start;
+  padding-block: var(--space-2);
+  border-top: 1px solid var(--color-rule);
+}
+
+.sy-map-label {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.5rem;
+  align-items: baseline;
+  padding-top: 0.15rem;
+  color: var(--color-ink-secondary);
+}
+
+.sy-map-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+}
+
+.sy-map-cluster {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+}
+
+.sy-map-stage {
+  margin-inline-end: 0.25rem;
+  font-family: var(--font-mono);
+  color: var(--color-ink-muted);
+}
+
+.sy-tile {
+  display: inline-grid;
+  place-items: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  border: 1px solid var(--status-neutral);
+  border-radius: var(--radius-small);
+  background: var(--status-neutral-wash);
+  color: var(--status-neutral-ink);
+  text-decoration: none;
+}
+
+.sy-tile[data-status="good"] {
+  border-color: color-mix(in srgb, var(--status-good) 55%, transparent);
+  background: var(--status-good-wash);
+  color: var(--status-good-ink);
+}
+
+.sy-tile[data-status="critical"] {
+  border-color: color-mix(in srgb, var(--status-critical) 60%, transparent);
+  background: var(--status-critical-wash);
+  color: var(--status-critical-ink);
+}
+
+.sy-tile[data-status="warning"] {
+  border-color: color-mix(in srgb, var(--status-warning) 70%, transparent);
+  background: var(--status-warning-wash);
+  color: var(--status-warning-ink);
+}
+
+.sy-tile:hover,
+.sy-tile:focus-visible {
+  border-color: var(--color-ink);
+}
+
+.sy-tile-line {
+  display: none;
+  position: absolute;
+  z-index: 2;
+  inset-inline: 0;
+  top: calc(100% - 1px);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-rule-strong);
+  border-radius: var(--radius-small);
+  background: var(--color-surface);
+  color: var(--color-ink-body);
+  font-family: var(--font-mono);
+  line-height: 1.5;
+  pointer-events: none;
+}
+
+.sy-tile-line strong {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.sy-tile:hover .sy-tile-line,
+.sy-tile:focus-visible .sy-tile-line {
+  display: block;
+}
+
+/* A frame that a tile links to stays clear of the header of the page. */
+.sy-frame[id] {
+  scroll-margin-top: calc(var(--sl-nav-height, 3.5rem) + var(--space-4));
+}
+
+.sy-frame[id]:target {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ the charts of the borders */
+
+.sy-borders {
+  display: grid;
+  gap: var(--space-3);
+  margin-block: var(--space-5);
+}
+
+.sy-border-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-ink-muted);
+}
+
+.sy-border-key span {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.sy-border-key i {
+  display: inline-block;
+  flex: none;
+}
+
+.sy-border-key-line {
+  width: 0;
+  height: 0.9rem;
+  border-inline-start: 1.5px dashed var(--color-ink-secondary);
+}
+
+.sy-border-key-setting,
+.sy-border-setting {
+  width: 0;
+  height: 0;
+  border-inline: 5px solid transparent;
+  border-top: 7px solid var(--color-ink);
+}
+
+.sy-border-key-band {
+  width: 0.9rem;
+  height: 0.55rem;
+  background: var(--chart-band);
+  border-inline: 1px solid var(--series-1);
+}
+
+.sy-border-key-run,
+.sy-border-run {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--series-2);
+  box-shadow: 0 0 0 1.5px var(--color-surface);
+}
+
+.sy-border-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: var(--space-4);
+}
+
+.sy-border {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  overflow: hidden;
+  font-size: var(--text-xs);
+  color: var(--color-ink-body);
+}
+
+.sy-border figcaption {
+  margin-bottom: var(--space-2);
+  color: var(--color-ink-secondary);
+  line-height: 1.45;
+}
+
+.sy-border figcaption strong {
+  font-family: var(--font-mono);
+  color: var(--color-ink);
+}
+
+.sy-border-row {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.sy-border-side {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  font-family: var(--font-mono);
+  color: var(--color-ink-secondary);
+  white-space: nowrap;
+}
+
+.sy-border-side .sy-icon {
+  color: var(--status-neutral-ink);
+}
+
+.sy-border-side[data-status="good"] .sy-icon {
+  color: var(--status-good-ink);
+}
+
+.sy-border-side[data-status="critical"] .sy-icon {
+  color: var(--status-critical-ink);
+}
+
+.sy-border-side[data-status="warning"] .sy-icon {
+  color: var(--status-warning-ink);
+}
+
+/* The marks of a track take their place from the axis: a position in percent of the track. */
+.sy-border-track {
+  position: relative;
+  height: 1.9rem;
+  margin-inline-end: 1.5rem;
+  border-bottom: 1px solid var(--chart-grid);
+}
+
+.sy-border-top .sy-border-track {
+  height: 1.3rem;
+  border-bottom: 0;
+}
+
+.sy-border-axis .sy-border-track {
+  height: 1.2rem;
+  border-bottom: 0;
+}
+
+.sy-border-track > span {
+  position: absolute;
+}
+
+.sy-border-line {
+  inset-block: 0;
+  border-inline-start: 1.5px dashed var(--color-ink-secondary);
+}
+
+.sy-border-at {
+  bottom: 0.1rem;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  color: var(--color-ink-secondary);
+  white-space: nowrap;
+}
+
+.sy-border-band {
+  top: 22%;
+  height: 56%;
+  min-width: 2px;
+  background: var(--chart-band);
+  border-inline: 1px solid var(--series-1);
+}
+
+.sy-border-setting {
+  top: 0;
+  transform: translateX(-50%);
+}
+
+.sy-border-run {
+  transform: translate(-50%, -50%);
+}
+
+.sy-border-note {
+  inset-inline: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  padding-inline-start: 0.75rem;
+  color: var(--color-ink-muted);
+  font-style: italic;
+  line-height: 1.3;
+}
+
+.sy-border-tick {
+  top: 0.15rem;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  color: var(--color-ink-muted);
+  white-space: nowrap;
+}
+
+.sy-border-text {
+  margin: var(--space-2) 0 0;
+  color: var(--color-ink-secondary);
+  line-height: 1.5;
+}
+
 /* ------------------------------------------------------------------ a narrow page */
 
 @media (max-width: 30rem) {
@@ -671,5 +993,13 @@ code.sy-tag {
 
   .sy-readout div:first-child {
     grid-column: 1 / -1;
+  }
+
+  .sy-map {
+    padding-inline: var(--space-3);
+  }
+
+  .sy-map-row {
+    grid-template-columns: minmax(0, 1fr);
   }
 }

@@ -34,6 +34,8 @@ export function Readout(props: { readonly items: readonly ReadoutItem[] }): Reac
 }
 
 export interface FrameProps {
+  /** the ID of the frame on its page: the map of the cells links to it */
+  readonly id?: string | undefined;
   /** the name of the result, in the head */
   readonly name: ReactNode;
   /** the accessible name of the frame */
@@ -59,7 +61,7 @@ export default function Frame(props: FrameProps): ReactElement {
   const [open, setOpen] = useState(false);
   const shown: View | null = chart ? view : open ? "table" : null;
   return (
-    <section className="sy-frame not-content" aria-label={props.label} data-status={props.decision === undefined ? undefined : statusOf(props.decision)}>
+    <section className="sy-frame not-content" id={props.id} aria-label={props.label} data-status={props.decision === undefined ? undefined : statusOf(props.decision)}>
       <header className="sy-head">
         <div className="sy-title">
           <strong>{props.name}</strong>
