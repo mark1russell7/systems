@@ -26,6 +26,9 @@ const PG = "pgjdbc REL42.7.13 pgjdbc/src/main/java/org/postgresql";
  * default), a read timeout in the connect starts one more connect with SSL off, in what remains of
  * the 10 s.
  *
+ * The JDK waits for a read or a connect with a timeout in poll(). Linux ends that wait up to 0.1 % of
+ * its time late, at most 100 ms: 11 ms for a read timeout of 11 s (run 39109649303).
+ *
  * HikariCP closes a connection at once when a statement fails with an SQLState of the class 08. It
  * also closes it for 57P01, 57P02, 57P03 and 0A000. pgjdbc gives 08006 for each I/O error of a
  * statement. Thus a reset, an end of the stream or a give-up of the kernel each close the
@@ -84,6 +87,8 @@ export const HIKARICP_PGJDBC: Machine = machineSchema.parse({
     { ref: `${PG}/jdbc/PgConnection.java:1048-1053 after a close, each call fails with 'This connection has been closed.', 08003, and :1251-1253 isClosed tells only of a close at this end`, rung: "implemented" },
     { ref: `${PG}/core/QueryExecutorCloseAction.java:42-93 a close sends Terminate with a read timeout of at most 1000 ms`, rung: "implemented" },
     { ref: "the JDK: SO_TIMEOUT bounds each blocking read and not a write, and a read that gets data starts its time again", rung: "derived" },
+    { ref: "jdk-21.0.12+8 src/java.base/share/classes/sun/nio/ch/NioSocketImpl.java:172-191, :270-304, :548: a read or a connect with a timeout waits in poll() (Net.poll), with the time that remains", rung: "implemented" },
+    { ref: "linux v6.6 fs/select.c:39-50, :51-95, :902: the timeout of poll() gets a slack of 0.1 % of itself, at most 100 ms (0.5 % for a nice task), and at least the timer slack of the task", rung: "implemented" },
   ],
   states: {
     "[none]": { initial: true, pseudo: true, note: "Before the pool creates the connection, or before a borrow gets one" },
@@ -283,7 +288,7 @@ export const HIKARICP_PGJDBC: Machine = machineSchema.parse({
   timers: {
     connect_timeout: {
       duration: { knob: "connectTimeout", unit: "s" },
-      lateness: { knob: "slack", unit: "ms" },
+      lateness: { expr: "min(connectTimeout, 100) + slack", unit: "ms" },
       arms: ["enter:connecting"],
       cancels: ["socket.connect", "socket.error", "peer.rst"],
       fires: "timer.connect-timeout",
@@ -291,7 +296,7 @@ export const HIKARICP_PGJDBC: Machine = machineSchema.parse({
     },
     ssl_response_timeout: {
       duration: { expr: "min(sslResponseTimeout, connectTimeout * 1000)", unit: "ms" },
-      lateness: { knob: "slack", unit: "ms" },
+      lateness: { expr: "min(min(sslResponseTimeout, connectTimeout * 1000), 100000) / 1000 + slack", unit: "ms" },
       arms: ["enter:negotiating"],
       cancels: ["rx.ssl-refused", "socket.error", "peer.rst", "peer.fin"],
       fires: "timer.ssl-response-timeout",
@@ -299,15 +304,15 @@ export const HIKARICP_PGJDBC: Machine = machineSchema.parse({
     },
     socket_timeout: {
       duration: { knob: "socketTimeout", unit: "s" },
-      lateness: { knob: "slack", unit: "ms" },
+      lateness: { expr: "min(socketTimeout, 100) + slack", unit: "ms" },
       arms: ["enter:startup", "enter:querying"],
       cancels: ["local.connected", "rx.ready-for-query", "rx.error-response", "socket.error", "peer.rst", "peer.fin"],
       fires: "timer.socket-timeout",
-      note: "SO_TIMEOUT: each read that gets data starts it again. No bound at the defaults",
+      note: "SO_TIMEOUT: each read that gets data starts it again. No bound at the defaults. The JDK waits for the read in poll(), thus Linux can end the wait 0.1 % of its time late, at most 100 ms",
     },
     validation_timeout: {
       duration: { knob: "validationTimeout", unit: "ms" },
-      lateness: { knob: "slack", unit: "ms" },
+      lateness: { expr: "min(validationTimeout, 100000) / 1000 + slack", unit: "ms" },
       arms: ["enter:setup", "enter:checking", "enter:probing"],
       cancels: ["local.created", "rx.valid", "socket.error", "peer.rst", "peer.fin"],
       fires: "timer.validation-timeout",
