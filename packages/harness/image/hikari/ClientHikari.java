@@ -364,18 +364,14 @@ public final class ClientHikari {
   /**
    * This function loads the code of a connect and of the start of a pool before the first line, on
    * the loopback of the namespace. A new JVM loads each class at its first use, and that load would
-   * be in the band of a cell that starts into a fault. A connect to port 1 of the loopback is
-   * refused at once: it loads the connect of pgjdbc and its errors. A pool with no check and no
-   * idle connection makes no connection: it loads the classes of the pool.
+   * be in the band of a cell that starts into a fault. A pool with no check and no idle connection
+   * makes no connection: it loads the classes of the pool. It also sets the login timeout of
+   * DriverManager, thus pgjdbc then connects in a task of an executor (Driver.java:303-311,
+   * :730-739). A connect to port 1 of the loopback after it is refused at once: it loads that
+   * connect of pgjdbc and its errors. HikariCP gives each new connection a random UUID (PoolBase.java:363), and the
+   * first one starts the SecureRandom of the JVM.
    */
   private static void warmUp() {
-    Properties refused = new Properties();
-    refused.setProperty("user", "warmup");
-    try {
-      new org.postgresql.Driver().connect("jdbc:postgresql://127.0.0.1:1/warmup", refused);
-    } catch (SQLException expected) {
-      // the refusal is the purpose of the connect
-    }
     HikariConfig empty = new HikariConfig();
     empty.setJdbcUrl("jdbc:postgresql://127.0.0.1:1/warmup");
     empty.setUsername("warmup");
@@ -384,6 +380,14 @@ public final class ClientHikari {
     empty.setMinimumIdle(0);
     // the pool starts and closes with no connection
     new HikariDataSource(empty).close();
+    Properties refused = new Properties();
+    refused.setProperty("user", "warmup");
+    try {
+      new org.postgresql.Driver().connect("jdbc:postgresql://127.0.0.1:1/warmup", refused);
+    } catch (SQLException expected) {
+      // the refusal is the purpose of the connect
+    }
+    java.util.UUID.randomUUID();
   }
 
   public static void main(String[] args) throws Exception {
