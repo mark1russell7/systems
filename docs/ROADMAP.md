@@ -214,11 +214,11 @@ The transports start before the startup ends, but `run()` gives `life.request` o
 
 ### SYS-5 · Dynamic routes
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** S6
 - **Started:** 2026-10-17
-- **Shipped:**
+- **Shipped:** 2026-10-17
 - **Links:** [#50](https://github.com/mark1russell7/systems/pull/50), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 A controller can declare a path pattern, and a function gives the idempotency of each request. Thus the service tracks a registry of procedures that changes while it operates.
@@ -232,7 +232,7 @@ A controller can declare a path pattern, and a function gives the idempotency of
 - **Shipped:**
 - **Links:** [#50](https://github.com/mark1russell7/systems/pull/50), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-A request stays in flight until its stream ends. A failure after the first item ends the stream with an error line, not a 503. The cooperative abort ends the stream. This change breaks the API, thus it comes in service 0.5.0. The client streams and the conformance kit of SYS-4 complete the item.
+A request stays in flight until its stream ends. A failure after the first item ends the stream with an error line, not a 503. The cooperative abort ends the stream. This change breaks the API, thus it comes in service 0.5.0. #50 gives the server side. On it, 25 of the 31 cells in kind hold, and the one failure is a finding of conntrack (KIND-LONE). The client streams and the conformance kit of SYS-4 complete the item.
 
 ### SYS-7 · A stop when stdin closes, and a minimal profile
 
@@ -288,6 +288,17 @@ The root of the service does not use zod at run time. Thus zod becomes an option
 - **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 The zod schemas of `@mark1russell7/algebra` move into a new entry, `./schema`, as in `quantity`. Then zod becomes an optional peer of the algebra too. The root of the algebra no longer gives the schemas, thus the change breaks its API and comes in algebra 0.8.0.
+
+### SYS-20 · The OpenTelemetry preload of an ESM service
+
+- **Status:** later
+- **Area:** server stack
+- **Depends on:** SYS-1
+- **Started:**
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+An ESM service loses its express spans when its preload does not register `@opentelemetry/instrumentation/hook.mjs` before the app loads. The telemetry check of Graph found it when `@graph/server` moved to ESM. The README of the service tells it, beside an HTTP service under `run()`.
 
 ### SYS-16 · run() for a process that runs one command
 
@@ -512,6 +523,8 @@ T07 is the lifecycle of the endpoints of a Service, and T18 is a fleet whose rea
 - **Links:** [#35](https://github.com/mark1russell7/systems/pull/35)
 
 One failure is a late propagation. The others are SYNs that met an entry in SYN_SENT on their port, from a SYN with no answer up to 120 s before. The agent of kind 0.1.4 reads the conntrack table of each node each second, through netlink on a runner. It showed the old entry of a lone timeout on its port, 35 s old. The first SYNs came between the runs, where the lab keeps no line. Thus the lab deletes these entries before each run. Then the T07 run had no timeout. One refusal is left in nftables mode, 34 ms after a deletion, probably the ICMP error of a reject rule. kind 0.1.5 counts these errors.
+
+The run of #50 gives a cause in the model of conntrack, not in the lab. The deleted pod reset a connection, and conntrack kept its flow in CLOSE for 10 s, with the NAT to that pod. A SYN on a CLOSE entry looks up again only after a FIN, or after a reset from the client. Thus a client that used the same port 4.8 s later sent its SYN to the deleted pod, and the request timed out. The prediction of a deletion without a hold must give this mechanism.
 
 ## The engines and the models
 
