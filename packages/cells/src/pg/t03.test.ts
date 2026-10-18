@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { given } from "../catalog.ts";
 import { PRESETS } from "../mongo/t03.ts";
-import { o03, routerValues } from "../topologies.ts";
+import { conntrackValues, o03 } from "../topologies.ts";
 import { HIKARICP_PGJDBC } from "@mark1russell7/machines";
 import { T01_HIKARI, hikariValues } from "./hikari.ts";
 import { PG_RTT_MS, PG_TARGET } from "./t01.ts";
@@ -56,7 +56,7 @@ describe("the HikariCP catalog of T03", () => {
       ["T03.defaults.42", PRESETS.azureNat, 300],
       ["T03.defaults.51", PRESETS.aws, 400],
     ] as const) {
-      expect(o03({ doc: HIKARICP_PGJDBC, values }, routerValues(router.idle), PG_RTT_MS / 1000).holds, plan).toBe(true);
+      expect(o03({ doc: HIKARICP_PGJDBC, values }, conntrackValues(router.idle), PG_RTT_MS / 1000).holds, plan).toBe(true);
       const each = cell(plan);
       // the window is longer than the idle timeout of the router: a forgotten flow would show in it
       expect(each.prediction, plan).toMatchObject({ detects: false, window: { value: hold, unit: "s" } });

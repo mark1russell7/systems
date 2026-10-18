@@ -51,7 +51,9 @@ The element before a router reaches the networks after the router through it. It
 
 A lookup treats an expired conntrack entry as gone, thus the router forgets a flow at its timeout, to the jiffy. The DESTROY event of the entry waits for the garbage collector or a list of the table. Thus `ctwatch.py` in the router lists the table each `pump` (`PUMP`, 0.1 s by default). A DESTROY then follows an expiry within the pump and two lists of the table.
 
-`LISTING` (20 ms) is the longest list of the table that a prediction assumes. A longer list writes a `pump-slow` line, and a run with one near a detection by a timer of conntrack is void. The `reset-both` form sends its resets on the DESTROY event. Each reset has the sequence number that its end expects. A raw sniffer reads it from the last acknowledgment of that end.
+`LISTING` (20 ms) is the longest list of the table that a prediction assumes. A longer list writes a `pump-slow` line, and a run with one near a detection by a timer of conntrack is void. `PUMP_SLACK` (5 ms) is how late the pump can be after its interval and two lists. Its sleep can end late, and the read of the event takes time. Thus a DESTROY follows an expiry within the interval of the pump, two lists and that slack.
+
+The `reset-both` form sends its resets on the DESTROY event. Each reset has the sequence number that its end expects. A raw sniffer reads it from the last acknowledgment of that end.
 
 The lines of each router (`Lab.middlebox`) are the conntrack events and the resets that it sent, on CLOCK_MONOTONIC. Each run keeps the lines from its start to its end.
 

@@ -1,13 +1,15 @@
 import type { Detector, KnobValues, Manifestation } from "@mark1russell7/algebra";
 import { detection, errnoOf, overValues, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
-import type { Cell, Prediction, Target } from "@mark1russell7/harness";
-import { LINUX_TCP, NODE_POSTGRES } from "@mark1russell7/machines";
+import type { Cell, Prediction, RouterHop, Target } from "@mark1russell7/harness";
+import { LINUX_TCP, NF_CONNTRACK_TCP, NODE_POSTGRES } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import { HZ, RTT_MS, RUNS, count, given, predict, s, seconds, sysctlsOf } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
 import type { Waiting } from "../mongo/cells.ts";
 import type { Span } from "../mongo/model.ts";
 import { linuxValues, span, spanOf } from "../mongo/model.ts";
+import { PRESETS } from "../mongo/t03.ts";
+import { ackDelay, conntrackValues, o03From, router as routerHop } from "../topologies.ts";
 import { SLOW_QUERY, STATEMENT_DEADLINE, pgTargetWith, statementDeadline } from "./server.ts";
 
 /**
@@ -47,7 +49,7 @@ export const PG_DRIVER = "pg 8.23.1 with pg-pool 3.14.0 on Node 24.21.0";
 export interface PgSpec {
   readonly plan: string;
   readonly name: string;
-  readonly fault: "blackhole" | "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none" | "app-stall";
+  readonly fault: "blackhole" | "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none" | "app-stall" | "middlebox-forget";
   readonly mode: "idle" | "inflight";
   readonly icmp?: "host" | "net" | "port" | "admin";
   /** This time is the length of a stall, in seconds. */
@@ -64,7 +66,17 @@ export interface PgSpec {
   readonly inflight?: string;
   /** These are the settings of the server that differ from the defaults, by the names and in the units of `postgres-session`. */
   readonly server?: Readonly<Record<string, number>>;
+  /** This router is between the client and the server: its form and its idle timeout, in whole seconds. */
+  readonly router?: { readonly form: RouterHop["form"]; readonly idle: number; readonly preset: string };
+  /** This side is the observer: the client, or the socket of the server for the connection of the pool. */
+  readonly observer?: "client" | "server";
 }
+
+/** This factor divides the idle timeout of the router of the borders of O03, as in the MongoDB catalog: 240 s is 12 s. */
+export const PG_K = 20;
+
+/** This router is the Azure LB at its default, with its idle timeout divided by PG_K: a silent drop at 12 s. */
+export const PG_ROUTER = { ...PRESETS.azureLb, idle: PRESETS.azureLb.idle / PG_K, preset: `${PRESETS.azureLb.preset}, divided by ${PG_K}` };
 
 /**
  * These are the two values of the service that R3 binds for the borders of pg. They are the slowest
@@ -114,6 +126,19 @@ export const T01_PG_SPECS: readonly PgSpec[] = [
     server: { statement_timeout: STATEMENT_DEADLINE * 1000 },
     options: { query_timeout: at * 1000 },
   })),
+  // ---- O03: the idle timer of the pool against a router that forgets an idle flow, as the server sees it
+  ...([
+    ["T01.border-off.157", 10, "inside"],
+    ["T01.border-off.158", 14, "outside"],
+  ] as const).map(([plan, at, side]): PgSpec => ({
+    plan,
+    name: `middlebox-forget, idle, idleTimeoutMillis ${at} s, the socket of the server: ${side} O03 against a ${PG_ROUTER.form} router at ${PG_ROUTER.idle} s`,
+    fault: "middlebox-forget",
+    mode: "idle",
+    router: PG_ROUTER,
+    observer: "server",
+    ...(at === 10 ? {} : { options: { idleTimeoutMillis: at * 1000 } }),
+  })),
   // ---- O13: the timer of a query against the slowest poll of a check
   ...([
     ["T01.border-off.179", 9.5, "inside"],
@@ -139,9 +164,6 @@ export const T01_PG_SPECS: readonly PgSpec[] = [
   })),
 ];
 
-/** This reason is the reason of the O03 cells of a pool client through a router. */
-const POOLED =
-  "on each side of the border the pool closes its idle client at its own timer: only the socket of the server shows that the router forgot the flow. The PG catalog has no cell with the server as its observer yet";
 /** This reason is the reason of the O03 cells of a client that the application holds. */
 const HELD = "the client of the harness gives its client back to the pool after each query: it has no mode for a client that the application holds";
 
@@ -151,8 +173,6 @@ export const T01_PG_WAITING: readonly Waiting[] = [
   { plan: "T01.defaults.131", trigger: "timed:mid-commit", why: "the harness has no injector that times a fault to a reply" },
   { plan: "T01.defaults.132", trigger: "in-process:event-loop", why: "no document gives the sequence of the timers of Node that are late after a block of its event loop" },
   { plan: "T01.defaults.133", trigger: "workload:write-write-read", why: "pg sets TCP_NODELAY before the connect (connection.js:40-52), thus Nagle holds no write: the pattern does not occur" },
-  { plan: "T01.border-off.157", trigger: "border", why: POOLED },
-  { plan: "T01.border-off.158", trigger: "border", why: POOLED },
   { plan: "T01.border-off.159", trigger: "border", why: HELD },
   { plan: "T01.border-off.160", trigger: "border", why: HELD },
 ];
@@ -299,6 +319,36 @@ const atDeadline = (spec: PgSpec, driver: KnobValues, linux: KnobValues, slack: 
   return { detects: true, timer: own.timer, errno: own.name, from: "request-sent", low: s(own.band.lo), high: s(own.band.hi), driver: { socket: "pool", ends } };
 };
 
+/**
+ * This function gives the prediction of an idle client through a router that forgets an idle flow,
+ * as the socket of the server sees it. The pool closes its idle client at its idle timer on each
+ * side of the border, thus the socket of the client shows no difference. O03 decides what reaches
+ * the server: the idle timer of the pool against the idle timeout of conntrack. When O03 holds, the
+ * FIN of the pool reaches the server, and its socket reads the end of the file. When O03 fails, the
+ * router forgets the flow first, and it drops the FIN in silence. The socket of the server then
+ * stays established: PostgreSQL sets no keepalive at its defaults.
+ */
+const atForget = (spec: PgSpec, driver: KnobValues): Prediction => {
+  const router = spec.router;
+  if (router === undefined || spec.observer !== "server") throw new Error(`${spec.plan}: a forgotten flow of the pool needs a router and the server as the observer`);
+  if (router.form !== "silent-drop") throw new Error(`${spec.plan}: this catalog measures a forgotten flow only at a silent drop, not at ${router.form}`);
+  const conntrack = conntrackValues(router.idle);
+  const idle = timerOf(NODE_POSTGRES, "idle_timeout", driver);
+  const verdict = o03From(idle, conntrack, PG_RTT_MS / 1000);
+  const window = s(2.5 * router.idle);
+  if (!verdict.holds) {
+    // the router forgets the flow at its idle timeout from the last segment through it: the ACK of the
+    // client, which is also the last segment that the server gets
+    const forget = spanOf(NF_CONNTRACK_TCP, "expire_established", conntrack);
+    return { detects: false, window, middlebox: { forgets: { low: s(forget.lo), high: s(forget.hi) } } };
+  }
+  // the last segment that the server gets before the FIN is the ACK of the client for the last
+  // reply: the delayed ACK comes up to its own delay after the release of the client to the pool
+  const pool = span(seconds(idle.duration, "the idle timer") - seconds(idle.early, "early"), seconds(idle.duration, "the idle timer") + seconds(idle.lateness, "its lateness"));
+  const ack = ackDelay(RTT_MS);
+  return { detects: true, timer: "idle_timeout", errno: "EOF", from: "last-received", low: s(pool.lo - ack.hi), high: s(pool.hi + PG_RTT_MS / 1000) };
+};
+
 /** This function gives the prediction of a cell for the harness. */
 export const pgPrediction = (spec: PgSpec): Prediction => {
   // a stall is the stall of Linux TCP: the classic measurement of the socket of the client times it
@@ -309,6 +359,7 @@ export const pgPrediction = (spec: PgSpec): Prediction => {
   const linux = given(linuxValues(spec.linux));
   const slack = seconds(timerOf(NODE_POSTGRES, "idle_timeout", driver).lateness, "the slack of Node");
   if (spec.before === true) return atConnect(spec, driver, linux, slack);
+  if (spec.fault === "middlebox-forget") return atForget(spec, driver);
   // a reset answers the query at once
   if (spec.fault === "rst") {
     const errno = transitionOn(LINUX_TCP, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET";
@@ -359,6 +410,8 @@ export const nameOf = (spec: PgSpec): string => `${spec.plan} pg-8.23 to postgre
 export const pgCell = (spec: PgSpec): Cell => ({
   name: nameOf(spec),
   target: spec.server === undefined ? PG_TARGET : pgTargetWith(PG_TARGET, spec.server),
+  ...(spec.router === undefined ? {} : { topology: { name: "T01", hops: [routerHop(spec.router.form, spec.router.idle)] } }),
+  ...(spec.observer === "server" ? { observer: "server" as const } : {}),
   sysctls: sysctlsOf(linuxValues(spec.linux)),
   probe: {
     mode: spec.mode,

@@ -3,7 +3,7 @@ import { transitionOn } from "@mark1russell7/algebra";
 import { LINUX_TCP, MONGODB_NODE, NF_CONNTRACK_TCP } from "@mark1russell7/machines";
 import { RTT_MS, given, seconds } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
-import { ackDelay, o03, routerValues } from "../topologies.ts";
+import { ackDelay, conntrackValues, o03 } from "../topologies.ts";
 import type { Alias, MongoCell, MongoPrediction, MongoRouter, MongoSpec, Waiting } from "./cells.ts";
 import { sec } from "./cells.ts";
 import type { DriverOptions, Span } from "./model.ts";
@@ -147,7 +147,7 @@ export const T03_MONGO_SPECS: readonly MongoSpec[] = [
 const predictForget = (spec: MongoSpec, rttMs: number): MongoPrediction => {
   const rtt = rttMs / 1000;
   const router = spec.router!;
-  const conntrack = routerValues(router.idle);
+  const conntrack = conntrackValues(router.idle);
   const raw = driverValues(spec.options, rttMs);
   const values = given(raw);
   const window = sec(spec.hold ?? 30);

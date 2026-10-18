@@ -4,9 +4,10 @@
 Each line is {"ev": "ct", "t": <CLOCK_MONOTONIC ns>, "type": "NEW|UPDATE|DESTROY", "state": ...,
 "orig": "src:sport>dst:dport", "reply": "..."}. The stamp is the time that this process read the
 event, which is within a millisecond of the kernel. A listing every PUMP seconds evicts the expired
-entries that it walks past, thus a DESTROY follows an expiry within PUMP plus two listings. A
-listing that takes longer than SLOW seconds writes a "pump-slow" line with its start and its
-length: near it, that bound of the lag does not hold.
+entries that it walks past, thus a DESTROY follows an expiry within PUMP plus two listings, and
+the slack of the sleep and of the read (PUMP_SLACK of the harness, 5 ms). A listing that takes
+longer than SLOW seconds writes a "pump-slow" line with its start and its length: near it, that
+bound of the lag does not hold.
 
   ctwatch.py [--pump SECONDS] [--slow SECONDS]
 """

@@ -2,7 +2,7 @@ import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import { predict } from "../catalog.ts";
 import { SLOW_QUERY, STATEMENT_DEADLINE } from "./server.ts";
-import { APP_STALL, PG_TARGET, POOL_IDLE, SLOWEST_POLL, STARTUP_BUDGET, T01_PG, T01_PG_SPECS, T01_PG_WAITING, firstOn, pgValues } from "./t01.ts";
+import { APP_STALL, PG_K, PG_ROUTER, PG_TARGET, POOL_IDLE, SLOWEST_POLL, STARTUP_BUDGET, T01_PG, T01_PG_SPECS, T01_PG_WAITING, firstOn, pgValues } from "./t01.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
 import { given } from "../catalog.ts";
 import { linuxValues } from "../mongo/model.ts";
@@ -144,6 +144,23 @@ describe("the PostgreSQL catalog of T01", () => {
     expect(seconds(inside!.prediction.high)).toBeLessThan(10.5);
     expect(seconds(outside!.prediction.high)).toBeLessThan(STATEMENT_DEADLINE);
     expect(inside!.driverOptions).toEqual({ query_timeout: 10500 });
+  });
+
+  it("puts the idle timer of the pool on each side of the idle timeout of a router (O03), as the socket of the server sees it", () => {
+    const [inside, outside] = ["T01.border-off.157", "T01.border-off.158"].map((plan) => cell(plan));
+    expect(PG_ROUTER).toMatchObject({ form: "silent-drop", idle: 240 / PG_K });
+    for (const each of [inside!, outside!]) {
+      expect(each, each.name).toMatchObject({ fault: "middlebox-forget", observer: "server", probe: { mode: "idle" } });
+      expect(each.topology?.hops, each.name).toEqual([{ name: "nat", kind: "router", form: "silent-drop", idle: { value: 12, unit: "s" }, pump: { value: 0.05, unit: "s" } }]);
+    }
+    // inside, the pool closes its idle client at 10 s, before the router forgets the flow: the FIN reaches the server
+    expect(inside!.prediction).toMatchObject({ detects: true, timer: "idle_timeout", errno: "EOF", from: "last-received" });
+    expect(inside!.driverOptions).toBeUndefined();
+    if (inside!.prediction.detects !== true) return;
+    expect(seconds(inside!.prediction.high)).toBeLessThan(PG_ROUTER.idle);
+    // outside, the router forgets the flow first and drops the FIN: the socket of the server stays established
+    expect(outside!.prediction).toMatchObject({ detects: false, window: { value: 30, unit: "s" } });
+    expect(outside!.driverOptions).toEqual({ idleTimeoutMillis: 14000 });
   });
 
   it("puts the connect timer of the pool on each side of the startup budget (O15), before the kernel gives up", () => {
