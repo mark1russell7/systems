@@ -20,6 +20,8 @@ import { PGBOUNCER_CLIENT } from "./pg/pgbouncer.ts";
 import { PGBOUNCER_SERVER } from "./pg/pgbouncer-server.ts";
 import { PGPOOL_SESSION } from "./pg/pgpool.ts";
 import { POSTGRES_SESSION } from "./pg/postgres-session.ts";
+import { SUPAVISOR_CLIENT } from "./pg/supavisor-client.ts";
+import { SUPAVISOR_SERVER } from "./pg/supavisor-server.ts";
 import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "./procedures-ws.ts";
 import { SENTINEL } from "./sentinel.ts";
 
@@ -44,6 +46,8 @@ export {
   PROCEDURES_WS_SERVER,
   REDIS_CLIENT,
   SENTINEL,
+  SUPAVISOR_CLIENT,
+  SUPAVISOR_SERVER,
   UNDICI_CLIENT,
 };
 export { MANIFESTATIONS } from "./json.ts";
@@ -95,4 +99,6 @@ export const MACHINES: Readonly<Record<string, Machine>> = byId([
   PGBOUNCER_CLIENT,
   PGBOUNCER_SERVER,
   PGPOOL_SESSION,
+  SUPAVISOR_CLIENT,
+  SUPAVISOR_SERVER,
 ]);

@@ -544,7 +544,7 @@ Each stage band of T12 includes the error of the stamps of the observer: 0.705 m
 - **Depends on:** S1
 - **Started:** 2026-10-18
 - **Shipped:**
-- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [#76](https://github.com/mark1russell7/systems/pull/76), [#77](https://github.com/mark1russell7/systems/pull/77), [#78](https://github.com/mark1russell7/systems/pull/78), [#79](https://github.com/mark1russell7/systems/pull/79), [#80](https://github.com/mark1russell7/systems/pull/80), [#81](https://github.com/mark1russell7/systems/pull/81), [#82](https://github.com/mark1russell7/systems/pull/82), [#83](https://github.com/mark1russell7/systems/pull/83), [#84](https://github.com/mark1russell7/systems/pull/84), [#85](https://github.com/mark1russell7/systems/pull/85), [#86](https://github.com/mark1russell7/systems/pull/86), [#90](https://github.com/mark1russell7/systems/pull/90), [#91](https://github.com/mark1russell7/systems/pull/91)
+- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [#76](https://github.com/mark1russell7/systems/pull/76), [#77](https://github.com/mark1russell7/systems/pull/77), [#78](https://github.com/mark1russell7/systems/pull/78), [#79](https://github.com/mark1russell7/systems/pull/79), [#80](https://github.com/mark1russell7/systems/pull/80), [#81](https://github.com/mark1russell7/systems/pull/81), [#82](https://github.com/mark1russell7/systems/pull/82), [#83](https://github.com/mark1russell7/systems/pull/83), [#84](https://github.com/mark1russell7/systems/pull/84), [#85](https://github.com/mark1russell7/systems/pull/85), [#86](https://github.com/mark1russell7/systems/pull/86), [#90](https://github.com/mark1russell7/systems/pull/90), [#91](https://github.com/mark1russell7/systems/pull/91), [#92](https://github.com/mark1russell7/systems/pull/92)
 
 The next system of the S1 order, with its clients and PgBouncer. At its defaults and its borders, the plan of R3 has 329 cells with PostgreSQL. HikariCP with pgjdbc is the client of 160 of them, Npgsql of 47 and node-postgres of 36. T10, through a pooler, has 132 of them.
 
@@ -637,7 +637,19 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
   - Outside, server_connect_timeout is 140 s. The kernel of PgBouncer gives up on the SYNs first, with ETIMEDOUT at 133.26 s and not at 131 s.
   - Each wait of the SYN is a timer of the wheel. At HZ 1000 the give-up can be up to 6.08 s late, because the wait of 64 s can be 4.096 s late (algebra 0.7.2, machines 0.3.9).
   - The judge reads a band on the socket that a hop opens toward the target (harness 0.11.12). The band counts from its SYN, and it ends at its error or at its close in SYN_SENT.
-- Then the hop of Supavisor.
+- Supavisor 2.9.13 in transaction mode has two machine documents and a hop, the third pooler of T10 (#92).
+  - The documents come from its Elixir source at its tag (machines 0.3.10). Between two transactions a client holds no server connection. At the defaults Supavisor writes a heartbeat to an idle client each 60 s.
+  - A failed connect of the pool gives FATAL 08006 to a waiting client, and the next connect waits 2.5 s. No timer of Supavisor bounds a query.
+  - In 2.9.13 client_idle_timeout ends no session: its timer fires an event that no clause of the client handler takes.
+  - The hop is the image of Supabase by its digest, with one tenant on the server of the cell. A proxy hop takes an environment, and a hop that does not start gives its last lines (harness 0.11.13).
+- Four T10 cells of node-postgres hold through Supavisor, with 11 runs each (#92):
+  - An idle client behind a black hole of the server holds no server connection. The pool closes it at 10.003 s, and Supavisor closes it at its `Terminate`.
+  - Behind a frozen server, and behind a black hole with a query in flight, Supavisor waits on the server with no bound. Nothing ends the query in 60 s.
+  - The server holds the query 5 s, and the reply comes at 5.007 s.
+- T10.defaults.3 waits: through Supavisor, the FIN of the server ends an idle client of HikariCP in two ways (run 39164922565).
+  - In 6 of 11 runs the next login of the pool got 57P03 while the server shut down. Supavisor then shut the pool down, and each idle client got FATAL 57P01 and its close at once.
+  - In 5 runs the connect came after the server. Then the client ended at its next check, with FATAL 08006 and the FIN 1.4 to 2.3 s after its empty query.
+- Then the T03 cells with a router in front of Supavisor.
 
 ### RABBIT · RabbitMQ
 
@@ -713,7 +725,7 @@ quantity 0.2.0, algebra 0.7.1, service 0.5.2, prober 0.3.1, harness 0.11.4 and k
 - **Shipped:** 2026-10-18
 - **Links:** [packages/machines](https://github.com/mark1russell7/systems/tree/main/packages/machines), [npm](https://www.npmjs.com/package/@mark1russell7/machines)
 
-The one home of each machine document. Its first version on npm is 0.3.7, published on 2026-10-18 with OIDC and provenance. Version 0.3.1 adds the two documents of PostgreSQL to 0.3.0, and 0.3.2 adds HikariCP over pgjdbc. Version 0.3.3 adds the slack of poll() for HikariCP, and 0.3.4 adds the start check of the pool. Version 0.3.5 gives a bound to the alarm of a PostgreSQL backend. Version 0.3.6 tells that the keepalive checks of HikariCP share one thread, and 0.3.7 adds the two documents of PgBouncer 1.26.1. Version 0.3.8 adds the document of Pgpool-II 4.7.3, and 0.3.9 gives the SYN give-up of Linux TCP its lateness on the wheel.
+The one home of each machine document. Its first version on npm is 0.3.7, published on 2026-10-18 with OIDC and provenance. Version 0.3.1 adds the two documents of PostgreSQL to 0.3.0, and 0.3.2 adds HikariCP over pgjdbc. Version 0.3.3 adds the slack of poll() for HikariCP, and 0.3.4 adds the start check of the pool. Version 0.3.5 gives a bound to the alarm of a PostgreSQL backend. Version 0.3.6 tells that the keepalive checks of HikariCP share one thread, and 0.3.7 adds the two documents of PgBouncer 1.26.1. Version 0.3.8 adds the document of Pgpool-II 4.7.3, and 0.3.9 gives the SYN give-up of Linux TCP its lateness on the wheel. Version 0.3.10 adds the two documents of Supavisor 2.9.13.
 
 release.yml publishes each later version from main, as for the other packages.
 

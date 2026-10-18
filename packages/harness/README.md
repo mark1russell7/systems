@@ -45,7 +45,8 @@ A topology (`Topology`) is the chain of hops from the client to the target, as d
   | `recreate` | nothing | passes, and the flow starts again | dropped |
   | `none` | nothing | passes, and the flow starts again | a reset from the stack of the router |
 
-- **A proxy** (`ProxyHop`) is a stock image, pinned by digest, that ends each TCP connection and opens its own to the next hop. Its files go into it before it starts, and `{{next}}` in them is the address and port of the next hop. An injector sidecar shares its namespace. A privileged sidecar sets its sysctls when the hop names them.
+- **A proxy** (`ProxyHop`) is a stock image, pinned by digest, that ends each TCP connection and opens its own to the next hop. Its files go into it before it starts, and `{{next}}` in them is the address and port of the next hop. Its `command` and its `environment` replace those of its image. An injector sidecar shares its namespace. A privileged sidecar sets its sysctls when the hop names them.
+  - The lab keeps the last 60 lines of the output of each proxy. A proxy that does not start gives them in its error.
 
 The element before a router reaches the networks after the router through it. Its privileged sidecar, or the router itself, adds each route. A router translates the address of the side of the client, thus the target and each later hop see the router as the peer.
 
@@ -164,6 +165,7 @@ The harness ships ten images, each as a shipped source (`ImageSource`). The tag 
   - `inflight` is the text of the query in flight: the second query of an in-flight run. The first query then makes the pool ready at once, and only the query in flight is slow, for example `SELECT pg_sleep(20)`. The HikariCP client reads it too.
 - **The HikariCP client image** (`image/hikari`) is HikariCP 7.1.0 over pgjdbc 42.7.13 on Temurin 21.0.12.1. The digests of the two stages and the SHA-256 of each jar pin them. The probe is `{ driver: { name: "hikari", query, inflight } }`.
   - `ClientHikari.java` makes one `HikariDataSource` with the properties of the cell (`Cell.driverOptions`). A name with the prefix `dataSource.` is a property of pgjdbc.
+  - The user is `postgres`, unless the cell gives `username` (and `password`). Supavisor finds the tenant of a client in its user, for example `postgres.harness`.
   - It prints the lines of the pg client on the same clock. Each socket comes from the `PGStream` of its connection, and a `pool` line gives each change of the counts of the pool. The errno of a failure is the SQLState of pgjdbc.
   - Before its first line, it loads the classes of a connect and of a pool on the loopback of its namespace. It also starts the SecureRandom that HikariCP reads for the UUID of each new connection. Then it parses an ERROR of the server, as for the timeout of a statement. A new JVM loads each class at its first use. Thus a band does not time that load.
 - **The MongoDB client image** (`image/mongo`) is the driver mongodb 7.7.0 on Node 24.21.0. The digest of the image and an npm lockfile pin them. `client-mongo.mjs` prints the lines of the TCP client on the same clock:

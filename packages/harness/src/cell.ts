@@ -121,6 +121,8 @@ export interface ProxyHop {
   /** This port is the port that the proxy listens on for the side of the client. */
   readonly port: number;
   readonly command?: readonly string[];
+  /** These variables are the environment of the proxy, over the environment of its image. */
+  readonly environment?: Readonly<Record<string, string>>;
   /**
    * These files go into the proxy before it starts, by their path. In their content, {{next}} is
    * the address and port of the next hop, and {{next.host}} and {{next.port}} are each part.

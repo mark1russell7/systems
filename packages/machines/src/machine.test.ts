@@ -2,14 +2,21 @@ import type { Machine } from "@mark1russell7/algebra";
 import { algebraProblems, detection, machineProblems, machineSchema, timerOf } from "@mark1russell7/algebra";
 import { describe, expect, it } from "vitest";
 import * as root from "./index.ts";
-import { IOREDIS_STATUS, LINUX_TCP, MACHINES, MANIFESTATIONS, PGPOOL_SESSION } from "./index.ts";
+import { IOREDIS_STATUS, LINUX_TCP, MACHINES, MANIFESTATIONS, PGPOOL_SESSION, SUPAVISOR_CLIENT, SUPAVISOR_SERVER } from "./index.ts";
+
+/** This function gives the values of the knobs of a document at its defaults. A knob at its off value has no bound. */
+const defaults = (doc: Machine) => (name: string) => {
+  const knob = doc.knobs[name];
+  if (knob === undefined || knob.unit === null || knob.default === null) return undefined;
+  return { value: knob.off !== undefined && knob.default === knob.off ? ("infinite" as const) : knob.default, unit: knob.unit };
+};
 
 describe("the machine documents", () => {
   it("holds each document once, by its identifier, each a consistent mark1russell7.machine/1 document", () => {
     const documents = Object.values(root).filter(
       (value): value is Machine => typeof value === "object" && value !== null && "format" in value,
     );
-    expect(documents.length).toBe(21);
+    expect(documents.length).toBe(23);
     expect(Object.keys(MACHINES).sort()).toEqual(documents.map((doc) => doc.id).sort());
     for (const [id, doc] of Object.entries(MACHINES)) {
       expect(doc.id, id).toBe(id);
@@ -78,6 +85,32 @@ describe("the machine documents", () => {
     // the FIN of the backend ends the session with a FATAL error, and a reset with a request of failover
     expect(doc.transitions.find((t) => t.id === "pps.backend-eof")).toMatchObject({ to: "ended", errno: "XX000", emits: ["tx.error"] });
     expect(doc.transitions.find((t) => t.id === "pps.backend-error")).toMatchObject({ to: "ended", emits: ["tx.failover"] });
+  });
+
+  it("gives Supavisor a heartbeat of an idle client each 60 s, and no idle timer that ends a session", () => {
+    const client = SUPAVISOR_CLIENT;
+    const values = defaults(client);
+    // between two transactions the heartbeat starts again each 60 s, thus it is no detector of the client
+    const idle = detection(client, { state: "idle", inFlight: false }, { name: "blackhole", passes: [] }, values);
+    expect(idle.detectors).toEqual([]);
+    expect(timerOf(client, "heartbeat", values).duration).toEqual({ value: 60, unit: "s" });
+    expect(client.timers["heartbeat"]?.backoff).toEqual({ resets: ["enter:idle"] });
+    // client_idle_timeout fires an event that no clause takes: the document gives it no timer
+    expect(Object.values(client.timers).some((timer) => "knob" in timer.duration && timer.duration.knob === "client_idle_timeout")).toBe(false);
+    // a checkout waits 15 s for a server connection, then FATAL XX000
+    expect(timerOf(client, "checkout_timeout", values).duration).toEqual({ value: 15000, unit: "ms" });
+    expect(client.transitions.find((t) => t.id === "scl.checkout-timed-out")).toMatchObject({ to: "ended", errno: "XX000", emits: ["tx.error"] });
+  });
+
+  it("gives a server connection of Supavisor a connect of 5 s, FATAL 08006 at a failure, and no keepalive", () => {
+    const server = SUPAVISOR_SERVER;
+    const values = defaults(server);
+    expect(timerOf(server, "connect_timeout", values).duration).toEqual({ value: 5000, unit: "ms" });
+    expect(timerOf(server, "cooldown", values).duration).toEqual({ value: 2500, unit: "ms" });
+    expect(server.transitions.find((t) => t.id === "ssv.connect-failed")).toMatchObject({ to: "ended", errno: "08006" });
+    // the server socket has no keepalive: keepidle has no bound
+    expect(values("keepalive_idle")).toEqual({ value: "infinite", unit: "s" });
+    expect(server.over?.states["connecting"]).toBe("SYN_SENT");
   });
 
   it("lets only a timer with a backoff read how many times it has fired", () => {

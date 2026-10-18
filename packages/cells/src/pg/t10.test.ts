@@ -1,6 +1,7 @@
 import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import { T01_HIKARI } from "./hikari.ts";
+import { SUPAVISOR_IMAGE, SUPAVISOR_READY, SUPAVISOR_TOKEN, supavisorStart } from "./supavisor.ts";
 import { APP_STALL, PG_TARGET, T01_PG } from "./t01.ts";
 import {
   PGBOUNCER_HOP,
@@ -15,6 +16,7 @@ import {
   PGPOOL_HOP,
   PGPOOL_LATENCY,
   POOLER_IDLE,
+  SUPAVISOR_LATENCY,
   pgbouncerEarliest,
   pgbouncerFirst,
   pgbouncerHop,
@@ -48,14 +50,15 @@ describe("the HikariCP catalog of T10, through PgBouncer", () => {
     for (const each of [...T10_HIKARI_WAITING, ...T10_PG_WAITING]) expect(each.why.length, each.plan).toBeGreaterThan(20);
   });
 
-  it("puts PgBouncer in transaction pooling or Pgpool-II between the client and the server, with the settings of each cell", () => {
+  it("puts PgBouncer in transaction pooling, Pgpool-II or Supavisor between the client and the server, with the settings of each cell", () => {
     for (const each of [...T10_HIKARI, ...T10_PG]) {
       expect(each.target.image, each.name).toBe(PG_TARGET.image);
       expect(each.topology?.name, each.name).toBe("T10");
       const [hop] = each.topology?.hops ?? [];
-      const pooler = each.name.includes("behind Pgpool-II") ? "pgpool" : "pgbouncer";
+      const pooler = each.name.includes("behind Pgpool-II") ? "pgpool" : each.name.includes("behind Supavisor") ? "supavisor" : "pgbouncer";
       expect(hop?.name, each.name).toBe(pooler);
-      expect(hop !== undefined && "image" in hop ? hop.image : null, each.name).toEqual({ kind: "shipped", name: pooler });
+      // Supavisor is the image of Supabase, pinned by the digest of its index; the harness ships the two others
+      expect(hop !== undefined && "image" in hop ? hop.image : null, each.name).toEqual(pooler === "supavisor" ? SUPAVISOR_IMAGE : { kind: "shipped", name: pooler });
     }
     const ini = PGBOUNCER_HOP.files?.["/etc/pgbouncer/pgbouncer.ini"] ?? "";
     expect(ini).toContain("pool_mode = transaction");
@@ -211,5 +214,43 @@ describe("the HikariCP catalog of T10, through PgBouncer", () => {
     expect(valueIn(through.prediction.high, "s")).toBeCloseTo(valueIn(direct.high, "s") + PGPOOL_LATENCY, 9);
     // a killed server cannot serve the next run: each run of a fin has its own environment
     expect(through.environments).toBe(through.runs);
+  });
+
+  it("starts Supavisor with one tenant in transaction mode, and connects each client as the user of the tenant", () => {
+    const script = supavisorStart();
+    // the migrations need the schema _supavisor, and the tenant comes through the API, signed by the token of the lab
+    expect(script).toContain("create schema if not exists _supavisor");
+    expect(script).toContain("/app/bin/migrate");
+    expect(script).toContain(`Bearer ${SUPAVISOR_TOKEN}`);
+    expect(script).toContain('"mode_type":"transaction"');
+    expect(script).toContain('"db_port":{{next.port}}');
+    expect(script).toContain(`echo '${SUPAVISOR_READY}'`);
+    const claims = JSON.parse(Buffer.from(SUPAVISOR_TOKEN.split(".")[1]!, "base64url").toString());
+    expect(claims).toEqual({ role: "service_role", exp: 4102444800 });
+    expect(SUPAVISOR_IMAGE).toMatch(/^supabase\/supavisor:2\.9\.13@sha256:[0-9a-f]{64}$/);
+    const pg = T10_PG.find((each) => each.name.startsWith("T10.defaults.31 "));
+    expect(pg?.driverOptions).toMatchObject({ user: "postgres.harness", password: "postgres" });
+  });
+
+  it("times the cells of node-postgres through Supavisor as a frozen server, and an idle client by the pool", () => {
+    const pg = (plan: string) => {
+      const found = [...T10_PG, ...T01_PG].find((each) => each.name.startsWith(`${plan} pg-8.23 to postgresql, `));
+      if (found === undefined) throw new Error(`no cell ${plan}`);
+      return found.prediction;
+    };
+    // a query in flight into a black hole of the server: Supavisor acknowledges it, as a frozen server's kernel does
+    expect(pg("T10.defaults.30")).toEqual(pg("T01.defaults.126"));
+    expect(pg("T10.defaults.28")).toEqual(pg("T01.defaults.126"));
+    // the idle timer of the pool ends an idle client, and Supavisor closes it at its Terminate: an end of file
+    const idle = pg("T10.defaults.27");
+    const direct = pg("T01.defaults.128");
+    if (idle.detects !== true || direct.detects !== true) throw new Error("detecting cells");
+    expect([idle.timer, idle.errno, idle.from, idle.low]).toEqual(["idle_timeout", "EOF", "last-received", direct.low]);
+    expect(valueIn(idle.high, "s")).toBeCloseTo(valueIn(direct.high, "s") + SUPAVISOR_LATENCY, 9);
+    // the reply of a held query comes one step of Supavisor later
+    const held = pg("T10.defaults.31");
+    const heldDirect = pg("T01.defaults.130");
+    if (held.detects !== false || heldDirect.detects !== false || held.replies === undefined || heldDirect.replies === undefined) throw new Error("replying cells");
+    expect(valueIn(held.replies.high, "s")).toBeCloseTo(valueIn(heldDirect.replies.high, "s") + SUPAVISOR_LATENCY, 9);
   });
 });

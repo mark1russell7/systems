@@ -52,7 +52,7 @@ export const T03_HIKARI_ALIASES: readonly Alias[] = [
 ];
 
 /** This reason is the reason of the cells with Supavisor between the client and the server. */
-const SUPAVISOR = "the cell needs Supavisor 2.9 between the client and the server, and the harness has no Supavisor hop";
+const SUPAVISOR = "the cell needs a router of a cloud preset in front of Supavisor 2.9, and this catalog has no chain of those two hops yet";
 
 /** These are the cells of the plan over these systems that this catalog does not start, each with its reason. */
 export const T03_HIKARI_WAITING: readonly Waiting[] = [7, 29, 35, 36, 58, 59, 60, 61].map((n): Waiting => ({ plan: `T03.defaults.${n}`, trigger: "supavisor", why: SUPAVISOR }));

@@ -46,6 +46,9 @@ export const LISTING: Quantity = { value: 20, unit: "ms" };
  */
 export const PUMP_SLACK: Quantity = { value: 5, unit: "ms" };
 
+/** This count is how many of the last lines of a proxy hop the lab keeps. The error of a hop that does not start gives them. */
+const TAIL_LINES = 60;
+
 /**
  * A network fault is a fault that the injector applies as a filter rule. It is a black hole (both
  * directions, or one), or a reset on the next segment. It can also be an ICMP unreachable for each
@@ -624,12 +627,28 @@ export const openLab = async (
       const next = endpointOf(at + 1);
       let proxy = new GenericContainer(await imageOf(hop.image)).withNetwork(targetSide);
       if (hop.command !== undefined) proxy = proxy.withCommand([...hop.command]);
+      if (hop.environment !== undefined) proxy = proxy.withEnvironment({ ...hop.environment });
       if (hop.files !== undefined)
         proxy = proxy.withCopyContentToContainer(
           Object.entries(hop.files).map(([path, content]) => ({ content: templated(content, next), target: path })),
         );
       if (hop.ready !== undefined) proxy = proxy.withWaitStrategy(Wait.forLogMessage(hop.ready));
-      const box = await proxy.start();
+      // the last lines of the output of the hop: a hop that does not start tells why
+      const tail: string[] = [];
+      proxy = proxy.withLogConsumer((stream) => {
+        let rest = "";
+        stream.on("data", (chunk: Buffer | string) => {
+          const lines = (rest + chunk.toString()).split("\n");
+          rest = lines.pop() ?? "";
+          for (const line of lines) {
+            tail.push(line);
+            if (tail.length > TAIL_LINES) tail.shift();
+          }
+        });
+      });
+      const box = await proxy.start().catch((error: unknown) => {
+        throw new Error(`the hop ${hop.name} did not start: ${error instanceof Error ? error.message : String(error)}. Its last lines:\n${tail.join("\n")}`);
+      });
       opened.push(box);
       await join(box, clientSide);
       const injector = await new GenericContainer(image)
