@@ -12,10 +12,13 @@ import {
   T10_PG,
   T10_PG_SPECS,
   T10_PG_WAITING,
+  PGPOOL_HOP,
+  PGPOOL_LATENCY,
   POOLER_IDLE,
   pgbouncerEarliest,
   pgbouncerFirst,
   pgbouncerHop,
+  pgpoolHop,
 } from "./t10.ts";
 
 const cell = (plan: string, cells = T10_HIKARI) => {
@@ -45,13 +48,14 @@ describe("the HikariCP catalog of T10, through PgBouncer", () => {
     for (const each of [...T10_HIKARI_WAITING, ...T10_PG_WAITING]) expect(each.why.length, each.plan).toBeGreaterThan(20);
   });
 
-  it("puts PgBouncer in transaction pooling between the client and the server, with the settings of each cell", () => {
+  it("puts PgBouncer in transaction pooling or Pgpool-II between the client and the server, with the settings of each cell", () => {
     for (const each of [...T10_HIKARI, ...T10_PG]) {
       expect(each.target.image, each.name).toBe(PG_TARGET.image);
       expect(each.topology?.name, each.name).toBe("T10");
       const [hop] = each.topology?.hops ?? [];
-      expect(hop?.name, each.name).toBe("pgbouncer");
-      expect(hop !== undefined && "image" in hop ? hop.image : null, each.name).toEqual({ kind: "shipped", name: "pgbouncer" });
+      const pooler = each.name.includes("behind Pgpool-II") ? "pgpool" : "pgbouncer";
+      expect(hop?.name, each.name).toBe(pooler);
+      expect(hop !== undefined && "image" in hop ? hop.image : null, each.name).toEqual({ kind: "shipped", name: pooler });
     }
     const ini = PGBOUNCER_HOP.files?.["/etc/pgbouncer/pgbouncer.ini"] ?? "";
     expect(ini).toContain("pool_mode = transaction");
@@ -164,5 +168,48 @@ describe("the HikariCP catalog of T10, through PgBouncer", () => {
     expect(valueIn(closed.high, "s")).toBeCloseTo(POOLER_IDLE + 0.333333 + 0.01 + 0.002, 6);
     expect(pg("T10.border-off.92").driverOptions).toEqual({ idleTimeoutMillis: 14000 });
     expect(pgbouncerFirst("idle", { client_idle_timeout: POOLER_IDLE })).toMatchObject({ timer: "client_idle_timeout", errno: "08P01" });
+  });
+
+  it("puts Pgpool-II with one backend at its defaults between the client and the server", () => {
+    const conf = PGPOOL_HOP.files?.["/etc/pgpool/pgpool.conf"] ?? "";
+    expect(conf).toContain("backend_hostname0 = '{{next.host}}'");
+    expect(conf).toContain("backend_port0 = {{next.port}}");
+    // the check of streaming replication finds the primary with this user, and no other setting moves a timer
+    expect(conf).toContain("sr_check_user = 'postgres'");
+    expect(PGPOOL_HOP.ready).toBe("pgpool-II successfully started");
+    expect(() => pgpoolHop({ probe: 10 })).toThrow(/no setting with a unit for probe/);
+    expect(pgpoolHop({ client_idle_limit: 12 }).files?.["/etc/pgpool/pgpool.conf"]).toMatch(/client_idle_limit = 12\n$/);
+  });
+
+  it("times each cell through Pgpool-II as on the direct pair: Pgpool-II adds no timer, and one step to a reply", () => {
+    // a frozen server: Pgpool-II waits on it with no bound, and its probe of each 30 s ends nothing
+    expect(cell("T10.defaults.2").prediction).toEqual(cell("T01.defaults.55", T01_HIKARI).prediction);
+    // the keepalive sends its empty query through Pgpool-II, which forwards it: the read timeout of the check
+    expect(cell("T10.defaults.11").prediction).toEqual(cell("T01.defaults.52", T01_HIKARI).prediction);
+    // behind the black hole Pgpool-II can detach its only server: each run has its own environment, with a dry warm-up
+    expect([cell("T10.defaults.11").fresh, cell("T10.defaults.11").environments]).toEqual([true, cell("T10.defaults.11").runs]);
+    expect(cell("T10.defaults.2").fresh).toBeUndefined();
+    // O07: the error of the server crosses one more hop, and the read timeout of the client is the same
+    const inside = cell("T10.border-off.97").prediction;
+    const direct = cell("T01.border-off.173", T01_HIKARI).prediction;
+    if (inside.detects !== true || direct.detects !== true) throw new Error("detecting cells");
+    expect(valueIn(inside.high, "s")).toBeCloseTo(valueIn(direct.high, "s") + PGPOOL_LATENCY, 9);
+    expect(cell("T10.border-off.98").prediction).toEqual(cell("T01.border-off.174", T01_HIKARI).prediction);
+    expect(PGPOOL_LATENCY).toBeCloseTo(0.012, 9);
+  });
+
+  it("ends an idle client of node-postgres through Pgpool-II at the FIN of the server, one step of Pgpool-II later", () => {
+    const pg = (plan: string) => {
+      const found = [...T10_PG, ...T01_PG].find((each) => each.name.startsWith(`${plan} pg-8.23 to postgresql, `));
+      if (found === undefined) throw new Error(`no cell ${plan}`);
+      return found;
+    };
+    const through = pg("T10.defaults.29");
+    const direct = pg("T01.defaults.124").prediction;
+    if (through.prediction.detects !== true || direct.detects !== true) throw new Error("detecting cells");
+    expect([through.prediction.errno, through.prediction.from, through.prediction.low]).toEqual(["EOF", "peer-closed", direct.low]);
+    expect(valueIn(through.prediction.high, "s")).toBeCloseTo(valueIn(direct.high, "s") + PGPOOL_LATENCY, 9);
+    // a killed server cannot serve the next run: each run of a fin has its own environment
+    expect(through.environments).toBe(through.runs);
   });
 });

@@ -45,8 +45,9 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `HIKARICP_PGJDBC` | `hikaricp-pgjdbc` | HikariCP 7.1.0 over pgjdbc 42.7.13: one connection of a pool | driver | 41 implemented, 1 documented, 2 derived |
 | `PGBOUNCER_CLIENT` | `pgbouncer-client` | PgBouncer 1.26.1 in transaction pooling: one client connection | proxy | 29 implemented |
 | `PGBOUNCER_SERVER` | `pgbouncer-server` | PgBouncer 1.26.1 in transaction pooling: one server connection of a pool | proxy | 26 implemented |
+| `PGPOOL_SESSION` | `pgpool-session` | Pgpool-II 4.7.3 with one backend: one session of a client in its child process | proxy | 15 implemented |
 
-Sixteen documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel and the replication of mongod operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
+Seventeen documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel and the replication of mongod operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
 
 The package also gives these parts:
 
@@ -91,6 +92,14 @@ A document changes only for one of two reasons:
 A change to the version of a system changes its sources too. Each fact of the document then cites the new version.
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
+
+### 0.3.8
+
+- **Pgpool-II 4.7.3, with one backend.** A new document, `pgpool-session`, from the C source at the tag V4_7_3. It is one session of a client in its child process, on the socket of the client:
+  - Between two queries, the child waits in one select() on the client and on the backend. Thus the close of either side ends the session at once.
+  - While a query is in flight, the child waits on the backend only, in steps of 30 s. After each step it writes a dummy ParameterStatus to the client. No timer of Pgpool-II ends the query.
+  - The FIN of the backend ends the session with FATAL XX000. A failed read of the backend and a failed connect to it ask for a failover (failover_on_backend_error).
+  - At the defaults, no timer bounds an idle session: client_idle_limit is 0. When it is set, the session ends one tick of 1 s after the limit.
 
 ### 0.3.7
 

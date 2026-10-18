@@ -177,6 +177,9 @@ The harness ships ten images, each as a shipped source (`ImageSource`). The tag 
   - A hop takes the image as a shipped source: `{ kind: "shipped", name: "pgbouncer" }`. A proxy hop also takes a stock image by its digest.
   - A cell gives its configuration as files of the hop (`ProxyHop.files`): `/etc/pgbouncer/pgbouncer.ini` and `/etc/pgbouncer/userlist.txt`. In them, `{{next.host}}` and `{{next.port}}` are the host and the port of the server.
   - PgBouncer does not start as root, thus it operates as its own user.
+- **The Pgpool-II image** (`image/pgpool`) is Pgpool-II 4.7.3, a pooler hop, on a digest-pinned Alpine. The build gets the source of the tag V4_7_3 from GitHub and checks its SHA-256 before it builds. The tree of git holds no `configure`, thus the build runs autoreconf, and bison and flex make the parser.
+  - A hop takes the image as a shipped source: `{ kind: "shipped", name: "pgpool" }`.
+  - A cell gives its configuration as one file of the hop: `/etc/pgpool/pgpool.conf`. Each other file that Pgpool-II reads is empty in the image. Pgpool-II operates in the foreground as its own user.
 
 The build does the `cargo test` of the two crates. Thus the record decoder passes its tests before an image exists. Each amount that the native programs print is a quantity in a canonical unit. For example, an RTO is in `jiffy`, a round trip in `us`, and a segment in `B`.
 
@@ -318,6 +321,7 @@ The distribution test needs a simulator, which does not exist at this time.
 
 - **`runCell(cell)`** (`run.ts`) divides the 11 runs of a cell across two new environments. It records the manifest of each environment, and it removes the fault after each run.
   - Each environment does one warm-up before its counted runs. On a loaded machine, a new environment is sometimes slow at first. A reset cell once measured 23 ms against a median of 0.3 ms. The result keeps the warm-ups apart (`warmups`), and the verdict does not count them. A cell whose fault ends its environment, a client `fin`, does a dry warm-up without the fault.
+  - A cell with `fresh` also does a dry warm-up: its fault can change the environment for the runs after it. Behind a black hole, Pgpool-II can detach its only server, and then it refuses each new client. Such a cell has an environment for each run.
   - The `concurrency` of a cell sets how many environments operate at the same time, each with its own prober.
   - The manifest holds the kernel release, the architecture, the boot id and the Docker version. It also holds the image ids, the packages of the image, the client and the sysctls as read back.
   - A cell whose probe names a `driver` opens its labs with the client of that driver (`openLab(target, "ioredis")`).

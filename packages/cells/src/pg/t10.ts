@@ -1,7 +1,7 @@
 import type { KnobValues, Machine } from "@mark1russell7/algebra";
 import { detection, timerOf, transitionOn } from "@mark1russell7/algebra";
 import type { Cell, Prediction, ProxyHop } from "@mark1russell7/harness";
-import { HIKARICP_PGJDBC, PGBOUNCER_CLIENT, PGBOUNCER_SERVER } from "@mark1russell7/machines";
+import { HIKARICP_PGJDBC, PGBOUNCER_CLIENT, PGBOUNCER_SERVER, PGPOOL_SESSION } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import { RTT_MS, RUNS, count, given, predict, s, seconds, sysctlsOf } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
@@ -147,13 +147,76 @@ export const pgbouncerFirst = (state: "linked" | "idle", settings: Readonly<Reco
 /** This time is the most that PgBouncer adds to a reply: one more round trip, and one step of its loop of events. */
 export const PGBOUNCER_LATENCY: number = PG_RTT_MS / 1000 + seconds(pgbouncerValues(PGBOUNCER_CLIENT)("slack"), "the slack of PgBouncer");
 
+/**
+ * This function gives the configuration of Pgpool-II for a cell: one backend, in streaming
+ * replication at the defaults. The check of streaming replication finds the primary with the user
+ * postgres. The settings of the cell come last. Each other setting has its default.
+ */
+const pgpoolConf = (settings: Readonly<Record<string, number>>): string =>
+  [
+    "listen_addresses = '*'",
+    "port = 9999",
+    "unix_socket_directories = '/tmp'",
+    "pcp_socket_dir = '/tmp'",
+    "pid_file_name = '/tmp/pgpool.pid'",
+    "logdir = '/tmp'",
+    "backend_hostname0 = '{{next.host}}'",
+    "backend_port0 = {{next.port}}",
+    "backend_weight0 = 1",
+    "backend_flag0 = 'ALLOW_TO_FAILOVER'",
+    "sr_check_user = 'postgres'",
+    ...Object.entries(settings).map(([name, value]) => `${name} = ${value}`),
+    "",
+  ].join("\n");
+
+/** This function gives the hop of Pgpool-II 4.7.3 with one backend, from the image that the harness ships, with the settings of a cell. */
+export const pgpoolHop = (settings: Readonly<Record<string, number>> = {}): ProxyHop => {
+  const unknown = Object.keys(settings).filter((name) => PGPOOL_SESSION.knobs[name]?.unit == null || PGPOOL_SESSION.knobs[name]?.scope !== "proxy");
+  if (unknown.length > 0) throw new Error(`the document of Pgpool-II has no setting with a unit for ${unknown.join(", ")}`);
+  return {
+    name: "pgpool",
+    kind: "proxy",
+    image: { kind: "shipped", name: "pgpool" },
+    port: 9999,
+    files: { "/etc/pgpool/pgpool.conf": pgpoolConf(settings) },
+    ready: "pgpool-II successfully started",
+    settings: { backend_clustering_mode: "streaming_replication", backends: "1", version: "4.7.3", ...Object.fromEntries(Object.entries(settings).map(([name, value]) => [name, String(value)])) },
+  };
+};
+
+/** This hop is Pgpool-II 4.7.3 with one backend at its defaults. */
+export const PGPOOL_HOP: ProxyHop = pgpoolHop();
+
+/** This time is the most that Pgpool-II adds to a reply: one more round trip, and one step of its child. */
+export const PGPOOL_LATENCY: number = PG_RTT_MS / 1000 + seconds(pgbouncerValues(PGPOOL_SESSION)("slack"), "the slack of Pgpool-II");
+
+/**
+ * This function checks that no timer of Pgpool-II ends a session before the band of its client
+ * ends. A query in flight waits with no bound, and the probe of each 30 s does not end it. Between
+ * two queries only client_idle_limit acts, and it is off at the defaults.
+ */
+const pgpoolAllows = (plan: string, state: "idle" | "waiting", ends: number): void => {
+  const values = pgbouncerValues(PGPOOL_SESSION);
+  const own = detection(PGPOOL_SESSION, { state, inFlight: state === "waiting" }, { name: "blackhole", passes: [] }, values);
+  for (const detector of own.detectors) {
+    const bounds = timerOf(PGPOOL_SESSION, detector.timer, values);
+    if ("unknown" in bounds.duration || bounds.duration.value === "infinite") continue;
+    const at = seconds(bounds.duration, detector.timer);
+    if (!(at > ends)) throw new Error(`${plan}: ${detector.timer} of Pgpool-II can end the session at ${at} s, before the band ends at ${ends} s`);
+  }
+};
+
 /** A spec of T10 is a spec of HikariCP with the settings of PgBouncer that differ from its defaults, by the names of the documents. */
 export interface T10Spec extends HikariSpec {
+  /** This name is the pooler of the cell: PgBouncer, or Pgpool-II. */
+  readonly via?: "pgpool";
   readonly pgbouncer?: Readonly<Record<string, number>>;
   /** These are the knobs of Linux TCP in the namespace of PgBouncer that differ from Linux 6.6. */
   readonly poolerLinux?: Readonly<Record<string, Extent>>;
   /** This flag makes the server socket of PgBouncer the observer, in place of the socket of the client. */
   readonly observesPooler?: true;
+  /** This flag gives each run an environment of its own, with a dry warm-up: the fault changes the pooler for the runs after it. */
+  readonly fresh?: true;
 }
 
 /** This function puts a spec behind PgBouncer: the hop with the settings of the spec, and the latency that PgBouncer adds to a reply. */
@@ -162,6 +225,9 @@ const behind = (spec: Omit<T10Spec, "pooler" | "poolerLatency">): T10Spec => ({
   pooler: pgbouncerHop(spec.pgbouncer, spec.poolerLinux === undefined ? undefined : sysctlsOf(linuxValues(spec.poolerLinux))),
   poolerLatency: PGBOUNCER_LATENCY,
 });
+
+/** This function puts a spec behind Pgpool-II: its hop at the defaults, and the latency that it adds to a reply. */
+const throughPgpool = (spec: Omit<T10Spec, "pooler" | "poolerLatency" | "via">): T10Spec => ({ ...spec, via: "pgpool", pooler: PGPOOL_HOP, poolerLatency: PGPOOL_LATENCY });
 
 /** This query sleeps for a time, as a server that holds the query in flight: its kernel acknowledges the query. */
 const sleep = (seconds: number): string => `SELECT pg_sleep(${seconds})`;
@@ -248,6 +314,42 @@ export const T10_HIKARI_SPECS: readonly T10Spec[] = [
       options: { socketTimeout: HELD_TIMEOUT },
     }),
   ),
+  // ---- Pgpool-II 4.7.3 with one backend, at its defaults. A fault at the server is between Pgpool-II and the server
+  throughPgpool({
+    plan: "T10.defaults.2",
+    name: "freeze-process behind Pgpool-II, a query in flight: Pgpool-II waits on the server with no bound, and nothing ends the query",
+    fault: "freeze-process",
+    mode: "inflight",
+  }),
+  // The pool keeps one connection (minimumIdle 1), and each run has a new environment. In run 39150949618, at the
+  // fixed size of 10, the warm-up held. In the next run, the check of the observed connection got an error 0.1 ms
+  // after its empty query, and the client after it got no connection from Pgpool-II. The pool of 10 checks its
+  // connections one after the other, each into the black hole, and it opens a new connection after each failed
+  // check. Pgpool-II then connects to the server through the black hole, and pgpool-session gives a failover for a
+  // failed connect: with its only server detached, Pgpool-II ends each session and refuses each new client
+  throughPgpool({
+    plan: "T10.defaults.11",
+    name: "blackhole behind Pgpool-II, idle, minimumIdle 1: the keepalive checks the connection through the pooler, and its read timeout closes it",
+    fault: "blackhole",
+    mode: "idle",
+    options: { minimumIdle: 1 },
+    fresh: true,
+  }),
+  // ---- O07 through Pgpool-II: the read timeout of pgjdbc against the statement deadline of the server
+  ...([
+    ["T10.border-off.97", STATEMENT_DEADLINE + 1, "inside: the server ends the query first"],
+    ["T10.border-off.98", STATEMENT_DEADLINE - 1, "outside: the read timeout closes the socket first, and the server goes on"],
+  ] as const).map(([plan, at, side]) =>
+    throughPgpool({
+      plan,
+      name: `app-stall behind Pgpool-II, statement_timeout ${STATEMENT_DEADLINE} s, socketTimeout ${at} s: ${side}`,
+      fault: "app-stall",
+      mode: "inflight",
+      inflight: SLOW_QUERY,
+      server: { statement_timeout: STATEMENT_DEADLINE * 1000 },
+      options: { socketTimeout: at },
+    }),
+  ),
   // ---- K-client-timeouts: the rule of the Command Timeout of Npgsql, a timer of the client against a server that
   // goes on with the statement. Here it is the read timeout of pgjdbc against the statement deadline, as O07 in T01
   ...([
@@ -266,8 +368,6 @@ export const T10_HIKARI_SPECS: readonly T10Spec[] = [
   ),
 ];
 
-/** This reason is the reason of the cells with Pgpool-II between the client and the server. */
-const PGPOOL = "the cell needs Pgpool-II 4.7 between the client and the server, and the harness has no Pgpool hop";
 /** This reason is the reason of the cells with Supavisor between the client and the server. */
 const SUPAVISOR = "the cell needs Supavisor 2.9 between the client and the server, and the harness has no Supavisor hop";
 
@@ -295,14 +395,14 @@ const REASONS: ReadonlyArray<readonly [number, number, string]> = [
   [27, 34, NOT_THIS],
   [35, 36, "the cell needs a virtual IP that kube-vip moves, which the PG catalog does not have"],
   [37, 40, NOT_THIS],
-  [41, 42, PGPOOL],
+  [41, 42, NOT_THIS],
   [49, 54, NOT_THIS],
   [55, 56, "HikariCP has no reconnect schedule: a borrow that finds no connection waits up to connectionTimeout, 30 s, while the pool adds connections"],
   [57, 58, "pgjdbc and HikariCP make one attempt for each query: neither retries a query"],
   [59, 60, NOT_THIS],
   [61, 62, "the rule compares the drain of a load balancer with the grace of a pod: no pod and no load balancer are on this chain"],
   [63, 76, NOT_THIS],
-  [77, 78, PGPOOL],
+  [77, 78, NOT_THIS],
   [79, 80, NOT_THIS],
   [81, 82, "PgBouncer has no timer for one read: query_timeout bounds a whole query, which T10.border-off.7 and .8 place"],
   [
@@ -312,18 +412,15 @@ const REASONS: ReadonlyArray<readonly [number, number, string]> = [
   ],
   [85, 86, NOT_THIS],
   [87, 88, ONE_QUERY],
-  [97, 98, PGPOOL],
   [101, 102, "the cell needs PgBouncer in a pod of kind, which the PG catalog does not have"],
-  [103, 104, PGPOOL],
+  [103, 104, "the rule compares the liveness probe of a pod with the failover of Pgpool-II: no pod is on this chain"],
 ];
 
 /** These are the cells of the plan over HikariCP in T10 that this catalog does not start, each with its reason. */
 export const T10_HIKARI_WAITING: readonly Waiting[] = [
-  { plan: "T10.defaults.2", trigger: "freeze-process", why: PGPOOL },
   { plan: "T10.defaults.3", trigger: "fin", why: SUPAVISOR },
-  { plan: "T10.defaults.11", trigger: "blackhole", why: PGPOOL },
   { plan: "T10.defaults.13", trigger: "event:session", why: "the cell needs two clients on one server connection of PgBouncer, one that sets the state of the session and one that reads it. The harness starts one client" },
-  { plan: "T10.defaults.14", trigger: "event:PAUSE", why: PGPOOL },
+  { plan: "T10.defaults.14", trigger: "event:PAUSE", why: "PAUSE is a command of the console of PgBouncer: Pgpool-II has no command that holds the queries of its clients" },
   { plan: "T10.defaults.15", trigger: "event:reload", why: "the harness has no fault that sends SIGHUP to the program of a hop" },
   { plan: "T10.defaults.17", trigger: "load:clients", why: "the cell needs more clients than the pool of PgBouncer holds. The harness starts one client" },
   { plan: "T10.defaults.18", trigger: "timed:mid-commit", why: "the harness has no injector that times a fault to a reply" },
@@ -344,7 +441,12 @@ export const T10_HIKARI_ALIASES: readonly Alias[] = [
 /** These are the cells of the plan over pg-8.23 in T10 at the defaults, each with its reason to wait. */
 export const T10_PG_WAITING: readonly Waiting[] = [
   { plan: "T10.defaults.7", trigger: "event:PAUSE", why: "the harness has no fault that runs a command on the console of PgBouncer, such as PAUSE" },
-  ...[8, 29, 32].map((n): Waiting => ({ plan: `T10.defaults.${n}`, trigger: "pgpool", why: PGPOOL })),
+  { plan: "T10.defaults.8", trigger: "event:reload", why: "the harness has no fault that sends SIGHUP to the program of a hop" },
+  {
+    plan: "T10.defaults.32",
+    trigger: "event:session",
+    why: "the cell needs two clients that share a backend connection of Pgpool-II, one that sets the state of the session and one that reads it. The harness starts one client",
+  },
   ...[9, 27, 28, 30, 31, 33, 34].map((n): Waiting => ({ plan: `T10.defaults.${n}`, trigger: "supavisor", why: SUPAVISOR })),
 ];
 
@@ -364,7 +466,15 @@ export const T10_PG_SPECS: readonly PgSpec[] = ([
     pooler: pgbouncerHop({ client_idle_timeout: POOLER_IDLE }),
     ...(at === 10 ? {} : { options: { idleTimeoutMillis: at * 1000 } }),
   }),
-);
+).concat([
+  {
+    plan: "T10.defaults.29",
+    name: "fin behind Pgpool-II, idle: the FIN of the server ends the session of Pgpool-II, which closes the client",
+    fault: "fin",
+    mode: "idle",
+    pooler: PGPOOL_HOP,
+  },
+]);
 
 /** This function gives when the prediction of the client ends, in seconds: the end of its band, its reply, or its window. */
 const endOf = (prediction: Prediction): number => {
@@ -382,6 +492,13 @@ const endOf = (prediction: Prediction): number => {
  */
 export const t10Prediction = (spec: T10Spec): Prediction => {
   if (spec.observesPooler === true) return atPoolerSocket(spec);
+  if (spec.via === "pgpool") {
+    // the band of the client is the band of the cell: no timer of Pgpool-II comes before its end,
+    // between two queries or while one waits
+    const client = hikariPrediction(spec);
+    for (const state of ["idle", "waiting"] as const) pgpoolAllows(spec.plan, state, endOf(client));
+    return client;
+  }
   const client = hikariPrediction(spec);
   const ends = endOf(client);
   const settings = spec.pgbouncer ?? {};
@@ -440,11 +557,13 @@ const POOLER_SOCKET = { hop: "pgbouncer", toward: "target" } as const;
  * These are the HikariCP cells of T10 for the harness. A cell that observes the server socket of
  * PgBouncer has a fresh environment for each run, as a fin has. The judge finds the server socket
  * that PgBouncer opens in the run. In a second run of an environment, PgBouncer used an older
- * server. Also, its last failed login held the pool in its backoff (CI 39140133521).
+ * server. Also, its last failed login held the pool in its backoff (CI 39140133521). A cell whose
+ * fault changes Pgpool-II has a fresh environment for each run too, and its warm-up has no fault.
  */
 export const T10_HIKARI: readonly Cell[] = T10_HIKARI_SPECS.map((spec) => ({
   ...hikariCell(spec),
   ...(spec.observesPooler === true ? { observer: POOLER_SOCKET, environments: RUNS } : {}),
+  ...(spec.fresh === true ? { environments: RUNS, fresh: true as const } : {}),
   prediction: t10Prediction(spec),
 }));
 
@@ -464,6 +583,7 @@ const settingsOf = (spec: PgSpec): Record<string, number> => {
  * the janitor. Else the band of the client is the band of the cell.
  */
 export const t10PgPrediction = (spec: PgSpec): Prediction => {
+  if (spec.pooler?.name === "pgpool") return throughPgpoolPg(spec);
   const client = pgPrediction(spec);
   const ends = endOf(client);
   const settings = settingsOf(spec);
@@ -493,6 +613,21 @@ const closedAtTerminate = (spec: PgSpec, client: Prediction & { readonly detects
   const gone = PGBOUNCER_CLIENT.transitions.find((each) => [each.from].flat().includes("idle") && [each.on].flat().includes("rx.terminate"));
   if (gone === undefined || gone.to !== "ended") throw new Error(`${spec.plan}: pgbouncer-client does not close an idle client at its Terminate`);
   return { ...client, errno: "EOF", high: s(seconds(client.high, "the band") + PGBOUNCER_LATENCY) };
+};
+
+/**
+ * This function gives the prediction of a cell of node-postgres through Pgpool-II. The FIN of the
+ * server reaches the session of Pgpool-II, whose select() waits on the client and on the server. The
+ * session ends with a FATAL error and the close of the client (pps.backend-eof). Thus the client gets
+ * its FIN one step of Pgpool-II after the band of the direct pair.
+ */
+const throughPgpoolPg = (spec: PgSpec): Prediction => {
+  const client = pgPrediction(spec);
+  if (client.detects !== true || client.from !== "peer-closed" || spec.fault !== "fin") throw new Error(`${spec.plan}: this catalog measures node-postgres through Pgpool-II only for the FIN of the server`);
+  const eof = PGPOOL_SESSION.transitions.find((each) => each.id === "pps.backend-eof");
+  if (eof === undefined || eof.to !== "ended") throw new Error(`${spec.plan}: pgpool-session does not end a session at the FIN of the backend`);
+  pgpoolAllows(spec.plan, "idle", seconds(client.high, "the band"));
+  return { ...client, high: s(seconds(client.high, "the band") + PGPOOL_LATENCY) };
 };
 
 /** These are the node-postgres cells of T10 for the harness. */

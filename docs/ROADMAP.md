@@ -544,7 +544,7 @@ Each stage band of T12 includes the error of the stamps of the observer: 0.705 m
 - **Depends on:** S1
 - **Started:** 2026-10-18
 - **Shipped:**
-- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [#76](https://github.com/mark1russell7/systems/pull/76), [#77](https://github.com/mark1russell7/systems/pull/77), [#78](https://github.com/mark1russell7/systems/pull/78), [#79](https://github.com/mark1russell7/systems/pull/79), [#80](https://github.com/mark1russell7/systems/pull/80), [#81](https://github.com/mark1russell7/systems/pull/81), [#82](https://github.com/mark1russell7/systems/pull/82), [#83](https://github.com/mark1russell7/systems/pull/83), [#84](https://github.com/mark1russell7/systems/pull/84), [#85](https://github.com/mark1russell7/systems/pull/85), [#86](https://github.com/mark1russell7/systems/pull/86)
+- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [#76](https://github.com/mark1russell7/systems/pull/76), [#77](https://github.com/mark1russell7/systems/pull/77), [#78](https://github.com/mark1russell7/systems/pull/78), [#79](https://github.com/mark1russell7/systems/pull/79), [#80](https://github.com/mark1russell7/systems/pull/80), [#81](https://github.com/mark1russell7/systems/pull/81), [#82](https://github.com/mark1russell7/systems/pull/82), [#83](https://github.com/mark1russell7/systems/pull/83), [#84](https://github.com/mark1russell7/systems/pull/84), [#85](https://github.com/mark1russell7/systems/pull/85), [#86](https://github.com/mark1russell7/systems/pull/86), [#90](https://github.com/mark1russell7/systems/pull/90)
 
 The next system of the S1 order, with its clients and PgBouncer. At its defaults and its borders, the plan of R3 has 329 cells with PostgreSQL. HikariCP with pgjdbc is the client of 160 of them, Npgsql of 47 and node-postgres of 36. T10, through a pooler, has 132 of them.
 
@@ -620,8 +620,19 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
     - The pool sends the message `Terminate`, and it ends its socket only in the callback of that write. PgBouncer closes the client when it reads the message, and its FIN comes first. Thus the end is an end of file, not the close of the pool.
   - The read timeout against the give-up of the kernel of PgBouncer, with tcp_retries2 = 4 in its namespace. The cells observe the server socket of PgBouncer. A socketTimeout of 5 s comes first, and PgBouncer closes its server socket at 5.005 s. At 15 s, the kernel of PgBouncer gives up first, 12.832 s after its first retransmission.
     - These two cells keep one connection in the pool. At its fixed size of 10, the pool still adds connections when the fault comes. Each one sends a query through the one server of PgBouncer. Such a query took the server into the black hole, and PgBouncer opened a new server for the query of the cell.
-- The other T10 borders wait, each with its reason. Most of them name the knob of another system. Others need a transaction, several clients or Pgpool-II. .83 and .84 need the judge to read the close of a socket in SYN_SENT.
-- Then the T10 borders that need the judge, and the hops of Supavisor and Pgpool-II.
+- The other T10 borders wait, each with its reason. Most of them name the knob of another system. Others need a transaction or several clients. .83 and .84 need the judge to read the close of a socket in SYN_SENT.
+- Pgpool-II 4.7.3 has its machine document and a hop of the harness, the second pooler of T10 (#90).
+  - The document comes from its C source at its tag (machines 0.3.8): one session of a child of Pgpool-II. An idle session waits in one select() on the client and the server. A query waits on the server only, in steps of 30 s, and after each step Pgpool-II writes a dummy ParameterStatus to the client. No timer of Pgpool-II ends a query.
+  - The FIN of the server gives FATAL XX000 to the client, with no failover. A read error of the server, or a failed connect to it, gives a failover at the defaults.
+  - The hop builds Pgpool-II from the source tarball of its tag, by its SHA-256 (harness 0.11.11). Its lab test passes: the FIN of the server reaches a client of node-postgres as an end of file.
+  - Behind a pooler, the run reuses a connection of the pooler to the server, which the run did not open. The judge then times the FIN of the server from the first socket toward the pooler that leaves ESTABLISHED after the outset (harness 0.11.11).
+- Five T10 cells hold through Pgpool-II, with 11 runs each (#90):
+  - The FIN of the server ends the session of Pgpool-II, and the idle client of node-postgres gets an end of file 0.7 ms later.
+  - A frozen server: Pgpool-II waits on it with no bound, and nothing ends the query in 60 s.
+  - O07 with Pgpool-II as the hop. With a socketTimeout of 11 s, the server ends the query with ERROR 57014 at 10.005 s. With 9 s, the read timeout closes the socket at 9.009 s.
+  - Behind a black hole, the keepalive of HikariCP sends its empty query through Pgpool-II. Its read timeout closes the socket at 5.002 s, as on the direct pair.
+  - That cell keeps one connection (minimumIdle 1), and each run has a new environment. At the fixed size of 10, the warm-up held. Then the next run got an error 0.1 ms after its check, and the client after it got no connection. The pool opens a new connection after each failed check, and Pgpool-II then connects through the black hole. A failed connect gives a failover, and with its only server detached Pgpool-II refuses each client (harness 0.11.11, `fresh`).
+- Then the T10 borders that need the judge, and the hop of Supavisor.
 
 ### RABBIT · RabbitMQ
 
@@ -697,7 +708,7 @@ quantity 0.2.0, algebra 0.7.1, service 0.5.2, prober 0.3.1, harness 0.11.4 and k
 - **Shipped:** 2026-10-18
 - **Links:** [packages/machines](https://github.com/mark1russell7/systems/tree/main/packages/machines), [npm](https://www.npmjs.com/package/@mark1russell7/machines)
 
-The one home of each machine document. Its first version on npm is 0.3.7, published on 2026-10-18 with OIDC and provenance. Version 0.3.1 adds the two documents of PostgreSQL to 0.3.0, and 0.3.2 adds HikariCP over pgjdbc. Version 0.3.3 adds the slack of poll() for HikariCP, and 0.3.4 adds the start check of the pool. Version 0.3.5 gives a bound to the alarm of a PostgreSQL backend. Version 0.3.6 tells that the keepalive checks of HikariCP share one thread, and 0.3.7 adds the two documents of PgBouncer 1.26.1.
+The one home of each machine document. Its first version on npm is 0.3.7, published on 2026-10-18 with OIDC and provenance. Version 0.3.1 adds the two documents of PostgreSQL to 0.3.0, and 0.3.2 adds HikariCP over pgjdbc. Version 0.3.3 adds the slack of poll() for HikariCP, and 0.3.4 adds the start check of the pool. Version 0.3.5 gives a bound to the alarm of a PostgreSQL backend. Version 0.3.6 tells that the keepalive checks of HikariCP share one thread, and 0.3.7 adds the two documents of PgBouncer 1.26.1. Version 0.3.8 adds the document of Pgpool-II 4.7.3.
 
 release.yml publishes each later version from main, as for the other packages.
 
@@ -792,6 +803,22 @@ The page gives the 13 T01 cells of node-postgres from one run at main. Each cell
 - **Links:** [The run](https://github.com/mark1russell7/systems/actions/runs/39045508827), [The page](https://mark1russell7.github.io/systems/results/r3/), [#38](https://github.com/mark1russell7/systems/pull/38)
 
 Five cells put the idle close of Redis against the keepalive of the kernel, both at 600 s. Each of the 55 runs ended 600.09 s to 600.97 s after the last segment, at the idle close of Redis.
+
+### SITE-UX · The weekly round of the site and the tracker
+
+- **Status:** in progress
+- **Area:** site
+- **Depends on:**
+- **Started:** 2026-10-18
+- **Shipped:**
+- **Links:** [#88](https://github.com/mark1russell7/systems/pull/88), [#89](https://github.com/mark1russell7/systems/pull/89)
+
+Each week, one round makes the site and the tracker easier to read, with a visual where it makes a result clear (Mark, 2026-10-18).
+
+- Round 1, 2026-10-18:
+  - The tracker shows the count of the done items first, and the items that can start. The record of each item shows as steps. The map lights the chain of the item under the pointer, and a chart shows the items shipped each day.
+  - CI takes a screenshot of each page of the site at 390 px and at 1280 px, in light and in dark (#88). Its report names each page that is wider than its screen, and each error of a page. No page is wider than a phone, and no page has an error. The pages of results are long: 33,241 px for PostgreSQL on a phone, and 74,767 px for R3.
+  - Each page of results has a map of its cells under its summary, and each tile links to the frame of its cell. The PostgreSQL page has a chart for each of its 8 borders (#89).
 
 ## Decisions for Mark
 

@@ -18,6 +18,7 @@ import { HIKARICP_PGJDBC } from "./pg/hikaricp-pgjdbc.ts";
 import { NODE_POSTGRES } from "./pg/node-postgres.ts";
 import { PGBOUNCER_CLIENT } from "./pg/pgbouncer.ts";
 import { PGBOUNCER_SERVER } from "./pg/pgbouncer-server.ts";
+import { PGPOOL_SESSION } from "./pg/pgpool.ts";
 import { POSTGRES_SESSION } from "./pg/postgres-session.ts";
 import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "./procedures-ws.ts";
 import { SENTINEL } from "./sentinel.ts";
@@ -37,6 +38,7 @@ export {
   NODE_POSTGRES,
   PGBOUNCER_CLIENT,
   PGBOUNCER_SERVER,
+  PGPOOL_SESSION,
   POSTGRES_SESSION,
   PROCEDURES_WS_CLIENT,
   PROCEDURES_WS_SERVER,
@@ -92,4 +94,5 @@ export const MACHINES: Readonly<Record<string, Machine>> = byId([
   HIKARICP_PGJDBC,
   PGBOUNCER_CLIENT,
   PGBOUNCER_SERVER,
+  PGPOOL_SESSION,
 ]);

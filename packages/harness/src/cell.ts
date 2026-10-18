@@ -636,7 +636,7 @@ export type HarnessImage = "procedures";
  * A shipped image is an image that the harness ships, by its name. Its build context is in the
  * package of the harness, and in the package of the prober for `harness`.
  */
-export type Shipped = "harness" | "node" | "go-http" | "node-http" | "mongo" | "pg" | "hikari" | "procedures" | "router" | "pgbouncer";
+export type Shipped = "harness" | "node" | "go-http" | "node-http" | "mongo" | "pg" | "hikari" | "procedures" | "router" | "pgbouncer" | "pgpool";
 
 /**
  * An image source tells where an image comes from, as data. The harness resolves each kind to an
@@ -915,6 +915,13 @@ export interface Cell {
   /** This count is the number of runs of the cell (11), across new environments (two at least). */
   readonly runs: number;
   readonly environments: number;
+  /**
+   * This flag tells that the fault can change the environment for the runs after it, as a fin does.
+   * Then the warm-up of each environment is a dry run, without the fault, and a cell with this flag
+   * has an environment for each run. For example, behind a black hole Pgpool-II can detach its only
+   * server, and then it refuses each new client.
+   */
+  readonly fresh?: true;
   /**
    * This count is the number of environments at the same time, each with its own prober. Without
    * it, the count is one. The calibration does its reference cells at 1, 4 and 8, to find how

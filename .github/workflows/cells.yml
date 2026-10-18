@@ -73,6 +73,19 @@ jobs:
         env:
           HARNESS_LAB: "1"
         run: pnpm --filter @mark1russell7/harness exec vitest run --silent=false
+      # the lab builds an image with no output of the build: the log of a build that fails tells why
+      - name: The images of the harness that do not build, after a failure
+        if: failure()
+        run: |
+          # the context of each image is packages/, as the lab gives it (src/image.ts)
+          for dockerfile in packages/harness/image/*/Dockerfile; do
+            dir="$(dirname "$dockerfile")"
+            if ! docker build --progress=plain -f "$dockerfile" packages > /tmp/build.log 2>&1; then
+              echo "::group::$dir does not build"
+              tail -n 80 /tmp/build.log
+              echo "::endgroup::"
+            fi
+          done
       # what the kernel says when the prober cannot load: the verifier's log goes to its stderr
       - name: The prober on its own, after a failure
         if: failure()

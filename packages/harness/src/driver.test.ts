@@ -153,6 +153,30 @@ describe("a band of a driver with more than one socket", () => {
     expect(measure(idle, record)).toMatchObject({ outcome: { kind: "error", errno: "ETIMEDOUT" }, elapsed: s(130.09), void: null, finding: null });
   });
 
+  it("times the FIN of a target behind a pooler from the close of its socket toward the pooler, which the run did not open", () => {
+    const fin = cellOf(
+      { detects: true, timer: "the server ends the connection", errno: "EOF", from: "peer-closed", low: s(0), high: s(0.024), driver: { socket: "pool" } },
+      { probe: { mode: "idle", keepalive: false, driver: { name: "pg" } }, fault: "fin" },
+    );
+    // the pooler at 10.0.1.5 keeps its connections to the target across its clients: each has its own
+    // port, and one is older than the run. The death of the target closes each of them at once
+    const state = (seconds: number, cookie: number, dst: string, old: number, now: number) => ({ ev: "state", mono: at(seconds), netns: 1, cookie, src: "10.0.1.2:5432", dst, old, new: now });
+    const record = run({
+      events: run().events.slice(0, 8),
+      topology: { targetPeer: "10.0.1.5", hops: {} },
+      kernel: [
+        rx(-11.69, POOL, 3),
+        state(-30, 9, "10.0.1.5:51000", 2, 1),
+        state(0.0005, 9, "10.0.1.5:51000", 1, 4),
+        state(0.0006, 10, "10.0.1.5:51002", 1, 4),
+        // the FIN of the pooler reaches the client: its socket goes to CLOSE_WAIT
+        { ev: "state", mono: at(0.003), netns: 77, cookie: 3, src: POOL, dst: "10.0.1.5:9999", old: 1, new: 8 },
+        { ev: "clock", mono: at(10), lost: 0 },
+      ],
+    });
+    expect(measure(fin, record)).toMatchObject({ outcome: { kind: "eof" }, elapsed: s(0.0025), void: null, finding: null });
+  });
+
   it("times a selection that starts into a fault from the client's start, and a silent reply from the fault", () => {
     const before = cellOf(
       { detects: true, timer: "selection_timeout", errno: "MongoServerSelectionError", from: "client-start", low: s(30), high: s(30.01), driver: { socket: "monitor", ends: { ev: "fail", where: { why: "connect" } } } },
