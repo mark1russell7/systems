@@ -124,10 +124,23 @@ export interface Band<A = Quantity> {
 export type Reference = "deletion" | "intake" | "fault" | "resume";
 
 /**
+ * A reset reuse is how a reset fails a later connection on the same port. A reset from the server
+ * leaves the conntrack entry of its flow in CLOSE, with the NAT to that server, for `life`. A SYN on
+ * a CLOSE entry looks up again only after a FIN or a reset from the client. Thus a new connection of
+ * the same client on the same port in that life goes to the server of the old one. When that server
+ * is gone, the request ends with `outcome`.
+ */
+export interface ResetReuse<A = Quantity> {
+  readonly life: A;
+  readonly outcome: string;
+}
+
+/**
  * A prediction is what the cell expects:
  * - `none`: no request fails in the run.
  * - `window`: the requests that fail start in a window. The window starts at `start` and ends in
- *   `end`. With `certain`, at least one request fails.
+ *   `end`. With `certain`, at least one request fails. With `afterReset`, a request outside the
+ *   window can also fail, on a port that a reset closed up to `life` before it (`ResetReuse`).
  * - `removal`: the Service has no ready endpoint, and the rules of each node have no backend, in the band.
  * - `leaves`: the target replica leaves the EndpointSlice and the rules of each node in the band.
  * - `restarts`: each replica receives SIGTERM in the band, or no replica does.
@@ -148,6 +161,7 @@ export type Prediction<A = Quantity> =
       readonly start: { readonly from: Reference; readonly band: Band<A> };
       readonly end: { readonly from: Reference; readonly band: Band<A> } | null;
       readonly certain: boolean;
+      readonly afterReset?: ResetReuse<A> | undefined;
       readonly why: string;
     }
   | { readonly kind: "removal"; readonly band: Band<A>; readonly why: string }

@@ -1,7 +1,7 @@
 import type { KindCell, KubeProxyMode, Prediction, Propagation } from "@mark1russell7/kind";
 import { KUBE_PROXY_MODES, deletionWindow, pausedWindow } from "@mark1russell7/kind";
 import { valueIn } from "@mark1russell7/quantity";
-import { CHART_READINESS, DESIGN, KUBE_PROBE, PROPAGATION, SYN_SENT, T07_WORKLOAD, WORKERS, afterSync, kubeDefaults, s, say, withHold } from "./kind.ts";
+import { CHART_READINESS, CLOSE, DESIGN, KUBE_PROBE, PROPAGATION, SYN_SENT, T07_WORKLOAD, WORKERS, afterSync, kubeDefaults, s, say, withHold } from "./kind.ts";
 
 /**
  * The T07 catalog: the endpoint lifecycle of a Service. A client on each node sends requests on new
@@ -44,9 +44,19 @@ const base = (mode: KubeProxyMode): Omit<KindCell, "id" | "name" | "trigger" | "
 });
 
 /**
+ * These modes keep the NAT of a flow in conntrack, thus a reset leaves a CLOSE entry to the pod
+ * (`CLOSE`). IPVS keeps its own connection table, and the run gives what it does.
+ */
+const CONNTRACK_NAT: ReadonlySet<KubeProxyMode> = new Set(["iptables", "nftables"]);
+
+/**
  * This function gives the prediction of a deletion from O04 with the hold: no failure, or a window
  * of refused connections. The propagation is the calibration of the mode, or another bound for a
  * deletion that comes immediately after a sync (`afterSync`).
+ *
+ * In the window, the pod can reset a connection in flight. In a mode with the NAT in conntrack,
+ * that leaves a CLOSE entry to the pod for `CLOSE`. A later connection of the same client on the
+ * same port goes to the deleted pod, and it times out.
  */
 const deletionPrediction = (cell: Pick<KindCell, "declaration" | "pod" | "mode">, propagation: Propagation = PROPAGATION[cell.mode]): Prediction => {
   const window = deletionWindow(cell.declaration, cell.pod.preStop, propagation);
@@ -61,7 +71,10 @@ const deletionPrediction = (cell: Pick<KindCell, "declaration" | "pod" | "mode">
     start: { from: "intake", band: { lo: s(0), hi: window.end.hi } },
     end: { from: "deletion", band: window.end },
     certain: false,
-    why: `the intake can stop ${say(window.intake)} after the deletion, before the propagation (up to ${say(window.end.hi)}): a connection between the two is refused`,
+    ...(CONNTRACK_NAT.has(cell.mode) ? { afterReset: { life: CLOSE, outcome: "timeout" } } : {}),
+    why: `the intake can stop ${say(window.intake)} after the deletion, before the propagation (up to ${say(window.end.hi)}): a connection between the two is refused${
+      CONNTRACK_NAT.has(cell.mode) ? `. A connection that the pod resets leaves a CLOSE entry to the pod for ${say(CLOSE)}, and a later connection from the same port meets it and times out` : ""
+    }`,
   };
 };
 

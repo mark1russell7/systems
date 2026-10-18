@@ -62,6 +62,30 @@ describe("the judgement of a kind run", () => {
     expect(checkRun(window, runWith([request(3700, "refused")])).ok).toBe(false);
   });
 
+  it("holds a timeout outside the window on a port that a reset closed, inside the life of the CLOSE entry", () => {
+    const reuse = cell({
+      kind: "window",
+      nodes: "all",
+      start: { from: "intake", band: b(0, 1) },
+      end: { from: "deletion", band: b(0, 2.5) },
+      certain: false,
+      afterReset: { life: s(10), outcome: "timeout" },
+      why: "a test",
+    });
+    const on = (t: number, o: string, lp: number, d = 1, p = "client-w1"): Line => ({ ev: "req", t, d, o, p, n: "w1", lp });
+    // the reset ends at 3011 ms, and the same client sends a SYN from the same port 6.8 s later
+    const reused = checkRun(reuse, runWith([on(3010, "reset", 51794), on(9810, "timeout", 51794, 2000)]));
+    expect([reused.ok, reused.why]).toEqual([true, "1 failed requests in the window (span 0 s), and 1 on a port that a reset closed"]);
+    // after the life of the entry, on another port, from another client, or as another outcome: a finding
+    expect(checkRun(reuse, runWith([on(3010, "reset", 51794), on(13_200, "timeout", 51794, 2000)])).ok).toBe(false);
+    expect(checkRun(reuse, runWith([on(3010, "reset", 51794), on(9810, "timeout", 51796, 2000)])).ok).toBe(false);
+    expect(checkRun(reuse, runWith([on(3010, "reset", 51794), on(9810, "timeout", 51794, 2000, "client-w2")])).ok).toBe(false);
+    expect(checkRun(reuse, runWith([on(3010, "reset", 51794), on(9810, "refused", 51794)])).ok).toBe(false);
+    // a window without the rule does not hold the reuse
+    const plain = cell({ ...reuse.prediction, afterReset: undefined } as Prediction);
+    expect(checkRun(plain, runWith([on(3010, "reset", 51794), on(9810, "timeout", 51794, 2000)])).ok).toBe(false);
+  });
+
   it("holds a window on the paused node only, with its end after the resume", () => {
     const paused = cell({
       kind: "window",
