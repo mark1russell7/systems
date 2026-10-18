@@ -137,11 +137,11 @@ S6 is in progress, and the items of the server stack are on this roadmap. The RE
 
 ### SYS-8 · The composition of components in one service
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** S6
 - **Started:** 2026-10-17
-- **Shipped:**
+- **Shipped:** 2026-10-18
 - **Links:** [The README](https://github.com/mark1russell7/systems/tree/main/packages/service#composition), [#46](https://github.com/mark1russell7/systems/pull/46), [#48](https://github.com/mark1russell7/systems/pull/48), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 A component gives its transports, dependencies and checks to the one service of the process. Only the entry uses `run()`. The README has the pattern. A test composes two sets of parts under one `run()`: the parts start and stop in their sequence, and the process exits one time.
@@ -203,11 +203,11 @@ A new entry, `@mark1russell7/service/http`, makes a `node:http` server a transpo
 
 ### SYS-15 · Request tracking from the start of each transport
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** S6
 - **Started:** 2026-10-17
-- **Shipped:**
+- **Shipped:** 2026-10-18
 - **Links:** [#48](https://github.com/mark1russell7/systems/pull/48), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 The transports start before the startup ends, but `run()` gives `life.request` only at that end. The kind lab uses a global and a 503 to go around it. After this item, a transport tracks its requests from its start.
@@ -236,55 +236,55 @@ A request stays in flight until its stream ends. A failure after the first item 
 
 ### SYS-7 · A stop when stdin closes, and a minimal profile
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** S6
 - **Started:** 2026-10-17
-- **Shipped:**
+- **Shipped:** 2026-10-18
 - **Links:** [#48](https://github.com/mark1russell7/systems/pull/48), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 A stdio process, for example an MCP host, stops through the staged shutdown when its parent closes stdin. A small declaration without probes passes `describe()` and `lint()`.
 
 ### SYS-9 · A declared policy for a second signal
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** S6
 - **Started:** 2026-10-17
-- **Shipped:**
+- **Shipped:** 2026-10-18
 - **Links:** [#48](https://github.com/mark1russell7/systems/pull/48), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 A declaration tells what a second signal does: `ignore`, as today, or `exit`. The local development profile uses `exit`.
 
 ### SYS-10 · Profiles as data
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** S6
 - **Started:** 2026-10-17
-- **Shipped:**
+- **Shipped:** 2026-10-18
 - **Links:** [#48](https://github.com/mark1russell7/systems/pull/48), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 Exported profiles fill the phases, the cooperative window and the policies. A caller spreads them. The Kubernetes profile gets the caps from the grace period and the preStop delay.
 
 ### SYS-12 · An optional zod
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** S6
 - **Started:** 2026-10-17
-- **Shipped:**
+- **Shipped:** 2026-10-18
 - **Links:** [#48](https://github.com/mark1russell7/systems/pull/48), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 The root of the service does not use zod at run time. Thus zod becomes an optional peer dependency. The algebra keeps zod as a necessary peer, because its root uses zod.
 
 ### SYS-16 · run() for a process that runs one command
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** S6
 - **Started:** 2026-10-17
-- **Shipped:**
+- **Shipped:** 2026-10-18
 - **Links:** [#48](https://github.com/mark1russell7/systems/pull/48), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 The process exits with the code of its work. A first Ctrl-C can abort at once, and the exit waits for stdout and stderr.
