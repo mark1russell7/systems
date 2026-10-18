@@ -10,6 +10,7 @@ import harness from "../data/harness-2026-10-13.json";
 import http from "../data/http-2026-10-17.json";
 import kind from "../data/kind-2026-10-18.json";
 import mongodb from "../data/mongodb-2026-10-18.json";
+import pg from "../data/pg-2026-10-18.json";
 import r3 from "../data/r3-2026-10-17.json";
 import sentinel from "../data/sentinel-2026-10-17.json";
 import topologies from "../data/topologies-2026-10-17.json";
@@ -148,6 +149,7 @@ export const LEDGER: readonly Entry[] = [
   ciEntry("sentinel", "Valkey under Sentinel", sentinel),
   ciEntry("http", "HTTP keep-alive", http),
   ciEntry("mongodb", "MongoDB", mongodb),
+  ciEntry("pg", "PostgreSQL", pg),
   {
     key: "kind",
     href: "results/kind/",

@@ -720,6 +720,17 @@ The kind page shows the run of 2026-10-17, with each lone failure and its time. 
 
 The full run of the catalogs at main gives five pages their copies: the network failures, the topologies, HTTP, MongoDB and Valkey under Sentinel. Each export takes its own cells, at the HZ of the runner. Of the 203 cells of these pages, 183 hold and 20 measure, and no cell fails. The topologies page has no T01 slice, because the page of the network failures gives each T01 cell from the same lab.
 
+### SITE-PG · The page of the PostgreSQL results
+
+- **Status:** done
+- **Area:** site
+- **Depends on:** PG
+- **Started:** 2026-10-18
+- **Shipped:** 2026-10-18
+- **Links:** [The page](https://mark1russell7.github.io/systems/results/pg/), [The run at main](https://github.com/mark1russell7/systems/actions/runs/39104794591), [#74](https://github.com/mark1russell7/systems/pull/74)
+
+The page gives the 13 T01 cells of node-postgres from one run at main. Each cell holds, with 143 counted runs and no void run. The export `scripts/pg.ts` reads each raw record again with the judge of the harness, and it stops when a prediction disagrees with the catalog. The ledger and the home page add the page, with one finding.
+
 ### CANONICAL · The canonical cells, measured to the close of Redis
 
 - **Status:** done
