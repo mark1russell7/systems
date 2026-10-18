@@ -1,10 +1,9 @@
 import { realizationOf } from "@mark1russell7/algebra";
 import { transitionOn } from "@mark1russell7/algebra";
 import { LINUX_TCP, MONGODB_NODE, NF_CONNTRACK_TCP } from "@mark1russell7/machines";
-import { valueIn } from "@mark1russell7/quantity";
-import { RTT_MS, given, s, seconds } from "../catalog.ts";
+import { RTT_MS, given, seconds } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
-import { LISTING, ROUTER_PUMP, ackDelay, o03 } from "../topologies.ts";
+import { ackDelay, o03, routerValues } from "../topologies.ts";
 import type { Alias, MongoCell, MongoPrediction, MongoRouter, MongoSpec, Waiting } from "./cells.ts";
 import { sec } from "./cells.ts";
 import type { DriverOptions, Span } from "./model.ts";
@@ -42,13 +41,6 @@ const scaledDriver = (keepAliveSeconds: number): DriverOptions => ({
   serverSelectionTimeoutMS: 30000 / K,
   keepAliveInitialDelay: keepAliveSeconds * 1000,
 });
-
-/** This function gives the values of conntrack for a router: its idle timeout, and the lag of its DESTROY. */
-const routerValues = (idle: number) =>
-  given({
-    nf_conntrack_tcp_timeout_established: s(idle),
-    gc_lag_max: s(valueIn(ROUTER_PUMP, "s") + 2 * valueIn(LISTING, "s")),
-  });
 
 /** These are the cells of T03 over mongodb-node-7.7 and mongodb-replset. */
 export const T03_MONGO_SPECS: readonly MongoSpec[] = [

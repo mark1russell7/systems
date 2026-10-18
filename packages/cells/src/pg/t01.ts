@@ -141,7 +141,7 @@ export const T01_PG_SPECS: readonly PgSpec[] = [
 
 /** This reason is the reason of the O03 cells of a pool client through a router. */
 const POOLED =
-  "the cell needs a router between the client and the server, and the PG catalog has no chain yet. On each side of the border the pool closes its idle client at its own timer: only the socket of the server shows that the router forgot the flow";
+  "on each side of the border the pool closes its idle client at its own timer: only the socket of the server shows that the router forgot the flow. The PG catalog has no cell with the server as its observer yet";
 /** This reason is the reason of the O03 cells of a client that the application holds. */
 const HELD = "the client of the harness gives its client back to the pool after each query: it has no mode for a client that the application holds";
 

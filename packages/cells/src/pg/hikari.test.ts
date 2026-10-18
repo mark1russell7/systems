@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { given, predict } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
 import { linuxValues } from "../mongo/model.ts";
-import { HIKARI_SLOWEST_POLL, HIKARI_STARTUP_BUDGET, T01_HIKARI, T01_HIKARI_SPECS, T01_HIKARI_WAITING, hikariFirstOn, hikariValues } from "./hikari.ts";
+import { HIKARI_K, HIKARI_SLOWEST_POLL, HIKARI_STARTUP_BUDGET, T01_HIKARI, T01_HIKARI_SPECS, T01_HIKARI_WAITING, hikariFirstOn, hikariValues } from "./hikari.ts";
 import { SLOW_QUERY, STATEMENT_DEADLINE } from "./server.ts";
 import { APP_STALL, PG_TARGET } from "./t01.ts";
 
@@ -137,6 +137,23 @@ describe("the HikariCP catalog of T01", () => {
     expect(valueIn(inside!.prediction.high, "s")).toBeLessThan(11);
     expect(valueIn(outside!.prediction.high, "s")).toBeLessThan(STATEMENT_DEADLINE);
     expect(inside!.driverOptions).toEqual({ "dataSource.socketTimeout": 11 });
+  });
+
+  it("puts the keepalive of the pool on each side of the idle timeout of a router (O03), each divided by HIKARI_K", () => {
+    const [inside, outside] = ["T01.border-off.151", "T01.border-off.152"].map(cell);
+    for (const each of [inside!, outside!]) {
+      expect(each.fault, each.name).toBe("middlebox-forget");
+      expect(each.topology?.hops, each.name).toEqual([{ name: "nat", kind: "router", form: "silent-drop", idle: { value: 240 / HIKARI_K, unit: "s" }, pump: { value: 0.05, unit: "s" } }]);
+    }
+    // inside, each keepalive refreshes the flow before the router forgets it: nothing occurs
+    expect(inside!.prediction).toMatchObject({ detects: false, window: { value: 150, unit: "s" } });
+    expect(inside!.driverOptions).toEqual({ keepaliveTime: 55000 });
+    // outside, the router forgets the flow first and drops the empty query of the check: its read timeout closes the socket
+    expect(outside!.prediction).toMatchObject({ detects: true, timer: "validation_timeout", errno: "CLOSED", from: "first-sent" });
+    if (outside!.prediction.detects !== true) return;
+    const latest = valueIn(outside!.prediction.startsBy!, "s");
+    expect(latest).toBeGreaterThanOrEqual(80);
+    expect(latest).toBeLessThan(81);
   });
 
   it("refuses an option that is not a knob of the document", () => {
