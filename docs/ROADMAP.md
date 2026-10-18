@@ -142,9 +142,9 @@ S6 is in progress, and the items of the server stack are on this roadmap. The RE
 - **Depends on:** S6
 - **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [The README](https://github.com/mark1russell7/systems/tree/main/packages/service#composition), [#46](https://github.com/mark1russell7/systems/pull/46), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [The README](https://github.com/mark1russell7/systems/tree/main/packages/service#composition), [#46](https://github.com/mark1russell7/systems/pull/46), [#48](https://github.com/mark1russell7/systems/pull/48), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-A component gives its transports, dependencies and checks to the one service of the process. Only the entry uses `run()`. The README has the pattern. A test that composes two sets of parts under one `run()` comes next.
+A component gives its transports, dependencies and checks to the one service of the process. Only the entry uses `run()`. The README has the pattern. A test composes two sets of parts under one `run()`: the parts start and stop in their sequence, and the process exits one time.
 
 ### SYS-4 · A conformance kit for transports
 
@@ -208,7 +208,7 @@ A new entry, `@mark1russell7/service/http`, makes a `node:http` server a transpo
 - **Depends on:** S6
 - **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#48](https://github.com/mark1russell7/systems/pull/48), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 The transports start before the startup ends, but `run()` gives `life.request` only at that end. The kind lab uses a global and a 503 to go around it. After this item, a transport tracks its requests from its start.
 
@@ -241,7 +241,7 @@ A request stays in flight until its stream ends. A failure after the first item 
 - **Depends on:** S6
 - **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#48](https://github.com/mark1russell7/systems/pull/48), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 A stdio process, for example an MCP host, stops through the staged shutdown when its parent closes stdin. A small declaration without probes passes `describe()` and `lint()`.
 
@@ -252,7 +252,7 @@ A stdio process, for example an MCP host, stops through the staged shutdown when
 - **Depends on:** S6
 - **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#48](https://github.com/mark1russell7/systems/pull/48), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 A declaration tells what a second signal does: `ignore`, as today, or `exit`. The local development profile uses `exit`.
 
@@ -263,7 +263,7 @@ A declaration tells what a second signal does: `ignore`, as today, or `exit`. Th
 - **Depends on:** S6
 - **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#48](https://github.com/mark1russell7/systems/pull/48), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 Exported profiles fill the phases, the cooperative window and the policies. A caller spreads them. The Kubernetes profile gets the caps from the grace period and the preStop delay.
 
@@ -274,9 +274,9 @@ Exported profiles fill the phases, the cooperative window and the policies. A ca
 - **Depends on:** S6
 - **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#48](https://github.com/mark1russell7/systems/pull/48), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-The root of the service does not use zod at run time. Thus zod becomes an optional peer dependency.
+The root of the service does not use zod at run time. Thus zod becomes an optional peer dependency. The algebra keeps zod as a necessary peer, because its root uses zod.
 
 ### SYS-16 · run() for a process that runs one command
 
@@ -285,7 +285,7 @@ The root of the service does not use zod at run time. Thus zod becomes an option
 - **Depends on:** S6
 - **Started:** 2026-10-17
 - **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#48](https://github.com/mark1russell7/systems/pull/48), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 The process exits with the code of its work. A first Ctrl-C can abort at once, and the exit waits for stdout and stderr.
 

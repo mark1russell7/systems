@@ -31,6 +31,8 @@ export interface RigOptions {
   readonly watchdog?: boolean | undefined;
   /** This time is added to each call of the check of db, in milliseconds. */
   readonly checkDelay?: number | undefined;
+  /** This time is how long the flush of the output of the fake process takes, in milliseconds. */
+  readonly flush?: number | undefined;
 }
 
 /** A rig is the service, its clock and process, and what its parts recorded. */
@@ -43,8 +45,8 @@ export interface Rig {
   readonly checks: Readonly<Record<"db" | "cache", ScriptedCheck>>;
 }
 
-/** These are the caps of the phases when a test does not give its own, in seconds. */
-export const CAPS: Readonly<Record<Stage, number>> = {
+/** These are the caps of the phases when a test does not give its own, in seconds. The flush of the output is opt-in. */
+export const CAPS: Readonly<Record<Exclude<Stage, "flush the output">, number>> = {
   "fail readiness": 1,
   "stop intake": 1,
   drain: 4,
@@ -57,7 +59,7 @@ export const CAPS: Readonly<Record<Stage, number>> = {
 /** This function makes a rig. */
 export const rig = (options: RigOptions = {}): Rig => {
   const clock = fakeClock();
-  const process = fakeProcess();
+  const process = fakeProcess({ clock, flush: options.flush === undefined ? undefined : () => wait(options.flush!) });
   const events: LifecycleEvent[] = [];
   const log: string[] = [];
   const write = (what: string): void => {

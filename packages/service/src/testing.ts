@@ -9,7 +9,7 @@ import { createServer } from "node:net";
 import type { Outcome } from "./latch.ts";
 import type { CheckFn } from "./poller.ts";
 
-export type { FakeClock, FakeProcess } from "./fakes.ts";
+export type { FakeClock, FakeProcess, FakeProcessOptions } from "./fakes.ts";
 export { fakeClock, fakeProcess, seeded } from "./fakes.ts";
 export type { ContractCase, ContractOptions } from "./contract.ts";
 export { contractCases } from "./contract.ts";

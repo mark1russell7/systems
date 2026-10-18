@@ -1,5 +1,6 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import type { Operation } from "./operation.ts";
+import type { ExitTrigger, ProcessTrigger } from "./process.ts";
 import type { Poll, Timing } from "./timing.ts";
 
 /**
@@ -83,6 +84,23 @@ export interface Phase {
   readonly cap: Quantity;
 }
 
+/**
+ * A repeat signal policy tells what an exit signal does while the shutdown runs:
+ * - `ignore`: the signal has no effect, and the shutdown continues.
+ * - `exit`: the process exits with the code 1 at once, as a second Ctrl-C does in a terminal.
+ */
+export type RepeatSignal = "ignore" | "exit";
+
+/**
+ * A cooperative floor is the earliest time of the cooperative abort in the drain:
+ * - `half`: half the cap of the drain. The work in flight gets half the drain at the least.
+ * - `none`: no floor. A window of the whole cap or more aborts the work at the start of the drain.
+ */
+export type CooperativeFloor = "half" | "none";
+
+/** These exit codes replace the code 0 of a clean shutdown, by the trigger of the shutdown. */
+export type ExitCodes = Readonly<Partial<Record<ExitTrigger, number>>>;
+
 /** A service description is the whole graph of a service, as data. */
 export interface ServiceDescription {
   readonly format: typeof FORMAT;
@@ -104,5 +122,13 @@ export interface ServiceDescription {
     readonly phases: readonly Phase[];
     /** This window is how long before the end of the drain the cooperative abort occurs, or no bound. */
     readonly cooperativeWindow: Extent;
+    /** This floor is the earliest time of the cooperative abort. Without a declaration, the floor is `half`. */
+    readonly cooperativeFloor?: CooperativeFloor | undefined;
+    /** This policy tells what a signal does while the shutdown runs. Without a declaration, the signal has no effect. */
+    readonly onRepeatSignal?: RepeatSignal | undefined;
+    /** These triggers start the shutdown, in addition to the exit signals. Each one is opt-in. */
+    readonly triggers?: readonly ProcessTrigger[] | undefined;
+    /** These codes replace the exit code 0 by the trigger. Without a code, a clean shutdown exits 0. */
+    readonly exitCodes?: ExitCodes | undefined;
   };
 }

@@ -208,28 +208,40 @@ export const POLLER_MACHINE: Machine = {
 
 /**
  * The exit manager is the only part that ends the process. The first exit request starts the
- * shutdown, and a later one has no effect. An error makes the exit code 1.
+ * shutdown. A later request has no effect, but a repeat signal exits at once when the declaration
+ * says `onRepeatSignal: "exit"`. The exit code is the code of the exit request, else 1 after an
+ * error, else 0.
  */
 export const EXIT_MACHINE: Machine = {
   ...base("exit", "The exit manager"),
   states: { running: { initial: true }, stopping: {}, exited: { final: true } },
   events: {
-    "exit.request": { kind: "app", note: "SIGINT, SIGTERM, SIGQUIT or shutdown()" },
-    "exit.repeat": { kind: "app" },
+    "exit.request": { kind: "app", note: "SIGINT, SIGTERM, SIGQUIT, a declared process trigger or shutdown()" },
+    "exit.repeat": { kind: "app", note: "a trigger or shutdown() while the shutdown runs" },
     "startup.fail": { kind: "local" },
     error: { kind: "local" },
     "shutdown.done": { kind: "local" },
   },
-  knobs: {},
+  knobs: {
+    on_repeat_signal: { key: "shutdown.onRepeatSignal", scope: "service", unit: null, default: null },
+  },
   timers: {},
   transitions: [
     t("request", "running", "exit.request", "stopping"),
     t("startup-fail", "running", "startup.fail", "stopping"),
     t("error-running", "running", "error", "running"),
-    t("repeat", "stopping", "exit.repeat", "stopping"),
+    t("repeat", "stopping", "exit.repeat", "stopping", {
+      guard: "a process trigger or shutdown() repeats, or a signal repeats and on_repeat_signal is not exit",
+    }),
+    t("repeat-exit", "stopping", "exit.repeat", "exited", {
+      guard: "a signal repeats and on_repeat_signal is exit",
+      note: "the process exits at once with the code 1",
+    }),
     t("startup-fail-stopping", "stopping", "startup.fail", "stopping"),
     t("error", "stopping", "error", "stopping"),
-    t("exit", "stopping", "shutdown.done", "exited", { note: "the exit code is 1 after an error, else 0" }),
+    t("exit", "stopping", "shutdown.done", "exited", {
+      note: "the exit code is the code of the exit request, else 1 after an error, else 0",
+    }),
   ],
 };
 
@@ -260,7 +272,8 @@ export const capKnob = (phase: string): string => `${phase.replace(/[^A-Za-z0-9]
 /**
  * This function gives the drain of a declaration as a machine. It has one state for each declared
  * phase, in its sequence, and each state has a timer at its cap. The drain also has the cooperative abort: the
- * cap of the drain less the cooperative window, and half that cap at the least.
+ * cap of the drain less the cooperative window. With the floor `half`, it is half that cap at the
+ * least. With the floor `none`, it is 0 at the least.
  */
 export const drainMachine = (description: ServiceDescription): Machine => {
   const phases = description.shutdown.phases;
@@ -284,9 +297,11 @@ export const drainMachine = (description: ServiceDescription): Machine => {
       cancels: ["phase.done"],
       fires: "phase.cap",
     };
+  // the floor of the cooperative abort is half the cap, or 0 for a declaration without a floor
+  const floor = description.shutdown.cooperativeFloor === "none" ? "0" : "drain_cap / 2";
   if (phases.some((phase) => phase.name === "drain"))
     timers["cooperative_abort"] = {
-      duration: { expr: "max(drain_cap - cooperative_window, drain_cap / 2)", unit: "s" },
+      duration: { expr: `max(drain_cap - cooperative_window, ${floor})`, unit: "s" },
       arms: ["enter:drain"],
       cancels: ["phase.done", "phase.cap"],
       fires: "drain.cooperative-abort",

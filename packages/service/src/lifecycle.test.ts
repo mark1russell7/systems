@@ -242,7 +242,8 @@ describe("the declaration of a lifecycle has no defaults", () => {
     );
     // a phase of another name can go anywhere
     expect(() => base().phase("flush the log", s(1)).phase("drain", s(4)).describe()).not.toThrow();
-    expect(STAGES).toHaveLength(7);
+    expect(STAGES).toHaveLength(8);
+    expect(STAGES.at(-1)).toBe("flush the output");
   });
 
   it("refuses to run a transport without its implementation, or a stage with work and no phase", async () => {

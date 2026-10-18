@@ -36,17 +36,22 @@ The format of a description is `mark1russell7.service/1`.
 
 `await svc.run()` starts the whole life of the service, and gives a `Lifecycle` when the startup ends. It refuses a declaration that it cannot start: a transport without its implementation, or a stage with work and no declared phase.
 
-- **The parts.** `svc.server(name, knobs, impl)`, `svc.consumer(…)` and `svc.worker(…)` give a transport its implementation. Each transport has one contract: `start`, `stopIntake`, `drain(deadline, signal)`, `inFlight` and `close`. `svc.dependency(name, spec, handle)` gives a dependency a handle that connects and closes. `svc.healthServer(server)` gives the server of the probes.
+- **The parts.** `svc.server(name, knobs, impl)`, `svc.consumer(…)` and `svc.worker(…)` give a transport its implementation. Each transport has one contract: `start(signal, life)`, `stopIntake`, `drain(deadline, signal)`, `inFlight` and `close`. `svc.dependency(name, spec, handle)` gives a dependency a handle that connects and closes. `svc.healthServer(server)` gives the server of the probes.
 - **The startup.** The health server starts first, thus the probes answer while the dependencies connect. Then each dependency connects, in its declared sequence. Then each transport starts, and the startup gate opens last, after one warm-up sweep of each check. A part that does not start fails the startup. Then only the parts that started stop, and the exit code is 1.
 - **The startup budget.** When the gate is not open at the end of its budget, the gate says so. The runtime does not stop itself, because the startup probe of the platform acts on it.
-- **The signals.** The runtime owns the handlers of SIGINT, SIGTERM and SIGQUIT. The first signal starts the shutdown, and a later signal has no effect. A signal during the startup gets its shutdown after the startup ends.
+- **The signals.** The runtime owns the handlers of SIGINT, SIGTERM and SIGQUIT. The first signal starts the shutdown. A signal during the startup gets its shutdown after the startup ends.
+- **A repeat signal.** With `svc.onRepeatSignal("exit")`, a signal during the shutdown ends the process at once, with the code 1. With `"ignore"`, or without a declaration, a repeat signal has no effect. A second `shutdown()` and a second process trigger do not end the process.
+- **Process triggers.** `svc.trigger("stdin-close")` starts the shutdown when the standard input ends, as when the parent of a stdio child stops. `"ipc-close"` starts it when the IPC channel to the parent closes. Each trigger is opt-in. The process must read its input, as a stdio transport does, or Node does not see the end.
 - **The shutdown.** Readiness fails first. Then the declared phases occur in their sequence, and each phase races its cap. `svc.onPhase(name, work)` adds the work of an owner to a phase.
-- **The stages.** A declared phase with the name of a stage gets the work of that stage. The stages are `fail readiness`, `stop intake`, `drain`, `close transports`, `stop the poller`, `tear down dependencies` and `close the health server`. The phase `fail readiness` holds for its cap while the endpoints update. The signal of the service aborts after the poller stops. `describe()` refuses the stages out of their sequence.
-- **The cooperative abort.** During the drain, the requests and the transports get a signal that aborts at the cap less the cooperative window. That time is half the cap at the least, and a window without a bound gives half the cap.
+- **The stages.** A declared phase with the name of a stage gets the work of that stage. The stages are `fail readiness`, `stop intake`, `drain`, `close transports`, `stop the poller`, `tear down dependencies`, `close the health server` and `flush the output`. The phase `fail readiness` holds for its cap while the endpoints update. The signal of the service aborts after the poller stops. `describe()` refuses the stages out of their sequence.
+- **The cooperative abort.** During the drain, the requests and the transports get a signal that aborts at the cap less the cooperative window. With the floor `half`, that time is half the cap at the least, and a window without a bound gives half the cap. With `svc.cooperativeFloor("none")`, a window of the whole cap aborts the work at the start of the drain.
 - **Requests.** `life.request(controller, route, work)` does one request on a declared route. While the service cannot take new work, it refuses the request with a retryable 503. That occurs before the start, after the intake stops, or while the controller is not ready.
+- **Requests while the transports start.** Each transport gets the lifecycle at its start, and `svc.lifecycle` gives it from the start of `run()`. Thus a transport tracks its requests from its start. A request before the end of the startup gets a retryable 503, and `keepAlive()` is false.
 - **Cut requests.** When the drain cuts a request, an idempotent route answers 503, retryable. Each other route answers 500, because the work can have had its effect. A keyed route is retryable only while the server keeps its key.
 - **Keep-alive.** `life.keepAlive()` is false while the service is not ready. Thus each response then closes its connection.
 - **The exit.** Only the lifecycle ends the process, through its `ProcessPort`. The exit code is 0 after a clean shutdown. It is 1 after an error: a startup that failed, a phase whose work did not end in its cap, or a work that threw. A phase over its cap does not stop the sequence.
+- **Exit codes.** `life.shutdown(cause, { code })` gives the exit code of the work, a whole number from 0 to 255. The first request with a code sets it. `svc.exitCode(trigger, code)` gives the code of a shutdown that a trigger starts, for example 130 for SIGINT. A code that is not 0 stays after an error. A code of 0, or no code, becomes 1 after an error.
+- **The output.** The stage `flush the output` comes last. The owners of the phase write their last output first, for example a log or a trace exporter. Then the `ProcessPort` writes the buffered output of stdout and stderr, in the cap of the stage. Without this phase, the process exits without a wait, as in 0.4.
 - **The watchdog.** `svc.watchdog(spec)` declares a check on the event loop. A blocked loop delays each timer, thus a tick that comes late by more than the threshold fails the check. A liveness window then reads the wedge of the process.
 
 ## The machines
@@ -64,7 +69,7 @@ A process has one service, and one entry that uses `run()`. A component gives pa
 - **What a component does not do.** A component does not use `start()` or `run()`. It installs no signal handler, and it does not end the process. A service has one health server, thus the entry chooses it.
 - **Names.** A service refuses a second part of one kind with the same name. Thus the entry gives each component a prefix, for example `app.http` and `ingest.http`.
 - **The sequence.** The lifecycle connects the dependencies of all components in their declared sequence, and then it starts each transport. Each stage of the shutdown acts on the transports of all components together. The dependencies close in the reverse sequence.
-- **Requests.** The transports start before the startup ends, but `run()` gives the `Lifecycle` only at that end. Thus [SYS-15](https://github.com/mark1russell7/systems/blob/main/docs/ROADMAP.md) gives each transport the request tracking from the time that it starts.
+- **Requests.** The transports start before the startup ends, but `run()` gives the `Lifecycle` only at that end. Thus each transport gets the lifecycle at its start (`start(signal, life)`), and its request tracking operates at once.
 - **The builder form.** A component can also take the builder of the entry and declare its parts on it. The Redis client does this: `attach(svc, options)` declares its dependency, its handle and its checks.
 
 ```ts
@@ -108,6 +113,57 @@ const life = await svc.run(); // only the entry calls run(), and the process exi
 ```
 
 The requirements that the lifecycle follows are in [the requirements of S6](https://github.com/mark1russell7/systems/blob/main/docs/S6.md).
+
+## Profiles
+
+A profile is a part of a declaration as data: the phases, the cooperative window, the policies and the rules of the shutdown. `svc.profile(profile)` declares each field of a profile, as the method of that field does. The runtime still has no defaults, because the caller gives the profile. The caller changes a field with a spread, and `describe()` shows the values.
+
+| Profile | For | What it declares |
+| --- | --- | --- |
+| `localDev` | A service on the computer of a developer | No readiness hold, caps that sum to 10 s, a flush of the output, and an exit on a second signal |
+| `kubernetes({ grace, preStop })` | A pod | Caps from the grace less the preStop sleep, and no effect for a repeat signal |
+| `ephemeral` | A command that runs one time, or a stdio child | No gating checks, an abort at the start of the drain, a flush of the output, and the exit codes 130, 143 and 131 |
+
+- **Kubernetes.** The budget is the grace less the preStop sleep: the time from SIGTERM to SIGKILL. The stages get 2, 5, 15, 2, 1, 2 and 1 thirtieths of the budget, rounded down to the millisecond. The cooperative window is 5 thirtieths. Thus 2 thirtieths stay as a margin, and O10 and O16 hold.
+- **The defaults of Kubernetes.** At a grace of 30 s and no preStop hook, the caps are 2, 5, 15, 2, 1, 2 and 1 s, with a window of 5 s. These are the caps of jarvis and of the kind lab.
+- **Local development.** No load balancer routes to a computer of a developer, thus the profile has no readiness hold. A second Ctrl-C exits at once.
+- **The policies.** `localDev` and `kubernetes` do not declare readiness, liveness or the startup budget, because they depend on the checks of the service.
+
+```ts
+import { kubernetes, service } from "@mark1russell7/service";
+
+const s = (value: number) => ({ value, unit: "s" });
+const svc = service("app")
+  .profile({ ...kubernetes({ grace: s(60), preStop: s(5) }), onRepeatSignal: "exit" })
+  .readiness({ type: "debounce", interval: s(5), failAfter: 3, recoverAfter: 1 })
+  .liveness({ type: "window", failAfter: s(45) })
+  .startup(s(60));
+```
+
+### A small process
+
+A command that runs one time and a stdio child also use `run()`. Then the process has one shutdown and one exit, with the code of its work. The minimal declaration has no probes, no health server and no checks.
+
+```ts
+import { ephemeral, service } from "@mark1russell7/service";
+
+// a stdio child: the end of stdin starts the staged shutdown
+const mcp = service("mcp").profile({ ...ephemeral, triggers: ["stdin-close"] }).server("stdio", {}, stdio);
+mcp.controller("tools").route("tools/call", { idempotent: false });
+await mcp.run();
+
+// a command: it runs one time, and the process exits with its code
+const tool = service("tool").profile(ephemeral);
+tool.controller("command").route("RUN", { idempotent: false });
+const life = await tool.run();
+const outcome = await life.request("command", "RUN", (signal) => main(signal));
+await life.shutdown("the command ended", { code: outcome.kind === "done" ? outcome.value : 1 });
+```
+
+- **The declaration.** The profile `ephemeral` gives the policies, the startup budget, the phases and the rules of the shutdown. The recipe passes `describe()` and `lint()`, and a test holds it to them.
+- **Ctrl-C.** The floor of the cooperative abort is `none`, and the window is the whole drain. Thus a first Ctrl-C stops the work at once, and the process exits 130. A second Ctrl-C exits 1 at once.
+- **The output.** The stage `flush the output` waits for stdout and stderr. Thus the last lines of a command are not cut.
+- **The dependencies.** The phase `tear down dependencies` caps the close of the dependencies at 2 s.
 
 ## The timers
 
@@ -153,7 +209,7 @@ const delay = backoffDelay({ base: 1000, factor: 1.5, cap: 30_000, jitter: { kin
 `@mark1russell7/service/testing` has the seams that a test of a service needs:
 
 - `fakeClock()` gives a clock that moves only on `advance(ms)`. Pass it to `start({ clock })`, and the timing of the runtime is exact and repeatable. `block(ms)` moves the clock and starts no timer, as a blocked event loop does.
-- `fakeProcess()` gives a process port that takes signals from a test, and keeps each exit code in place of an exit.
+- `fakeProcess({ flush, clock })` gives a process port that takes signals and process triggers from a test (`signal(name)`, `trigger(name)`). It keeps each exit code in place of an exit. `flush` is its flush of the output, and `log` gives the time of each flush and each exit.
 - `seeded(seed)` gives a seeded random number generator for the jitter (`start({ random })`).
 - `scriptedCheck(behavior)` gives a check whose behavior a test sets: `"ok"`, `"error"`, `"indeterminate"`, `"throw"`, `"timeout"` or `"hang"`.
 - `quietServer()` starts a TCP echo server that can go quiet. Its connections stay open while it is quiet, as with a frozen peer.
@@ -178,12 +234,12 @@ const delay = backoffDelay({ base: 1000, factor: 1.5, cap: 30_000, jitter: { kin
 ## Installation
 
 ```sh
-pnpm add @mark1russell7/service zod
+pnpm add @mark1russell7/service
 ```
 
 For the Redis client, the application also installs `ioredis@6`.
 
-The package uses [`@mark1russell7/quantity`](https://www.npmjs.com/package/@mark1russell7/quantity) for each amount, and `quantity` uses `zod` as a peer dependency. Thus the application installs `zod`.
+The package uses [`@mark1russell7/quantity`](https://www.npmjs.com/package/@mark1russell7/quantity) for each amount. No entry of the service loads `zod` at run time, thus `zod` is an optional peer dependency. An application that validates amounts with the schemas of `quantity` installs `zod`.
 
 ## Example
 
@@ -267,7 +323,10 @@ const outcome = await life.request("orders", "POST /orders", (signal) => createO
 - **The Redis client.** These tests use a fake ioredis and a fake clock. They cover the declaration, the three outcomes, and the commands that the client sends again or not. They also cover the join, the backoff, the watchdog, the close, the checks and the manifestations. Five scenarios replay against the document of the client.
 - **F6 for Redis.** The fault matrix crosses each manifestation (a refusal, a frozen process, a black hole, a death without a close, and an app stall), each gating posture, two timings and two jitters. That is 60 cases on the fake. Each case holds the trip and the release of its policy to `failSpan` and `recoverSpan`. Five more cases shut the service down during each manifestation, and each one exits 0.
 - **The timers.** These tests use a fake clock, and they cover the hooks of the heartbeat and its two kinds of ping. A property test holds the death of a silent peer to `detectionTime` in 300 seeded cases. Another one compares the heartbeat with a WebSocket heartbeat that sends one ping at a time, on 300 schedules of pongs. The backoff gives the delays of three earlier backoffs, number for number, and each delay is in its band.
-- **The entries.** The timer entries reach no other package, no `node:` module and no zod.
+- **The entries.** The timer entries reach no other package, no `node:` module and no zod. No entry of the service reaches zod, also through `quantity` and the replay of the algebra.
+- **The options of the runner.** These tests cover the requests of a transport while the startup runs, the policy of a repeat signal, the profiles and the process triggers. They also cover the exit codes, a first Ctrl-C that aborts at once, and the flush of the output.
+- **The composition.** Two components, each with a transport, a dependency and a check, share one service and one `run()`. The parts start and stop in their sequence, and the process exits one time.
+- **The process port.** The port of Node, on a fake host: the signals, the end of stdin, the close of the IPC channel, the flush and the exit.
 - **Against a real Redis.** `REDIS_IT=1` starts the tests of the client against Redis 7.4. `REDIS_F6=1` starts the F6 matrix in the VM of Docker. The injector of `@mark1russell7/harness` makes the network faults, and an agent in the namespaces of Redis makes the process faults. All of them use one monotonic clock.
 
 `pnpm --filter @mark1russell7/service build` writes the package for npm into `build/`.

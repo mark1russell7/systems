@@ -3,10 +3,13 @@ import { convertible, valueIn } from "@mark1russell7/quantity";
 import type {
   Check,
   Controller,
+  CooperativeFloor,
   Coupling,
   Dependency,
+  ExitCodes,
   Gate,
   Phase,
+  RepeatSignal,
   ServiceDescription,
   Transport,
 } from "./description.ts";
@@ -27,6 +30,9 @@ import { STAGES, lifecycle, lifecycleProblems, stageRank } from "./lifecycle.ts"
 import type { Operation } from "./operation.ts";
 import { operationProblems } from "./operation.ts";
 import type { CheckFn } from "./poller.ts";
+import type { ExitTrigger, ProcessTrigger } from "./process.ts";
+import { EXIT_SIGNALS, PROCESS_TRIGGERS, isExitCode } from "./process.ts";
+import type { Profile } from "./profiles.ts";
 import type { Timing } from "./timing.ts";
 import type { Watchdog, WatchdogSpec } from "./watchdog.ts";
 import { watchdog } from "./watchdog.ts";
@@ -85,6 +91,16 @@ export interface ServiceBuilder {
   couple(coupling: Coupling): ServiceBuilder;
   phase(name: string, cap: Quantity): ServiceBuilder;
   cooperativeWindow(window: Extent): ServiceBuilder;
+  /** This method declares the earliest time of the cooperative abort: half the cap of the drain, or no floor. */
+  cooperativeFloor(floor: CooperativeFloor): ServiceBuilder;
+  /** This method declares what an exit signal does while the shutdown runs: nothing, or an exit at once. */
+  onRepeatSignal(policy: RepeatSignal): ServiceBuilder;
+  /** This method declares process triggers that start the shutdown, in addition to the exit signals. */
+  trigger(...triggers: ProcessTrigger[]): ServiceBuilder;
+  /** This method declares the exit code of a clean shutdown that a trigger starts, in place of 0. */
+  exitCode(trigger: ExitTrigger, code: number): ServiceBuilder;
+  /** This method declares each field of a profile, as the method of that field does. */
+  profile(profile: Profile): ServiceBuilder;
   /** This method gives the service as data, and it starts nothing. */
   describe(): ServiceDescription;
   /**
@@ -104,6 +120,11 @@ export interface ServiceBuilder {
    * probes can answer during the warm-up sweep: the startup probe fails until the sweep ends.
    */
   readonly health: Health | null;
+  /**
+   * This value is the lifecycle from the time that `run()` begins, or null before. Its request
+   * tracking operates while the transports start, before `run()` gives it.
+   */
+  readonly lifecycle: Lifecycle | null;
 }
 
 const isTime = (amount: Extent): boolean => convertible(amount.unit, "s");
@@ -127,6 +148,30 @@ const timingProblems = (policy: Gate, timing: Timing): string[] => {
     : [];
 };
 
+/** This function gives the problems of the rules of the shutdown: an unknown name, or an exit code that a process cannot give. */
+const shutdownProblems = (
+  floor: CooperativeFloor | undefined,
+  repeat: RepeatSignal | undefined,
+  triggers: readonly ProcessTrigger[],
+  exitCodes: ExitCodes,
+): string[] => {
+  const problems: string[] = [];
+  if (floor !== undefined && floor !== "half" && floor !== "none")
+    problems.push(`the cooperative floor ${String(floor)} is not "half" or "none"`);
+  if (repeat !== undefined && repeat !== "ignore" && repeat !== "exit")
+    problems.push(`the policy of a repeat signal ${String(repeat)} is not "ignore" or "exit"`);
+  for (const trigger of triggers)
+    if (!PROCESS_TRIGGERS.includes(trigger))
+      problems.push(`the trigger ${String(trigger)} is not a process trigger (${PROCESS_TRIGGERS.join(", ")})`);
+  for (const [trigger, code] of Object.entries(exitCodes)) {
+    const known = (EXIT_SIGNALS as readonly string[]).includes(trigger) || triggers.includes(trigger as ProcessTrigger);
+    if (!known) problems.push(`the exit code of ${trigger} names no exit signal and no declared trigger`);
+    if (code === undefined || !isExitCode(code))
+      problems.push(`the exit code of ${trigger} is ${String(code)}, not a whole number from 0 to 255`);
+  }
+  return problems;
+};
+
 /** This function starts the composition of a service. */
 export const service = (name: string): ServiceBuilder => {
   if (name.trim().length === 0) throw new Error("a service needs a name");
@@ -145,11 +190,16 @@ export const service = (name: string): ServiceBuilder => {
   let liveness: Timing | undefined;
   let startup: Quantity | undefined;
   let cooperative: Extent | undefined;
+  let floor: CooperativeFloor | undefined;
+  let repeat: RepeatSignal | undefined;
+  const triggers: ProcessTrigger[] = [];
+  const exitCodes: Partial<Record<ExitTrigger, number>> = {};
   let started = false;
   let partial = false;
   let runtime: Promise<Health> | undefined;
   let live: Runtime | undefined;
   let running: Promise<Lifecycle> | undefined;
+  let life: Lifecycle | undefined;
   const transportImpls = new Map<string, TransportImpl>();
   const handles = new Map<string, DependencyHandle>();
   const phaseWork = new Map<string, PhaseWork[]>();
@@ -214,6 +264,9 @@ export const service = (name: string): ServiceBuilder => {
     name,
     get health() {
       return live ?? null;
+    },
+    get lifecycle() {
+      return life ?? null;
     },
     dependency(entry, spec, handle) {
       once(dependencies, entry, "dependency");
@@ -328,6 +381,41 @@ export const service = (name: string): ServiceBuilder => {
       cooperative = window;
       return builder;
     },
+    cooperativeFloor(given) {
+      composing("the cooperative floor");
+      floor = given;
+      return builder;
+    },
+    onRepeatSignal(policy) {
+      composing("the policy of a repeat signal");
+      repeat = policy;
+      return builder;
+    },
+    trigger(...given) {
+      composing("a trigger");
+      for (const each of given) if (!triggers.includes(each)) triggers.push(each);
+      return builder;
+    },
+    exitCode(trigger, code) {
+      composing(`the exit code of ${trigger}`);
+      exitCodes[trigger] = code;
+      return builder;
+    },
+    profile(given) {
+      composing("a profile");
+      if (given.readiness !== undefined) builder.readiness(given.readiness);
+      if (given.liveness !== undefined) builder.liveness(given.liveness);
+      if (given.startup !== undefined) builder.startup(given.startup);
+      for (const coupling of given.couplings ?? []) builder.couple(coupling);
+      for (const each of given.phases ?? []) builder.phase(each.name, each.cap);
+      if (given.cooperativeWindow !== undefined) builder.cooperativeWindow(given.cooperativeWindow);
+      if (given.cooperativeFloor !== undefined) builder.cooperativeFloor(given.cooperativeFloor);
+      if (given.onRepeatSignal !== undefined) builder.onRepeatSignal(given.onRepeatSignal);
+      if (given.triggers !== undefined) builder.trigger(...given.triggers);
+      for (const [trigger, code] of Object.entries(given.exitCodes ?? {}))
+        if (code !== undefined) builder.exitCode(trigger as ExitTrigger, code);
+      return builder;
+    },
     describe() {
       const missing: string[] = [];
       if (readiness === undefined) missing.push("readiness (svc.readiness)");
@@ -385,6 +473,7 @@ export const service = (name: string): ServiceBuilder => {
           problems.push(...operationProblems(`dependency ${dependency.name}`, name, operation));
       for (const phase of phases)
         if (!isTime(phase.cap)) problems.push(`phase ${phase.name}'s cap is not a time`);
+      problems.push(...shutdownProblems(floor, repeat, triggers, exitCodes));
       // the stages of the shutdown keep their sequence: readiness fails first, the health server closes last
       const ranked = phases.map((phase) => phase.name).filter((each) => stageRank(each) >= 0);
       for (let at = 1; at < ranked.length; at += 1)
@@ -415,6 +504,10 @@ export const service = (name: string): ServiceBuilder => {
         shutdown: {
           phases: phases.map((entry) => ({ ...entry })),
           cooperativeWindow: cooperative!,
+          ...(floor === undefined ? {} : { cooperativeFloor: floor }),
+          ...(repeat === undefined ? {} : { onRepeatSignal: repeat }),
+          ...(triggers.length === 0 ? {} : { triggers: [...triggers] }),
+          ...(Object.keys(exitCodes).length === 0 ? {} : { exitCodes: { ...exitCodes } }),
         },
       };
     },
@@ -436,7 +529,6 @@ export const service = (name: string): ServiceBuilder => {
     run(options = {}) {
       if (running !== undefined) return running;
       if (runtime !== undefined) return Promise.reject(new Error(`${name} started its health only: run() starts the whole lifecycle`));
-      let life: Lifecycle;
       try {
         const description = builder.describe();
         const components: Components = {
@@ -451,11 +543,14 @@ export const service = (name: string): ServiceBuilder => {
         const made = makeRuntime(options);
         started = true;
         live = made.runtime;
-        life = lifecycle(made.description, made.runtime, { ...components, stopPollers: made.stopPollers }, options);
+        // the builder holds the lifecycle before the first transport starts
+        const ran = lifecycle(made.description, made.runtime, { ...components, stopPollers: made.stopPollers }, options, (given) => {
+          life = given;
+        });
+        running = ran.started.then(() => ran);
       } catch (error) {
         return Promise.reject(error);
       }
-      running = life.started.then(() => life);
       return running;
     },
   };
