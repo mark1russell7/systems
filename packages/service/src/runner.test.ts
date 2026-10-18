@@ -2,7 +2,7 @@ import { timerOf } from "@mark1russell7/algebra";
 import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import type { LifecycleEvent } from "./events.ts";
-import type { Lifecycle, Profile, RequestEnd, Rule, ServiceBuilder, TransportImpl } from "./index.ts";
+import type { Lifecycle, MessageTrigger, Profile, RequestEnd, Rule, ServiceBuilder, TransportImpl } from "./index.ts";
 import { DECLARATION_RULE, daemon, drainMachine, ephemeral, kubernetes, lint, localDev, service } from "./index.ts";
 import { CAPS, exited, rig, run } from "./rig.ts";
 import { fakeClock, fakeProcess, seeded } from "./testing.ts";
@@ -426,6 +426,109 @@ describe("process triggers and a minimal declaration (SYS-7)", () => {
     expect(() => base().exitCode("SIGINT", 1.5).describe()).toThrow(/not a whole number/);
     expect(() => base().exitCode("stdin-close", 0).describe()).toThrow(/names no exit signal and no declared trigger/);
     expect(base().trigger("stdin-close").exitCode("stdin-close", 0).describe().shutdown.exitCodes).toMatchObject({ "stdin-close": 0 });
+  });
+});
+
+describe("a stop from a message of the IPC channel (SYS-21)", () => {
+  /** This function declares a child of a parent with an IPC channel, as Graph is in its CI on Windows. */
+  const child = (log: string[], message: MessageTrigger): ServiceBuilder => {
+    const work: TransportImpl = {
+      start: () => void log.push("start work"),
+      stopIntake: () => void log.push("stop intake work"),
+      drain: () => void log.push("drain work"),
+      inFlight: () => 0,
+      close: () => void log.push("close work"),
+    };
+    const svc = service("graph").profile(ephemeral).trigger("ipc-message", message).server("work", {}, work);
+    svc.controller("api").route("GET /", { idempotent: true });
+    return svc;
+  };
+
+  it("stops through the staged shutdown at the message, with the exit code of the signal that it stands for", async () => {
+    const log: string[] = [];
+    const { life, process, events, exit } = await runOn(child(log, { match: "shutdown", as: "SIGTERM" }));
+    expect(process.triggers).toEqual(["SIGINT", "SIGTERM", "SIGQUIT", "ipc-message"]);
+    // a message that does not match has no effect
+    process.message("hello");
+    process.message({ type: "shutdown" });
+    expect(events.some((event) => event.on === "exit.request")).toBe(false);
+    process.message("shutdown");
+    // the code of SIGTERM in the profile ephemeral
+    expect(await exit()).toBe(143);
+    expect(life.errors).toEqual([]);
+    expect(log).toEqual(["start work", "stop intake work", "drain work", "close work"]);
+    expect(events.find((event) => event.on === "exit.request")?.detail).toBe("SIGTERM (a message of the IPC channel)");
+    expect(process.exits).toEqual([143]);
+  });
+
+  it("obeys the policy of a repeat signal at a second message that stands for a signal", async () => {
+    const { life, process, exit } = await runOn(child([], { match: "shutdown", as: "SIGTERM" }));
+    process.message("shutdown");
+    process.message("shutdown");
+    // the profile ephemeral exits at once at a repeat signal, and the exit releases the hold
+    expect(await exit()).toBe(1);
+    expect(process.heldAtExit).toEqual([0]);
+    expect(life.errors).toContain("SIGTERM (a message of the IPC channel) came again while the shutdown ran, and the declaration exits at once");
+    expect(process.exits).toEqual([1]);
+  });
+
+  it("is the trigger ipc-message without as: its own exit code, and a second message has no effect", async () => {
+    const log: string[] = [];
+    const { process, events, exit } = await runOn(child(log, { match: { type: "stop" } }));
+    process.message({ type: "stop", reason: "deploy" });
+    process.message({ type: "stop" });
+    expect(await exit()).toBe(0);
+    expect(log).toEqual(["start work", "stop intake work", "drain work", "close work"]);
+    expect(events.find((event) => event.on === "exit.request")?.detail).toBe("ipc-message");
+    expect(events.filter((event) => event.on === "exit.repeat").map((event) => event.detail)).toEqual(["ipc-message"]);
+    expect(process.exits).toEqual([0]);
+  });
+
+  it("declares each message as data, and refuses a trigger without a message, a shape that is not JSON, and an unknown signal", () => {
+    const base = () => service("x").profile(ephemeral);
+    expect(base().trigger("ipc-message", { match: "shutdown", as: "SIGTERM" }).describe().shutdown).toMatchObject({
+      triggers: ["ipc-message"],
+      messages: [{ match: "shutdown", as: "SIGTERM" }],
+    });
+    expect(base().profile({ messages: [{ match: { type: "stop" } }] }).describe().shutdown).toMatchObject({
+      triggers: ["ipc-message"],
+      messages: [{ match: { type: "stop" } }],
+    });
+    expect(() => base().trigger("ipc-message").describe()).toThrow(/the trigger ipc-message has no message to match/);
+    expect(() => base().trigger("ipc-message", { match: (() => {}) as never }).describe()).toThrow(/is not a value of JSON/);
+    expect(() => base().trigger("ipc-message", { match: "stop", as: "SIGKILL" as never }).describe()).toThrow(/stands for SIGKILL, not an exit signal/);
+    expect(base().trigger("ipc-message", { match: "stop" }).exitCode("ipc-message", 0).describe().shutdown.exitCodes).toMatchObject({ "ipc-message": 0 });
+  });
+});
+
+describe("the hold of the process (A14)", () => {
+  it("holds the process from the start of the lifecycle to its exit, through the drain", async () => {
+    const svc = service("held").profile(ephemeral);
+    svc.controller("command").route("RUN", { idempotent: false });
+    // the drain waits 1 s: the hold stays after the stop of the intake
+    svc.onPhase("drain", ({ clock: given }) => new Promise<void>((resolve) => void given.after(1000, resolve)));
+    const clock = fakeClock();
+    const process = fakeProcess({ clock });
+    let ended = false;
+    const running = svc.run({ clock, process }).finally(() => {
+      ended = true;
+    });
+    // the hold starts with the lifecycle, before the startup ends
+    expect(process.holds).toBe(1);
+    for (let step = 0; step < 50 && !ended; step += 1) await clock.advance(50);
+    const life = await running;
+    expect(process.holds).toBe(1);
+    let code: number | null = null;
+    void life.shutdown("the command ended").then((given) => {
+      code = given;
+    });
+    await clock.advance(500);
+    expect(life.state).toBe("draining");
+    expect(process.holds).toBe(1);
+    for (let step = 0; step < 100 && code === null; step += 1) await clock.advance(50);
+    expect(code).toBe(0);
+    expect(process.holds).toBe(0);
+    expect(process.heldAtExit).toEqual([0]);
   });
 });
 

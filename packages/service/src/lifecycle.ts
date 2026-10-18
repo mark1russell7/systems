@@ -6,7 +6,7 @@ import type { CooperativeFloor, Phase, ServiceDescription } from "./description.
 import type { MachineName } from "./events.ts";
 import type { Health, Runtime, StartOptions } from "./health.ts";
 import type { ExitTrigger, ProcessPort } from "./process.ts";
-import { EXIT_SIGNALS, isExitCode, isExitSignal, nodeProcess } from "./process.ts";
+import { EXIT_SIGNALS, isExitCode, isExitSignal, matchesMessage, nodeProcess } from "./process.ts";
 import type { RequestFn, RequestOptions, RequestStream } from "./requests.ts";
 import { tracker } from "./requests.ts";
 import type { OperationOf } from "./routes.ts";
@@ -269,8 +269,10 @@ export const lifecycle = (
     startupEnded = resolve;
   });
   let offs: Array<() => void> = [];
+  // the hold of the process, from the start of the lifecycle to its exit
+  let release: () => void = () => {};
 
-  /** This function ends the process with a code, one time, and removes each handler of a trigger. */
+  /** This function ends the process with a code, one time, and removes each handler of a trigger and the hold. */
   const end = (code: number, on: string): void => {
     state = "exited";
     exitCode = code;
@@ -278,25 +280,38 @@ export const lifecycle = (
     offs = [];
     moveExit("exited", on, `exit ${code}`);
     finish(code);
+    // the hold ends at the exit, not at the stop of the intake: the drain and the teardown still need the process
+    release();
     port.exit(code);
   };
 
-  /** This function receives a trigger of the process: the first one starts the shutdown. */
-  const triggered = (trigger: ExitTrigger): void => {
+  /**
+   * This function receives a trigger of the process: the first one starts the shutdown. The cause
+   * names the trigger, and a message that stands for a signal tells it.
+   */
+  const triggered = (trigger: ExitTrigger, cause: string = trigger): void => {
     if (exitState === "exited") return;
     if (shutdownStarted || exitState === "stopping") {
       // a signal while the shutdown runs obeys the declared policy. Another trigger, for example the
       // end of stdin after a SIGTERM, has no effect
       if (isExitSignal(trigger) && repeatPolicy === "exit") {
-        fail(`${trigger} came again while the shutdown ran, and the declaration exits at once`);
+        fail(`${cause} came again while the shutdown ran, and the declaration exits at once`);
         end(1, "exit.repeat");
         return;
       }
-      record("exit", exitState, exitState, "exit.repeat", trigger);
+      record("exit", exitState, exitState, "exit.repeat", cause);
       return;
     }
     const code = exitCodes[trigger];
-    void shutdown(trigger, code === undefined ? {} : { code });
+    void shutdown(cause, code === undefined ? {} : { code });
+  };
+  const messages = description.shutdown.messages ?? [];
+  /** This function receives a message of the IPC channel. The first declared shape that it matches gives its trigger. */
+  const received = (message: unknown): void => {
+    const found = messages.find((each) => matchesMessage(each.match, message));
+    if (found === undefined) return;
+    if (found.as === undefined) triggered("ipc-message");
+    else triggered(found.as, `${found.as} (a message of the IPC channel)`);
   };
 
   /** This function does the work of one phase, until its cap. It gives true when the work ended in time. */
@@ -461,8 +476,9 @@ export const lifecycle = (
   };
 
   bind(life);
+  release = port.hold?.() ?? (() => {});
   offs = [...EXIT_SIGNALS, ...(description.shutdown.triggers ?? [])].map((trigger: ExitTrigger) =>
-    port.on(trigger, () => triggered(trigger)),
+    port.on(trigger, trigger === "ipc-message" ? received : () => triggered(trigger)),
   );
 
   void (async (): Promise<void> => {

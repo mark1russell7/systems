@@ -1,6 +1,6 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { convertible, valueIn } from "@mark1russell7/quantity";
-import type { CooperativeFloor, Coupling, ExitCodes, Phase, RepeatSignal } from "./description.ts";
+import type { CooperativeFloor, Coupling, ExitCodes, MessageTrigger, Phase, RepeatSignal } from "./description.ts";
 import type { ProcessTrigger } from "./process.ts";
 import type { Timing } from "./timing.ts";
 
@@ -23,6 +23,8 @@ export interface Profile {
   readonly cooperativeFloor?: CooperativeFloor | undefined;
   readonly onRepeatSignal?: RepeatSignal | undefined;
   readonly triggers?: readonly ProcessTrigger[] | undefined;
+  /** These messages of the IPC channel start the shutdown, as `svc.trigger("ipc-message", message)` declares each one. */
+  readonly messages?: readonly MessageTrigger[] | undefined;
   readonly exitCodes?: ExitCodes | undefined;
 }
 
