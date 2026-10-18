@@ -3,8 +3,9 @@ import { createServer } from "node:http";
 import type { ListenOptions, Socket } from "node:net";
 import type { Health, ProbeKind } from "../health.ts";
 import type { HealthServer } from "../lifecycle.ts";
-import type { RequestHandler } from "./transport.ts";
-import { pathOf } from "./transport.ts";
+import type { Quantity } from "@mark1russell7/quantity";
+import type { MountContext, RequestHandler } from "./transport.ts";
+import { pathOf, retryAfterOf } from "./transport.ts";
 
 /** A probe response is the status, the headers and the body of one probe, for any HTTP framework or none. */
 export interface ProbeResponse {
@@ -59,8 +60,10 @@ export const probeResponse = (
   }
 };
 
-const write = (req: IncomingMessage, res: ServerResponse, response: ProbeResponse): void => {
-  res.writeHead(response.status, { ...response.headers, "content-length": String(Buffer.byteLength(response.body)) });
+/** This function writes a probe response. A 503 gets `Retry-After`, when the writer has the time of a retry. */
+const write = (req: IncomingMessage, res: ServerResponse, response: ProbeResponse, retryAfter: string | undefined): void => {
+  const retry = response.status === 503 && retryAfter !== undefined ? { "retry-after": retryAfter } : {};
+  res.writeHead(response.status, { ...response.headers, ...retry, "content-length": String(Buffer.byteLength(response.body)) });
   res.end(req.method === "HEAD" ? undefined : response.body);
 };
 
@@ -73,23 +76,30 @@ export interface ProbeHandlerOptions {
 /**
  * This function gives a request handler that answers the probes on the port of the application. It
  * answers until `close transports`, thus its mount keeps the listener open through the drain. A path
- * that is not a probe goes to the next handler.
+ * that is not a probe goes to the next handler. Each 503 gets the `Retry-After` of the context.
  */
 export const probeHandler = (health: HealthSource, options: ProbeHandlerOptions): RequestHandler => {
   const problem = prefixProblem(options.prefix);
   if (problem !== null) throw new Error(problem);
-  const handler = (req: IncomingMessage, res: ServerResponse): boolean => {
+  const handler = (req: IncomingMessage, res: ServerResponse, context?: MountContext): boolean => {
     const runtime = typeof health === "function" ? health() : health;
     const response = probeResponse(runtime, req.method, pathOf(req.url), options.prefix);
     if (response === null) return false;
-    write(req, res, response);
+    // the transport gives server_retry_after through the context, and it adds the header to each 503 too
+    const retryAfter = context?.retryAfter === undefined ? undefined : retryAfterOf({ server_retry_after: context.retryAfter }, "probeHandler");
+    write(req, res, response, retryAfter);
     return true;
   };
   return Object.assign(handler, { until: "close transports" as const });
 };
 
-/** These options make a probe server: the listen options of its port, and the prefix of its paths. */
+/** These options make a probe server: the listen options of its port, the prefix of its paths, and the time of a retry. */
 export interface ProbeServerOptions extends ListenOptions {
+  /**
+   * This time goes in the `Retry-After` of each 503 of a probe, as on the port of the application.
+   * The probe server has no defaults, thus the knob is necessary.
+   */
+  readonly server_retry_after: Quantity;
   /** This path goes before each probe path. The default is no prefix, because the port has only the probes. */
   readonly prefix?: string | undefined;
   /** This server answers the probes. Without it, the probe server makes a server of `node:http`. */
@@ -103,10 +113,12 @@ export interface ProbeServer extends HealthServer {
 
 /**
  * This function makes a health server on a port of its own (S6 decision D5). It starts first and
- * closes last, thus the probes answer through the whole drain. Each probe answers from the cache.
+ * closes last, thus the probes answer through the whole drain. Each probe answers from the cache, and
+ * each 503 gets the `Retry-After` of `server_retry_after`.
  */
 export const probeServer = (options: ProbeServerOptions): ProbeServer => {
-  const { prefix = "", server = createServer(), ...listen } = options;
+  const { prefix = "", server = createServer(), server_retry_after, ...listen } = options;
+  const retryAfter = retryAfterOf({ server_retry_after }, "probeServer");
   const problem = prefixProblem(prefix);
   if (problem !== null) throw new Error(problem);
   if (server.listenerCount("request") > 0) throw new Error("the probe server has a request listener of its own");
@@ -119,7 +131,7 @@ export const probeServer = (options: ProbeServerOptions): ProbeServer => {
   });
   server.on("request", (req: IncomingMessage, res: ServerResponse) => {
     const response = probeResponse(health, req.method, pathOf(req.url), prefix);
-    write(req, res, response ?? { status: 404, headers: { "content-type": "text/plain; charset=utf-8" }, body: "Not Found" });
+    write(req, res, response ?? { status: 404, headers: { "content-type": "text/plain; charset=utf-8" }, body: "Not Found" }, retryAfter);
   });
   return {
     server,

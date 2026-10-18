@@ -29,7 +29,7 @@ const rigged = (options: { readonly slowWarmUp?: boolean } = {}) => {
   const probesPort = new FakeServer();
   // the transport gets the lifecycle at its start: keep-alive and the requests come from it
   const http = httpTransport(app.asServer, KNOBS, { listen: { port: 8080 }, clock });
-  const probes = probeServer({ port: 9090, server: probesPort.asServer });
+  const probes = probeServer({ server_retry_after: s(1), port: 9090, server: probesPort.asServer });
   const svc = service("app")
     .server("http", http.knobs, http)
     .healthServer(probes)
@@ -120,7 +120,8 @@ describe("the ./http entry under run()", () => {
 
     // fail readiness: the listener is open, readiness fails, and new work still comes, with Connection: close
     expect(stage(r.events)).toBe("fail readiness");
-    expect((await r.app.request("/health/readiness")).status).toBe(503);
+    const failing = await r.app.request("/health/readiness");
+    expect([failing.status, failing.headers.get("retry-after")]).toEqual([503, "1"]);
     expect((await r.app.request("/health/liveness")).status).toBe(200);
     const during = await r.app.request("/work");
     expect([during.status, during.headers.get("connection")]).toEqual([200, "close"]);
@@ -132,7 +133,8 @@ describe("the ./http entry under run()", () => {
     expect((await r.app.request("/health/liveness")).status).toBe(200);
     const refused = await r.app.request("/work");
     expect([refused.status, refused.headers.get("retry-after"), refused.headers.get("connection")]).toEqual([503, "1", "close"]);
-    expect((await r.probesPort.request("/readiness")).status).toBe(503);
+    const own = await r.probesPort.request("/readiness");
+    expect([own.status, own.headers.get("retry-after")]).toEqual([503, "1"]);
 
     // the held work ends in the drain, and its answer closes its connection
     r.releases[0]!();

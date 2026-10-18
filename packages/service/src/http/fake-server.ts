@@ -45,10 +45,19 @@ export class FakeResponse extends EventEmitter {
   getHeader(name: string): string | undefined {
     return this.headers.get(name.toLowerCase());
   }
-  writeHead(status: number, headers: Readonly<Record<string, string>> = {}): this {
+  hasHeader(name: string): boolean {
+    return this.headers.has(name.toLowerCase());
+  }
+  removeHeader(name: string): void {
+    this.headers.delete(name.toLowerCase());
+  }
+  /** This method takes the forms of Node: a status, a status message or not, and the headers as an object or a flat list. */
+  writeHead(status: number, message?: string | Readonly<Record<string, string>> | readonly string[], given?: Readonly<Record<string, string>> | readonly string[]): this {
     if (this.headersSent) throw new Error("the headers went already");
     this.statusCode = status;
-    for (const [name, value] of Object.entries(headers)) this.setHeader(name, value);
+    const headers = typeof message === "string" ? given : message;
+    if (Array.isArray(headers)) for (let at = 0; at + 1 < headers.length; at += 2) this.setHeader(headers[at]!, headers[at + 1]!);
+    else for (const [name, value] of Object.entries(headers ?? {})) this.setHeader(name, value as string);
     // Node closes the connection after the response when it cannot keep it
     if (!this.shouldKeepAlive) this.setHeader("connection", "close");
     this.headersSent = true;

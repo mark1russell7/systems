@@ -110,7 +110,7 @@ describe("probeServer: the probes on a port of their own", () => {
   it("listens with its listen options when the lifecycle gives it the runtime, and answers 404 for each other path", async () => {
     const { health } = await runtime();
     const server = new FakeServer();
-    const probes = probeServer({ port: 9090, host: "0.0.0.0", server: server.asServer });
+    const probes = probeServer({ server_retry_after: s(1), port: 9090, host: "0.0.0.0", server: server.asServer });
     await probes.listen(health);
     expect(server.listens).toEqual([{ port: 9090, host: "0.0.0.0" }]);
     expect((await server.request("/readiness")).status).toBe(200);
@@ -121,7 +121,7 @@ describe("probeServer: the probes on a port of their own", () => {
   it("closes each connection at its close, and a second close gives the same promise", async () => {
     const { health } = await runtime();
     const server = new FakeServer();
-    const probes = probeServer({ port: 0, prefix: "/probe", server: server.asServer });
+    const probes = probeServer({ server_retry_after: s(1), port: 0, prefix: "/probe", server: server.asServer });
     await probes.listen(health);
     expect((await server.request("/probe/liveness")).status).toBe(200);
     const open = server.connect();
@@ -132,14 +132,34 @@ describe("probeServer: the probes on a port of their own", () => {
     expect(() => server.connect()).toThrow(/ECONNREFUSED/);
   });
 
+  it("gives each 503 of a probe the Retry-After of server_retry_after, and no other answer", async () => {
+    const { health } = await runtime();
+    const server = new FakeServer();
+    const probes = probeServer({ server_retry_after: s(2.5), port: 0, server: server.asServer });
+    await probes.listen(health);
+    const ready = await server.request("/readiness");
+    expect([ready.status, ready.headers.get("retry-after")]).toEqual([200, undefined]);
+    health.drain();
+    const draining = await server.request("/readiness");
+    expect([draining.status, draining.headers.get("retry-after")]).toEqual([503, "3"]);
+    const missing = await server.request("/nothing");
+    expect([missing.status, missing.headers.get("retry-after")]).toEqual([404, undefined]);
+  });
+
+  it("has no defaults: server_retry_after is necessary, and it is a time with a bound", () => {
+    expect(() => probeServer({ port: 1 } as never)).toThrow("probeServer needs the knob server_retry_after: it has no defaults");
+    expect(() => probeServer({ server_retry_after: { value: 1, unit: "count" }, port: 1 })).toThrow("the knob server_retry_after is not a time");
+    expect(() => probeServer({ server_retry_after: { value: "infinite", unit: "s" } as never, port: 1 })).toThrow(/has no bound/);
+  });
+
   it("gives the error of its listen, and refuses a server with a request listener of its own", async () => {
     const { health } = await runtime();
     const server = new FakeServer();
     server.failListen = new Error("EADDRINUSE");
-    await expect(probeServer({ port: 1, server: server.asServer }).listen(health)).rejects.toThrow("EADDRINUSE");
+    await expect(probeServer({ server_retry_after: s(1), port: 1, server: server.asServer }).listen(health)).rejects.toThrow("EADDRINUSE");
     const taken = new FakeServer();
     taken.on("request", () => {});
-    expect(() => probeServer({ port: 1, server: taken.asServer })).toThrow(/a request listener of its own/);
-    expect(() => probeServer({ port: 1, prefix: "x" })).toThrow(/does not start with/);
+    expect(() => probeServer({ server_retry_after: s(1), port: 1, server: taken.asServer })).toThrow(/a request listener of its own/);
+    expect(() => probeServer({ server_retry_after: s(1), port: 1, prefix: "x" })).toThrow(/does not start with/);
   });
 });

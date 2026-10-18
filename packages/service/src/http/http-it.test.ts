@@ -427,7 +427,7 @@ describe.skipIf(!RUN)("probeServer on a real port", () => {
       .cooperativeWindow(s(1))
       .onRepeatSignal("ignore");
     const health = await svc.start();
-    const probes = probeServer({ port: 0, host: HOST });
+    const probes = probeServer({ server_retry_after: s(1), port: 0, host: HOST });
     await probes.listen(health);
     const port = portOf(probes.server);
     try {
@@ -435,7 +435,8 @@ describe.skipIf(!RUN)("probeServer on a real port", () => {
       expect([ready.status, ready.headers["content-type"]]).toEqual([200, "application/health+json"]);
       expect(JSON.parse(ready.body)).toEqual({ status: "pass", service: "probes", probe: "readiness" });
       health.drain();
-      expect((await call(port, "/readiness")).status).toBe(503);
+      const failing = await call(port, "/readiness");
+      expect([failing.status, failing.headers["retry-after"]]).toEqual([503, "1"]);
       expect((await call(port, "/liveness")).status).toBe(200);
       expect((await call(port, "/nothing")).status).toBe(404);
       await probes.close();
@@ -463,7 +464,7 @@ describe.skipIf(!RUN)("a service under run() on real sockets and the real clock"
     const app = createServer();
     // the transport gets the lifecycle at its start: keep-alive and the requests come from it
     const http = httpTransport(app, KNOBS, { listen: { port: 0, host: HOST } });
-    const probes = probeServer({ port: 0, host: HOST });
+    const probes = probeServer({ server_retry_after: s(1), port: 0, host: HOST });
     const svc = service("it")
       .server("http", http.knobs, http)
       .healthServer(probes)
@@ -505,7 +506,8 @@ describe.skipIf(!RUN)("a service under run() on real sockets and the real clock"
     await until(() => r.life.inFlight() === 1, 2000, "the held request");
     r.process.signal("SIGTERM");
     await until(() => r.stage() === "fail readiness");
-    expect((await call(r.appPort, "/health/readiness")).status).toBe(503);
+    const failing = await call(r.appPort, "/health/readiness");
+    expect([failing.status, failing.headers["retry-after"]]).toEqual([503, "1"]);
     expect((await call(r.appPort, "/health/liveness")).status).toBe(200);
     await until(() => r.stage() === "drain");
     expect((await call(r.appPort, "/health/liveness")).status).toBe(200);

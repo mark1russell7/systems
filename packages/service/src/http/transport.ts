@@ -147,14 +147,59 @@ export const pathOf = (url: string | undefined): string => {
 };
 
 /** This function gives a knob in milliseconds, or infinity for a time without a bound. */
-const millisecondsOf = (knobs: HttpKnobs, name: string): number => {
-  const amount = (knobs as Readonly<Record<string, Extent | undefined>>)[name];
-  if (amount === undefined) throw new Error(`httpTransport needs the knob ${name}: the transport has no defaults`);
+const millisecondsOf = (knobs: Readonly<Record<string, Extent | undefined>>, name: string, owner = "httpTransport"): number => {
+  const amount = knobs[name];
+  if (amount === undefined) throw new Error(`${owner} needs the knob ${name}: it has no defaults`);
   if (!convertible(amount.unit, "s")) throw new Error(`the knob ${name} is not a time`);
   if (amount.value === "infinite") return Number.POSITIVE_INFINITY;
   const value = valueIn(amount, "ms");
   if (!(value >= 0)) throw new Error(`the knob ${name} is less than zero`);
   return value;
+};
+
+/**
+ * This function gives the `Retry-After` of the knob `server_retry_after`, in whole seconds, rounded
+ * up. The knob is necessary, and it has a bound.
+ */
+export const retryAfterOf = (knobs: Readonly<Record<string, Extent | undefined>>, owner: string): string => {
+  const retryAfter = millisecondsOf(knobs, "server_retry_after", owner);
+  if (!Number.isFinite(retryAfter)) throw new Error("the knob server_retry_after has no bound: a Retry-After needs a time");
+  return String(Math.ceil(retryAfter / 1000));
+};
+
+/** This function tells if the headers of a call of `writeHead` name a header, an object or a flat list of names and values. */
+const names = (headers: unknown, name: string): boolean => {
+  if (Array.isArray(headers)) return headers.some((each, at) => at % 2 === 0 && String(each).toLowerCase() === name);
+  return typeof headers === "object" && headers !== null && Object.keys(headers).some((key) => key.toLowerCase() === name);
+};
+
+/** This function gives the headers of a call of `writeHead` without one header. */
+const without = (headers: unknown, name: string): unknown => {
+  if (Array.isArray(headers)) {
+    const kept: unknown[] = [];
+    for (let at = 0; at + 1 < headers.length; at += 2)
+      if (String(headers[at]).toLowerCase() !== name) kept.push(headers[at], headers[at + 1]);
+    return kept;
+  }
+  if (typeof headers !== "object" || headers === null) return headers;
+  return Object.fromEntries(Object.entries(headers).filter(([key]) => key.toLowerCase() !== name));
+};
+
+/**
+ * This function applies the rule of `Retry-After` to a call of `writeHead`, and gives its arguments.
+ * A 503 without `Retry-After` gets the time of `server_retry_after` (RFC 9110). A 500 loses each
+ * `Retry-After`, from the call and from the response.
+ */
+const retryRule = (res: ServerResponse, args: unknown[], retryAfter: string): unknown[] => {
+  const status = typeof args[0] === "number" ? args[0] : res.statusCode;
+  const at = typeof args[1] === "string" ? 2 : 1;
+  if (status === 503 && !res.hasHeader("retry-after") && !names(args[at], "retry-after")) res.setHeader("retry-after", retryAfter);
+  if (status !== 500) return args;
+  res.removeHeader("retry-after");
+  if (!names(args[at], "retry-after")) return args;
+  const given = [...args];
+  given[at] = without(args[at], "retry-after");
+  return given;
 };
 
 const STATUS_TEXT: Readonly<Record<number, string>> = { 404: "Not Found", 500: "Internal Server Error", 503: "Service Unavailable" };
@@ -176,14 +221,12 @@ export const httpTransport = (server: Server, knobs: HttpKnobs, options: HttpTra
   const clock = options.clock ?? realClock;
   const idleClose = millisecondsOf(knobs, "server_idle_close");
   const sweepEvery = millisecondsOf(knobs, "server_idle_sweep_interval");
-  const retryAfter = millisecondsOf(knobs, "server_retry_after");
   if (sweepEvery === 0)
     throw new Error("the knob server_idle_sweep_interval is zero: a sweep needs an interval above zero");
-  if (!Number.isFinite(retryAfter)) throw new Error("the knob server_retry_after has no bound: a Retry-After needs a time");
+  const retryAfterHeader = retryAfterOf(knobs, "httpTransport");
   for (const derived of ["server_idle_close_hint", "server_idle_close_buffer"])
     if ((knobs as Readonly<Record<string, Extent | undefined>>)[derived] !== undefined)
       throw new Error(`the knob ${derived} comes from the transport: give only server_idle_close`);
-  const retryAfterHeader = String(Math.ceil(retryAfter / 1000));
   if (server.listenerCount("request") > 0 || server.listenerCount("upgrade") > 0)
     throw new Error("the server has a request or upgrade listener of its own: mount it as a handler");
   // Node closes an idle connection at keepAliveTimeout + keepAliveTimeoutBuffer, and its hint is
@@ -264,15 +307,20 @@ export const httpTransport = (server: Server, knobs: HttpKnobs, options: HttpTra
     });
   };
 
-  /** This function makes the headers of a response close the connection while the transport cannot keep it. */
+  /**
+   * This function watches the headers of each response when they go, whatever wrote them. Each 503
+   * gets `Retry-After`, and a 500 gets none. The response closes its connection while the transport
+   * cannot keep it.
+   */
   const watchHeaders = (res: ServerResponse): void => {
     const writeHead = res.writeHead as (...args: unknown[]) => ServerResponse;
     res.writeHead = ((...args: unknown[]): ServerResponse => {
-      if (!keepsAlive() && !res.headersSent) {
+      if (res.headersSent) return writeHead.apply(res, args);
+      if (!keepsAlive()) {
         res.shouldKeepAlive = false;
         res.setHeader("connection", "close");
       }
-      return writeHead.apply(res, args);
+      return writeHead.apply(res, retryRule(res, args, retryAfterHeader));
     }) as ServerResponse["writeHead"];
   };
   const answer = (res: ServerResponse, status: number, headers: Readonly<Record<string, string>> = {}): void => {

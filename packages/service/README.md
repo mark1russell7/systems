@@ -222,7 +222,7 @@ const delay = backoffDelay({ base: 1000, factor: 1.5, cap: 30_000, jitter: { kin
 | Export | Function |
 | --- | --- |
 | `httpTransport(server, knobs, options)` | A server of `node:http` as a transport of the lifecycle, with a list of mounts |
-| `probeServer({ port, host })` | A health server on a port of its own |
+| `probeServer({ port, host, server_retry_after })` | A health server on a port of its own |
 | `probeHandler(health, { prefix })` | The probes as a request handler on the port of the application |
 | `handle(controller, route, work, options)` | A request handler that does each request of a route through `life.request` |
 | `writeOutcome(res, stream, options)` | The stream of a request as a response of `node:http`, unary or a stream |
@@ -245,7 +245,7 @@ const delay = backoffDelay({ base: 1000, factor: 1.5, cap: 30_000, jitter: { kin
 - **One owner of the listener.** The transport refuses a server that has a request or upgrade listener of its own. Mount that listener as a handler: `transport.mount((req, res) => (app(req, res), true))`.
 - **The signals of a handler.** `context.intake` aborts when the intake stops, and `context.signal` aborts at the cooperative abort or at the close. A long stream ends in its own protocol at them.
 - **A mount through the drain.** A mount with `{ until: "close transports" }` answers until the close. While it is mounted, the listener stays open through the drain, and each other request gets a retryable 503.
-- **The probes on their own port.** `probeServer({ port, host })` is a health server. It starts first and closes last, thus its probes answer through the whole shutdown.
+- **The probes on their own port.** `probeServer({ port, host, server_retry_after })` is a health server. It starts first and closes last, thus its probes answer through the whole shutdown. It has no defaults, thus `server_retry_after` is necessary, and each 503 of a probe gets its `Retry-After`.
 - **The probes on the port of the application.** `probeHandler(health, { prefix })` answers the same probes. Its mount answers until `close transports`, thus it answers through the drain. After the close of the transports, only a probe server answers.
 - **The probe paths.** The paths are `/startup`, `/readiness`, `/readiness/<controller>`, `/liveness` and `/report`, after the prefix. Each answer comes from the cache, as `application/health+json` with 200 or 503.
 - **A route through the request tracking.** `handle(controller, route, work, options)` gives a request handler. Each request that it takes goes through `life.request`, thus the service admits it, counts it and can cut it.
@@ -255,7 +255,8 @@ const delay = backoffDelay({ base: 1000, factor: 1.5, cap: 30_000, jitter: { kin
 - **A stream response.** With `options.stream` (`ndjson` or `sse`), the status 200 goes with the first item. Then each item goes as it comes, and the next item waits while the client reads slowly.
 - **The end of a stream.** An end after the first item goes in the body, as the last record (`endRecord`), with no status of its own. The cooperative abort and a cut end a stream in this way. When the client goes away, the work stops through `return()`.
 - **An end before the first byte.** A refusal gets 503: the service did not start, it stopped its intake, or a controller is not ready. A cut gets 503 for an idempotent route (A12), and 500 for each other route. A failure of the route gets 500 with no detail, and not 503.
-- **Each 503 gets `Retry-After`.** Each 503 gets the `Retry-After` of `server_retry_after` (RFC 9110), and a 500 gets none. A refusal of the transport after the stop of its intake gets it too.
+- **Each 503 gets `Retry-After`.** Each 503 gets the `Retry-After` of `server_retry_after` (RFC 9110), and a 500 gets none. The transport applies the rule when the headers of each response go, whatever wrote them. Thus the rule applies to a probe, to a refusal of the transport and to a handler that writes its own status.
+- **The rule for a handler.** A 503 without `Retry-After` gets it, and a 503 with its own `Retry-After` keeps it. A 500 loses each `Retry-After`, from `setHeader` and from `writeHead`. The other statuses keep their headers.
 - **Another framework.** `writeOutcome(res, stream, options)` writes the stream of any `life.request` to a response of `node:http`. `outcomeResponse(items, end, options)` gives a unary response as data.
 
 ```ts
@@ -279,7 +280,7 @@ http.upgrade("/ws", (req, socket, head) => wss.handleUpgrade(req, socket, head, 
 const app = service("app")
   .dependency("db", { system: null, knobs: {}, operations: {} }, { connect: () => db.connect(), close: () => db.end() })
   .server("http", http.knobs, http)
-  .healthServer(probeServer({ port: 9090 }))
+  .healthServer(probeServer({ port: 9090, server_retry_after: s(1) }))
   .readiness({ type: "debounce", interval: s(5), failAfter: 3, recoverAfter: 1 })
   .liveness({ type: "window", failAfter: s(45) })
   .startup(s(60))
@@ -388,7 +389,7 @@ const http = httpTransport(
 const app = service("app")
   .dependency("db", { system: null, knobs: {}, operations: {} }, { connect: () => db.connect(), close: () => db.end() })
   .server("http", http.knobs, http)
-  .healthServer(probeServer({ port: 9090 }))
+  .healthServer(probeServer({ port: 9090, server_retry_after: s(1) }))
   .check(roundTrip, roundTripFn)
   .readiness({ type: "debounce", interval: s(5), failAfter: 3, recoverAfter: 1 })
   .liveness({ type: "window", failAfter: s(45) })
@@ -452,6 +453,7 @@ for await (const event of stream) {
 - **The process port.** The port of Node, on a fake host: the signals, the end of stdin, the close of the IPC channel, the flush and the exit.
 - **The HTTP edge.** The transport, the mounts, the upgrades, the probes and `handle` run on fake servers and the fake clock, with no socket. A service under `run()` drains a held request, and its probes answer through the drain. A request during the warm-up gets 503, and a stream ends in-band after its first item.
 - **The headers of the outcomes.** Each path of the request tracker gets its status. Each 503 gets `Retry-After`: the refusals, the retryable cut and the cut of a unary stream. No 500 gets it.
+- **The headers on the port.** The transport adds `Retry-After` to each 503 of a probe and of a handler that writes its own status, in each form of `writeHead`. It takes `Retry-After` from each 500. The probe server gives its 503s the time of its knob.
 - **The conformance of a transport.** A reference transport passes each case, and each of nine mutations of it fails the case of its part. The HTTP transport passes each case on a fake server, for its requests and its upgrades.
 - **On real sockets.** `HTTP_IT=1` starts the tests of the HTTP edge on the loopback. They cover the conformance on the fake clock and on the real clock, keep-alive and the stop of the intake. They also cover the upgrades, the probe server and a service after SIGTERM. They measure time, thus only CI starts them (`http.yml`), on Node 22.19, 24 and 26. CI keeps the raw records of each job as an artifact.
 - **Against a real Redis.** `REDIS_IT=1` starts the tests of the client against Redis 7.4. `REDIS_F6=1` starts the F6 matrix in the VM of Docker. The injector of `@mark1russell7/harness` makes the network faults, and an agent in the namespaces of Redis makes the process faults. All of them use one monotonic clock.

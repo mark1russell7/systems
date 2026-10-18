@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { fakeClock } from "../fakes.ts";
-import type { HttpKnobs, MountContext } from "../http.ts";
+import type { HttpKnobs, MountContext, RequestHandler } from "../http.ts";
 import { httpTransport, pathOf, probeHandler } from "../http.ts";
 import type { Health } from "../health.ts";
 import { detachedLifecycle } from "../testing.ts";
 import { FakeServer } from "./fake-server.ts";
+import type { FakeAnswer } from "./fake-server.ts";
 
 /**
  * SYS-1: the HTTP transport on a fake server, with no socket and no port. The same transport on
@@ -79,7 +80,7 @@ describe("the knobs of the transport", () => {
   it("has no defaults: each knob is necessary, and each is a time", () => {
     const { server_idle_sweep_interval: _, ...missing } = KNOBS;
     expect(() => httpTransport(new FakeServer().asServer, missing as unknown as HttpKnobs)).toThrow(
-      "httpTransport needs the knob server_idle_sweep_interval: the transport has no defaults",
+      "httpTransport needs the knob server_idle_sweep_interval: it has no defaults",
     );
     expect(() => httpTransport(new FakeServer().asServer, { ...KNOBS, server_idle_sweep_interval: { value: 3, unit: "count" } })).toThrow(
       "the knob server_idle_sweep_interval is not a time",
@@ -417,6 +418,100 @@ describe("the stop of the intake (S6 A8)", () => {
     expect((await server.request("/health/liveness")).status).toBe(200);
     await transport.close();
     expect(() => server.connect()).toThrow(/ECONNREFUSED/);
+  });
+});
+
+describe("Retry-After on each 503 of the port, and on no 500, whatever writes the headers (RFC 9110)", () => {
+  /** This function starts a transport with one handler, and gives the answer to one request. */
+  const answerOf = async (handler: RequestHandler, url = "/"): Promise<FakeAnswer> => {
+    const { server, transport } = await started();
+    transport.mount(handler);
+    return server.request(url);
+  };
+
+  it("gives the 503s of a mounted probe handler Retry-After: before the health runtime exists, and for a failing probe", async () => {
+    let health: Health | null = null;
+    const { server, transport } = await started();
+    transport.mount(probeHandler(() => health, { prefix: "/health" }));
+    const early = await server.request("/health/startup");
+    expect([early.status, early.headers.get("retry-after")]).toEqual([503, "2"]);
+    health = {
+      probe: (kind: string) => ({
+        status: kind === "readiness" ? 503 : 200,
+        contentType: "application/health+json",
+        body: { status: kind === "readiness" ? "fail" : "pass", service: "app", probe: kind },
+      }),
+    } as unknown as Health;
+    const failing = await server.request("/health/readiness");
+    expect([failing.status, failing.headers.get("retry-after")]).toEqual([503, "2"]);
+    const passing = await server.request("/health/liveness");
+    expect([passing.status, passing.headers.get("retry-after")]).toEqual([200, undefined]);
+  });
+
+  it("adds Retry-After to a raw writeHead(503) of a mounted handler, in each form of writeHead", async () => {
+    const plain = await answerOf((_req, res) => {
+      res.writeHead(503).end();
+      return true;
+    });
+    expect(plain.headers.get("retry-after")).toBe("2");
+    const message = await answerOf((_req, res) => {
+      res.writeHead(503, "Busy", { "x-reason": "busy" }).end();
+      return true;
+    });
+    expect([message.headers.get("retry-after"), message.headers.get("x-reason")]).toEqual(["2", "busy"]);
+    const implicit = await answerOf((_req, res) => {
+      res.statusCode = 503;
+      res.end("later");
+      return true;
+    });
+    expect(implicit.headers.get("retry-after")).toBe("2");
+  });
+
+  it("keeps the Retry-After that a handler gives to its own 503, and to a status other than 500", async () => {
+    const own = await answerOf((_req, res) => {
+      res.writeHead(503, { "Retry-After": "7" }).end();
+      return true;
+    });
+    expect(own.headers.get("retry-after")).toBe("7");
+    const limited = await answerOf((_req, res) => {
+      res.writeHead(429, { "retry-after": "9" }).end();
+      return true;
+    });
+    expect([limited.status, limited.headers.get("retry-after")]).toEqual([429, "9"]);
+  });
+
+  it("takes each Retry-After from a 500: from setHeader, from the headers of writeHead, and from a flat list", async () => {
+    const set = await answerOf((_req, res) => {
+      res.setHeader("Retry-After", "5");
+      res.writeHead(500).end();
+      return true;
+    });
+    expect([set.status, set.headers.get("retry-after")]).toEqual([500, undefined]);
+    const given = await answerOf((_req, res) => {
+      res.writeHead(500, { "Retry-After": "5", "x-kept": "yes" }).end();
+      return true;
+    });
+    expect([given.headers.get("retry-after"), given.headers.get("x-kept")]).toEqual([undefined, "yes"]);
+    const flat = await answerOf((_req, res) => {
+      res.writeHead(500, ["retry-after", "5", "x-kept", "yes"] as unknown as Record<string, string>).end();
+      return true;
+    });
+    expect([flat.headers.get("retry-after"), flat.headers.get("x-kept")]).toEqual([undefined, "yes"]);
+    const implicit = await answerOf((_req, res) => {
+      res.setHeader("retry-after", "5");
+      res.statusCode = 500;
+      res.end();
+      return true;
+    });
+    expect(implicit.headers.get("retry-after")).toBeUndefined();
+  });
+
+  it("gives the 500 of a handler that throws no Retry-After", async () => {
+    const thrown = await answerOf((_req, res) => {
+      res.setHeader("retry-after", "5");
+      throw new Error("the handler failed");
+    });
+    expect([thrown.status, thrown.headers.get("retry-after")]).toEqual([500, undefined]);
   });
 });
 
