@@ -626,7 +626,7 @@ export type HarnessImage = "procedures";
  * A shipped image is an image that the harness ships, by its name. Its build context is in the
  * package of the harness, and in the package of the prober for `harness`.
  */
-export type Shipped = "harness" | "node" | "go-http" | "node-http" | "mongo" | "pg" | "procedures" | "router";
+export type Shipped = "harness" | "node" | "go-http" | "node-http" | "mongo" | "pg" | "hikari" | "procedures" | "router";
 
 /**
  * An image source tells where an image comes from, as data. The harness resolves each kind to an
@@ -688,10 +688,10 @@ export interface Subject {
 /**
  * A client is what the runs of a cell use: the TCP client of the harness, or a driver on its
  * socket. The HTTP clients are the `http.Transport` of Go (`go-http`), the `http.Agent` of Node
- * (`http-agent`) and an HTTP/1.1 `Client` of undici (`undici`). The MongoDB driver is `mongodb`, node-postgres is `pg`, and
+ * (`http-agent`) and an HTTP/1.1 `Client` of undici (`undici`). The MongoDB driver is `mongodb`, node-postgres is `pg`, HikariCP over pgjdbc is `hikari`, and
  * the WebSocket client of `@procedures/client` is `procedures-ws`.
  */
-export type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici" | "mongodb" | "pg" | "procedures-ws";
+export type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici" | "mongodb" | "pg" | "hikari" | "procedures-ws";
 
 /**
  * A WebSocket probe is the workload and the settings of the WebSocket client of
@@ -809,11 +809,15 @@ export interface Cell {
      *   the read of a long document (`read-long`). `Cell.driverOptions` are its options.
      * - node-postgres on Node, as a `pg.Pool` against one server. Its operation is `query`, or
      *   `SELECT 1`. `Cell.driverOptions` are the options of its pool.
+     * - HikariCP over pgjdbc on Java, as a `HikariDataSource` against one server. Its operation is
+     *   `query`, or `SELECT 1`. `Cell.driverOptions` are the properties of HikariConfig, and a name
+     *   with the prefix `dataSource.` is a property of pgjdbc.
      */
     readonly driver?:
       | { readonly name: "ioredis"; readonly keepAlive: Quantity }
       | { readonly name: "mongodb"; readonly set: string; readonly op?: "write" | "read-long" }
-      | { readonly name: "pg"; readonly query?: string };
+      | { readonly name: "pg"; readonly query?: string }
+      | { readonly name: "hikari"; readonly query?: string };
     /** This workload is the workload of an HTTP client (`Cell.client` is an HTTP client). The client then ignores `keepalive` and `userTimeout`. */
     readonly http?: HttpProbe;
     /** These are the settings of the WebSocket client (`Cell.client` is `procedures-ws`). The client then ignores `keepalive` and `userTimeout`. */

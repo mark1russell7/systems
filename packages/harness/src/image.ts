@@ -58,6 +58,8 @@ const SHIPPED: Readonly<Record<Shipped, ShippedContext>> = {
   mongo: { name: "loom-harness-mongo", dockerfile: "harness/image/mongo/Dockerfile", from: ["harness/image/mongo"] },
   // the PostgreSQL client: node-postgres (pg 8.23.1 with pg-pool 3.14.0) on Node 24.21.0
   pg: { name: "loom-harness-pg", dockerfile: "harness/image/pg/Dockerfile", from: ["harness/image/pg"] },
+  // the client of HikariCP 7.1.0 over pgjdbc 42.7.13 on Temurin 21.0.12.1: its jars by their SHA-256
+  hikari: { name: "loom-harness-hikari", dockerfile: "harness/image/hikari/Dockerfile", from: ["harness/image/hikari"] },
   // @procedures/client 0.7.0 on Node 24.21.0: its WebSocket client, and the script of its server
   procedures: { name: "loom-harness-procedures", dockerfile: "harness/image/procedures/Dockerfile", from: ["harness/image/procedures"] },
   // the router of a middlebox chain: NAT and conntrack, with a form for a forgotten flow
@@ -102,6 +104,10 @@ export const SHIPPED_CLIENTS: Readonly<Record<Client, ClientImage>> = {
   undici: { image: shipped("node-http"), command: ["node", "/opt/harness/node-http/client-undici.mjs"] },
   mongodb: { image: shipped("mongo"), command: ["node", "/opt/harness/mongo/client-mongo.mjs"] },
   pg: { image: shipped("pg"), command: ["node", "/opt/harness/pg/client-pg.mjs"] },
+  hikari: {
+    image: shipped("hikari"),
+    command: ["java", "-Dslf4j.internal.verbosity=ERROR", "-cp", "/opt/harness/hikari/classes:/opt/harness/hikari/lib/*", "ClientHikari"],
+  },
   "procedures-ws": { image: SUBJECTS.procedures.image, command: SUBJECTS.procedures.programs["client"]! },
 };
 
@@ -386,6 +392,8 @@ export const nodeHttpImage = (): Promise<string> => imageOf(shipped("node-http")
 export const mongoClientImage = (): Promise<string> => imageOf(shipped("mongo"));
 /** This function gives the image of the PostgreSQL client. */
 export const pgClientImage = (): Promise<string> => imageOf(shipped("pg"));
+/** This function gives the image of the client of HikariCP over pgjdbc. */
+export const hikariClientImage = (): Promise<string> => imageOf(shipped("hikari"));
 /** This function gives the image of the procedures subject: the WebSocket client of `@procedures/client`, and its server. */
 export const proceduresImage = (): Promise<string> => imageOf(SUBJECTS.procedures.image);
 
