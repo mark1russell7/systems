@@ -41,7 +41,8 @@ describe("the PostgreSQL catalog of T01", () => {
     expect([p.timer, p.errno, p.from]).toEqual(["idle_timeout", "CLOSED", "last-received"]);
     expect([seconds(p.low), seconds(p.high)]).toEqual([POOL_IDLE.lo, POOL_IDLE.hi]);
     expect(POOL_IDLE.lo).toBe(10);
-    expect(p.driver?.ends).toEqual({ ev: "pool", where: { event: "remove" } });
+    // the kernel stamps the close of the pool: no driver band, thus no line of the client ends it
+    expect(p.driver).toBeUndefined();
   });
 
   it("gives a reset and a FIN at once, and an unreachable host at the give-up of the kernel", () => {

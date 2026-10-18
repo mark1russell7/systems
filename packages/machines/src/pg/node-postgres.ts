@@ -509,6 +509,7 @@ export const NODE_POSTGRES: Machine = machineSchema.parse({
       timer: "idle_timeout",
       guard: "the pool has more clients than min",
       emits: ["tx.terminate"],
+      note: "The pool emits remove only in the callback of the end of the client, when the socket closes (pg-pool index.js:181-187). Behind a black hole the FIN gets no answer, thus the socket stays open and remove does not come",
       source: "pg-pool index.js:409-416, :172-188, client.js:825-827, connection.js:217-227",
     },
     {

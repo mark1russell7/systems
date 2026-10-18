@@ -1,6 +1,6 @@
 import type { Detector, KnobValues, Manifestation } from "@mark1russell7/algebra";
 import { detection, errnoOf, overValues, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
-import type { Cell, DriverBand, Prediction, Target } from "@mark1russell7/harness";
+import type { Cell, Prediction, Target } from "@mark1russell7/harness";
 import { LINUX_TCP, NODE_POSTGRES } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import { HZ, RTT_MS, RUNS, count, given, predict, s, seconds, sysctlsOf } from "../catalog.ts";
@@ -164,10 +164,10 @@ export const pgPrediction = (spec: PgSpec): Prediction => {
   if (first.kind === "silent") return { detects: false, window: s(60), driver: { socket: "pool", quiet: [...QUIET] } };
   const band = first.band;
   if (first.layer === "driver") {
-    // the pool ends its idle client: its own close, which a line of the client marks
-    const ends = { ev: "pool", where: { event: "remove" } };
-    const own: DriverBand = { socket: "pool", ends, quiet: [...QUIET] };
-    return { detects: true, timer: first.timer, errno: "CLOSED", from: "last-received", low: s(band.lo), high: s(band.hi), driver: own };
+    // the pool ends its idle client: its own close. The kernel stamps the FIN that it sends, from
+    // ESTABLISHED to FIN_WAIT1. The line `remove` of the pool does not mark it: the pool emits it
+    // only when the socket closes, and behind a black hole the FIN gets no answer
+    return { detects: true, timer: first.timer, errno: "CLOSED", from: "last-received", low: s(band.lo), high: s(band.hi) };
   }
   // the kernel gives up on the query: its retransmissions count from the first one
   const from = first.timer === "retrans_giveup" ? "first-retransmission" : "last-received";
