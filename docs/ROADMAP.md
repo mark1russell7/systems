@@ -515,16 +515,18 @@ T07 is the lifecycle of the endpoints of a Service, and T18 is a fleet whose rea
 
 ### KIND-LONE · The cause of the lone failures in kind
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** KIND
 - **Started:** 2026-10-17
-- **Shipped:**
-- **Links:** [#35](https://github.com/mark1russell7/systems/pull/35)
+- **Shipped:** 2026-10-18
+- **Links:** [#35](https://github.com/mark1russell7/systems/pull/35), [#56](https://github.com/mark1russell7/systems/pull/56), [The run at main](https://github.com/mark1russell7/systems/actions/runs/39090689204), [#59](https://github.com/mark1russell7/systems/pull/59)
 
 One failure is a late propagation. The others are SYNs that met an entry in SYN_SENT on their port, from a SYN with no answer up to 120 s before. The agent of kind 0.1.4 reads the conntrack table of each node each second, through netlink on a runner. It showed the old entry of a lone timeout on its port, 35 s old. The first SYNs came between the runs, where the lab keeps no line. Thus the lab deletes these entries before each run. Then the T07 run had no timeout. One refusal is left in nftables mode, 34 ms after a deletion, probably the ICMP error of a reject rule. kind 0.1.5 counts these errors.
 
 The run of #50 gives a cause in the model of conntrack, not in the lab. The deleted pod reset a connection, and conntrack kept its flow in CLOSE for 10 s, with the NAT to that pod. A SYN on a CLOSE entry looks up again only after a FIN, or after a reset from the client. Thus a client that used the same port 6.8 s later sent its SYN to the deleted pod, and the request timed out. From kind 0.1.6, a window can give that mechanism (`afterReset`), and the catalog gives it to a deletion without a hold in iptables and nftables. Judged again with the catalog, the run of #50 has no failure.
+
+The run at main of 2026-10-18 has no failure either: 26 cells hold. The same cell had the same case, 8.2 s after its reset, and the prediction held it. The refusal of nftables did not come again in the two full runs. If it comes again, the ICMP counter of the agent tells its cause.
 
 ## The engines and the models
 
@@ -606,9 +608,9 @@ The 121 cells of the queue and the canonical cells, judged again from their raw 
 - **Depends on:** KIND
 - **Started:** 2026-10-17
 - **Shipped:** 2026-10-17
-- **Links:** [The page](https://mark1russell7.github.io/systems/results/kind/), [#34](https://github.com/mark1russell7/systems/pull/34)
+- **Links:** [The page](https://mark1russell7.github.io/systems/results/kind/), [#34](https://github.com/mark1russell7/systems/pull/34), [#59](https://github.com/mark1russell7/systems/pull/59)
 
-The kind page shows the run of 2026-10-17, with each lone failure and its time.
+The kind page shows the run of 2026-10-17, with each lone failure and its time. The run at main of 2026-10-18 replaces it (#59): 26 cells hold, and no cell fails.
 
 ### SITE-REFRESH · The catalog pages from a run of main
 
