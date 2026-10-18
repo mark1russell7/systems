@@ -160,7 +160,7 @@ describe("transportConformance: the cases of the contract of a transport", () =>
 });
 
 const s = (value: number) => ({ value, unit: "s" });
-const KNOBS: HttpKnobs = { server_idle_close: s(65), idle_sweep: s(1), retry_after: s(1) };
+const KNOBS: HttpKnobs = { server_idle_close: s(65), server_idle_sweep_interval: s(1), server_retry_after: s(1) };
 
 interface Holder {
   readonly end: () => void;

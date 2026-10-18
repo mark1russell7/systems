@@ -11,7 +11,7 @@ import { FakeServer } from "./fake-server.ts";
  */
 
 const s = (value: number) => ({ value, unit: "s" });
-const KNOBS: HttpKnobs = { server_idle_close: s(65), idle_sweep: s(1), retry_after: s(2) };
+const KNOBS: HttpKnobs = { server_idle_close: s(65), server_idle_sweep_interval: s(1), server_retry_after: s(2) };
 
 const started = async (knobs: HttpKnobs = KNOBS, options: Parameters<typeof httpTransport>[2] = {}) => {
   const server = new FakeServer();
@@ -26,33 +26,73 @@ const turns = async (count = 4): Promise<void> => {
 };
 
 describe("the knobs of the transport", () => {
-  it("sets keepAliveTimeout from server_idle_close, and 0 for a time without a bound", () => {
+  it("makes server_idle_close the real close: keepAliveTimeout is the knob less the buffer, which stays", () => {
     const server = new FakeServer();
     httpTransport(server.asServer, KNOBS);
-    expect(server.keepAliveTimeout).toBe(65_000);
+    expect(server.keepAliveTimeout).toBe(64_000);
+    expect(server.keepAliveTimeoutBuffer).toBe(1000);
+    expect(server.keepAliveTimeout + server.keepAliveTimeoutBuffer).toBe(65_000);
+  });
+
+  it("reads the buffer of the server at its construction, and takes a Node without a buffer as 0", () => {
+    const wide = new FakeServer();
+    wide.keepAliveTimeoutBuffer = 2500;
+    httpTransport(wide.asServer, KNOBS);
+    expect(wide.keepAliveTimeout).toBe(62_500);
+    // a Node before 24.6 has no keepAliveTimeoutBuffer
+    const old = new FakeServer();
+    Reflect.deleteProperty(old, "keepAliveTimeoutBuffer");
+    httpTransport(old.asServer, KNOBS);
+    expect(old.keepAliveTimeout).toBe(65_000);
+  });
+
+  it("refuses a bounded server_idle_close at or below the buffer, and names both times", () => {
+    for (const close of [s(1), s(0.5)])
+      expect(() => httpTransport(new FakeServer().asServer, { ...KNOBS, server_idle_close: close })).toThrow(
+        `the knob server_idle_close is ${close.value * 1000} ms, at or below the keepAliveTimeoutBuffer of the server, 1000 ms`,
+      );
+    expect(() => httpTransport(new FakeServer().asServer, { ...KNOBS, server_idle_close: s(1.001) })).not.toThrow();
+  });
+
+  it("stops the timer and the hint for a time without a bound, whatever the buffer", () => {
     const open = new FakeServer();
-    httpTransport(open.asServer, { ...KNOBS, server_idle_close: { value: "infinite", unit: "s" } });
+    const transport = httpTransport(open.asServer, { ...KNOBS, server_idle_close: { value: "infinite", unit: "s" } });
     expect(open.keepAliveTimeout).toBe(0);
+    expect(transport.knobs.server_idle_close_hint).toEqual({ value: "infinite", unit: "s" });
+  });
+
+  it("gives the declaration the three times: the real close, the hint that each response sends, and the buffer", () => {
+    const transport = httpTransport(new FakeServer().asServer, { ...KNOBS, server_idle_close: s(5.5) });
+    expect(transport.knobs).toEqual({
+      ...KNOBS,
+      server_idle_close: s(5.5),
+      // keepAliveTimeout is 4500 ms, and Node sends its whole seconds: Keep-Alive: timeout=4
+      server_idle_close_hint: s(4),
+      server_idle_close_buffer: { value: 1000, unit: "ms" },
+    });
+    expect(() =>
+      httpTransport(new FakeServer().asServer, { ...KNOBS, server_idle_close_hint: s(1) } as HttpKnobs),
+    ).toThrow("the knob server_idle_close_hint comes from the transport: give only server_idle_close");
   });
 
   it("has no defaults: each knob is necessary, and each is a time", () => {
-    const { idle_sweep: _, ...missing } = KNOBS;
+    const { server_idle_sweep_interval: _, ...missing } = KNOBS;
     expect(() => httpTransport(new FakeServer().asServer, missing as unknown as HttpKnobs)).toThrow(
-      "httpTransport needs the knob idle_sweep: the transport has no defaults",
+      "httpTransport needs the knob server_idle_sweep_interval: the transport has no defaults",
     );
-    expect(() => httpTransport(new FakeServer().asServer, { ...KNOBS, idle_sweep: { value: 3, unit: "count" } })).toThrow(
-      "the knob idle_sweep is not a time",
+    expect(() => httpTransport(new FakeServer().asServer, { ...KNOBS, server_idle_sweep_interval: { value: 3, unit: "count" } })).toThrow(
+      "the knob server_idle_sweep_interval is not a time",
     );
-    expect(() => httpTransport(new FakeServer().asServer, { ...KNOBS, idle_sweep: s(0) })).toThrow(/an interval above zero/);
-    expect(() => httpTransport(new FakeServer().asServer, { ...KNOBS, retry_after: { value: "infinite", unit: "s" } as never })).toThrow(
+    expect(() => httpTransport(new FakeServer().asServer, { ...KNOBS, server_idle_sweep_interval: s(0) })).toThrow(/an interval above zero/);
+    expect(() => httpTransport(new FakeServer().asServer, { ...KNOBS, server_retry_after: { value: "infinite", unit: "s" } as never })).toThrow(
       /a Retry-After needs a time/,
     );
     expect(() => httpTransport(new FakeServer().asServer, { ...KNOBS, server_idle_close: s(-1) })).toThrow(/less than zero/);
   });
 
-  it("gives its knobs, thus the declaration of the server gets the same record", () => {
+  it("gives each knob of the caller to the declaration, the knobs that it does not read too", () => {
     const knobs = { ...KNOBS, "request_timeout@server": s(30) };
-    expect(httpTransport(new FakeServer().asServer, knobs).knobs).toBe(knobs);
+    expect(httpTransport(new FakeServer().asServer, knobs).knobs).toMatchObject(knobs);
   });
 
   it("refuses a server that has a request listener of its own, at the start too", async () => {
@@ -260,7 +300,7 @@ describe("the stop of the intake (S6 A8)", () => {
     expect(idle.socket.destroyed).toBe(true);
   });
 
-  it("closes the connection of each response after the stop, and sweeps the idle connections at each idle_sweep", async () => {
+  it("closes the connection of each response after the stop, and sweeps the idle connections at each server_idle_sweep_interval", async () => {
     const { server, clock, transport } = await started();
     const ends = new Map<string, () => void>();
     transport.mount((req, res) => {

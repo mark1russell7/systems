@@ -12,19 +12,32 @@ import type { TransportImpl } from "../lifecycle.ts";
  */
 export interface HttpKnobs {
   /**
-   * This time is the idle close of the server: the transport sets `keepAliveTimeout` to it. Node adds
-   * its `keepAliveTimeoutBuffer` to the timer, and not to the hint. A time without a bound stops the timer.
+   * This time is the real idle close of the server, which O01 compares with the idle time of a
+   * client. Node closes an idle connection at `keepAliveTimeout` plus `keepAliveTimeoutBuffer`.
+   * Thus the transport sets `keepAliveTimeout` to this time less the buffer of the server.
+   * A time without a bound stops the timer.
    */
   readonly server_idle_close: Extent;
   /**
    * This time is the interval of the sweep of idle connections, from the stop of the intake until the
    * close. A time without a bound gives one sweep, at the stop of the intake.
    */
-  readonly idle_sweep: Extent;
+  readonly server_idle_sweep_interval: Extent;
   /** This time goes in the `Retry-After` of each 503 that the transport gives after its intake stops. */
-  readonly retry_after: Quantity;
+  readonly server_retry_after: Quantity;
   /** The other knobs of the server go to the declaration. The transport does not read them. */
   readonly [knob: string]: Extent;
+}
+
+/**
+ * These are the knobs that the transport gives the declaration: the knobs of the caller, and the two
+ * times that the transport found. Thus the declaration shows the three times of the idle close.
+ */
+export interface HttpTransportKnobs extends HttpKnobs {
+  /** This time is the hint that each response sends (`Keep-Alive: timeout=…`), in whole seconds. A time without a bound tells that no hint goes. */
+  readonly server_idle_close_hint: Extent;
+  /** This time is the `keepAliveTimeoutBuffer` of the server, which Node adds to the timer and not to the hint. */
+  readonly server_idle_close_buffer: Quantity;
 }
 
 /** A mount stage is the stage of the shutdown at which a mount stops: the stop of the intake, or the close. */
@@ -91,7 +104,8 @@ export interface HttpTransportOptions {
 /** An HTTP transport is a server of `node:http` as a transport of the lifecycle, with a list of mounts on its listener. */
 export interface HttpTransport extends TransportImpl {
   readonly server: Server;
-  readonly knobs: HttpKnobs;
+  /** These knobs go to the declaration of the server: the knobs of the caller, the hint and the buffer. */
+  readonly knobs: HttpTransportKnobs;
   /** This method adds a request handler at the end of the list, and gives the function that removes it. */
   mount(handler: RequestHandler, options?: MountOptions): () => void;
   /** This method adds an upgrade handler for a path, and gives the function that removes it. */
@@ -146,7 +160,7 @@ const STATUS_TEXT: Readonly<Record<number, string>> = { 404: "Not Found", 500: "
  * - The count of work in flight comes from events: each response until its `close`, and each upgraded
  *   connection until its `close`.
  * - `stopIntake` closes the listener, and new connections get a refusal. It closes the idle connections
- *   at once and at each `idle_sweep`. Each later response gets `Connection: close`.
+ *   at once and at each `server_idle_sweep_interval`. Each later response gets `Connection: close`.
  * - `drain` waits until no work is in flight, or until the deadline. It gives the cooperative abort to
  *   the handlers through their context.
  * - `close` destroys each connection. A second close gives the same promise.
@@ -156,15 +170,34 @@ const STATUS_TEXT: Readonly<Record<number, string>> = { 404: "Not Found", 500: "
 export const httpTransport = (server: Server, knobs: HttpKnobs, options: HttpTransportOptions = {}): HttpTransport => {
   const clock = options.clock ?? realClock;
   const idleClose = millisecondsOf(knobs, "server_idle_close");
-  const sweepEvery = millisecondsOf(knobs, "idle_sweep");
-  const retryAfter = millisecondsOf(knobs, "retry_after");
-  if (sweepEvery === 0) throw new Error("the knob idle_sweep is zero: a sweep needs an interval above zero");
-  if (!Number.isFinite(retryAfter)) throw new Error("the knob retry_after has no bound: a Retry-After needs a time");
+  const sweepEvery = millisecondsOf(knobs, "server_idle_sweep_interval");
+  const retryAfter = millisecondsOf(knobs, "server_retry_after");
+  if (sweepEvery === 0)
+    throw new Error("the knob server_idle_sweep_interval is zero: a sweep needs an interval above zero");
+  if (!Number.isFinite(retryAfter)) throw new Error("the knob server_retry_after has no bound: a Retry-After needs a time");
+  for (const derived of ["server_idle_close_hint", "server_idle_close_buffer"])
+    if ((knobs as Readonly<Record<string, Extent | undefined>>)[derived] !== undefined)
+      throw new Error(`the knob ${derived} comes from the transport: give only server_idle_close`);
   const retryAfterHeader = String(Math.ceil(retryAfter / 1000));
   if (server.listenerCount("request") > 0 || server.listenerCount("upgrade") > 0)
     throw new Error("the server has a request or upgrade listener of its own: mount it as a handler");
-  // the hint of the keep-alive and its timer: 0 is no idle close in Node
-  server.keepAliveTimeout = Number.isFinite(idleClose) ? idleClose : 0;
+  // Node closes an idle connection at keepAliveTimeout + keepAliveTimeoutBuffer, and its hint is
+  // keepAliveTimeout. The buffer stays, thus the hint is less than the real close. An older Node has no buffer
+  const buffer = (server as { keepAliveTimeoutBuffer?: number }).keepAliveTimeoutBuffer ?? 0;
+  if (Number.isFinite(idleClose) && idleClose <= buffer)
+    throw new Error(
+      `the knob server_idle_close is ${idleClose} ms, at or below the keepAliveTimeoutBuffer of the server, ${buffer} ms: ` +
+        "the server closes an idle connection at keepAliveTimeout + keepAliveTimeoutBuffer",
+    );
+  // 0 stops the keep-alive timer and the hint in Node
+  server.keepAliveTimeout = Number.isFinite(idleClose) ? idleClose - buffer : 0;
+  const declared: HttpTransportKnobs = {
+    ...knobs,
+    server_idle_close_hint: Number.isFinite(idleClose)
+      ? { value: Math.floor(server.keepAliveTimeout / 1000), unit: "s" }
+      : { value: "infinite", unit: "s" },
+    server_idle_close_buffer: { value: buffer, unit: "ms" },
+  };
 
   const requestMounts: RequestMount[] = [];
   const upgradeMounts: UpgradeMount[] = [];
@@ -319,7 +352,7 @@ export const httpTransport = (server: Server, knobs: HttpKnobs, options: HttpTra
 
   return {
     server,
-    knobs,
+    knobs: declared,
     get connections() {
       return sockets.size;
     },

@@ -28,7 +28,7 @@ const RECORDS = process.env["HTTP_RECORDS"];
 const HOST = "127.0.0.1";
 const s = (value: number) => ({ value, unit: "s" });
 const ms = (value: number) => ({ value, unit: "ms" });
-const KNOBS: HttpKnobs = { server_idle_close: s(5), idle_sweep: ms(200), retry_after: s(1) };
+const KNOBS: HttpKnobs = { server_idle_close: s(5), server_idle_sweep_interval: ms(200), server_retry_after: s(1) };
 // the most that an event of the loopback can take to arrive on a runner, in milliseconds
 const SLACK = 150;
 
@@ -221,9 +221,15 @@ describe.skipIf(!RUN)("httpTransport passes the conformance kit on real sockets 
 });
 
 describe.skipIf(!RUN)("keep-alive on real sockets (S6 A13)", () => {
-  it("gives the hint of server_idle_close, and the server closes an idle connection at keepAliveTimeout and its buffer", async () => {
+  it("closes an idle connection at server_idle_close, the real close: keepAliveTimeout and the buffer of this Node", async () => {
     const server = createServer();
-    const transport = httpTransport(server, { ...KNOBS, server_idle_close: ms(1000) }, { listen: { port: 0, host: HOST } });
+    const transport = httpTransport(server, { ...KNOBS, server_idle_close: ms(2000) }, { listen: { port: 0, host: HOST } });
+    const buffer = (server as { keepAliveTimeoutBuffer?: number }).keepAliveTimeoutBuffer ?? 0;
+    expect(server.keepAliveTimeout + buffer).toBe(2000);
+    expect(transport.knobs.server_idle_close_buffer).toEqual({ value: buffer, unit: "ms" });
+    const hint = transport.knobs.server_idle_close_hint;
+    expect(hint).toEqual({ value: Math.floor((2000 - buffer) / 1000), unit: "s" });
+    measure("keep-alive", "the buffer of this Node", 0, buffer);
     transport.mount((_req, res) => {
       res.end("ok.");
       return true;
@@ -233,11 +239,12 @@ describe.skipIf(!RUN)("keep-alive on real sockets (S6 A13)", () => {
       const client = await raw(portOf(server));
       client.send(GET("/"));
       const answered = await client.until((text) => text.endsWith("ok."));
-      expect(client.text()).toMatch(/\r\nKeep-Alive: timeout=1\r\n/i);
+      // the hint that the declaration shows is the hint that the response sends
+      expect(client.text().toLowerCase()).toContain(`\r\nkeep-alive: timeout=${String(hint.value)}\r\n`);
       const closed = await client.closedAt;
-      const buffer = (server as { keepAliveTimeoutBuffer?: number }).keepAliveTimeoutBuffer ?? 0;
-      const expected = 1000 + buffer;
-      measure("keep-alive", "idle close after the last response", expected, closed - answered);
+      // the knob is the real close, on each Node of the matrix
+      const expected = 2000;
+      measure("keep-alive", "idle close after the last response, against server_idle_close", expected, closed - answered);
       expect(closed - answered).toBeGreaterThanOrEqual(expected - SLACK);
       expect(closed - answered).toBeLessThanOrEqual(expected + 2 * SLACK);
     } finally {
@@ -531,7 +538,8 @@ describe.skipIf(!RUN)("a service under run() on real sockets and the real clock"
     const began = now();
     const answer = await held;
     measure("run", "cut of a held request after the start of the drain", CAPS.drain, now() - began);
-    expect([answer.status, answer.headers["retry-after"]]).toEqual([503, "1"]);
+    // a cut started its work, thus only a refusal gets Retry-After
+    expect([answer.status, answer.headers["retry-after"]]).toEqual([503, undefined]);
     expect(now() - began).toBeLessThanOrEqual(CAPS.drain + SLACK);
     expect(await r.life.done).toBe(0);
   });

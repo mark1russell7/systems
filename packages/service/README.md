@@ -228,9 +228,12 @@ const delay = backoffDelay({ base: 1000, factor: 1.5, cap: 30_000, jitter: { kin
 | `outcomeResponse`, `probeResponse`, `pathOf` | The same answers as data, for any HTTP framework or none |
 
 - **The transport.** `httpTransport(server, knobs, options)` makes a server of `node:http` a transport of the lifecycle. Give `transport.knobs` to `svc.server(name, knobs, impl)`. Thus the declaration and the law read the same knobs.
-- **The knobs.** The transport has no defaults. `server_idle_close` sets `keepAliveTimeout`, and a time without a bound stops the timer. `idle_sweep` is the interval of the sweep of idle connections. `retry_after` goes in the `Retry-After` of each 503 of the transport.
+- **The knobs.** The transport has no defaults. `server_idle_sweep_interval` is the interval of the sweep of idle connections. `server_retry_after` goes in the `Retry-After` of each refusal of the transport.
+- **The idle close.** `server_idle_close` is the real idle close of the server, which O01 compares with the idle time of a client. Node closes an idle connection at `keepAliveTimeout` plus `keepAliveTimeoutBuffer`. Thus the transport sets `keepAliveTimeout` to `server_idle_close` less the buffer of the server.
+- **The hint.** The buffer stays, thus the hint of each response (`Keep-Alive: timeout=…`) is less than the real close. A Node without a buffer gives 0. The transport refuses a `server_idle_close` at or below the buffer. A time without a bound stops the timer.
+- **The three times.** `transport.knobs` adds `server_idle_close_hint` and `server_idle_close_buffer` to the knobs of the caller. Thus the declaration shows the hint, the buffer and the real close.
 - **The count.** The count of the work in flight comes from events. Each response counts until its `close` event, and each upgraded connection counts until it closes. The transport polls nothing.
-- **The stop of the intake.** `stopIntake()` closes the listener, thus each new connection gets a refusal. It closes the idle connections at once, and again at each `idle_sweep`. Each later response gets `Connection: close`, and each later request gets a retryable 503.
+- **The stop of the intake.** `stopIntake()` closes the listener, thus each new connection gets a refusal. It closes the idle connections at once, and again at each `server_idle_sweep_interval`. Each later response gets `Connection: close`, and each later request gets a retryable 503.
 - **The drain and the close.** `drain(deadline, signal)` ends when no work is in flight, or at the deadline. It gives the cooperative abort to the handlers. `close()` destroys each connection, the upgraded connections too. A second close gives the same promise.
 - **Keep-alive.** The option `keepAlive` reads `life.keepAlive()` when the headers of each response go. While it gives false, each response gets `Connection: close`. An upgrade does not get it.
 - **The clock.** Give the transport the clock of the lifecycle (`options.clock`). The deadline of the drain and the sweep use it.
@@ -242,7 +245,8 @@ const delay = backoffDelay({ base: 1000, factor: 1.5, cap: 30_000, jitter: { kin
 - **The probes on their own port.** `probeServer({ port, host })` is a health server. It starts first and closes last, thus its probes answer through the whole shutdown.
 - **The probes on the port of the application.** `probeHandler(health, { prefix })` answers the same probes. Its mount answers until `close transports`, thus it answers through the drain. After the close of the transports, only a probe server answers.
 - **The probe paths.** The paths are `/startup`, `/readiness`, `/readiness/<controller>`, `/liveness` and `/report`, after the prefix. Each answer comes from the cache, as `application/health+json` with 200 or 503.
-- **The outcome of a request.** `writeOutcome(res, outcome, { keepAlive, retryAfter })` writes a `RequestOutcome`. A value gets 200, a failure gets 500 with no detail, and a refusal or a cut gets its own status. A retryable 503 gets `Retry-After`.
+- **The outcome of a request.** `writeOutcome(res, outcome, { keepAlive, retryAfter })` writes a `RequestOutcome`. A value gets 200. A failure of the route gets 500 with no detail, and not 503.
+- **Only a refusal gets `Retry-After`.** A refusal gets 503 with `Retry-After`: the service did not start, it stopped its intake, or a controller is not ready. A cut gets its own status with no `Retry-After`: 503 for an idempotent route, and 500 for each other route.
 
 ```ts
 import { createServer } from "node:http";
@@ -254,7 +258,7 @@ const s = (value: number) => ({ value, unit: "s" });
 let life: Lifecycle | null = null;
 const http = httpTransport(
   createServer(),
-  { server_idle_close: s(65), idle_sweep: s(1), retry_after: s(1) },
+  { server_idle_close: s(65), server_idle_sweep_interval: s(1), server_retry_after: s(1) },
   { listen: { port: 8080 }, keepAlive: () => life?.keepAlive() ?? false },
 );
 http.mount(async (req, res) => {

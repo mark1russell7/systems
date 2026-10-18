@@ -8,6 +8,7 @@
 export type {
   HttpKnobs,
   HttpTransport,
+  HttpTransportKnobs,
   HttpTransportOptions,
   MountContext,
   MountOptions,

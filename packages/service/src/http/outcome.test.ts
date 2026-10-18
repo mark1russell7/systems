@@ -38,9 +38,9 @@ describe("outcomeResponse: each outcome as a response", () => {
     expect(JSON.parse(refused.body as string)).toEqual({ outcome: "refused", retryable: true, cause: "the service stopped its intake" });
   });
 
-  it("gives a cut its own status: 503 with Retry-After when the route can go again, and 500 without it", () => {
+  it("gives a cut its own status with no Retry-After: 503 when the route can go again, and 500 when it cannot", () => {
     const again = outcomeResponse({ kind: "cut", status: 503, retryable: true, cause: "the drain reached its deadline" }, OPTIONS);
-    expect([again.status, again.headers["retry-after"]]).toEqual([503, "2"]);
+    expect([again.status, again.headers["retry-after"]]).toEqual([503, undefined]);
     const once = outcomeResponse({ kind: "cut", status: 500, retryable: false, cause: "the drain reached its deadline" }, OPTIONS);
     expect([once.status, once.headers["retry-after"]]).toEqual([500, undefined]);
   });

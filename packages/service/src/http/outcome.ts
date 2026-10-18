@@ -24,7 +24,7 @@ export interface OutcomeOptions<T> {
    * gives `Connection: close`. A function is read when the response is made.
    */
   readonly keepAlive: boolean | (() => boolean);
-  /** This time goes in the `Retry-After` of a retryable 503, in whole seconds, rounded up. */
+  /** This time goes in the `Retry-After` of a refusal, in whole seconds, rounded up. */
   readonly retryAfter: Quantity;
   /**
    * This function gives the response of a value. Without it, the mapping gives 200 and the value as
@@ -59,9 +59,11 @@ const merge = (base: OutcomeResponse, part: ResponsePart | undefined): OutcomeRe
 /**
  * This function maps a request outcome to a response (S6 A12 and A13):
  * - `done`: 200 with the value, or the response of the `done` hook.
- * - `failed`: 500, or the response of the `failed` hook.
+ * - `failed`: 500 with no detail, or the response of the `failed` hook. A failure of the route is not a 503.
  * - `refused`: 503 with `Retry-After`. The work did not start, thus the caller can send it again.
- * - `cut`: the status of the outcome. A retryable cut gets `Retry-After`.
+ *   Only a refusal gets `Retry-After`: the service did not start, it stopped its intake, or a controller is not ready.
+ * - `cut`: the status of the outcome, with no `Retry-After`. A cut of an idempotent route is a
+ *   retryable 503, and each other cut is a 500.
  *
  * Each response gets `Connection: close` while the service cannot keep the connection.
  */
@@ -81,7 +83,8 @@ export const outcomeResponse = <T>(outcome: RequestOutcome<T>, options: OutcomeO
     case "refused":
     case "cut": {
       const body = JSON.stringify({ outcome: outcome.kind, retryable: outcome.retryable, cause: outcome.cause });
-      const retry = outcome.retryable && outcome.status === 503 ? { "retry-after": retryAfter } : {};
+      // only a refusal gets Retry-After: a cut started its work
+      const retry = outcome.kind === "refused" ? { "retry-after": retryAfter } : {};
       response = { status: outcome.status, headers: { "content-type": JSON_TYPE, ...retry }, body };
       break;
     }

@@ -269,8 +269,12 @@ try {
         "service/http gives a refusal 503 with Retry-After and Connection: close",
       );
       const { createServer } = await import("node:http");
-      const edge = httpEntry.httpTransport(createServer(), { server_idle_close: s(65), idle_sweep: s(1), retry_after: s(1) });
-      check(edge.server.keepAliveTimeout === 65000 && edge.inFlight() === 0, "service/http makes a server of node:http a transport, its keepAliveTimeout from server_idle_close");
+      const edge = httpEntry.httpTransport(createServer(), { server_idle_close: s(65), server_idle_sweep_interval: s(1), server_retry_after: s(1) });
+      const buffer = edge.server.keepAliveTimeoutBuffer ?? 0;
+      check(
+        edge.server.keepAliveTimeout + buffer === 65000 && edge.knobs.server_idle_close_buffer.value === buffer && edge.inFlight() === 0,
+        "service/http makes a server of node:http a transport, whose real idle close is server_idle_close",
+      );
       const conformance = testing.transportConformance(() => ({ impl: edge, offer: async () => true, hold: async () => ({ release: async () => {}, aborted: false }) }));
       check(conformance.length === 12, "service/testing generates the 12 cases of the conformance of a transport");
       await edge.close();

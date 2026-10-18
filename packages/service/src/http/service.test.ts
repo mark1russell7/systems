@@ -18,7 +18,7 @@ const s = (value: number) => ({ value, unit: "s" });
 const turns = async (count = 4): Promise<void> => {
   for (let at = 0; at < count; at += 1) await new Promise((resolve) => setImmediate(resolve));
 };
-const KNOBS: HttpKnobs = { server_idle_close: s(65), idle_sweep: s(1), retry_after: s(1) };
+const KNOBS: HttpKnobs = { server_idle_close: s(65), server_idle_sweep_interval: s(1), server_retry_after: s(1) };
 
 const rigged = () => {
   const clock = fakeClock();
@@ -152,7 +152,8 @@ describe("the ./http entry under run()", () => {
     await r.step(1000);
     await r.step(3000);
     const answer = await held;
-    expect([answer.status, answer.headers.get("retry-after")]).toEqual([503, "1"]);
+    // a cut started its work, thus only a refusal gets Retry-After
+    expect([answer.status, answer.headers.get("retry-after")]).toEqual([503, undefined]);
     expect(JSON.parse(answer.body)).toMatchObject({ outcome: "cut", retryable: true });
     await r.step(2000);
     expect(await life.done, life.errors.join("; ")).toBe(0);
