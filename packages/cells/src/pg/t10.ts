@@ -216,17 +216,20 @@ export const T10_HIKARI_SPECS: readonly T10Spec[] = [
     }),
   ),
   // ---- K-client-timeouts: a query in flight to a dead host, the timer of the client against the give-up of the kernel.
-  // Behind PgBouncer the kernel that gives up is the kernel of PgBouncer, on its server socket, which the cell observes
+  // Behind PgBouncer the kernel that gives up is the kernel of PgBouncer, on its server socket, which the cell observes.
+  // The pool keeps one connection (minimumIdle 1). At its fixed size of 10, the pool still adds connections when the
+  // fault comes, and each one sends a query through the one server of PgBouncer. In run 39136466890 such a query
+  // took that server into the black hole, and PgBouncer opened a new server for the query of the cell
   ...([
     ["T10.border-off.43", POOLER_GIVEUP.inside, "inside: the read timeout comes first, and PgBouncer closes its server socket"],
     ["T10.border-off.44", POOLER_GIVEUP.outside, "outside: the kernel of PgBouncer gives up on its server socket first"],
   ] as const).map(([plan, at, side]) =>
     behind({
       plan,
-      name: `blackhole of the server behind PgBouncer, a query in flight, tcp_retries2 = 4 at PgBouncer, socketTimeout ${at} s: ${side}`,
+      name: `blackhole of the server behind PgBouncer, a query in flight, tcp_retries2 = 4 at PgBouncer, minimumIdle 1, socketTimeout ${at} s: ${side}`,
       fault: "blackhole",
       mode: "inflight",
-      options: { socketTimeout: at },
+      options: { socketTimeout: at, minimumIdle: 1 },
       poolerLinux: { tcp_retries2: count(4) },
       observesPooler: true,
     }),
