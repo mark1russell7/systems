@@ -258,6 +258,14 @@ const delay = backoffDelay({ base: 1000, factor: 1.5, cap: 30_000, jitter: { kin
 - **Each 503 gets `Retry-After`.** Each 503 gets the `Retry-After` of `server_retry_after` (RFC 9110), and a 500 gets none. The transport applies the rule when the headers of each response go, whatever wrote them. Thus the rule applies to a probe, to a refusal of the transport and to a handler that writes its own status.
 - **The rule for a handler.** A 503 without `Retry-After` gets it, and a 503 with its own `Retry-After` keeps it. A 500 loses each `Retry-After`, from `setHeader` and from `writeHead`. The other statuses keep their headers.
 - **Another framework.** `writeOutcome(res, stream, options)` writes the stream of any `life.request` to a response of `node:http`. `outcomeResponse(items, end, options)` gives a unary response as data.
+- **Tracing in an ESM service.** An ESM service that uses OpenTelemetry starts with a preload, for example `node --import ./instrumentation.js app.js`. The preload must register `@opentelemetry/instrumentation/hook.mjs` before the application loads. Without that hook, the instrumentation does not see the ESM imports, and the spans of express are lost. The telemetry check of Graph found this when its server moved to ESM.
+
+```js
+// instrumentation.js, the preload: node --import ./instrumentation.js app.js
+import { register } from "node:module";
+register("@opentelemetry/instrumentation/hook.mjs", import.meta.url);
+// then start the SDK of OpenTelemetry, before the application loads
+```
 
 ```ts
 import { createServer } from "node:http";

@@ -126,14 +126,14 @@ The groups A, B and E of the S6 draft move from jarvis into this repository, in 
 
 ### SYS-13 · The roadmap and the README tell the truth about S6
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** S6
 - **Started:** 2026-10-17
-- **Shipped:**
+- **Shipped:** 2026-10-18
 - **Links:** [#49](https://github.com/mark1russell7/systems/pull/49), [#46](https://github.com/mark1russell7/systems/pull/46), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-S6 is in progress, and the items of the server stack are on this roadmap. The README of the service named the `./http` exports before they existed. #49 gives those exports and corrects the example.
+S6 is in progress, and the items of the server stack are on this roadmap. The README of the service named the `./http` exports before they existed. Then #49 gave those exports and corrected the example. Thus the README and the code agree.
 
 ### SYS-8 · The composition of components in one service
 
@@ -148,55 +148,55 @@ A component gives its transports, dependencies and checks to the one service of 
 
 ### SYS-4 · A conformance kit for transports
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** S6
 - **Started:** 2026-10-17
-- **Shipped:**
+- **Shipped:** 2026-10-18
 - **Links:** [#49](https://github.com/mark1russell7/systems/pull/49), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 `@mark1russell7/service/testing` gets `transportConformance`, 12 cases for each `TransportImpl`. The intake stops, the drain keeps its deadline and its signal, the count is true, and a close has a bound. A reference transport passes, and each of nine mutations of it fails its case. #49 has the kit.
 
 ### CI-1 · Real sockets and drain times in CI
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** SYS-4
 - **Started:** 2026-10-17
-- **Shipped:**
+- **Shipped:** 2026-10-18
 - **Links:** [#49](https://github.com/mark1russell7/systems/pull/49), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 `http.yml` starts the conformance kit on real sockets, with the keep-alive and drain times of `./http`, on Node 22.19, 24 and 26. Each job keeps its raw records as an artifact. These timed tests are only for CI. #49 has the workflow.
 
 ### SYS-1 · The HTTP listener as a transport
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** SYS-4, CI-1, DOC-5
 - **Started:** 2026-10-17
-- **Shipped:**
+- **Shipped:** 2026-10-18
 - **Links:** [#49](https://github.com/mark1russell7/systems/pull/49), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 A new entry, `@mark1russell7/service/http`, makes a `node:http` server a transport, as A8 of S6 tells. A small list of request and upgrade handlers lets several hosts use one port. The transport gets the lifecycle at its start, and its keep-alive reads `life.keepAlive()`. `httpTransport` passes the conformance kit on a fake server, and CI starts it on real sockets. #49 has the entry.
 
 ### SYS-2 · Probes on their own port or on the app port
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** SYS-1
 - **Started:** 2026-10-17
-- **Shipped:**
+- **Shipped:** 2026-10-18
 - **Links:** [#49](https://github.com/mark1russell7/systems/pull/49), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 `probeServer` answers on its own port, and it closes last. `probeHandler` answers on an app port until `close transports`, thus its mount keeps the listener open through the drain. Both answer from the cache of the health runtime, and each 503 of a probe gets `Retry-After`. #49 has them.
 
 ### SYS-3 · An HTTP answer from each request outcome
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** SYS-1, SYS-15, SYS-6
 - **Started:** 2026-10-17
-- **Shipped:**
+- **Shipped:** 2026-10-18
 - **Links:** [#49](https://github.com/mark1russell7/systems/pull/49), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 `handle()` binds a request of `node:http` to `life.request`, and `writeOutcome` writes the stream of the request. A unary request gets one status and its value. A stream gets each item as it comes, and an end after the first item goes in the body. Each 503 gets `Retry-After`, and a 500 gets none. #49 has them. They use the lifecycle that each transport gets at its start (#48), and the streams of #50.
@@ -291,14 +291,14 @@ The zod schemas of `@mark1russell7/algebra` move into a new entry, `./schema`, a
 
 ### SYS-20 · The OpenTelemetry preload of an ESM service
 
-- **Status:** later
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** SYS-1
-- **Started:**
-- **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Started:** 2026-10-18
+- **Shipped:** 2026-10-18
+- **Links:** [#57](https://github.com/mark1russell7/systems/pull/57), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-An ESM service loses its express spans when its preload does not register `@opentelemetry/instrumentation/hook.mjs` before the app loads. The telemetry check of Graph found it when `@graph/server` moved to ESM. The README of the service tells it, beside an HTTP service under `run()`.
+An ESM service loses its express spans when its preload does not register `@opentelemetry/instrumentation/hook.mjs` before the app loads. The telemetry check of Graph found it when `@graph/server` moved to ESM. The README of the service tells it, beside an HTTP service under `run()`, with the preload of the hook.
 
 ### SYS-16 · run() for a process that runs one command
 
@@ -324,10 +324,10 @@ A worker loop (A10 of S6) and a queue drain (A11) as `TransportImpl` factories. 
 
 ### SYS-11 · The kind lab on ./http
 
-- **Status:** blocked
+- **Status:** in progress
 - **Area:** server stack
 - **Depends on:** SYS-1, SYS-2, SYS-3
-- **Started:**
+- **Started:** 2026-10-18
 - **Shipped:**
 - **Links:** [#40](https://github.com/mark1russell7/systems/pull/40), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
@@ -337,7 +337,7 @@ The image of the kind lab replaces its own transport, probe server and outcome m
 
 - **Status:** blocked
 - **Area:** server stack
-- **Depends on:** SYS-1, SYS-2, SYS-3, SYS-15
+- **Depends on:** SYS-1, SYS-2, SYS-3, SYS-15, SYS-11
 - **Started:**
 - **Shipped:**
 - **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
