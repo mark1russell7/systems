@@ -7,6 +7,8 @@
 #   cells   Runs the cells whose names match `only`, a shard on each runner, and uploads each raw
 #           record and summary.ndjson as an artifact, for jarvis to land. With `file`, the cells
 #           come from that JSON file at the ref (cells that jarvis compiles), not the catalogs.
+#           With `subject`, a subject as JSON (the harness's Subject) replaces the subject of its
+#           name in the catalogs: the WS and WST cells then run on another repository's release.
 #
 # Start it with: gh workflow run cells.yml -R mark1russell7/systems -f only='^T12' -f shards=4
 # A pull request that changes this file runs the probe only. Each night, the schedule runs the WS
@@ -24,6 +26,9 @@ on:
         default: "4"
       file:
         description: A JSON file of compiled cells at the ref, in place of the catalogs (empty for the catalogs)
+        default: ""
+      subject:
+        description: A subject as JSON, in place of the subject of its name in the catalogs (empty for the subjects of the harness)
         default: ""
   schedule:
     - cron: "40 3 * * *"
@@ -166,6 +171,7 @@ jobs:
           CELLS_SHARD: ${{ matrix.shard }}/${{ inputs.shards || '4' }}
           CELLS_OUT: ${{ runner.temp }}/cells
           CELLS_FILE_AT: ${{ inputs.file }}
+          CELLS_SUBJECT: ${{ inputs.subject }}
         run: |
           if [ -n "$CELLS_FILE_AT" ]; then export CELLS_FILE="$GITHUB_WORKSPACE/$CELLS_FILE_AT"; fi
           # the catalogs' bands read the runner kernel's own HZ

@@ -602,18 +602,88 @@ export interface Target {
    */
   readonly program?: string;
   /**
-   * This name is an image of the harness that the target operates in place of `image`. An
-   * example is the image of the procedures client, which also holds the script of its server.
-   * `image` is then the stock base of that image, for the record.
+   * This source is the image of a subject that the target operates in place of `image`. It is an
+   * image pinned by digest, a build context, or an image that the harness ships. `image` is then
+   * the stock base of that image, for the record. An example is a subject that holds a client
+   * and the script of its server.
+   */
+  readonly subject?: ImageSource;
+  /**
+   * This name is an image of the harness that the target operates in place of `image`. It is a
+   * short form: `harness: "procedures"` is `subject: { kind: "shipped", name: "procedures" }`.
+   * `subject` replaces it.
    */
   readonly harness?: HarnessImage;
 }
 
 /**
- * A harness image is an image of the harness that a target can operate. `procedures` is the
- * image of `@procedures/client` on Node: its WebSocket client and its server script.
+ * A harness image is an image of the harness that a target can operate by its name (`Target.harness`).
+ * `procedures` is the image of `@procedures/client` on Node: its WebSocket client and its server script.
  */
 export type HarnessImage = "procedures";
+
+/**
+ * A shipped image is an image that the harness ships, by its name. Its build context is in the
+ * package of the harness, and in the package of the prober for `harness`.
+ */
+export type Shipped = "harness" | "node" | "go-http" | "node-http" | "mongo" | "pg" | "procedures" | "router";
+
+/**
+ * An image source tells where an image comes from, as data. The harness resolves each kind to an
+ * image that it can start:
+ * - `pinned`: an image of a registry, pinned by its digest. The lab pulls it.
+ * - `build`: a build context that the caller gives. The harness builds it, with a tag from its content.
+ * - `shipped`: an image that the harness ships, by its name. The harness builds it from its package.
+ */
+export type ImageSource = PinnedImage | BuildImage | ShippedImage;
+
+/** A pinned image is an image of a registry, pinned by its digest: `name@sha256:<64 hex digits>`. */
+export interface PinnedImage {
+  readonly kind: "pinned";
+  readonly image: string;
+}
+
+/**
+ * A build image is a build context that the caller gives. The harness copies its files into a new
+ * context and builds it. Each `FROM` of its Dockerfile names a digest, and each `package.json` or
+ * `Cargo.toml` has a lockfile beside it. Thus a build gives the same programs each time.
+ */
+export interface BuildImage {
+  readonly kind: "build";
+  /** This name is the repository of the tag. The tag is the name, then 12 digits of the sha256 of the context. */
+  readonly name: string;
+  /** This folder is the root of the context. A relative path starts at the working folder of the process. */
+  readonly context: string;
+  /** This path is the Dockerfile, in the context. Without it, the path is `Dockerfile`. */
+  readonly dockerfile?: string | undefined;
+  /** These paths are the files and the folders that the Dockerfile reads, in the context. Without them, the context is all of its folder. */
+  readonly files?: readonly string[] | undefined;
+}
+
+/** A shipped image source names an image that the harness ships (`Shipped`). */
+export interface ShippedImage {
+  readonly kind: "shipped";
+  readonly name: Shipped;
+}
+
+/**
+ * A subject is a program under test, as data: the image that holds its programs, and the command
+ * of each program. A catalog of cells takes a subject. Thus another repository can give its own
+ * subject, with its own release in it. The harness ships some (`SUBJECTS`).
+ */
+export interface Subject {
+  /** This name is the name of the subject in a catalog and in the records: `procedures`. */
+  readonly name: string;
+  /** This source is the image that holds the programs of the subject. */
+  readonly image: ImageSource;
+  /** This image is the stock base of the image, pinned by digest. A target of the subject names it (`Target.image`). */
+  readonly base: string;
+  /**
+   * These are the commands of the programs of the image by their role, each as argv: for example
+   * `client` and `server`. A run adds its arguments after the command.
+   */
+  readonly programs: Readonly<Record<string, readonly string[]>>;
+}
 
 /**
  * A client is what the runs of a cell use: the TCP client of the harness, or a driver on its
@@ -685,7 +755,8 @@ export interface HttpProbe {
  * nanoseconds) on its standard output, as the client of the harness does.
  */
 export interface ClientImage {
-  readonly image: string;
+  /** This image is a stock image by its name, pinned by digest, or the source of the image of a subject. */
+  readonly image: string | ImageSource;
   readonly command: readonly string[];
 }
 

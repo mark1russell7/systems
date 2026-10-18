@@ -1,9 +1,11 @@
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import type { Cell } from "@mark1russell7/harness";
+import type { Cell, Subject } from "@mark1russell7/harness";
 import { measure, runCell } from "@mark1russell7/harness";
+import { subjectSchema } from "@mark1russell7/harness/schema";
 import { describe, expect, it } from "vitest";
-import { ALL } from "./all.ts";
+import type { Subjects } from "./all.ts";
+import { catalogs } from "./all.ts";
 import { environmentOf } from "./environments.ts";
 
 /**
@@ -14,16 +16,26 @@ import { environmentOf } from "./environments.ts";
  * records) to CELLS_OUT, in the format that jarvis lands, and one line of its verdict to
  * summary.ndjson there. A cell that fails is a finding to examine, not a failure of the runner.
  * CELLS_FILE names a JSON file of cells that another repository compiles. Its cells then run in
- * place of the catalogs, with the same selection and the same records.
+ * place of the catalogs, with the same selection and the same records. CELLS_SUBJECT is a subject
+ * as JSON (`Subject`), which replaces the subject of its name in the catalogs: another repository
+ * runs the WS and WST cells on its own release this way.
  */
 const RUN = process.env["CELLS"] === "1";
 const ONLY = new RegExp(process.env["CELLS_ONLY"] ?? ".");
 const [shard, of] = (process.env["CELLS_SHARD"] ?? "0/1").split("/").map(Number) as [number, number];
 const OUT = process.env["CELLS_OUT"] ?? fileURLToPath(new URL("../out/", import.meta.url));
 const FILE = process.env["CELLS_FILE"] || undefined;
+const SUBJECT: Subject | undefined = process.env["CELLS_SUBJECT"] ? subjectSchema.parse(JSON.parse(process.env["CELLS_SUBJECT"])) : undefined;
 
-/** These cells are the cells of the file, or the catalogs when no file is given. */
-const source: readonly Cell[] = FILE === undefined ? ALL : (JSON.parse(readFileSync(FILE, "utf8")) as Cell[]);
+/** These are the subjects of the catalogs: the subject of the caller in place of the one of its name. */
+const subjects = (subject: Subject | undefined): Partial<Subjects> => {
+  if (subject === undefined) return {};
+  if (subject.name !== "procedures") throw new Error(`no catalog takes the subject ${subject.name}: the catalogs take procedures`);
+  return { procedures: subject };
+};
+
+/** These cells are the cells of the file, or the catalogs on their subjects when no file is given. */
+const source: readonly Cell[] = FILE === undefined ? catalogs(subjects(SUBJECT)) : (JSON.parse(readFileSync(FILE, "utf8")) as Cell[]);
 const selected: Cell[] = source.filter((each) => ONLY.test(each.name)).filter((_, at) => at % of === shard);
 
 /** This environment is the runner image, when stage 0 calibrated it. A cell without its own δ_abs gets the image's. */

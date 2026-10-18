@@ -1,8 +1,11 @@
 import { freemem, totalmem } from "node:os";
+import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import type { Cell, Group, ReplicaSet, Target } from "./cell.ts";
+import type { Cell, Group, ImageSource, ReplicaSet, Subject, Target } from "./cell.ts";
 import { groupOnce, openGroupLab } from "./group.ts";
-import { nodeClientImage, openLab } from "./lab.ts";
+import { SUBJECTS, nodeClientImage, programOf } from "./image.ts";
+import { openLab } from "./lab.ts";
 import { measure } from "./observe.ts";
 import { openReplicaSetLab, replicaSetOnce } from "./replset.ts";
 import { runCell } from "./run.ts";
@@ -12,7 +15,8 @@ import { runCell } from "./run.ts";
  * client from an image that the caller gives, and an agent in the namespaces of the target. It
  * also puts a reset and netem at a router of a topology, and it fails a group of Valkey over. Each
  * HTTP client sends two requests to a Node server on one connection. The procedures WebSocket client
- * drops a silent connection on its heartbeat, and it connects again.
+ * drops a silent connection on its heartbeat, and it connects again. Its subject is a build context
+ * that the test gives, as another repository gives its own subject.
  */
 const RUN = process.env["HARNESS_LAB"] === "1";
 const REDIS: Target = {
@@ -20,6 +24,7 @@ const REDIS: Target = {
   port: 6379,
   ready: "Ready to accept connections",
 };
+const NODE = "node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1";
 const VALKEY = "valkey/valkey:9.1@sha256:418652cfb58ef879d4978c33553735d7147016032d5aefaa14c828e611eb9dfd";
 const GROUP: Group = {
   name: "mymaster",
@@ -234,8 +239,11 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
       'const server = http.createServer((req, res) => { req.resume(); res.on("finish", () => emit("finished")); res.end("ok\\n"); });',
       'server.listen(8080, "0.0.0.0", () => emit("listening", { keepAliveTimeout: server.keepAliveTimeout }));',
     ].join("\n");
+    // the stock image is a subject pinned by its digest: the lab pulls it
+    const pinned: ImageSource = { kind: "pinned", image: NODE };
     const node: Target = {
-      image: "node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1",
+      image: NODE,
+      subject: pinned,
       port: 8080,
       ready: "listening",
       files: { "/srv/server.mjs": script },
@@ -259,6 +267,7 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
         const manifest = await lab.manifest({});
         expect(manifest.target.first, client).toMatchObject({ ev: "listening", keepAliveTimeout: 5000 });
         expect(Object.keys(manifest.target.files ?? {}), client).toEqual(["/srv/server.mjs"]);
+        expect(manifest.target, client).toMatchObject({ image: NODE, subject: pinned, base: NODE });
         expect(manifest.client.kind, client).toBe(client);
       } finally {
         await lab.close();
@@ -266,17 +275,26 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
     }
   }, 900_000);
 
-  it("runs the procedures WebSocket client against the procedures server of one image, and reads its pings, its drop and its new try", async () => {
-    // the server script is in the image of the harness, as the client is: one release of the package
+  it("runs the procedures WebSocket client against the procedures server of a subject that the caller builds, and reads its pings, its drop and its new try", async () => {
+    // the caller gives a build context of its own: the files of the procedures folder, from the folder above this package
+    const image: ImageSource = {
+      kind: "build",
+      name: "caller-procedures",
+      context: dirname(fileURLToPath(new URL("..", import.meta.url))),
+      dockerfile: "harness/image/procedures/Dockerfile",
+      files: ["harness/image/procedures"],
+    };
+    const subject: Subject = { ...SUBJECTS.procedures, image };
+    // the server script is in the image of the subject, as the client is: one release of the package
     const target: Target = {
-      image: "node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1",
-      harness: "procedures",
+      image: subject.base,
+      subject: image,
       port: 8080,
       ready: '"ev":"listening"',
-      command: ["node", "/opt/harness/procedures/server-ws.mjs", "--port", "8080", "--tcp-keepalive", "off", "--heartbeat", "off"],
+      command: [...programOf(subject, "server"), "--port", "8080", "--tcp-keepalive", "off", "--heartbeat", "off"],
       lines: true,
     };
-    const lab = await openLab(target, "procedures-ws");
+    const lab = await openLab(target, { image, command: programOf(subject, "client") });
     const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
     try {
       const settings = ["--heartbeat", "on", "--heartbeat-interval-ms", "300", "--heartbeat-timeout-ms", "200", "--heartbeat-misses", "1"];
@@ -306,11 +324,12 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
         const wrote = first.some((record) => soon(record) && record.ev === "tx");
         expect({ left, wrote }, socket).toEqual(socket === "ws" ? { left: true, wrote: false } : { left: false, wrote: true });
       }
-      // the server wrote its own lines, and the manifest names the image of the harness
+      // the server wrote its own lines, and the manifest names the subject and the tag of its build
       expect(lab.server.filter((line) => line.ev === "accepted").length).toBeGreaterThanOrEqual(4);
       const manifest = await lab.manifest({});
-      expect(manifest.target).toMatchObject({ harness: "procedures", first: { ev: "listening", heartbeat: null } });
-      expect(manifest.client.kind).toBe("procedures-ws");
+      expect(manifest.target).toMatchObject({ subject: image, base: subject.base, first: { ev: "listening", heartbeat: null } });
+      expect(manifest.target.image).toMatch(/^caller-procedures:[0-9a-f]{12}$/);
+      expect(manifest.client).toEqual({ kind: "image", image: manifest.target.image, source: image });
     } finally {
       await lab.close();
     }

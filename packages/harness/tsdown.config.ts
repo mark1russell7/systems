@@ -6,7 +6,8 @@ import { defineConfig } from "tsdown";
  * contain `src/`, thus the build makes no declaration maps.
  */
 export default defineConfig({
-  entry: ["src/index.ts"],
+  // The schemas are an entry of their own: the root entry does not import zod
+  entry: ["src/index.ts", "src/schema.ts"],
   outDir: "build",
   format: "esm",
   platform: "neutral",
