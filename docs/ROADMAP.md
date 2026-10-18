@@ -544,7 +544,7 @@ Each stage band of T12 includes the error of the stamps of the observer: 0.705 m
 - **Depends on:** S1
 - **Started:** 2026-10-18
 - **Shipped:**
-- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [#76](https://github.com/mark1russell7/systems/pull/76), [#77](https://github.com/mark1russell7/systems/pull/77), [#78](https://github.com/mark1russell7/systems/pull/78), [#79](https://github.com/mark1russell7/systems/pull/79), [#80](https://github.com/mark1russell7/systems/pull/80), [#81](https://github.com/mark1russell7/systems/pull/81), [#82](https://github.com/mark1russell7/systems/pull/82), [#83](https://github.com/mark1russell7/systems/pull/83), [#84](https://github.com/mark1russell7/systems/pull/84), [#85](https://github.com/mark1russell7/systems/pull/85)
+- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [#76](https://github.com/mark1russell7/systems/pull/76), [#77](https://github.com/mark1russell7/systems/pull/77), [#78](https://github.com/mark1russell7/systems/pull/78), [#79](https://github.com/mark1russell7/systems/pull/79), [#80](https://github.com/mark1russell7/systems/pull/80), [#81](https://github.com/mark1russell7/systems/pull/81), [#82](https://github.com/mark1russell7/systems/pull/82), [#83](https://github.com/mark1russell7/systems/pull/83), [#84](https://github.com/mark1russell7/systems/pull/84), [#85](https://github.com/mark1russell7/systems/pull/85), [#86](https://github.com/mark1russell7/systems/pull/86)
 
 The next system of the S1 order, with its clients and PgBouncer. At its defaults and its borders, the plan of R3 has 329 cells with PostgreSQL. HikariCP with pgjdbc is the client of 160 of them, Npgsql of 47 and node-postgres of 36. T10, through a pooler, has 132 of them.
 
@@ -612,7 +612,16 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
   - The two documents of PgBouncer decide that no timer of PgBouncer ends a query first: its earliest is query_wait_timeout, 120 s.
   - The other T10 cells at the defaults wait. Some need Pgpool-II or Supavisor, and some need several clients, SIGHUP or a console command at a hop, or a fault timed to a reply.
 - The PostgreSQL page of the site shows the 44 cells of the catalogs from one run at main ([39127973566](https://github.com/mark1russell7/systems/actions/runs/39127973566)). Each holds, with 484 counted runs and no void run (#85).
-- Then the borders of T10.
+- The first borders of T10 hold through PgBouncer, with 11 runs each (#86):
+  - query_timeout of PgBouncer against a query of 5 s. At 6 s, the reply comes at 5.004 s. At 4 s, a pass of the janitor ends the query, and PgBouncer closes the client with FATAL 08P01 at 4.127 s.
+  - A frozen server whose kernel acknowledges the query, against a read timeout of 10 s. A hold of 9 s gives the reply at 9.010 s, and a hold of 11 s ends at the read timeout, 10.011 s.
+  - O07 with one more hop. With a socketTimeout of 11 s, the server ends the query with ERROR 57014 at 10.004 s. With 9 s, the read timeout closes the socket at 9.010 s.
+  - O01 for node-postgres, against a client_idle_timeout of 12 s. The pool closes its idle client at 10.003 s. At an idle timer of 14 s, PgBouncer closes the client first, at 12.304 s.
+    - The pool sends the message `Terminate`, and it ends its socket only in the callback of that write. PgBouncer closes the client when it reads the message, and its FIN comes first. Thus the end is an end of file, not the close of the pool.
+  - The read timeout against the give-up of the kernel of PgBouncer, with tcp_retries2 = 4 in its namespace. The cells observe the server socket of PgBouncer. A socketTimeout of 5 s comes first, and PgBouncer closes its server socket at 5.005 s. At 15 s, the kernel of PgBouncer gives up first, 12.832 s after its first retransmission.
+    - These two cells keep one connection in the pool. At its fixed size of 10, the pool still adds connections when the fault comes. Each one sends a query through the one server of PgBouncer. Such a query took the server into the black hole, and PgBouncer opened a new server for the query of the cell.
+- The other T10 borders wait, each with its reason. Most of them name the knob of another system. Others need a transaction, several clients or Pgpool-II. .83 and .84 need the judge to read the close of a socket in SYN_SENT.
+- Then the T10 borders that need the judge, and the hops of Supavisor and Pgpool-II.
 
 ### RABBIT · RabbitMQ
 
