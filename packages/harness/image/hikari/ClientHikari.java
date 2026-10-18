@@ -446,7 +446,8 @@ public final class ClientHikari {
     for (Map.Entry<String, String> each : options.entrySet()) properties.setProperty(each.getKey(), each.getValue());
     config = new HikariConfig(properties);
     config.setJdbcUrl("jdbc:postgresql://" + host + ":" + port + "/postgres");
-    config.setUsername("postgres");
+    // the user of a cell, when it gives one: Supavisor routes a client by its user, <db_user>.<tenant>
+    if (!options.containsKey("username")) config.setUsername("postgres");
     config.setPoolName("cell");
 
     Runtime.getRuntime().addShutdownHook(new Thread(() -> {

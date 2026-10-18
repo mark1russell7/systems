@@ -314,7 +314,7 @@ try {
       // the documents, read by the algebra as an application installs both
       const algebra = await load("@mark1russell7/algebra");
       const documents = Object.values(module.MACHINES);
-      check(documents.length === 21 && module.MACHINES["linux-tcp"] === module.LINUX_TCP && module.MACHINES["postgres-session"] === module.POSTGRES_SESSION && module.MACHINES["pgbouncer-client"] === module.PGBOUNCER_CLIENT && module.MACHINES["pgbouncer-server"] === module.PGBOUNCER_SERVER && module.MACHINES["pgpool-session"] === module.PGPOOL_SESSION, "machines gives each document by its identifier");
+      check(documents.length === 23 && module.MACHINES["linux-tcp"] === module.LINUX_TCP && module.MACHINES["postgres-session"] === module.POSTGRES_SESSION && module.MACHINES["pgbouncer-client"] === module.PGBOUNCER_CLIENT && module.MACHINES["pgbouncer-server"] === module.PGBOUNCER_SERVER && module.MACHINES["pgpool-session"] === module.PGPOOL_SESSION && module.MACHINES["supavisor-client"] === module.SUPAVISOR_CLIENT && module.MACHINES["supavisor-server"] === module.SUPAVISOR_SERVER, "machines gives each document by its identifier");
       check(
         documents.every((doc) => algebra.machineSchema.safeParse(doc).success && algebra.machineProblems(doc).length === 0),
         "machines holds only documents that the algebra accepts",
