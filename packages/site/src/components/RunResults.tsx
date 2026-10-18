@@ -1,6 +1,6 @@
 /**
  * The results of the cells from the hosted runners of GitHub: T12 under Sentinels, the HTTP
- * keep-alive race, MongoDB, and Kubernetes in kind. Each harness cell has a frame with a strip chart,
+ * keep-alive race, MongoDB, PostgreSQL, and Kubernetes in kind. Each harness cell has a frame with a strip chart,
  * its prediction and its verdict. The chart has a dot for each counted run, against the band. A frame
  * of a group also has the stages of the failover. A kind cell has a frame with its verdict, and a
  * strip chart when its main value is a time.
@@ -9,6 +9,7 @@ import type { ReactElement } from "react";
 import http from "../data/http-2026-10-17.json";
 import kind from "../data/kind-2026-10-18.json";
 import mongodb from "../data/mongodb-2026-10-18.json";
+import pg from "../data/pg-2026-10-18.json";
 import r3 from "../data/r3-2026-10-17.json";
 import sentinel from "../data/sentinel-2026-10-17.json";
 import { count as digits, duration, reading } from "../lib/format.ts";
@@ -68,6 +69,7 @@ const COPIES: Readonly<Record<string, readonly RunCell[]>> = {
   sentinel: sentinel.cells,
   http: http.cells,
   mongodb: mongodb.cells,
+  pg: pg.cells,
   r3: r3.cells,
 };
 
@@ -269,7 +271,7 @@ function RunFrame(props: { readonly cell: RunCell }): ReactElement {
 }
 
 /** The cells of one group of a copy, in the sequence of the catalog. `stage` selects the defaults or the borders of the plan. */
-export default function RunResults(props: { readonly copy: "sentinel" | "http" | "mongodb" | "r3"; readonly group: string; readonly stage?: string }): ReactElement {
+export default function RunResults(props: { readonly copy: "sentinel" | "http" | "mongodb" | "pg" | "r3"; readonly group: string; readonly stage?: string }): ReactElement {
   const cells = (COPIES[props.copy] ?? []).filter((cell) => cell.group === props.group && (props.stage === undefined || cell.stage === props.stage));
   if (cells.length === 0) throw new Error(`no cell of ${props.copy} has the group ${props.group}`);
   return (

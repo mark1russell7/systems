@@ -45,6 +45,7 @@ export default defineConfig({
             "results/sentinel",
             "results/http",
             "results/mongodb",
+            "results/pg",
             "results/kind",
             "results/r3",
             "results/timers",
