@@ -335,11 +335,11 @@ The image of the kind lab replaces its own transport, probe server and outcome m
 
 ### REL-1 · Service 0.5.0 with ./http and the runner options
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** SYS-1, SYS-2, SYS-3, SYS-15, SYS-11
 - **Started:** 2026-10-18
-- **Shipped:**
+- **Shipped:** 2026-10-18
 - **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 A change of the version on main makes `release.yml` publish it. It is a MINOR, because SYS-6 changes `RequestFn` and the outcome type before 1.0. The client, jarvis and Graph then use it from npm.
@@ -539,7 +539,7 @@ The run at main of 2026-10-18 has no failure either: 26 cells hold. The same cel
 - **Shipped:** 2026-10-17
 - **Links:** [npm](https://www.npmjs.com/~mark1russell7)
 
-quantity 0.2.0, algebra 0.7.1, service 0.4.1, prober 0.3.1, harness 0.11.1 and kind 0.1.6. CI publishes each version change of main.
+quantity 0.2.0, algebra 0.7.1, service 0.5.0, prober 0.3.1, harness 0.11.1 and kind 0.1.7. CI publishes each version change of main.
 
 ### MACHINES · The first version of @mark1russell7/machines
 
