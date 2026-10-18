@@ -16,6 +16,8 @@ import { MONGOD_SESSION } from "./mongo/mongod-session.ts";
 import { MONGODB_NODE } from "./mongo/mongodb-node.ts";
 import { HIKARICP_PGJDBC } from "./pg/hikaricp-pgjdbc.ts";
 import { NODE_POSTGRES } from "./pg/node-postgres.ts";
+import { PGBOUNCER_CLIENT } from "./pg/pgbouncer.ts";
+import { PGBOUNCER_SERVER } from "./pg/pgbouncer-server.ts";
 import { POSTGRES_SESSION } from "./pg/postgres-session.ts";
 import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "./procedures-ws.ts";
 import { SENTINEL } from "./sentinel.ts";
@@ -33,6 +35,8 @@ export {
   NODE_HTTP_AGENT,
   NODE_HTTP_SERVER,
   NODE_POSTGRES,
+  PGBOUNCER_CLIENT,
+  PGBOUNCER_SERVER,
   POSTGRES_SESSION,
   PROCEDURES_WS_CLIENT,
   PROCEDURES_WS_SERVER,
@@ -86,4 +90,6 @@ export const MACHINES: Readonly<Record<string, Machine>> = byId([
   NODE_POSTGRES,
   POSTGRES_SESSION,
   HIKARICP_PGJDBC,
+  PGBOUNCER_CLIENT,
+  PGBOUNCER_SERVER,
 ]);

@@ -544,7 +544,7 @@ Each stage band of T12 includes the error of the stamps of the observer: 0.705 m
 - **Depends on:** S1
 - **Started:** 2026-10-18
 - **Shipped:**
-- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [Defaults](https://github.com/mark1russell7/systems/actions/runs/39096843868), [Idle](https://github.com/mark1russell7/systems/actions/runs/39098339096), [Seven](https://github.com/mark1russell7/systems/actions/runs/39101376487), [Connect](https://github.com/mark1russell7/systems/actions/runs/39103033893), [#76](https://github.com/mark1russell7/systems/pull/76), [Keepalive](https://github.com/mark1russell7/systems/actions/runs/39111986991), [#77](https://github.com/mark1russell7/systems/pull/77), [Start](https://github.com/mark1russell7/systems/actions/runs/39114190902), [#78](https://github.com/mark1russell7/systems/pull/78), [O07](https://github.com/mark1russell7/systems/actions/runs/39113772326), [#79](https://github.com/mark1russell7/systems/pull/79), [O03](https://github.com/mark1russell7/systems/actions/runs/39116194760), [#80](https://github.com/mark1russell7/systems/pull/80), [T03](https://github.com/mark1russell7/systems/actions/runs/39116595665), [#81](https://github.com/mark1russell7/systems/pull/81), [Server](https://github.com/mark1russell7/systems/actions/runs/39118515216), [#82](https://github.com/mark1russell7/systems/pull/82), [Queue](https://github.com/mark1russell7/systems/actions/runs/39119618959)
+- **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [Defaults](https://github.com/mark1russell7/systems/actions/runs/39096843868), [Idle](https://github.com/mark1russell7/systems/actions/runs/39098339096), [Seven](https://github.com/mark1russell7/systems/actions/runs/39101376487), [Connect](https://github.com/mark1russell7/systems/actions/runs/39103033893), [#76](https://github.com/mark1russell7/systems/pull/76), [Keepalive](https://github.com/mark1russell7/systems/actions/runs/39111986991), [#77](https://github.com/mark1russell7/systems/pull/77), [Start](https://github.com/mark1russell7/systems/actions/runs/39114190902), [#78](https://github.com/mark1russell7/systems/pull/78), [O07](https://github.com/mark1russell7/systems/actions/runs/39113772326), [#79](https://github.com/mark1russell7/systems/pull/79), [O03](https://github.com/mark1russell7/systems/actions/runs/39116194760), [#80](https://github.com/mark1russell7/systems/pull/80), [T03](https://github.com/mark1russell7/systems/actions/runs/39116595665), [#81](https://github.com/mark1russell7/systems/pull/81), [Server](https://github.com/mark1russell7/systems/actions/runs/39118515216), [#82](https://github.com/mark1russell7/systems/pull/82), [Queue](https://github.com/mark1russell7/systems/actions/runs/39119618959), [#83](https://github.com/mark1russell7/systems/pull/83), [Pooler](https://github.com/mark1russell7/systems/actions/runs/39123543199)
 
 The next system of the S1 order, with its clients and PgBouncer. At its defaults and its borders, the plan of R3 has 329 cells with PostgreSQL. HikariCP with pgjdbc is the client of 160 of them, Npgsql of 47 and node-postgres of 36. T10, through a pooler, has 132 of them.
 
@@ -601,7 +601,11 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
   - Inside, the timer of the client is longer: pg at 10.5 s and HikariCP at 11 s. The server ends the query with ERROR 57014 at 10.002 s (pg) and at 10.004 s (HikariCP).
   - Outside, the timer of the client is shorter. pg gives up at 9.503 s, and the read timeout of HikariCP closes its socket at 9.010 s. The server goes on with the statement.
   - The harness sends a slow text only in the query in flight (`inflight`, harness 0.11.7). The server gets its settings on its command line.
-- Then PgBouncer and T10.
+- PgBouncer 1.26.1 has its two machine documents and a hop of the harness (#83), the first step of T10.
+  - The documents come from its C source at its tag (machines 0.3.7): one client connection, and one server connection of a pool. Each timer of PgBouncer is a check of its janitor, each 333.3 ms.
+  - At the defaults PgBouncer checks an idle server older than 30 s with the empty query before its next use, and no timer bounds that check.
+  - The hop builds PgBouncer from its release tarball, by its SHA-256 (harness 0.11.9). Its lab test passes: a reset of the server reaches a client of node-postgres as FATAL 08P01 "server conn crashed?".
+- Then the cells of T10.
 
 ### RABBIT · RabbitMQ
 
@@ -678,7 +682,7 @@ quantity 0.2.0, algebra 0.7.1, service 0.5.2, prober 0.3.1, harness 0.11.4 and k
 - **Links:** [packages/machines](https://github.com/mark1russell7/systems/tree/main/packages/machines)
 - **Waiting on Mark:** Touch your security key for the first publish of machines, in the session that owns npm. On 2026-10-17, npm refused it with a 429.
 
-The one home of each machine document. Its first version is 0.3.6. Version 0.3.1 adds the two documents of PostgreSQL to 0.3.0, and 0.3.2 adds HikariCP over pgjdbc. Version 0.3.3 adds the slack of poll() for HikariCP, and 0.3.4 adds the start check of the pool. Version 0.3.5 gives a bound to the alarm of a PostgreSQL backend. Version 0.3.6 tells that the keepalive checks of HikariCP share one thread.
+The one home of each machine document. Its first version is 0.3.7. Version 0.3.1 adds the two documents of PostgreSQL to 0.3.0, and 0.3.2 adds HikariCP over pgjdbc. Version 0.3.3 adds the slack of poll() for HikariCP, and 0.3.4 adds the start check of the pool. Version 0.3.5 gives a bound to the alarm of a PostgreSQL backend. Version 0.3.6 tells that the keepalive checks of HikariCP share one thread, and 0.3.7 adds the two documents of PgBouncer 1.26.1.
 
 The session that owns npm publishes it from main. Then release.yml publishes each later version.
 

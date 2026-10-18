@@ -292,6 +292,10 @@ describe("the chain of a topology", () => {
     expect(templated("server redis {{next}}\nupstream {{next}}", "172.22.0.2:6379")).toBe(
       "server redis 172.22.0.2:6379\nupstream 172.22.0.2:6379",
     );
+    // a pooler names the host and the port of the next hop apart, as PgBouncer does
+    expect(templated("postgres = host={{next.host}} port={{next.port}} dbname=postgres", "172.22.0.3:5432")).toBe(
+      "postgres = host=172.22.0.3 port=5432 dbname=postgres",
+    );
     expect(JSON.parse(toxicBody({ type: "latency", stream: "downstream", attributes: { latency: 100, jitter: 0 } }))).toEqual({
       name: "fault",
       type: "latency",

@@ -2,7 +2,7 @@ import { freemem, totalmem } from "node:os";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import type { Cell, Group, ImageSource, ReplicaSet, Subject, Target } from "./cell.ts";
+import type { Cell, Group, ImageSource, ProxyHop, ReplicaSet, Subject, Target } from "./cell.ts";
 import { groupOnce, openGroupLab } from "./group.ts";
 import { SUBJECTS, nodeClientImage, programOf } from "./image.ts";
 import { openLab } from "./lab.ts";
@@ -185,6 +185,60 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
     const [read] = result.measured;
     expect(read).toMatchObject({ outcome: { kind: "error", errno: "ECONNRESET" }, void: null, finding: null });
     expect(result.manifests[0]?.client.kind).toBe("hikari");
+  }, 600_000);
+
+  it("passes a query of node-postgres through PgBouncer in transaction pooling, and a reset of the server reaches the client as a FATAL error", async () => {
+    const s = (value: number) => ({ value, unit: "s" });
+    const pgbouncer: ProxyHop = {
+      name: "pgbouncer",
+      kind: "proxy",
+      image: { kind: "shipped", name: "pgbouncer" },
+      port: 6432,
+      files: {
+        "/etc/pgbouncer/pgbouncer.ini": [
+          "[databases]",
+          "postgres = host={{next.host}} port={{next.port}} dbname=postgres",
+          "[pgbouncer]",
+          "listen_addr = 0.0.0.0",
+          "listen_port = 6432",
+          "auth_type = trust",
+          "auth_file = /etc/pgbouncer/userlist.txt",
+          "pool_mode = transaction",
+          "",
+        ].join("\n"),
+        "/etc/pgbouncer/userlist.txt": '"postgres" ""\n',
+      },
+      ready: "process up: PgBouncer 1.26.1",
+    };
+    const cell: Cell = {
+      name: "lab pg through pgbouncer, rst at the server, a query in flight",
+      target: POSTGRES,
+      sysctls: {},
+      probe: { mode: "inflight", keepalive: false, driver: { name: "pg" } },
+      fault: "rst",
+      topology: { name: "T10", hops: [pgbouncer] },
+      // the reset ends the socket of PgBouncer to the server: PgBouncer then sends the client a
+      // FATAL error and closes it. pg writes after that close, thus its socket ends with EPIPE: the
+      // fail line of the query ends the band
+      prediction: {
+        detects: true,
+        timer: "the reset of the server",
+        errno: "08P01",
+        from: "request-sent",
+        low: s(0),
+        high: s(1),
+        driver: { socket: "pool", ends: { ev: "fail", where: { n: 2 }, name: "code" } },
+      },
+      runs: 1,
+      environments: 1,
+    };
+    const result = await runCell(cell);
+    const [read] = result.measured;
+    expect(read).toMatchObject({ void: null, finding: null });
+    // PgBouncer sends FATAL 08P01 'server conn crashed?' before it closes the client (src/server.c:806-815)
+    const fail = result.runs[0]?.events.find((event) => event.ev === "fail" && event["n"] === 2);
+    expect(fail).toMatchObject({ code: "08P01", message: "server conn crashed?" });
+    expect(result.manifests[0]?.hops?.[0]).toMatchObject({ name: "pgbouncer", kind: "proxy" });
   }, 600_000);
 
   it("fails a group of Valkey over with a planned failover, and the client writes to the new primary", async () => {

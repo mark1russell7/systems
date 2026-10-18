@@ -111,16 +111,20 @@ export interface RouterHop {
 
 /**
  * A proxy is a hop that ends each TCP connection from the side of the client and opens its own to
- * the next hop. It is a stock image, pinned by digest.
+ * the next hop. It is a stock image, pinned by digest, or an image that the harness ships, for
+ * example PgBouncer (`{ kind: "shipped", name: "pgbouncer" }`).
  */
 export interface ProxyHop {
   readonly name: string;
   readonly kind: "proxy";
-  readonly image: string;
+  readonly image: string | ImageSource;
   /** This port is the port that the proxy listens on for the side of the client. */
   readonly port: number;
   readonly command?: readonly string[];
-  /** These files go into the proxy before it starts, by their path. In their content, {{next}} is the address and port of the next hop. */
+  /**
+   * These files go into the proxy before it starts, by their path. In their content, {{next}} is
+   * the address and port of the next hop, and {{next.host}} and {{next.port}} are each part.
+   */
   readonly files?: Readonly<Record<string, string>>;
   /** This text is the log line that tells that the proxy serves. */
   readonly ready?: string;
@@ -632,7 +636,7 @@ export type HarnessImage = "procedures";
  * A shipped image is an image that the harness ships, by its name. Its build context is in the
  * package of the harness, and in the package of the prober for `harness`.
  */
-export type Shipped = "harness" | "node" | "go-http" | "node-http" | "mongo" | "pg" | "hikari" | "procedures" | "router";
+export type Shipped = "harness" | "node" | "go-http" | "node-http" | "mongo" | "pg" | "hikari" | "procedures" | "router" | "pgbouncer";
 
 /**
  * An image source tells where an image comes from, as data. The harness resolves each kind to an

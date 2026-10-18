@@ -149,7 +149,7 @@ The entry `@mark1russell7/harness/schema` has the zod schemas of a source (`imag
 
 ## The images
 
-The harness ships eight images, each as a shipped source (`ImageSource`). The tag of each image comes from the path of its Dockerfile and the content of all the files that its Dockerfile reads. The harness copies these files into a new build context, from its own package and from the prober package. Thus the build works in a workspace and from npm.
+The harness ships ten images, each as a shipped source (`ImageSource`). The tag of each image comes from the path of its Dockerfile and the content of all the files that its Dockerfile reads. The harness copies these files into a new build context, from its own package and from the prober package. Thus the build works in a workspace and from npm.
 
 - **The harness image** (`image/Dockerfile`) has two stages, each a digest-pinned Alpine. `Cargo.lock` pins the crates. The image holds:
   - the kernel program of the prober, compiled against the BTF of the kernel that builds it, and its Rust collector.
@@ -173,6 +173,10 @@ The harness ships eight images, each as a shipped source (`ImageSource`). The ta
   - The same image holds `stepdown-mongo.mjs`, the sender of `replSetStepDown`.
 - **The procedures image** (`image/procedures`) is the image of the `procedures` subject. It holds `@procedures/client` 0.7.0 and `ws` 8.22.0 on Node 24.21.0, whose WebSocket is undici 7.29.1. The digest of the image and an npm lockfile pin them. It holds the WebSocket client (`client-ws.mjs`) and the script of the procedures server (`server-ws.mjs`). Each takes each of its settings as a flag, and it has no default. The lockfile holds one copy of `ws`, and the client stops when `@procedures/client/node` resolves another one.
 - **The router image** (`image/router`) is a digest-pinned Alpine with conntrack-tools, nftables, iproute2 and Python. `mbx.sh` sets the form of the router in one nftables table, `ctwatch.py` writes the conntrack events, and `resetter.py` sends the resets of the `reset-both` form. Each run records its packages in the manifest.
+- **The PgBouncer image** (`image/pgbouncer`) is PgBouncer 1.26.1, a pooler hop, on a digest-pinned Alpine. The build gets the release tarball of pgbouncer.org and checks its SHA-256 before it builds. The C sources of that tarball are those of the tag that the machine documents cite.
+  - A hop takes the image as a shipped source: `{ kind: "shipped", name: "pgbouncer" }`. A proxy hop also takes a stock image by its digest.
+  - A cell gives its configuration as files of the hop (`ProxyHop.files`): `/etc/pgbouncer/pgbouncer.ini` and `/etc/pgbouncer/userlist.txt`. In them, `{{next.host}}` and `{{next.port}}` are the host and the port of the server.
+  - PgBouncer does not start as root, thus it operates as its own user.
 
 The build does the `cargo test` of the two crates. Thus the record decoder passes its tests before an image exists. Each amount that the native programs print is a quantity in a canonical unit. For example, an RTO is in `jiffy`, a round trip in `us`, and a segment in `B`.
 
