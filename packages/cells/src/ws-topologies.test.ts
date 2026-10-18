@@ -1,11 +1,12 @@
 import { realizationOf, timerOf } from "@mark1russell7/algebra";
-import { latestEndOf } from "@mark1russell7/harness";
+import type { Subject } from "@mark1russell7/harness";
+import { SUBJECTS, latestEndOf } from "@mark1russell7/harness";
 import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER, nodeEarlySeconds, nodeLateSeconds } from "@mark1russell7/machines";
 import { describe, expect, it } from "vitest";
 import { HZ } from "./catalog.ts";
 import { T02_CELLS } from "./t02.ts";
 import { clientValues, CLIENT, SILENT_CLIENT, serverValues } from "./ws.ts";
-import { FIRST_REPLY, WST_CELLS, WST_SPECS, beatOf, forgetOf, o03Server, o03Ws, o03Wst, predictWstAt } from "./ws-topologies.ts";
+import { FIRST_REPLY, WST_CELLS, WST_SPECS, beatOf, forgetOf, o03Server, o03Ws, o03Wst, predictWstAt, wstCells } from "./ws-topologies.ts";
 
 const round = (value: number) => Math.round(value * 1e9) / 1e9;
 const cell = (name: string) => {
@@ -33,7 +34,7 @@ describe("the WST catalog", () => {
     for (const each of WST_CELLS) {
       expect(each.name.startsWith("WST "), each.name).toBe(true);
       expect(each.client).toBe("procedures-ws");
-      expect(each.target).toMatchObject({ harness: "procedures", lines: true, port: 8080 });
+      expect(each.target).toMatchObject({ subject: SUBJECTS.procedures.image, lines: true, port: 8080 });
       expect(each.topology?.hops, each.name).toHaveLength(1);
       expect(each.concurrency, each.name).toBe(1);
       expect(each.probe).toMatchObject({ mode: "idle", keepalive: false });
@@ -230,5 +231,18 @@ describe("the WST catalog", () => {
       server: { heartbeat: { interval: 6000, misses: 2 } },
     } as const;
     expect(() => predictWstAt(both, 1)).toThrow(/no reference/);
+  });
+});
+
+describe("the subject of the WST catalog", () => {
+  it("runs each cell on a subject that a caller gives, with the same hop and the same predictions", () => {
+    const caller: Subject = { ...SUBJECTS.procedures, name: "procedures", image: { kind: "build", name: "caller", context: "subject" } };
+    expect(wstCells(SUBJECTS.procedures)).toEqual(WST_CELLS);
+    for (const [at, each] of wstCells(caller).entries()) {
+      const shipped = WST_CELLS[at]!;
+      expect(each.client, each.name).toEqual({ image: caller.image, command: SUBJECTS.procedures.programs["client"] });
+      expect(each.target, each.name).toEqual({ ...shipped.target, subject: caller.image });
+      expect({ ...each, client: shipped.client, target: shipped.target }, each.name).toEqual(shipped);
+    }
   });
 });

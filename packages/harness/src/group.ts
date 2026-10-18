@@ -12,7 +12,8 @@ import type {
   SentinelEvent,
 } from "./cell.ts";
 import type { Manifest } from "./lab.ts";
-import { STOP, containers, harnessImage, lines, netnsOf, nodeClientImage, output, withPid } from "./lab.ts";
+import { harnessImage, nodeClientImage } from "./image.ts";
+import { STOP, containers, lines, netnsOf, output, withPid } from "./lab.ts";
 
 /**
  * This module is the lab of a replicated group: a primary and its replicas, and the Sentinels

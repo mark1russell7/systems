@@ -9,6 +9,7 @@ The harness does not compute predictions. The author of a cell computes the pred
 A **cell** (`cell.ts`) is all that one measurement needs, as data:
 
 - **The topology.** A stock target image, pinned by digest, and the hops between the client and the target (`Cell.topology`). Without hops, the client and the target are a direct pair. A replicated group under its Sentinels can replace the target (`Cell.group`).
+- **The subject.** The program under test, as data. Its image is an image pinned by digest, a build context, or an image that the harness ships (`Cell.client`, `Target.subject`).
 - **The settings.** The sysctls of the client namespace, and the socket options of the client.
 - **The workload.** A connection that stays idle, a connection with a request in flight, or a stream of requests. A stream of `GET` requests for a long value keeps many segments in flight.
 - **The fault.** A black hole, a reset, a frozen process, or a stall. In a topology, also a fault at a router or a proxy, or a router that forgets a flow. Also a proxy that closes an idle connection, or a toxic of Toxiproxy.
@@ -101,24 +102,52 @@ A fault names a member by its role at the start of a run: `primary`, or `replica
 
 ## The clients and the agents
 
-- **A client image** (`ClientImage`, `Cell.client`) replaces the TCP client of the harness in each run. It operates in the namespace of the client. Its command gets the arguments of the TCP client, and it prints the same JSON lines.
+- **A client image** (`ClientImage`, `Cell.client`) replaces the TCP client of the harness in each run. It operates in the namespace of the client. Its command gets the arguments of the TCP client, and it prints the same JSON lines. Its image is a stock image by its name, or the source of the image of a subject (`ImageSource`).
+- **A client by its name** (`Cell.client`) is a client that the harness ships (`SHIPPED_CLIENTS`): the source of its image and its command. Thus each client of the harness is data too.
 - **An HTTP client** (`Cell.client`: `go-http`, `http-agent` or `undici`) is a client of the harness from its own image. It sends a GET of the root, then a second request (`probe.http`):
   - after the signal (`inflight`), into the fault
   - or by itself, a gap after its first reply (`gap`), for the keep-alive race.
 - **The lines of an HTTP client.** It writes the lines of the TCP client, with the number `i` of the request on each line of a request. It also writes the connection of each try of a request (`request`, then `retry`), with its local address and a flag for a reused connection. Each connection gets a `conn` line, and each end of a connection a line (`eof`, `conn-error`, `closed`). The end of the second request is a `done` line.
 - **A target with a script.** A target can take files before it starts (`Target.files`), for example the script of a Node server on the stock Node image. A target that writes JSON lines (`Target.lines`) gives them to each run (`Run.server`). The manifest holds the sha256 of each file and the first line of the target.
-- **The WebSocket client** (`Cell.client` is `procedures-ws`) is the `WebSocketTransport` of `@procedures/client` 0.7.0. The cell gives each of its settings (`probe.ws`): the class of its sockets, the heartbeat, the reconnect, and the times of a call.
+- **The WebSocket client** (`Cell.client` is `procedures-ws`) is the `WebSocketTransport` of `@procedures/client` 0.7.0: the `client` program of the `procedures` subject. The cell gives each of its settings (`probe.ws`): the class of its sockets, the heartbeat, the reconnect, and the times of a call.
   - Its first request is `harness.echo`. In flight, its request into the fault is `harness.echo`, or `harness.hold` for a held reply.
   - It writes the lines of the TCP client. It also writes a line for each act of the program: `ping`, `drop`, `reconnecting` and `dial`.
   - The class of its sockets is the global `WebSocket` of Node, with the transport of the root entry. Or it is the `WebSocket` of the `ws` package, with the transport of the Node entry `@procedures/client/node`.
   - The transport gets a subclass of that class. The subclass writes a line, then gives the work to its class. Thus the transport, undici and ws operate as they do without it.
   - The subclass has `terminate()` only when its class has it, because the transport drops a socket with `terminate()` when it exists.
-- **A target from an image of the harness** (`Target.harness`). The target operates an image of the harness in place of its stock image. The procedures server is a script in the image of the WebSocket client (`server-ws.mjs`). Thus the client and the server use one release of the package. `Target.image` is the stock base of that image, and the manifest names both.
+- **A target from the image of a subject** (`Target.subject`). The target operates the image of a subject in place of its stock image. `Target.image` is then the stock base of that image, and the manifest names both. The procedures server is a script in the image of the WebSocket client (`server-ws.mjs`). Thus the client and the server use one release of the package.
+- **A target from an image of the harness** (`Target.harness`) is a short form. `harness: "procedures"` is `subject: { kind: "shipped", name: "procedures" }`.
 - **An agent** (`lab.agent(image, command, { pid })`) is a container in the network namespace of the target. With `pid`, it also shares the process namespace of the target, thus it can signal the server process. Its JSON lines and its `exec` stay available to the caller.
+
+## The subjects
+
+A subject (`Subject`, `image.ts`) is the program under test, as data. The harness does not import the program. It starts the image of the program. Thus another repository can give its own subject, with its own release in it.
+
+- **The source of an image** (`ImageSource`) tells where the image comes from:
+  - `pinned`: an image of a registry with its digest, `name@sha256:<64 hex digits>`. The lab pulls it.
+  - `build`: a build context that the caller gives. `context` is its folder, `dockerfile` is its Dockerfile, and `files` are the files and folders that the Dockerfile reads.
+  - `shipped`: an image that the harness ships, by its name (`SHIPPED_NAMES`).
+- **A relative folder** of a build starts at the working folder of the process. A record holds the source of each image as the cell gives it. Thus give a relative folder, and the record names no path of the machine.
+- **A subject** gives the source of its image and its stock base, pinned by digest. It also gives the command of each of its programs by their roles, for example `client` and `server`.
+- **A subject in a cell.** `subjectClient(subject)` gives the client of a cell, and `programOf(subject, role)` gives the command of a program. A target operates the image of the subject (`Target.subject`), and its stock image is the base of the subject.
+- **A client that the harness ships keeps its name.** `subjectClient` gives `procedures-ws` for the `procedures` subject. Thus the records of a cell on that subject stay the same.
+- **The subjects of the harness** (`SUBJECTS`). `procedures` is `@procedures/client` 0.7.0 on Node: its WebSocket client and its server, from one image.
+
+These rules keep a build the same in each run:
+
+- A pinned image names its digest. A tag alone can move.
+- Each `FROM` of the Dockerfile of a build names a digest, an earlier stage, or `scratch`.
+- Each `package.json` and `Cargo.toml` of a build has a lockfile in its folder or in a folder above it.
+- Each path of a build stays in its context.
+- The tag of a build is its name, then 12 digits of a sha256. The sha256 reads the path of the Dockerfile, and the path and the content of each file. Thus a changed program cannot operate as an old one.
+
+The images that the harness ships obey the same rules. A source that breaks a rule fails before Docker starts (`planOf`, `imageProblems`, `subjectProblems`). A pinned image, or a stock image by its name, does not load Testcontainers before the lab starts it.
+
+The entry `@mark1russell7/harness/schema` has the zod schemas of a source (`imageSourceSchema`), a client (`clientSchema`) and a subject (`subjectSchema`). A runner that reads a subject as JSON examines it with them. The root entry does not import zod.
 
 ## The images
 
-The harness builds six images. The tag of each image comes from the content of all the files that its Dockerfile reads. The harness copies these files into a new build context, from its own package and from the prober package. Thus the build works in a workspace and from npm.
+The harness ships eight images, each as a shipped source (`ImageSource`). The tag of each image comes from the path of its Dockerfile and the content of all the files that its Dockerfile reads. The harness copies these files into a new build context, from its own package and from the prober package. Thus the build works in a workspace and from npm.
 
 - **The harness image** (`image/Dockerfile`) has two stages, each a digest-pinned Alpine. `Cargo.lock` pins the crates. The image holds:
   - the kernel program of the prober, compiled against the BTF of the kernel that builds it, and its Rust collector.
@@ -135,7 +164,7 @@ The harness builds six images. The tag of each image comes from the content of a
   - The events of the driver are `sdam` lines (the heartbeats and the changes of each server), `cmap` lines (the pools) and `command` lines (each try of an operation).
   - Each operation is a `sent` line, then an `ack` line or a `fail` line. An `ack` line has the server that accepted it. A `fail` line has the name and the labels of its error.
   - The same image holds `stepdown-mongo.mjs`, the sender of `replSetStepDown`.
-- **The procedures image** (`image/procedures`) holds `@procedures/client` 0.7.0 and `ws` 8.22.0 on Node 24.21.0, whose WebSocket is undici 7.29.1. The digest of the image and an npm lockfile pin them. It holds the WebSocket client (`client-ws.mjs`) and the script of the procedures server (`server-ws.mjs`). Each takes each of its settings as a flag, and it has no default. The lockfile holds one copy of `ws`, and the client stops when `@procedures/client/node` resolves another one.
+- **The procedures image** (`image/procedures`) is the image of the `procedures` subject. It holds `@procedures/client` 0.7.0 and `ws` 8.22.0 on Node 24.21.0, whose WebSocket is undici 7.29.1. The digest of the image and an npm lockfile pin them. It holds the WebSocket client (`client-ws.mjs`) and the script of the procedures server (`server-ws.mjs`). Each takes each of its settings as a flag, and it has no default. The lockfile holds one copy of `ws`, and the client stops when `@procedures/client/node` resolves another one.
 - **The router image** (`image/router`) is a digest-pinned Alpine with conntrack-tools, nftables, iproute2 and Python. `mbx.sh` sets the form of the router in one nftables table, `ctwatch.py` writes the conntrack events, and `resetter.py` sends the resets of the `reset-both` form. Each run records its packages in the manifest.
 
 The build does the `cargo test` of the two crates. Thus the record decoder passes its tests before an image exists. Each amount that the native programs print is a quantity in a canonical unit. For example, an RTO is in `jiffy`, a round trip in `us`, and a segment in `B`.
@@ -301,7 +330,7 @@ The distribution test needs a simulator, which does not exist at this time.
 pnpm add @mark1russell7/harness zod
 ```
 
-A run needs Docker, and privileged containers for the prober and the sidecars. The kernel must have BTF (`/sys/kernel/btf/vmlinux`).
+A run needs Docker, and privileged containers for the prober and the sidecars. The kernel must have BTF (`/sys/kernel/btf/vmlinux`). The schemas of the data of a caller are in the entry `@mark1russell7/harness/schema`.
 
 ## Tests
 
@@ -311,11 +340,13 @@ The tests also measure a group run from test lines. They find the first accepted
 
 The tests of a replica set read the log of mongod, and they put its lines on the monotonic clock. They test the views that make a set healthy and the peers of each cut. They measure the stages of a set and the bands of a driver from test lines.
 
+The tests of `image.ts` plan the build of each image that the harness ships, and of a build context of a caller. They test the rules of a build, the problems of a source and of a subject, and the schemas.
+
 The tests of `application.ts` measure a heartbeat of a program from test lines and records. They find the first ping without an answer, the drop, the waits of the reconnect and the call in flight. They also test a report of the kernel before the drop, a VM that stopped, the heartbeat of a server, and an idle stall.
 
 The cells themselves need Docker and privileged containers. CI does not start them. `HARNESS_LAB=1` starts the lab tests on Docker. They start a client image and an agent, and they put a reset and netem at a router. They also fail a group of Valkey 9.1 over with a planned failover.
 
-In the lab tests, each HTTP client sends two requests on one connection to a Node server, from a script in the stock Node image. The procedures WebSocket client drops a silent connection on its heartbeat, and it connects again to the procedures server. With the global `WebSocket`, the drop writes a close frame. With the `WebSocket` of ws, the socket leaves ESTABLISHED at once.
+In the lab tests, each HTTP client sends two requests on one connection to a Node server, from a script in the stock Node image. The procedures WebSocket client drops a silent connection on its heartbeat, and it connects again to the procedures server. With the global `WebSocket`, the drop writes a close frame. With the `WebSocket` of ws, the socket leaves ESTABLISHED at once. The subject of that test is a build context that the test gives, as another repository gives its own subject.
 
 The lab tests also step a replica set of three members of MongoDB 9.0.4 down, and they write the free memory of the machine. They also reset a write of the MongoDB driver in flight to a set of one member.
 

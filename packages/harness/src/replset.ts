@@ -4,7 +4,8 @@ import type { Cell, GroupPlace, GroupRole, KernelRecord, ProbeEvent, ReplicaSet,
 import type { GroupClient, GroupNetworkFault, GroupView, Stamp } from "./group.ts";
 import { CONVERGE_MS, deadlineOf } from "./group.ts";
 import type { Manifest } from "./lab.ts";
-import { STOP, containers, harnessImage, lines, mongoClientImage, netnsOf, output, withPid } from "./lab.ts";
+import { harnessImage, mongoClientImage } from "./image.ts";
+import { STOP, containers, lines, netnsOf, output, withPid } from "./lab.ts";
 
 /**
  * This module is the lab of a replica set: a replicated group with no external authority, whose

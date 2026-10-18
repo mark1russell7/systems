@@ -3,9 +3,11 @@
 // environments that code builds (Testcontainers), measures on the one monotonic clock of the VM,
 // and gives each cell a verdict. A topology is a chain of hops, a replicated group under its
 // Sentinels, or a replica set whose members elect their own primary. A program with its own
-// detector, a WebSocket heartbeat, writes lines that the kernel stamps.
+// detector, a WebSocket heartbeat, writes lines that the kernel stamps. The subject of a cell is
+// data: an image pinned by digest, a build context, or an image that the harness ships.
 
 export type {
+  BuildImage,
   Cell,
   Client,
   ClientImage,
@@ -20,12 +22,14 @@ export type {
   Hop,
   HopPlace,
   HttpProbe,
+  ImageSource,
   LineMatch,
   MiddleboxEvent,
   MiddleboxExpectation,
   MiddleboxForm,
   Observer,
   Fault,
+  PinnedImage,
   KernelRecord,
   Prediction,
   ProbeEvent,
@@ -46,8 +50,11 @@ export type {
   RunTopology,
   SentinelEvent,
   SentinelStage,
+  Shipped,
+  ShippedImage,
   Stage,
   StageBand,
+  Subject,
   Target,
   Topology,
   Toxic,
@@ -87,26 +94,35 @@ export {
 export type { Decision, GroupVerdict, Interval, ReconnectVerdict, Spread, StageVerdict, Verdict } from "./verdict.ts";
 export { INJECT, NOISE, RELATIVE, STEPS, delayVoids, groupVerdictOf, medianInterval, noiseOf, quantileOf, requestWords, spreadOf, verdictOf } from "./verdict.ts";
 export type { Agent, FaultSide, Lab, Manifest, ManifestHop, NetworkFault, Probe } from "./lab.ts";
+export { LISTING, PUMP, deviceOf, endpointAfter, hzOf, openLab, routesOf, templated, toxicBody } from "./lab.ts";
+export type { ImagePlan } from "./image.ts";
 export {
-  LISTING,
-  PUMP,
-  deviceOf,
-  endpointAfter,
+  CLIENT_NAMES,
+  PINNED,
+  REPOSITORY,
+  SHIPPED_CLIENTS,
+  SHIPPED_NAMES,
+  SUBJECTS,
   goHttpImage,
-  hzOf,
   harnessImage,
+  imageOf,
+  imageProblems,
+  inContext,
   mongoClientImage,
   nodeClientImage,
   nodeHttpImage,
-  openLab,
   pgClientImage,
+  planOf,
   proceduresImage,
+  programOf,
   routerImage,
-  routesOf,
+  subjectClient,
+  subjectProblems,
   targetImageOf,
-  templated,
-  toxicBody,
-} from "./lab.ts";
+  targetSourceOf,
+  unlockedManifests,
+  unpinnedBases,
+} from "./image.ts";
 export type { GroupClient, GroupLab, GroupNetworkFault, GroupView, Stamp } from "./group.ts";
 export {
   CONVERGE_MS,

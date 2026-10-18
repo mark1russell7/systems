@@ -49,6 +49,8 @@ const NEEDS = {
     "fixtures/records.bin",
   ],
   "@mark1russell7/harness": [
+    "build/schema.js",
+    "build/schema.d.ts",
     "image/Dockerfile",
     "image/native/Cargo.toml",
     "image/native/Cargo.lock",
@@ -355,6 +357,19 @@ try {
       const pings = module.pingsOf([{ ev: "ping", t: 1e9, local: "a" }], writes, "a");
       const drop = module.dropOf([{ ev: "drop", t: 2e9, local: "a" }], writes, "a");
       check(module.firstUnanswered(pings, writes)?.at === 1e9 + 1e4 && drop?.at === 2e9 + 1e4, "harness reads the heartbeat and the drop of a program");
+      // a subject is data: the shipped procedures image builds from the files of the install, by the rules of a caller's build
+      const plan = module.planOf(module.SUBJECTS.procedures.image);
+      check(
+        plan.kind === "build" && /^loom-harness-procedures:[0-9a-f]{12}$/.test(plan.tag) && plan.files.some((file) => file.at === "harness/image/procedures/server-ws.mjs"),
+        "harness plans the build of its procedures subject from an install",
+      );
+      check(module.subjectClient(module.SUBJECTS.procedures) === "procedures-ws", "harness names the client of its procedures subject");
+      const schemaEntry = await load("@mark1russell7/harness/schema");
+      const pinned = { kind: "pinned", image: "ghcr.io/owner/subject:1.0.0" };
+      check(
+        schemaEntry.subjectSchema.safeParse(module.SUBJECTS.procedures).success && !schemaEntry.imageSourceSchema.safeParse(pinned).success,
+        "harness/schema accepts a subject, and refuses an image that no digest pins",
+      );
     }
     if (name === "@mark1russell7/kind") {
       const judgeEntry = await load("@mark1russell7/kind/judge");
