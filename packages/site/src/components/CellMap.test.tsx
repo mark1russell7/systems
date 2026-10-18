@@ -13,9 +13,10 @@ describe("the map of the cells", () => {
       const html = renderToString(<CellMap copy={copy} />);
       const links = ids(html, /class="sy-tile" href="#([^"]+)"/g);
       expect(links).toHaveLength(cells.length);
-      // one ID for each cell: two cells of one plan ID (a border of HTTP) still have their own frame
+      // one ID for each cell: two cells of one plan ID (a border of HTTP) still have their own frame.
+      // The rows go by client, thus the tiles of a copy whose clients alternate come in another sequence
       expect(new Set(links).size).toBe(cells.length);
-      expect(links).toEqual(cells.map(cellId));
+      expect([...links].sort()).toEqual(cells.map(cellId).sort());
     }
   });
 

@@ -79,8 +79,8 @@ export const COPIES: Readonly<Record<Copy, readonly RunCell[]>> = {
 };
 
 /**
- * This function gives the ID of the frame of a cell on its page. One plan ID can name more than one cell (a
- * border of HTTP has two), thus the ID also has a short hash of the client and the name of the cell.
+ * This function gives the ID of the frame of a cell on its page. One plan ID can name more than one cell:
+ * a border of HTTP has two. Thus the ID also has a short hash of the client and the name of the cell.
  */
 export const cellId = (cell: RunCell): string => {
   let hash = 5381;

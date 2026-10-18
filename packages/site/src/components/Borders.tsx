@@ -1,8 +1,9 @@
 /**
  * The borders of a copy as small charts. A border has two cells: a setting of the client inside the
- * border, and a setting outside it. One chart shows the two cells on one axis of time: the border as a
- * dashed line, the setting of each cell as a mark, the band of each prediction, and each counted run. A
- * reader thus sees on which side of the border each setting is, and which timer ended each run.
+ * border, and a setting outside it. One chart shows the two cells on one axis of time. The border is a
+ * dashed line, and the setting of each cell is a mark. The chart also shows the band of each prediction
+ * and each counted run. A reader thus sees on which side of the border each setting is, and which timer
+ * ended each run.
  *
  * The charts come from the names of the cells: "query_timeout 9.5 s: outside O07 against a
  * statement_timeout of 10 s". A cell with a name in another form is not on a chart. A run is on the axis
@@ -52,7 +53,7 @@ export const bordersOf = (cells: readonly RunCell[]): Border[] => {
   return [...found.values()].flatMap((border) => (border.inside === undefined || border.outside === undefined ? [] : [{ ...border, inside: border.inside, outside: border.outside }]));
 };
 
-/** This function tells if the runs of a side count from the event that its setting counts from: its band starts near its setting or near the border. */
+/** This function tells if the runs of a side count from the event of its setting. Then its band starts near its setting or near the border. */
 export const onAxis = (side: Side, at: number): boolean => {
   const low = side.cell.prediction.low;
   if (side.cell.prediction.kind !== "detects" || low === null) return false;
