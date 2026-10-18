@@ -14,7 +14,7 @@ This repository is the home of the systems program. It holds the site, at `mark1
 ## The roadmap
 
 - `docs/ROADMAP.md` is the source of truth for the work of the program.
-- The live tracker shows the same items: https://claude.ai/artifact/K5axzRghLLj9k7Xggi3j2V (collection `items`).
+- The live tracker shows the same items (collection `items`). It is the folder `artifacts/systems-roadmap` of the private fleet repository. Its `artifact.json` gives the URL of the tracker for each Claude account.
 - Change the file and the tracker together. Keep the tracker current as each item starts, ships or changes.
 
 ## Writing style
