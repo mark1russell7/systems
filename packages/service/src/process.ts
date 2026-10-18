@@ -202,3 +202,41 @@ export const processPortOf = (find: () => ProcessHost | undefined): ProcessPort 
 
 /** This port is the process of Node. */
 export const nodeProcess: ProcessPort = processPortOf(() => (globalThis as { process?: ProcessHost }).process);
+
+/** An embedded process port records the exit code of a lifecycle that does not own its process. */
+export interface EmbeddedProcess extends ProcessPort {
+  /** This code is the code of the exit request of the lifecycle, or null before that request. */
+  readonly exitCode: number | null;
+  /** This promise ends with the exit code when the lifecycle asks for its exit. */
+  readonly exited: Promise<number>;
+}
+
+/**
+ * This function gives a process port for a lifecycle in a process that another part owns. That
+ * part is a script, a test of an application, or a library entry. The port adds no handler of a signal or of
+ * a trigger, it does not hold the process, and its `exit` only records the code. The caller stops
+ * the lifecycle with `life.shutdown()`. A process with a service of its own gives its parts to
+ * that service, and does not use this port.
+ */
+export const embeddedProcess = (): EmbeddedProcess => {
+  let code: number | null = null;
+  let resolve: (code: number) => void = () => {};
+  const exited = new Promise<number>((done) => {
+    resolve = done;
+  });
+  return {
+    on() {
+      // the owner of the process keeps its signals and triggers
+      return () => {};
+    },
+    exit(requested) {
+      if (code !== null) return;
+      code = requested;
+      resolve(requested);
+    },
+    get exitCode() {
+      return code;
+    },
+    exited,
+  };
+};

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { LifecycleEvent } from "./events.ts";
-import { STAGES, cooperativeAbortAt, service } from "./index.ts";
+import { STAGES, cooperativeAbortAt, embeddedProcess, service } from "./index.ts";
 import { CAPS, exited, rig, run } from "./rig.ts";
+import { seeded } from "./testing.ts";
 
 const s = (value: number) => ({ value, unit: "s" });
 const drainSteps = (events: readonly LifecycleEvent[]) =>
@@ -295,5 +296,29 @@ describe("the watchdog of the event loop (F9: a 21 s block)", () => {
     expect(life.health.verdict().alive).toBe(true);
     void life.shutdown();
     await exited(r, life);
+  });
+});
+
+describe("a lifecycle in a process that another part owns (SYS-27)", () => {
+  it("runs the startup and the staged shutdown on an embedded port, and gives the code without an exit", async () => {
+    const r = rig();
+    const port = embeddedProcess();
+    let ended = false;
+    const running = r.svc
+      .run({ clock: r.clock, random: seeded(1), process: port, record: (event) => r.events.push(event) })
+      .finally(() => {
+        ended = true;
+      });
+    for (let step = 0; step < 600 && !ended; step += 1) await r.clock.advance(100);
+    const life = await running;
+    expect(life.state).toBe("running");
+    void life.shutdown("the owner of the process asked for it");
+    expect(await exited(r, life)).toBe(0);
+    expect(port.exitCode).toBe(0);
+    await expect(port.exited).resolves.toBe(0);
+    // the fake process of the rig got no handler and no exit, because the embedded port took its place
+    expect(r.process.exits).toEqual([]);
+    expect(r.process.handlers).toBe(0);
+    expect(r.log.map((line) => line.split(" ").slice(1).join(" "))).toContain("close health");
   });
 });

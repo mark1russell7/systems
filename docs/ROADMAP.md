@@ -425,6 +425,17 @@ A run pairs each event of a program with its record of the kernel in δ_abs, 1 m
 
 The kind lab builds its image with its own code. As a `build` source of SYS-17, it goes through `planOf` and `imageOf`. Then their rules apply: each FROM has a digest, and each manifest of packages has a lockfile.
 
+### SYS-27 · A process port for a service in a process that another part owns
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** SYS-21
+- **Started:** 2026-10-18
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+Some entries start a service in a process that they do not own. Examples are a script, a test of an application, and `createPeer` of the client (CLI-7). Before, such an entry wrote its own small runner, or it gave the port of the process of Node. The new port `embeddedProcess()` adds no signal handler, it does not hold the process, and its `exit` only records the code. Thus the full lifecycle runs, and only the owner of the process handles its signals. It comes in service 0.5.2, a PATCH: one new export.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue

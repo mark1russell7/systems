@@ -1,7 +1,7 @@
 import { EventEmitter } from "node:events";
 import { describe, expect, it } from "vitest";
 import type { HostStream, ProcessHost } from "./process.ts";
-import { isMessageShape, matchesMessage, processPortOf } from "./process.ts";
+import { embeddedProcess, isMessageShape, matchesMessage, processPortOf } from "./process.ts";
 
 /**
  * The port of the process of Node, on a fake host: the signals, the end of stdin, the close of the
@@ -149,5 +149,23 @@ describe("the port of the process of Node", () => {
   it("throws when the platform has no process", () => {
     const port = processPortOf(() => undefined);
     expect(() => port.on("SIGINT", () => {})).toThrow(/no process: give the runtime a process port/);
+  });
+});
+
+describe("the embedded process port (SYS-27)", () => {
+  it("adds no handler, does not hold the process, and records the first exit code without an exit", async () => {
+    const port = embeddedProcess();
+    let calls = 0;
+    const remove = port.on("SIGTERM", () => {
+      calls += 1;
+    });
+    remove();
+    expect(calls).toBe(0);
+    expect(port.hold).toBeUndefined();
+    expect(port.exitCode).toBeNull();
+    port.exit(3);
+    port.exit(0);
+    expect(port.exitCode).toBe(3);
+    await expect(port.exited).resolves.toBe(3);
   });
 });

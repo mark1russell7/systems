@@ -63,10 +63,20 @@ export type {
   TransportImpl,
 } from "./lifecycle.ts";
 export { STAGES, cooperativeAbortAt, stageRank } from "./lifecycle.ts";
-export type { ExitSignal, ExitTrigger, HostStream, MessageShape, ProcessHost, ProcessPort, ProcessTrigger } from "./process.ts";
+export type {
+  EmbeddedProcess,
+  ExitSignal,
+  ExitTrigger,
+  HostStream,
+  MessageShape,
+  ProcessHost,
+  ProcessPort,
+  ProcessTrigger,
+} from "./process.ts";
 export {
   EXIT_SIGNALS,
   PROCESS_TRIGGERS,
+  embeddedProcess,
   isExitCode,
   isExitSignal,
   isMessageShape,
