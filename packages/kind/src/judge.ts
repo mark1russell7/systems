@@ -15,6 +15,7 @@ export type {
   RedisDeclaration,
   Reference,
   Replica,
+  ResetReuse,
   Template,
   Trigger,
   TriggerKind,
@@ -44,4 +45,4 @@ export type { KubeProxyMode } from "./scenario.ts";
 export { STAGES, kindCellRecordSchema, kindCellRecordV1Schema, readRecord } from "./schema.ts";
 export { RELATIVE, medianInterval, middle, quantileOf } from "./stats.ts";
 export type { KindDecision, KindVerdict, Propagated, RunCheck, RunFacts } from "./verdict.ts";
-export { KIND_NOISE, LAST_SLACK, checkRun, factsOf, judgeKind, propagationOf, referenceOf, unitOf } from "./verdict.ts";
+export { KIND_NOISE, LAST_SLACK, checkRun, factsOf, judgeKind, propagationOf, referenceOf, reusesReset, unitOf } from "./verdict.ts";

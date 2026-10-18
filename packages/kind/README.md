@@ -128,6 +128,7 @@ The plan's `event:clock-jump` has no trigger. A step of CLOCK_REALTIME in the VM
 
 - **A deletion.** The listener of a leaving pod stays open for its preStop sleep and the hold of `fail readiness`. A connection fails when the rules of its node select the pod after that. `rules.ts` gives O04 with the hold as data, and `lint()` decides it.
 - **A pause of kube-proxy** keeps the rules of one node for its hold. The window on that node ends one propagation after the pause. A SYN_SENT entry of an earlier run lives up to 122 s, thus the window also opens up to 122 s before the intake. `predictionText` writes each end of a window with its band, for example `the intake + [-122, 4.605] s`.
+- **A reset from a leaving pod** leaves the conntrack entry of its flow in CLOSE for 10 s, with the NAT to that pod. From 0.1.6, a window can give that life (`afterReset`). Then a request outside the window can fail with the outcome of the rule (`reusesReset`). The condition is a reset of the same client on the same port, up to that life before the request. The catalog gives it to a deletion without a hold, in the modes with the NAT in conntrack.
 - **A fault of a shared dependency** trips the readiness latch of each replica (`failSpan`). Then the kubelet needs its threshold of probes, and the rules need one propagation.
 - **A restart through a coupling** adds the liveness probes of the kubelet and the preStop sleep to the latch.
 

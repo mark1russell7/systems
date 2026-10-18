@@ -93,12 +93,15 @@ const upgradeTrigger = (trigger: TriggerV1): Trigger => {
 
 const upgradePrediction = (prediction: PredictionV1): Prediction => {
   switch (prediction.kind) {
-    case "window":
+    case "window": {
+      const { afterReset, ...rest } = prediction;
       return {
-        ...prediction,
+        ...rest,
         start: { from: prediction.start.from, band: band(prediction.start.band) },
         end: prediction.end === null ? null : { from: prediction.end.from, band: band(prediction.end.band) },
+        ...(afterReset === undefined ? {} : { afterReset: { life: seconds(afterReset.life), outcome: afterReset.outcome } }),
       };
+    }
     case "removal":
     case "leaves":
       return { ...prediction, band: band(prediction.band) };

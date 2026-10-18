@@ -3,6 +3,7 @@ import type { KubeProxyMode, Propagation } from "@mark1russell7/kind";
 import { DOCUMENTED, scenario } from "@mark1russell7/kind";
 import type { Quantity } from "@mark1russell7/quantity";
 import { format, valueIn } from "@mark1russell7/quantity";
+import { NF_CONNTRACK_TCP } from "@mark1russell7/machines";
 import type { RedisKnobs } from "@mark1russell7/service/redis";
 
 /**
@@ -110,6 +111,18 @@ export const T07_WORKLOAD: Workload = { every: ms(20), timeout: s(2) };
  * (`pkg/proxy/conntrack/cleanup.go`, lines 68 and 127).
  */
 export const SYN_SENT: Quantity = s(120);
+
+/**
+ * This time is how long a node keeps the entry of a connection that a reset from the server
+ * closed. The state is CLOSE, and the time is `nf_conntrack_tcp_timeout_close` of the document of
+ * conntrack. Its NAT stays to that server. A SYN on a CLOSE entry looks up again only after a FIN, or after a reset from the
+ * client (`net/netfilter/nf_conntrack_proto_tcp.c`, the reopen of a closed connection). Thus a new
+ * connection of the same client on the same port goes to the old server. A lookup skips an entry
+ * after its timeout, thus the life has no lateness of the garbage collector. In CI on 2026-10-18
+ * (run 39086688749), a client used the port of a reset again 6.8 s later, and its SYN went to the
+ * deleted pod.
+ */
+export const CLOSE: Quantity = s(Number(NF_CONNTRACK_TCP.knobs["nf_conntrack_tcp_timeout_close"]!.default));
 
 /**
  * This table is the propagation of the endpoints for each kube-proxy mode, after a deletion. The

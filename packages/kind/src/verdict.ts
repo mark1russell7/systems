@@ -1,7 +1,7 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import { seconds, secondsOf } from "./bands.ts";
-import type { KindCell, KindRun, Prediction, Reference } from "./cell.ts";
+import type { KindCell, KindRun, Prediction, Reference, ResetReuse } from "./cell.ts";
 import { PORT, SERVER } from "./names.ts";
 import type { Line, Request } from "./observe.ts";
 import {
@@ -120,6 +120,24 @@ const inBand = (value: number, band: { readonly lo: number; readonly hi: number 
   value >= band.lo - NOISE / 1000 && value <= band.hi + NOISE / 1000;
 const time = (value: number | null): Quantity | null => (value === null ? null : seconds(value));
 
+/**
+ * This function tells if a failed request is the reuse of a port that a reset closed. The same
+ * client had a reset on the same port, up to `life` before the request. The request ends with
+ * `outcome`.
+ */
+export const reusesReset = (request: Request, requests: readonly Request[], reuse: ResetReuse): boolean => {
+  if (request.o !== reuse.outcome || request.lp === undefined || request.lp === null) return false;
+  const life = valueIn(reuse.life, "ms") + NOISE;
+  return requests.some(
+    (earlier) =>
+      earlier.o === "reset" &&
+      earlier.p === request.p &&
+      earlier.lp === request.lp &&
+      earlier.t + earlier.d <= request.t &&
+      request.t - (earlier.t + earlier.d) <= life,
+  );
+};
+
 /** This function gives a reference event of a run, as a stamp, or null when the run does not have it. */
 export const referenceOf = (run: KindRun, from: Reference): number | null => {
   const lines = run.lines as readonly Line[];
@@ -202,7 +220,11 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
       const hi = end === null ? Number.POSITIVE_INFINITY : end + closes!.hi * 1000 + NOISE;
       const relevant: Request[] = prediction.nodes === "paused" ? failures.filter((request) => request.n === run.paused) : failures;
       const others = prediction.nodes === "paused" ? failures.filter((request) => request.n !== run.paused) : [];
-      const outside = relevant.filter((request) => request.t < lo || request.t > hi);
+      const reuse = prediction.afterReset;
+      const late = relevant.filter((request) => request.t < lo || request.t > hi);
+      // a request outside the window that reuses the port of a reset is the CLOSE entry of that reset
+      const reused = reuse === undefined ? [] : late.filter((request) => reusesReset(request, failures, reuse));
+      const outside = late.filter((request) => !reused.includes(request));
       const problems: string[] = [];
       if (outside.length > 0) problems.push(`${outside.length} failed requests outside [${sec(lo - start)}, ${sec(hi - start)}] s after ${prediction.start.from}`);
       if (others.length > 0) problems.push(`${others.length} failed requests on nodes whose kube-proxy did not pause`);
@@ -212,8 +234,13 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
         const earliest = end + closes!.lo * 1000 - NOISE - SLACK;
         if (last < earliest) problems.push(`the last failed request started ${sec(earliest - last)} s before the window can end`);
       }
-      const span = relevant.length === 0 ? 0 : sec(relevant.at(-1)!.t - relevant[0]!.t);
-      return done(problems.length === 0, problems.length === 0 ? `${relevant.length} failed requests, all in the window (span ${span} s)` : problems.join("; "), relevant.length);
+      const inside = relevant.filter((request) => !late.includes(request));
+      const span = inside.length === 0 ? 0 : sec(inside.at(-1)!.t - inside[0]!.t);
+      const agrees =
+        reused.length === 0
+          ? `${relevant.length} failed requests, all in the window (span ${span} s)`
+          : `${inside.length} failed requests in the window (span ${span} s), and ${reused.length} on a port that a reset closed`;
+      return done(problems.length === 0, problems.length === 0 ? agrees : problems.join("; "), relevant.length);
     }
     case "removal": {
       const fault = run.acts.fault;
