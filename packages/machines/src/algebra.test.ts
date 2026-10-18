@@ -98,6 +98,14 @@ describe("the algebra's first closed forms", () => {
       duration: { value: 924.6, unit: "s" },
       lateness: { value: 141.344, unit: "s" },
     });
+    // each wait of the SYN is a timer of the wheel: five 1 s waits at 8 jiffies, 2 s at 8, 4, 8 and 16 s
+    // at 64, and 32 and 64 s at 512. Thus 1264 jiffies, 5.056 s at HZ 250
+    expect(timerOf(tcp, "syn_giveup", given(HERE))).toEqual({
+      duration: { value: 131, unit: "s" },
+      lateness: { value: 5.056, unit: "s" },
+    });
+    // at HZ 1000 the wait of 64 s is at the level of 4096 jiffies: 6.08 s in all
+    expect(timerOf(tcp, "syn_giveup", given({ ...HERE, hz: { value: 1000, unit: "Hz" } })).lateness).toEqual({ value: 6.08, unit: "s" });
   });
 
   it("predicts the harness's scaled cells, where the RTO is the round trip plus 200 ms, in jiffies", async () => {

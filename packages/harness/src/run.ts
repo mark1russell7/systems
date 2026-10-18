@@ -241,6 +241,7 @@ const beforeOnce = async (lab: Lab, cell: Cell, environment: number, index: numb
   try {
     probe = await lab.probe(probeArgs(cell, lab));
     const started = probe;
+    // the topology too: a band can be on the socket that a hop opens toward the target
     const current = (): Run => ({
       environment,
       index,
@@ -250,6 +251,7 @@ const beforeOnce = async (lab: Lab, cell: Cell, environment: number, index: numb
       netns: lab.netns.client,
       targetNetns: lab.netns.target,
       lost: 0,
+      ...(lab.topology === null ? {} : { topology: lab.topology }),
     });
     await driverOutcome(cell, current, driverWithin(cell));
     await sleep(TAIL_MS);

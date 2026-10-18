@@ -617,7 +617,9 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
           ? retransmitted.find((each) => each.why === "rto" && each.mono > before)
           : from === "first-sent"
             ? socket.find((each) => each.ev === "tx" && each.mono > before && (each.seg?.len.value ?? 0) > 0)
-            : kernel.find(
+            : from === "syn-sent"
+              ? socket.find((each) => each.ev === "state" && newState(each) === 2)
+              : kernel.find(
               (each) =>
                 each.netns === peerNetns &&
                 each.cookie === peerCookie &&
