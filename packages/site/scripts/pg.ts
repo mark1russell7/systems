@@ -2,9 +2,11 @@
 //
 //   pnpm exec tsx packages/site/scripts/pg.ts <folder>...
 //
-// The PostgreSQL cells put node-postgres (pg 8.23.1 with pg-pool 3.14.0) against one server of
-// PostgreSQL 17.11, on the direct pair of T01. Each folder is the output of one shard of the
-// workflow Cells on a runner of GitHub: the raw record of each cell, summary.ndjson and runner.txt.
+// The PostgreSQL cells put two clients against one server of PostgreSQL 17.11: node-postgres
+// (pg 8.23.1 with pg-pool 3.14.0) and HikariCP 7.1.0 over pgjdbc 42.7.13. T01 is the direct pair,
+// T03 has a router of a cloud preset between them, and T10 has PgBouncer 1.26.1. Each folder is
+// the output of one shard of the workflow Cells on a runner of GitHub: the raw record of each
+// cell, summary.ndjson and runner.txt.
 // The script reads each record again with the code of the harness (`judge`), and it stops when that
 // verdict disagrees with summary.ndjson. It also stops when a prediction disagrees with the catalog
 // at the HZ of the runner. The copy keeps only what the page shows.
@@ -27,12 +29,21 @@ if (folders.length === 0) {
 const runner = runnerOf(folders);
 process.env["CELLS_HZ"] = String(runner.hz);
 const { T01_PG, PG_DRIVER } = await import("../../cells/src/pg/t01.ts");
+const { T01_HIKARI, HIKARI_DRIVER } = await import("../../cells/src/pg/hikari.ts");
+const { T03_HIKARI } = await import("../../cells/src/pg/t03.ts");
+const { T10_HIKARI } = await import("../../cells/src/pg/t10.ts");
 const { ALL } = await import("../../cells/src/all.ts");
+
+/** These are the PostgreSQL cells of the catalogs, each with its client. */
+const CATALOG = [
+  ...T01_PG.map((cell) => ({ cell, client: "node-postgres" })),
+  ...[...T01_HIKARI, ...T03_HIKARI, ...T10_HIKARI].map((cell) => ({ cell, client: "HikariCP" })),
+];
 
 // a full run of the catalogs holds the cells of each catalog: this export takes its own
 const found = ofCatalog(
   readFolders<CellRecord, Summary>(folders),
-  T01_PG.map((cell) => cell.name),
+  CATALOG.map((each) => each.cell.name),
   ALL.map((cell) => cell.name),
 );
 
@@ -45,6 +56,10 @@ const TIMERS: Readonly<Record<string, string>> = {
   retrans_giveup: "the retransmissions of the kernel give up",
   query_timeout: "the query timer of the pool fails the query",
   connect_timeout: "the connect timer of the pool fails the first connect",
+  validation_timeout: "the check of the pool gets no reply, and its read timeout closes the socket",
+  socket_timeout: "the read timeout of pgjdbc closes the socket",
+  start_check: "the start of the pool fails after the sleep of its check",
+  statement_timeout: "the statement timer of the server ends the query",
 };
 /** These phrases name the reference of a band, in a sentence. */
 const FROMS: Readonly<Record<string, string>> = {
@@ -53,6 +68,7 @@ const FROMS: Readonly<Record<string, string>> = {
   "first-retransmission": "the first retransmission of the RTO timer",
   "peer-closed": "the close of the socket of the server",
   "client-start": "the start of the first connect",
+  "first-sent": "the empty query of the check, the first segment after the fault",
 };
 const from = (reference: Reference): string => {
   const text = FROMS[reference];
@@ -120,12 +136,12 @@ const predictionOf = (cell: Cell) => {
 
 /** This function gives the name of a cell without the client and the target, which each PostgreSQL cell has. */
 const shortOf = (name: string): string => {
-  const short = name.replace(/^pg-8\.23 to postgresql, /, "");
+  const short = name.replace(/^(pg-8\.23|hikaricp-pgjdbc) to postgresql, /, "");
   if (short === name) throw new Error(`${name}: not the client and the target of the PostgreSQL cells`);
   return short;
 };
 
-const cells = T01_PG.flatMap((catalog) => {
+const cells = CATALOG.flatMap(({ cell: catalog, client }) => {
   const entry = found.get(catalog.name);
   if (entry === undefined) return [];
   if (JSON.stringify(entry.record.cell.prediction) !== JSON.stringify(catalog.prediction))
@@ -137,13 +153,14 @@ const cells = T01_PG.flatMap((catalog) => {
       ...named,
       name: shortOf(named.name),
       group: named.catalog,
+      client,
       stage: named.plan?.includes(".border-off.") ? "border" : "defaults",
       prediction: predictionOf(entry.record.cell),
       ...resultOf(reading),
     },
   ];
 });
-const unknown = [...found.keys()].filter((name) => !T01_PG.some((catalog) => catalog.name === name));
+const unknown = [...found.keys()].filter((name) => !CATALOG.some((each) => each.cell.name === name));
 if (unknown.length > 0) throw new Error(`no catalog has the cells ${unknown.join(", ")}`);
 
 const records = [...found.values()].map((entry) => entry.record);
@@ -157,7 +174,7 @@ const copy = {
   kernel: runner.kernel,
   hz: runner.hz,
   target: only("the target", records.map((record) => record.cell.target.image.replace(/@.*$/, ""))),
-  client: PG_DRIVER,
+  clients: { "node-postgres": PG_DRIVER, HikariCP: HIKARI_DRIVER },
   cells,
 };
 const out = fileURLToPath(new URL(`../src/data/pg-${date}.json`, import.meta.url));

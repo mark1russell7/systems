@@ -13,19 +13,23 @@ const outside = (each: Cell): number[] =>
   each.runs.flat().flatMap((t) => (t === null || each.band === null || (t >= each.band.low && t <= each.band.high) ? [] : [t])).sort((a, b) => a - b);
 
 describe("the copy of the PostgreSQL cells holds the figures of their CI run", () => {
-  it("has 13 cells on Linux 6.17 at HZ 1000, each holds, with 143 counted runs and no void run", () => {
-    expect([pg.kernel, pg.hz, pg.target, pg.client]).toEqual(["6.17.0", 1000, "postgres:17.11", "pg 8.23.1 with pg-pool 3.14.0 on Node 24.21.0"]);
-    expect(pg.cells).toHaveLength(13);
+  it("has 44 cells on Linux 6.17 at HZ 1000, each holds, with 484 counted runs and no void run", () => {
+    expect([pg.kernel, pg.hz, pg.target]).toEqual(["6.17.0", 1000, "postgres:17.11"]);
+    expect(pg.clients).toEqual({ "node-postgres": "pg 8.23.1 with pg-pool 3.14.0 on Node 24.21.0", HikariCP: "HikariCP 7.1.0 over pgjdbc 42.7.13 on Temurin 21.0.12.1" });
+    expect(pg.cells).toHaveLength(44);
     expect(pg.cells.every((each) => each.decision === "holds")).toBe(true);
-    expect(pg.cells.reduce((sum, each) => sum + each.counted, 0)).toBe(143);
+    expect(pg.cells.reduce((sum, each) => sum + each.counted, 0)).toBe(484);
     expect(pg.cells.reduce((sum, each) => sum + each.voided, 0)).toBe(0);
-    const count = (stage: string) => pg.cells.filter((each) => each.group === "T01" && each.stage === stage).length;
-    expect([count("defaults"), count("border")]).toEqual([9, 4]);
+    const count = (group: string, client: string, stage: string) => pg.cells.filter((each) => each.group === group && each.client === client && each.stage === stage).length;
+    expect([count("T01", "node-postgres", "defaults"), count("T01", "node-postgres", "border")]).toEqual([9, 8]);
+    expect([count("T01", "HikariCP", "defaults"), count("T01", "HikariCP", "border")]).toEqual([9, 8]);
+    expect([count("T03", "HikariCP", "defaults"), count("T10", "HikariCP", "defaults")]).toEqual([7, 3]);
   });
 
-  it("gives the idle timer of the pool at 10 s, with and without a fault, each run in its band", () => {
+  it("gives the idle timer of node-postgres at 10 s, with and without a fault, each run in its band", () => {
     for (const plan of ["T01.defaults.122", "T01.defaults.128"]) {
       const each = cell(plan);
+      expect(each.client, plan).toBe("node-postgres");
       expect(each.median, plan).toBeGreaterThan(10);
       expect(each.median, plan).toBeLessThan(10.01);
       expect(outside(each), plan).toEqual([]);
@@ -33,12 +37,42 @@ describe("the copy of the PostgreSQL cells holds the figures of their CI run", (
     }
   });
 
-  it("places the borders of O13 and O15 on each side of the slowest poll and of the startup budget", () => {
+  it("places the borders of O13 and O15 of node-postgres on each side of the slowest poll and of the startup budget", () => {
     const [in13, out13, in15, out15] = ["T01.border-off.179", "T01.border-off.180", "T01.border-off.191", "T01.border-off.192"].map(cell);
     expect(in13!.median).toBeLessThan(10);
     expect(out13!.median).toBeGreaterThan(10);
     expect(in15!.median).toBeLessThan(30);
     expect(out15!.median).toBeGreaterThan(30);
     expect(in15!.prediction.text).toMatch(/after the start of the first connect\.$/);
+  });
+
+  it("places the borders of O13 and O07 of HikariCP with the read timeout of pgjdbc", () => {
+    const [in13, out13, in07, out07] = ["T01.border-off.187", "T01.border-off.188", "T01.border-off.173", "T01.border-off.174"].map(cell);
+    expect(in13!.median).toBeLessThan(10);
+    expect(out13!.median).toBeGreaterThan(10);
+    // inside O07 the statement timer of the server ends the query, and outside the read timeout closes the socket first
+    expect(in07!.median).toBeGreaterThan(10);
+    expect(in07!.prediction.text).toMatch(/the statement timer of the server ends the query with 57014\./);
+    expect(out07!.median).toBeLessThan(10);
+    expect(out07!.prediction.text).toMatch(/the read timeout of pgjdbc closes the socket/);
+  });
+
+  it("gives the keepalive of HikariCP 5 s after its empty query, on the direct pair, through a router and through PgBouncer", () => {
+    for (const plan of ["T01.defaults.52", "T01.border-off.152", "T03.defaults.6", "T10.defaults.1"]) {
+      const each = cell(plan);
+      expect(each.client, plan).toBe("HikariCP");
+      expect(each.median, plan).toBeGreaterThan(5);
+      expect(each.median, plan).toBeLessThan(5.01);
+      expect(outside(each), plan).toEqual([]);
+      expect(each.prediction.text, plan).toMatch(/after the empty query of the check, the first segment after the fault\.$/);
+    }
+  });
+
+  it("holds each cell with no detector in its window: no run has a time", () => {
+    const quiet = pg.cells.filter((each) => each.band === null);
+    expect(quiet.map((each) => each.plan).sort()).toEqual(
+      ["T01.defaults.126", "T01.border-off.158", "T01.defaults.55", "T01.defaults.57", "T01.border-off.151", "T03.defaults.8", "T03.defaults.42", "T03.defaults.51", "T10.defaults.45"].sort(),
+    );
+    for (const each of quiet) expect(each.runs.flat().every((t) => t === null), each.plan).toBe(true);
   });
 });

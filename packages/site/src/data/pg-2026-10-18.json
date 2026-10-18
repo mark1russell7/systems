@@ -7,13 +7,17 @@
   "kernel": "6.17.0",
   "hz": 1000,
   "target": "postgres:17.11",
-  "client": "pg 8.23.1 with pg-pool 3.14.0 on Node 24.21.0",
+  "clients": {
+    "node-postgres": "pg 8.23.1 with pg-pool 3.14.0 on Node 24.21.0",
+    "HikariCP": "HikariCP 7.1.0 over pgjdbc 42.7.13 on Temurin 21.0.12.1"
+  },
   "cells": [
     {
       "plan": "T01.defaults.9",
       "catalog": "T01",
       "name": "rst at connect: the server refuses before the client starts",
       "group": "T01",
+      "client": "node-postgres",
       "stage": "defaults",
       "prediction": {
         "kind": "detects",
@@ -29,13 +33,13 @@
         "low": -0.001,
         "high": 0.023
       },
-      "median": 0.004779,
-      "why": "11 of the 11 counted runs are in the band of −1 ms to 23 ms. The median is 4.78 ms, and its interval is 4.64 ms to 5.04 ms.",
+      "median": 0.003476,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 23 ms. The median is 3.48 ms, and its interval is 3.36 ms to 3.56 ms.",
       "runs": [
-        [0.004779, 0.004499, 0.004859, 0.005045, 0.004884, 0.004839],
-        [0.004695, 0.004666, 0.004638, 0.004721, 0.005846]
+        [0.003312, 0.003544, 0.003584, 0.003562, 0.003359, 0.003476],
+        [0.003505, 0.003482, 0.003392, 0.003454, 0.003466]
       ],
-      "warmups": [0.004864, 0.004652],
+      "warmups": [0.003509, 0.003443],
       "voids": null
     },
     {
@@ -43,6 +47,7 @@
       "catalog": "T01",
       "name": "blackhole, idle: the pool ends its idle client before any detector",
       "group": "T01",
+      "client": "node-postgres",
       "stage": "defaults",
       "prediction": {
         "kind": "detects",
@@ -58,13 +63,13 @@
         "low": 9.999,
         "high": 10.011
       },
-      "median": 10.003333,
-      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.011 s. The median is 10.003 s, and its interval is 10.003 s to 10.004 s.",
+      "median": 10.003017,
+      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.011 s. The median is 10.003 s, and its interval is 10.002 s to 10.004 s.",
       "runs": [
-        [10.003052, 10.003642, 10.002958, 10.003428, 10.003883, 10.004029],
-        [10.00301, 10.003333, 10.002707, 10.003135, 10.004047]
+        [10.003017, 10.002862, 10.002988, 10.004018, 10.003126, 10.002041],
+        [10.003011, 10.00305, 10.004086, 10.000927, 10.00305]
       ],
-      "warmups": [10.00279, 10.003567],
+      "warmups": [10.001235, 10.002212],
       "voids": null
     },
     {
@@ -72,6 +77,7 @@
       "catalog": "T01",
       "name": "rst, a query in flight",
       "group": "T01",
+      "client": "node-postgres",
       "stage": "defaults",
       "prediction": {
         "kind": "detects",
@@ -87,13 +93,13 @@
         "low": -0.001,
         "high": 0.003
       },
-      "median": 0.000777,
-      "why": "11 of the 11 counted runs are in the band of −1 ms to 3 ms. The median is 777 µs, and its interval is 648 µs to 1.14 ms.",
+      "median": 0.000954,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 3 ms. The median is 954 µs, and its interval is 811 µs to 1.17 ms.",
       "runs": [
-        [0.001164, 0.000926, 0.000777, 0.00084, 0.001139, 0.000692],
-        [0.000746, 0.000608, 0.000914, 0.000648, 0.000753]
+        [0.001067, 0.001167, 0.000893, 0.001262, 0.000811, 0.000848],
+        [0.000614, 0.000892, 0.000954, 0.001013, 0.00115]
       ],
-      "warmups": [0.000812, 0.000665],
+      "warmups": [0.000758, 0.000616],
       "voids": null
     },
     {
@@ -101,6 +107,7 @@
       "catalog": "T01",
       "name": "fin, idle",
       "group": "T01",
+      "client": "node-postgres",
       "stage": "defaults",
       "prediction": {
         "kind": "detects",
@@ -116,20 +123,20 @@
         "low": -0.001,
         "high": 0.013
       },
-      "median": 0.000017,
-      "why": "11 of the 11 counted runs are in the band of −1 ms to 13 ms. The median is 17 µs, and its interval is 15 µs to 19 µs.",
+      "median": 0.000021,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 13 ms. The median is 21 µs, and its interval is 19 µs to 24 µs.",
       "runs": [
-        [0.000014],
-        [0.000018],
-        [0.000018],
-        [0.000018],
-        [0.000016],
-        [0.000015],
+        [0.000024],
+        [0.000027],
+        [0.000021],
+        [0.00002],
         [0.00002],
         [0.000019],
-        [0.000015],
-        [0.000015],
-        [0.000017]
+        [0.000021],
+        [0.000023],
+        [0.000023],
+        [0.000019],
+        [0.000022]
       ],
       "warmups": [null, null, null, null, null, null, null, null, null, null, null],
       "voids": null
@@ -139,6 +146,7 @@
       "catalog": "T01",
       "name": "unreachable-host, a query in flight, tcp_retries2 = 3",
       "group": "T01",
+      "client": "node-postgres",
       "stage": "defaults",
       "prediction": {
         "kind": "detects",
@@ -154,13 +162,13 @@
         "low": 2.999,
         "high": 3.33
       },
-      "median": 3.119999,
+      "median": 3.120003,
       "why": "11 of the 11 counted runs are in the band of 2.999 s to 3.33 s. The median is 3.12 s, and its interval is 3.12 s to 3.12 s.",
       "runs": [
-        [3.120003, 3.119997, 3.119995, 3.120023, 3.120009, 3.119999],
-        [3.119981, 3.119984, 3.119996, 3.120003, 3.120021]
+        [3.120003, 3.120006, 3.120008, 3.119981, 3.120008, 3.120003],
+        [3.119984, 3.120005, 3.119994, 3.119997, 3.120005]
       ],
-      "warmups": [3.119988, 3.120006],
+      "warmups": [3.11998, 3.120004],
       "voids": null
     },
     {
@@ -168,6 +176,7 @@
       "catalog": "T01",
       "name": "freeze-process, a query in flight",
       "group": "T01",
+      "client": "node-postgres",
       "stage": "defaults",
       "prediction": {
         "kind": "silent",
@@ -194,6 +203,7 @@
       "catalog": "T01",
       "name": "a 1 s stall, a query in flight",
       "group": "T01",
+      "client": "node-postgres",
       "stage": "defaults",
       "prediction": {
         "kind": "recovers",
@@ -209,13 +219,13 @@
         "low": 1.603,
         "high": 1.698
       },
-      "median": 1.672415,
-      "why": "11 of the 11 counted runs are in the band of 1.603 s to 1.698 s. The median is 1.672 s, and its interval is 1.666 s to 1.682 s.",
+      "median": 1.642469,
+      "why": "11 of the 11 counted runs are in the band of 1.603 s to 1.698 s. The median is 1.642 s, and its interval is 1.629 s to 1.684 s.",
       "runs": [
-        [1.650502, 1.672415, 1.672765, 1.67542, 1.679432, 1.681897],
-        [1.665879, 1.66689, 1.68628, 1.670989, 1.665873]
+        [1.642469, 1.628725, 1.629714, 1.635857, 1.68467, 1.678757],
+        [1.66584, 1.678584, 1.684222, 1.626047, 1.634171]
       ],
-      "warmups": [1.68463, 1.661553],
+      "warmups": [1.666804, 1.645994],
       "voids": null
     },
     {
@@ -223,6 +233,7 @@
       "catalog": "T01",
       "name": "event:idle, no fault: the pool ends its idle client at its idle timer",
       "group": "T01",
+      "client": "node-postgres",
       "stage": "defaults",
       "prediction": {
         "kind": "detects",
@@ -238,13 +249,13 @@
         "low": 9.999,
         "high": 10.011
       },
-      "median": 10.004022,
-      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.011 s. The median is 10.004 s, and its interval is 10.003 s to 10.004 s.",
+      "median": 10.003862,
+      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.011 s. The median is 10.004 s, and its interval is 10.004 s to 10.005 s.",
       "runs": [
-        [10.002987, 10.004109, 10.00302, 10.004022, 10.003119, 10.00404],
-        [10.004146, 10.003184, 10.004071, 10.003152, 10.004205]
+        [10.003773, 10.003671, 10.003721, 10.003879, 10.005368, 10.004739],
+        [10.003862, 10.002863, 10.003796, 10.003913, 10.004189]
       ],
-      "warmups": [10.004048, 10.00316],
+      "warmups": [10.003659, 10.003568],
       "voids": null
     },
     {
@@ -252,6 +263,7 @@
       "catalog": "T01",
       "name": "app-stall: the server holds each reply 5 s, and nothing ends the query",
       "group": "T01",
+      "client": "node-postgres",
       "stage": "defaults",
       "prediction": {
         "kind": "replies",
@@ -267,20 +279,51 @@
         "low": 4.999,
         "high": 5.023
       },
-      "median": 5.006426,
-      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.023 s. The median is 5.006 s, and its interval is 5.002 s to 5.007 s.",
+      "median": 5.006579,
+      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.023 s. The median is 5.007 s, and its interval is 5.002 s to 5.007 s.",
       "runs": [
-        [5.002767, 5.005836, 5.002375, 5.006426, 5.00633, 5.006824],
-        [5.006902, 5.006985, 5.002396, 5.006447, 5.006984]
+        [5.006337, 5.002332, 5.004146, 5.007173, 5.002777, 5.006875],
+        [5.00684, 5.006868, 5.008037, 5.002406, 5.006579]
       ],
-      "warmups": [5.008175, 5.006485],
+      "warmups": [5.002684, 5.00709],
       "voids": null
     },
     {
-      "plan": "T01.border-off.179",
+      "plan": "T01.border-off.171",
       "catalog": "T01",
-      "name": "blackhole, a query in flight, query_timeout 9.5 s: inside O13 against a poll of 10 s",
+      "name": "app-stall in flight, query_timeout 10.5 s: inside O07 against a statement_timeout of 10 s",
       "group": "T01",
+      "client": "node-postgres",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 10,
+        "high": 10.032,
+        "window": null,
+        "text": "The algebra predicts that the statement timer of the server ends the query with 57014. The band is 10 s to 10.032 s after the send of the query."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 9.999,
+        "high": 10.033
+      },
+      "median": 10.002775,
+      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.033 s. The median is 10.003 s, and its interval is 10.003 s to 10.003 s.",
+      "runs": [
+        [10.002826, 10.002565, 10.002833, 10.002775, 10.002661, 10.002503],
+        [10.002877, 10.002671, 10.002775, 10.002847, 10.002944]
+      ],
+      "warmups": [10.002618, 10.002548],
+      "voids": null
+    },
+    {
+      "plan": "T01.border-off.172",
+      "catalog": "T01",
+      "name": "app-stall in flight, query_timeout 9.5 s: outside O07 against a statement_timeout of 10 s",
+      "group": "T01",
+      "client": "node-postgres",
       "stage": "border",
       "prediction": {
         "kind": "detects",
@@ -296,13 +339,100 @@
         "low": 9.499,
         "high": 9.511
       },
-      "median": 9.503244,
-      "why": "11 of the 11 counted runs are in the band of 9.499 s to 9.511 s. The median is 9.503 s, and its interval is 9.502 s to 9.504 s.",
+      "median": 9.503602,
+      "why": "11 of the 11 counted runs are in the band of 9.499 s to 9.511 s. The median is 9.504 s, and its interval is 9.503 s to 9.504 s.",
       "runs": [
-        [9.503702, 9.503244, 9.503927, 9.50366, 9.503625, 9.502616],
-        [9.502365, 9.502688, 9.503335, 9.502285, 9.502995]
+        [9.502582, 9.503535, 9.503812, 9.502642, 9.502721, 9.503972],
+        [9.503897, 9.503719, 9.503616, 9.503602, 9.501223]
       ],
-      "warmups": [9.503713, 9.502752],
+      "warmups": [9.502212, 9.503875],
+      "voids": null
+    },
+    {
+      "plan": "T01.border-off.157",
+      "catalog": "T01",
+      "name": "middlebox-forget, idle, idleTimeoutMillis 10 s, the socket of the server: inside O03 against a silent-drop router at 12 s",
+      "group": "T01",
+      "client": "node-postgres",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 9.959,
+        "high": 10.012,
+        "window": null,
+        "text": "The algebra predicts that the pool closes its idle client at its idle timer with an end of file. The band is 9.959 s to 10.012 s after the last segment on the socket."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 9.958,
+        "high": 10.013
+      },
+      "median": 10.004906,
+      "why": "11 of the 11 counted runs are in the band of 9.958 s to 10.013 s. The median is 10.005 s, and its interval is 10.004 s to 10.005 s.",
+      "runs": [
+        [10.004954, 10.005197, 10.00542, 10.003984, 10.003997, 10.002974],
+        [10.005078, 10.00515, 10.003949, 10.00427, 10.004906]
+      ],
+      "warmups": [10.002811, 10.003286],
+      "voids": null
+    },
+    {
+      "plan": "T01.border-off.158",
+      "catalog": "T01",
+      "name": "middlebox-forget, idle, idleTimeoutMillis 14 s, the socket of the server: outside O03 against a silent-drop router at 12 s",
+      "group": "T01",
+      "client": "node-postgres",
+      "stage": "border",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 30,
+        "text": "The algebra predicts that nothing detects the fault in a window of 30 s."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 30 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null
+    },
+    {
+      "plan": "T01.border-off.179",
+      "catalog": "T01",
+      "name": "blackhole, a query in flight, query_timeout 9.5 s: inside O13 against a poll of 10 s",
+      "group": "T01",
+      "client": "node-postgres",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 9.5,
+        "high": 9.51,
+        "window": null,
+        "text": "The algebra predicts that the query timer of the pool fails the query with 'Query read timeout'. The band is 9.5 s to 9.51 s after the send of the query."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 9.499,
+        "high": 9.511
+      },
+      "median": 9.502975,
+      "why": "11 of the 11 counted runs are in the band of 9.499 s to 9.511 s. The median is 9.503 s, and its interval is 9.503 s to 9.504 s.",
+      "runs": [
+        [9.503894, 9.50291, 9.502658, 9.502416, 9.50298, 9.503372],
+        [9.503561, 9.502975, 9.502857, 9.503773, 9.502811]
+      ],
+      "warmups": [9.502512, 9.503022],
       "voids": null
     },
     {
@@ -310,6 +440,7 @@
       "catalog": "T01",
       "name": "blackhole, a query in flight, query_timeout 10.5 s: outside O13 against a poll of 10 s",
       "group": "T01",
+      "client": "node-postgres",
       "stage": "border",
       "prediction": {
         "kind": "detects",
@@ -325,13 +456,13 @@
         "low": 10.499,
         "high": 10.511
       },
-      "median": 10.50199,
-      "why": "11 of the 11 counted runs are in the band of 10.499 s to 10.511 s. The median is 10.502 s, and its interval is 10.502 s to 10.502 s.",
+      "median": 10.50264,
+      "why": "11 of the 11 counted runs are in the band of 10.499 s to 10.511 s. The median is 10.503 s, and its interval is 10.502 s to 10.503 s.",
       "runs": [
-        [10.502376, 10.501636, 10.50199, 10.501776, 10.502141, 10.501578],
-        [10.502208, 10.501774, 10.501324, 10.502299, 10.502307]
+        [10.502912, 10.503523, 10.502217, 10.502494, 10.503058, 10.50226],
+        [10.50124, 10.501764, 10.50264, 10.502827, 10.503263]
       ],
-      "warmups": [10.501147, 10.501868],
+      "warmups": [10.502716, 10.501948],
       "voids": null
     },
     {
@@ -339,6 +470,7 @@
       "catalog": "T01",
       "name": "blackhole before the connect, connectionTimeoutMillis 29 s: inside O15 against a startup budget of 30 s",
       "group": "T01",
+      "client": "node-postgres",
       "stage": "border",
       "prediction": {
         "kind": "detects",
@@ -354,13 +486,13 @@
         "low": 28.999,
         "high": 29.011
       },
-      "median": 29.007362,
-      "why": "11 of the 11 counted runs are in the band of 28.999 s to 29.011 s. The median is 29.007 s, and its interval is 29.007 s to 29.008 s.",
+      "median": 29.00637,
+      "why": "11 of the 11 counted runs are in the band of 28.999 s to 29.011 s. The median is 29.006 s, and its interval is 29.004 s to 29.007 s.",
       "runs": [
-        [29.00726, 29.007362, 29.006493, 29.007002, 29.007409, 29.007712],
-        [29.006844, 29.007399, 29.006868, 29.00774, 29.007412]
+        [29.006842, 29.005952, 29.00637, 29.006445, 29.006585, 29.001737],
+        [29.003857, 29.005992, 29.006864, 29.00657, 29.005662]
       ],
-      "warmups": [29.007742, 29.006654],
+      "warmups": [29.007193, 29.006859],
       "voids": null
     },
     {
@@ -368,6 +500,7 @@
       "catalog": "T01",
       "name": "blackhole before the connect, connectionTimeoutMillis 31 s: outside O15 against a startup budget of 30 s",
       "group": "T01",
+      "client": "node-postgres",
       "stage": "border",
       "prediction": {
         "kind": "detects",
@@ -383,13 +516,820 @@
         "low": 30.999,
         "high": 31.011
       },
-      "median": 31.009384,
-      "why": "11 of the 11 counted runs are in the band of 30.999 s to 31.011 s. The median is 31.009 s, and its interval is 31.009 s to 31.01 s.",
+      "median": 31.009405,
+      "why": "11 of the 11 counted runs are in the band of 30.999 s to 31.011 s. The median is 31.009 s, and its interval is 31.004 s to 31.01 s.",
       "runs": [
-        [31.009524, 31.009437, 31.00965, 31.009557, 31.009504, 31.009256],
-        [31.003807, 31.009384, 31.008863, 31.008937, 31.008666]
+        [31.008774, 31.009405, 31.009877, 31.007053, 31.003524, 31.009576],
+        [31.008836, 31.009432, 31.003983, 31.00947, 31.009467]
       ],
-      "warmups": [31.008899, 31.007888],
+      "warmups": [31.009417, 31.010531],
+      "voids": null
+    },
+    {
+      "plan": "T01.defaults.2",
+      "catalog": "T01",
+      "name": "rst, a query in flight",
+      "group": "T01",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.002,
+        "window": null,
+        "text": "The algebra predicts that the reset answers the query with ECONNRESET. The band is 0 s to 2 ms after the send of the query."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.001,
+        "high": 0.003
+      },
+      "median": 0.000632,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 3 ms. The median is 632 µs, and its interval is 523 µs to 1.21 ms.",
+      "runs": [
+        [0.00121, 0.000633, 0.000577, 0.001284, 0.001132, 0.000583],
+        [0.000632, 0.000446, 0.001091, 0.000523, 0.000541]
+      ],
+      "warmups": [0.000638, 0.000742],
+      "voids": null
+    },
+    {
+      "plan": "T01.defaults.52",
+      "catalog": "T01",
+      "name": "blackhole, idle: the keepalive of the pool checks the connection, and the read timeout closes it",
+      "group": "T01",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 5,
+        "high": 5.015,
+        "window": null,
+        "text": "The algebra predicts that the check of the pool gets no reply, and its read timeout closes the socket, and the kernel stamps its FIN. The band is 5 s to 5.015 s after the empty query of the check, the first segment after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 4.999,
+        "high": 5.016
+      },
+      "median": 5.003096,
+      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.016 s. The median is 5.003 s, and its interval is 5.001 s to 5.005 s.",
+      "runs": [
+        [5.004795, 5.005201, 5.00138, 5.003096, 5.005024, 5.002539],
+        [5.003536, 5.003353, 5.001284, 5.000689, 5.002335]
+      ],
+      "warmups": [5.004797, 5.003087],
+      "voids": null
+    },
+    {
+      "plan": "T01.defaults.53",
+      "catalog": "T01",
+      "name": "fin, idle",
+      "group": "T01",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.002,
+        "window": null,
+        "text": "The algebra predicts that the FIN of the stopped server ends the idle client with an end of file. The band is 0 s to 2 ms after the close of the socket of the server."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.001,
+        "high": 0.003
+      },
+      "median": 0.000016,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 3 ms. The median is 16 µs, and its interval is 12 µs to 18 µs.",
+      "runs": [
+        [0.000014],
+        [0.000013],
+        [0.000018],
+        [0.00002],
+        [0.000016],
+        [0.000012],
+        [0.000012],
+        [0.000016],
+        [0.000017],
+        [0.000017],
+        [0.000012]
+      ],
+      "warmups": [null, null, null, null, null, null, null, null, null, null, null],
+      "voids": null
+    },
+    {
+      "plan": "T01.defaults.54",
+      "catalog": "T01",
+      "name": "unreachable-host, a query in flight, tcp_retries2 = 3",
+      "group": "T01",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 3.329,
+        "window": null,
+        "text": "The algebra predicts that the retransmissions of the kernel give up with EHOSTUNREACH. The band is 3 s to 3.329 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.999,
+        "high": 3.33
+      },
+      "median": 3.120006,
+      "why": "11 of the 11 counted runs are in the band of 2.999 s to 3.33 s. The median is 3.12 s, and its interval is 3.12 s to 3.12 s.",
+      "runs": [
+        [3.120007, 3.120006, 3.120015, 3.120022, 3.120009, 3.119999],
+        [3.119981, 3.120006, 3.120013, 3.119996, 3.119986]
+      ],
+      "warmups": [3.120017, 3.120016],
+      "voids": null
+    },
+    {
+      "plan": "T01.defaults.55",
+      "catalog": "T01",
+      "name": "freeze-process, a query in flight",
+      "group": "T01",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 60,
+        "text": "The algebra predicts that nothing detects the fault in a window of 60 s. The prediction has no failed query after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 60 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null
+    },
+    {
+      "plan": "T01.defaults.56",
+      "catalog": "T01",
+      "name": "a 1 s stall, a query in flight",
+      "group": "T01",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "recovers",
+        "low": 1.604,
+        "high": 1.697,
+        "window": 20,
+        "text": "The algebra predicts that the reply comes back at the third firing of the RTO timer. The band is 1.604 s to 1.697 s after the send of the query."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 1.603,
+        "high": 1.698
+      },
+      "median": 1.667372,
+      "why": "11 of the 11 counted runs are in the band of 1.603 s to 1.698 s. The median is 1.667 s, and its interval is 1.633 s to 1.676 s.",
+      "runs": [
+        [1.672712, 1.671228, 1.653851, 1.667372, 1.680076, 1.668226],
+        [1.649483, 1.632711, 1.676187, 1.629749, 1.660247]
+      ],
+      "warmups": [1.660961, 1.66864],
+      "voids": null
+    },
+    {
+      "plan": "T01.defaults.57",
+      "catalog": "T01",
+      "name": "event:idle, no fault: the pool keeps its idle connection",
+      "group": "T01",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 60,
+        "text": "The algebra predicts that nothing detects the fault in a window of 60 s. The prediction has no failed query after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 60 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null
+    },
+    {
+      "plan": "T01.defaults.59",
+      "catalog": "T01",
+      "name": "rst at the start: the server refuses the check of the pool",
+      "group": "T01",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 1,
+        "high": 1.012,
+        "window": null,
+        "text": "The algebra predicts that the start of the pool fails after the sleep of its check with 08001. The band is 1 s to 1.012 s after the start of the first connect."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 0.999,
+        "high": 1.013
+      },
+      "median": 1.007012,
+      "why": "11 of the 11 counted runs are in the band of 999 ms to 1.013 s. The median is 1.007 s, and its interval is 1.006 s to 1.007 s.",
+      "runs": [
+        [1.006177, 1.007442, 1.006338, 1.006007, 1.00603, 1.007012],
+        [1.00718, 1.007431, 1.007287, 1.006022, 1.007552]
+      ],
+      "warmups": [1.005926, 1.007199],
+      "voids": null
+    },
+    {
+      "plan": "T01.defaults.60",
+      "catalog": "T01",
+      "name": "app-stall: the server holds the query in flight 5 s, and nothing ends it",
+      "group": "T01",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "replies",
+        "low": 5,
+        "high": 5.012,
+        "window": 30,
+        "text": "The algebra predicts that no timer ends the query, and that the reply comes back after the hold of the server. The band of the reply is 5 s to 5.012 s after the send of the query. The prediction has no failed query after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 4.999,
+        "high": 5.013
+      },
+      "median": 5.005728,
+      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.013 s. The median is 5.006 s, and its interval is 5.004 s to 5.006 s.",
+      "runs": [
+        [5.006764, 5.004383, 5.005771, 5.006112, 5.006164, 5.005614],
+        [5.005728, 5.003363, 5.005439, 5.006364, 5.005405]
+      ],
+      "warmups": [5.006116, 5.001967],
+      "voids": null
+    },
+    {
+      "plan": "T01.border-off.151",
+      "catalog": "T01",
+      "name": "middlebox-forget, idle, keepaliveTime 55 s: inside O03 against a silent-drop router at 60 s",
+      "group": "T01",
+      "client": "HikariCP",
+      "stage": "border",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 150,
+        "text": "The algebra predicts that nothing detects the fault in a window of 150 s. The prediction has no failed query after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 150 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null
+    },
+    {
+      "plan": "T01.border-off.152",
+      "catalog": "T01",
+      "name": "middlebox-forget, idle, keepaliveTime 80 s: outside O03 against a silent-drop router at 60 s",
+      "group": "T01",
+      "client": "HikariCP",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 5,
+        "high": 5.015,
+        "window": null,
+        "text": "The algebra predicts that the check of the pool gets no reply, and its read timeout closes the socket, and the kernel stamps its FIN. The band is 5 s to 5.015 s after the empty query of the check, the first segment after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 4.999,
+        "high": 5.016
+      },
+      "median": 5.004247,
+      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.016 s. The median is 5.004 s, and its interval is 5.002 s to 5.005 s.",
+      "runs": [
+        [5.001426, 5.005211, 5.002264, 5.001947, 5.005249, 5.004392],
+        [5.004227, 5.005217, 5.005207, 5.003588, 5.004247]
+      ],
+      "warmups": [5.005211, 5.004138],
+      "voids": null
+    },
+    {
+      "plan": "T01.border-off.187",
+      "catalog": "T01",
+      "name": "blackhole, a query in flight, socketTimeout 9 s: inside O13 against a poll of 10 s",
+      "group": "T01",
+      "client": "HikariCP",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 9,
+        "high": 9.019,
+        "window": null,
+        "text": "The algebra predicts that the read timeout of pgjdbc closes the socket, and the kernel stamps its FIN. The band is 9 s to 9.019 s after the send of the query."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 8.999,
+        "high": 9.02
+      },
+      "median": 9.009783,
+      "why": "11 of the 11 counted runs are in the band of 8.999 s to 9.02 s. The median is 9.01 s, and its interval is 9.007 s to 9.01 s.",
+      "runs": [
+        [9.010119, 9.007924, 9.009778, 9.009783, 9.006548, 9.007666],
+        [9.009812, 9.010111, 9.009887, 9.001519, 9.009884]
+      ],
+      "warmups": [9.00984, 9.008539],
+      "voids": null
+    },
+    {
+      "plan": "T01.border-off.188",
+      "catalog": "T01",
+      "name": "blackhole, a query in flight, socketTimeout 11 s: outside O13 against a poll of 10 s",
+      "group": "T01",
+      "client": "HikariCP",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 11,
+        "high": 11.021,
+        "window": null,
+        "text": "The algebra predicts that the read timeout of pgjdbc closes the socket, and the kernel stamps its FIN. The band is 11 s to 11.021 s after the send of the query."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 10.999,
+        "high": 11.022
+      },
+      "median": 11.008373,
+      "why": "11 of the 11 counted runs are in the band of 10.999 s to 11.022 s. The median is 11.008 s, and its interval is 11.003 s to 11.012 s.",
+      "runs": [
+        [11.011973, 11.007293, 11.008373, 11.009792, 11.002385, 11.005454],
+        [11.011657, 11.011814, 11.003171, 11.011762, 11.003746]
+      ],
+      "warmups": [11.011766, 11.002424],
+      "voids": null
+    },
+    {
+      "plan": "T01.border-off.173",
+      "catalog": "T01",
+      "name": "app-stall in flight, socketTimeout 11 s: inside O07 against a statement_timeout of 10 s",
+      "group": "T01",
+      "client": "HikariCP",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 10,
+        "high": 10.022,
+        "window": null,
+        "text": "The algebra predicts that the statement timer of the server ends the query with 57014. The band is 10 s to 10.022 s after the send of the query."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 9.999,
+        "high": 10.023
+      },
+      "median": 10.004329,
+      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.023 s. The median is 10.004 s, and its interval is 10.004 s to 10.006 s.",
+      "runs": [
+        [10.003857, 10.004444, 10.0056, 10.005637, 10.004899, 10.004475],
+        [10.004222, 10.004129, 10.004329, 10.004215, 10.004286]
+      ],
+      "warmups": [10.00418, 10.004016],
+      "voids": null
+    },
+    {
+      "plan": "T01.border-off.174",
+      "catalog": "T01",
+      "name": "app-stall in flight, socketTimeout 9 s: outside O07 against a statement_timeout of 10 s",
+      "group": "T01",
+      "client": "HikariCP",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 9,
+        "high": 9.019,
+        "window": null,
+        "text": "The algebra predicts that the read timeout of pgjdbc closes the socket, and the kernel stamps its FIN. The band is 9 s to 9.019 s after the send of the query."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 8.999,
+        "high": 9.02
+      },
+      "median": 9.005535,
+      "why": "11 of the 11 counted runs are in the band of 8.999 s to 9.02 s. The median is 9.006 s, and its interval is 9.003 s to 9.01 s.",
+      "runs": [
+        [9.004936, 9.006555, 9.00211, 9.009827, 9.005535, 9.002782],
+        [9.009896, 9.003463, 9.009765, 9.005478, 9.01045]
+      ],
+      "warmups": [9.009877, 9.001445],
+      "voids": null
+    },
+    {
+      "plan": "T01.border-off.197",
+      "catalog": "T01",
+      "name": "blackhole before the start, connectTimeout 28 s: the start of the pool fails inside O15 against a budget of 30 s",
+      "group": "T01",
+      "client": "HikariCP",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 29.001,
+        "high": 29.059,
+        "window": null,
+        "text": "The algebra predicts that the connect timer of the pool fails the first connect with 08001. The band is 29.001 s to 29.059 s after the start of the first connect."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 29,
+        "high": 29.06
+      },
+      "median": 29.030174,
+      "why": "11 of the 11 counted runs are in the band of 29 s to 29.06 s. The median is 29.03 s, and its interval is 29.022 s to 29.039 s.",
+      "runs": [
+        [29.024073, 29.038831, 29.025268, 29.038057, 29.021512, 29.027449],
+        [29.038452, 29.039608, 29.037975, 29.0096, 29.030174]
+      ],
+      "warmups": [29.037034, 29.015056],
+      "voids": null
+    },
+    {
+      "plan": "T01.border-off.198",
+      "catalog": "T01",
+      "name": "blackhole before the start, connectTimeout 30 s: the start of the pool fails outside O15 against a budget of 30 s",
+      "group": "T01",
+      "client": "HikariCP",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 31.001,
+        "high": 31.061,
+        "window": null,
+        "text": "The algebra predicts that the connect timer of the pool fails the first connect with 08001. The band is 31.001 s to 31.061 s after the start of the first connect."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 31,
+        "high": 31.062
+      },
+      "median": 31.033536,
+      "why": "11 of the 11 counted runs are in the band of 31 s to 31.062 s. The median is 31.034 s, and its interval is 31.013 s to 31.039 s.",
+      "runs": [
+        [31.012894, 31.039331, 31.035831, 31.04042, 31.024602, 31.033536],
+        [31.036339, 31.014117, 31.039269, 31.031369, 31.013459]
+      ],
+      "warmups": [31.012541, 31.020738],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.6",
+      "catalog": "T03",
+      "name": "blackhole at the router, idle: the keepalive checks the connection, AWS NAT form",
+      "group": "T03",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 5,
+        "high": 5.015,
+        "window": null,
+        "text": "The algebra predicts that the check of the pool gets no reply, and its read timeout closes the socket, and the kernel stamps its FIN. The band is 5 s to 5.015 s after the empty query of the check, the first segment after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 4.999,
+        "high": 5.016
+      },
+      "median": 5.00489,
+      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.016 s. The median is 5.005 s, and its interval is 5.002 s to 5.005 s.",
+      "runs": [
+        [5.005282, 5.005264, 5.00489, 5.001888, 5.005215, 5.005316],
+        [5.005417, 5.002594, 5.003523, 5.001237, 5.002414]
+      ],
+      "warmups": [5.004494, 5.002229],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.8",
+      "catalog": "T03",
+      "name": "mtu-blackhole at the router, a long reply in flight, Azure LB with TCP reset",
+      "group": "T03",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 60,
+        "text": "The algebra predicts that nothing detects the fault in a window of 60 s. The prediction has no failed query after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 60 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.9",
+      "catalog": "T03",
+      "name": "unreachable-host at the router, a query in flight, tcp_retries2 = 3, GCP firewall form",
+      "group": "T03",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 3.329,
+        "window": null,
+        "text": "The algebra predicts that the retransmissions of the kernel give up with EHOSTUNREACH. The band is 3 s to 3.329 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.999,
+        "high": 3.33
+      },
+      "median": 3.120004,
+      "why": "11 of the 11 counted runs are in the band of 2.999 s to 3.33 s. The median is 3.12 s, and its interval is 3.12 s to 3.12 s.",
+      "runs": [
+        [3.120008, 3.120018, 3.119989, 3.119025, 3.120022, 3.119996],
+        [3.12, 3.119551, 3.120004, 3.120008, 3.120984]
+      ],
+      "warmups": [3.120018, 3.119996],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.42",
+      "catalog": "T03",
+      "name": "event:idle, no fault, idle for 300 s: the keepalive keeps the flow, Azure NAT form",
+      "group": "T03",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 300,
+        "text": "The algebra predicts that nothing detects the fault in a window of 300 s. The prediction has no failed query after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 300 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.43",
+      "catalog": "T03",
+      "name": "fin, idle, Azure LB with TCP reset",
+      "group": "T03",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.002,
+        "window": null,
+        "text": "The algebra predicts that the FIN of the stopped server ends the idle client with an end of file. The band is 0 s to 2 ms after the close of the socket of the server."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.001,
+        "high": 0.003
+      },
+      "median": 0.000038,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 3 ms. The median is 38 µs, and its interval is 18 µs to 44 µs.",
+      "runs": [
+        [0.000017],
+        [0.000044],
+        [0.000039],
+        [0.000041],
+        [0.000026],
+        [0.000018],
+        [0.000039],
+        [0.000045],
+        [0.00002],
+        [0.000038],
+        [0.000026]
+      ],
+      "warmups": [null, null, null, null, null, null, null, null, null, null, null],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.51",
+      "catalog": "T03",
+      "name": "middlebox-forget, idle for 400 s: the keepalive keeps the flow, AWS NAT form",
+      "group": "T03",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 400,
+        "text": "The algebra predicts that nothing detects the fault in a window of 400 s. The prediction has no failed query after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 400 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.52",
+      "catalog": "T03",
+      "name": "a 1 s stall at the router, a query in flight, AWS NAT form",
+      "group": "T03",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "recovers",
+        "low": 1.604,
+        "high": 1.697,
+        "window": 20,
+        "text": "The algebra predicts that the reply comes back at the third firing of the RTO timer. The band is 1.604 s to 1.697 s after the send of the query."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 1.603,
+        "high": 1.698
+      },
+      "median": 1.64896,
+      "why": "11 of the 11 counted runs are in the band of 1.603 s to 1.698 s. The median is 1.649 s, and its interval is 1.641 s to 1.683 s.",
+      "runs": [
+        [1.660812, 1.642097, 1.643685, 1.646513, 1.640692, 1.684869],
+        [1.64896, 1.682898, 1.653494, 1.673673, 1.634972]
+      ],
+      "warmups": [1.688508, 1.668957],
+      "voids": null
+    },
+    {
+      "plan": "T10.defaults.1",
+      "catalog": "T10",
+      "name": "blackhole behind PgBouncer, idle: the keepalive checks the connection through the pooler, and its read timeout closes it",
+      "group": "T10",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 5,
+        "high": 5.015,
+        "window": null,
+        "text": "The algebra predicts that the check of the pool gets no reply, and its read timeout closes the socket, and the kernel stamps its FIN. The band is 5 s to 5.015 s after the empty query of the check, the first segment after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 4.999,
+        "high": 5.016
+      },
+      "median": 5.004655,
+      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.016 s. The median is 5.005 s, and its interval is 5.001 s to 5.005 s.",
+      "runs": [
+        [5.001224, 5.004655, 5.004324, 5.005475, 5.005231, 5.003417],
+        [5.000835, 5.005204, 5.003682, 5.004727, 5.005188]
+      ],
+      "warmups": [5.002144, 5.00166],
+      "voids": null
+    },
+    {
+      "plan": "T10.defaults.12",
+      "catalog": "T10",
+      "name": "app-stall behind PgBouncer: the server holds the query in flight 5 s, and nothing ends it",
+      "group": "T10",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "replies",
+        "low": 5,
+        "high": 5.024,
+        "window": 30,
+        "text": "The algebra predicts that no timer ends the query, and that the reply comes back after the hold of the server. The band of the reply is 5 s to 5.024 s after the send of the query. The prediction has no failed query after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 4.999,
+        "high": 5.025
+      },
+      "median": 5.003217,
+      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.025 s. The median is 5.003 s, and its interval is 5.002 s to 5.006 s.",
+      "runs": [
+        [5.005762, 5.003716, 5.003217, 5.006009, 5.002782, 5.002556],
+        [5.003253, 5.002094, 5.001867, 5.00582, 5.002877]
+      ],
+      "warmups": [5.00192, 5.002864],
+      "voids": null
+    },
+    {
+      "plan": "T10.defaults.45",
+      "catalog": "T10",
+      "name": "blackhole behind PgBouncer, idle, keepaliveTime 0: HikariCP of the earlier epoch has no keepalive, and nothing reads the idle connection",
+      "group": "T10",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 60,
+        "text": "The algebra predicts that nothing detects the fault in a window of 60 s. The prediction has no failed query after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 60 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
       "voids": null
     }
   ]

@@ -61,6 +61,8 @@ interface RunCell {
   readonly stages?: readonly Stage[] | null;
   readonly writes?: Writes | null;
   readonly stage?: string;
+  /** This name is the client of a cell, in a copy that has more than one: node-postgres or HikariCP. */
+  readonly client?: string;
   readonly ordering?: string | null;
   readonly requests?: ReadonlyArray<{ readonly outcome: string; readonly count: number }>;
 }
@@ -270,10 +272,21 @@ function RunFrame(props: { readonly cell: RunCell }): ReactElement {
   );
 }
 
-/** The cells of one group of a copy, in the sequence of the catalog. `stage` selects the defaults or the borders of the plan. */
-export default function RunResults(props: { readonly copy: "sentinel" | "http" | "mongodb" | "pg" | "r3"; readonly group: string; readonly stage?: string }): ReactElement {
-  const cells = (COPIES[props.copy] ?? []).filter((cell) => cell.group === props.group && (props.stage === undefined || cell.stage === props.stage));
-  if (cells.length === 0) throw new Error(`no cell of ${props.copy} has the group ${props.group}`);
+/**
+ * The cells of one group of a copy, in the sequence of the catalog. `stage` selects the defaults or
+ * the borders of the plan, and `pool` selects the cells of one client. The name is not `client`,
+ * because Astro reads each `client:` attribute as a directive.
+ */
+export default function RunResults(props: {
+  readonly copy: "sentinel" | "http" | "mongodb" | "pg" | "r3";
+  readonly group: string;
+  readonly stage?: string;
+  readonly pool?: string;
+}): ReactElement {
+  const cells = (COPIES[props.copy] ?? []).filter(
+    (cell) => cell.group === props.group && (props.stage === undefined || cell.stage === props.stage) && (props.pool === undefined || cell.client === props.pool),
+  );
+  if (cells.length === 0) throw new Error(`no cell of ${props.copy} has the group ${props.group}${props.pool === undefined ? "" : ` and the client ${props.pool}`}`);
   return (
     <div className="not-content sy-cells">
       {cells.map((cell) => (
