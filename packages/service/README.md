@@ -14,6 +14,7 @@ This release has the declaration, its export, the law, the health runtime, the l
 - **Keyed operations.** A keyed operation has the window that the server keeps its key for. `mayReissue` answers from the declaration of an operation. An operation without a declaration does not go again.
 - **The law.** `evaluate` and `verdictOf` decide one rule of the timer-ordering law on one binding. A rule is data: linear inequalities over `symbol@hop`, with a margin. A verdict is `holds`, `violated`, `unbounded` (it holds only because a timer is absent) or `depends` (nothing is bound).
 - **The linter.** `lint(description, scenario, rules)` applies the service rules (`SERVICE_RULES`) to a declaration. The declaration binds the symbols of the service: the polls of its checks, the windows of its policies, its drain. The scenario binds the symbols of the platform and of each dependency. A `depends` finding names the symbols that have no bound.
+- **The scopes of a rule.** A rule about a client applies one time for each dependency. A rule about a consumer, for example O20, applies one time for each consumer and each worker.
 - **The hold.** The cap of the `fail readiness` phase binds `readiness_hold@process`, and a service without that phase holds for zero. The hold keeps the listener open after the signal, as a preStop sleep does. Thus O04 can compare the sum of the two with the propagation of the endpoints.
 
 The format of a description is `mark1russell7.service/1`.
@@ -36,13 +37,16 @@ The format of a description is `mark1russell7.service/1`.
 
 `await svc.run()` starts the whole life of the service, and gives a `Lifecycle` when the startup ends. It refuses a declaration that it cannot start: a transport without its implementation, or a stage with work and no declared phase.
 
-- **The parts.** `svc.server(name, knobs, impl)`, `svc.consumer(…)` and `svc.worker(…)` give a transport its implementation. Each transport has one contract: `start(signal, life)`, `stopIntake`, `drain(deadline, signal)`, `inFlight` and `close`. `svc.dependency(name, spec, handle)` gives a dependency a handle that connects and closes. `svc.healthServer(server)` gives the server of the probes.
+- **The parts.** `svc.server(name, knobs, impl)`, `svc.consumer(…)` and `svc.worker(…)` give a transport its implementation. Each transport has one contract: `start(signal, life)`, `stopIntake`, `drain(deadline, signal)`, `inFlight` and `close`. `workerLoop` and `queueDrain` give the implementation of a worker and of a consumer ([Workers and queues](#workers-and-queues)). `svc.dependency(name, spec, handle)` gives a dependency a handle that connects and closes. `svc.healthServer(server)` gives the server of the probes.
 - **The startup.** The health server starts first, thus the probes answer while the dependencies connect. Then each dependency connects, in its declared sequence. Then each transport starts, and the startup gate opens last, after one warm-up sweep of each check. A part that does not start fails the startup. Then only the parts that started stop, and the exit code is 1.
 - **The startup budget.** When the gate is not open at the end of its budget, the gate says so. The runtime does not stop itself, because the startup probe of the platform acts on it.
 - **The signals.** The runtime owns the handlers of SIGINT, SIGTERM and SIGQUIT. The first signal starts the shutdown. A signal during the startup gets its shutdown after the startup ends.
 - **A repeat signal.** Each declaration tells what a signal during the shutdown does (`svc.onRepeatSignal`). With `"exit"`, the signal ends the process at once, with the code 1. With `"ignore"`, the signal has no effect, as in 0.4. A second `shutdown()` and a second process trigger do not end the process.
 - **A declaration without the policy.** `describe()` refuses a declaration that does not declare `onRepeatSignal`. A description from another source can lack it, for example the JSON of 0.4. Then `lint()` gives a `depends` finding of the rule `declaration`, and `unbound` names the field.
 - **Process triggers.** `svc.trigger("stdin-close")` starts the shutdown when the standard input ends, as when the parent of a stdio child stops. `"ipc-close"` starts it when the IPC channel to the parent closes. Each trigger is opt-in. The process must read its input, as a stdio transport does, or Node does not see the end.
+- **A message of the IPC channel.** Windows cannot give a child a SIGTERM that the child can catch, thus a parent sends a message. `svc.trigger("ipc-message", { match: "shutdown", as: "SIGTERM" })` starts the shutdown at that message.
+- **The shape of a message.** `match` is a value of JSON. A string, a number, a boolean or null matches an equal message. An object matches a message that has each of its fields, and an array matches item by item.
+- **A message as a signal.** With `as`, the message is that exit signal: it gets its exit code and the policy of a repeat signal. Without `as`, the message is the trigger `ipc-message`, with its own exit code (`svc.exitCode("ipc-message", code)`).
 - **The shutdown.** Readiness fails first. Then the declared phases occur in their sequence, and each phase races its cap. `svc.onPhase(name, work)` adds the work of an owner to a phase.
 - **The stages.** A declared phase with the name of a stage gets the work of that stage. The stages are `fail readiness`, `stop intake`, `drain`, `close transports`, `stop the poller`, `tear down dependencies`, `close the health server` and `flush the output`. The phase `fail readiness` holds for its cap while the endpoints update. The signal of the service aborts after the poller stops. `describe()` refuses the stages out of their sequence.
 - **The cooperative abort.** During the drain, the requests and the transports get a signal that aborts at the cap less the cooperative window. With the floor `half`, that time is half the cap at the least, and a window without a bound gives half the cap. With `svc.cooperativeFloor("none")`, a window of the whole cap aborts the work at the start of the drain.
@@ -121,6 +125,82 @@ const life = await svc.run(); // only the entry calls run(), and the process exi
 ```
 
 The requirements that the lifecycle follows are in [the requirements of S6](https://github.com/mark1russell7/systems/blob/main/docs/S6.md).
+
+## Workers and queues
+
+`workerLoop(knobs, options)` makes a worker from a loop, and `queueDrain(knobs, options)` makes a consumer from a queue. Each one is a `TransportImpl`, with no defaults. Give `loop.knobs` to `svc.worker(name, knobs, impl)`, and `drain.knobs` to `svc.consumer(…)`. Thus the declaration and the law read the same knobs.
+
+- **The worker loop (S6 A10).** A worker has a setup, an iteration and a teardown. The start does the setup, and each iteration gets its state. Each lane does its iterations one at a time, thus two iterations of a lane do not overlap. `concurrency` is the number of lanes.
+- **The sleep.** `worker_sleep` is the time from the end of one iteration to the start of the next. An iteration that gives `"more"` starts the next one after a zero sleep. A sleep without a bound waits for `wake()`.
+- **The first iteration.** The first iteration of each lane comes after the startup ends, because the service refuses a request before that end.
+- **The failures.** A throw is a failure, and the lane then waits its backoff. The first delay is `retry_base`, and each delay is two times longer, up to `retry_cap`, with a jitter up to the base. A success ends the sequence. `onError` gets each failure, and the loop does not end the process (A5).
+- **`wake()`.** It ends each sleep at once, also a sleep that comes after the iteration in flight. It does not end a backoff. After the stop of the intake, it gives false.
+- **The queue drain (S6 A11).** One taker takes a job from the source while a slot is free. `concurrency` is the number of slots, and a count without a bound takes each job that comes. The source is a function that takes the next job, or an async iterable.
+- **An empty source.** A take with no job waits `queue_poll_interval`, or until `wake()`. A failed take waits the backoff. The end of an async iterable stops the takes.
+- **The end of each job.** A success gets `settle.ack`. A failure gets the action of the redelivery policy: `requeue`, `reject` or `ack`. The queue declares its policy, because the drain has no default.
+- **The policy of A11.** `redeliverOnce(then, poison)` gives `ack` to a poison message. Each other job goes back one time after its first failure, and `then` decides each later failure.
+- **The deliveries.** The policy gets the count of deliveries of the job, 1 at the first. `settle.delivery` gives the count of the queue. Without it, the drain counts the deliveries of each job that it puts back.
+- **The bound of a unit.** `unit_processing_time` is the most time of one iteration or one job. At it, the signal of the unit aborts, and a throw after it is a failure. The law reads it as `unit_processing_time@consumer`.
+- **The stop of the intake.** No new iteration starts, and the drain takes no new job. Each sleep and each backoff ends. The drain ends an async iterable through `return()`. A take that gives a job after the stop gives it back (`settle.requeue(job, "unstarted")`).
+- **The drain.** `drain(deadline, signal)` waits for each unit in flight until the deadline, and gives each one the cooperative abort. A throw after that abort is a cut, not a failure.
+- **A cut job.** A cut job goes back (`"cut"`) only when its route can go again (A12). Each other cut job gets `settle.reject`.
+- **The close.** `close` aborts each unit, waits for its end, and then does the teardown or `options.close`, all in `close_bound`. The teardown occurs each time that the setup started, also after a failed setup. The close rejects a job that does not end in the bound.
+- **The request tracking.** With `request: { controller, route }`, each unit goes through `life.request`. The service then admits, counts, drains and cuts each unit as it does each request. A route function and `detail` can give each job a route of a pattern.
+- **The refusals.** While the service refuses its units, the loop and the taker wait their backoff, and each refused job goes back (`"unstarted"`). Thus a worker stops while a dependency of its controller is not ready.
+- **The clock.** The sleeps, the backoffs and the bounds use the clock of the options. Give the clock of the lifecycle. With the real clock, the timers do not keep a Node process alive (A14). A process whose only parts are workers gives `platformClock({ unref: false })`.
+- **The law.** `lint()` applies O20 one time for each consumer and each worker. A knob of the transport binds at the hop `consumer`, and a knob with a hop in its name binds at that hop. The scenario gives the lease of each source, for example the visibility timeout of SQS.
+- **The problems.** `problems(description)` compares the bounds with the caps. `close_bound` fits in the cap of `close transports`. `unit_processing_time` fits in the cap of `drain`, or the drain can cut a unit.
+
+```ts
+import { kubernetes, lint, queueDrain, redeliverOnce, service, workerLoop } from "@mark1russell7/service";
+
+const s = (value: number) => ({ value, unit: "s" });
+const count = (value: number) => ({ value, unit: "count" });
+
+// a heartbeat each 6 h, in one lane: a bound of 10 s for each beat, in the drain of 15 s, and a backoff from 10 s to 5 min
+const heartbeat = workerLoop(
+  { worker_sleep: s(6 * 3600), unit_processing_time: s(10), retry_base: s(10), retry_cap: s(300), close_bound: s(1), concurrency: count(1) },
+  {
+    setup: () => openClient(),
+    iteration: ({ state, signal }) => state.beat(signal),
+    teardown: (state) => state?.close(),
+    onError: (error, failures) => log.warn({ error, failures }, "the heartbeat failed"),
+  },
+);
+
+// the jobs of a table, 4 at a time: a poll each 2 s, and the policy of A11
+const jobs = queueDrain(
+  { queue_poll_interval: s(2), unit_processing_time: s(10), retry_base: s(1), retry_cap: s(30), close_bound: s(1), concurrency: count(4) },
+  {
+    source: (signal) => db.claimNextJob(signal), // a job, or null
+    handle: (job, { signal, delivery }) => runPipeline(job, { signal, delivery }),
+    settle: {
+      ack: (job) => db.markDone(job),
+      requeue: (job) => db.markQueued(job),
+      reject: (job, error) => db.markFailed(job, error),
+    },
+    redelivery: redeliverOnce("reject", (error) => error instanceof InvalidJobError),
+    request: { controller: "jobs", route: "RUN" },
+  },
+);
+
+const app = service("app")
+  .dependency("db", { system: null, knobs: {}, operations: {} }, { connect: () => db.connect(), close: () => db.end() })
+  .worker("heartbeat", heartbeat.knobs, heartbeat)
+  .consumer("jobs", jobs.knobs, jobs)
+  .profile(kubernetes({ grace: s(30), preStop: s(0) }))
+  .readiness({ type: "debounce", interval: s(5), failAfter: 3, recoverAfter: 1 })
+  .liveness({ type: "window", failAfter: s(45) })
+  .startup(s(60));
+// a job that the shutdown cuts goes back on the queue, because its route can go again
+app.controller("jobs").requires("db").route("RUN", { idempotent: true });
+
+// O20: the lease of the queue, 30 s, against a job of 10 s
+const scenario = { platform: {}, probes: { readiness: s(30), liveness: s(30) }, transports: { jobs: { "lease_duration@broker": s(30) } } };
+const findings = lint(app.describe(), scenario, rules);
+const problems = [...heartbeat.problems(app.describe()), ...jobs.problems(app.describe())];
+const life = await app.run();
+```
 
 ## Profiles
 
@@ -454,7 +534,7 @@ for await (const event of stream) {
 - **The Redis client.** These tests use a fake ioredis and a fake clock. They cover the declaration, the three outcomes, and the commands that the client sends again or not. They also cover the join, the backoff, the watchdog, the close, the checks and the manifestations. Five scenarios replay against the document of the client.
 - **F6 for Redis.** The fault matrix crosses each manifestation (a refusal, a frozen process, a black hole, a death without a close, and an app stall), each gating posture, two timings and two jitters. That is 60 cases on the fake. Each case holds the trip and the release of its policy to `failSpan` and `recoverSpan`. Five more cases shut the service down during each manifestation, and each one exits 0.
 - **The timers.** These tests use a fake clock, and they cover the hooks of the heartbeat and its two kinds of ping. A property test holds the death of a silent peer to `detectionTime` in 300 seeded cases. Another one compares the heartbeat with a WebSocket heartbeat that sends one ping at a time, on 300 schedules of pongs. The backoff gives the delays of three earlier backoffs, number for number, and each delay is in its band.
-- **The entries.** The timer entries reach no other package, no `node:` module and no zod. No entry of the service reaches zod, also through `quantity` and the replay of the algebra. The root reaches no `node:` module. The HTTP edge reaches only `node:http`, `node:net` and `quantity`.
+- **The entries.** The timer entries reach no other package, no `node:` module and no zod. No entry of the service reaches zod, also through `quantity` and the replay of the algebra. The root reaches no `node:` module. The HTTP edge reaches only `node:http`, `node:net` and `quantity`. The worker loop and the queue drain reach only `quantity`.
 - **The requests.** A unary work is a stream of one item, and a stream gives each item when its reader asks. The drain waits for an open stream. The cooperative abort ends a stream through `return()`, and a cut or a failure after the first item ends in-band. A reader that stops early stops the work. The function of a route pattern decides the answer of each cut request.
 - **The options of the runner.** These tests cover the requests of a transport while the startup runs, the policy of a repeat signal, the profiles and the process triggers. They also cover the exit codes, a first Ctrl-C that aborts at once, and the flush of the output.
 - **The composition.** Two components, each with a transport, a dependency and a check, share one service and one `run()`. The parts start and stop in their sequence, and the process exits one time.
@@ -463,7 +543,13 @@ for await (const event of stream) {
 - **The headers of the outcomes.** Each path of the request tracker gets its status. Each 503 gets `Retry-After`: the refusals, the retryable cut and the cut of a unary stream. No 500 gets it.
 - **The headers on the port.** The transport adds `Retry-After` to each 503 of a probe and of a handler that writes its own status, in each form of `writeHead`. It takes `Retry-After` from each 500. The probe server gives its 503s the time of its knob.
 - **The conformance of a transport.** A reference transport passes each case, and each of nine mutations of it fails the case of its part. The HTTP transport passes each case on a fake server, for its requests and its upgrades.
+- **The worker loop.** These tests use the fake clock. They cover the sleep, `"more"`, the backoff and its jitter, `wake()`, the stop of the intake and the drain with its cooperative abort. They also cover the bound of an iteration, the lanes, the setup, the teardown, the close bound and the law (O20).
+- **The queue drain.** These tests cover the slots, the poll, the policy of A11 and the count of deliveries. They also cover a job that goes back at the stop, an async iterable and a failed take. A cut job of each kind of route, the close bound and the refusals of the service have tests too.
+- **The conformance of the helpers.** The worker loop passes each case of the kit with three lanes, and the queue drain with three slots. Each one passes with the request tracking and without it. With one lane, the loop passes each case that holds one work.
+- **The IPC message.** A message that matches a declared shape starts the staged shutdown on the fake process, with the exit code of its signal. A second message obeys the policy of a repeat signal.
 - **On real sockets.** `HTTP_IT=1` starts the tests of the HTTP edge on the loopback. They cover the conformance on the fake clock and on the real clock, keep-alive and the stop of the intake. They also cover the upgrades, the probe server and a service after SIGTERM. They measure time, thus only CI starts them (`http.yml`), on Node 22.19, 24 and 26. CI keeps the raw records of each job as an artifact.
+- **On the real clock.** `WORKERS_IT=1` starts the kit of the worker loop and of the queue drain on the real clock, in the jobs of `http.yml`.
+- **A real child process.** `PROCESS_IT=1` starts a child under `run()` with an IPC channel, on Linux and on Windows (`process.yml`). The message `shutdown` stops it in stages, with the code 143. A control shows that a SIGTERM of the parent does that only on Linux.
 - **Against a real Redis.** `REDIS_IT=1` starts the tests of the client against Redis 7.4. `REDIS_F6=1` starts the F6 matrix in the VM of Docker. The injector of `@mark1russell7/harness` makes the network faults, and an agent in the namespaces of Redis makes the process faults. All of them use one monotonic clock.
 
 `pnpm --filter @mark1russell7/service build` writes the package for npm into `build/`.
