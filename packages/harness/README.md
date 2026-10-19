@@ -103,6 +103,21 @@ A step-down holds its old primary out of the elections for 60 s. Thus before eac
 
 A fault names a member by its role at the start of a run: `primary`, or `replica` for a secondary. A cut from one member (`one`, `one-way`) cuts the first other member in the sequence of the set.
 
+## The clusters of RabbitMQ
+
+A cluster (`Cluster`, `Cell.cluster`) is a cluster of RabbitMQ nodes with one quorum queue, as data. The members of the queue elect its leader by Raft, one member on each node. The cluster replaces the target of its cell.
+
+- **The nodes.** Each node is a container from one stock image, pinned by digest, in its own network namespace. Its hostname is the name of its node (`rabbit@<name>`), and all nodes share one Erlang cookie. Its server is the child of a shell.
+- **The start.** The nodes form the cluster from the list of their names (`classic_config`), and the lab waits until each node runs in it. Then the admin (`image/amqp/admin-cluster.mjs`) declares the queue on the first node, with the leader locator `client-local`.
+- **The sidecars.** Each node has an injector sidecar in its network namespace and in its process namespace.
+- **The client.** The client of each run is amqplib, in `image/amqp/client-cluster.mjs`. The client publishes a stream of sequence numbers on a confirm channel through one node. That node is the last follower, or the node of the leader (`Cell.clientAt`). The library does not connect again by itself. When the connection ends, the client connects to the next node after 1 s, as an application does.
+- **The timeline.** A log consumer reads the console log of each node. A run keeps the lines of the queue, each warning and error, and the lines of the maintenance mode. Ra writes a NOTICE for each change from or to the leader, and an INFO for each new leader that a follower detects.
+- **The clocks.** The log has the wall clock in µs. The run puts each line on the monotonic clock with the clock lines of the client.
+
+Each run starts from a queue that converged (`rabbitmq-queues quorum_status`): one leader, and a follower on each other node in its term at its commit index. The run then purges the queue. After the run, the queue converges again, and the admin reads the sequence numbers that the queue holds.
+
+A step-down (`step-down`) moves the leadership to the first follower (`rabbitmq-queues transfer_leadership`). A drain (`drain`) puts the node in maintenance mode (`rabbitmq-upgrade drain`), and the run revives the node after it. Each of them starts an Erlang VM for the tools first. Thus its stamp is a line of the log, and not the command. For a step-down it is the NOTICE of the old leader that gives the leadership away (`GIVES_AWAY`). A drain stops the member of the leader, thus its stamp is the first follower that sees its monitor of the leader go down (`MONITOR_DOWN`).
+
 ## The clients and the agents
 
 - **A client image** (`ClientImage`, `Cell.client`) replaces the TCP client of the harness in each run. It operates in the namespace of the client. Its command gets the arguments of the TCP client, and it prints the same JSON lines. Its image is a stock image by its name, or the source of the image of a subject (`ImageSource`).
@@ -293,6 +308,7 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
   - **Void runs.** A run is void when a Sentinel entered its TILT mode, or when the election split its votes. Both measured another path than the band assumes. A run whose Sentinels reached `+odown` and started no failover is void: the hold-off of an earlier failover stopped them. A band whose hold lifted more than δ_abs late is void too. The rules of the RTT and of a slow commit apply.
   - **The stamps.** A calibration gives the delay of each stamp of the observer after the write of its Sentinel that it read (`lags`).
 - **A replica set** (`measureGroup`, `replicaSetStagesOf`). The outcome is the first accepted write of a write that the client sent after the commit of the fault. Thus a partial cut, which leaves the old primary its writes, gives the first write after the fault.
+- **A cluster of RabbitMQ** (`measureGroup`, `clusterStagesOf`). The outcome is the first confirm of a publish that the client sent after the commit of the fault, through any node. The stages are the NOTICE and the INFO lines of Ra (`NODE_MARKS`).
   - The time of the acceptance is the last segment with data on a socket of the pool. The monitor and the pinger have their own sockets to each member.
   - **The timeline.** A log line of a member marks each stage. The first stages are a member that marks the old primary DOWN, the start of an election and its win. The last stages are the end of the catch-up, the first write of the new primary, and the step-down of the old primary.
   - The lines of the client mark the discovery of the new primary, the write-off of the old one, and the first accepted write.
@@ -342,6 +358,7 @@ The distribution test needs a simulator, which does not exist at this time.
   - The harness sets the `targetSettings` of a cell in the target before a client connects, with the `settings` commands of the target (`redis-cli CONFIG SET`, then `CONFIG GET`).
   - A group cell opens a group environment (`openGroupLab`), and each run is `groupOnce`. Its warm-up is a whole run with its fault, because no fault of a group ends its environment. The manifest also holds the settings of each member and of each Sentinel, as each part read them.
   - A replica set cell opens a replica set environment (`openReplicaSetLab`), and each run is `replicaSetOnce`. A run with a hold continues to the end of the hold, thus its record shows what the set did in all of it.
+  - A cluster cell opens a cluster environment (`openClusterLab`), and each run is `clusterOnce`.
   - A driver cell (`prediction.driver`) waits for the end of its band and of each later band. A silent driver cell waits for its window.
 - **The observer.** A cell observes the client, the server, or a socket of a proxy toward one side (`observer`). A cell on the server side measures the socket of the target for the connection of the client. The run waits for the error of that socket. `freeze-process` freezes the peer of the observer: the target for the client, the client for the server.
   - A socket of a proxy toward the target is the socket that carries the request of the run. It is the first socket of the hop that sends data to the target after the request. A pooler can reuse a server connection from the warm-up of the environment. Then the first socket that it opens in the run is not the socket of the request. A run without such a socket uses the first socket that the run opens.
@@ -371,6 +388,8 @@ The tests also measure a group run from test lines. They find the first accepted
 
 The tests of a replica set read the log of mongod, and they put its lines on the monotonic clock. They test the views that make a set healthy and the peers of each cut. They measure the stages of a set and the bands of a driver from test lines.
 
+The tests of a cluster read the console log of RabbitMQ. They test the views that make a queue healthy, and the peers of each cut. They measure the stages of a cluster from test lines.
+
 The tests of `image.ts` plan the build of each image that the harness ships, and of a build context of a caller. They test the rules of a build, the problems of a source and of a subject, and the schemas.
 
 The tests of `application.ts` measure a heartbeat of a program from test lines and records. They find the first ping without an answer, the drop, the waits of the reconnect and the call in flight. They also test a report of the kernel before the drop, a VM that stopped, the heartbeat of a server, and an idle stall.
@@ -379,6 +398,6 @@ The cells themselves need Docker and privileged containers. CI does not start th
 
 In the lab tests, each HTTP client sends two requests on one connection to a Node server, from a script in the stock Node image. The procedures WebSocket client drops a silent connection on its heartbeat, and it connects again to the procedures server. With the global `WebSocket`, the drop writes a close frame. With the `WebSocket` of ws, the socket leaves ESTABLISHED at once. The subject of that test is a build context that the test gives, as another repository gives its own subject.
 
-The lab tests also step a replica set of three members of MongoDB 9.0.4 down, and they write the free memory of the machine. They also reset a write of the MongoDB driver in flight to a set of one member.
+The lab tests also step a replica set of three members of MongoDB 9.0.4 down, and they write the free memory of the machine. They also reset a write of the MongoDB driver in flight to a set of one member. They move the leadership of a quorum queue of a cluster of three nodes of RabbitMQ 4.3.6.
 
 `pnpm --filter @mark1russell7/harness build` writes the package for npm into `build/`.

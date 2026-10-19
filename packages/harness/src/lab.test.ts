@@ -2,7 +2,8 @@ import { freemem, totalmem } from "node:os";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import type { Cell, Group, ImageSource, ProxyHop, ReplicaSet, Subject, Target } from "./cell.ts";
+import type { Cell, Cluster, Group, ImageSource, ProxyHop, ReplicaSet, Subject, Target } from "./cell.ts";
+import { clusterOnce, openClusterLab } from "./cluster.ts";
 import { groupOnce, openGroupLab } from "./group.ts";
 import { SUBJECTS, nodeClientImage, programOf } from "./image.ts";
 import { openLab } from "./lab.ts";
@@ -13,7 +14,8 @@ import { runCell } from "./run.ts";
 /**
  * A lab on Docker, opt-in: `HARNESS_LAB=1`. It needs Docker and privileged containers. It starts a
  * client from an image that the caller gives, and an agent in the namespaces of the target. It
- * also puts a reset and netem at a router of a topology, and it fails a group of Valkey over. Each
+ * also puts a reset and netem at a router of a topology, and it fails a group of Valkey over. It moves
+ * the leadership of a quorum queue of RabbitMQ to another node. Each
  * HTTP client sends two requests to a Node server on one connection. The procedures WebSocket client
  * drops a silent connection on its heartbeat, and it connects again. Its subject is a build context
  * that the test gives, as another repository gives its own subject.
@@ -62,6 +64,17 @@ const RABBITMQ: Target = {
   program: "beam.smp",
   command: ["sh", "-c", "echo loopback_users.guest = false > /etc/rabbitmq/conf.d/90-harness.conf; docker-entrypoint.sh rabbitmq-server & echo $! > /tmp/server.pid; while :; do sleep 3600; done"],
   kill: ["sh", "-c", 'for p in /proc/[0-9]*; do [ "$(cat "$p/comm" 2>/dev/null)" = beam.smp ] && kill -KILL "${p#/proc/}"; done; true'],
+};
+/** This cluster is three nodes of RabbitMQ 4.3.6 with one quorum queue, at the defaults of each timer. */
+const CLUSTER: Cluster = {
+  image: RABBITMQ.image,
+  members: ["r1", "r2", "r3"],
+  port: 5672,
+  cookie: "harness-lab-cookie-for-a-cluster",
+  conf: [],
+  queue: "cells",
+  ready: "Server startup complete",
+  programs: { server: "beam.smp", start: "docker-entrypoint.sh rabbitmq-server" },
 };
 const SET: ReplicaSet = {
   name: "rs0",
@@ -350,6 +363,47 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
     const start = result.runs[0]?.events.find((event) => event.ev === "start");
     expect(start).toMatchObject({ client: "amqp", driver: "2.2.0" });
   }, 600_000);
+
+  it("moves the leadership of a quorum queue of RabbitMQ to a follower, and the confirms of the publisher go on", async () => {
+    const cell: Cell = {
+      name: "lab cluster of rabbitmq, event:stepdown",
+      target: RABBITMQ,
+      sysctls: {},
+      probe: { mode: "stream", keepalive: false, interval: { value: 50, unit: "ms" } },
+      fault: "step-down",
+      cluster: CLUSTER,
+      prediction: {
+        detects: null,
+        window: { value: 30, unit: "s" },
+        why: "a lab test",
+        from: "fault",
+        group: { lands: "same", failover: true, stages: [] },
+      },
+      runs: 1,
+      environments: 1,
+    };
+    const lab = await openClusterLab(CLUSTER);
+    try {
+      const free = Math.round(freemem() / 2 ** 20);
+      console.log(`memory with a cluster of three: ${free} MiB free of ${Math.round(totalmem() / 2 ** 20)} MiB`);
+      const manifest = await lab.manifest({});
+      expect(manifest.group?.members.map((member) => member.settings["version"])).toEqual(["4.3.6", "4.3.6", "4.3.6"]);
+      const run = await clusterOnce(lab, cell, 0, 0);
+      expect(run.group?.after).not.toBe(run.group?.primary);
+      const read = measure(cell, run);
+      expect(read).toMatchObject({ outcome: { kind: "answered" }, void: null });
+      // a stage that is missing: the lines that the run kept, and the last raw lines of each node, for the log
+      if (read.group?.stages["elected"] === undefined || read.group?.stages["old-leader-steps-down"] === undefined) {
+        console.log(`the timeline of the run: ${JSON.stringify(run.group?.timeline)}`);
+        for (const [name, tail] of Object.entries(lab.raw)) console.log(`the last lines of ${name}:\n${tail.slice(-60).join("\n")}`);
+      }
+      expect(read.group?.stages["elected"]).toBeDefined();
+      expect(read.group?.stages["old-leader-steps-down"]).toBeDefined();
+      expect(read.group?.writes.lost).toEqual([]);
+    } finally {
+      await lab.close();
+    }
+  }, 900_000);
 
   it("passes a query of node-postgres through Pgpool-II, and the FIN of a stopped server ends the idle client", async () => {
     const s = (value: number) => ({ value, unit: "s" });

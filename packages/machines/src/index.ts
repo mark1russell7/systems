@@ -24,11 +24,14 @@ import { SUPAVISOR_CLIENT } from "./pg/supavisor-client.ts";
 import { SUPAVISOR_SERVER } from "./pg/supavisor-server.ts";
 import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "./procedures-ws.ts";
 import { AMQPLIB } from "./rabbit/amqplib.ts";
+import { ATEN_DETECTOR } from "./rabbit/aten.ts";
+import { RA_MEMBER } from "./rabbit/ra-member.ts";
 import { RABBITMQ_CONNECTION } from "./rabbit/rabbitmq-connection.ts";
 import { SENTINEL } from "./sentinel.ts";
 
 export {
   AMQPLIB,
+  ATEN_DETECTOR,
   GO_TRANSPORT,
   HIKARICP_PGJDBC,
   IOREDIS_SENTINEL,
@@ -47,6 +50,7 @@ export {
   POSTGRES_SESSION,
   PROCEDURES_WS_CLIENT,
   PROCEDURES_WS_SERVER,
+  RA_MEMBER,
   RABBITMQ_CONNECTION,
   REDIS_CLIENT,
   SENTINEL,
@@ -107,4 +111,6 @@ export const MACHINES: Readonly<Record<string, Machine>> = byId([
   SUPAVISOR_SERVER,
   AMQPLIB,
   RABBITMQ_CONNECTION,
+  ATEN_DETECTOR,
+  RA_MEMBER,
 ]);

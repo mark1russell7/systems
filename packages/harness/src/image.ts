@@ -401,6 +401,8 @@ export const mongoClientImage = (): Promise<string> => imageOf(shipped("mongo"))
 export const pgClientImage = (): Promise<string> => imageOf(shipped("pg"));
 /** This function gives the image of the client of HikariCP over pgjdbc. */
 export const hikariClientImage = (): Promise<string> => imageOf(shipped("hikari"));
+/** This function gives the image of the RabbitMQ client: amqplib, with the client and the admin of a cluster cell. */
+export const amqpClientImage = (): Promise<string> => imageOf(shipped("amqp"));
 /** This function gives the image of the procedures subject: the WebSocket client of `@procedures/client`, and its server. */
 export const proceduresImage = (): Promise<string> => imageOf(SUBJECTS.procedures.image);
 

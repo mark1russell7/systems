@@ -2,7 +2,8 @@
 // its settings, a workload, a fault and a prediction. The harness runs it in new Docker
 // environments that code builds (Testcontainers), measures on the one monotonic clock of the VM,
 // and gives each cell a verdict. A topology is a chain of hops, a replicated group under its
-// Sentinels, or a replica set whose members elect their own primary. A program with its own
+// Sentinels, a replica set whose members elect their own primary, or a cluster of RabbitMQ whose
+// quorum queue elects its leader. A program with its own
 // detector, a WebSocket heartbeat, writes lines that the kernel stamps. The subject of a cell is
 // data: an image pinned by digest, a build context, or an image that the harness ships.
 
@@ -11,6 +12,9 @@ export type {
   Cell,
   Client,
   ClientImage,
+  Cluster,
+  ClusterClientAt,
+  ClusterStage,
   DriverBand,
   DriverStep,
   FaultPlace,
@@ -82,11 +86,14 @@ export type { DriverSocket, DriverStepTime } from "./driver.ts";
 export { fieldOf, matches, measureDriver, referenceOf, socketAt, socketsOf } from "./driver.ts";
 export type { ErrorOnTheWay, GroupMeasured, GroupReading, Writes } from "./timeline.ts";
 export {
+  CLUSTER_STAGES,
   MEMBER_MARKS,
+  NODE_MARKS,
   REPLICA_SET_STAGES,
   STAGES,
   errorsOf,
   lagsOf,
+  clusterStagesOf,
   measureGroup,
   replicaSetStagesOf,
   stagesOf,
@@ -104,6 +111,7 @@ export {
   SHIPPED_CLIENTS,
   SHIPPED_NAMES,
   SUBJECTS,
+  amqpClientImage,
   goHttpImage,
   harnessImage,
   imageOf,
@@ -155,5 +163,26 @@ export {
   replicaSetOnce,
   statusViewOf,
 } from "./replset.ts";
+export type { ClusterLab, NodeLine, StatusRow, WallStamp } from "./cluster.ts";
+export {
+  GIVES_AWAY,
+  MONITOR_DOWN,
+  clusterArgs,
+  clusterConf,
+  clusterCutOf,
+  clusterHostsOf,
+  clusterOnce,
+  clusterViewOf,
+  logNameOf,
+  monotonicOf,
+  nodeCommand,
+  nodeLineOf,
+  nodeNameOf,
+  nodesOnMonotonic,
+  openClusterLab,
+  plainOf,
+  restamped,
+  toolJsonOf,
+} from "./cluster.ts";
 export type { CellResult } from "./run.ts";
 export { LINGER_MS, QUIET_MS, judge, runCell, spread } from "./run.ts";
