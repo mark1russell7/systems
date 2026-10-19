@@ -159,7 +159,7 @@ export const GRPC_JS: Machine = machineSchema.parse({
     deadline: {
       duration: { knob: "deadline", unit: "ms" },
       lateness: { knob: "slack", unit: "s" },
-      arms: ["app.call"],
+      arms: ["app.call", "enter:waiting"],
       cancels: ["rx.reply", "socket.error", "peer.rst", "peer.fin"],
       fires: "timer.deadline",
       note: "The deadline of the call. No bound at the defaults",

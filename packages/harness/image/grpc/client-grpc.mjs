@@ -19,7 +19,8 @@
 // The lines:
 // - start: the versions of grpc-js and Node, the mode and the options.
 // - connecting: the start of operation 1. Its stamp is the stamp of the first sent line.
-// - socket, socket-end, socket-error: each TCP socket of the channel, with its local address.
+// - socket, socket-eof, socket-end, socket-error: each TCP socket of the channel, with its local
+//   address. connect-error: a connect that failed, with its error.
 // - connected: the first of them. The TCP client of the harness names its own socket so.
 // - state: each change of the connectivity state of the channel.
 // - log: a line that grpc-js logs, for example the refusal of its PINGs by the server.
@@ -76,7 +77,9 @@ let cause = null;
 const connect = net.connect;
 net.connect = function (...args) {
   const socket = connect.apply(this, args);
+  let established = false;
   socket.once("connect", () => {
+    established = true;
     const local = `${socket.localAddress}:${socket.localPort}`;
     emit("socket", { role: "connection", local });
     const first = connected === null;
@@ -98,9 +101,10 @@ net.connect = function (...args) {
       if (mode === "idle") emit("error", { errno: cause.errno });
     });
   });
-  // a connect that fails: the reset of the SYN, or a give-up of the kernel
+  // a connect that fails: the reset of the SYN, or a give-up of the kernel. The socket has no
+  // connection, thus its line is not a socket line
   socket.once("error", (error) => {
-    if (socket.localPort === undefined || connected === null) emit("socket-error", { role: "connection", local: null, errno: error.code ?? error.errno ?? null, message: error.message });
+    if (!established) emit("connect-error", { errno: error.code ?? error.errno ?? null, message: error.message });
   });
   return socket;
 };
