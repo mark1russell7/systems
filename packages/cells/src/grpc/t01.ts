@@ -428,8 +428,17 @@ export const grpcPrediction = (spec: GrpcSpec): Prediction => {
     if (spec.server !== "grpc-go") throw new Error(`${spec.plan}: only the server of the harness holds a reply`);
     const first = firstOn("waiting", MANIFESTATIONS["freeze-process"], driver, linux);
     if (first.kind === "timer" && first.layer === "driver" && first.timer === "deadline" && first.band.hi < GRPC_HOLD) {
-      const ends = { ev: "fail", where: { n: 2 }, name: "name" } as const;
-      return { detects: true, timer: "deadline", errno: "DEADLINE_EXCEEDED", from: "request-sent", low: s(first.band.lo), high: s(first.band.hi), driver: { socket: "connection", ends } };
+      // the server of grpc-go starts a timer of the same time from the header grpc-timeout, and it resets
+      // the stream at its end (grpc-go-server, call_deadline). The two timers race: the call ends with
+      // DEADLINE_EXCEEDED, or with CANCELLED when the reset of the server reaches it first
+      const server = timerOf(GRPC_GO_SERVER, "call_deadline", given({ ...serverValues("grpc-go"), call_timeout: s(first.band.lo) }));
+      if (seconds(server.duration, "the deadline at the server") !== first.band.lo) throw new Error(`${spec.plan}: the server of grpc-go keeps no deadline of the call`);
+      return {
+        detects: null,
+        window: s(2 * GRPC_HOLD),
+        from: "request-sent",
+        why: `the deadline of grpc-js (DEADLINE_EXCEEDED) and the deadline of the call at the server of grpc-go (a RST_STREAM CANCEL, thus CANCELLED) end the call at the same time, ${first.band.lo} to ${first.band.hi} s after its send`,
+      };
     }
     if (first.kind !== "silent") throw new Error(`${spec.plan}: ${first.kind === "timer" ? first.timer : first.event} ends the call in the hold`);
     const reply = { from: "request-sent", ends: { ev: "ack", where: { n: 2 } } } as const;

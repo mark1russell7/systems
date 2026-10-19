@@ -76,6 +76,13 @@ export const GRPC_JS: Machine = machineSchema.parse({
       rung: "implemented",
     },
     { ref: `${AT}/load-balancing-call.ts:338-345 a pick in TRANSIENT_FAILURE fails the call at once, unless it asks for waitForReady`, rung: "implemented" },
+    { ref: `${AT}/resolving-call.ts:118-180 the deadline of a call is a timer from the start of the call. Its end cancels the call with DEADLINE_EXCEEDED`, rung: "implemented" },
+    {
+      ref: `${AT}/deadline.ts:39-52 the header grpc-timeout is the time left to the deadline when the call sends its headers, rounded up to whole milliseconds. A server can start a timer of it`,
+      rung: "implemented",
+    },
+    { ref: `${AT}/subchannel-call.ts:269-279 a RST_STREAM CANCEL of the server ends the call with CANCELLED 'Call cancelled'`, rung: "implemented" },
+    { ref: "run 39272272260 (T01.array.206): a deadline of 4 s against a server of grpc-go ended 4 of 11 calls with CANCELLED, each in the band of the deadline. In each of the 4, the handler at the server ended 1.1 ms before the end of the call. In 7 runs with DEADLINE_EXCEEDED it ended later, or at most 1.5 ms before", rung: "observed" },
     { ref: `${AT}/subchannel.ts:275-291 the end of the transport takes the subchannel from READY to IDLE. After too_many_pings the keepalive time doubles`, rung: "implemented" },
     { ref: `${AT}/subchannel.ts:298-304 a failed connect takes the subchannel to TRANSIENT_FAILURE`, rung: "implemented" },
     { ref: `${AT}/backoff-timeout.ts:23-26 the reconnect waits 1000 ms first, each next wait 1.6 times longer, up to 120000 ms, with a jitter of 0.2`, rung: "implemented" },
@@ -162,7 +169,7 @@ export const GRPC_JS: Machine = machineSchema.parse({
       arms: ["app.call", "enter:waiting"],
       cancels: ["rx.reply", "socket.error", "peer.rst", "peer.fin"],
       fires: "timer.deadline",
-      note: "The deadline of the call. No bound at the defaults",
+      note: "resolving-call.ts:118-180: the deadline of the call, DEADLINE_EXCEEDED. No bound at the defaults. A server of grpc-go starts a timer of the same time from the header grpc-timeout, and its RST_STREAM CANCEL can reach the call first: then the call ends with CANCELLED",
     },
     idle_timeout: {
       duration: { knob: "client_idle_timeout", unit: "ms" },

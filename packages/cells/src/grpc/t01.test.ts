@@ -110,7 +110,7 @@ describe("the gRPC catalog of T01", () => {
     }
   });
 
-  it("ends the call behind a frozen server at the keepalive of DP24, and a held reply at the deadline of DP44", () => {
+  it("ends the call behind a frozen server at the keepalive of DP24, and measures the race of two deadlines under DP44", () => {
     // the PING keepalive_time after the first call, and the end keepalive_timeout (20 s) after it
     const keepalive = cell("T01.array.164").prediction;
     expect(keepalive).toMatchObject({ detects: true, timer: "keepalive", errno: "CLOSED", from: "last-data" });
@@ -120,10 +120,12 @@ describe("the gRPC catalog of T01", () => {
     // against grpc-go the keepalive is at least its MinTime, 5 min: the PING breaks no policy
     expect(cell("T01.array.201").driverOptions).toEqual({ "grpc.keepalive_time_ms": 300000 });
     expect(GRPC_GO_SERVER.knobs["min_time"]?.default).toBe(300);
+    // the deadline of grpc-js and the deadline of the call at grpc-go race: DEADLINE_EXCEEDED or CANCELLED (run 39272272260)
     const deadline = cell("T01.array.206").prediction;
-    expect(deadline).toMatchObject({ detects: true, errno: "DEADLINE_EXCEEDED", from: "request-sent", low: { value: 4, unit: "s" } });
-    if (deadline.detects !== true) throw new Error("a detection");
-    expect(deadline.high.value).toBeLessThan(GRPC_HOLD);
+    expect(deadline).toMatchObject({ detects: null, from: "request-sent" });
+    if (deadline.detects !== null) throw new Error("a measurement");
+    expect(deadline.why).toContain("CANCELLED");
+    expect(GRPC_GO_SERVER.timers["call_deadline"]?.fires).toBe("timer.call-deadline");
   });
 
   it("places O03, O17 and O25 on the socket of the server, each with a setting inside and one outside", () => {
