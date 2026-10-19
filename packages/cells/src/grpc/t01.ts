@@ -417,7 +417,7 @@ const policyPrediction = (spec: GrpcSpec, driver: KnobValues, slack: number): Pr
  * Each later packet of the flow arms the CLOSE timeout again. The first retransmission of the client
  * after a wait longer than that timeout finds no entry, and the router resets it.
  */
-const resetAfterClose = (spec: GrpcSpec, driver: KnobValues): Prediction => {
+const resetAfterClose = (spec: GrpcSpec): Prediction => {
   const values = given(serverValues(spec.server, spec.settings));
   const lower = overValues(serverDoc(spec.server), values, given(linuxValues()));
   const userTimeout = lower("tcp_user_timeout");
@@ -511,7 +511,7 @@ export const grpcPrediction = (spec: GrpcSpec): Prediction => {
   // a reset answers the call at once: the kernel reports it on the socket of the transport
   if (spec.fault === "rst") return { detects: true, timer: "the reset of the call", errno: "ECONNRESET", from: "request-sent", low: s(0), high: s(GRPC_RTT_MS / 1000), rtt, driver: { socket: "connection" } };
   if (spec.stream !== undefined) return policyPrediction(spec, driver, slack);
-  if (spec.fault === "simplex" && spec.drops === "to-client" && spec.router?.form === "reset-next" && spec.server === "grpc-go") return resetAfterClose(spec, driver);
+  if (spec.fault === "simplex" && spec.drops === "to-client" && spec.router?.form === "reset-next" && spec.server === "grpc-go") return resetAfterClose(spec);
   // an idle flow through a router, as the client sees it: the probes of the listener of the server
   // refresh it (O03), and nothing ends the connection in the window
   if (spec.fault === "middlebox-forget") {
