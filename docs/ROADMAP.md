@@ -451,7 +451,7 @@ The store is an interface, and each store decides a take in one atomic step on i
 
 `lint()` applies two new rules to each limiter. O29 bounds the longest `Retry-After` by the retry window of the caller, at the cap of keys too. O30 bounds the retry delay of the caller from below. Their identifiers are provisional, because the corpus of the law does not have them yet.
 
-It comes in service 0.5.3, a PATCH: new exports. The machine document and the harness cell come next. The client item CLI-40 builds the admission step of the procedures server on it.
+It comes in service 0.5.3, a PATCH: new exports. The store in Redis (`redisLimiterStore`, one script that reads `TIME`) comes in 0.5.4, also a PATCH. The machine document and the harness cell come next. The client item CLI-40 builds the admission step of the procedures server on it.
 
 ## The systems of S1
 

@@ -1,8 +1,11 @@
 import type { StartedTestContainer } from "testcontainers";
 import { GenericContainer, Wait } from "testcontainers";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { KeyState, LimiterSpec } from "../index.ts";
+import { decide, freeAt, keyedLimiter, limitRule } from "../index.ts";
 import type { RedisKnobs } from "../redis.ts";
-import { redisClient, tcpDial } from "../redis.ts";
+import { redisClient, redisLimiterStore, tcpDial } from "../redis.ts";
+import { fakeClock, seeded } from "../testing.ts";
 
 /**
  * The Redis client against a real Redis 7.4 and the real ioredis 6, opt-in: `REDIS_IT=1`. These tests
@@ -71,6 +74,70 @@ describe.skipIf(!RUN)("the Redis client against a real Redis 7.4 (REDIS_IT=1)", 
     await cache.handle.close();
     expect(cache.status).toBe("end");
     expect(await cache.send("GET", ["counter"])).toMatchObject({ outcome: "error", reply: false });
+  });
+
+  const count = (value: number) => ({ value, unit: "count" });
+  const BUCKET: LimiterSpec = {
+    key: "tenant",
+    policy: { type: "token-bucket", rate: { value: 1, unit: "count/s" }, burst: count(3) },
+    store: { kind: "shared", dependency: "cache" },
+    evict: { maxKeys: count(8) },
+  };
+  const WINDOW: LimiterSpec = { ...BUCKET, policy: { type: "sliding-window", limit: count(3), window: { value: 60, unit: "s" } } };
+
+  it("decides each take of a keyed limiter as decide() does, at the cap too, in one script (SYS-28)", async () => {
+    const cache = client("cache-limiter");
+    await cache.handle.connect(new AbortController().signal);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    for (const [name, spec] of [["bucket", BUCKET], ["window", WINDOW]] as const) {
+      const clock = fakeClock();
+      const limiter = keyedLimiter(name, spec, redisLimiterStore(cache, { prefix: "it:", clock }));
+      const rule = limitRule(spec.policy);
+      const states = new Map<string, KeyState>();
+      const random = seeded(7);
+      let caps = 0;
+      for (let take = 0; take < 1500; take += 1) {
+        const key = `k${Math.floor(random() * 24)}`;
+        const now = clock.now();
+        const decision = await limiter.take(key);
+        const busy = [...states.values()].map((state) => freeAt(rule, state)).filter((free) => free > now);
+        if (!decision.allowed && decision.cause === "cap") {
+          caps += 1;
+          expect(busy).toHaveLength(8);
+          // the index of Redis gives the exact time until the earliest busy key is free
+          expect(decision.retryAfter.value).toBeCloseTo(Math.min(...busy) - now, 3);
+        } else {
+          const step = decide(rule, states.get(key), now);
+          expect(decision, `${name}: take ${take} of ${key}`).toEqual(step.decision);
+          states.set(key, step.state);
+        }
+        await clock.advance(Math.floor(random() * (spec === BUCKET ? 300 : 3000)));
+      }
+      expect(caps).toBeGreaterThan(20);
+      // the index holds at most the cap of busy keys
+      const held = await cache.send<number>("ZCARD", [`it:{${name}}:keys`]);
+      expect(held.outcome === "ok" ? held.value : -1).toBeLessThanOrEqual(8);
+    }
+    await cache.handle.close();
+  }, 120_000);
+
+  it("holds one limit for two replicas on the clock of the server, and expires the state when the key is free", async () => {
+    const one = client("cache-replica-1");
+    const two = client("cache-replica-2");
+    for (const each of [one, two]) await each.handle.connect(new AbortController().signal);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const replicas = [keyedLimiter("shared", BUCKET, redisLimiterStore(one, { prefix: "it:" })), keyedLimiter("shared", BUCKET, redisLimiterStore(two, { prefix: "it:" }))];
+    const decisions = [];
+    for (let take = 0; take < 5; take += 1) decisions.push(await replicas[take % 2]!.take("acme"));
+    expect(decisions.map((decision) => decision.allowed)).toEqual([true, true, true, false, false]);
+    const refused = decisions[4]!;
+    // one token each second: the refusal waits less than one second on TIME of the server
+    expect(refused.allowed === false && refused.retryAfter.value > 0 && refused.retryAfter.value <= 1000).toBe(true);
+    // the bucket is full again in about 3 s, and the state expires then
+    const ttl = await one.send<number>("PTTL", ["it:{shared}:key:acme"]);
+    expect(ttl.outcome === "ok" ? ttl.value : -1).toBeGreaterThan(2000);
+    expect(ttl.outcome === "ok" ? ttl.value : -1).toBeLessThanOrEqual(3000);
+    for (const each of [one, two]) await each.handle.close();
   });
 
   it("dials a new connection for its dial check", async () => {
