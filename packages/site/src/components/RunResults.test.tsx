@@ -29,6 +29,8 @@ describe("the components of the CI runs", () => {
       <KindResults template="T18" group="other" />,
       <ModeTable />,
       <Propagation />,
+      <RunResults copy="rabbitmq" group="T01" stage="defaults" />,
+      <RunResults copy="rabbitmq" group="T01" stage="border" />,
       <RunResults copy="pg" group="T01" pool="node-postgres" stage="defaults" />,
       <RunResults copy="pg" group="T01" pool="node-postgres" stage="border" />,
       <RunResults copy="pg" group="T01" pool="HikariCP" stage="defaults" />,
@@ -49,6 +51,8 @@ describe("the components of the CI runs", () => {
     // and 7 through a router and Supavisor. In T10 through PgBouncer: 1 of node-postgres and 4 of HikariCP at the
     // defaults, and 2 of node-postgres and 10 of HikariCP at the borders. Then 6 through Pgpool-II and 4 through Supavisor
     expect(html.slice(-12).map((each) => each.split('class="sy-frame').length - 1)).toEqual([9, 8, 9, 8, 7, 7, 1, 4, 2, 10, 6, 4]);
+    // the RabbitMQ cells of T01: 8 at the defaults and 4 at the borders
+    expect(html.slice(24, 26).map((each) => each.split('class="sy-frame').length - 1)).toEqual([8, 4]);
     // the border of undici at 100 ms closes 6.5 ms before the end of its band: the table gives 4 decimals from 1 s
     expect(html[14]).toContain("5.9126 s");
     expect(html[14]).toContain("5.9191 s");

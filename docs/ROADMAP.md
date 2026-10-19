@@ -705,6 +705,7 @@ The heartbeats of AMQP and the timers of the broker. R3 puts 54 cells on amqplib
   - These profiles name the defaults of RabbitMQ, PostgreSQL, gRPC or a managed Redis. No profile sets a knob of amqplib, of RabbitMQ, or of the Linux TCP that the cell reads.
   - Thus 8 array cells are aliases of their cells at the defaults, and 5 wait for the reasons of those cells.
   - DP44 gives the client a connect timeout of 5 s. The client clears that timeout when the connection opens, thus it does not change a fault with an operation in flight.
+- The page of the RabbitMQ results gives the 12 cells of T01 from run [39216875830](https://github.com/mark1russell7/systems/actions/runs/39216875830) at main (#101). Each holds, with 132 counted runs and no void run.
 - T11 is a cluster of three nodes of RabbitMQ 4.3.6 with one quorum queue (#102). The client of amqplib publishes a stream of sequence numbers with confirms through one node.
   - Two machine documents come from the release tarball of RabbitMQ 4.3.6 (machines 0.3.15). `aten` is the failure detector between the nodes, aten 0.6.0. RabbitMQ sets its poll to 5 s, thus a silent node is down 150 ms to 5.2 s after its last heartbeat. `ra-member` is one member of the queue, ra 3.1.10. A follower elects 5 s to 6 s after aten reports the node of its leader down.
   - A leader of Ra ignores aten. Thus in a minority it stays the leader, and it commits nothing.

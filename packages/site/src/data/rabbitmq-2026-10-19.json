@@ -1,0 +1,378 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again by the harness",
+  "ranAt": "2026-10-19",
+  "units": "s",
+  "noise": 0.001,
+  "runs": 11,
+  "kernel": "6.17.0",
+  "hz": 1000,
+  "target": "rabbitmq:4.3.6",
+  "clients": {
+    "amqplib": "amqplib 2.2.0 on Node 24.21.0"
+  },
+  "cells": [
+    {
+      "plan": "T01.defaults.134",
+      "catalog": "T01",
+      "name": "blackhole, idle: the heartbeat of amqplib ends the connection",
+      "group": "T01",
+      "client": "amqplib",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 120,
+        "high": 180.03,
+        "window": null,
+        "text": "The algebra predicts that the heartbeat of amqplib ends the connection after two receive checks with no bytes of the broker, and the kernel stamps its FIN. The band is 120 s to 180.03 s after the last segment with data from the broker."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 119.999,
+        "high": 180.031
+      },
+      "median": 180.00434,
+      "why": "11 of the 11 counted runs are in the band of 119.999 s to 180.031 s. The median is 180.004 s, and its interval is 179.995 s to 180.01 s.",
+      "runs": [
+        [180.001932, 180.010367, 180.003013, 180.010053, 179.987416, 180.007258],
+        [180.00919, 180.00434, 180.009198, 179.995466, 179.998727]
+      ],
+      "warmups": [179.943296, 179.966226],
+      "voids": null
+    },
+    {
+      "plan": "T01.defaults.135",
+      "catalog": "T01",
+      "name": "rst, an operation in flight",
+      "group": "T01",
+      "client": "amqplib",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.002,
+        "window": null,
+        "text": "The algebra predicts that the reset answers the operation with ECONNRESET. The band is 0 s to 2 ms after the send of the operation."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.001,
+        "high": 0.003
+      },
+      "median": 0.000776,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 3 ms. The median is 776 µs, and its interval is 651 µs to 1.01 ms.",
+      "runs": [
+        [0.000764, 0.000959, 0.000779, 0.000812, 0.001011, 0.000651],
+        [0.000751, 0.001367, 0.000705, 0.000776, 0.000601]
+      ],
+      "warmups": [0.000752, 0.000769],
+      "voids": null
+    },
+    {
+      "plan": "T01.defaults.136",
+      "catalog": "T01",
+      "name": "fin, idle: the killed broker resets the connection, because its sockets have linger 0",
+      "group": "T01",
+      "client": "amqplib",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.012,
+        "window": null,
+        "text": "The algebra predicts that the stopped broker resets the idle connection with ECONNRESET. The band is 0 s to 12 ms after the close of the socket of the broker."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.001,
+        "high": 0.013
+      },
+      "median": 0.000045,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 13 ms. The median is 45 µs, and its interval is 44 µs to 48 µs.",
+      "runs": [
+        [0.000044],
+        [0.00005],
+        [0.000047],
+        [0.000048],
+        [0.000045],
+        [0.000044],
+        [0.000045],
+        [0.000047],
+        [0.000046],
+        [0.000045],
+        [0.000044]
+      ],
+      "warmups": [0.000255, 0.000245, 0.000205, 0.000225, 0.000318, 0.000199, 0.000249, 0.000233, 0.000201, 0.000225, 0.00018],
+      "voids": null
+    },
+    {
+      "plan": "T01.defaults.137",
+      "catalog": "T01",
+      "name": "unreachable-host, an operation in flight, tcp_retries2 = 3",
+      "group": "T01",
+      "client": "amqplib",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 3.329,
+        "window": null,
+        "text": "The algebra predicts that the retransmissions of the kernel give up with EHOSTUNREACH. The band is 3 s to 3.329 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.999,
+        "high": 3.33
+      },
+      "median": 3.120022,
+      "why": "11 of the 11 counted runs are in the band of 2.999 s to 3.33 s. The median is 3.12 s, and its interval is 3.12 s to 3.12 s.",
+      "runs": [
+        [3.119997, 3.120022, 3.120049, 3.120027, 3.120053, 3.120022],
+        [3.12004, 3.120016, 3.120001, 3.120025, 3.120014]
+      ],
+      "warmups": [3.120004, 3.119967],
+      "voids": null
+    },
+    {
+      "plan": "T01.defaults.138",
+      "catalog": "T01",
+      "name": "freeze-process, an operation in flight: the heartbeat of amqplib ends the connection",
+      "group": "T01",
+      "client": "amqplib",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 120,
+        "high": 180.03,
+        "window": null,
+        "text": "The algebra predicts that the heartbeat of amqplib ends the connection after two receive checks with no bytes of the broker, and the kernel stamps its FIN. The band is 120 s to 180.03 s after the last segment with data from the broker."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 119.999,
+        "high": 180.031
+      },
+      "median": 180.007638,
+      "why": "11 of the 11 counted runs are in the band of 119.999 s to 180.031 s. The median is 180.008 s, and its interval is 180.007 s to 180.009 s.",
+      "runs": [
+        [180.007666, 180.007188, 180.006967, 180.007118, 180.009118, 180.000447],
+        [180.007638, 180.008335, 180.009357, 180.007137, 180.007805]
+      ],
+      "warmups": [180.006636, 180.005991],
+      "voids": null
+    },
+    {
+      "plan": "T01.defaults.139",
+      "catalog": "T01",
+      "name": "a 1 s stall, an operation in flight",
+      "group": "T01",
+      "client": "amqplib",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "recovers",
+        "low": 1.604,
+        "high": 1.796,
+        "window": 20,
+        "text": "The algebra predicts that the reply comes back at the third firing of the RTO timer. The band is 1.604 s to 1.796 s after the send of the operation."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 1.603,
+        "high": 1.797
+      },
+      "median": 1.691796,
+      "why": "11 of the 11 counted runs are in the band of 1.603 s to 1.797 s. The median is 1.692 s, and its interval is 1.68 s to 1.705 s.",
+      "runs": [
+        [1.669241, 1.704788, 1.715039, 1.679847, 1.697005, 1.691796],
+        [1.688043, 1.697359, 1.689347, 1.696622, 1.689635]
+      ],
+      "warmups": [1.662298, 1.685281],
+      "voids": null
+    },
+    {
+      "plan": "T01.defaults.140",
+      "catalog": "T01",
+      "name": "event:idle, no fault, idle for 300 s: the heartbeat frames keep the connection",
+      "group": "T01",
+      "client": "amqplib",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 300,
+        "text": "The algebra predicts that nothing detects the fault in a window of 300 s. The prediction has no failed operation or socket error after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 300 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null
+    },
+    {
+      "plan": "T01.defaults.142",
+      "catalog": "T01",
+      "name": "rst at the connect: the broker refuses before the client starts",
+      "group": "T01",
+      "client": "amqplib",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.022,
+        "window": null,
+        "text": "The algebra predicts that the reset of the SYN refuses the first connect with ECONNREFUSED. The band is 0 s to 22 ms after the start of the client."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.001,
+        "high": 0.023
+      },
+      "median": 0.003078,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 23 ms. The median is 3.08 ms, and its interval is 2.92 ms to 3.86 ms.",
+      "runs": [
+        [0.003078, 0.002983, 0.00355, 0.002984, 0.003864, 0.003752],
+        [0.003023, 0.003903, 0.002924, 0.002923, 0.003802]
+      ],
+      "warmups": [0.004478, 0.002919],
+      "voids": null
+    },
+    {
+      "plan": "T01.border-off.161",
+      "catalog": "T01",
+      "name": "middlebox-forget, idle, heartbeat 40 s, at the broker too: inside O03 against a silent-drop router at 30 s",
+      "group": "T01",
+      "client": "amqplib",
+      "stage": "border",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 150,
+        "text": "The algebra predicts that nothing detects the fault in a window of 150 s. The prediction has no failed operation or socket error after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 150 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null
+    },
+    {
+      "plan": "T01.border-off.162",
+      "catalog": "T01",
+      "name": "middlebox-forget, idle, heartbeat 80 s, at the broker too: outside O03 against a silent-drop router at 30 s",
+      "group": "T01",
+      "client": "amqplib",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 160,
+        "high": 240.03,
+        "window": null,
+        "text": "The algebra predicts that the heartbeat of amqplib ends the connection after two receive checks with no bytes of the broker, and the kernel stamps its FIN. The band is 160 s to 240.03 s after the last segment with data from the broker."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 159.999,
+        "high": 240.031
+      },
+      "median": 240.013585,
+      "why": "11 of the 11 counted runs are in the band of 159.999 s to 240.031 s. The median is 240.014 s, and its interval is 239.999 s to 240.015 s.",
+      "runs": [
+        [239.999395, 240.008687, 239.942514, 240.011546, 240.014301, 240.013585],
+        [240.014502, 240.015339, 240.011965, 240.014735, 240.014939]
+      ],
+      "warmups": [240.006301, 239.929585],
+      "voids": null
+    },
+    {
+      "plan": "T01.border-off.205",
+      "catalog": "T01",
+      "name": "blackhole, an operation in flight, tcp_retries2 = 7, heartbeat 15 s: inside O17 against a give-up of the kernel at 51 s",
+      "group": "T01",
+      "client": "amqplib",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 30,
+        "high": 45.03,
+        "window": null,
+        "text": "The algebra predicts that the heartbeat of amqplib ends the connection after two receive checks with no bytes of the broker, and the kernel stamps its FIN. The band is 30 s to 45.03 s after the last segment with data from the broker."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 29.999,
+        "high": 45.031
+      },
+      "median": 45.010606,
+      "why": "11 of the 11 counted runs are in the band of 29.999 s to 45.031 s. The median is 45.011 s, and its interval is 45.006 s to 45.013 s.",
+      "runs": [
+        [45.009802, 45.012528, 45.010606, 45.01273, 45.014138, 45.013041],
+        [45.008981, 45.013437, 45.005066, 45.008584, 45.006376]
+      ],
+      "warmups": [45.008514, 45.006263],
+      "voids": null
+    },
+    {
+      "plan": "T01.border-off.206",
+      "catalog": "T01",
+      "name": "blackhole, an operation in flight, tcp_retries2 = 7, heartbeat 60 s: outside O17 against a give-up of the kernel at 51 s",
+      "group": "T01",
+      "client": "amqplib",
+      "stage": "border",
+      "prediction": {
+        "kind": "detects",
+        "low": 51,
+        "high": 108.288,
+        "window": null,
+        "text": "The algebra predicts that the retransmissions of the kernel give up with ETIMEDOUT. The band is 51 s to 108.288 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 50.999,
+        "high": 108.289
+      },
+      "median": 53.016023,
+      "why": "11 of the 11 counted runs are in the band of 50.999 s to 108.289 s. The median is 53.016 s, and its interval is 52.815 s to 53.176 s.",
+      "runs": [
+        [53.008009, 52.808028, 53.09603, 52.920018, 53.216007, 53.04001],
+        [52.880021, 53.17604, 53.016023, 52.815052, 53.103995]
+      ],
+      "warmups": [52.824053, 53.215992],
+      "voids": null
+    }
+  ]
+}
