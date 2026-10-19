@@ -34,8 +34,8 @@ export type { KernelRecord };
  * - `none` injects nothing. A calibration cell measures the path itself: for example the time of a
  *   proxy between its two sockets (`Cell.calibrates`).
  * - `hop-event` is an event at a proxy of the topology (`Cell.event`): a signal to its program, or a
- *   query on its console. Examples are a reload of the configuration (SIGHUP) and PAUSE on the
- *   console of PgBouncer.
+ *   query on its console. Examples are a reload of the configuration (SIGHUP), a stop of a proxy
+ *   (SIGTERM or SIGINT) and PAUSE on the console of PgBouncer.
  *
  * A fault at a router of the topology (`Cell.faultAt`) acts on what the router forwards toward
  * one side. It is a black hole, a reset or an ICMP unreachable. It can also be a simplex drop, an
@@ -152,6 +152,12 @@ export interface ProxyHop {
 }
 
 /**
+ * A signal of a hop event. HUP reloads the configuration of a pooler. TERM stops a proxy, as a stop of
+ * its container does. INT stops docker-proxy, as Docker does when it removes a port binding.
+ */
+export type HopSignal = "HUP" | "TERM" | "INT";
+
+/**
  * An event at a proxy hop (`hop-event`). A signal goes to each process of the program of the hop
  * (`ProxyHop.program`). A query goes to the console of the hop from its own namespace, as a user
  * that the console trusts. Its `undo` lifts it after the run. Without `inFlight`, the event
@@ -159,7 +165,7 @@ export interface ProxyHop {
  * and the event comes while it is in flight.
  */
 export type HopEvent =
-  | { readonly hop: string; readonly signal: "HUP"; readonly inFlight?: true }
+  | { readonly hop: string; readonly signal: HopSignal; readonly inFlight?: true }
   | {
       readonly hop: string;
       readonly console: { readonly port: number; readonly user: string; readonly database: string; readonly query: string; readonly undo?: string };
@@ -710,6 +716,7 @@ export type HarnessImage = "procedures";
  * A shipped image is an image that the harness ships, by its name. Its build context is in the
  * package of the harness, and in the package of the prober for `harness`. `grpc-go` is a server of
  * grpc-go and `etcd` is etcd on Alpine: each is a subject of a target (`Target.subject`).
+ * `docker-proxy` is the userland proxy of Docker Engine 29.1.5, the program of a proxy hop.
  */
 export type Shipped =
   | "harness"
@@ -726,7 +733,8 @@ export type Shipped =
   | "procedures"
   | "router"
   | "pgbouncer"
-  | "pgpool";
+  | "pgpool"
+  | "docker-proxy";
 
 /**
  * An image source tells where an image comes from, as data. The harness resolves each kind to an

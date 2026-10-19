@@ -77,6 +77,8 @@ const SHIPPED: Readonly<Record<Shipped, ShippedContext>> = {
   pgbouncer: { name: "loom-harness-pgbouncer", dockerfile: "harness/image/pgbouncer/Dockerfile", from: ["harness/image/pgbouncer"] },
   // Pgpool-II 4.7.3, a pooler hop: built from the source of its tag, by its SHA-256
   pgpool: { name: "loom-harness-pgpool", dockerfile: "harness/image/pgpool/Dockerfile", from: ["harness/image/pgpool"] },
+  // docker-proxy of Docker Engine 29.1.5, a proxy hop: its binary from the static bundle of Docker, by its SHA-256
+  "docker-proxy": { name: "loom-harness-docker-proxy", dockerfile: "harness/image/docker-proxy/Dockerfile", from: ["harness/image/docker-proxy"] },
 };
 
 /** These are the names of the images that the harness ships. */
