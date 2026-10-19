@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Controller } from "../description.ts";
+import { lateHolds } from "../drains.ts";
 import { fakeClock } from "../fakes.ts";
 import type { HttpKnobs, MountContext, RequestHandler } from "../http.ts";
-import { handle, httpTransport, pathOf, probeHandler } from "../http.ts";
+import { handle, httpTransport, pathOf, probeHandler, writeOutcome } from "../http.ts";
 import type { Health } from "../health.ts";
+import type { RequestEvent, RequestStream } from "../requests.ts";
 import { tracker } from "../requests.ts";
 import { detachedLifecycle } from "../testing.ts";
 import { FakeServer } from "./fake-server.ts";
@@ -686,6 +688,40 @@ describe("the drain at its deadline: the answers to come and to go out (SYS-29)"
     expect((await answer).body).toBe("late");
     await turns();
     expect(state.drained).toBe(true);
+  });
+
+  it("gives its lifecycle its hold after the deadline: the answers whose bytes did not go, and the calls that still run", async () => {
+    const server = new FakeServer();
+    const clock = fakeClock();
+    const life = detachedLifecycle();
+    const transport = httpTransport(server.asServer, KNOBS, { listen: { port: 8080 }, clock });
+    await transport.start(new AbortController().signal, life);
+    // a stream of no lifecycle: no cut ends it, thus its call still runs at the deadline
+    const endless = (): RequestStream<string> => ({
+      [Symbol.asyncIterator]: () => ({ next: () => new Promise<IteratorResult<RequestEvent<string>>>(() => {}) }),
+      collect: () => new Promise(() => {}),
+    });
+    let finish: () => void = () => {};
+    transport.mount((req, res) => {
+      if (pathOf(req.url) === "/endless") void writeOutcome(res, endless(), { keepAlive: true, retryAfter: s(1) });
+      else finish = () => res.end("late");
+      return true;
+    });
+    const stalled = server.connect();
+    void stalled.request("/").catch(() => {});
+    void server.connect().request("/endless").catch(() => {});
+    await turns();
+    transport.stopIntake();
+    stalled.socket.pause();
+    finish();
+    void transport.drain(clock.now() + 1000, new AbortController().signal);
+    expect(lateHolds(life)).toEqual([]);
+    await clock.advance(1000);
+    expect(lateHolds(life)).toEqual([{ running: 1, unflushed: 1 }]);
+    // the close ends the drain, and the hold goes with it
+    await transport.close();
+    await turns();
+    expect(lateHolds(life)).toEqual([]);
   });
 
   it("does not wait after its deadline for a response that is open for another reason, or with a deadline in the past", async () => {

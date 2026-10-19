@@ -3,6 +3,8 @@ import type { IncomingMessage, Server, ServerEventMap, ServerResponse } from "no
 import type { ListenOptions, Socket } from "node:net";
 import type { Cancel, Clock } from "../clock.ts";
 import { realClock } from "../clock.ts";
+import type { LateHold } from "../drains.ts";
+import { holdLate } from "../drains.ts";
 import { millisecondsOf as knobMilliseconds } from "../knobs.ts";
 import type { Lifecycle, TransportImpl } from "../lifecycle.ts";
 import { awaitsAnswer, watchAnswers } from "./answers.ts";
@@ -207,7 +209,8 @@ const STATUS_TEXT: Readonly<Record<number, string>> = { 404: "Not Found", 500: "
  *   at once and at each `server_idle_sweep_interval`. Each later response gets `Connection: close`.
  * - `drain` waits until no work is in flight, or until the deadline. It gives the cooperative abort to
  *   the handlers through their context. At the deadline, it also waits for each answer that is to come
- *   or to go out (SYS-29). The cap of the phase bounds that wait.
+ *   or to go out (SYS-29). The cap of the phase bounds that wait. Answers that did not go out by the
+ *   cap are not a failure of the phase.
  * - `close` destroys each connection. A second close gives the same promise.
  * - The mounts share one port. The first request handler that gives true answers. After the stop of
  *   the intake, only the mounts until `close transports` answer, and each other request gets a 503.
@@ -270,15 +273,28 @@ export const httpTransport = (server: Server, knobs: HttpKnobs, options: HttpTra
 
   const inFlight = (): number => responses.size + upgraded.size;
   /**
-   * This function tells if an answer is still to come or to go out. A response holds when its
-   * handler ended it and its bytes did not all go. It also holds while `writeOutcome` waits for the
-   * end of its request, which the cut of the drain gives. A response that is open for another
-   * reason does not hold, and the close destroys it.
+   * This function gives what holds a drain after its deadline. An answer is unflushed when its handler
+   * ended it and its bytes did not all go. It is unflushed too while `writeOutcome` waits for a client
+   * that does not read. A call runs while `writeOutcome` waits for the end of its request, which the
+   * cut of the drain gives. A response that is open for another reason does not hold the drain.
    */
+  const lateHold = (): LateHold => {
+    let running = 0;
+    let unflushed = 0;
+    for (const res of responses) {
+      if (res.destroyed) continue;
+      if (res.writableEnded) {
+        if (!res.writableFinished) unflushed += 1;
+      } else if (awaitsAnswer(res)) {
+        if (res.writableNeedDrain) unflushed += 1;
+        else running += 1;
+      }
+    }
+    return { running, unflushed };
+  };
   const answering = (): boolean => {
-    for (const res of responses)
-      if (!res.destroyed && (res.writableEnded ? !res.writableFinished : awaitsAnswer(res))) return true;
-    return false;
+    const hold = lateHold();
+    return hold.running + hold.unflushed > 0;
   };
   const report = (error: unknown, req: IncomingMessage): void => {
     try {
@@ -491,6 +507,7 @@ export const httpTransport = (server: Server, knobs: HttpKnobs, options: HttpTra
       return new Promise<void>((resolve) => {
         let cancel: Cancel = () => {};
         let unwatch: () => void = () => {};
+        let unhold: () => void = () => {};
         let late = false;
         let ended = false;
         // before the deadline, the work in flight holds the drain. After it, only an answer to come or to go out holds it
@@ -500,6 +517,7 @@ export const httpTransport = (server: Server, knobs: HttpKnobs, options: HttpTra
           drainers.delete(check);
           cancel();
           unwatch();
+          unhold();
           signal.removeEventListener("abort", abort);
           resolve();
         };
@@ -507,6 +525,8 @@ export const httpTransport = (server: Server, knobs: HttpKnobs, options: HttpTra
         const reached = (): void => {
           late = true;
           unwatch = watchAnswers(check);
+          // the lifecycle reads the hold at the cap: answers that do not go out are not a failure of the phase
+          if (life !== null) unhold = holdLate(life, lateHold);
           check();
         };
         drainers.add(check);
