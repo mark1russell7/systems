@@ -191,7 +191,7 @@ const socketVantage = (
   request: ProbeEvent,
 ): Quantity | null => {
   const { from } = cell.prediction.detects === true ? cell.prediction : { from: undefined };
-  if (from === undefined || from === "peer-closed" || from === "fault" || from === "ping-sent" || from === "first-sent") return null;
+  if (from === undefined || from === "peer-closed" || from === "fault" || from === "ping-sent" || from === "first-sent" || from === "last-data") return null;
   const ended = events.find((event) => event.ev === "error" || event.ev === "eof");
   const reference =
     from === "last-received"
@@ -575,20 +575,26 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
   // the detection as the kernel reported it to the owner of the socket, and as the client saw it.
   // The process of a server or of a proxy tells nothing that the harness reads, thus its kernel tells all
   const remote = cell.observer !== undefined && cell.observer !== "client";
-  const reported = socket.find((record) => record.ev === "error" && (record.err ?? 0) !== 0);
+  // the run stops the client at its end: what the own close of the client draws after its done line is
+  // not a detection. A broker with linger 0, as RabbitMQ, resets each connection that its client closes
+  const stop = events.find((event) => event.ev === "done")?.t ?? Number.POSITIVE_INFINITY;
+  const anError = socket.find((record) => record.ev === "error" && (record.err ?? 0) !== 0 && record.mono < stop);
   const seen = remote
     ? undefined
-    : events.find((event) => event.ev === "error" || event.ev === "eof");
+    : events.find((event) => (event.ev === "error" || event.ev === "eof") && event.t < stop);
   // an end of file without an error is the change of state that the FIN of the peer makes, from
   // ESTABLISHED to CLOSE_WAIT, as the kernel stamps it
-  const closeWait = socket.find((record) => record.ev === "state" && newState(record) === 8);
+  const closeWait = socket.find((record) => record.ev === "state" && newState(record) === 8 && record.mono < stop);
   // a close of the observer itself, for a prediction that says it: from ESTABLISHED to FIN_WAIT1,
   // the FIN that its pool sends when it closes an idle connection
   const own =
     (cell.prediction.detects === true && cell.prediction.errno === "CLOSED") ||
     (cell.prediction.detects === null && cell.prediction.ends === "own-close")
-      ? socket.find((record) => record.ev === "state" && oldState(record) === 1 && newState(record) === 4)
+      ? socket.find((record) => record.ev === "state" && oldState(record) === 1 && newState(record) === 4 && record.mono < stop)
       : undefined;
+  // an error after that own close is what the close draws, not a detection. The run lifts its fault
+  // after the outcome: a frozen broker then thaws, sees the FIN, and resets the socket (linger 0)
+  const reported = anError !== undefined && own !== undefined && own.mono < anError.mono ? undefined : anError;
   // a drop by the program of the observer on its own timer: its `drop` line, at the kernel's stamp
   // of its close frame or its close. It counts when it comes before each report of the kernel
   const lines = programLines(cell, run);
@@ -631,6 +637,9 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     const record: KernelRecord | undefined =
       from === "last-received"
         ? socket.filter((each) => each.ev === "rx" && each.mono <= before).at(-1)
+        : from === "last-data"
+          ? // the receive check of a heartbeat counts bytes, not an ACK: the last segment with data before the end
+            socket.filter((each) => each.ev === "rx" && (each.seg?.len.value ?? 0) > 0 && each.mono <= (ended ?? before)).at(-1)
         : from === "first-retransmission"
           ? retransmitted.find((each) => each.why === "rto" && each.mono > before)
           : from === "first-sent"

@@ -1,0 +1,8 @@
+{
+  "name": "loom-harness-amqp-client",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "amqplib": "2.2.0"
+  }
+}

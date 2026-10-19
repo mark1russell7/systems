@@ -686,6 +686,25 @@ The heartbeats of AMQP and the timers of the broker. R3 puts 54 cells on amqplib
   - A client of amqplib in the harness, and RabbitMQ as a target, pinned by digest.
   - The T01 catalog at the defaults, with the borders of O03 and O17. Then the array stage, and T11.
   - The page of the results on the site.
+- The two machine documents, `amqplib` and `rabbitmq-connection`, and a client of amqplib in the harness (machines 0.3.14, harness 0.11.16, #100).
+- 12 cells of T01 hold on the runners of GitHub, with 11 runs each (#100):
+  - A reset of an RPC in flight gives ECONNRESET in 0.9 ms. A reset of the SYN refuses the first connect in 4.1 ms.
+  - A stopped broker resets each client at once, in 44 µs, because each socket of RabbitMQ has linger 0.
+  - An unreachable host with `tcp_retries2` = 3 gives EHOSTUNREACH 3.120 s after the first retransmission.
+  - After a stall of 1 s, the reply comes at the third firing of the RTO timer, with a median of 1.710 s.
+  - With no fault, the heartbeat frames of the broker keep an idle connection for 300 s.
+  - Behind a black hole, the heartbeat of amqplib ends an idle connection 180.009 s after the last data. A frozen broker ends an RPC in flight the same way, at 180.008 s.
+  - O03 against a router that forgets an idle flow at 30 s. At a heartbeat of 40 s, the frames of the broker each 20 s keep the flow for 150 s. At 80 s, the router forgets the flow, and the heartbeat ends it 240.013 s after the last data.
+  - O17 with `tcp_retries2` = 7. A heartbeat of 15 s ends the connection 45.009 s after the last data, before the kernel gives up. At 60 s the kernel gives up first, with ETIMEDOUT 53.016 s after its first retransmission.
+- The first runs found four facts that the first bands did not have:
+  - A repeating timer of Node counts its next interval from the time its callback ran. Thus the lateness of each heartbeat check adds to the next one.
+  - Linux counts the RTO from the smoothed round trip. Each sample of amqplib is the time to the reply of the broker, which ACKs the RPC. Thus the RTO after a stall holds the reply time of the broker.
+  - amqplib tunes the smaller heartbeat of the broker and the client. A heartbeat of 80 s against the 60 s of the broker is 60 s, thus O03 sets the heartbeat at the broker too.
+  - After its own FIN, a client gets a reset when the run lifts a freeze: the thawed broker closes its socket with linger 0. That reset is not a detection.
+- The array stage of T01 gives each of the 13 cells at the defaults a practice profile, with the same trigger (#100).
+  - These profiles name the defaults of RabbitMQ, PostgreSQL, gRPC or a managed Redis. No profile sets a knob of amqplib, of RabbitMQ, or of the Linux TCP that the cell reads.
+  - Thus 8 array cells are aliases of their cells at the defaults, and 5 wait for the reasons of those cells.
+  - DP44 gives the client a connect timeout of 5 s. The client clears that timeout when the connection opens, thus it does not change a fault with an operation in flight.
 
 ### H2 · HTTP/2 and gRPC
 

@@ -286,6 +286,7 @@ export interface Toxic {
  */
 export type Reference =
   | "last-received"
+  | "last-data"
   | "first-retransmission"
   | "request-sent"
   | "peer-closed"
@@ -663,7 +664,7 @@ export type HarnessImage = "procedures";
  * A shipped image is an image that the harness ships, by its name. Its build context is in the
  * package of the harness, and in the package of the prober for `harness`.
  */
-export type Shipped = "harness" | "node" | "go-http" | "node-http" | "mongo" | "pg" | "hikari" | "procedures" | "router" | "pgbouncer" | "pgpool";
+export type Shipped = "harness" | "node" | "go-http" | "node-http" | "mongo" | "pg" | "hikari" | "amqp" | "procedures" | "router" | "pgbouncer" | "pgpool";
 
 /**
  * An image source tells where an image comes from, as data. The harness resolves each kind to an
@@ -728,7 +729,7 @@ export interface Subject {
  * (`http-agent`) and an HTTP/1.1 `Client` of undici (`undici`). The MongoDB driver is `mongodb`, node-postgres is `pg`, HikariCP over pgjdbc is `hikari`, and
  * the WebSocket client of `@procedures/client` is `procedures-ws`.
  */
-export type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici" | "mongodb" | "pg" | "hikari" | "procedures-ws";
+export type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici" | "mongodb" | "pg" | "hikari" | "amqp" | "procedures-ws";
 
 /**
  * A WebSocket probe is the workload and the settings of the WebSocket client of
@@ -858,7 +859,8 @@ export interface Cell {
       | { readonly name: "ioredis"; readonly keepAlive: Quantity }
       | { readonly name: "mongodb"; readonly set: string; readonly op?: "write" | "read-long" }
       | { readonly name: "pg"; readonly query?: string; readonly inflight?: string }
-      | { readonly name: "hikari"; readonly query?: string; readonly inflight?: string };
+      | { readonly name: "hikari"; readonly query?: string; readonly inflight?: string }
+      | { readonly name: "amqp" };
     /** This workload is the workload of an HTTP client (`Cell.client` is an HTTP client). The client then ignores `keepalive` and `userTimeout`. */
     readonly http?: HttpProbe;
     /** These are the settings of the WebSocket client (`Cell.client` is `procedures-ws`). The client then ignores `keepalive` and `userTimeout`. */
