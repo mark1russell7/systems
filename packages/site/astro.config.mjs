@@ -46,6 +46,7 @@ export default defineConfig({
             "results/http",
             "results/mongodb",
             "results/pg",
+            "results/rabbitmq",
             "results/kind",
             "results/r3",
             "results/timers",

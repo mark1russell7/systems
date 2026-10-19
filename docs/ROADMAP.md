@@ -705,6 +705,7 @@ The heartbeats of AMQP and the timers of the broker. R3 puts 54 cells on amqplib
   - These profiles name the defaults of RabbitMQ, PostgreSQL, gRPC or a managed Redis. No profile sets a knob of amqplib, of RabbitMQ, or of the Linux TCP that the cell reads.
   - Thus 8 array cells are aliases of their cells at the defaults, and 5 wait for the reasons of those cells.
   - DP44 gives the client a connect timeout of 5 s. The client clears that timeout when the connection opens, thus it does not change a fault with an operation in flight.
+- The page of the RabbitMQ results gives the 12 cells of T01 from run [39216875830](https://github.com/mark1russell7/systems/actions/runs/39216875830) at main (#101). Each holds, with 132 counted runs and no void run.
 
 ### H2 · HTTP/2 and gRPC
 
