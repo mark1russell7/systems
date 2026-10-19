@@ -106,6 +106,13 @@ export const RA_MEMBER: Machine = machineSchema.parse({
       default: 10,
       note: "an assumption of this document, not a value of ra: a state timeout that fires late",
     },
+    commit_work: {
+      key: "the local work of one command: the writes and the fsyncs of the logs of a leader and a follower, and the apply",
+      scope: "node",
+      unit: "ms",
+      default: 50,
+      note: "an assumption of this document, not a value of ra: the WAL writes each batch and syncs it with fdatasync before the commit (ra_log_wal.erl:89, :772-798)",
+    },
     rtt: { key: "the round trip between members", scope: "path", unit: "ms", default: null },
   },
   timers: {

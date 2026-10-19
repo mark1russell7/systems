@@ -7,6 +7,7 @@ import { T01_PG } from "../pg/t01.ts";
 import { T03_HIKARI } from "../pg/t03.ts";
 import { T10_HIKARI, T10_PG } from "../pg/t10.ts";
 import { T01_AMQP } from "../rabbit/t01.ts";
+import { T11_RABBIT } from "../rabbit/t11.ts";
 import { MONGO_CELLS, MONGO_ONE, MEMBER_STAMPS, SET_DEFAULTS, longestWait } from "./harness.ts";
 
 const named = (prefix: string): Cell => {
@@ -19,7 +20,7 @@ describe("the MongoDB cells, for the harness", () => {
   it("gives each cell of the three catalogs once, with a name of its own, before the PostgreSQL and RabbitMQ cells at the end of the catalogs", () => {
     expect(MONGO_CELLS).toHaveLength(58);
     expect(new Set(ALL.map((cell) => cell.name)).size).toBe(ALL.length);
-    const after = [...T01_PG, ...T01_HIKARI, ...T03_HIKARI, ...T10_HIKARI, ...T10_PG, ...T01_AMQP];
+    const after = [...T01_PG, ...T01_HIKARI, ...T03_HIKARI, ...T10_HIKARI, ...T10_PG, ...T01_AMQP, ...T11_RABBIT];
     expect(ALL.slice(-(MONGO_CELLS.length + after.length), -after.length)).toEqual(MONGO_CELLS);
     expect(ALL.slice(-after.length)).toEqual(after);
   });
