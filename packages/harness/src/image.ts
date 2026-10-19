@@ -1,3 +1,4 @@
+import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -340,11 +341,27 @@ export const planOf = (source: string | ImageSource): ImagePlan => {
   return plan;
 };
 
-/** This function builds a staged context with Docker, through Testcontainers. */
-const dockerBuild = async (context: string, plan: Extract<ImagePlan, { readonly kind: "build" }>): Promise<void> => {
-  const { GenericContainer } = await import("testcontainers");
-  await GenericContainer.fromDockerfile(context, plan.dockerfile).build(plan.tag, { deleteOnExit: false });
-};
+/** This count is how many lines of the output of a failed build its error holds. */
+const BUILD_TAIL = 15;
+
+/**
+ * This function builds a staged context with the CLI of Docker, thus with BuildKit where the CLI has
+ * it. Testcontainers asks the daemon for the classic builder. On the kernel 7.0 of the runners of
+ * GitHub (image 20261018), the classic builder failed each build, and BuildKit built each image. The
+ * error of a failed build holds the end of its output.
+ */
+const dockerBuild = (context: string, plan: Extract<ImagePlan, { readonly kind: "build" }>): Promise<void> =>
+  new Promise((resolve, reject) => {
+    const args = ["build", "--progress=plain", "--tag", plan.tag, "--file", join(context, plan.dockerfile), context];
+    execFile("docker", args, { maxBuffer: 64 * 1024 * 1024 }, (error, _stdout, stderr) => {
+      if (error === null) {
+        resolve();
+        return;
+      }
+      const tail = String(stderr).trim().split(/\r?\n/).slice(-BUILD_TAIL).join("\n");
+      reject(new Error(`docker build of ${plan.tag} failed (${error.message.split("\n")[0]}):\n${tail}`));
+    });
+  });
 
 const built = new Map<string, Promise<string>>();
 
@@ -403,8 +420,8 @@ export const buildOnce = (
 
 /**
  * This function gives an image that a lab can start, from its source. It is the name of a stock
- * image or of a pinned image, which the lab pulls, or the tag of a build. This function loads
- * Testcontainers only for a build.
+ * image or of a pinned image, which the lab pulls, or the tag of a build. A build goes through the CLI
+ * of Docker.
  */
 export const imageOf = async (source: string | ImageSource): Promise<string> => {
   const plan = planOf(source);
