@@ -659,6 +659,10 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
   - After a stall, the first segment back can be the reply of Supavisor, one step of Supavisor later. The median is 1.662 s, and a warm-up came at 1.6988 s, after the band of the router alone.
   - ranch gives each client socket of Supavisor a send timeout of 30 s that closes it. Behind the MTU black hole, the FIN of that close waits behind the long segments, thus the client gets nothing in 60 s. In run 39170773426, the socket of Supavisor closed 30.068 to 30.086 s after the fault.
   - T03.defaults.61 waits: a fin through Supavisor is the race of T10.defaults.3.
+- An event at a pooler (harness 0.11.15): a signal to its program, or a query on its console. Three T10 cells that waited for it go to CI.
+  - T10.defaults.15 and .8: SIGHUP to PgBouncer and to Pgpool-II while the server holds the query 5 s. The documents take the reload with no transition, thus the reply comes as with no reload (machines 0.3.13).
+  - T10.defaults.7: PAUSE on the console of PgBouncer, then a query of node-postgres. The query waits in the queue, and query_wait_timeout ends it with FATAL 08P01 at 120 s.
+  - The injector sends the query of the console in the simple query protocol of PostgreSQL, and it stamps the query and its ReadyForQuery. After the run, RESUME lifts the PAUSE.
 
 ### RABBIT · RabbitMQ
 

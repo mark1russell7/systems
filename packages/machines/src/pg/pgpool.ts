@@ -56,6 +56,10 @@ export const PGPOOL_SESSION: Machine = machineSchema.parse({
     { ref: `${PP} src/utils/pool_stream.c:225-248 a failed read of the backend: with failover_on_backend_error, a request of failover, then the child exits`, rung: "implemented" },
     { ref: `${PP} src/utils/pool_stream.c:263-276 a read of 0 bytes from the backend, its FIN: FATAL 'unable to read data from DB node', and no failover`, rung: "implemented" },
     { ref: `${PP} src/utils/error/elog.c:1888-2007 an error of the session goes to the client as an ErrorResponse: its severity, the SQLSTATE of Pgpool-II or XX000, and the message`, rung: "implemented" },
+    {
+      ref: `${PP} src/main/pgpool_main.c:3551-3566 and src/protocol/pool_process_query.c:456-466 SIGHUP: the parent reads the configuration again and sends SIGHUP to each child. A child in a session reads it again in the loop of its query and keeps the session: a reload has no transition here`,
+      rung: "implemented",
+    },
   ],
   states: {
     "[none]": { initial: true, pseudo: true, note: "Before the child accepts the connection" },
@@ -67,6 +71,7 @@ export const PGPOOL_SESSION: Machine = machineSchema.parse({
   },
   events: {
     "local.accept": { kind: "local", note: "The child accepts the TCP connection" },
+    "local.reload": { kind: "local", note: "SIGHUP, as pgpool reload sends it: the child reads its configuration again. No transition takes it" },
     "rx.startup": { kind: "rx", note: "The startup packet of the client" },
     "local.cached": { kind: "local", note: "The pool of the child has a connection for the user and the database: no connect" },
     "local.connected": { kind: "local", note: "The connect to the backend succeeds" },

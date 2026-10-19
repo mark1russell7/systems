@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import { T01_HIKARI } from "./hikari.ts";
 import { SUPAVISOR_IMAGE, SUPAVISOR_READY, SUPAVISOR_TOKEN, supavisorStart } from "./supavisor.ts";
 import { APP_STALL, PG_TARGET, T01_PG } from "./t01.ts";
+import { PGBOUNCER_CLIENT } from "@mark1russell7/machines";
 import {
+  PAUSE,
   PGBOUNCER_HOP,
   PGBOUNCER_LATENCY,
   T10_HIKARI,
@@ -252,5 +254,36 @@ describe("the HikariCP catalog of T10, through PgBouncer", () => {
     const heldDirect = pg("T01.defaults.130");
     if (held.detects !== false || heldDirect.detects !== false || held.replies === undefined || heldDirect.replies === undefined) throw new Error("replying cells");
     expect(valueIn(held.replies.high, "s")).toBeCloseTo(valueIn(heldDirect.replies.high, "s") + SUPAVISOR_LATENCY, 9);
+  });
+
+  it("sends an event to the pooler: a reload keeps the query in flight, and a query after PAUSE waits for query_wait_timeout", () => {
+    const pg = (plan: string) => {
+      const found = [...T10_PG, ...T01_PG].find((each) => each.name.startsWith(`${plan} pg-8.23 to postgresql, `));
+      if (found === undefined) throw new Error(`no cell ${plan}`);
+      return found;
+    };
+    // a reload during the hold: SIGHUP to the program of the pooler, after the query went out
+    const bouncer = cell("T10.defaults.15");
+    expect(bouncer).toMatchObject({ fault: "hop-event", event: { hop: "pgbouncer", signal: "HUP", inFlight: true } });
+    expect(bouncer.topology?.hops[0]).toMatchObject({ name: "pgbouncer", program: "pgbouncer" });
+    expect(bouncer.prediction).toEqual(cell("T10.defaults.12").prediction);
+    const pool = pg("T10.defaults.8");
+    expect(pool).toMatchObject({ fault: "hop-event", event: { hop: "pgpool", signal: "HUP", inFlight: true } });
+    expect(pool.topology?.hops[0]).toMatchObject({ name: "pgpool", program: "pgpool" });
+    const held = pool.prediction;
+    const direct = pg("T01.defaults.130").prediction;
+    if (held.detects !== false || direct.detects !== false || held.replies === undefined || direct.replies === undefined) throw new Error("replying cells");
+    expect(valueIn(held.replies.high, "s")).toBeCloseTo(valueIn(direct.replies.high, "s") + PGPOOL_LATENCY, 9);
+    // PAUSE on the console: the console trusts postgres, the query waits, and RESUME lifts it after the run
+    const paused = pg("T10.defaults.7");
+    expect(paused).toMatchObject({ fault: "hop-event", event: PAUSE });
+    expect(paused.topology?.hops[0]?.kind === "proxy" && paused.topology.hops[0].files?.["/etc/pgbouncer/pgbouncer.ini"]).toContain("admin_users = postgres");
+    expect(PGBOUNCER_HOP.files?.["/etc/pgbouncer/pgbouncer.ini"]).not.toContain("admin_users");
+    const wait = pgbouncerFirst("waiting");
+    expect(wait).toMatchObject({ timer: "query_wait_timeout", errno: "08P01" });
+    expect(paused.prediction).toMatchObject({ detects: true, timer: "query_wait_timeout", errno: "08P01", from: "request-sent", low: { value: 120, unit: "s" } });
+    // the reload is an event of the documents that no transition takes
+    expect(PGBOUNCER_CLIENT.events["local.reload"]).toBeDefined();
+    expect(PGBOUNCER_CLIENT.transitions.some((each) => [each.on].flat().includes("local.reload"))).toBe(false);
   });
 });

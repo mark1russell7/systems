@@ -68,6 +68,7 @@ export const PGBOUNCER_CLIENT: Machine = machineSchema.parse({
     { ref: `${PB} src/objects.c:1493-1534 a client that goes while linked: its server is closed when it was not ready, else it goes back to the pool`, rung: "implemented" },
     { ref: `${PB} src/janitor.c:788-813 and src/admin.c:1202-1244 KILL closes each client of the database: 'database removed'`, rung: "implemented" },
     { ref: `${PB} src/admin.c:1017-1045 and src/objects.c:920-921 during PAUSE a new query gets no server, thus it waits. The janitor still runs query_wait_timeout (src/janitor.c:722-728)`, rung: "implemented" },
+    { ref: `${PB} src/main.c:619-627 SIGHUP reads the configuration again (load_config). No client changes its state: a reload has no transition here, and each timer of a client goes on`, rung: "implemented" },
   ],
   states: {
     "[none]": { initial: true, pseudo: true, note: "Before PgBouncer accepts the connection" },
@@ -82,6 +83,7 @@ export const PGBOUNCER_CLIENT: Machine = machineSchema.parse({
   },
   events: {
     "local.accept": { kind: "local", note: "PgBouncer accepts the TCP connection" },
+    "local.reload": { kind: "local", note: "SIGHUP, or RELOAD on the console: PgBouncer reads its configuration again. No transition takes it" },
     "local.logged-in": { kind: "local", note: "The authentication of the client ends" },
     "local.welcome": { kind: "local", note: "The first server of the pool logs in: the pool has its welcome message" },
     "rx.query": { kind: "rx", note: "The first packet of a query of the client" },

@@ -15,6 +15,7 @@ import {
   reconnectOf,
 } from "./application.ts";
 import type { Cell, KernelRecord, ProbeEvent, Reference, Run } from "./cell.ts";
+import { requestFirst } from "./cell.ts";
 import type { DriverStepTime } from "./driver.ts";
 import { measureDriver, proxiedClose } from "./driver.ts";
 import type { GroupMeasured } from "./timeline.ts";
@@ -551,8 +552,9 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
   if (run.fault !== null) {
     // the request of a client must go into the fault. The request of a cell on the server side must
     // reach the server first, and its reply must not reach the client before the fault holds. An
-    // mtu-blackhole drops only the long reply, thus its request goes after the fault, as a client's does
-    const replyFirst = server && inflight && cell.fault !== "mtu-blackhole";
+    // mtu-blackhole drops only the long reply, thus its request goes after the fault, as a client's does.
+    // An event at a hop that comes while the request is in flight comes after the request too
+    const replyFirst = (server && inflight && cell.fault !== "mtu-blackhole") || requestFirst(cell);
     const replied = events.some(
       (event) => event.ev === "data" && event.t > request.t && event.t < run.fault!.t1,
     );

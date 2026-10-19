@@ -9,6 +9,7 @@ import type {
   ClientImage,
   FaultPlace,
   Hop,
+  HopEvent,
   HopPlace,
   ImageSource,
   KernelRecord,
@@ -330,6 +331,13 @@ export interface Lab {
    * it, and the injector stamps it. The lab starts that sidecar at the first signal.
    */
   signal(signal: "STOP" | "CONT" | "KILL", at?: number): Promise<{ t0: number; t1: number }>;
+  /**
+   * This method applies an event at a proxy hop (`HopEvent`), or its undo. A signal goes from a
+   * sidecar in the network and process namespaces of the hop. The lab starts that sidecar at the
+   * first signal of the hop. A query goes from the injector of the hop to its console on 127.0.0.1. The
+   * injector stamps each one. An event with no undo gives null for its undo.
+   */
+  event(event: HopEvent, undo?: boolean): Promise<{ t0: number; t1: number } | null>;
   probe(args: readonly string[]): Promise<Probe>;
   /**
    * This method waits for the next clock line of the prober, which gives the count of lost
@@ -762,6 +770,8 @@ export const openLab = async (
     const paused = runtime.container.getById(server.getId());
     let targetAdmin: StartedTestContainer | undefined;
     let signaller: StartedTestContainer | undefined;
+    // the sidecars that signal the program of a hop, by the name of the hop
+    const hopSignallers = new Map<string, StartedTestContainer>();
     const hopNamed = (name: string): HopIn => {
       const found = inChain.find((hop) => hop.hop.name === name);
       if (found === undefined) throw new Error(`the topology has no hop ${name}`);
@@ -940,6 +950,30 @@ export const openLab = async (
         if (!opened.includes(signaller)) opened.push(signaller);
         const when = at === undefined ? [] : ["--at", String(Math.round(at))];
         return stamped(signaller, ["/opt/harness/inject", "signal", target.program, signal, ...when]);
+      },
+      async event(event, undo = false) {
+        const hop = hopNamed(event.hop);
+        if (hop.hop.kind !== "proxy") throw new Error(`the hop ${event.hop} is a router: an event goes to a proxy`);
+        if ("signal" in event) {
+          if (undo) return null;
+          const program = hop.hop.program;
+          if (program === undefined) throw new Error(`the hop ${event.hop} names no program to signal`);
+          let sidecar = hopSignallers.get(event.hop);
+          if (sidecar === undefined) {
+            // only when a cell asks for it: otherwise no sidecar shares the process namespace of the hop
+            sidecar = await withPid(
+              new GenericContainer(image).withNetworkMode(`container:${hop.box.getId()}`).withAddedCapabilities("NET_ADMIN", "NET_RAW"),
+              `container:${hop.box.getId()}`,
+            ).start();
+            hopSignallers.set(event.hop, sidecar);
+            opened.push(sidecar);
+          }
+          return stamped(sidecar, ["/opt/harness/inject", "signal", program, event.signal]);
+        }
+        const query = undo ? event.console.undo : event.console.query;
+        if (query === undefined) return null;
+        const { port, user, database } = event.console;
+        return stamped(hop.injector, ["/opt/harness/inject", "query", `127.0.0.1:${port}`, user, database, query]);
       },
       async probe(args) {
         const events = lines<ProbeEvent>();

@@ -53,6 +53,7 @@ export const PGBOUNCER_SERVER: Machine = machineSchema.parse({
     { ref: `${PB} src/objects.c:1498-1532 a client that goes while linked: a server that was not ready is closed with Terminate, else it goes back to the pool`, rung: "implemented" },
     { ref: `${PB} src/janitor.c:177-192, :424-425 PAUSE closes each idle server: 'pause mode'`, rung: "implemented" },
     { ref: `${PB} src/objects.c:2311-2424 and src/loader.c:394-419 RECONNECT, or a RELOAD that changes the connection of a database, marks each server: an idle one closes at the next pass, a linked one at its release`, rung: "implemented" },
+    { ref: `${PB} src/main.c:619-627 and src/loader.c:394-419 SIGHUP reads the configuration again. A database whose connection is the same keeps each server: a reload with the same configuration has no transition here`, rung: "implemented" },
   ],
   states: {
     "[none]": { initial: true, pseudo: true, note: "No connection: the pool starts one for a waiting client, or for min_pool_size" },
@@ -67,6 +68,7 @@ export const PGBOUNCER_SERVER: Machine = machineSchema.parse({
   },
   events: {
     "local.launch": { kind: "local", note: "The pool starts a connection to the server" },
+    "local.reload": { kind: "local", note: "SIGHUP: PgBouncer reads its configuration again. With the same connection of the database, no transition takes it" },
     "socket.connect": { kind: "local", note: "The TCP connect ends" },
     "rx.error-response": { kind: "rx", note: "An ErrorResponse of the server at the login" },
     "rx.ready-for-query": { kind: "rx", note: "A ReadyForQuery of the server" },

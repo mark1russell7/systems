@@ -1,7 +1,7 @@
 import type { Detector, KnobValues, Machine } from "@mark1russell7/algebra";
 import { detection, errnoOf, overValues, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
-import type { Cell, Prediction, ProxyHop } from "@mark1russell7/harness";
-import { HIKARICP_PGJDBC, LINUX_TCP, PGBOUNCER_CLIENT, PGBOUNCER_SERVER, PGPOOL_SESSION, SUPAVISOR_CLIENT } from "@mark1russell7/machines";
+import type { Cell, HopEvent, Prediction, ProxyHop } from "@mark1russell7/harness";
+import { HIKARICP_PGJDBC, LINUX_TCP, NODE_POSTGRES, PGBOUNCER_CLIENT, PGBOUNCER_SERVER, PGPOOL_SESSION, SUPAVISOR_CLIENT } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import { RTT_MS, RUNS, count, given, predict, s, seconds, sysctlsOf } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
@@ -12,7 +12,7 @@ import type { HikariSpec } from "./hikari.ts";
 import { hikariCell, hikariFirstOn, hikariPrediction, hikariValues } from "./hikari.ts";
 import { SLOW_QUERY, STATEMENT_DEADLINE } from "./server.ts";
 import type { PgSpec } from "./t01.ts";
-import { APP_STALL, PG_RTT_MS, pgCell, pgPrediction } from "./t01.ts";
+import { APP_STALL, PG_RTT_MS, pgCell, pgPrediction, pgValues } from "./t01.ts";
 import { SUPAVISOR_HOP, SUPAVISOR_USER } from "./supavisor.ts";
 
 /**
@@ -31,7 +31,7 @@ import { SUPAVISOR_HOP, SUPAVISOR_USER } from "./supavisor.ts";
  * transaction pooling. The settings of the cell come last, by the names of pgbouncer.ini and in the
  * units of the documents. Each other setting has its default.
  */
-const pgbouncerIni = (settings: Readonly<Record<string, number>>): string =>
+const pgbouncerIni = (settings: Readonly<Record<string, number>>, admin: boolean): string =>
   [
     "[databases]",
     "postgres = host={{next.host}} port={{next.port}} dbname=postgres",
@@ -43,6 +43,8 @@ const pgbouncerIni = (settings: Readonly<Record<string, number>>): string =>
     "pool_mode = transaction",
     // pgjdbc sends extra_float_digits at its startup, and PgBouncer refuses a parameter that it does not know
     "ignore_startup_parameters = extra_float_digits",
+    // the console trusts the user postgres, for a cell that sends it a command such as PAUSE
+    ...(admin ? ["admin_users = postgres"] : []),
     ...Object.entries(settings).map(([name, value]) => `${name} = ${value}`),
     "",
   ].join("\n");
@@ -50,8 +52,9 @@ const pgbouncerIni = (settings: Readonly<Record<string, number>>): string =>
 /**
  * This function gives the hop of PgBouncer 1.26.1 in transaction pooling, from the image that the
  * harness ships. It has the settings of a cell, and the sysctls of its namespace when a cell gives them.
+ * With `admin`, its console trusts the user postgres.
  */
-export const pgbouncerHop = (settings: Readonly<Record<string, number>> = {}, sysctls?: Readonly<Record<string, string>>): ProxyHop => {
+export const pgbouncerHop = (settings: Readonly<Record<string, number>> = {}, sysctls?: Readonly<Record<string, string>>, admin = false): ProxyHop => {
   const unknown = Object.keys(settings).filter((name) => PGBOUNCER_CLIENT.knobs[name]?.unit == null && PGBOUNCER_SERVER.knobs[name]?.unit == null);
   if (unknown.length > 0) throw new Error(`no document of PgBouncer has a knob with a unit for ${unknown.join(", ")}`);
   return {
@@ -59,13 +62,15 @@ export const pgbouncerHop = (settings: Readonly<Record<string, number>> = {}, sy
     kind: "proxy",
     image: { kind: "shipped", name: "pgbouncer" },
     port: 6432,
-    files: { "/etc/pgbouncer/pgbouncer.ini": pgbouncerIni(settings), "/etc/pgbouncer/userlist.txt": '"postgres" ""\n' },
+    files: { "/etc/pgbouncer/pgbouncer.ini": pgbouncerIni(settings, admin), "/etc/pgbouncer/userlist.txt": '"postgres" ""\n' },
     ready: "process up: PgBouncer 1.26.1",
+    program: "pgbouncer",
     ...(sysctls === undefined ? {} : { sysctls }),
     settings: {
       pool_mode: "transaction",
       ignore_startup_parameters: "extra_float_digits",
       version: "1.26.1",
+      ...(admin ? { admin_users: "postgres" } : {}),
       ...Object.fromEntries(Object.entries(settings).map(([name, value]) => [name, String(value)])),
     },
   };
@@ -126,7 +131,7 @@ export interface PoolerEnd {
  * flight, or idle between two transactions. Each timer of a client is a check of the janitor, thus
  * it is up to one pass late.
  */
-export const pgbouncerFirst = (state: "linked" | "idle", settings: Readonly<Record<string, number>> = {}): PoolerEnd | null => {
+export const pgbouncerFirst = (state: "linked" | "idle" | "waiting", settings: Readonly<Record<string, number>> = {}): PoolerEnd | null => {
   const values = pgbouncerValues(PGBOUNCER_CLIENT, settings);
   const own = detection(PGBOUNCER_CLIENT, { state, inFlight: state === "linked" }, { name: "blackhole", passes: [] }, values);
   const ends = own.detectors
@@ -181,6 +186,7 @@ export const pgpoolHop = (settings: Readonly<Record<string, number>> = {}): Prox
     port: 9999,
     files: { "/etc/pgpool/pgpool.conf": pgpoolConf(settings) },
     ready: "pgpool-II successfully started",
+    program: "pgpool",
     settings: { backend_clustering_mode: "streaming_replication", backends: "1", version: "4.7.3", ...Object.fromEntries(Object.entries(settings).map(([name, value]) => [name, String(value)])) },
   };
 };
@@ -245,7 +251,33 @@ export interface T10Spec extends HikariSpec {
   readonly fresh?: true;
   /** This flag observes the connect of PgBouncer to the server, for a client that starts into a black hole of the server. */
   readonly upstream?: true;
+  /** This event at the pooler is the fault of the cell. The fault of the spec then tells what the server does, for example a hold. */
+  readonly event?: HopEvent;
 }
+
+/** A spec of T10 for node-postgres is a spec of T01, and an event at the pooler can be its fault, as for HikariCP. */
+export interface T10PgSpec extends PgSpec {
+  readonly event?: HopEvent;
+}
+
+/** This function gives the reload of the configuration of a pooler while the query is in flight: SIGHUP to its program. */
+const reloadOf = (hop: string): HopEvent => ({ hop, signal: "HUP", inFlight: true });
+
+/** This event is PAUSE on the console of PgBouncer, before the query, and RESUME after the run. The console trusts the user postgres. */
+export const PAUSE: HopEvent = { hop: "pgbouncer", console: { port: 6432, user: "postgres", database: "pgbouncer", query: "PAUSE", undo: "RESUME" } };
+
+/**
+ * This function checks that a document takes a reload of the configuration with no transition. Then
+ * the session keeps its state, its server and each timer, and the reply of a query in flight comes as
+ * with no reload.
+ */
+const keepsAtReload = (plan: string, ...docs: readonly Machine[]): void => {
+  for (const doc of docs) {
+    if (doc.events["local.reload"] === undefined) throw new Error(`${plan}: ${doc.id} has no reload`);
+    const moves = doc.transitions.filter((each) => [each.on].flat().includes("local.reload"));
+    if (moves.length > 0) throw new Error(`${plan}: a reload moves ${doc.id}: ${moves.map((each) => each.id).join(", ")}`);
+  }
+};
 
 /** This function puts a spec behind PgBouncer: the hop with the settings of the spec, and the latency that PgBouncer adds to a reply. */
 const behind = (spec: Omit<T10Spec, "pooler" | "poolerLatency">): T10Spec => ({
@@ -289,6 +321,16 @@ export const T10_HIKARI_SPECS: readonly T10Spec[] = [
     plan: "T10.defaults.12",
     name: `app-stall behind PgBouncer: the server holds the query in flight ${APP_STALL} s, and nothing ends it`,
     fault: "app-stall",
+    mode: "inflight",
+    inflight: `SELECT pg_sleep(${APP_STALL})`,
+    pooler: PGBOUNCER_HOP,
+    poolerLatency: PGBOUNCER_LATENCY,
+  },
+  {
+    plan: "T10.defaults.15",
+    name: `event:reload behind PgBouncer: SIGHUP while the server holds the query ${APP_STALL} s, and the reply comes`,
+    fault: "app-stall",
+    event: reloadOf("pgbouncer"),
     mode: "inflight",
     inflight: `SELECT pg_sleep(${APP_STALL})`,
     pooler: PGBOUNCER_HOP,
@@ -472,7 +514,6 @@ export const T10_HIKARI_WAITING: readonly Waiting[] = [
   },
   { plan: "T10.defaults.13", trigger: "event:session", why: "the cell needs two clients on one server connection of PgBouncer, one that sets the state of the session and one that reads it. The harness starts one client" },
   { plan: "T10.defaults.14", trigger: "event:PAUSE", why: "PAUSE is a command of the console of PgBouncer: Pgpool-II has no command that holds the queries of its clients" },
-  { plan: "T10.defaults.15", trigger: "event:reload", why: "the harness has no fault that sends SIGHUP to the program of a hop" },
   { plan: "T10.defaults.17", trigger: "load:clients", why: "the cell needs more clients than the pool of PgBouncer holds. The harness starts one client" },
   { plan: "T10.defaults.18", trigger: "timed:mid-commit", why: "the harness has no injector that times a fault to a reply" },
   ...REASONS.flatMap(([from, to, why]) =>
@@ -491,8 +532,6 @@ export const T10_HIKARI_ALIASES: readonly Alias[] = [
 
 /** These are the cells of the plan over pg-8.23 in T10 at the defaults, each with its reason to wait. */
 export const T10_PG_WAITING: readonly Waiting[] = [
-  { plan: "T10.defaults.7", trigger: "event:PAUSE", why: "the harness has no fault that runs a command on the console of PgBouncer, such as PAUSE" },
-  { plan: "T10.defaults.8", trigger: "event:reload", why: "the harness has no fault that sends SIGHUP to the program of a hop" },
   {
     plan: "T10.defaults.32",
     trigger: "event:session",
@@ -507,11 +546,11 @@ export const T10_PG_WAITING: readonly Waiting[] = [
 export const POOLER_IDLE = 12;
 
 /** These are the cells of T10 over pg-8.23, pgbouncer-1.26-transaction and postgresql that this catalog starts: the borders of O01. */
-export const T10_PG_SPECS: readonly PgSpec[] = ([
+export const T10_PG_SPECS: readonly T10PgSpec[] = ([
   ["T10.border-off.91", 10, "inside: the pool closes its idle client first"],
   ["T10.border-off.92", 14, "outside: PgBouncer closes the idle client first"],
 ] as const).map(
-  ([plan, at, side]): PgSpec => ({
+  ([plan, at, side]): T10PgSpec => ({
     plan,
     name: `event:idle behind PgBouncer, no fault, idleTimeoutMillis ${at} s against client_idle_timeout ${POOLER_IDLE} s: ${side}`,
     fault: "none",
@@ -520,6 +559,23 @@ export const T10_PG_SPECS: readonly PgSpec[] = ([
     ...(at === 10 ? {} : { options: { idleTimeoutMillis: at * 1000 } }),
   }),
 ).concat([
+  {
+    plan: "T10.defaults.7",
+    name: "event:PAUSE on the console of PgBouncer, then a query: it waits in the queue, and query_wait_timeout ends it",
+    fault: "none",
+    event: PAUSE,
+    mode: "inflight",
+    pooler: pgbouncerHop({}, undefined, true),
+  },
+  {
+    plan: "T10.defaults.8",
+    name: `event:reload behind Pgpool-II: SIGHUP while the server holds the query ${APP_STALL} s, and the reply comes`,
+    fault: "app-stall",
+    event: reloadOf("pgpool"),
+    mode: "inflight",
+    query: `SELECT pg_sleep(${APP_STALL})`,
+    pooler: PGPOOL_HOP,
+  },
   {
     plan: "T10.defaults.29",
     name: "fin behind Pgpool-II, idle: the FIN of the server ends the session of Pgpool-II, which closes the client",
@@ -575,6 +631,8 @@ const endOf = (prediction: Prediction): number => {
  * cell, and no timer of PgBouncer can come before its end.
  */
 export const t10Prediction = (spec: T10Spec): Prediction => {
+  // a reload changes no state of the pooler: the prediction is the prediction of the fault of the spec
+  if (spec.event !== undefined && "signal" in spec.event) keepsAtReload(spec.plan, ...(spec.via === "pgpool" ? [PGPOOL_SESSION] : [PGBOUNCER_CLIENT, PGBOUNCER_SERVER]));
   if (spec.upstream === true) return atUpstreamConnect(spec);
   if (spec.observesPooler === true) return atPoolerSocket(spec);
   if (spec.via === "pgpool") {
@@ -686,6 +744,7 @@ const POOLER_SOCKET = { hop: "pgbouncer", toward: "target" } as const;
  */
 export const T10_HIKARI: readonly Cell[] = T10_HIKARI_SPECS.map((spec) => ({
   ...hikariCell(spec),
+  ...(spec.event === undefined ? {} : { fault: "hop-event" as const, event: spec.event }),
   ...(spec.observesPooler === true ? { observer: POOLER_SOCKET, environments: RUNS } : {}),
   ...(spec.fresh === true ? { environments: RUNS, fresh: true as const } : {}),
   prediction: t10Prediction(spec),
@@ -706,7 +765,8 @@ const settingsOf = (spec: PgSpec): Record<string, number> => {
  * PgBouncer before the last segment that the client gets. The FIN comes one way after the pass of
  * the janitor. Else the band of the client is the band of the cell.
  */
-export const t10PgPrediction = (spec: PgSpec): Prediction => {
+export const t10PgPrediction = (spec: T10PgSpec): Prediction => {
+  if (spec.event !== undefined && "console" in spec.event) return pausedPg(spec);
   if (spec.pooler?.name === "pgpool") return throughPgpoolPg(spec);
   if (spec.pooler?.name === "supavisor") return throughSupavisorPg(spec);
   const client = pgPrediction(spec);
@@ -741,12 +801,39 @@ const closedAtTerminate = (spec: PgSpec, client: Prediction & { readonly detects
 };
 
 /**
+ * This function gives the prediction of a query after PAUSE on the console of PgBouncer. The query
+ * gets no server and waits in the queue (pbc.waiting), and the janitor ends the wait at
+ * query_wait_timeout with FATAL 08P01 (pbc.wait-timed-out). For the client, the kernel of PgBouncer
+ * acknowledges the query and no reply comes, as from a frozen server. Thus no timer of the pool ends it
+ * first. The fail line of the query ends the band: one step of PgBouncer, one round trip and two steps
+ * of Node after the janitor.
+ */
+const pausedPg = (spec: T10PgSpec): Prediction => {
+  const own = pgbouncerFirst("waiting", settingsOf(spec));
+  if (own === null) throw new Error(`${spec.plan}: no timer of PgBouncer ends a query in the queue`);
+  const slack = seconds(timerOf(NODE_POSTGRES, "idle_timeout", given(pgValues(RTT_MS, spec.options))).lateness, "the slack of Node");
+  const high = own.band.hi + PGBOUNCER_LATENCY + 2 * slack;
+  const client = pgPrediction({ ...spec, fault: "freeze-process" });
+  if (client.detects === true && !(high < seconds(client.low, "the band"))) throw new Error(`${spec.plan}: ${own.timer} of PgBouncer and the pool can each end the query first`);
+  const ends = { ev: "fail", where: { n: 2 }, name: "code" } as const;
+  return { detects: true, timer: own.timer, errno: own.errno, from: "request-sent", low: s(own.band.lo), high: s(high), driver: { socket: "pool", ends } };
+};
+
+/**
  * This function gives the prediction of a cell of node-postgres through Pgpool-II. The FIN of the
  * server reaches the session of Pgpool-II, whose select() waits on the client and on the server. The
  * session ends with a FATAL error and the close of the client (pps.backend-eof). Thus the client gets
  * its FIN one step of Pgpool-II after the band of the direct pair.
  */
-const throughPgpoolPg = (spec: PgSpec): Prediction => {
+const throughPgpoolPg = (spec: T10PgSpec): Prediction => {
+  // a reload while the server holds the query: the session keeps its state, and the reply comes one step of Pgpool-II later
+  if (spec.fault === "app-stall" && spec.event !== undefined && "signal" in spec.event) {
+    keepsAtReload(spec.plan, PGPOOL_SESSION);
+    const held = pgPrediction(spec);
+    if (held.detects !== false || held.replies === undefined) throw new Error(`${spec.plan}: the hold of the server gives no reply`);
+    pgpoolAllows(spec.plan, "waiting", seconds(held.window, "the window"));
+    return { ...held, replies: { ...held.replies, high: s(seconds(held.replies.high, "the reply") + PGPOOL_LATENCY) } };
+  }
   const client = pgPrediction(spec);
   if (client.detects !== true || client.from !== "peer-closed" || spec.fault !== "fin") throw new Error(`${spec.plan}: this catalog measures node-postgres through Pgpool-II only for the FIN of the server`);
   const eof = PGPOOL_SESSION.transitions.find((each) => each.id === "pps.backend-eof");
@@ -784,6 +871,7 @@ export const T10_PG: readonly Cell[] = T10_PG_SPECS.map((spec) => {
   return {
     ...cell,
     ...(spec.pooler?.name === "supavisor" ? { driverOptions: { ...cell.driverOptions, ...SUPAVISOR_PG } } : {}),
+    ...(spec.event === undefined ? {} : { fault: "hop-event" as const, event: spec.event }),
     prediction: t10PgPrediction(spec),
   };
 });

@@ -1,6 +1,7 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 import type { Cell, DriverBand, KernelRecord, LineMatch, ProbeEvent, Reference, Run } from "./cell.ts";
+import { requestFirst } from "./cell.ts";
 import type { Measured, Outcome } from "./observe.ts";
 import { INJECT, delayVoids, noiseOf } from "./verdict.ts";
 
@@ -317,7 +318,10 @@ export const measureDriver = (cell: Cell, run: Run): Measured => {
   let voided: string | null = null;
   if (cell.probe.mode !== "idle" && cell.before !== true) {
     if (request === undefined) voided = "the operation was never sent into the fault";
-    else if (run.fault !== null && run.fault.t1 > request.t) voided = "the operation went out before the fault held";
+    else if (requestFirst(cell)) {
+      // an event at a hop that comes while the operation is in flight: the operation goes first
+      if (run.fault !== null && run.fault.t0 < request.t) voided = "the event came before the operation";
+    } else if (run.fault !== null && run.fault.t1 > request.t) voided = "the operation went out before the fault held";
   }
   const keepalive = records.find((record) => record.ev === "probe" && record.what === "keepalive");
   if (voided === null && run.fault !== null && keepalive !== undefined && keepalive.mono < run.fault.t1)
