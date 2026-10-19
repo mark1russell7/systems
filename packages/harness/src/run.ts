@@ -118,10 +118,10 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
     args.push("--max-s", String(Math.ceil(longest * 2 + 10)));
     return args;
   }
-  if (probe.driver?.name === "pg" || probe.driver?.name === "hikari") {
-    // node-postgres or HikariCP: its query, and the options of its pool
-    if (probe.driver.query !== undefined) args.push("--query", probe.driver.query);
-    if (probe.driver.inflight !== undefined) args.push("--inflight-query", probe.driver.inflight);
+  if (probe.driver?.name === "pg" || probe.driver?.name === "hikari" || probe.driver?.name === "amqp") {
+    // node-postgres or HikariCP: its query, and the options of its pool. amqplib: the options of its connection
+    if (probe.driver.name !== "amqp" && probe.driver.query !== undefined) args.push("--query", probe.driver.query);
+    if (probe.driver.name !== "amqp" && probe.driver.inflight !== undefined) args.push("--inflight-query", probe.driver.inflight);
     if (cell.before === true) args.push("--before");
     if (cell.driverOptions !== undefined) args.push("--options", JSON.stringify(cell.driverOptions));
     args.push("--max-s", String(Math.ceil(longest * 2 + 10)));

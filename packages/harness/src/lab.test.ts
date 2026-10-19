@@ -54,6 +54,15 @@ const POSTGRES: Target = {
   command: ["sh", "-c", "POSTGRES_HOST_AUTH_METHOD=trust docker-entrypoint.sh postgres & echo $! > /tmp/server.pid; while :; do sleep 3600; done"],
   kill: ["sh", "-c", 'for p in /proc/[0-9]*; do [ "$(cat "$p/comm" 2>/dev/null)" = postgres ] && kill -KILL "${p#/proc/}"; done; true'],
 };
+// RabbitMQ 4.3.6 with the user harness: the user guest connects only from localhost (loopback_users)
+const RABBITMQ: Target = {
+  image: "rabbitmq:4.3.6@sha256:3e5cc23235b0eb850f604e8ace10d9a9b6d05be3e36730e53522ee9ead707a9e",
+  port: 5672,
+  ready: "Server startup complete",
+  program: "beam.smp",
+  command: ["sh", "-c", "RABBITMQ_DEFAULT_USER=harness RABBITMQ_DEFAULT_PASS=harness docker-entrypoint.sh rabbitmq-server & echo $! > /tmp/server.pid; while :; do sleep 3600; done"],
+  kill: ["sh", "-c", 'for p in /proc/[0-9]*; do [ "$(cat "$p/comm" 2>/dev/null)" = beam.smp ] && kill -KILL "${p#/proc/}"; done; true'],
+};
 const SET: ReplicaSet = {
   name: "rs0",
   image: MONGO,
@@ -321,6 +330,26 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
     const waited = paused.runs[0]?.events.find((event) => event.ev === "fail" && event["n"] === 2);
     expect(waited).toMatchObject({ code: "08P01", message: "query_wait_timeout" });
   }, 900_000);
+
+  it("connects amqplib to RabbitMQ, and a reset of the operation in flight reaches the client as ECONNRESET", async () => {
+    const s = (value: number) => ({ value, unit: "s" });
+    const cell: Cell = {
+      name: "lab amqp to rabbitmq, rst, an operation in flight",
+      target: RABBITMQ,
+      sysctls: {},
+      probe: { mode: "inflight", keepalive: false, driver: { name: "amqp" } },
+      fault: "rst",
+      prediction: { detects: true, timer: "the reset of the operation", errno: "ECONNRESET", from: "request-sent", low: s(0), high: s(1), driver: { socket: "connection" } },
+      runs: 1,
+      environments: 1,
+    };
+    const result = await runCell(cell);
+    expect(result.measured[0]).toMatchObject({ void: null, finding: null });
+    expect(result.manifests[0]?.client.kind).toBe("amqp");
+    // the client takes the heartbeat of the broker, and amqplib sets no TCP_NODELAY
+    const start = result.runs[0]?.events.find((event) => event.ev === "start");
+    expect(start).toMatchObject({ client: "amqp", driver: "2.2.0" });
+  }, 600_000);
 
   it("passes a query of node-postgres through Pgpool-II, and the FIN of a stopped server ends the idle client", async () => {
     const s = (value: number) => ({ value, unit: "s" });

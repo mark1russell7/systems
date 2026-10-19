@@ -60,6 +60,8 @@ const SHIPPED: Readonly<Record<Shipped, ShippedContext>> = {
   pg: { name: "loom-harness-pg", dockerfile: "harness/image/pg/Dockerfile", from: ["harness/image/pg"] },
   // the client of HikariCP 7.1.0 over pgjdbc 42.7.13 on Temurin 21.0.12.1: its jars by their SHA-256
   hikari: { name: "loom-harness-hikari", dockerfile: "harness/image/hikari/Dockerfile", from: ["harness/image/hikari"] },
+  // the RabbitMQ client: amqplib 2.2.0 on Node 24.21.0
+  amqp: { name: "loom-harness-amqp", dockerfile: "harness/image/amqp/Dockerfile", from: ["harness/image/amqp"] },
   // @procedures/client 0.7.0 on Node 24.21.0: its WebSocket client, and the script of its server
   procedures: { name: "loom-harness-procedures", dockerfile: "harness/image/procedures/Dockerfile", from: ["harness/image/procedures"] },
   // the router of a middlebox chain: NAT and conntrack, with a form for a forgotten flow
@@ -112,6 +114,7 @@ export const SHIPPED_CLIENTS: Readonly<Record<Client, ClientImage>> = {
     image: shipped("hikari"),
     command: ["java", "-Dslf4j.internal.verbosity=ERROR", "-cp", "/opt/harness/hikari/classes:/opt/harness/hikari/lib/*", "ClientHikari"],
   },
+  amqp: { image: shipped("amqp"), command: ["node", "/opt/harness/amqp/client-amqp.mjs"] },
   "procedures-ws": { image: SUBJECTS.procedures.image, command: SUBJECTS.procedures.programs["client"]! },
 };
 
