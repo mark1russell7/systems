@@ -96,13 +96,23 @@ export const noiseOf = (cells: readonly { readonly noise?: Time }[], fallback: T
 
 /**
  * This function gives the kernel and its HZ from runner.txt in each folder. The kernel keeps only
- * its version, and not the name of its build.
+ * its version, and not the name of its build. GitHub rolls out a new image of its runners over some
+ * days, thus the shards of one page can run on two kernels. Then the kernel names each version,
+ * for example `6.17.0 and 7.0.0`. The HZ must be the same: a prediction of the catalog reads it.
  */
 export const runnerOf = (folders: readonly string[]): { readonly kernel: string; readonly hz: number } => {
   const lines = folders.map((folder) => readFileSync(join(folder, "runner.txt"), "utf8"));
   const field = (text: string, form: RegExp): string => form.exec(text)?.[1] ?? "";
+  const kernels = [...new Set(lines.map((text) => field(text, /^kernel: (\d+(?:\.\d+)+)/m)))];
+  if (kernels.includes("")) throw new Error("a runner.txt gives no kernel");
+  const version = (kernel: string): number[] => kernel.split(".").map(Number);
+  kernels.sort((a, b) => {
+    const [x, y] = [version(a), version(b)];
+    for (let i = 0; i < Math.max(x.length, y.length); i += 1) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) - (y[i] ?? 0);
+    return 0;
+  });
   return {
-    kernel: only("the kernel", lines.map((text) => field(text, /^kernel: (\d+(?:\.\d+)+)/m))),
+    kernel: kernels.join(" and "),
     hz: Number(only("HZ", lines.map((text) => field(text, /^CONFIG_HZ: CONFIG_HZ=(\d+)$/m)))),
   };
 };

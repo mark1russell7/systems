@@ -45,8 +45,15 @@ export interface Entry {
   readonly voided: number;
 }
 
-/** This function gives the major and the minor version of a kernel: 6.6.87.2 becomes 6.6. */
-const short = (kernel: string): string => kernel.split(".").slice(0, 2).join(".");
+/**
+ * This function gives the major and the minor version of a kernel: 6.6.87.2 becomes 6.6. A page whose
+ * runs had two kernels names each one: `6.17.0 and 7.0.0` becomes `6.17 and 7.0`.
+ */
+const short = (kernel: string): string =>
+  kernel
+    .split(" and ")
+    .map((each) => each.split(".").slice(0, 2).join("."))
+    .join(" and ");
 
 /** This function counts the decisions of a list of cells. */
 const tallyOf = (decisions: readonly string[]): Tally => ({
