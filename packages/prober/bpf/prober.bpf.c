@@ -262,9 +262,21 @@ static __always_inline int timer_fired(__u64 skaddr, const struct timer_list *t,
 	return 0;
 }
 
+/* Linux 7.0 moved the two timers of TCP (tcp_timer.c, inet_csk_init_xmit_timers). Before it, the
+ * retransmit timer is icsk_retransmit_timer of the connection socket, and the keepalive timer is
+ * sk_timer of the socket. From it, the retransmit timer is tcp_retransmit_timer of the socket (a
+ * union with sk_timer), and the keepalive timer is icsk_keepalive_timer of the connection socket.
+ * These flavors name each field, thus the program compiles against the types of either kernel. On
+ * a kernel without a field, the verifier drops the branch that reads it. */
+struct inet_connection_sock___pre7 { struct timer_list icsk_retransmit_timer; } __attribute__((preserve_access_index));
+struct sock___v7 { struct timer_list tcp_retransmit_timer; } __attribute__((preserve_access_index));
+struct inet_connection_sock___v7 { struct timer_list icsk_keepalive_timer; } __attribute__((preserve_access_index));
+
 SEC("fentry/tcp_keepalive_timer")
 int BPF_PROG(on_keepalive_timer, struct timer_list *t)
 {
+	if (bpf_core_field_exists(struct inet_connection_sock___v7, icsk_keepalive_timer))
+		return timer_fired((__u64)t - bpf_core_field_offset(struct inet_connection_sock___v7, icsk_keepalive_timer), t, TIMER_KEEPALIVE);
 	return timer_fired((__u64)t - bpf_core_field_offset(struct sock, sk_timer), t, TIMER_KEEPALIVE);
 }
 
@@ -272,7 +284,9 @@ int BPF_PROG(on_keepalive_timer, struct timer_list *t)
 SEC("fentry/tcp_write_timer")
 int BPF_PROG(on_write_timer, struct timer_list *t)
 {
-	return timer_fired((__u64)t - bpf_core_field_offset(struct inet_connection_sock, icsk_retransmit_timer),
+	if (bpf_core_field_exists(struct sock___v7, tcp_retransmit_timer))
+		return timer_fired((__u64)t - bpf_core_field_offset(struct sock___v7, tcp_retransmit_timer), t, TIMER_RETRANSMIT);
+	return timer_fired((__u64)t - bpf_core_field_offset(struct inet_connection_sock___pre7, icsk_retransmit_timer),
 			   t, TIMER_RETRANSMIT);
 }
 
