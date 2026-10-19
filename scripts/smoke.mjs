@@ -268,6 +268,17 @@ try {
       await beatClock.advance(2400);
       beat.stop();
       check(dead && heartbeatEntry.detectionTime(1000, 400, 2) === 2400, "service/heartbeat finds a silent peer in 2.4 s");
+      const limiterEntry = await load("@mark1russell7/service/limiter");
+      const count = (value) => ({ value, unit: "count" });
+      const writes = { key: "tenant", policy: { type: "sliding-window", limit: count(1), window: s(60) }, store: { kind: "local" }, evict: { maxKeys: count(10) } };
+      const limiter = limiterEntry.keyedLimiter("writes", writes, limiterEntry.memoryStore({ now: () => 0, after: () => () => {} }));
+      const first = await limiter.take("a");
+      const second = await limiter.take("a");
+      check(
+        first.allowed && !second.allowed && limiterEntry.retryAfterSeconds(second.retryAfter) === 60,
+        "service/limiter refuses the second write of a minute, with Retry-After 60 s",
+      );
+      check(module.LIMITER_RULES.map((rule) => rule.id).join() === "O29,O30", "service gives the rules of a limiter, O29 and O30");
       const clockEntry = await load("@mark1russell7/service/clock");
       check(typeof clockEntry.platformClock({ unref: true }).now() === "number", "service/clock gives the clock of the platform");
       // the edge of a service in Node, with no socket: the server does not listen

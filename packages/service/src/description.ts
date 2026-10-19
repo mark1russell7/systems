@@ -1,4 +1,5 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
+import type { Limiter } from "./limiter/policy.ts";
 import type { Operation } from "./operation.ts";
 import type { ExitSignal, ExitTrigger, MessageShape, ProcessTrigger } from "./process.ts";
 import type { RoutePattern } from "./routes.ts";
@@ -130,6 +131,11 @@ export interface ServiceDescription {
   readonly dependencies: readonly Dependency[];
   readonly controllers: readonly Controller[];
   readonly checks: readonly Check[];
+  /**
+   * These are the keyed limiters of the service, each with its key, its policy, its store and the
+   * bound on its keys. Without a declaration, the service has no limiters.
+   */
+  readonly limiters?: readonly Limiter[] | undefined;
   readonly policies: {
     readonly readiness: Timing;
     readonly liveness: Timing;

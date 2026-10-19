@@ -436,6 +436,23 @@ The kind lab builds its image with its own code. As a `build` source of SYS-17, 
 
 Some entries start a service in a process that they do not own. Examples are a script, a test of an application, and `createPeer` of the client (CLI-7). Before, such an entry wrote its own small runner, or it gave the port of the process of Node. The new port `embeddedProcess()` adds no signal handler, it does not hold the process, and its `exit` only records the code. Thus the full lifecycle runs, and only the owner of the process handles its signals. It comes in service 0.5.2, a PATCH: one new export.
 
+### SYS-28 · A keyed rate limiter in service
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:**
+- **Started:** 2026-10-19
+- **Shipped:**
+- **Links:** [#106](https://github.com/mark1russell7/systems/pull/106), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+No package of systems or of the client had a rate limit for each tenant or principal. Graph limits its writes for each tenant with a sliding window of its own. With SYS-28, `svc.limiter(name, { key, policy, store, evict })` declares a keyed limiter as data, with no defaults, and `describe()` shows it. `keyedLimiter` makes its runtime: a token bucket or a sliding window for each key, on the injected monotonic clock. A refusal gives `retryAfter` as a `Quantity`, and the HTTP edge gives 429 with `Retry-After` in whole seconds.
+
+The store is an interface, and each store decides a take in one atomic step on its own clock. `memoryStore` is the store of one replica. Without a shared store, each replica holds limit / N, and that sum holds only on average. A shared store declares `onStoreFailure`, `open` or `closed`, with no default. The eviction is exact, the count of keys has a bound, and a new key at the cap waits at most the idle span.
+
+`lint()` applies two new rules to each limiter. O29 bounds the longest `Retry-After` by the retry window of the caller, at the cap of keys too. O30 bounds the retry delay of the caller from below. Their identifiers are provisional, because the corpus of the law does not have them yet.
+
+It comes in service 0.5.3, a PATCH: new exports. The machine document and the harness cell come next. The client item CLI-40 builds the admission step of the procedures server on it.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue

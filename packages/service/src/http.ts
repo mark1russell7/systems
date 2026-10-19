@@ -3,7 +3,8 @@
 // intake, its drain and its close. A short list of mounts shares its port among request handlers and
 // upgrade handlers. The probes answer on a port of their own, or on the port of the application.
 // `handle` binds a request to `life.request`, and the stream of the request becomes a status, a
-// Retry-After, a Connection: close and a body, unary or a stream. It is not a framework: it has no
+// Retry-After, a Connection: close and a body, unary or a stream. A take that a keyed limiter refuses
+// becomes 429 with Retry-After in whole seconds (`limitedResponse`). It is not a framework: it has no
 // routing language, no body parser and no middleware.
 
 export type {
@@ -31,4 +32,4 @@ export type {
   ResponsePart,
   StreamFormat,
 } from "./http/outcome.ts";
-export { endRecord, handle, ndjson, outcomeResponse, sse, writeOutcome } from "./http/outcome.ts";
+export { endRecord, handle, limitedResponse, ndjson, outcomeResponse, sse, writeOutcome } from "./http/outcome.ts";
