@@ -352,11 +352,20 @@ const RTO_LAST = 0.2 + 0.05;
 export const POLICY_WINDOW = 40;
 
 /**
+ * This time is the most that the first connect and the start of operation 1 take, from the start of the
+ * client. It holds the TCP connect, the SETTINGS of the server and the first call. It is an assumption
+ * of this catalog. Run 39275010409 measured 26 ms to 42 ms.
+ */
+export const GRPC_CONNECT = 0.1;
+
+/**
  * This function gives the prediction of a border of O26: the PINGs of grpc-js on a stream in flight,
  * against the policy of the server. The keepalive timer starts with operation 1, and each next PING
  * comes keepalive_time after the ACK of the one before. The first PING clears the strikes, because the
  * server wrote a reply since the last PING. Each later PING less than MinTime after the one before is a
  * strike. The strike after max_ping_strikes gives GOAWAY too_many_pings, and the server closes the connection.
+ * The band counts from the start of the client. Each ACK of a PING is data from the server, thus the last
+ * data before the GOAWAY is not a reference that a fault fixes.
  */
 const policyPrediction = (spec: GrpcSpec, driver: KnobValues, slack: number): Prediction => {
   const stream = spec.stream;
@@ -387,9 +396,9 @@ const policyPrediction = (spec: GrpcSpec, driver: KnobValues, slack: number): Pr
     detects: true,
     timer: "too_many_pings",
     errno: "too_many_pings",
-    from: "last-data",
-    low: s(at - GRPC_LATENCY),
-    high: s(at + pings * (slack + GRPC_LATENCY) + slack),
+    from: "client-start",
+    low: s(at),
+    high: s(at + GRPC_CONNECT + pings * (slack + GRPC_LATENCY) + slack),
     driver: { socket: "connection", ends },
   };
 };

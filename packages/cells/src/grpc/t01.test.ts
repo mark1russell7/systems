@@ -160,7 +160,7 @@ describe("the gRPC catalog of T01", () => {
     expect(cell("T01.border-off.231").prediction).toMatchObject({ detects: false });
     for (const plan of ["T01.border-off.230", "T01.border-off.232"]) {
       // the first PING clears the strikes, and the third strike is the fourth PING: 4 × 4 s
-      expect(cell(plan).prediction, plan).toMatchObject({ detects: true, errno: "too_many_pings", from: "last-data", driver: { ends: { ev: "error", name: "errno" } } });
+      expect(cell(plan).prediction, plan).toMatchObject({ detects: true, errno: "too_many_pings", from: "client-start", driver: { ends: { ev: "error", name: "errno" } } });
       expect(Math.round(lowOf(plan)), plan).toBe(16);
       expect(cell(plan).driverOptions, plan).toEqual({ "grpc.keepalive_time_ms": 4000 });
     }
