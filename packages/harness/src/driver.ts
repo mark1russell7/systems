@@ -354,8 +354,9 @@ export const measureDriver = (cell: Cell, run: Run): Measured => {
     // unless the prediction says when the router forgets the flow of the socket of the driver
     const own = socketAt(events, driver.socket, before)?.local;
     if (expected !== undefined && own === undefined) findings.push(`the client opened no ${driver.socket} socket before the fault`);
+    const middlebox: NonNullable<Run["middlebox"]> = run.middlebox ?? [];
     for (const socket of socketsOf(events)) {
-      const forgot = (run.middlebox ?? []).find(
+      const forgot = middlebox.find(
         (line) =>
           line.ev === "ct" &&
           line["type"] === "DESTROY" &&

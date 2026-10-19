@@ -251,7 +251,7 @@ describe("a band of a driver with more than one socket", () => {
       { probe: { mode: "idle", keepalive: false, driver: { name: "grpc" } } },
     );
     const destroy = (seconds: number, local: string) => ({ ev: "ct", t: at(seconds), type: "DESTROY", state: "CLOSE", orig: `${local}>10.0.0.2:27017`, hop: "nat" });
-    const idle = (middlebox: Run["middlebox"]) => run({ events: run().events.slice(0, 8), kernel: [rx(-11.69, POOL, 3), { ev: "clock", mono: at(70), lost: 0 }], middlebox });
+    const idle = (middlebox: NonNullable<Run["middlebox"]>) => run({ events: run().events.slice(0, 8), kernel: [rx(-11.69, POOL, 3), { ev: "clock", mono: at(70), lost: 0 }], middlebox });
     // the last segment of the pool is at -11.69 s: a forget at 29 s is 40.69 s after it
     expect(measure(forgets, idle([destroy(29, POOL)]))).toMatchObject({ outcome: { kind: "silent" }, void: null, finding: null });
     expect(measure(forgets, idle([destroy(31, POOL)])).finding).toMatch(/^a router forgot the flow of the pool socket 42\.69 s after its last segment, outside \[/);
