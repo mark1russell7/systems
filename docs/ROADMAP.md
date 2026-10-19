@@ -539,11 +539,11 @@ Each stage band of T12 includes the error of the stamps of the observer: 0.705 m
 
 ### PG · PostgreSQL
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** S1
 - **Started:** 2026-10-18
-- **Shipped:**
+- **Shipped:** 2026-10-19
 - **Links:** [#62](https://github.com/mark1russell7/systems/pull/62), [#64](https://github.com/mark1russell7/systems/pull/64), [#68](https://github.com/mark1russell7/systems/pull/68), [#70](https://github.com/mark1russell7/systems/pull/70), [#76](https://github.com/mark1russell7/systems/pull/76), [#77](https://github.com/mark1russell7/systems/pull/77), [#78](https://github.com/mark1russell7/systems/pull/78), [#79](https://github.com/mark1russell7/systems/pull/79), [#80](https://github.com/mark1russell7/systems/pull/80), [#81](https://github.com/mark1russell7/systems/pull/81), [#82](https://github.com/mark1russell7/systems/pull/82), [#83](https://github.com/mark1russell7/systems/pull/83), [#84](https://github.com/mark1russell7/systems/pull/84), [#85](https://github.com/mark1russell7/systems/pull/85), [#86](https://github.com/mark1russell7/systems/pull/86), [#90](https://github.com/mark1russell7/systems/pull/90), [#91](https://github.com/mark1russell7/systems/pull/91), [#92](https://github.com/mark1russell7/systems/pull/92), [#93](https://github.com/mark1russell7/systems/pull/93), [#94](https://github.com/mark1russell7/systems/pull/94), [#95](https://github.com/mark1russell7/systems/pull/95), [#96](https://github.com/mark1russell7/systems/pull/96), [#97](https://github.com/mark1russell7/systems/pull/97)
 
 The next system of the S1 order, with its clients and PgBouncer. At its defaults and its borders, the plan of R3 has 329 cells with PostgreSQL. HikariCP with pgjdbc is the client of 160 of them, Npgsql of 47 and node-postgres of 36. T10, through a pooler, has 132 of them.
@@ -663,17 +663,29 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
   - T10.defaults.15 and .8: SIGHUP to PgBouncer and to Pgpool-II while the server holds the query 5 s. The documents take the reload with no transition, thus the reply comes as with no reload (machines 0.3.13). The signal came 232 to 236 ms after the query, and the reply came at 5.006 s and at 5.008 s.
   - T10.defaults.7: PAUSE on the console of PgBouncer, then a query of node-postgres. The query waits in the queue, and query_wait_timeout ends it with FATAL 08P01 at 120.044 s.
   - The injector sends the query of the console in the simple query protocol of PostgreSQL, and it stamps the query and its ReadyForQuery. After the run, RESUME lifts the PAUSE.
+- The page of the PostgreSQL results gives the 75 cells of run 39182922975 at main, and each one holds (#98). Each cell of the plan over these systems has a cell, an alias or a reason to wait. A cell that waits needs a feature that the harness does not have yet. Examples are several clients, a fault timed to a reply, and two nodes of Supavisor.
 
 ### RABBIT · RabbitMQ
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** PG
-- **Started:**
+- **Started:** 2026-10-19
 - **Shipped:**
 - **Links:**
 
-The heartbeats of AMQP and the timers of the broker.
+The heartbeats of AMQP and the timers of the broker. R3 puts 54 cells on amqplib 2.2 and RabbitMQ 4.3. 17 are in T01: 13 at the defaults, and the borders of O03 and O17. 13 are in the array stage of T01, and 24 are in T11.
+
+- The facts from the sources, amqplib 2.2.0 and RabbitMQ 4.3.6:
+  - amqplib sets TCP_NODELAY only when the caller asks, thus Nagle is on at the defaults. It sets no keepalive and no connect timeout.
+  - The heartbeat of the server, 60 s, is the heartbeat of the client when the client gives none. Each side sends a heartbeat frame each 30 s when it sent nothing. Each side checks for data each 60 s, and it ends the connection after two checks with no data. That end comes 2 to 3 intervals after the last data.
+  - amqplib ends its connection with a FIN. RabbitMQ closes each socket with linger 0, thus its end of a connection is a reset.
+  - RabbitMQ locks ranch 2.3.0, which gives each client socket a send timeout of 30 s that closes it.
+- The steps:
+  - The machine documents of amqplib and of a connection of RabbitMQ, each fact from the source at its tag.
+  - A client of amqplib in the harness, and RabbitMQ as a target, pinned by digest.
+  - The T01 catalog at the defaults, with the borders of O03 and O17. Then the array stage, and T11.
+  - The page of the results on the site.
 
 ### H2 · HTTP/2 and gRPC
 
