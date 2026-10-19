@@ -8,6 +8,7 @@ import * as clockEntry from "./clock.ts";
 import * as heartbeatEntry from "./heartbeat.ts";
 import * as httpEntry from "./http.ts";
 import * as root from "./index.ts";
+import * as limiterEntry from "./limiter.ts";
 import * as redisEntry from "./redis.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -74,7 +75,7 @@ const reachAll = (entry: string, from = here): string[] => {
 
 describe("zod is an optional peer: no entry of the service loads it (SYS-12)", () => {
   it("reaches no zod from any entry, through quantity and the replay of the algebra too", () => {
-    for (const entry of ["index.ts", "testing.ts", "redis.ts", "clock.ts", "heartbeat.ts", "backoff.ts"])
+    for (const entry of ["index.ts", "testing.ts", "redis.ts", "clock.ts", "heartbeat.ts", "backoff.ts", "limiter.ts"])
       expect(reachAll(entry), entry).not.toContain("zod");
     // the root loads no other package and no node: module at run time
     expect(reachAll("index.ts")).toEqual([]);
@@ -130,6 +131,7 @@ describe("the http entry: Node only, on node:http and node:net", () => {
       "endRecord",
       "handle",
       "httpTransport",
+      "limitedResponse",
       "ndjson",
       "outcomeResponse",
       "pathOf",
@@ -140,6 +142,37 @@ describe("the http entry: Node only, on node:http and node:net", () => {
       "writeOutcome",
     ]);
     for (const name of Object.keys(httpEntry)) expect(root, name).not.toHaveProperty(name);
+  });
+});
+
+describe("the limiter entry: a client in a browser can import it (SYS-28)", () => {
+  it("loads only quantity: no node: module and no zod", () => {
+    expect(reach("limiter.ts").packages).toEqual(["@mark1russell7/quantity"]);
+    expect(reachAll("limiter.ts")).toEqual([]);
+  });
+
+  it("gives its functions, and the root gives them too", () => {
+    expect(Object.keys(limiterEntry).sort()).toEqual([
+      "decide",
+      "freeAt",
+      "idleSpan",
+      "keyedLimiter",
+      "limitRule",
+      "limiterProblems",
+      "longestRetryAfter",
+      "memoryStore",
+      "retryAfterSeconds",
+    ]);
+    for (const name of Object.keys(limiterEntry)) expect(root, name).toHaveProperty(name);
+  });
+
+  it("is in the manifest, for the source and for npm", () => {
+    const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
+      exports: Record<string, string>;
+      publishConfig: { exports: Record<string, { types: string; default: string }> };
+    };
+    expect(manifest.exports["./limiter"]).toBe("./src/limiter.ts");
+    expect(manifest.publishConfig.exports["./limiter"]).toEqual({ types: "./build/limiter.d.ts", default: "./build/limiter.js" });
   });
 });
 

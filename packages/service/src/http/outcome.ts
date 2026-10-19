@@ -1,6 +1,8 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import type { Refused } from "../limiter/policy.ts";
+import { retryAfterSeconds } from "../limiter/policy.ts";
 import type { RequestEnd, RequestEvent, RequestOptions, RequestStream, RequestWork } from "../requests.ts";
 import type { MountContext, RequestHandler } from "./transport.ts";
 import { pathOf } from "./transport.ts";
@@ -150,6 +152,20 @@ export const outcomeResponse = <T>(items: readonly T[], end: RequestEnd, options
       options,
     );
   return ruled(response, options.retryAfter, options.keepAlive);
+};
+
+/**
+ * This function gives the response of a take that a keyed limiter refused: 429 (RFC 6585), with
+ * `Retry-After` in whole seconds, rounded up (RFC 9110). The body tells the cause, `limit` or
+ * `cap`, and the same whole seconds. The work did not start, thus the caller can send it again.
+ */
+export const limitedResponse = (refused: Refused): OutcomeResponse => {
+  const seconds = retryAfterSeconds(refused.retryAfter);
+  return {
+    status: 429,
+    headers: { "content-type": JSON_TYPE, "retry-after": String(seconds) },
+    body: JSON.stringify({ end: "refused", delivered: 0, retryable: true, cause: `the limiter refused the take: ${refused.cause}`, retryAfter: seconds }),
+  };
 };
 
 /** This function writes a whole response of `node:http`. A response whose headers went gets no second status: it is destroyed. */

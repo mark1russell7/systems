@@ -3,6 +3,8 @@ import { convertExact, convertible, rationals as r } from "@mark1russell7/quanti
 import type { Dependency, ServiceDescription, Transport } from "./description.ts";
 import type { Binding, Bound, Evaluated, Rule, Verdict } from "./law.ts";
 import { evaluate, symbolsOf, verdictOf } from "./law.ts";
+import type { Limiter } from "./limiter/policy.ts";
+import { idleSpan, longestRetryAfter, retryAfterSeconds } from "./limiter/policy.ts";
 import { failSpan } from "./timing.ts";
 
 /**
@@ -10,9 +12,10 @@ import { failSpan } from "./timing.ts";
  * service, from its primitives: the polls of its checks, the windows of its policies, its drain.
  * The scenario binds the symbols of the platform (preStop, grace, the probes of the kubelet,
  * propagation) and of each dependency (its failover time, the idle close of its server). Thus the
- * service gives the inequalities, and the scenario gives the values. A rule about a client
- * applies one time for each dependency. A rule about a consumer applies one time for each consumer
- * and each worker.
+ * service gives the inequalities, and the scenario gives the values.
+ *
+ * A rule about a client applies one time for each dependency. A rule about a consumer applies one
+ * time for each consumer and each worker. A rule about a limiter applies one time for each limiter.
  */
 
 /** A scenario gives the values of the platform and of each dependency, by the `symbol@hop` of the law. */
@@ -29,6 +32,11 @@ export interface Scenario {
   readonly dependencies?: Readonly<Record<string, Readonly<Record<string, Extent>>>> | undefined;
   /** These are the values of the source of each consumer and worker, by its name and by the `symbol@hop` of the law: lease_duration@broker. */
   readonly transports?: Readonly<Record<string, Readonly<Record<string, Extent>>>> | undefined;
+  /**
+   * These are the values of the callers of each limiter, by its name and by the `symbol@hop` of the
+   * law: client_retry_window@caller, retry_delay@caller. A symbol without a hop binds at `caller`.
+   */
+  readonly limiters?: Readonly<Record<string, Readonly<Record<string, Extent>>>> | undefined;
 }
 
 /** A finding is the verdict of one rule for one scope: the service, or the client of a dependency. */
@@ -62,6 +70,45 @@ export const SERVICE_RULES: readonly string[] = [
   "O22",
   "O23",
   "O27",
+  "O29",
+  "O30",
+];
+
+/**
+ * These are the two rules of the law for a keyed limiter, as data. The caller of `lint()` gives
+ * them, as it gives each other rule. Each one applies one time for each limiter.
+ * - O29: the longest `Retry-After` of a limiter is at most the retry window of its caller.
+ *   Otherwise the caller stops before the limit lets its call in, and a refusal becomes a failure.
+ * - O30: the least delay of a caller before it sends a refused call again is at least the longest
+ *   `Retry-After`. Otherwise a caller that does not read the header sends again too early, and the
+ *   limiter refuses each early call again.
+ *
+ * The corpus of the law in jarvis (R3, track B) has 28 rules, O01 to O28. It does not have these two
+ * rules yet, thus they take the next two identifiers.
+ */
+export const LIMITER_RULES: readonly Rule[] = [
+  {
+    id: "O29",
+    rule: "the longest Retry-After of a limiter is at most the retry window of its caller",
+    window: "the caller stops before the limit lets its call in, thus a refusal becomes a failure",
+    expr: {
+      lhs: { terms: [{ knob: "retry_after", coef: 1, at: "limiter" }] },
+      op: "<=",
+      rhs: { terms: [{ knob: "client_retry_window", coef: 1, at: "caller" }] },
+      margin: 0,
+    },
+  },
+  {
+    id: "O30",
+    rule: "the least delay of a caller before it sends a refused call again is at least the longest Retry-After of the limiter",
+    window: "a caller that does not read Retry-After sends again too early, and the limiter refuses each early call again",
+    expr: {
+      lhs: { terms: [{ knob: "retry_delay", coef: 1, at: "caller" }] },
+      op: ">=",
+      rhs: { terms: [{ knob: "retry_after", coef: 1, at: "limiter" }] },
+      margin: 0,
+    },
+  },
 ];
 
 /** This function gives a finite amount in seconds. */
@@ -195,8 +242,26 @@ const transportBindings = (transport: Transport, hop: string, scenario: Scenario
   return bind;
 };
 
+/**
+ * This function gives the symbols of a limiter, and the values of the scenario for its callers.
+ * - `retry_after@limiter` is the longest `Retry-After` of a refusal by the policy, in whole seconds.
+ *   It is one interval of the bucket, or one window, as the HTTP edge sends it.
+ * - `retry_after_at_cap@limiter` is the longest `Retry-After` of a new key at the cap of keys. It is
+ *   the idle span, `burst / rate` or one window.
+ */
+const limiterBindings = (limiter: Limiter, scenario: Scenario): Record<string, Bound> => {
+  const bind: Record<string, Bound> = {
+    "retry_after@limiter": retryAfterSeconds(longestRetryAfter(limiter.policy)),
+    "retry_after_at_cap@limiter": retryAfterSeconds(idleSpan(limiter.policy)),
+  };
+  for (const [symbol, amount] of Object.entries(scenario.limiters?.[limiter.name] ?? {}))
+    bind[symbol.includes("@") ? symbol : `${symbol}@caller`] = boundOf(amount);
+  return bind;
+};
+
 const SCOPED = /@(client|dependency|server)$/;
 const TRANSPORT_SCOPED = /@consumer$/;
+const LIMITER_SCOPED = /@(limiter|caller)$/;
 
 /** This identifier is the rule of the findings about a field that the declaration does not give. */
 export const DECLARATION_RULE = "declaration";
@@ -223,8 +288,8 @@ const declarationFindings = (svc: ServiceDescription): Finding[] =>
 
 /**
  * This function applies each service rule to a declaration and a scenario. A rule applies one time
- * for the service, for each client, or for each consumer and worker. The function also gives a
- * finding for each necessary field that the description does not give (`DECLARATION_RULE`).
+ * for the service, for each client, for each consumer and worker, or for each limiter. The function
+ * also gives a finding for each necessary field that the description does not give (`DECLARATION_RULE`).
  */
 export const lint = (
   svc: ServiceDescription,
@@ -236,7 +301,9 @@ export const lint = (
   for (const rule of rules) {
     if (!SERVICE_RULES.includes(rule.id)) continue;
     const symbols = symbolsOf(rule);
-    const scopes: Array<[string, Binding]> = symbols.some((symbol) => TRANSPORT_SCOPED.test(symbol))
+    const scopes: Array<[string, Binding]> = symbols.some((symbol) => LIMITER_SCOPED.test(symbol))
+      ? (svc.limiters ?? []).map((limiter): [string, Binding] => [limiter.name, { ...service, ...limiterBindings(limiter, scenario) }])
+      : symbols.some((symbol) => TRANSPORT_SCOPED.test(symbol))
       ? svc.transports.flatMap((transport): Array<[string, Binding]> => {
           const hop = TRANSPORT_HOPS[transport.kind];
           return hop === null ? [] : [[transport.name, { ...service, ...transportBindings(transport, hop, scenario) }]];
