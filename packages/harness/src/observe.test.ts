@@ -257,6 +257,15 @@ describe("a run measured against its cell, from the kernel's own records", () =>
     ];
     const read = measure(heartbeat, run([...client], kernel, { t0: T + 45e9, t1: T + 45.004e9 }));
     expect(read).toMatchObject({ outcome: { kind: "closed" }, elapsed: s(150), void: null, finding: null });
+    // the run lifts a freeze after the outcome: the broker thaws, sees the FIN, and resets the socket
+    // (linger 0). That reset comes after the own close of the client, thus it is not the detection
+    const thawed = [...kernel, k("rst_rx", T + 170_033_000_000), k("error", T + 170_033_000_000, { err: 104 })];
+    expect(measure(heartbeat, run([...client], thawed, { t0: T + 45e9, t1: T + 45.004e9 }))).toMatchObject({
+      outcome: { kind: "closed" },
+      elapsed: s(150),
+      void: null,
+      finding: null,
+    });
   });
 
   it("calls a run silent when nothing ended the wait, and counts the ACKs a frozen kernel sent", () => {

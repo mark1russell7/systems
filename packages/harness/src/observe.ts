@@ -578,7 +578,7 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
   // the run stops the client at its end: what the own close of the client draws after its done line is
   // not a detection. A broker with linger 0, as RabbitMQ, resets each connection that its client closes
   const stop = events.find((event) => event.ev === "done")?.t ?? Number.POSITIVE_INFINITY;
-  const reported = socket.find((record) => record.ev === "error" && (record.err ?? 0) !== 0 && record.mono < stop);
+  const anError = socket.find((record) => record.ev === "error" && (record.err ?? 0) !== 0 && record.mono < stop);
   const seen = remote
     ? undefined
     : events.find((event) => (event.ev === "error" || event.ev === "eof") && event.t < stop);
@@ -592,6 +592,9 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     (cell.prediction.detects === null && cell.prediction.ends === "own-close")
       ? socket.find((record) => record.ev === "state" && oldState(record) === 1 && newState(record) === 4 && record.mono < stop)
       : undefined;
+  // an error after that own close is what the close draws, not a detection. The run lifts its fault
+  // after the outcome: a frozen broker then thaws, sees the FIN, and resets the socket (linger 0)
+  const reported = anError !== undefined && own !== undefined && own.mono < anError.mono ? undefined : anError;
   // a drop by the program of the observer on its own timer: its `drop` line, at the kernel's stamp
   // of its close frame or its close. It counts when it comes before each report of the kernel
   const lines = programLines(cell, run);
