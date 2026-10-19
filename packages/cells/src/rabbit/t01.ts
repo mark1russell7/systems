@@ -300,10 +300,11 @@ export const T01_AMQP_BORDER_SPECS: readonly AmqpSpec[] = [
     ["T01.border-off.161", 40, "inside"],
     ["T01.border-off.162", 80, "outside"],
   ] as const).map(
-    // amqplib tunes the smaller heartbeat of the two: the broker gets the same one, thus 80 s is 80 s and not 60 s
+    // amqplib tunes the smaller heartbeat of the two: the broker gets the same one, thus 80 s is 80 s and not 60 s.
+    // The broker sends a frame each half heartbeat, thus the border is the heartbeat of twice the idle timeout
     ([plan, heartbeat, side]): AmqpSpec => ({
       plan,
-      name: `middlebox-forget, idle, heartbeat ${heartbeat} s, at the broker too: ${side} O03 against a ${RABBIT_ROUTER.form} router at ${RABBIT_ROUTER.idle} s`,
+      name: `middlebox-forget, idle, heartbeat ${heartbeat} s, at the broker too: ${side} O03 against a ${RABBIT_ROUTER.form} router at ${RABBIT_ROUTER.idle} s, thus a heartbeat of ${2 * RABBIT_ROUTER.idle} s`,
       fault: "middlebox-forget",
       mode: "idle",
       router: RABBIT_ROUTER,
