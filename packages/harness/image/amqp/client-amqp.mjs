@@ -6,11 +6,13 @@
 // (process.hrtime, which libuv reads from it). The prober stamps the records of the kernel on the
 // same clock, and the injector stamps each fault on it.
 //
-// The operations: operation 1 connects, opens the channel and declares the queue `harness`
+// The operations: operation 1 connects, opens the channel and declares a queue that the broker names
 // (assertQueue). Each later operation declares that queue again, passively (checkQueue). Each is an
 // RPC of the channel: the broker answers at once with declare-ok, and amqplib has no timer on it. The
 // queue is exclusive, and it goes with the connection. RabbitMQ 4.3.6 refuses a transient queue that
 // is not exclusive: transient_nonexcl_queues is denied by default (rabbit_amqqueue.erl:113-119, :228-241).
+// The broker names it, because the exclusive queue of the client before can still exist: 405
+// RESOURCE_LOCKED.
 //
 // The options (--options JSON): `heartbeat` in seconds goes in the URL. Without it, amqplib takes
 // the heartbeat that the broker proposes. The others are the socket options of amqplib: noDelay,
@@ -73,7 +75,6 @@ const bootId = () => {
 emit("start", { boot_id: bootId(), client: "amqp", driver: versionOf("amqplib"), node: process.versions.node, mode, options });
 
 const url = `amqp://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${heartbeat === undefined ? "" : `?heartbeat=${heartbeat}`}`;
-const QUEUE = "harness";
 
 /** This function gives the error of amqplib as data: its name, its code and its message. */
 const failure = (error) => (error === undefined || error === null ? null : { name: error.name, code: error.code ?? null, message: error.message });
@@ -83,6 +84,8 @@ const errnoOf = (error) => error?.code ?? error?.message ?? null;
 // ---- the connection and its channel
 let connection = null;
 let channel = null;
+// the queue of the client: the broker names it at operation 1
+let queue = null;
 // the first error of the connection: the cause of the failure of an RPC in flight
 let cause = null;
 const open = async () => {
@@ -142,9 +145,9 @@ const operate = async (n) => {
   try {
     if (n === 1) {
       await open();
-      await channel.assertQueue(QUEUE, { durable: false, exclusive: true });
+      ({ queue } = await channel.assertQueue("", { durable: false, exclusive: true }));
     } else {
-      await channel.checkQueue(QUEUE);
+      await channel.checkQueue(queue);
     }
     emit("ack", { n });
     return null;
