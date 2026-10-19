@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { AMQPLIB, RABBITMQ_CONNECTION } from "@mark1russell7/machines";
 import { RUNS } from "../catalog.ts";
-import { RABBIT_TARGET, T01_AMQP, T01_AMQP_SPECS, T01_AMQP_WAITING } from "./t01.ts";
+import { T01_PG } from "../pg/t01.ts";
+import { RABBIT_LATENCY, RABBIT_TARGET, T01_AMQP, T01_AMQP_SPECS, T01_AMQP_WAITING } from "./t01.ts";
 
 const cell = (plan: string) => {
   const found = T01_AMQP.find((each) => each.name.startsWith(`${plan} amqplib-2.2 to rabbitmq-4.3, `));
@@ -53,7 +54,11 @@ describe("the RabbitMQ catalog of T01", () => {
   it("gives up in the kernel on an unreachable host, and recovers a stall as Linux TCP does", () => {
     expect(cell("T01.defaults.137").prediction).toMatchObject({ detects: true, timer: "retrans_giveup", errno: "EHOSTUNREACH", from: "first-retransmission" });
     const stall = cell("T01.defaults.139").prediction;
-    expect(stall.detects === false && stall.recovers !== undefined).toBe(true);
+    // the first segment back can be the reply of the broker: one step of the BEAM later than the stall of pg
+    const pg = T01_PG.find((each) => each.name.startsWith("T01.defaults.127 "))?.prediction;
+    if (stall.detects !== false || stall.recovers === undefined || pg?.detects !== false || pg.recovers === undefined) throw new Error("two stalls");
+    expect(stall.recovers.low).toEqual(pg.recovers.low);
+    expect(stall.recovers.high.value).toBeCloseTo(pg.recovers.high.value + RABBIT_LATENCY, 9);
   });
 
   it("keeps an idle connection with no fault: the broker sends a heartbeat frame each 30 s", () => {

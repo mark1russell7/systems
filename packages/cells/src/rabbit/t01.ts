@@ -45,6 +45,9 @@ export const AMQP_DRIVER = "amqplib 2.2.0 on Node 24.21.0";
 /** This range is the first round trip that each band of a reset assumes: 0 to 2 ms on the direct pair. */
 export const RABBIT_RTT_MS = 2;
 
+/** This time is the most that the broker takes to answer an RPC that reaches it: one round trip, and one step of the BEAM. */
+export const RABBIT_LATENCY: number = RABBIT_RTT_MS / 1000 + (RABBITMQ_CONNECTION.knobs["slack"]?.default ?? 0);
+
 /** A spec is one cell of the catalog: its cell of the plan, its fault and the mode of the client. It also gives the sysctls of the namespace. */
 export interface AmqpSpec {
   readonly plan: string;
@@ -154,8 +157,14 @@ const brokerKeeps = (plan: string, driver: KnobValues): void => {
 
 /** This function gives the prediction of a cell of the catalog. */
 export const amqpPrediction = (spec: AmqpSpec): Prediction => {
-  if (spec.fault === "stall")
-    return predict({ name: spec.name, fault: "stall", manifestation: "blackhole", observer: "client", mode: "inflight", stall: spec.stall!, linux: spec.linux ?? {} });
+  if (spec.fault === "stall") {
+    const stalled = predict({ name: spec.name, fault: "stall", manifestation: "blackhole", observer: "client", mode: "inflight", stall: spec.stall!, linux: spec.linux ?? {} });
+    // the first segment back can be the reply of the broker to the RPC that got through: a socket in
+    // pingpong mode delays its ACK (tcp_in_quickack_mode, Linux). The reply comes one step of the BEAM later
+    if (stalled.detects !== false || stalled.recovers === undefined) return stalled;
+    const high = seconds(stalled.recovers.high, "the latest return") + RABBIT_LATENCY;
+    return { ...stalled, recovers: { ...stalled.recovers, high: s(high) } };
+  }
   const rtt = { low: { value: 0, unit: "ms" }, high: { value: RABBIT_RTT_MS, unit: "ms" } } as const;
   const driver = given(amqpValues(spec.options));
   const linux = given(linuxValues(spec.linux));
