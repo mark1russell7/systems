@@ -116,7 +116,7 @@ A cluster (`Cluster`, `Cell.cluster`) is a cluster of RabbitMQ nodes with one qu
 
 Each run starts from a queue that converged (`rabbitmq-queues quorum_status`): one leader, and a follower on each other node in its term at its commit index. The run then purges the queue. After the run, the queue converges again, and the admin reads the sequence numbers that the queue holds.
 
-A step-down (`step-down`) moves the leadership to the first follower (`rabbitmq-queues transfer_leadership`). A drain (`drain`) puts the node in maintenance mode (`rabbitmq-upgrade drain`), and the run revives the node after it. Each of them starts an Erlang VM for the tools first. Thus its stamp is the NOTICE of the old leader that gives the leadership away (`GIVES_AWAY`), and not the command.
+A step-down (`step-down`) moves the leadership to the first follower (`rabbitmq-queues transfer_leadership`). A drain (`drain`) puts the node in maintenance mode (`rabbitmq-upgrade drain`), and the run revives the node after it. Each of them starts an Erlang VM for the tools first. Thus its stamp is a line of the log, and not the command. For a step-down it is the NOTICE of the old leader that gives the leadership away (`GIVES_AWAY`). A drain stops the member of the leader, thus its stamp is the first follower that sees its monitor of the leader go down (`MONITOR_DOWN`).
 
 ## The clients and the agents
 

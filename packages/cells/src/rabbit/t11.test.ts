@@ -13,6 +13,7 @@ import {
   firstConfirm,
   silentClient,
   silentLeader,
+  stoppedLeader,
   transfer,
 } from "./t11.ts";
 
@@ -71,15 +72,22 @@ describe("the RabbitMQ catalog of T11", () => {
     expect(firstConfirm(leader).hi).toBeCloseTo(leader.hi + 0.05 + 0.06 + 0.05, 9);
   });
 
-  it("moves the leadership in three rounds after the NOTICE of the old leader, for a step-down and for a drain", () => {
+  it("moves the leadership in three rounds after the NOTICE of the old leader at a step-down", () => {
     expect(transfer()).toEqual({ lo: 0, hi: 3 * 0.012 });
-    for (const plan of ["T11.defaults.7", "T11.defaults.79"]) {
-      const p = cell(plan).prediction;
-      if (p.detects !== true) throw new Error("a band");
-      expect(p.high.value, plan).toBeCloseTo(firstConfirm(transfer()).hi, 9);
-      expect(p.group?.failover, plan).toBe(true);
-    }
-    expect(cell("T11.defaults.79").fault).toBe("drain");
+    const p = cell("T11.defaults.7").prediction;
+    if (p.detects !== true) throw new Error("a band");
+    expect(p.high.value).toBeCloseTo(firstConfirm(transfer()).hi, 9);
+    expect(p.group?.failover).toBe(true);
+  });
+
+  it("elects after the really short timeout at a drain, which stops the member of the leader", () => {
+    // rand(broadcast_time) of 1 ms to 100 ms, its slack, and two rounds, after the INFO of the monitor of a follower
+    expect(stoppedLeader().lo).toBeCloseTo(0.001, 9);
+    expect(stoppedLeader().hi).toBeCloseTo(0.001 + 0.109 + 0.024, 9);
+    const drain = cell("T11.defaults.79");
+    expect(drain.fault).toBe("drain");
+    if (drain.prediction.detects !== true) throw new Error("a band");
+    expect(drain.prediction.high.value).toBeCloseTo(firstConfirm(stoppedLeader()).hi, 9);
   });
 
   it("ends the connection of a client on the silent node only at the heartbeat of amqplib, then connects to the next node", () => {

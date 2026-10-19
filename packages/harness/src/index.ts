@@ -166,6 +166,7 @@ export {
 export type { ClusterLab, NodeLine, StatusRow, WallStamp } from "./cluster.ts";
 export {
   GIVES_AWAY,
+  MONITOR_DOWN,
   clusterArgs,
   clusterConf,
   clusterCutOf,

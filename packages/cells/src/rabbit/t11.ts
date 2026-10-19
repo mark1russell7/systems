@@ -122,11 +122,12 @@ export const PARTS = (() => {
   const fromFault = span(detect.lo - ms(ATEN, "heartbeat_interval"), detect.hi);
   const long = spanOf(RA_MEMBER, "election_long", given(RA));
   const short = spanOf(RA_MEMBER, "election_short", given(RA));
+  const reallyShort = spanOf(RA_MEMBER, "election_really_short", given(RA));
   // one round of requests and answers between the members, each with one step of the BEAM
   const round = span(0, RABBIT_RTT_MS / 1000 + ms(RA, "slack"));
   const commit = ms(RA, "commit_work");
   const slack = (AMQPLIB.knobs["slack"]?.default ?? 0) * (AMQPLIB.knobs["slack"]?.unit === "ms" ? 1 / 1000 : 1);
-  return { detect, fromFault, long, short, round, commit, gap: span(INTERVAL, INTERVAL + slack) };
+  return { detect, fromFault, long, short, reallyShort, round, commit, gap: span(INTERVAL, INTERVAL + slack) };
 })();
 
 /**
@@ -151,6 +152,17 @@ export const silentLeader = (): Span => {
 export const transfer = (): Span => {
   const { round } = PARTS;
   return span(0, 3 * round.hi);
+};
+
+/**
+ * This function gives the band of the new leader after a drain. It counts from the INFO of the first
+ * follower that sees its monitor of the leader go down. A drain stops the member of the leader
+ * (rabbit_quorum_queue.erl:2787-2838). The monitor goes down with a reason that is not noconnection,
+ * thus the really short timeout follows, then the two rounds.
+ */
+export const stoppedLeader = (): Span => {
+  const { reallyShort, round } = PARTS;
+  return plus(reallyShort, span(0, 2 * round.hi));
 };
 
 /**
@@ -193,7 +205,7 @@ export const clusterPrediction = (spec: ClusterSpec): Prediction => {
     const group: GroupPrediction = { lands: "same", failover: false, stages: [{ stage: "first-write", low: s(first.lo), high: s(first.hi) }], stamps: NODE_STAMPS, quiet: ["elected"] };
     return { detects: true, timer: "the next confirm, with no new leader", errno: "OK", from: "fault", low: s(first.lo), high: s(first.hi), group };
   }
-  const elected = spec.fault === "step-down" || spec.fault === "drain" ? transfer() : silentLeader();
+  const elected = spec.fault === "step-down" ? transfer() : spec.fault === "drain" ? stoppedLeader() : silentLeader();
   // the client on the silent node: its own heartbeat ends its connection long after the new leader
   const first = spec.clientAt === "leader" ? silentClient() : firstConfirm(elected);
   const group: GroupPrediction = { lands: "same", failover: true, stages: stages(elected, first), stamps: NODE_STAMPS };

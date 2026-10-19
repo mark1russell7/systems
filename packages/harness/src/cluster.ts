@@ -506,6 +506,8 @@ export const clusterHostsOf = (cell: Cell, members: Readonly<Record<string, RunP
 
 /** This form is the NOTICE of a leader of the queue that starts to give its leadership away: to await_condition, for a transfer. */
 export const GIVES_AWAY: RegExp = /: leader -> await_condition in term/;
+/** This form is the INFO of a follower whose monitor of the leader goes down (ra_server_proc.erl:871). A drain stops the leader so. */
+export const MONITOR_DOWN: RegExp = /Leader monitor down/;
 
 /** This function gives the arguments of the client of a cluster cell: its hosts, the queue, and the stream of publishes. */
 export const clusterArgs = (cell: Cell, members: Readonly<Record<string, RunPart>>, leader: string): string[] => [
@@ -544,16 +546,17 @@ export const monotonicOf = (stamp: WallStamp, events: readonly ProbeEvent[]): St
 };
 
 /**
- * This function gives the instant of a transfer of the leadership, as the stamps of a fault. A command
- * of the tools starts an Erlang VM first, thus its stamps hold more than the transfer. The NOTICE of the
- * old leader marks the start of the transfer (ra_server_proc.erl:1336-1345), and its time on the
- * monotonic clock is the stamp. Without that line, the stamps of the command are the stamps.
+ * This function gives the instant of a change of the leader that a command of the tools starts, as the
+ * stamps of a fault. The command starts an Erlang VM first, thus its stamps hold more than the change.
+ * A line of the log marks the start of the change. For a step-down it is the NOTICE of the old leader
+ * (ra_server_proc.erl:1336-1345), and for a drain the INFO of a follower. Its time on the monotonic
+ * clock is the stamp. Without that line, the stamps of the command are the stamps.
  */
-const givenAway = async (lab: ClusterLab, client: GroupClient, logFrom: number, leader: string, wall: WallStamp): Promise<Stamp | null> => {
+const stampOf = async (lab: ClusterLab, client: GroupClient, logFrom: number, marks: (line: NodeLine) => boolean, wall: WallStamp): Promise<Stamp | null> => {
   const started = Date.now();
   while (Date.now() - started < 5_000) {
     const lines = nodesOnMonotonic(lab.log.slice(logFrom), clockOffsetOf(client.events));
-    const line = lines.find((each) => each.member === leader && GIVES_AWAY.test(each.msg));
+    const line = lines.find(marks);
     if (line !== undefined && line.t > 0) return { t0: line.t, t1: line.t };
     await sleep(100);
   }
@@ -566,7 +569,7 @@ const givenAway = async (lab: ClusterLab, client: GroupClient, logFrom: number, 
  *   publishes gets steady.
  * - The fault occurs on its node, as the leader of this run makes the roles. A fault with a hold
  *   lifts at its instant in the VM. A step-down moves the leadership to a follower, and a drain puts
- *   the node in maintenance mode. The stamp of each of them is the NOTICE of the old leader.
+ *   the node in maintenance mode. The stamp of each of them is a line of the log (`stampOf`).
  * - The run waits for its outcome: the first confirm of a publish sent after the commit of the fault.
  *   Then it waits for the end of the hold, thus the record shows what the cluster did in the whole hold.
  * - Each fault goes, the client stops, and the queue converges again. The sequence numbers that it
@@ -622,7 +625,7 @@ export const clusterOnce = async (lab: ClusterLab, cell: Cell, environment: numb
       case "step-down": {
         at = leader;
         wall = await lab.stepDown(leader, lab.partOf("replica", leader));
-        fault = await givenAway(lab, client, logFrom, leader, wall);
+        fault = await stampOf(lab, client, logFrom, (line) => line.member === leader && GIVES_AWAY.test(line.msg), wall);
         break;
       }
       case "drain": {
@@ -630,7 +633,8 @@ export const clusterOnce = async (lab: ClusterLab, cell: Cell, environment: numb
         at = part;
         wall = await lab.drain(part);
         undo.push(() => lab.revive(part));
-        fault = await givenAway(lab, client, logFrom, part, wall);
+        // a drain stops the member of the leader (rabbit_quorum_queue.erl:2787-2838): a follower sees its monitor go down
+        fault = await stampOf(lab, client, logFrom, (line) => line.member !== part && MONITOR_DOWN.test(line.msg), wall);
         break;
       }
       default:
