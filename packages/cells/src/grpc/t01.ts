@@ -120,7 +120,7 @@ export interface GrpcSpec {
   readonly plan: string;
   readonly name: string;
   readonly server: GrpcServer;
-  readonly fault: "blackhole" | "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none" | "app-stall" | "middlebox-forget";
+  readonly fault: "blackhole" | "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none" | "app-stall" | "middlebox-forget" | "simplex";
   readonly mode: "idle" | "inflight";
   /** This side is the observer: the client, or the socket of the server for the connection of the client. */
   readonly observer?: "server";
@@ -128,6 +128,10 @@ export interface GrpcSpec {
   readonly router?: { readonly form: RouterHop["form"]; readonly idle: number; readonly preset: string };
   /** These are the sysctls of Linux TCP at the server that differ from Linux 6.6. */
   readonly serverLinux?: Readonly<Record<string, Extent>>;
+  /** This side is the one that a fault at the router faces. Without it, the fault is at the peer of the observer. */
+  readonly toward?: "client" | "target";
+  /** This direction is the one that a simplex fault drops. */
+  readonly drops?: "to-server" | "to-client";
   /**
    * This stream is the operation in flight of a border of O26. It is a call that the server of the
    * harness holds for `held` seconds, or a Watch that stays open. The PINGs of the client go on it.
@@ -244,6 +248,7 @@ const keepaliveBand = (driver: KnobValues): Span | null => {
 const manifestationOf = (spec: GrpcSpec): Manifestation => {
   if (spec.fault === "unreachable") return MANIFESTATIONS[`unreachable-${spec.icmp ?? "host"}` as keyof typeof MANIFESTATIONS];
   if (spec.fault === "freeze-process") return MANIFESTATIONS["freeze-process"];
+  if (spec.fault === "simplex") return MANIFESTATIONS[spec.drops === "to-server" ? "simplex-to-server" : "simplex-to-client"];
   // the kernel of a killed server closes its socket with a FIN: Go sets no linger, and nothing is unread
   if (spec.fault === "fin") return MANIFESTATIONS.fin;
   return MANIFESTATIONS.blackhole;
@@ -423,6 +428,18 @@ export const grpcPrediction = (spec: GrpcSpec): Prediction => {
   // a reset answers the call at once: the kernel reports it on the socket of the transport
   if (spec.fault === "rst") return { detects: true, timer: "the reset of the call", errno: "ECONNRESET", from: "request-sent", low: s(0), high: s(GRPC_RTT_MS / 1000), rtt, driver: { socket: "connection" } };
   if (spec.stream !== undefined) return policyPrediction(spec, driver, slack);
+  // an idle flow through a router, as the client sees it: the probes of the listener of the server
+  // refresh it (O03), and nothing ends the connection in the window
+  if (spec.fault === "middlebox-forget") {
+    const router = spec.router;
+    if (router === undefined) throw new Error(`${spec.plan}: a forgotten flow needs a router`);
+    const doc = serverDoc(spec.server);
+    const verdict = o03({ doc, values: given(serverValues(spec.server, spec.settings)) }, conntrackValues(router.idle), GRPC_RTT_MS / 1000);
+    if (!verdict.holds) throw new Error(`${spec.plan}: the router forgets the flow, which this catalog observes only at the server`);
+    const window = spec.hold ?? BORDER_WINDOW;
+    serverKeeps(spec, window);
+    return { detects: false, window: s(window), driver: { socket: "connection", quiet: [...QUIET] } };
+  }
   // the server holds the reply. A deadline of the call shorter than the hold ends the call first
   if (spec.fault === "app-stall") {
     if (spec.server !== "grpc-go") throw new Error(`${spec.plan}: only the server of the harness holds a reply`);
@@ -733,6 +750,17 @@ export const T01_GRPC_POLICY_SPECS: readonly GrpcSpec[] = [
 /** This function gives the name of a cell: its cell of the plan, its tuple of systems, and what it does. */
 export const grpcNameOf = (spec: GrpcSpec): string => `${spec.plan} grpc-js-1.14 to ${spec.server === "grpc-go" ? "grpc-go-server" : "etcd-3.6"}, ${spec.name}`;
 
+/**
+ * This function gives the topology of a cell with a router, named for the template of its cell of the
+ * plan. The router sends the ICMP errors of an unreachable host at the router, at no rate limit.
+ */
+const topologyOf = (spec: GrpcSpec): Pick<Cell, "topology"> => {
+  if (spec.router === undefined) return {};
+  const hop = routerHop(spec.router.form, spec.router.idle);
+  const icmp = spec.fault === "unreachable" && spec.toward !== undefined;
+  return { topology: { name: spec.plan.split(".")[0]!, hops: [icmp ? { ...hop, sysctls: { "net.ipv4.icmp_ratelimit": "0" } } : hop] } };
+};
+
 /** This function gives the operation in flight of a spec: a held call, or a Watch. */
 const probeOf = (spec: GrpcSpec): { readonly hold?: { value: number; unit: string }; readonly op?: "watch" } => {
   if (spec.stream?.kind === "watch") return { op: "watch" };
@@ -751,8 +779,10 @@ export const grpcCell = (spec: GrpcSpec): Cell => {
     fault: spec.fault,
     prediction: grpcPrediction(spec),
     ...(spec.observer === "server" ? { observer: "server" as const } : {}),
-    ...(spec.router === undefined ? {} : { topology: { name: "T01", hops: [routerHop(spec.router.form, spec.router.idle)] } }),
-    ...(spec.fault === "unreachable" ? { targetSysctls: { "net.ipv4.icmp_ratelimit": "0" } } : {}),
+    ...topologyOf(spec),
+    ...(spec.router !== undefined && spec.toward !== undefined ? { faultAt: { hop: "nat", toward: spec.toward } } : {}),
+    ...(spec.drops === undefined ? {} : { drops: spec.drops }),
+    ...(spec.fault === "unreachable" && spec.toward === undefined ? { targetSysctls: { "net.ipv4.icmp_ratelimit": "0" } } : {}),
     ...(spec.serverLinux === undefined ? {} : { targetSysctls: sysctlsOf(linuxValues(spec.serverLinux)) }),
     ...(spec.stall === undefined ? {} : { stall: s(spec.stall) }),
     ...(spec.icmp === undefined ? {} : { icmp: spec.icmp }),
