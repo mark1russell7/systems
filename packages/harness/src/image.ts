@@ -1,3 +1,4 @@
+import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -340,11 +341,37 @@ export const planOf = (source: string | ImageSource): ImagePlan => {
   return plan;
 };
 
-/** This function builds a staged context with Docker, through Testcontainers. */
-const dockerBuild = async (context: string, plan: Extract<ImagePlan, { readonly kind: "build" }>): Promise<void> => {
-  const { GenericContainer } = await import("testcontainers");
-  await GenericContainer.fromDockerfile(context, plan.dockerfile).build(plan.tag, { deleteOnExit: false });
+/** These counts are how many lines of the output of a failed build its error holds: its error lines, then its last lines. */
+const BUILD_ERRORS = 10;
+const BUILD_TAIL = 15;
+
+/**
+ * This function gives the lines of the output of a failed build that its error holds. They are each
+ * line that names an error, for example the diagnostic of a compiler, then the last lines.
+ */
+export const buildFailure = (output: string): string => {
+  const lines = output.trim().split(/\r?\n/);
+  const tail = lines.slice(-BUILD_TAIL);
+  const errors = lines.slice(0, -BUILD_TAIL).filter((line) => /\berror\b/i.test(line)).slice(0, BUILD_ERRORS);
+  return [...errors, ...(errors.length > 0 ? ["..."] : []), ...tail].join("\n");
 };
+
+/**
+ * This function builds a staged context with the CLI of Docker, thus with BuildKit where the CLI has
+ * it. Testcontainers reads nothing of the output of a build, and it fails with "Failed to build
+ * image" only. The error of a failed build here holds its error lines and the end of its output.
+ */
+const dockerBuild = (context: string, plan: Extract<ImagePlan, { readonly kind: "build" }>): Promise<void> =>
+  new Promise((resolve, reject) => {
+    const args = ["build", "--progress=plain", "--tag", plan.tag, "--file", join(context, plan.dockerfile), context];
+    execFile("docker", args, { maxBuffer: 64 * 1024 * 1024 }, (error, _stdout, stderr) => {
+      if (error === null) {
+        resolve();
+        return;
+      }
+      reject(new Error(`docker build of ${plan.tag} failed (${error.message.split("\n")[0]}):\n${buildFailure(String(stderr))}`));
+    });
+  });
 
 const built = new Map<string, Promise<string>>();
 
@@ -403,8 +430,8 @@ export const buildOnce = (
 
 /**
  * This function gives an image that a lab can start, from its source. It is the name of a stock
- * image or of a pinned image, which the lab pulls, or the tag of a build. This function loads
- * Testcontainers only for a build.
+ * image or of a pinned image, which the lab pulls, or the tag of a build. A build goes through the CLI
+ * of Docker.
  */
 export const imageOf = async (source: string | ImageSource): Promise<string> => {
   const plan = planOf(source);

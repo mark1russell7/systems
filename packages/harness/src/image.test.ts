@@ -9,6 +9,7 @@ import {
   SHIPPED_CLIENTS,
   SHIPPED_NAMES,
   SUBJECTS,
+  buildFailure,
   buildOnce,
   imageProblems,
   inContext,
@@ -112,6 +113,14 @@ describe("the image sources", () => {
       return own.map((at) => at.slice("harness/".length)).filter((path) => !isPublished(path)).map((path) => `${name}: ${path}`);
     });
     expect(missing).toEqual([]);
+  });
+
+  it("gives the error lines of a failed build, then its last lines: the diagnostic of a compiler comes before the tail", () => {
+    const head = ["#1 [internal] load build definition", "#9 1.010 prober.bpf.c:212:20: error: no member named 'x' in 'struct y'"];
+    const tail = Array.from({ length: 15 }, (_, at) => `#9 1.0${at} note: line ${at}`);
+    expect(buildFailure([...head, ...tail].join("\n")).split("\n")).toEqual([head[1], "...", ...tail]);
+    // a short output is its own tail, with no line before it
+    expect(buildFailure("ERROR: failed to solve\n")).toBe("ERROR: failed to solve");
   });
 
   it("builds a caller's context: each file with its path in the context, and a new tag when a file changes", () => {

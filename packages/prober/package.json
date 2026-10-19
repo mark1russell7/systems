@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/prober",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "An eBPF prober for TCP: a CO-RE kernel program and its Rust collector, which record what the kernel did to each socket, with the record contract in TypeScript.",
   "keywords": [
     "ebpf",
