@@ -43,13 +43,15 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `NODE_POSTGRES` | `node-postgres` | node-postgres 8.23.1 with pg-pool 3.14.0: one client of a `pg.Pool` | driver | 30 implemented, 2 documented, 1 derived |
 | `POSTGRES_SESSION` | `postgres-session` | One client connection of a PostgreSQL 17.11 backend | server | 41 implemented, 2 documented |
 | `HIKARICP_PGJDBC` | `hikaricp-pgjdbc` | HikariCP 7.1.0 over pgjdbc 42.7.13: one connection of a pool | driver | 41 implemented, 1 documented, 2 derived |
-| `PGBOUNCER_CLIENT` | `pgbouncer-client` | PgBouncer 1.26.1 in transaction pooling: one client connection | proxy | 29 implemented |
-| `PGBOUNCER_SERVER` | `pgbouncer-server` | PgBouncer 1.26.1 in transaction pooling: one server connection of a pool | proxy | 26 implemented |
-| `PGPOOL_SESSION` | `pgpool-session` | Pgpool-II 4.7.3 with one backend: one session of a client in its child process | proxy | 15 implemented |
-| `SUPAVISOR_CLIENT` | `supavisor-client` | Supavisor 2.9.13 in transaction mode: one client connection | proxy | 15 implemented |
+| `PGBOUNCER_CLIENT` | `pgbouncer-client` | PgBouncer 1.26.1 in transaction pooling: one client connection | proxy | 30 implemented |
+| `PGBOUNCER_SERVER` | `pgbouncer-server` | PgBouncer 1.26.1 in transaction pooling: one server connection of a pool | proxy | 27 implemented, 1 observed |
+| `PGPOOL_SESSION` | `pgpool-session` | Pgpool-II 4.7.3 with one backend: one session of a client in its child process | proxy | 16 implemented |
+| `SUPAVISOR_CLIENT` | `supavisor-client` | Supavisor 2.9.13 in transaction mode: one client connection | proxy | 16 implemented, 1 observed |
 | `SUPAVISOR_SERVER` | `supavisor-server` | Supavisor 2.9.13 in transaction mode: one server connection of the pool of a tenant | proxy | 10 implemented, 1 observed |
+| `AMQPLIB` | `amqplib` | amqplib 2.2.0: one connection to an AMQP 0-9-1 broker, its heartbeat and an RPC of its channel | driver | 18 implemented, 1 documented |
+| `RABBITMQ_CONNECTION` | `rabbitmq-connection` | RabbitMQ 4.3.6: one connection of AMQP 0-9-1 on the broker | server | 14 implemented, 1 documented |
 
-Nineteen documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel and the replication of mongod operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
+Twenty-one documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel and the replication of mongod operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
 
 The package also gives these parts:
 
@@ -94,6 +96,12 @@ A document changes only for one of two reasons:
 A change to the version of a system changes its sources too. Each fact of the document then cites the new version.
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
+
+### 0.3.14
+
+- **amqplib 2.2.0 and RabbitMQ 4.3.6.** Two new documents, each from the source at its tag:
+  - `amqplib`: one connection and one channel. At the defaults it takes the heartbeat of the broker, 60 s, and it ends the connection 2 to 3 heartbeats after the last bytes of the broker. An idle connection sends a heartbeat frame each 60 s. Nagle is on, and an RPC has no timer.
+  - `rabbitmq-connection`: one connection on the broker. It sends a heartbeat frame each 30 s on an idle connection, and it ends the connection 2 to 3 heartbeats after the last bytes of the client. Each socket has linger 0, thus each close of the broker is a reset. ranch 2.3.0 gives each socket a send timeout of 30 s.
 
 ### 0.3.13
 

@@ -25,7 +25,7 @@ export const RABBITMQ_CONNECTION: Machine = machineSchema.parse({
   format: "mark1russell7.machine/1",
   id: "rabbitmq-connection",
   title: "RabbitMQ 4.3.6: one connection of AMQP 0-9-1 on the broker, its heartbeat, its send timeout and its close",
-  layer: "proxy",
+  layer: "server",
   version: "4.3.6",
   conditions: {
     rabbitmq: "4.3.6",
