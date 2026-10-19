@@ -59,6 +59,16 @@ export const nodeLineOf = (member: string, text: string, queue: string): NodeLin
 export const nodesOnMonotonic = (log: readonly NodeLine[], offset: number | null): NodeLine[] =>
   log.map((line) => ({ ...line, t: offset === null ? 0 : Math.round(line.real * 1e6 - offset) }));
 
+/**
+ * This function reads the JSON output of a tool of RabbitMQ (`--formatter json`). The tools print a
+ * value over one line or over more than one, thus it reads from the first bracket to the end.
+ */
+export const toolJsonOf = (text: string): unknown => {
+  const at = text.search(/[[{]/);
+  if (at === -1) throw new Error(`no JSON in the output: ${text.slice(0, 200)}`);
+  return JSON.parse(text.slice(at));
+};
+
 /** This function gives the name of a node in the Erlang distribution: `rabbit@<name>`. */
 export const nodeNameOf = (member: string): string => `rabbit@${member}`;
 
@@ -312,7 +322,7 @@ export const openClusterLab = async (cluster: Cluster): Promise<ClusterLab> => {
     };
     const status = async (name: string): Promise<GroupView> => {
       const text = await output(box(name), ["rabbitmq-queues", "-q", "quorum_status", cluster.queue, "--formatter", "json"]);
-      return clusterViewOf(cluster, JSON.parse(lastLine(text)) as StatusRow[]);
+      return clusterViewOf(cluster, toolJsonOf(text) as StatusRow[]);
     };
     let known: string = cluster.members[0]!;
     /** This function gives the view of the queue: from the node that had the leader last, then from each other node. */
@@ -344,7 +354,7 @@ export const openClusterLab = async (cluster: Cluster): Promise<ClusterLab> => {
     const started = Date.now();
     for (;;) {
       const text = await output(box(cluster.members[0]!), ["rabbitmq-diagnostics", "-q", "cluster_status", "--formatter", "json"]).catch(() => "{}");
-      const running = (JSON.parse(lastLine(text) || "{}") as { running_nodes?: string[] }).running_nodes ?? [];
+      const running = ((text.trim() === "" ? {} : toolJsonOf(text)) as { running_nodes?: string[] }).running_nodes ?? [];
       if (cluster.members.every((name) => running.includes(nodeNameOf(name)))) break;
       if (Date.now() - started > 120_000) throw new Error(`the cluster did not form in 120 s: ${running.join(", ")} run`);
       await sleep(1_000);

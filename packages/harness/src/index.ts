@@ -180,6 +180,7 @@ export {
   nodeNameOf,
   nodesOnMonotonic,
   openClusterLab,
+  toolJsonOf,
 } from "./cluster.ts";
 export type { CellResult } from "./run.ts";
 export { LINGER_MS, QUIET_MS, judge, runCell, spread } from "./run.ts";

@@ -11,6 +11,7 @@ import {
   nodeCommand,
   nodeLineOf,
   nodesOnMonotonic,
+  toolJsonOf,
 } from "./cluster.ts";
 import { measureGroup } from "./timeline.ts";
 
@@ -57,6 +58,12 @@ describe("a cluster of RabbitMQ as data", () => {
     expect(clusterViewOf(CLUSTER, [row("r1", "candidate"), row("r2", "leader"), row("r3", "follower")])).toMatchObject({ healthy: false, why: "rabbit@r1 is candidate" });
     expect(clusterViewOf(CLUSTER, [row("r1", "follower"), row("r2", "follower"), row("r3", "follower")])).toMatchObject({ primary: null, why: "the queue has 0 leaders" });
     expect(clusterViewOf(CLUSTER, [row("r1", "leader"), row("r2", "noproc"), row("r3", "follower")])).toMatchObject({ primary: "r1", healthy: false });
+  });
+
+  it("reads the JSON of a tool of RabbitMQ over one line or over more than one", () => {
+    expect(toolJsonOf('[\n{"Node Name":"rabbit@r1"},\n{"Node Name":"rabbit@r2"}\n]\n')).toHaveLength(2);
+    expect(toolJsonOf('{"running_nodes":["rabbit@r1"]}')).toEqual({ running_nodes: ["rabbit@r1"] });
+    expect(() => toolJsonOf("Error: the node is not running")).toThrow("no JSON in the output");
   });
 
   it("reads the console log of RabbitMQ, and keeps the lines of the queue, the warnings and the maintenance mode", () => {
