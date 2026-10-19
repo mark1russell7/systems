@@ -194,6 +194,18 @@ jobs:
           if [ -z "$CELLS_HZ" ]; then echo "::error::the runner's kernel config gives no CONFIG_HZ"; exit 1; fi
           export CELLS_HZ
           pnpm --filter @systems/cells exec vitest run src/run.test.ts
+      # a cell builds its images with no output of the build, as the lab does: the log of a build that fails tells why
+      - name: The images of the harness that do not build, after a failure
+        if: failure()
+        run: |
+          for dockerfile in packages/harness/image/*/Dockerfile; do
+            dir="$(dirname "$dockerfile")"
+            if ! docker build --progress=plain -f "$dockerfile" packages > /tmp/build.log 2>&1; then
+              echo "::group::$dir does not build"
+              tail -n 80 /tmp/build.log
+              echo "::endgroup::"
+            fi
+          done
       - if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
