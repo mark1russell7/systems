@@ -25,6 +25,7 @@ import { POSTGRES_SESSION } from "./pg/postgres-session.ts";
 import { SUPAVISOR_CLIENT } from "./pg/supavisor-client.ts";
 import { SUPAVISOR_SERVER } from "./pg/supavisor-server.ts";
 import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "./procedures-ws.ts";
+import { ENVOY_HTTP2 } from "./proxy/envoy.ts";
 import { DOCKER_PROXY_LINK, TOXIPROXY_LINK } from "./proxy/tcp-proxies.ts";
 import { AMQPLIB } from "./rabbit/amqplib.ts";
 import { ATEN_DETECTOR } from "./rabbit/aten.ts";
@@ -36,6 +37,7 @@ export {
   AMQPLIB,
   ATEN_DETECTOR,
   DOCKER_PROXY_LINK,
+  ENVOY_HTTP2,
   ETCD_SERVER,
   GO_TRANSPORT,
   GRPC_GO_SERVER,
@@ -126,4 +128,5 @@ export const MACHINES: Readonly<Record<string, Machine>> = byId([
   ETCD_SERVER,
   TOXIPROXY_LINK,
   DOCKER_PROXY_LINK,
+  ENVOY_HTTP2,
 ]);
