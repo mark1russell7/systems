@@ -321,7 +321,7 @@ A keyed limiter gives each key its own limit, for example each tenant or each pr
 - **A sliding window.** `{ type: "sliding-window", limit, window }` gives a key at most `limit` takes in each window. Each take counts for one window from its time. Graph limits its writes with this policy.
 - **The decision.** `take(key)` gives `{ allowed: true, remaining }` or `{ allowed: false, retryAfter, cause }`. `retryAfter` is a `Quantity` above zero: the time until the limiter lets the same take in. The cause is `limit`, `cap` or `store`.
 - **The clock.** `memoryStore(clock)` reads time only through its clock. Thus a step of the wall clock moves no count, and a fake clock gives exact decisions in a test.
-- **The store.** A `LimiterStore` decides each take in one atomic step, on its own clock. A store in another process does the arithmetic of `decide` in one step of its own. An example is one script of Redis that reads `TIME`.
+- **The store.** A `LimiterStore` decides each take in one atomic step, on its own clock. A store in another process does the arithmetic of `decide` in one step of its own. `redisLimiterStore` of `@mark1russell7/service/redis` is one script of Redis that reads `TIME`.
 - **No shared store.** With `{ kind: "local" }`, each replica keeps its own counts. For a limit L over N replicas, declare L / N on each replica.
 - **Only on average.** The sum of L / N holds only when the balancer spreads the takes of each key evenly. A balancer that sends each take of a key to one replica gives that key only L / N.
 - **A shared store.** With `{ kind: "shared", dependency, onStoreFailure }`, the counts are in a dependency of the service. `describe()` refuses a dependency that the service does not declare, and `keyedLimiter` refuses a store of the wrong kind.
@@ -480,6 +480,13 @@ const life = await app.run(); // the process exits after SIGTERM, with 0 or 1
 - **The close.** At the shutdown, the client sends `QUIT`, and it disconnects at its `close_bound`. Thus a silent server cannot hold the phase past its cap.
 - **The manifestations.** `meets` lists the manifestations that the client can meet, and the detectors of each, with their times from the knobs. `unwatched(meets)` lists each manifestation and situation that no detector finds.
 - **The machine.** `REDIS_CLIENT_MACHINE` is the client as a `mark1russell7.machine/1` document. The tests replay the transitions of the client against it.
+- **The store of a keyed limiter.** `redisLimiterStore(client, { prefix })` keeps the counts of a [keyed limiter](#the-keyed-limiter) in Redis 7, for each replica of a service. Give it to `keyedLimiter` with `{ kind: "shared", dependency, onStoreFailure }`.
+- **One atomic step.** Each take is one `EVAL` of `LIMITER_SCRIPT`, which does the arithmetic of `decide`. The script reads `TIME` of the server, thus each replica gets the one clock of the store.
+- **No second send.** `EVAL` is not idempotent, thus the client does not send a take again. An error or an outcome that is not certain rejects the take of the store. `keyedLimiter` then applies `onStoreFailure`, as for each shared store.
+- **The clock of the store.** `TIME` is the wall clock of the Redis host, not a monotonic clock. Thus a step of that clock moves the counts of each key. The replicas still share one clock.
+- **Exact eviction in Redis.** The state of each key expires at the time that the key is free. A sorted set of each limiter bounds its busy keys to `maxKeys`, and it gives the exact `retryAfter` of a key at the cap.
+- **Redis Cluster.** The names of the keys put the limiter in braces, a hash tag. Thus the state and the index of a limiter are in one slot. The prefix has no braces.
+- **The test clock.** With `{ clock }`, the script uses the time of that clock in place of `TIME`. The tests use it to compare each decision of Redis with `decide`.
 
 ## Installation
 
