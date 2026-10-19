@@ -575,19 +575,22 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
   // the detection as the kernel reported it to the owner of the socket, and as the client saw it.
   // The process of a server or of a proxy tells nothing that the harness reads, thus its kernel tells all
   const remote = cell.observer !== undefined && cell.observer !== "client";
-  const reported = socket.find((record) => record.ev === "error" && (record.err ?? 0) !== 0);
+  // the run stops the client at its end: what the own close of the client draws after its done line is
+  // not a detection. A broker with linger 0, as RabbitMQ, resets each connection that its client closes
+  const stop = events.find((event) => event.ev === "done")?.t ?? Number.POSITIVE_INFINITY;
+  const reported = socket.find((record) => record.ev === "error" && (record.err ?? 0) !== 0 && record.mono < stop);
   const seen = remote
     ? undefined
-    : events.find((event) => event.ev === "error" || event.ev === "eof");
+    : events.find((event) => (event.ev === "error" || event.ev === "eof") && event.t < stop);
   // an end of file without an error is the change of state that the FIN of the peer makes, from
   // ESTABLISHED to CLOSE_WAIT, as the kernel stamps it
-  const closeWait = socket.find((record) => record.ev === "state" && newState(record) === 8);
+  const closeWait = socket.find((record) => record.ev === "state" && newState(record) === 8 && record.mono < stop);
   // a close of the observer itself, for a prediction that says it: from ESTABLISHED to FIN_WAIT1,
   // the FIN that its pool sends when it closes an idle connection
   const own =
     (cell.prediction.detects === true && cell.prediction.errno === "CLOSED") ||
     (cell.prediction.detects === null && cell.prediction.ends === "own-close")
-      ? socket.find((record) => record.ev === "state" && oldState(record) === 1 && newState(record) === 4)
+      ? socket.find((record) => record.ev === "state" && oldState(record) === 1 && newState(record) === 4 && record.mono < stop)
       : undefined;
   // a drop by the program of the observer on its own timer: its `drop` line, at the kernel's stamp
   // of its close frame or its close. It counts when it comes before each report of the kernel

@@ -227,6 +227,14 @@ describe("a run measured against its cell, from the kernel's own records", () =>
     expect(measure(stall, lost).finding).toBe(
       "it never moved again: nothing came back after the stall ended",
     );
+    // the run stops the client after the answer. A broker with linger 0 resets the connection that its
+    // client closes: after the done line of the client, that reset is not a detection
+    const closed: Run = {
+      ...healed(1_000_000_000),
+      events: [...events, { ev: "done", t: sent + 1_700_000_000 }, { ev: "error", t: sent + 1_706_000_000, errno: "ECONNRESET" }],
+      kernel: [...kernel, k("error", sent + 1_705_000_000, { err: 104 })],
+    };
+    expect(measure(stall, closed)).toMatchObject({ outcome: { kind: "answered" }, elapsed: s(1.6643), void: null, finding: null });
   });
 
   it("calls a run silent when nothing ended the wait, and counts the ACKs a frozen kernel sent", () => {
