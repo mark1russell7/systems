@@ -257,6 +257,7 @@ fn signal_number(name: &str) -> Result<libc::c_int, Box<dyn Error>> {
         "CONT" => libc::SIGCONT,
         "TERM" => libc::SIGTERM,
         "HUP" => libc::SIGHUP,
+        "INT" => libc::SIGINT,
         other => return Err(format!("not a signal this injector sends: {other}").into()),
     })
 }
@@ -623,6 +624,8 @@ mod tests {
         assert_eq!(signal_number("CONT").unwrap(), libc::SIGCONT);
         assert_eq!(signal_number("KILL").unwrap(), libc::SIGKILL);
         assert_eq!(signal_number("HUP").unwrap(), libc::SIGHUP);
+        assert_eq!(signal_number("TERM").unwrap(), libc::SIGTERM);
+        assert_eq!(signal_number("INT").unwrap(), libc::SIGINT);
         assert!(signal_number("USR1").is_err());
         assert!(process_name("valkey-server").is_ok());
         assert!(process_name("valkey-sentinel").is_ok());
