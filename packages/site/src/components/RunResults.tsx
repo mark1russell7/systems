@@ -32,8 +32,13 @@ interface Stage {
   readonly median: number | null;
   readonly decision: string | null;
 }
-/** These are the writes of a group cell over its counted runs, and the member that the client wrote to after the fault. */
+/**
+ * These are the writes of a group cell over its counted runs, and the member that the client wrote to after
+ * the fault. The writes of a cluster of RabbitMQ are publishes (`kind`): its client publishes through one
+ * node, thus no member is a new primary for it.
+ */
 interface Writes {
+  readonly kind?: string;
   readonly lost: { readonly runs: number; readonly total: number; readonly median: number | null; readonly max: number | null };
   readonly old: { readonly median: number | null; readonly max: number | null };
   readonly errors: ReadonlyArray<{ readonly name: string; readonly runs: number; readonly first: number | null }>;
@@ -202,6 +207,14 @@ function WritesText(props: { readonly cell: RunCell; readonly writes: Writes }):
   const { cell, writes } = props;
   const { lost, old } = writes;
   const errors = writes.errors.filter((each) => each.name !== "Error");
+  if (writes.kind === "publishes")
+    return (
+      <p className="sy-muted">
+        {lost.total === 0
+          ? "The queue kept each publish that it confirmed. "
+          : `The queue lost ${count(lost.total, "confirmed publish")} in all: ${digits(lost.median ?? 0)} in the median run, and ${digits(lost.max ?? 0)} at most. `}
+      </p>
+    );
   return (
     <p className="sy-muted">
       <span>

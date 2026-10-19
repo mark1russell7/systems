@@ -667,14 +667,14 @@ The next system of the S1 order, with its clients and PgBouncer. At its defaults
 
 ### RABBIT · RabbitMQ
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** PG
 - **Started:** 2026-10-19
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-10-19
+- **Links:** [The results](https://mark1russell7.github.io/systems/results/rabbitmq/), [#100](https://github.com/mark1russell7/systems/pull/100), [#102](https://github.com/mark1russell7/systems/pull/102), [The run at main](https://github.com/mark1russell7/systems/actions/runs/39234193377)
 
-The heartbeats of AMQP and the timers of the broker. R3 puts 54 cells on amqplib 2.2 and RabbitMQ 4.3. 17 are in T01: 13 at the defaults, and the borders of O03 and O17. 13 are in the array stage of T01, and 24 are in T11.
+The heartbeats of AMQP and the timers of the broker. R3 puts 54 cells on amqplib 2.2 and RabbitMQ 4.3. 17 are in T01: 13 at the defaults, and the borders of O03 and O17. 13 are in the array stage of T01, and 24 are in T11. Each cell of the plan has a cell, an alias or a reason to wait. The 21 cells hold in one run at main.
 
 - The facts from the sources, amqplib 2.2.0 and RabbitMQ 4.3.6:
   - amqplib sets TCP_NODELAY only when the caller asks, thus Nagle is on at the defaults. It sets no keepalive and no connect timeout.
@@ -716,6 +716,7 @@ The heartbeats of AMQP and the timers of the broker. R3 puts 54 cells on amqplib
   - A step-down gives the first confirm 28.7 ms after the NOTICE of the old leader, and a drain 35 ms after the first monitor-down. A cut of one follower, in two directions or in one, gives no new leader, and the confirms go on.
   - With the client on the node of the leader, only the heartbeat of amqplib ends its connection. The client then connects to the next node, and its first confirm comes at 180.012 s after a freeze and at 180.039 s after a black hole.
   - 5 cells at the defaults wait, each with its reason. The 12 cells of the array stage are 7 aliases and 5 cells that wait. Linux sends no keepalive probe while data is in flight, thus the keepalive of DP42 can end only some runs.
+- The page of the RabbitMQ results gives the 21 cells of T01 and T11 from run [39234193377](https://github.com/mark1russell7/systems/actions/runs/39234193377) at main. Each holds, with 231 counted runs and no void run. The border of O03 is a heartbeat of 60 s, because the broker sends a frame each half heartbeat.
 
 ### H2 · HTTP/2 and gRPC
 
