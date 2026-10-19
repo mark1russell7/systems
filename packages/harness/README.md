@@ -171,7 +171,7 @@ The harness ships ten images, each as a shipped source (`ImageSource`). The tag 
 - **The RabbitMQ client image** (`image/amqp`) is amqplib 2.2.0 on Node 24.21.0. The digest of the image and an npm lockfile pin them. The probe is `{ driver: { name: "amqp" } }`.
   - `client-amqp.mjs` opens one connection and one channel. Each operation is an RPC of the channel: the first declares the queue `harness`, and each later one declares it passively (checkQueue). The queue is exclusive, because RabbitMQ 4.3 refuses a transient queue that is not.
   - The options of the cell (`Cell.driverOptions`) give `heartbeat` in seconds, the user and its password (guest at the defaults), and the socket options of amqplib.
-  - It prints the lines of the pg client on the same clock, with a `connection` line for each event of the connection and a `channel` line for each event of the channel. The errno of a failure is the error of the connection when it has one.
+  - It prints the lines of the pg client on the same clock. A `connection` line gives each event of the connection, and a `channel` line each event of the channel. The errno of a failure is the error of the connection when it has one.
 - **The MongoDB client image** (`image/mongo`) is the driver mongodb 7.7.0 on Node 24.21.0. The digest of the image and an npm lockfile pin them. `client-mongo.mjs` prints the lines of the TCP client on the same clock:
   - Each socket of the driver is a `socket` line with its role: `monitor`, `rtt` or `pool`. The stack of the call that makes the socket gives the role.
   - The events of the driver are `sdam` lines (the heartbeats and the changes of each server), `cmap` lines (the pools) and `command` lines (each try of an operation).

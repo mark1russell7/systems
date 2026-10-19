@@ -100,8 +100,8 @@ In this repository, a snapshot of the predictions of the cells (`packages/cells/
 ### 0.3.14
 
 - **amqplib 2.2.0 and RabbitMQ 4.3.6.** Two new documents, each from the source at its tag:
-  - `amqplib`: one connection and one channel. At the defaults it takes the heartbeat of the broker, 60 s, and it ends the connection 2 to 3 heartbeats after the last bytes of the broker. An idle connection sends a heartbeat frame each 60 s. Nagle is on, and an RPC has no timer.
-  - `rabbitmq-connection`: one connection on the broker. It sends a heartbeat frame each 30 s on an idle connection, and it ends the connection 2 to 3 heartbeats after the last bytes of the client. Each socket has linger 0, thus each close of the broker is a reset. ranch 2.3.0 gives each socket a send timeout of 30 s.
+  - `amqplib`: one connection and one channel. At the defaults it takes the heartbeat of the broker, 60 s. It ends the connection 2 to 3 heartbeats after the last bytes of the broker. An idle connection sends a heartbeat frame each 60 s. Nagle is on, and an RPC has no timer.
+  - `rabbitmq-connection`: one connection on the broker. It sends a heartbeat frame each 30 s on an idle connection. It ends the connection 2 to 3 heartbeats after the last bytes of the client. Each socket has linger 0, thus each close of the broker is a reset. The listener of ranch 2.3.0 gives each socket a send timeout of 30 s.
 
 ### 0.3.13
 
