@@ -3,7 +3,7 @@ import { valueIn } from "@mark1russell7/quantity";
 import type { Cancel, Clock } from "./clock.ts";
 import { realClock } from "./clock.ts";
 import type { CooperativeFloor, Phase, ServiceDescription } from "./description.ts";
-import { lateHolds } from "./drains.ts";
+import { lateHolds, ownStream, takeOutside } from "./drains.ts";
 import type { MachineName } from "./events.ts";
 import type { Health, Runtime, StartOptions } from "./health.ts";
 import type { ExitTrigger, ProcessPort } from "./process.ts";
@@ -472,7 +472,12 @@ export const lifecycle = (
       cancelAbort();
       if (!inTime && excused === null) fail(`the phase ${phase.name} did not end in its cap of ${valueIn(phase.cap, "s")} s`);
       on = inTime ? "phase.done" : "phase.cap";
-      detail = inTime || excused === null ? undefined : excused;
+      // the streams outside the lifecycle do not hold the drain, and its record gives their count
+      const outsideCount = phase.name === "drain" ? takeOutside(life) : 0;
+      const parts = [inTime ? null : excused, outsideCount > 0 ? `streams outside the lifecycle: ${outsideCount}` : null].filter(
+        (part): part is string => part !== null,
+      );
+      detail = parts.length > 0 ? parts.join(", ") : undefined;
     }
     if (exitState !== "exited") moveDrain("done", on, detail);
     abortService();
@@ -502,7 +507,8 @@ export const lifecycle = (
     done,
     signal: service.signal,
     shutdown,
-    request: (controller, route, work, request) => requests.request(controller, route, work, request),
+    // the lifecycle owns each stream that it makes: its drain cuts the stream (SYS-29)
+    request: (controller, route, work, request) => ownStream(requests.request(controller, route, work, request), life),
     inFlight: (controller) => requests.inFlight(controller),
     keepAlive: () => state === "running" && runtime.verdict().ready,
   };

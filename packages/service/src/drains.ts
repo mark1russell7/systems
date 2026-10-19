@@ -24,3 +24,30 @@ export const holdLate = (life: object, hold: () => LateHold): (() => void) => {
 
 /** This function gives the hold of each drain under a lifecycle, as it is at this time. */
 export const lateHolds = (life: object): LateHold[] => [...(holds.get(life) ?? [])].map((hold) => hold());
+
+// The owner of each stream of a request: the lifecycle whose `life.request` made it. A drain waits only
+// for the streams of its own lifecycle, because only its cut ends them. A stream outside the lifecycle
+// does not hold a drain, as in 0.5.4. The drain only counts it, for the record of the phase.
+const owners = new WeakMap<object, object>();
+const outside = new WeakMap<object, number>();
+
+/** This function records the lifecycle that made a stream, and gives the stream. A stream keeps its first owner. */
+export const ownStream = <T extends object>(stream: T, life: object): T => {
+  if (!owners.has(stream)) owners.set(stream, life);
+  return stream;
+};
+
+/** This function gives the lifecycle that made a stream, or null for a stream outside each lifecycle. */
+export const ownerOf = (stream: object): object | null => owners.get(stream) ?? null;
+
+/** This function adds the count of streams outside a lifecycle that a drain found open at its deadline. */
+export const noteOutside = (life: object, count: number): void => {
+  if (count > 0) outside.set(life, (outside.get(life) ?? 0) + count);
+};
+
+/** This function gives the count of streams outside a lifecycle that its drains found, and sets the count to zero. */
+export const takeOutside = (life: object): number => {
+  const count = outside.get(life) ?? 0;
+  outside.delete(life);
+  return count;
+};
