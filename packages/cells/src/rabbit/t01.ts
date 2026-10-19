@@ -3,7 +3,8 @@ import { detection, errnoOf, overValues, timerOf, timerUnder, transitionOn } fro
 import type { Cell, Prediction, RouterHop, Target } from "@mark1russell7/harness";
 import { AMQPLIB, LINUX_TCP, RABBITMQ_CONNECTION } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
-import { HZ, RTT_MS, RUNS, count, given, predict, s, seconds, sysctlsOf } from "../catalog.ts";
+import type { Spec } from "../catalog.ts";
+import { HZ, RTT_MS, RUNS, count, given, predict, predictAt, s, seconds, sysctlsOf } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
 import type { Alias, Waiting } from "../mongo/cells.ts";
 import type { Span } from "../mongo/model.ts";
@@ -168,12 +169,18 @@ const brokerKeeps = (plan: string, driver: KnobValues): void => {
 /** This function gives the prediction of a cell of the catalog. */
 export const amqpPrediction = (spec: AmqpSpec): Prediction => {
   if (spec.fault === "stall") {
-    const stalled = predict({ name: spec.name, fault: "stall", manifestation: "blackhole", observer: "client", mode: "inflight", stall: spec.stall!, linux: spec.linux ?? {} });
-    // the first segment back can be the reply of the broker to the RPC that got through: a socket in
-    // pingpong mode delays its ACK (tcp_in_quickack_mode, Linux). The reply comes one step of the BEAM later
+    const stall: Spec = { name: spec.name, fault: "stall", manifestation: "blackhole", observer: "client", mode: "inflight", stall: spec.stall!, linux: spec.linux ?? {} };
+    const stalled = predict(stall);
     if (stalled.detects !== false || stalled.recovers === undefined) return stalled;
-    const high = seconds(stalled.recovers.high, "the latest return") + RABBIT_LATENCY;
-    return { ...stalled, recovers: { ...stalled.recovers, high: s(high) } };
+    // the first segment back can be the reply of the broker to the RPC that got through: a socket in
+    // pingpong mode delays its ACK (tcp_in_quickack_mode, Linux). The reply comes one step of the BEAM later.
+    // The RTO counts from the smoothed round trip, and each sample of the client is the time to the reply
+    // of the broker, which ACKs the RPC (tcp_ack_update_rtt, Linux). Thus the latest return is the one at
+    // a round trip of RABBIT_LATENCY: each firing is later, and the reply comes RABBIT_LATENCY after it
+    const slowest = predictAt(stall, RABBIT_LATENCY * 1000);
+    if (slowest.detects !== false || slowest.recovers?.firing !== stalled.recovers.firing)
+      throw new Error(`${spec.plan}: at a round trip of ${RABBIT_LATENCY * 1000} ms, another firing of the RTO returns the reply`);
+    return { ...stalled, recovers: { ...stalled.recovers, high: slowest.recovers.high } };
   }
   const rtt = { low: { value: 0, unit: "ms" }, high: { value: RABBIT_RTT_MS, unit: "ms" } } as const;
   const driver = given(amqpValues(spec.options));
