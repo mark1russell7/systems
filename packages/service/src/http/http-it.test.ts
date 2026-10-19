@@ -67,9 +67,9 @@ interface Answer {
 }
 
 /** This function sends one request on a new connection, with no agent. */
-const call = (port: number, path: string): Promise<Answer> =>
+const call = (port: number, path: string, method = "GET"): Promise<Answer> =>
   new Promise((resolve, reject) => {
-    const req = request({ host: HOST, port, path, agent: false }, (res) => {
+    const req = request({ host: HOST, port, path, method, agent: false }, (res) => {
       let body = "";
       res.setEncoding("utf8");
       res.on("data", (chunk: string) => (body += chunk));
@@ -474,7 +474,12 @@ describe.skipIf(!RUN)("a service under run() on real sockets and the real clock"
       .cooperativeWindow(ms(500))
       .onRepeatSignal("ignore");
     for (const [stage, cap] of Object.entries(CAPS)) svc.phase(stage, ms(cap));
-    svc.controller("api").route("GET /work", { idempotent: true }).route("GET /rows", { idempotent: true });
+    svc
+      .controller("api")
+      .route("GET /work", { idempotent: true })
+      .route("POST /once", { idempotent: false })
+      .route("GET /rows", { idempotent: true })
+      .route("GET /tail", { idempotent: true });
     // a window between the close of the transports and the close of the health server
     svc.onPhase("stop the poller", ({ clock }) => new Promise((resolve) => clock.after(200, resolve)));
     const releases: Array<() => void> = [];
@@ -489,8 +494,28 @@ describe.skipIf(!RUN)("a service under run() on real sockets and the real clock"
       if (!signal.aborted) yield { row: 2 };
     };
     http.mount(handle("api", "GET /rows", (_req, signal) => rows(signal), { stream: ndjson }));
+    // a stream that gives one row and then ignores its abort and its return(): only the cut at the deadline ends it
+    const tail = (): AsyncIterable<{ row: number }> => ({
+      [Symbol.asyncIterator]: () => {
+        let first = true;
+        return {
+          next: (): Promise<IteratorResult<{ row: number }>> => {
+            if (!first) return new Promise(() => {});
+            first = false;
+            return Promise.resolve({ value: { row: 1 }, done: false });
+          },
+          return: (): Promise<IteratorResult<{ row: number }>> => new Promise(() => {}),
+        };
+      },
+    });
+    http.mount(handle("api", "GET /tail", () => tail(), { stream: ndjson }));
+    const routeOf = (req: { readonly url?: string | undefined }): string | null => {
+      const path = pathOf(req.url);
+      if (path === "/rows" || path === "/tail") return null;
+      return path === "/once" ? "POST /once" : "GET /work";
+    };
     http.mount(
-      handle("api", (req) => (pathOf(req.url) === "/rows" ? null : "GET /work"), (req) =>
+      handle("api", routeOf, (req) =>
         req.url?.includes("hold") === true ? new Promise<string>((resolve) => releases.push(() => resolve("held"))) : "done",
       ),
     );
@@ -553,6 +578,26 @@ describe.skipIf(!RUN)("a service under run() on real sockets and the real clock"
     expect([answer.status, answer.headers["retry-after"]]).toEqual([503, "1"]);
     expect(now() - began).toBeLessThanOrEqual(CAPS.drain + SLACK);
     expect(await r.life.done).toBe(0);
+  });
+
+  it("gives each call that the deadline cuts its answer before the close: 503, 500 and an in-band end (SYS-29)", async () => {
+    const r = await running(false);
+    const answers = [call(r.appPort, "/work?hold"), call(r.appPort, "/once?hold", "POST"), call(r.appPort, "/tail")];
+    await until(() => r.life.inFlight() === 3, 2000, "the three held calls");
+    r.process.signal("SIGTERM");
+    const [unary, once, rows] = await Promise.all(answers);
+    expect([unary!.status, unary!.headers["retry-after"]]).toEqual([503, "1"]);
+    expect(JSON.parse(unary!.body)).toEqual({ end: "cut", delivered: 0, retryable: true, cause: "the drain reached its deadline" });
+    expect([once!.status, once!.headers["retry-after"]]).toEqual([500, undefined]);
+    expect(JSON.parse(once!.body)).toEqual({ end: "cut", delivered: 0, retryable: false, cause: "the drain reached its deadline" });
+    expect(rows!.status).toBe(200);
+    expect(rows!.body.trim().split("\n").map((line) => JSON.parse(line))).toEqual([
+      { row: 1 },
+      { end: "cut", delivered: 1, retryable: true, cause: "the drain reached its deadline" },
+    ]);
+    // the drain ended in its cap: the answers went out before its end
+    expect(await r.life.done, r.life.errors.join("; ")).toBe(0);
+    expect(r.events.find((event) => event.machine === "drain" && event.to === "close transports")?.on).toBe("phase.done");
   });
 
   it("streams a row at once, and the cooperative abort ends the stream after it in-band: 200, no Retry-After", async () => {

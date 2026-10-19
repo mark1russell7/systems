@@ -3,6 +3,7 @@ import { valueIn } from "@mark1russell7/quantity";
 import type { Cancel, Clock } from "./clock.ts";
 import { realClock } from "./clock.ts";
 import type { CooperativeFloor, Phase, ServiceDescription } from "./description.ts";
+import { lateHolds } from "./drains.ts";
 import type { MachineName } from "./events.ts";
 import type { Health, Runtime, StartOptions } from "./health.ts";
 import type { ExitTrigger, ProcessPort } from "./process.ts";
@@ -314,8 +315,16 @@ export const lifecycle = (
     else triggered(found.as, `${found.as} (a message of the IPC channel)`);
   };
 
-  /** This function does the work of one phase, until its cap. It gives true when the work ended in time. */
-  const runPhase = async (phase: Phase, hold: boolean, work: ReadonlyArray<(context: PhaseContext) => Promise<void> | void>): Promise<boolean> => {
+  /**
+   * This function does the work of one phase, until its cap. It tells if the work ended in time. When
+   * work is left at the cap, `excuse` gives the cause of a cap that is not a failure, or null.
+   */
+  const runPhase = async (
+    phase: Phase,
+    hold: boolean,
+    work: ReadonlyArray<(context: PhaseContext) => Promise<void> | void>,
+    excuse: (left: number) => string | null = () => null,
+  ): Promise<{ readonly inTime: boolean; readonly excused: string | null }> => {
     const cap = valueIn(phase.cap, "ms");
     const deadline = clock.now() + cap;
     const capped = new AbortController();
@@ -333,14 +342,17 @@ export const lifecycle = (
       }),
     );
     let cancelCap: Cancel = () => {};
+    // the timer of the cap starts after the timers of the work: at the same time, the work comes first
     const end = new Promise<"cap">((resolve) => {
       cancelCap = clock.after(cap, () => resolve("cap"));
     });
     const first = await Promise.race([all.then(() => "work" as const), end]);
     if (first === "work" && hold) await end;
+    // the work that is left is read at the cap, before the next phase changes it
+    const excused = pending > 0 ? excuse(pending) : null;
     cancelCap();
     capped.abort(new Error(`the phase ${phase.name} reached its cap`));
-    return pending === 0;
+    return { inTime: pending === 0, excused };
   };
 
   async function shutdown(cause = "the service asked for it", request: ShutdownOptions = {}): Promise<number> {
@@ -376,11 +388,12 @@ export const lifecycle = (
     };
     const phases = description.shutdown.phases;
     let on = "exit.request";
+    let detail: string | undefined;
     for (const phase of phases) {
       // after a repeat signal ends the process, no phase starts
       if (exitState === "exited") break;
       const rank = stageRank(phase.name);
-      moveDrain(phase.name, on);
+      moveDrain(phase.name, on, detail);
       if (rank > ABORT_AFTER) abortService();
       const work: Array<(context: PhaseContext) => Promise<void> | void> = [];
       const owned = components.phaseWork.get(phase.name) ?? [];
@@ -394,6 +407,7 @@ export const lifecycle = (
       // the cooperative abort of the drain: the cap less the window, not before the floor. It ends
       // with the phase, thus a drain that ends before it does not abort anything
       let cancelAbort: Cancel = () => {};
+      let excuse: ((left: number) => string | null) | undefined;
       if (phase.name === "drain") {
         const cap = valueIn(phase.cap, "ms");
         const cooperative = new AbortController();
@@ -403,9 +417,26 @@ export const lifecycle = (
           requests.cooperativeAbort();
           record("drain", drainState, drainState, "drain.cooperative-abort");
         });
+        // the cut of the requests is the first work, thus its timer comes before the timer of the cap. A
+        // transport can reach the deadline before the cut: httpTransport then waits for the answers of the cut (SYS-29)
         work.push(({ deadline }) => requests.drain(deadline));
+        let transportsLeft = 0;
         for (const [, impl] of startedTransports)
-          work.push(({ deadline }) => impl.drain(deadline, cooperative.signal));
+          work.push(async ({ deadline }) => {
+            transportsLeft += 1;
+            try {
+              await impl.drain(deadline, cooperative.signal);
+            } finally {
+              transportsLeft -= 1;
+            }
+          });
+        // a phase fails only for its own work. At the cap, a drain whose transports wait only for the
+        // bytes of their answers did its work: the cap is not a failure, and its event gives the count (SYS-29)
+        excuse = (left) => {
+          const holds = lateHolds(life);
+          if (left > transportsLeft || transportsLeft > holds.length || holds.some((each) => each.running > 0)) return null;
+          return `answers not flushed: ${holds.reduce((sum, each) => sum + each.unflushed, 0)}`;
+        };
       }
       if (phase.name === "close transports")
         for (const [, impl] of startedTransports) work.push(() => impl.close());
@@ -437,12 +468,13 @@ export const lifecycle = (
           await port.flush?.();
         });
       else for (const each of owned) work.push(each);
-      const inTime = await runPhase(phase, phase.name === "fail readiness", work);
+      const { inTime, excused } = await runPhase(phase, phase.name === "fail readiness", work, excuse);
       cancelAbort();
-      if (!inTime) fail(`the phase ${phase.name} did not end in its cap of ${valueIn(phase.cap, "s")} s`);
+      if (!inTime && excused === null) fail(`the phase ${phase.name} did not end in its cap of ${valueIn(phase.cap, "s")} s`);
       on = inTime ? "phase.done" : "phase.cap";
+      detail = inTime || excused === null ? undefined : excused;
     }
-    if (exitState !== "exited") moveDrain("done", on);
+    if (exitState !== "exited") moveDrain("done", on, detail);
     abortService();
     // a stage that the declaration does not name still stops: the checks, at the end
     runtime.stop();

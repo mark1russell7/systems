@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { service } from "../builder.ts";
 import type { LifecycleEvent } from "../events.ts";
+import type { FakeClock } from "../fakes.ts";
 import { fakeClock, fakeProcess, seeded } from "../fakes.ts";
-import { handle, httpTransport, ndjson, pathOf, probeHandler, probeServer } from "../http.ts";
+import { handle, httpTransport, ndjson, pathOf, probeHandler, probeServer, writeOutcome } from "../http.ts";
 import type { HttpKnobs } from "../http.ts";
-import type { Lifecycle } from "../lifecycle.ts";
+import type { Lifecycle, TransportImpl } from "../lifecycle.ts";
+import type { RequestEvent, RequestStream } from "../requests.ts";
 import { scriptedCheck } from "../testing.ts";
 import { FakeServer, pushedSource } from "./fake-server.ts";
 
@@ -21,8 +23,47 @@ const turns = async (count = 4): Promise<void> => {
 };
 const KNOBS: HttpKnobs = { server_idle_close: s(65), server_idle_sweep_interval: s(1), server_retry_after: s(1) };
 
-const rigged = (options: { readonly slowWarmUp?: boolean } = {}) => {
-  const clock = fakeClock();
+/**
+ * This clock reads a later time at each read, by 1 µs, as a real monotonic clock does. Its timers
+ * are the timers of a fake clock. Thus of two timers for one deadline, the timer that starts later
+ * comes first, as with setTimeout: the drain of the transport reaches its deadline before the cut.
+ */
+const drifting = (base: FakeClock): FakeClock => {
+  let drift = 0;
+  return {
+    now: () => base.now() + (drift += 0.001),
+    after: (ms, run) => base.after(ms, run),
+    advance: (ms) => base.advance(ms),
+    block: (ms) => base.block(ms),
+    get pending() {
+      return base.pending;
+    },
+  };
+};
+
+/** This stream gives one row at once, and then nothing: it ignores the abort and its return(). Only the cut ends it. */
+const tail = (): AsyncIterable<{ row: number }> => ({
+  [Symbol.asyncIterator]: () => {
+    let first = true;
+    return {
+      next: (): Promise<IteratorResult<{ row: number }>> => {
+        if (!first) return new Promise(() => {});
+        first = false;
+        return Promise.resolve({ value: { row: 1 }, done: false });
+      },
+      return: (): Promise<IteratorResult<{ row: number }>> => new Promise(() => {}),
+    };
+  },
+});
+
+/** This stream comes from no lifecycle, thus no cut ends it: a call whose end never comes. */
+const endless = (): RequestStream<string> => ({
+  [Symbol.asyncIterator]: () => ({ next: () => new Promise<IteratorResult<RequestEvent<string>>>(() => {}) }),
+  collect: () => new Promise(() => {}),
+});
+
+const rigged = (options: { readonly slowWarmUp?: boolean; readonly drift?: boolean; readonly stuckDrainStep?: boolean } = {}) => {
+  const clock = options.drift === true ? drifting(fakeClock()) : fakeClock();
   const process = fakeProcess();
   const events: LifecycleEvent[] = [];
   const app = new FakeServer();
@@ -30,8 +71,20 @@ const rigged = (options: { readonly slowWarmUp?: boolean } = {}) => {
   // the transport gets the lifecycle at its start: keep-alive and the requests come from it
   const http = httpTransport(app.asServer, KNOBS, { listen: { port: 8080 }, clock });
   const probes = probeServer({ server_retry_after: s(1), port: 9090, server: probesPort.asServer });
+  // the transport of the service: http, and a call of each function of `drained` when its drain ends
+  const drained: Array<() => void> = [];
+  const impl: TransportImpl = {
+    start: (signal, life) => http.start(signal, life),
+    stopIntake: () => http.stopIntake(),
+    drain: async (deadline, signal) => {
+      await http.drain(deadline, signal);
+      for (const each of drained) each();
+    },
+    inFlight: () => http.inFlight(),
+    close: () => http.close(),
+  };
   const svc = service("app")
-    .server("http", http.knobs, http)
+    .server("http", http.knobs, impl)
     .healthServer(probes)
     .readiness({ type: "debounce", interval: s(1), failAfter: 3, recoverAfter: 1 })
     .liveness({ type: "window", failAfter: s(5) })
@@ -50,9 +103,16 @@ const rigged = (options: { readonly slowWarmUp?: boolean } = {}) => {
       { name: "slow", dependency: null, step: "local-state", ownConnection: true, gates: null, poll: { interval: s(1), jitter: 0, timeout: s(0.4) } },
       scriptedCheck("timeout").run,
     );
-  svc.controller("api").route("GET /work", { idempotent: true }).route("POST /once", { idempotent: false }).route("GET /rows", { idempotent: true });
+  svc
+    .controller("api")
+    .route("GET /work", { idempotent: true })
+    .route("POST /once", { idempotent: false })
+    .route("GET /rows", { idempotent: true })
+    .route("GET /tail", { idempotent: true });
   // a window between the close of the transports and the close of the health server
   svc.onPhase("stop the poller", ({ clock: phaseClock }) => new Promise((resolve) => phaseClock.after(500, resolve)));
+  // a step of the drain of an owner that never ends
+  if (options.stuckDrainStep === true) svc.onPhase("drain", () => new Promise<void>(() => {}));
   const releases: Array<() => void> = [];
   http.mount(probeHandler(() => svc.health, { prefix: "/health" }));
   const rows = pushedSource<{ row: number }>();
@@ -60,16 +120,25 @@ const rigged = (options: { readonly slowWarmUp?: boolean } = {}) => {
     handle(
       "api",
       (req) => ({ "/work": "GET /work", "/once": "POST /once" })[pathOf(req.url)] ?? null,
-      (req, signal) =>
-        req.url?.includes("hold") === true
+      (req, signal) => {
+        // a stuck work ignores its abort: only the cut at the deadline of the drain ends it
+        if (req.url?.includes("stuck") === true) return new Promise<string>(() => {});
+        return req.url?.includes("hold") === true
           ? new Promise<string>((resolve, reject) => {
               releases.push(() => resolve("held"));
               signal.addEventListener("abort", () => reject(new Error("aborted")));
             })
-          : "done",
+          : "done";
+      },
     ),
   );
   http.mount(handle("api", "GET /rows", () => rows.iterable, { stream: ndjson }));
+  http.mount(handle("api", "GET /tail", () => tail(), { stream: ndjson }));
+  http.mount((req, res) => {
+    if (pathOf(req.url) !== "/endless") return false;
+    void writeOutcome(res, endless(), { keepAlive: true, retryAfter: s(1) });
+    return true;
+  });
   const start = async (during: () => Promise<void> = async () => {}): Promise<Lifecycle> => {
     let ended = false;
     const running = svc.run({ clock, random: seeded(1), process, record: (event) => events.push(event) }).finally(() => (ended = true));
@@ -90,7 +159,7 @@ const rigged = (options: { readonly slowWarmUp?: boolean } = {}) => {
     await turns();
     await clock.advance(0);
   };
-  return { clock, process, events, app, probesPort, http, start, releases, step, rows };
+  return { clock, process, events, app, probesPort, http, start, releases, step, rows, drained };
 };
 
 const stage = (events: readonly LifecycleEvent[]): string | undefined => events.filter((event) => event.machine === "drain").at(-1)?.to;
@@ -217,6 +286,133 @@ describe("the ./http entry under run()", () => {
     const lines = whole.body.trim().split("\n").map((line) => JSON.parse(line));
     expect(lines).toEqual([{ row: 1 }, { end: "cut", delivered: 1, retryable: true, cause: "the shutdown ended the stream" }]);
     expect(r.rows.returned).toBe(true);
+    await r.step(2000);
+    expect(await life.done, life.errors.join("; ")).toBe(0);
+  });
+});
+
+describe("SYS-29: the drain waits for the answers of the calls that its deadline cuts", () => {
+  /** This function gives the state of the response of each connection: open, ended, or gone to the client. */
+  const statesOf = (connections: ReadonlyArray<{ readonly response: { readonly writableEnded: boolean; readonly writableFinished: boolean } | null }>) =>
+    connections.map((each) => (each.response?.writableFinished === true ? "gone" : each.response?.writableEnded === true ? "ended" : "open"));
+  const enter = (events: readonly LifecycleEvent[], to: string) => events.find((event) => event.machine === "drain" && event.to === to)!;
+
+  // the fake clock starts the cut first. On the drifting clock, as on setTimeout, the transport reaches the deadline first
+  for (const [order, drift] of [["the cut first", false], ["the transport first", true]] as const)
+    it(`gives each cut call its answer before its socket closes: 503 and 500 before the first item, and an in-band end after it (${order})`, async () => {
+      const r = rigged({ drift });
+      const life = await r.start();
+      const get = r.app.connect();
+      const post = r.app.connect();
+      const stream = r.app.connect();
+      const answers = [get.request("/work?stuck"), post.request("/once?stuck", "POST"), stream.request("/tail")];
+      await r.step(0);
+      expect(life.inFlight()).toBe(3);
+      // the status and the first row of the stream went before the shutdown
+      expect([stream.response?.statusCode, stream.response?.chunks]).toEqual([200, ['{"row":1}\n']]);
+      const states: string[][] = [];
+      r.drained.push(() => states.push(statesOf([get, post, stream])));
+      r.process.signal("SIGTERM");
+      // fail readiness (1 s), then the drain of 4 s: the work ignores the cooperative abort at 3 s, and the cut comes at 4 s
+      await r.step(1000);
+      await r.step(4000);
+      const [unary, once, rows] = await Promise.all(answers);
+      expect([unary!.status, unary!.headers.get("retry-after")]).toEqual([503, "1"]);
+      expect(JSON.parse(unary!.body)).toEqual({ end: "cut", delivered: 0, retryable: true, cause: "the drain reached its deadline" });
+      expect([once!.status, once!.headers.get("retry-after")]).toEqual([500, undefined]);
+      expect(JSON.parse(once!.body)).toEqual({ end: "cut", delivered: 0, retryable: false, cause: "the drain reached its deadline" });
+      expect([rows!.status, rows!.headers.get("retry-after")]).toEqual([200, undefined]);
+      expect(rows!.body.trim().split("\n").map((line) => JSON.parse(line))).toEqual([
+        { row: 1 },
+        { end: "cut", delivered: 1, retryable: true, cause: "the drain reached its deadline" },
+      ]);
+      // the drain of the transport ended after each answer went out, and the drain ended in its cap
+      expect(states).toEqual([["gone", "gone", "gone"]]);
+      expect(enter(r.events, "close transports").on).toBe("phase.done");
+      await r.step(2000);
+      expect(await life.done, life.errors.join("; ")).toBe(0);
+    });
+
+  it("ends the drain at its cap with exit 0 when only answers that do not go out are left, and the cap event gives their count", async () => {
+    const r = rigged();
+    const life = await r.start();
+    const get = r.app.connect();
+    const post = r.app.connect();
+    const lost = [get.request("/work?stuck"), post.request("/once?stuck", "POST")].map((answer) =>
+      answer.then(
+        () => "answered",
+        (error: Error) => error.message,
+      ),
+    );
+    await r.step(0);
+    // two clients that stopped reading
+    get.socket.pause();
+    post.socket.pause();
+    r.process.signal("SIGTERM");
+    await r.step(1000);
+    const drainAt = enter(r.events, "drain").at;
+    await r.step(4000);
+    // the cut ended each response, and its bytes did not go
+    expect(statesOf([get, post])).toEqual(["ended", "ended"]);
+    expect([get.response?.statusCode, post.response?.statusCode]).toEqual([503, 500]);
+    // the drain did its work: its cap is not a failure, and its event gives the answers that did not go
+    const closing = enter(r.events, "close transports");
+    expect([closing.on, closing.detail, closing.at - drainAt]).toEqual(["phase.cap", "answers not flushed: 2", 4000]);
+    expect(life.errors).toEqual([]);
+    // the close of the transports destroyed the sockets: the clients did not get the answers
+    expect(await Promise.all(lost)).toEqual([expect.stringMatching(/ECONNRESET/), expect.stringMatching(/ECONNRESET/)]);
+    await r.step(2000);
+    expect(await life.done).toBe(0);
+    expect(r.process.exits).toEqual([0]);
+  });
+
+  // a call whose end never comes, and a step of the drain that never ends: each one is work of the phase
+  for (const [what, path, stuckDrainStep] of [
+    ["a call whose end never comes", "/endless", false],
+    ["a step of the drain that never ends", "/work?stuck", true],
+  ] as const)
+    it(`fails the drain at its cap with exit 1 when work is still running there, as before: ${what}`, async () => {
+      const r = rigged({ stuckDrainStep });
+      const life = await r.start();
+      const stalled = r.app.connect();
+      void stalled.request("/once?stuck", "POST").catch(() => {});
+      void r.app.connect().request(path).catch(() => {});
+      await r.step(0);
+      stalled.socket.pause();
+      r.process.signal("SIGTERM");
+      await r.step(1000);
+      const drainAt = enter(r.events, "drain").at;
+      await r.step(4000);
+      // an answer did not go out too, but the work that is left fails the phase
+      expect(statesOf([stalled])).toEqual(["ended"]);
+      const closing = enter(r.events, "close transports");
+      expect([closing.on, closing.detail, closing.at - drainAt]).toEqual(["phase.cap", undefined, 4000]);
+      expect(life.errors).toEqual(["the phase drain did not end in its cap of 4 s"]);
+      await r.step(2000);
+      expect(await life.done).toBe(1);
+      expect(r.process.exits).toEqual([1]);
+    });
+
+  it("changes nothing for a drain whose calls end before its deadline: it ends with the last answer", async () => {
+    const r = rigged();
+    const life = await r.start();
+    const connection = r.app.connect();
+    const held = connection.request("/work?hold");
+    await r.step(0);
+    const states: string[][] = [];
+    r.drained.push(() => states.push(statesOf([connection])));
+    r.process.signal("SIGTERM");
+    await r.step(1000);
+    const drainAt = enter(r.events, "drain").at;
+    await r.step(500);
+    r.releases[0]!();
+    const answer = await held;
+    expect([answer.status, answer.body, answer.headers.get("connection")]).toEqual([200, "held", "close"]);
+    await r.step(0);
+    // the drain ended with the last answer, 500 ms after its start and before its deadline at 4 s
+    const closing = enter(r.events, "close transports");
+    expect([closing.on, closing.at - drainAt]).toEqual(["phase.done", 500]);
+    expect(states).toEqual([["gone"]]);
     await r.step(2000);
     expect(await life.done, life.errors.join("; ")).toBe(0);
   });

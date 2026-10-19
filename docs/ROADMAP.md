@@ -465,6 +465,23 @@ At the drain deadline, the drain timer of `httpTransport` resolves before the cu
 
 It comes in service 0.5.3, a PATCH: new exports. The store in Redis (`redisLimiterStore`, one script that reads `TIME`) comes in 0.5.4, also a PATCH. The machine document and the harness cell come next. The client item CLI-40 builds the admission step of the procedures server on it.
 
+### SYS-29 · The drain of httpTransport waits for the answers of the cut calls
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:**
+- **Started:** 2026-10-19
+- **Shipped:**
+- **Links:** [#111](https://github.com/mark1russell7/systems/pull/111), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+The client item CLI-48 found it. At the deadline of the drain, the timer of the transport and the cut of the requests come at the same time. With `setTimeout`, the timer of the transport comes first. Then the drain ended before the cut calls had their answers. The close of the sockets raced the 503, the 500 or the in-band end of each call.
+
+With the fix, the drain of `httpTransport` also waits at its deadline for each answer that is to come or to go out. That is a response that `writeOutcome` writes, or an ended response whose bytes did not go. Thus the sequence of the two timers has no effect, and each app on `httpTransport` gets the fix. The cap of the phase bounds the wait. A client that does not read its answer holds the drain to the cap.
+
+A phase fails only for its own work (the review of the systems session). At the cap, a drain that waits only for the bytes of its answers did its work. Thus the cap is not a failure, and the exit code stays 0, as before 0.5.5. The event `phase.cap` gives the cause and the count, for example `answers not flushed: 2`. A call whose end did not come, or other work that did not end, still fails the phase with exit code 1.
+
+It comes in service 0.5.5, a PATCH: a bug fix, with no change to an export or to an exit code.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue
