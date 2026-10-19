@@ -436,6 +436,23 @@ The kind lab builds its image with its own code. As a `build` source of SYS-17, 
 
 Some entries start a service in a process that they do not own. Examples are a script, a test of an application, and `createPeer` of the client (CLI-7). Before, such an entry wrote its own small runner, or it gave the port of the process of Node. The new port `embeddedProcess()` adds no signal handler, it does not hold the process, and its `exit` only records the code. Thus the full lifecycle runs, and only the owner of the process handles its signals. It comes in service 0.5.2, a PATCH: one new export.
 
+### SYS-28 · A keyed rate limiter in service
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:**
+- **Started:** 2026-10-19
+- **Shipped:**
+- **Links:** [#106](https://github.com/mark1russell7/systems/pull/106), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+No package of systems or of the client had a rate limit for each tenant or principal. Graph limits its writes for each tenant with a sliding window of its own. With SYS-28, `svc.limiter(name, { key, policy, store, evict })` declares a keyed limiter as data, with no defaults, and `describe()` shows it. `keyedLimiter` makes its runtime: a token bucket or a sliding window for each key, on the injected monotonic clock. A refusal gives `retryAfter` as a `Quantity`, and the HTTP edge gives 429 with `Retry-After` in whole seconds.
+
+The store is an interface, and each store decides a take in one atomic step on its own clock. `memoryStore` is the store of one replica. Without a shared store, each replica holds limit / N, and that sum holds only on average. A shared store declares `onStoreFailure`, `open` or `closed`, with no default. The eviction is exact, the count of keys has a bound, and a new key at the cap waits at most the idle span.
+
+`lint()` applies two new rules to each limiter. O29 bounds the longest `Retry-After` by the retry window of the caller, at the cap of keys too. O30 bounds the retry delay of the caller from below. Their identifiers are provisional, because the corpus of the law does not have them yet.
+
+It comes in service 0.5.3, a PATCH: new exports. The store in Redis (`redisLimiterStore`, one script that reads `TIME`) comes in 0.5.4, also a PATCH. The machine document and the harness cell come next. The client item CLI-40 builds the admission step of the procedures server on it.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue
@@ -746,6 +763,15 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - A client of grpc-js in the harness, which calls `grpc.health.v1.Health/Check`. A server of grpc-go in the harness, built from its tag, that can hold a reply for a cell. A target of etcd, pinned by digest.
   - The T01 catalog at the defaults, with the borders of O03, O17, O25 and O26. Then the array stage, then T03, T02, T07 and T15.
   - The page of the results on the site.
+- The three machine documents, `grpc-js`, `grpc-go-server` and `etcd-server` (machines 0.3.16, #105). The harness has a client of grpc-js, a server of grpc-go built from its tag, and etcd on Alpine (harness 0.11.18). Its three lab tests pass in run 39269486870.
+  - Under TCP_USER_TIMEOUT, the keepalive of Linux aborts at K + k·I, with k = max(1, ⌈(U − K) / I⌉) (tcp_timer.c). The documents give the socket that count.
+- The T01 catalog of grpc-js has 32 cells, with 11 runs each (#105). Each of the other cells of the plan in T01 is an alias or waits with its reason.
+  - At the defaults, 17 cells hold in run 39272272260. A reset of a call gives ECONNRESET in 1.3 ms. The FIN of a stopped server ends an idle connection in 46 µs. A reset of the SYN fails the first call with UNAVAILABLE in 13 ms to 17 ms. An unreachable host with `tcp_retries2` = 3 gives EHOSTUNREACH 3.120 s after the first retransmission. The reply after a stall of 1 s comes back at 1.700 s.
+  - A black hole and a frozen server end nothing in 60 s: grpc-js has no keepalive and no deadline. The server of the harness holds a reply 5 s, and it comes at 5.004 s. Nothing ends an idle connection in 300 s, to each server.
+  - In the array stage, the keepalive of DP24 ends the transport behind a frozen etcd at 80.012 s. It is a PING after 60 s, and its wait of 20 s. Against grpc-go the keepalive is 300 s, at the MinTime of the server, and the transport ends at 320.006 s.
+  - Two deadlines race. A call with a deadline gets a timer of the same time at the server of grpc-go, from the header grpc-timeout. The server resets the stream at its end. With a deadline of 4 s, 4 of 11 calls got CANCELLED and not DEADLINE_EXCEEDED, thus that cell of DP44 is a measurement. Its next run gave 8 DEADLINE_EXCEEDED and 3 CANCELLED, with a median of 4.003 s.
+  - O03, O17 and O25 observe the socket of the server. A router forgets the flow at 35 s. A probe of the listener of grpc-go at 15 s keeps the flow. At 45 s the kernel of the server aborts the socket at 60.947 s. etcd probes at 30 s, with no TCP_USER_TIMEOUT. A router at 45 s keeps the flow, and behind one at 20 s the kernel of etcd aborts the socket at 168.691 s. A PING of etcd 10 s after the last read closes the connection at 30.002 s with a Timeout of 20 s. With 120 s, the kernel gives up first, 52.168 s after the first retransmission. TCP_USER_TIMEOUT of 20 s on grpc-go aborts an idle connection to a gone client at 30.599 s. With 160 s, above the 150 s of the keepalive alone, the abort moves to 169.010 s.
+  - O26: the PINGs of grpc-js on a stream in flight, against a MinTime of 5 s. With a keepalive of 6 s, the call held 30 s gets its reply at 30.003 s, and a Watch of etcd stays open. With 4 s, the server sends GOAWAY too_many_pings at the fourth PING. The held call to grpc-go ended 16.034 s after the start of the client, and grpc-js logged it 16.007 s after the reply to the first call. The first PING clears the strikes, because the server wrote a reply since the last one.
 
 ## Kubernetes
 

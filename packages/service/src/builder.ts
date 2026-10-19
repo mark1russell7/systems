@@ -17,6 +17,8 @@ import type {
 import { FORMAT } from "./description.ts";
 import { realClock } from "./clock.ts";
 import type { Health, Runtime, StartOptions } from "./health.ts";
+import type { Limiter, LimiterSpec } from "./limiter/policy.ts";
+import { limiterProblems } from "./limiter/policy.ts";
 import { healthRuntime } from "./health.ts";
 import type {
   Components,
@@ -93,6 +95,12 @@ export interface ServiceBuilder {
   controller(name: string): ControllerBuilder;
   /** This method declares a check, and the function that measures its step. `start()` needs the function. */
   check(check: Check, run?: CheckFn): ServiceBuilder;
+  /**
+   * This method declares a keyed limiter as data: its key, its policy, its store and the bound on its
+   * keys. `describe()` shows it and refuses a part that is absent, because a limiter has no defaults.
+   * `keyedLimiter(name, spec, store)` makes its runtime from the same spec.
+   */
+  limiter(name: string, spec: LimiterSpec): ServiceBuilder;
   readiness(timing: Timing): ServiceBuilder;
   liveness(timing: Timing): ServiceBuilder;
   startup(budget: Quantity): ServiceBuilder;
@@ -209,6 +217,7 @@ export const service = (name: string): ServiceBuilder => {
   const choices = new Map<string, Map<string, OperationOf>>();
   const checks: Check[] = [];
   const runs = new Map<string, CheckFn>();
+  const limiters: Limiter[] = [];
   const couplings: Coupling[] = [];
   const phases: Phase[] = [];
   let readiness: Timing | undefined;
@@ -369,6 +378,20 @@ export const service = (name: string): ServiceBuilder => {
       }
       return builder;
     },
+    limiter(entry, spec) {
+      composing(`the limiter ${entry}`);
+      once(limiters, entry, "limiter");
+      // the spec is data: the builder keeps a copy, and describe() checks each part
+      const given = (spec ?? {}) as Partial<LimiterSpec>;
+      limiters.push({
+        name: entry,
+        ...given,
+        ...(given.policy === undefined ? {} : { policy: { ...given.policy } }),
+        ...(given.store === undefined ? {} : { store: { ...given.store } }),
+        ...(given.evict === undefined ? {} : { evict: { ...given.evict } }),
+      } as Limiter);
+      return builder;
+    },
     healthServer(server) {
       composing("the health server");
       if (probes !== null) throw new Error(`${name} already has a health server`);
@@ -524,6 +547,12 @@ export const service = (name: string): ServiceBuilder => {
         for (const declared of controller.patterns)
           problems.push(...routePatternProblems(`controller ${controller.name}`, declared));
       }
+      for (const limiter of limiters) {
+        const { name: entry, ...spec } = limiter;
+        problems.push(...limiterProblems(entry, spec));
+        if (limiter.store?.kind === "shared" && typeof limiter.store.dependency === "string" && !known.has(limiter.store.dependency))
+          problems.push(`limiter ${entry} keeps its counts in ${limiter.store.dependency}, which is not a dependency`);
+      }
       for (const dependency of dependencies)
         for (const [name, operation] of Object.entries(dependency.operations))
           problems.push(...operationProblems(`dependency ${dependency.name}`, name, operation));
@@ -558,6 +587,16 @@ export const service = (name: string): ServiceBuilder => {
         })),
         controllers: controllersOut,
         checks: checks.map((entry) => ({ ...entry, poll: { ...entry.poll } })),
+        ...(limiters.length === 0
+          ? {}
+          : {
+              limiters: limiters.map((entry) => ({
+                ...entry,
+                policy: { ...entry.policy },
+                store: { ...entry.store },
+                evict: { maxKeys: { ...entry.evict.maxKeys } },
+              })),
+            }),
         policies: { readiness: readiness!, liveness: liveness!, startup: startup! },
         couplings: couplings.map((entry) => ({ ...entry })),
         shutdown: {

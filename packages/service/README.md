@@ -15,6 +15,7 @@ This release has the declaration, its export, the law, the health runtime, the l
 - **The law.** `evaluate` and `verdictOf` decide one rule of the timer-ordering law on one binding. A rule is data: linear inequalities over `symbol@hop`, with a margin. A verdict is `holds`, `violated`, `unbounded` (it holds only because a timer is absent) or `depends` (nothing is bound).
 - **The linter.** `lint(description, scenario, rules)` applies the service rules (`SERVICE_RULES`) to a declaration. The declaration binds the symbols of the service: the polls of its checks, the windows of its policies, its drain. The scenario binds the symbols of the platform and of each dependency. A `depends` finding names the symbols that have no bound.
 - **The scopes of a rule.** A rule about a client applies one time for each dependency. A rule about a consumer, for example O20, applies one time for each consumer and each worker.
+- **Keyed limiters.** `svc.limiter(name, spec)` declares a rate limit for each key, as data. `keyedLimiter` makes its runtime on a store ([The keyed limiter](#the-keyed-limiter)).
 - **The hold.** The cap of the `fail readiness` phase binds `readiness_hold@process`, and a service without that phase holds for zero. The hold keeps the listener open after the signal, as a preStop sleep does. Thus O04 can compare the sum of the two with the propagation of the endpoints.
 
 The format of a description is `mark1russell7.service/1`.
@@ -300,6 +301,65 @@ socket.addEventListener("message", (event) => {
 const delay = backoffDelay({ base: 1000, factor: 1.5, cap: 30_000, jitter: { kind: "subtract", fraction: 1 } }, attempt);
 ```
 
+## The keyed limiter
+
+A keyed limiter gives each key its own limit, for example each tenant or each principal. `@mark1russell7/service/limiter` has it. The entry loads only the quantity package: no `node:` module and no zod. Thus a client in a browser can use it. The root of the package also gives each function.
+
+| Export | Function |
+| --- | --- |
+| `svc.limiter(name, spec)` | The declaration of a limiter, as data. `describe()` shows it in `limiters`. |
+| `keyedLimiter(name, spec, store)` | The runtime of a limiter: `take(key)` gives a `Decision` |
+| `memoryStore(clock)` | The store of one replica, on the injected monotonic clock |
+| `decide(rule, state, now)`, `limitRule(policy)`, `freeAt(rule, state)` | The arithmetic of each store, for a store of your own |
+| `idleSpan(policy)`, `longestRetryAfter(policy)`, `retryAfterSeconds(retryAfter)` | The times of a policy, and `Retry-After` in whole seconds |
+| `limiterProblems(name, spec)` | The problems of a spec that `describe()` and `keyedLimiter` refuse |
+| `LIMITER_RULES` | The rules O29 and O30 of the law, as data. Their identifiers are provisional. |
+
+- **No defaults.** A spec has a key, a policy, a store and a bound on its keys. `describe()` refuses a spec without its rate, its burst, its limit, its window, its store, the failure policy of a shared store or its bound. The error names the part.
+- **The key.** `key` tells what the key of each take is, for example `tenant`. The caller gives each key to `take(key)`.
+- **A token bucket.** `{ type: "token-bucket", rate, burst }` gives a key `burst` takes at once, and then `rate` takes in each unit of time. The rate is a count for each unit of time, for example `count/s` or `count/min`.
+- **A sliding window.** `{ type: "sliding-window", limit, window }` gives a key at most `limit` takes in each window. Each take counts for one window from its time. Graph limits its writes with this policy.
+- **The decision.** `take(key)` gives `{ allowed: true, remaining }` or `{ allowed: false, retryAfter, cause }`. `retryAfter` is a `Quantity` above zero: the time until the limiter lets the same take in. The cause is `limit`, `cap` or `store`.
+- **The clock.** `memoryStore(clock)` reads time only through its clock. Thus a step of the wall clock moves no count, and a fake clock gives exact decisions in a test.
+- **The store.** A `LimiterStore` decides each take in one atomic step, on its own clock. A store in another process does the arithmetic of `decide` in one step of its own. `redisLimiterStore` of `@mark1russell7/service/redis` is one script of Redis that reads `TIME`.
+- **No shared store.** With `{ kind: "local" }`, each replica keeps its own counts. For a limit L over N replicas, declare L / N on each replica.
+- **Only on average.** The sum of L / N holds only when the balancer spreads the takes of each key evenly. A balancer that sends each take of a key to one replica gives that key only L / N.
+- **A shared store.** With `{ kind: "shared", dependency, onStoreFailure }`, the counts are in a dependency of the service. `describe()` refuses a dependency that the service does not declare, and `keyedLimiter` refuses a store of the wrong kind.
+- **A failure of the store.** A shared store declares what a take does when the store fails (`onStoreFailure`). The field has no default, and `describe()` refuses a shared store without it.
+- **Open or closed.** With `"open"`, the limiter lets the take in, with `remaining` 0. With `"closed"`, it refuses the take with the cause `store` and the longest `retryAfter` of the policy. Each decision gives the failure as text (`failure`).
+- **A local store.** A local store does not fail, thus it needs no `onStoreFailure`, and the limiter ignores one. A failure of a local store of your own rejects the take.
+- **Exact eviction.** A store removes a key only when its state is equal to the state of a new key. A bucket is new again after `burst / rate` idle, and a window after one window idle (`idleSpan`). Thus an eviction changes no decision.
+- **A bound on the keys.** `evict.maxKeys` is the most keys that the store holds for the limiter. `describe()` refuses a count without a bound.
+- **The cost of a new key at the cap.** At the cap, the store refuses a new key with the cause `cap`. Its `retryAfter` is at most the time until the earliest held key is free. That time is at most `idleSpan`, and a held key keeps its count.
+- **The cost of the bound.** A sweep at the cap reads each key one time. It occurs only when a held key can be free. A token bucket keeps one number for each key, thus at most `maxKeys` numbers. A sliding window keeps the time of each take in its window: at most `maxKeys × limit` times.
+- **The HTTP edge.** `retryAfterSeconds(retryAfter)` gives whole seconds, rounded up, for `Retry-After` (RFC 9110). `limitedResponse(refused)` of `@mark1russell7/service/http` gives 429 with that header (RFC 6585).
+- **The law.** `lint()` applies O29 and O30 (`LIMITER_RULES`) one time for each limiter. The scenario gives the values of the callers of each limiter (`scenario.limiters`).
+- **Provisional identifiers.** The corpus of the law has the rules O01 to O28. It does not have these two rules yet, thus O29 and O30 are provisional identifiers.
+- **O29.** The longest `Retry-After` of a limiter (`retry_after@limiter`) is at most the retry window of its caller (`client_retry_window@caller`). Its second inequality applies the same bound to a new key at the cap (`retry_after_at_cap@limiter`). Otherwise the caller stops before the limit lets its call in.
+- **O30.** The least delay of a caller before a retry (`retry_delay@caller`) is at least the longest `Retry-After` of the policy. Otherwise a caller that does not read the header sends again too early.
+- **A closed failure.** The `retryAfter` of the cause `store` is the longest `retryAfter` of the policy. Thus O29 and O30 apply to it too.
+- **The symbols.** `retry_after@limiter` is the longest `Retry-After` of the policy in whole seconds: one interval of the bucket, or one window. `retry_after_at_cap@limiter` is the longest at the cap, `idleSpan` in whole seconds.
+
+```ts
+import { keyedLimiter, memoryStore, realClock } from "@mark1russell7/service";
+import type { LimiterSpec } from "@mark1russell7/service";
+import { limitedResponse } from "@mark1russell7/service/http";
+
+const count = (value: number) => ({ value, unit: "count" });
+// the writes of each tenant: 120 in each sliding minute, for at most 10 000 tenants on this replica
+const writes: LimiterSpec = {
+  key: "tenant",
+  policy: { type: "sliding-window", limit: count(120), window: { value: 60, unit: "s" } },
+  store: { kind: "local" },
+  evict: { maxKeys: count(10_000) },
+};
+svc.limiter("writes", writes); // describe() shows it, and lint() applies O29 and O30 to it
+const limiter = keyedLimiter("writes", writes, memoryStore(realClock));
+
+const decision = await limiter.take(tenantOf(req));
+if (!decision.allowed) return limitedResponse(decision); // 429, with Retry-After from 1 to 60
+```
+
 ## The HTTP edge
 
 `@mark1russell7/service/http` is the edge of a service in Node. Of the modules of Node, it imports only `node:http` and `node:net`. The root of the package does not import it. It is not a framework: it has no routing language, no body parser and no middleware.
@@ -313,6 +373,7 @@ const delay = backoffDelay({ base: 1000, factor: 1.5, cap: 30_000, jitter: { kin
 | `writeOutcome(res, stream, options)` | The stream of a request as a response of `node:http`, unary or a stream |
 | `ndjson`, `sse` | The formats of a stream: NDJSON, and server-sent events |
 | `outcomeResponse`, `endRecord`, `probeResponse`, `pathOf` | The same answers as data, for any HTTP framework or none |
+| `limitedResponse(refused)` | The answer to a take that a keyed limiter refused: 429, with `Retry-After` in whole seconds |
 
 - **The transport.** `httpTransport(server, knobs, options)` makes a server of `node:http` a transport of the lifecycle. Give `transport.knobs` to `svc.server(name, knobs, impl)`. Thus the declaration and the law read the same knobs.
 - **The knobs.** The transport has no defaults. `server_idle_sweep_interval` is the interval of the sweep of idle connections. `server_retry_after` goes in the `Retry-After` of each 503 of the transport.
@@ -419,6 +480,13 @@ const life = await app.run(); // the process exits after SIGTERM, with 0 or 1
 - **The close.** At the shutdown, the client sends `QUIT`, and it disconnects at its `close_bound`. Thus a silent server cannot hold the phase past its cap.
 - **The manifestations.** `meets` lists the manifestations that the client can meet, and the detectors of each, with their times from the knobs. `unwatched(meets)` lists each manifestation and situation that no detector finds.
 - **The machine.** `REDIS_CLIENT_MACHINE` is the client as a `mark1russell7.machine/1` document. The tests replay the transitions of the client against it.
+- **The store of a keyed limiter.** `redisLimiterStore(client, { prefix })` keeps the counts of a [keyed limiter](#the-keyed-limiter) in Redis 7, for each replica of a service. Give it to `keyedLimiter` with `{ kind: "shared", dependency, onStoreFailure }`.
+- **One atomic step.** Each take is one `EVAL` of `LIMITER_SCRIPT`, which does the arithmetic of `decide`. The script reads `TIME` of the server, thus each replica gets the one clock of the store.
+- **No second send.** `EVAL` is not idempotent, thus the client does not send a take again. An error or an outcome that is not certain rejects the take of the store. `keyedLimiter` then applies `onStoreFailure`, as for each shared store.
+- **The clock of the store.** `TIME` is the wall clock of the Redis host, not a monotonic clock. Thus a step of that clock moves the counts of each key. The replicas still share one clock.
+- **Exact eviction in Redis.** The state of each key expires at the time that the key is free. A sorted set of each limiter bounds its busy keys to `maxKeys`, and it gives the exact `retryAfter` of a key at the cap.
+- **Redis Cluster.** The names of the keys put the limiter in braces, a hash tag. Thus the state and the index of a limiter are in one slot. The prefix has no braces.
+- **The test clock.** With `{ clock }`, the script uses the time of that clock in place of `TIME`. The tests use it to compare each decision of Redis with `decide`.
 
 ## Installation
 
