@@ -165,6 +165,7 @@ export {
 } from "./replset.ts";
 export type { ClusterLab, NodeLine, StatusRow, WallStamp } from "./cluster.ts";
 export {
+  GIVES_AWAY,
   clusterArgs,
   clusterConf,
   clusterCutOf,

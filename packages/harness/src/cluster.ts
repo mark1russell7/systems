@@ -84,8 +84,8 @@ export const nodeCommand = (cluster: Cluster): string =>
   [
     "for f in /var/lib/rabbitmq/.erlang.cookie /root/.erlang.cookie; do cp /tmp/cookie $f; chmod 400 $f; done",
     "chown rabbitmq:rabbitmq /var/lib/rabbitmq/.erlang.cookie",
-    `${cluster.programs.start} &`,
-    "while :; do sleep 3600; done",
+    // a command in the background ends with its &, and the shell takes no ; after it
+    `${cluster.programs.start} & while :; do sleep 3600; done`,
   ].join("; ");
 
 /** A status row is one member of the queue in the output of `rabbitmq-queues quorum_status`. */
@@ -493,12 +493,19 @@ const STEADY = 20;
 /** This time is how long a run continues after its outcome, so that the record shows what came next. */
 const TAIL_MS = 2_000;
 
-/** This function gives the hosts of the client, in the sequence of its connects: its node first, then each other node. */
+/**
+ * This function gives the hosts of the client, in the sequence of its connects: its node first, then
+ * each other node. The node of a follower is the last follower in the sequence of the cluster. A fault
+ * on one member (`one`, `one-way`) cuts the first follower, thus not the node of the client.
+ */
 export const clusterHostsOf = (cell: Cell, members: Readonly<Record<string, RunPart>>, leader: string): string[] => {
   const cluster = cell.cluster!;
-  const first = cell.clientAt === "leader" ? leader : cluster.members.find((name) => name !== leader)!;
+  const first = cell.clientAt === "leader" ? leader : cluster.members.filter((name) => name !== leader).at(-1)!;
   return [first, ...cluster.members.filter((name) => name !== first)].map((name) => `${members[name]!.ip}:${cluster.port}`);
 };
+
+/** This form is the NOTICE of a leader of the queue that starts to give its leadership away: to await_condition, for a transfer. */
+export const GIVES_AWAY: RegExp = /: leader -> await_condition in term/;
 
 /** This function gives the arguments of the client of a cluster cell: its hosts, the queue, and the stream of publishes. */
 export const clusterArgs = (cell: Cell, members: Readonly<Record<string, RunPart>>, leader: string): string[] => [
@@ -537,12 +544,29 @@ export const monotonicOf = (stamp: WallStamp, events: readonly ProbeEvent[]): St
 };
 
 /**
+ * This function gives the instant of a transfer of the leadership, as the stamps of a fault. A command
+ * of the tools starts an Erlang VM first, thus its stamps hold more than the transfer. The NOTICE of the
+ * old leader marks the start of the transfer (ra_server_proc.erl:1336-1345), and its time on the
+ * monotonic clock is the stamp. Without that line, the stamps of the command are the stamps.
+ */
+const givenAway = async (lab: ClusterLab, client: GroupClient, logFrom: number, leader: string, wall: WallStamp): Promise<Stamp | null> => {
+  const started = Date.now();
+  while (Date.now() - started < 5_000) {
+    const lines = nodesOnMonotonic(lab.log.slice(logFrom), clockOffsetOf(client.events));
+    const line = lines.find((each) => each.member === leader && GIVES_AWAY.test(each.msg));
+    if (line !== undefined && line.t > 0) return { t0: line.t, t1: line.t };
+    await sleep(100);
+  }
+  return monotonicOf(wall, client.events);
+};
+
+/**
  * This function does one run of a cluster cell:
  * - The queue converges, and it is empty. The client connects through its node, and its stream of
  *   publishes gets steady.
  * - The fault occurs on its node, as the leader of this run makes the roles. A fault with a hold
  *   lifts at its instant in the VM. A step-down moves the leadership to a follower, and a drain puts
- *   the node in maintenance mode.
+ *   the node in maintenance mode. The stamp of each of them is the NOTICE of the old leader.
  * - The run waits for its outcome: the first confirm of a publish sent after the commit of the fault.
  *   Then it waits for the end of the hold, thus the record shows what the cluster did in the whole hold.
  * - Each fault goes, the client stops, and the queue converges again. The sequence numbers that it
@@ -598,7 +622,7 @@ export const clusterOnce = async (lab: ClusterLab, cell: Cell, environment: numb
       case "step-down": {
         at = leader;
         wall = await lab.stepDown(leader, lab.partOf("replica", leader));
-        fault = monotonicOf(wall, client.events);
+        fault = await givenAway(lab, client, logFrom, leader, wall);
         break;
       }
       case "drain": {
@@ -606,7 +630,7 @@ export const clusterOnce = async (lab: ClusterLab, cell: Cell, environment: numb
         at = part;
         wall = await lab.drain(part);
         undo.push(() => lab.revive(part));
-        fault = monotonicOf(wall, client.events);
+        fault = await givenAway(lab, client, logFrom, part, wall);
         break;
       }
       default:

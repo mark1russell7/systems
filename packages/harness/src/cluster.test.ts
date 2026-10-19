@@ -39,7 +39,8 @@ describe("a cluster of RabbitMQ as data", () => {
     ]);
     // the cookie of the server and of the tools, then the server as the child of a shell
     expect(nodeCommand(CLUSTER)).toMatch(/^for f in \/var\/lib\/rabbitmq\/\.erlang\.cookie \/root\/\.erlang\.cookie; do cp \/tmp\/cookie \$f; chmod 400 \$f; done/);
-    expect(nodeCommand(CLUSTER)).toMatch(/docker-entrypoint\.sh rabbitmq-server &; while :; do sleep 3600; done$/);
+    expect(nodeCommand(CLUSTER)).toMatch(/; docker-entrypoint\.sh rabbitmq-server & while :; do sleep 3600; done$/);
+    expect(nodeCommand(CLUSTER)).not.toContain("&;");
   });
 
   it("cuts a node from each peer, from the nodes only, from the client only, or from one node in one or two directions", () => {
@@ -75,11 +76,13 @@ describe("a cluster of RabbitMQ as data", () => {
     expect(monotonicOf({ wall0: 1, wall1: 2 }, [])).toBeNull();
   });
 
-  it("gives the client its node first: a follower at the defaults, or the leader", () => {
+  it("gives the client its node first: the last follower at the defaults, or the leader", () => {
     const cell = { cluster: CLUSTER, probe: { mode: "stream", keepalive: false }, prediction: { detects: false, window: { value: 30, unit: "s" } } } as unknown as Cell;
-    expect(clusterHostsOf(cell, MEMBERS, "r2")).toEqual(["10.0.0.2:5672", "10.0.0.3:5672", "10.0.0.4:5672"]);
+    // a fault on one member cuts the first follower, r1, and not the node of the client, r3
+    expect(clusterHostsOf(cell, MEMBERS, "r2")).toEqual(["10.0.0.4:5672", "10.0.0.2:5672", "10.0.0.3:5672"]);
+    expect(clusterCutOf(CLUSTER, MEMBERS, "10.0.0.9", "r2", "one")).toEqual({ peers: ["10.0.0.2"] });
     expect(clusterHostsOf({ ...cell, clientAt: "leader" }, MEMBERS, "r2")).toEqual(["10.0.0.3:5672", "10.0.0.2:5672", "10.0.0.4:5672"]);
-    expect(clusterArgs(cell, MEMBERS, "r2").slice(0, 5)).toEqual(["10.0.0.2:5672,10.0.0.3:5672,10.0.0.4:5672", "--queue", "cells", "--interval-ms", "50"]);
+    expect(clusterArgs(cell, MEMBERS, "r2").slice(0, 5)).toEqual(["10.0.0.4:5672,10.0.0.2:5672,10.0.0.3:5672", "--queue", "cells", "--interval-ms", "50"]);
   });
 });
 
