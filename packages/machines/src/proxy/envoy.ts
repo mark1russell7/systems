@@ -9,8 +9,8 @@ const AT = "envoy v1.39.4";
 
 /**
  * This document is Envoy 1.39.4 as an HTTP/2 proxy of gRPC, for one connection of a client. Its static
- * configuration is the one of the harness: one listener with the HTTP connection manager, one route with
- * no timeout of its own, and one cluster of h2c. Each other field is at its default.
+ * configuration is the one of the harness. It has one listener with the HTTP connection manager, one
+ * route with no timeout of its own, and one cluster of h2c. Each other field is at its default.
  *
  * Envoy answers a failure of its upstream itself. Before the headers of the response, it sends a local
  * reply: a gRPC response of trailers only, with a status from the HTTP code (503 and 504 give UNAVAILABLE).
