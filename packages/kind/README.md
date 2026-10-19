@@ -137,6 +137,8 @@ The plan's `event:clock-jump` has no trigger. A step of CLOCK_REALTIME in the VM
 
 `verdict.ts` judges each run, and each cell on its counted runs. Each time lands in its band ± 100 ms: the poll of the rules and the delay of the watcher. A median in a band gets the test of the harness: its order-statistic interval in the band, made 5 % wider.
 
+From 0.1.8, a run can agree with the law but be past its calibrated band (D-EXTEND). A request failed after the window, but before the rules of its node dropped the target. The check of that run tells it (`tail`), and its cell is `extend`. Such a cell does not hold. A request after the drop is still late, thus its run fails the cell.
+
 ## Tests
 
 `pnpm --filter @mark1russell7/kind test` starts the tests of the configuration, the tools, the parser of the rules and the fault mapping. It also starts the tests of the predictions, the verdict and the judge of the real records. They do not need Docker.

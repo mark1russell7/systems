@@ -188,7 +188,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     failed: count,
     median: main.nullable(),
     why: z.string(),
-    checks: z.array(z.object({ ok: z.boolean(), why: z.string(), value: main.nullable(), facts })),
+    checks: z.array(z.object({ ok: z.boolean(), why: z.string(), value: main.nullable(), facts, tail: z.string().optional() })),
   });
   return { cell, verdict, runs: z.array(run), manifests: z.array(manifest), loads: z.array(load), at: z.string() };
 };
