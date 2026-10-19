@@ -181,6 +181,7 @@ export {
   nodesOnMonotonic,
   openClusterLab,
   plainOf,
+  restamped,
   toolJsonOf,
 } from "./cluster.ts";
 export type { CellResult } from "./run.ts";

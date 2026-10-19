@@ -11,6 +11,7 @@ import {
   nodeCommand,
   nodeLineOf,
   nodesOnMonotonic,
+  restamped,
   toolJsonOf,
 } from "./cluster.ts";
 import { measureGroup } from "./timeline.ts";
@@ -85,6 +86,17 @@ describe("a cluster of RabbitMQ as data", () => {
     const events: ProbeEvent[] = [{ ev: "clocks", t: 5_000_000_000, real: 1_000_000 }];
     expect(monotonicOf({ wall0: 1_001_000_000_000, wall1: 1_001_500_000_000 }, events)).toEqual({ t0: 6_000_000_000, t1: 6_500_000_000 });
     expect(monotonicOf({ wall0: 1, wall1: 2 }, [])).toBeNull();
+  });
+
+  it("puts the stamp from a line of the log at that line, with the offset of all the clock lines of the client", () => {
+    const line = { ev: "rabbit" as const, t: 0, member: "r1", real: 1_000_100.25, level: "notice", msg: "leader -> await_condition in term: 1" };
+    // a later clock line gives a larger offset: the pair that truncates less
+    const early: ProbeEvent[] = [{ ev: "clocks", t: 5_000_000_000, real: 1_000_000 }];
+    const all: ProbeEvent[] = [...early, { ev: "clocks", t: 5_999_400_000, real: 1_001_000 }];
+    const stamp = restamped(line, all);
+    expect(stamp).toEqual({ t0: nodesOnMonotonic([line], 995_000_600_000)[0]!.t, t1: nodesOnMonotonic([line], 995_000_600_000)[0]!.t });
+    // the stamp of the early offset is 0.6 ms later: the line of the timeline is before it
+    expect(restamped(line, early)!.t0 - stamp!.t0).toBe(600_000);
   });
 
   it("gives the client its node first: the last follower at the defaults, or the leader", () => {

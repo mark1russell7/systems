@@ -578,15 +578,31 @@ export const monotonicOf = (stamp: WallStamp, events: readonly ProbeEvent[]): St
  * (ra_server_proc.erl:1336-1345), and for a drain the INFO of a follower. Its time on the monotonic
  * clock is the stamp. Without that line, the stamps of the command are the stamps.
  */
-const stampOf = async (lab: ClusterLab, client: GroupClient, logFrom: number, marks: (line: NodeLine) => boolean, wall: WallStamp): Promise<Stamp | null> => {
+const stampOf = async (
+  lab: ClusterLab,
+  client: GroupClient,
+  logFrom: number,
+  marks: (line: NodeLine) => boolean,
+  wall: WallStamp,
+): Promise<{ readonly stamp: Stamp | null; readonly line: NodeLine | null }> => {
   const started = Date.now();
   while (Date.now() - started < 5_000) {
     const lines = nodesOnMonotonic(lab.log.slice(logFrom), clockOffsetOf(client.events));
     const line = lines.find(marks);
-    if (line !== undefined && line.t > 0) return { t0: line.t, t1: line.t };
+    if (line !== undefined && line.t > 0) return { stamp: { t0: line.t, t1: line.t }, line };
     await sleep(100);
   }
-  return monotonicOf(wall, client.events);
+  return { stamp: monotonicOf(wall, client.events), line: null };
+};
+
+/**
+ * This function puts the stamp of a fault from a line of the log on the monotonic clock again. It uses
+ * the offset of all the clock lines of the client, as the timeline of the run does. Thus the line of the
+ * stamp is at the stamp. The offset of the clock lines at the fault can be up to 1 ms smaller.
+ */
+export const restamped = (line: NodeLine, events: readonly ProbeEvent[]): Stamp | null => {
+  const [on] = nodesOnMonotonic([line], clockOffsetOf(events));
+  return on === undefined || on.t <= 0 ? null : { t0: on.t, t1: on.t };
 };
 
 /**
@@ -614,6 +630,8 @@ export const clusterOnce = async (lab: ClusterLab, cell: Cell, environment: numb
   let heal: Run["heal"] = null;
   let at: string | null = null;
   let wall: WallStamp | null = null;
+  // the line of the log that gives the stamp of a step-down or of a drain
+  let stampLine: NodeLine | null = null;
   const undo: Array<() => Promise<unknown>> = [];
   try {
     await client.until(["ready"], 60_000);
@@ -651,7 +669,7 @@ export const clusterOnce = async (lab: ClusterLab, cell: Cell, environment: numb
       case "step-down": {
         at = leader;
         wall = await lab.stepDown(leader, lab.partOf("replica", leader));
-        fault = await stampOf(lab, client, logFrom, (line) => line.member === leader && GIVES_AWAY.test(line.msg), wall);
+        ({ stamp: fault, line: stampLine } = await stampOf(lab, client, logFrom, (line) => line.member === leader && GIVES_AWAY.test(line.msg), wall));
         break;
       }
       case "drain": {
@@ -660,7 +678,7 @@ export const clusterOnce = async (lab: ClusterLab, cell: Cell, environment: numb
         wall = await lab.drain(part);
         undo.push(() => lab.revive(part));
         // a drain stops the member of the leader (rabbit_quorum_queue.erl:2787-2838): a follower sees its monitor go down
-        fault = await stampOf(lab, client, logFrom, (line) => line.member !== part && MONITOR_DOWN.test(line.msg), wall);
+        ({ stamp: fault, line: stampLine } = await stampOf(lab, client, logFrom, (line) => line.member !== part && MONITOR_DOWN.test(line.msg), wall));
         break;
       }
       default:
@@ -701,7 +719,7 @@ export const clusterOnce = async (lab: ClusterLab, cell: Cell, environment: numb
     environment,
     index,
     events: [...client.events],
-    fault,
+    fault: stampLine === null ? fault : (restamped(stampLine, client.events) ?? fault),
     ...(heal === null ? {} : { heal }),
     kernel: lab.kernel.slice(from),
     netns: lab.netns.client,
