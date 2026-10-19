@@ -2,9 +2,9 @@
   "source": "the raw records of the runners of GitHub, judged again by the harness",
   "ranAt": "2026-10-19",
   "units": "s",
-  "noise": 0.001,
+  "noise": null,
   "runs": 11,
-  "kernel": "6.17.0",
+  "kernel": "6.17.0 and 7.0.0",
   "hz": 1000,
   "target": "a server of grpc-go v1.84.0, and etcd v3.6.15",
   "clients": {
@@ -957,6 +957,275 @@
         [16.029416, 16.027618, 16.026803, 16.030102, 16.036269]
       ],
       "warmups": [16.03454, 16.034148],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.17",
+      "catalog": "T03",
+      "name": "grpc-go: unreachable-host at the router, a call in flight, tcp_retries2 = 3, Azure NAT form",
+      "group": "T03",
+      "client": "grpc-js",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 3.329,
+        "window": null,
+        "text": "The algebra predicts that the retransmissions of the kernel give up with EHOSTUNREACH. The band is 3 s to 3.329 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.999,
+        "high": 3.33
+      },
+      "median": 3.119998,
+      "why": "11 of the 11 counted runs are in the band of 2.999 s to 3.33 s. The median is 3.12 s, and its interval is 3.12 s to 3.121 s.",
+      "runs": [
+        [3.119981, 3.120006, 3.119998, 3.119995, 3.120996, 3.120024],
+        [3.119998, 3.120996, 3.120001, 3.119997, 3.119995]
+      ],
+      "warmups": [3.120013, 3.120009],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.18",
+      "catalog": "T03",
+      "name": "grpc-go: blackhole at the router, idle: nothing at the client detects it, Azure LB with TCP reset",
+      "group": "T03",
+      "client": "grpc-js",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 60,
+        "text": "The algebra predicts that nothing detects the fault in a window of 60 s. The router forgets the flow 39.956 s to 41.162 s after the last segment that the client got. The prediction has no failed call or socket error after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 60 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.19",
+      "catalog": "T03",
+      "name": "grpc-go: middlebox-forget, idle for 700 s: the probes of the listener of grpc-go keep the flow, GCP firewall form",
+      "group": "T03",
+      "client": "grpc-js",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 700,
+        "text": "The algebra predicts that nothing detects the fault in a window of 700 s. The prediction has no failed call or socket error after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 700 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.20",
+      "catalog": "T03",
+      "name": "grpc-go: event:idle, no fault, idle for 300 s, a plain router",
+      "group": "T03",
+      "client": "grpc-js",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 300,
+        "text": "The algebra predicts that nothing detects the fault in a window of 300 s. The prediction has no failed call or socket error after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 300 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.46",
+      "catalog": "T03",
+      "name": "grpc-go: a 1 s stall at the router, a call in flight, Azure NAT form",
+      "group": "T03",
+      "client": "grpc-js",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "recovers",
+        "low": 1.604,
+        "high": 1.796,
+        "window": 20,
+        "text": "The algebra predicts that the reply comes back at the third firing of the RTO timer. The band is 1.604 s to 1.796 s after the send of the call."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 1.603,
+        "high": 1.797
+      },
+      "median": 1.712771,
+      "why": "11 of the 11 counted runs are in the band of 1.603 s to 1.797 s. The median is 1.713 s, and its interval is 1.677 s to 1.717 s.",
+      "runs": [
+        [1.676726, 1.70437, 1.715535, 1.708843, 1.716112, 1.691829],
+        [1.670978, 1.720299, 1.712771, 1.716756, 1.716488]
+      ],
+      "warmups": [1.681213, 1.677452],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.47",
+      "catalog": "T03",
+      "name": "grpc-go: rst at the router, a call in flight, AWS NAT form",
+      "group": "T03",
+      "client": "grpc-js",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.002,
+        "window": null,
+        "text": "The algebra predicts that the reset answers the call with ECONNRESET. The band is 0 s to 2 ms after the send of the call."
+      },
+      "decision": "holds",
+      "counted": 22,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.006
+      },
+      "median": 0.001327,
+      "why": "22 of the 22 counted runs are in the band of −4 ms to 6 ms. The median is 1.33 ms, and its interval is 1.21 ms to 1.42 ms.",
+      "runs": [
+        [0.001221, 0.001325, 0.002138, 0.001333, 0.001203, 0.002221],
+        [0.001332, 0.00142, 0.001113, 0.001348, 0.001279],
+        [0.001215, 0.001517, 0.000992, 0.001212, 0.001578, 0.001328],
+        [0.001116, 0.001297, 0.001439, 0.001381, 0.001264]
+      ],
+      "warmups": [0.001218, 0.001011, 0.002283, 0.001373],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.48",
+      "catalog": "T03",
+      "name": "grpc-go: simplex-to-client at the router, a call in flight: nothing at the client detects it, AWS NAT form",
+      "group": "T03",
+      "client": "grpc-js",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 51.447,
+        "high": 56.026,
+        "window": null,
+        "text": "The algebra predicts that the router resets the first retransmission of the client after the end of the CLOSE timeout of conntrack with ECONNRESET. The band is 51.447 s to 56.026 s after the send of the call."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 51.446,
+        "high": 56.027
+      },
+      "median": 53.57584,
+      "why": "11 of the 11 counted runs are in the band of 51.446 s to 56.027 s. The median is 53.576 s, and its interval is 53.332 s to 53.705 s.",
+      "runs": [
+        [53.57584, 53.382828, 53.705267, 53.511659, 53.331599, 53.664677],
+        [53.736809, 53.671308, 53.470649, 53.279933, 53.59585]
+      ],
+      "warmups": [53.468962, 53.266878],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.49",
+      "catalog": "T03",
+      "name": "grpc-go: fin, idle: the killed server ends the connection with a FIN, AWS NAT form",
+      "group": "T03",
+      "client": "grpc-js",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.012,
+        "window": null,
+        "text": "The algebra predicts that the FIN of the killed server ends the idle connection with an end of file. The band is 0 s to 12 ms after the close of the socket of the server."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.001,
+        "high": 0.013
+      },
+      "median": 0.000096,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 13 ms. The median is 96 µs, and its interval is 78 µs to 117 µs.",
+      "runs": [
+        [0.00012],
+        [0.000096],
+        [0.000085],
+        [0.000075],
+        [0.000117],
+        [0.000099],
+        [0.000078],
+        [0.000096],
+        [0.000096],
+        [0.000095],
+        [0.0001]
+      ],
+      "warmups": [null, null, null, null, null, null, null, null, null, null, null],
+      "voids": null
+    },
+    {
+      "plan": "T03.array.68",
+      "catalog": "T03",
+      "name": "grpc-go: middlebox-forget, idle for 400 s, under DP11: the probes of the listener of grpc-go keep the flow through the conntrack at 350 s",
+      "group": "T03",
+      "client": "grpc-js",
+      "stage": "array",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 400,
+        "text": "The algebra predicts that nothing detects the fault in a window of 400 s. The prediction has no failed call or socket error after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 400 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
       "voids": null
     }
   ]
