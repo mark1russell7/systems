@@ -2,7 +2,7 @@ import type { Quantity } from "@mark1russell7/quantity";
 import { convertExact, rationals as r } from "@mark1russell7/quantity";
 import type { Clock } from "../clock.ts";
 import type { Decision, KeyState, LimiterSpec, LimitRule } from "./policy.ts";
-import { decide, freeAt, limitRule, limiterProblems } from "./policy.ts";
+import { decide, freeAt, limitRule, limiterProblems, longestRetryAfter } from "./policy.ts";
 
 /** A take request is one take of one key, with the rule and the cap of its limiter in numbers. */
 export interface TakeRequest {
@@ -16,9 +16,9 @@ export interface TakeRequest {
 
 /**
  * A limiter store keeps the state of each key, and it decides each take in one atomic step, on its
- * own clock. Thus two takes of one key do not read the same state at any time. A store in this process uses
- * `decide`. A store that the replicas share does the same arithmetic in one step of its own, for
- * example one script of Redis that reads `TIME`.
+ * own clock. Thus two takes of one key do not read the same state at any time. A store in this
+ * process uses `decide`. A store that the replicas share does the same arithmetic in one step of its
+ * own, for example one script of Redis that reads `TIME`.
  */
 export interface LimiterStore {
   /** This kind tells where the counts are: in the memory of this replica, or in a store that the replicas share. */
@@ -26,7 +26,7 @@ export interface LimiterStore {
   /**
    * This method decides one take. It removes a key only when its state is equal to the state of a
    * new key. It holds at most `maxKeys` keys for each limiter. A failure of a shared store rejects
-   * the take, and the caller decides what a failure does.
+   * the take, and the limiter then applies the `onStoreFailure` of its spec.
    */
   take(request: TakeRequest): Decision | Promise<Decision>;
 }
@@ -113,14 +113,24 @@ export interface KeyedLimiter {
   readonly rule: LimitRule;
   /** This count is the most keys that the store holds for the limiter. */
   readonly maxKeys: number;
-  /** This method takes one unit for a key, and gives the decision of the store. */
+  /**
+   * This method takes one unit for a key, and gives the decision of the store. When a shared store
+   * fails, it gives the decision of `onStoreFailure`, with the failure as text.
+   */
   take(key: string): Promise<Decision>;
 }
+
+/** This function gives the text of a failure. */
+const failureOf = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 /**
  * This function makes the runtime of a limiter from its spec and its store. It refuses a spec with a
  * problem, because the limiter has no defaults. It also refuses a store of the wrong kind: a spec
  * with a shared store needs a store that the replicas share.
+ * - A failure of a shared store gives the decision of `onStoreFailure`. With `open`, the take is
+ *   permitted with `remaining` 0. With `closed`, it is refused with the cause `store`.
+ * - The `retryAfter` of the cause `store` is the longest `retryAfter` of the policy.
+ * - A failure of a local store rejects the take, because a local store has no `onStoreFailure`.
  */
 export const keyedLimiter = (name: string, spec: LimiterSpec, store: LimiterStore): KeyedLimiter => {
   const problems = limiterProblems(name, spec);
@@ -129,6 +139,19 @@ export const keyedLimiter = (name: string, spec: LimiterSpec, store: LimiterStor
     throw new Error(`limiter ${name} declares a ${spec.store.kind} store, but the store that it got is ${store.kind}`);
   const rule = limitRule(spec.policy);
   const maxKeys = r.toNumber(convertExact(r.fromNumber(spec.evict.maxKeys.value), spec.evict.maxKeys.unit, "count"));
+  const onStoreFailure = spec.store.kind === "shared" ? spec.store.onStoreFailure : undefined;
+  const closedAfter = longestRetryAfter(spec.policy);
+  const take = async (key: string): Promise<Decision> => {
+    const request: TakeRequest = { limiter: name, key, rule, maxKeys };
+    if (onStoreFailure === undefined) return store.take(request);
+    try {
+      return await store.take(request);
+    } catch (error) {
+      const failure = failureOf(error);
+      if (onStoreFailure === "open") return { allowed: true, remaining: 0, failure };
+      return { allowed: false, retryAfter: { ...closedAfter }, cause: "store", failure };
+    }
+  };
   return {
     name,
     spec: {
@@ -139,6 +162,6 @@ export const keyedLimiter = (name: string, spec: LimiterSpec, store: LimiterStor
     },
     rule,
     maxKeys,
-    take: async (key) => store.take({ limiter: name, key, rule, maxKeys }),
+    take,
   };
 };

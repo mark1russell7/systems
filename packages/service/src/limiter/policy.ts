@@ -30,13 +30,25 @@ export interface SlidingWindow {
 export type LimitPolicy = TokenBucket | SlidingWindow;
 
 /**
+ * A store failure policy tells what a take does when a shared store fails. It has no default.
+ * - `open`: the limiter lets the take in. The count is not known, thus `remaining` is 0.
+ * - `closed`: the limiter refuses the take with the cause `store`. Its `retryAfter` is the longest
+ *   `retryAfter` of the policy (`longestRetryAfter`). Thus O29 and O30 apply to it too.
+ */
+export type StoreFailure = "open" | "closed";
+
+/**
  * A store spec tells where the counts of the keys are:
  * - `local`: in the memory of each replica. A limit L over N replicas is then L / N on each
  *   replica. That sum holds only on average, when the balancer spreads the takes of each key evenly.
+ *   A local store does not fail, thus it has no `onStoreFailure`, and the limiter ignores one.
  * - `shared`: in a store that the replicas share, the dependency of that name. The store decides
  *   each take in one atomic step, on its own clock. Thus the limit holds across the replicas.
+ *   `onStoreFailure` tells what a take does when the store fails.
  */
-export type LimiterStoreSpec = { readonly kind: "local" } | { readonly kind: "shared"; readonly dependency: string };
+export type LimiterStoreSpec =
+  | { readonly kind: "local" }
+  | { readonly kind: "shared"; readonly dependency: string; readonly onStoreFailure: StoreFailure };
 
 /**
  * The eviction of a limiter bounds its keys. A store removes a key only when its state is equal to
@@ -65,13 +77,20 @@ export interface Limiter extends LimiterSpec {
   readonly name: string;
 }
 
-/** A refusal cause tells why a take is refused: the key used its limit, or the store holds its cap of keys. */
-export type RefusalCause = "limit" | "cap";
+/**
+ * A refusal cause tells why a take is refused:
+ * - `limit`: the key used its limit.
+ * - `cap`: the store holds its cap of keys, and the key is new.
+ * - `store`: the shared store failed, and its spec declares `onStoreFailure: "closed"`.
+ */
+export type RefusalCause = "limit" | "cap" | "store";
 
 /** A permitted take used one unit of its key. `remaining` is the count of takes that the key can make at this time. */
 export interface Allowed {
   readonly allowed: true;
   readonly remaining: number;
+  /** This text is the failure of a shared store, when `onStoreFailure: "open"` lets the take in. */
+  readonly failure?: string | undefined;
 }
 
 /**
@@ -82,6 +101,8 @@ export interface Refused {
   readonly allowed: false;
   readonly retryAfter: Quantity;
   readonly cause: RefusalCause;
+  /** This text is the failure of a shared store, for the cause `store`. */
+  readonly failure?: string | undefined;
 }
 
 /** A decision is the answer of a limiter to one take. */
@@ -179,11 +200,14 @@ export const limiterProblems = (name: string, spec: Partial<LimiterSpec> | undef
     else if (!safely(isTime, policy.window)) problems.push(`${owner}'s window is not a time`);
     else if (!finiteAbove(policy.window)) problems.push(`${owner}'s window is not a finite time above zero`);
   } else problems.push(`${owner}'s policy ${String(policy.type)} is not "token-bucket" or "sliding-window"`);
-  const store = spec.store as { kind?: string; dependency?: unknown } | undefined;
-  if (store === undefined) missing(`its store, { kind: "local" } or { kind: "shared", dependency } (store)`);
+  const store = spec.store as { kind?: string; dependency?: unknown; onStoreFailure?: unknown } | undefined;
+  if (store === undefined) missing(`its store, { kind: "local" } or { kind: "shared", dependency, onStoreFailure } (store)`);
   else if (store.kind === "shared") {
     if (typeof store.dependency !== "string" || store.dependency.trim().length === 0)
       problems.push(`${owner}'s shared store names no dependency`);
+    if (store.onStoreFailure === undefined) missing(`what a failure of its shared store does, "open" or "closed" (store.onStoreFailure)`);
+    else if (store.onStoreFailure !== "open" && store.onStoreFailure !== "closed")
+      problems.push(`${owner}'s onStoreFailure ${String(store.onStoreFailure)} is not "open" or "closed"`);
   } else if (store.kind !== "local") problems.push(`${owner}'s store ${String(store.kind)} is not "local" or "shared"`);
   const evict = spec.evict as Partial<LimiterEviction> | undefined;
   if (evict === undefined || evict.maxKeys === undefined) missing("the most keys that it holds (evict.maxKeys)");

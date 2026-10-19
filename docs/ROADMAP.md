@@ -447,7 +447,9 @@ Some entries start a service in a process that they do not own. Examples are a s
 
 No package of systems or of the client had a rate limit for each tenant or principal. Graph limits its writes for each tenant with a sliding window of its own. With SYS-28, `svc.limiter(name, { key, policy, store, evict })` declares a keyed limiter as data, with no defaults, and `describe()` shows it. `keyedLimiter` makes its runtime: a token bucket or a sliding window for each key, on the injected monotonic clock. A refusal gives `retryAfter` as a `Quantity`, and the HTTP edge gives 429 with `Retry-After` in whole seconds.
 
-The store is an interface, and each store decides a take in one atomic step on its own clock. `memoryStore` is the store of one replica. Without a shared store, each replica holds limit / N, and that sum holds only on average. The eviction is exact, the count of keys has a bound, and a new key at the cap waits at most the idle span. `lint()` applies the new rules O29 and O30 to each limiter.
+The store is an interface, and each store decides a take in one atomic step on its own clock. `memoryStore` is the store of one replica. Without a shared store, each replica holds limit / N, and that sum holds only on average. A shared store declares `onStoreFailure`, `open` or `closed`, with no default. The eviction is exact, the count of keys has a bound, and a new key at the cap waits at most the idle span.
+
+`lint()` applies two new rules to each limiter. O29 bounds the longest `Retry-After` by the retry window of the caller, at the cap of keys too. O30 bounds the retry delay of the caller from below. Their identifiers are provisional, because the corpus of the law does not have them yet.
 
 It comes in service 0.5.3, a PATCH: new exports. The machine document and the harness cell come next. The client item CLI-40 builds the admission step of the procedures server on it.
 

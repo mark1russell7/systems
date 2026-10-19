@@ -56,6 +56,7 @@ export type {
   RefusalCause,
   Refused,
   SlidingWindow,
+  StoreFailure,
   TakeStep,
   TakeRequest,
   TokenBucket,

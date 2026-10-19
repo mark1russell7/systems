@@ -156,8 +156,9 @@ export const outcomeResponse = <T>(items: readonly T[], end: RequestEnd, options
 
 /**
  * This function gives the response of a take that a keyed limiter refused: 429 (RFC 6585), with
- * `Retry-After` in whole seconds, rounded up (RFC 9110). The body tells the cause, `limit` or
- * `cap`, and the same whole seconds. The work did not start, thus the caller can send it again.
+ * `Retry-After` in whole seconds, rounded up (RFC 9110). The body tells the cause (`limit`, `cap` or
+ * `store`) and the same whole seconds, but not the failure of a store. The work did not start, thus
+ * the caller can send it again.
  */
 export const limitedResponse = (refused: Refused): OutcomeResponse => {
   const seconds = retryAfterSeconds(refused.retryAfter);

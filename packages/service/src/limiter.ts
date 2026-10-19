@@ -17,6 +17,7 @@ export type {
   RefusalCause,
   Refused,
   SlidingWindow,
+  StoreFailure,
   TakeStep,
   TokenBucket,
 } from "./limiter/policy.ts";

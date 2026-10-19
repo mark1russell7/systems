@@ -48,16 +48,31 @@ const declared = (name = "svc"): ServiceBuilder =>
     .onRepeatSignal("ignore");
 
 const allowed = (remaining: number): Decision => ({ allowed: true, remaining });
-const refused = (ms: number, cause: "limit" | "cap" = "limit"): Decision => ({ allowed: false, retryAfter: { value: ms, unit: "ms" }, cause });
+const refused = (ms: number, cause: "limit" | "cap" | "store" = "limit"): Decision => ({ allowed: false, retryAfter: { value: ms, unit: "ms" }, cause });
 
 describe("a limiter is declared as data, with no defaults (SYS-28)", () => {
   it("shows each limiter in describe(), with its key, its policy, its store and its bound", () => {
     const svc = declared().dependency("cache", { system: null, knobs: {}, operations: {} });
-    svc.limiter("writes", WINDOW).limiter("calls", { ...BUCKET, store: { kind: "shared", dependency: "cache" } });
+    svc.limiter("writes", WINDOW).limiter("calls", { ...BUCKET, store: { kind: "shared", dependency: "cache", onStoreFailure: "closed" } });
     expect(svc.describe().limiters).toEqual([
       { name: "writes", ...WINDOW },
-      { name: "calls", ...BUCKET, store: { kind: "shared", dependency: "cache" } },
+      { name: "calls", ...BUCKET, store: { kind: "shared", dependency: "cache", onStoreFailure: "closed" } },
     ]);
+  });
+
+  it("refuses a shared store without onStoreFailure, and names the part: a failure of the store has no default", () => {
+    const svc = (store: unknown) =>
+      declared()
+        .dependency("cache", { system: null, knobs: {}, operations: {} })
+        .limiter("writes", { ...BUCKET, store } as LimiterSpec);
+    expect(() => svc({ kind: "shared", dependency: "cache" }).describe()).toThrow(
+      /limiter writes does not declare what a failure of its shared store does, "open" or "closed" \(store\.onStoreFailure\): a limiter has no defaults/,
+    );
+    expect(() => svc({ kind: "shared", dependency: "cache", onStoreFailure: "retry" }).describe()).toThrow(/onStoreFailure retry is not "open" or "closed"/);
+    for (const onStoreFailure of ["open", "closed"]) expect(() => svc({ kind: "shared", dependency: "cache", onStoreFailure }).describe()).not.toThrow();
+    // a local store does not fail: it needs no policy, and the limiter ignores one
+    expect(() => svc({ kind: "local" }).describe()).not.toThrow();
+    expect(() => svc({ kind: "local", onStoreFailure: "open" }).describe()).not.toThrow();
   });
 
   it("gives no limiters field to a service without a limiter, as in 0.5.2", () => {
@@ -96,7 +111,7 @@ describe("a limiter is declared as data, with no defaults (SYS-28)", () => {
     refuses({ ...WINDOW, policy: { ...WINDOW.policy, window: s(0) } }, /window is not a finite time above zero/);
     refuses({ ...BUCKET, evict: { maxKeys: { value: "infinite", unit: "count" } } }, /maxKeys is not a whole count above zero: the count of keys has a bound/);
     refuses({ ...BUCKET, policy: { type: "leaky" } }, /policy leaky is not "token-bucket" or "sliding-window"/);
-    refuses({ ...BUCKET, store: { kind: "shared", dependency: "cache" } }, /keeps its counts in cache, which is not a dependency/);
+    refuses({ ...BUCKET, store: { kind: "shared", dependency: "cache", onStoreFailure: "open" } }, /keeps its counts in cache, which is not a dependency/);
     refuses({ ...BUCKET, store: { kind: "disk" } }, /store disk is not "local" or "shared"/);
   });
 
@@ -114,7 +129,7 @@ describe("a limiter is declared as data, with no defaults (SYS-28)", () => {
     expect(limiter.rule).toEqual({ type: "sliding-window", limit: 3, window: 60_000 });
     expect(limiter.maxKeys).toBe(100);
     expect(() => keyedLimiter("writes", { ...WINDOW, key: " " }, memoryStore(fakeClock()))).toThrow(/names no key/);
-    expect(() => keyedLimiter("writes", { ...WINDOW, store: { kind: "shared", dependency: "cache" } }, memoryStore(fakeClock()))).toThrow(
+    expect(() => keyedLimiter("writes", { ...WINDOW, store: { kind: "shared", dependency: "cache", onStoreFailure: "closed" } }, memoryStore(fakeClock()))).toThrow(
       /declares a shared store, but the store that it got is local/,
     );
   });
@@ -378,7 +393,14 @@ const sharedStore = (clock: Clock): LimiterStore & { readonly requests: TakeRequ
 };
 
 describe("the store is an interface: a shared store, or one store for each replica", () => {
-  const SHARED: LimiterSpec = { ...WINDOW, store: { kind: "shared", dependency: "cache" } };
+  const SHARED: LimiterSpec = { ...WINDOW, store: { kind: "shared", dependency: "cache", onStoreFailure: "closed" } };
+  const failing: LimiterStore = { kind: "shared", take: () => Promise.reject(new Error("the store is down")) };
+  const throwing: LimiterStore = {
+    kind: "shared",
+    take: () => {
+      throw new Error("no connection");
+    },
+  };
 
   it("holds the limit across two replicas on one shared store, on the clock of the store", async () => {
     const storeClock = fakeClock(5_000_000);
@@ -390,16 +412,37 @@ describe("the store is an interface: a shared store, or one store for each repli
     expect(store.requests[0]).toEqual({ limiter: "writes", key: "t", rule: { type: "sliding-window", limit: 3, window: 60_000 }, maxKeys: 100 });
   });
 
-  it("gives the failure of a shared store to the caller", async () => {
-    const failing: LimiterStore = { kind: "shared", take: () => Promise.reject(new Error("the store is down")) };
-    await expect(keyedLimiter("writes", SHARED, failing).take("t")).rejects.toThrow("the store is down");
-    const throwing: LimiterStore = {
-      kind: "shared",
-      take: () => {
-        throw new Error("no connection");
-      },
-    };
-    await expect(keyedLimiter("writes", SHARED, throwing).take("t")).rejects.toThrow("no connection");
+  it("lets each take in when the shared store fails and the spec declares open", async () => {
+    const open: LimiterSpec = { ...SHARED, store: { kind: "shared", dependency: "cache", onStoreFailure: "open" } };
+    expect(await keyedLimiter("writes", open, failing).take("t")).toEqual({ allowed: true, remaining: 0, failure: "the store is down" });
+    expect(await keyedLimiter("writes", open, throwing).take("t")).toEqual({ allowed: true, remaining: 0, failure: "no connection" });
+  });
+
+  it("refuses each take with the cause store and the longest retryAfter of the policy when the spec declares closed", async () => {
+    expect(await keyedLimiter("writes", SHARED, failing).take("t")).toEqual({ ...refused(60_000, "store"), failure: "the store is down" });
+    const bucket: LimiterSpec = { ...BUCKET, store: { kind: "shared", dependency: "cache", onStoreFailure: "closed" } };
+    expect(await keyedLimiter("calls", bucket, throwing).take("t")).toEqual({ ...refused(1000, "store"), failure: "no connection" });
+    // the HTTP edge gives the cause, and not the text of the failure
+    const decision = await keyedLimiter("writes", SHARED, failing).take("t");
+    if (decision.allowed) throw new Error("the take is refused");
+    const response = limitedResponse(decision);
+    expect([response.status, response.headers["retry-after"]]).toEqual([429, "60"]);
+    expect(String(response.body)).not.toContain("the store is down");
+  });
+
+  it("decides as the store does while the shared store answers, and a failing local store rejects the take", async () => {
+    let down = false;
+    const inner = memoryStore(fakeClock());
+    const flaky: LimiterStore = { kind: "shared", take: (request) => (down ? Promise.reject(new Error("down")) : inner.take(request)) };
+    const limiter = keyedLimiter("writes", SHARED, flaky);
+    expect(await limiter.take("t")).toEqual(allowed(2));
+    down = true;
+    expect(await limiter.take("t")).toEqual({ ...refused(60_000, "store"), failure: "down" });
+    down = false;
+    // the refusal of the failure took no unit of the key
+    expect(await limiter.take("t")).toEqual(allowed(1));
+    const local: LimiterStore = { kind: "local", take: () => Promise.reject(new Error("a local store failed")) };
+    await expect(keyedLimiter("writes", WINDOW, local).take("t")).rejects.toThrow("a local store failed");
   });
 
   it("holds limit / N on each replica without a shared store only on average", async () => {
@@ -439,14 +482,16 @@ describe("lint() applies O29 and O30 to each limiter", () => {
       }),
       LIMITER_RULES,
     );
-    expect(findings.map(({ rule, scope, verdict, evaluated }) => ({ rule, scope, verdict, lhs: evaluated[0]?.lhs, rhs: evaluated[0]?.rhs }))).toEqual([
-      // the window of 60 s is longer than the retry window of 30 s
-      { rule: "O29", scope: "writes", verdict: "violated", lhs: 60, rhs: 30 },
-      // one token each 6 s: the longest Retry-After is 6 s
-      { rule: "O29", scope: "calls", verdict: "holds", lhs: 6, rhs: 120 },
+    expect(
+      findings.map(({ rule, scope, verdict, evaluated }) => ({ rule, scope, verdict, lhs: evaluated[0]?.lhs, rhs: evaluated[0]?.rhs, atCap: evaluated[1]?.lhs })),
+    ).toEqual([
+      // the window of 60 s is longer than the retry window of 30 s, and a new key at the cap also waits up to 60 s
+      { rule: "O29", scope: "writes", verdict: "violated", lhs: 60, rhs: 30, atCap: 60 },
+      // one token each 6 s: the longest Retry-After is 6 s, and 30 s at the cap (5 tokens)
+      { rule: "O29", scope: "calls", verdict: "holds", lhs: 6, rhs: 120, atCap: 30 },
       // a caller that sends again after 1 s meets the window of 60 s again
-      { rule: "O30", scope: "writes", verdict: "violated", lhs: 1, rhs: 60 },
-      { rule: "O30", scope: "calls", verdict: "holds", lhs: 6, rhs: 6 },
+      { rule: "O30", scope: "writes", verdict: "violated", lhs: 1, rhs: 60, atCap: undefined },
+      { rule: "O30", scope: "calls", verdict: "holds", lhs: 6, rhs: 6, atCap: undefined },
     ]);
   });
 
@@ -459,10 +504,16 @@ describe("lint() applies O29 and O30 to each limiter", () => {
     expect(lint(declared().describe(), scenario(undefined), LIMITER_RULES)).toEqual([]);
   });
 
-  it("binds the longest Retry-After at the cap of keys for a rule of the caller", () => {
-    const atCap = { ...LIMITER_RULES[0]!, id: "O29", expr: { ...LIMITER_RULES[0]!.expr, lhs: { terms: [{ knob: "retry_after_at_cap", coef: 1, at: "limiter" }] } } };
-    const findings = lint(declared().limiter("calls", BUCKET).describe(), scenario({ calls: { client_retry_window: s(2) } }), [atCap]);
-    // the bucket of 3 at 1 each second: a new key at the cap waits up to 3 s
-    expect(findings[0]).toMatchObject({ verdict: "violated", evaluated: [{ lhs: 3, rhs: 2 }] });
+  it("fails O29 at the cap of keys alone: a new key can wait the idle span", () => {
+    const findings = lint(declared().limiter("calls", BUCKET).describe(), scenario({ calls: { client_retry_window: s(2) } }), LIMITER_RULES);
+    // the bucket of 3 at 1 each second: a refusal of the policy waits 1 s, but a new key at the cap waits up to 3 s
+    expect(findings[0]).toMatchObject({
+      rule: "O29",
+      verdict: "violated",
+      evaluated: [
+        { lhs: 1, rhs: 2, holds: true },
+        { lhs: 3, rhs: 2, holds: false },
+      ],
+    });
   });
 });

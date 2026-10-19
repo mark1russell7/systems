@@ -77,19 +77,20 @@ export const SERVICE_RULES: readonly string[] = [
 /**
  * These are the two rules of the law for a keyed limiter, as data. The caller of `lint()` gives
  * them, as it gives each other rule. Each one applies one time for each limiter.
- * - O29: the longest `Retry-After` of a limiter is at most the retry window of its caller.
+ * - O29: the longest `Retry-After` of a limiter is at most the retry window of its caller. Its
+ *   second inequality applies the same bound to a new key at the cap of keys.
  *   Otherwise the caller stops before the limit lets its call in, and a refusal becomes a failure.
  * - O30: the least delay of a caller before it sends a refused call again is at least the longest
- *   `Retry-After`. Otherwise a caller that does not read the header sends again too early, and the
- *   limiter refuses each early call again.
+ *   `Retry-After` of the policy. Otherwise a caller that does not read the header sends again too
+ *   early, and the limiter refuses each early call again.
  *
- * The corpus of the law in jarvis (R3, track B) has 28 rules, O01 to O28. It does not have these two
- * rules yet, thus they take the next two identifiers.
+ * The identifiers O29 and O30 are provisional. The corpus of the law in jarvis (R3, track B) has 28
+ * rules, O01 to O28. It does not have these two rules yet, thus they take the next two identifiers.
  */
 export const LIMITER_RULES: readonly Rule[] = [
   {
     id: "O29",
-    rule: "the longest Retry-After of a limiter is at most the retry window of its caller",
+    rule: "the longest Retry-After of a limiter, at its cap of keys too, is at most the retry window of its caller",
     window: "the caller stops before the limit lets its call in, thus a refusal becomes a failure",
     expr: {
       lhs: { terms: [{ knob: "retry_after", coef: 1, at: "limiter" }] },
@@ -97,6 +98,14 @@ export const LIMITER_RULES: readonly Rule[] = [
       rhs: { terms: [{ knob: "client_retry_window", coef: 1, at: "caller" }] },
       margin: 0,
     },
+    expr_more: [
+      {
+        lhs: { terms: [{ knob: "retry_after_at_cap", coef: 1, at: "limiter" }] },
+        op: "<=",
+        rhs: { terms: [{ knob: "client_retry_window", coef: 1, at: "caller" }] },
+        margin: 0,
+      },
+    ],
   },
   {
     id: "O30",

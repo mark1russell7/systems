@@ -313,27 +313,31 @@ A keyed limiter gives each key its own limit, for example each tenant or each pr
 | `decide(rule, state, now)`, `limitRule(policy)`, `freeAt(rule, state)` | The arithmetic of each store, for a store of your own |
 | `idleSpan(policy)`, `longestRetryAfter(policy)`, `retryAfterSeconds(retryAfter)` | The times of a policy, and `Retry-After` in whole seconds |
 | `limiterProblems(name, spec)` | The problems of a spec that `describe()` and `keyedLimiter` refuse |
-| `LIMITER_RULES` | The rules O29 and O30 of the law, as data |
+| `LIMITER_RULES` | The rules O29 and O30 of the law, as data. Their identifiers are provisional. |
 
-- **No defaults.** A spec has a key, a policy, a store and a bound on its keys. `describe()` refuses a spec without its rate, its burst, its limit, its window, its store or its bound. The error names the part.
+- **No defaults.** A spec has a key, a policy, a store and a bound on its keys. `describe()` refuses a spec without its rate, its burst, its limit, its window, its store, the failure policy of a shared store or its bound. The error names the part.
 - **The key.** `key` tells what the key of each take is, for example `tenant`. The caller gives each key to `take(key)`.
 - **A token bucket.** `{ type: "token-bucket", rate, burst }` gives a key `burst` takes at once, and then `rate` takes in each unit of time. The rate is a count for each unit of time, for example `count/s` or `count/min`.
 - **A sliding window.** `{ type: "sliding-window", limit, window }` gives a key at most `limit` takes in each window. Each take counts for one window from its time. Graph limits its writes with this policy.
-- **The decision.** `take(key)` gives `{ allowed: true, remaining }` or `{ allowed: false, retryAfter, cause }`. `retryAfter` is a `Quantity` above zero: the time until the limiter lets the same take in. The cause is `limit` or `cap`.
+- **The decision.** `take(key)` gives `{ allowed: true, remaining }` or `{ allowed: false, retryAfter, cause }`. `retryAfter` is a `Quantity` above zero: the time until the limiter lets the same take in. The cause is `limit`, `cap` or `store`.
 - **The clock.** `memoryStore(clock)` reads time only through its clock. Thus a step of the wall clock moves no count, and a fake clock gives exact decisions in a test.
 - **The store.** A `LimiterStore` decides each take in one atomic step, on its own clock. A store in another process does the arithmetic of `decide` in one step of its own. An example is one script of Redis that reads `TIME`.
 - **No shared store.** With `{ kind: "local" }`, each replica keeps its own counts. For a limit L over N replicas, declare L / N on each replica.
 - **Only on average.** The sum of L / N holds only when the balancer spreads the takes of each key evenly. A balancer that sends each take of a key to one replica gives that key only L / N.
-- **A shared store.** With `{ kind: "shared", dependency }`, the counts are in a dependency of the service. `describe()` refuses a dependency that the service does not declare, and `keyedLimiter` refuses a store of the wrong kind.
-- **A failure of the store.** A failure of a shared store rejects the take. The caller decides what a failure does.
+- **A shared store.** With `{ kind: "shared", dependency, onStoreFailure }`, the counts are in a dependency of the service. `describe()` refuses a dependency that the service does not declare, and `keyedLimiter` refuses a store of the wrong kind.
+- **A failure of the store.** A shared store declares what a take does when the store fails (`onStoreFailure`). The field has no default, and `describe()` refuses a shared store without it.
+- **Open or closed.** With `"open"`, the limiter lets the take in, with `remaining` 0. With `"closed"`, it refuses the take with the cause `store` and the longest `retryAfter` of the policy. Each decision gives the failure as text (`failure`).
+- **A local store.** A local store does not fail, thus it needs no `onStoreFailure`, and the limiter ignores one. A failure of a local store of your own rejects the take.
 - **Exact eviction.** A store removes a key only when its state is equal to the state of a new key. A bucket is new again after `burst / rate` idle, and a window after one window idle (`idleSpan`). Thus an eviction changes no decision.
 - **A bound on the keys.** `evict.maxKeys` is the most keys that the store holds for the limiter. `describe()` refuses a count without a bound.
 - **The cost of a new key at the cap.** At the cap, the store refuses a new key with the cause `cap`. Its `retryAfter` is at most the time until the earliest held key is free. That time is at most `idleSpan`, and a held key keeps its count.
-- **The cost of the bound.** A sweep at the cap reads each key one time. It occurs only when a held key can be free. A token bucket keeps one number for each key. A sliding window keeps at most `limit` numbers for each key.
+- **The cost of the bound.** A sweep at the cap reads each key one time. It occurs only when a held key can be free. A token bucket keeps one number for each key, thus at most `maxKeys` numbers. A sliding window keeps the time of each take in its window: at most `maxKeys × limit` times.
 - **The HTTP edge.** `retryAfterSeconds(retryAfter)` gives whole seconds, rounded up, for `Retry-After` (RFC 9110). `limitedResponse(refused)` of `@mark1russell7/service/http` gives 429 with that header (RFC 6585).
 - **The law.** `lint()` applies O29 and O30 (`LIMITER_RULES`) one time for each limiter. The scenario gives the values of the callers of each limiter (`scenario.limiters`).
-- **O29.** The longest `Retry-After` of a limiter (`retry_after@limiter`) is at most the retry window of its caller (`client_retry_window@caller`). Otherwise the caller stops before the limit lets its call in.
-- **O30.** The least delay of a caller before a retry (`retry_delay@caller`) is at least the longest `Retry-After`. Otherwise a caller that does not read the header sends again too early.
+- **Provisional identifiers.** The corpus of the law has the rules O01 to O28. It does not have these two rules yet, thus O29 and O30 are provisional identifiers.
+- **O29.** The longest `Retry-After` of a limiter (`retry_after@limiter`) is at most the retry window of its caller (`client_retry_window@caller`). Its second inequality applies the same bound to a new key at the cap (`retry_after_at_cap@limiter`). Otherwise the caller stops before the limit lets its call in.
+- **O30.** The least delay of a caller before a retry (`retry_delay@caller`) is at least the longest `Retry-After` of the policy. Otherwise a caller that does not read the header sends again too early.
+- **A closed failure.** The `retryAfter` of the cause `store` is the longest `retryAfter` of the policy. Thus O29 and O30 apply to it too.
 - **The symbols.** `retry_after@limiter` is the longest `Retry-After` of the policy in whole seconds: one interval of the bucket, or one window. `retry_after_at_cap@limiter` is the longest at the cap, `idleSpan` in whole seconds.
 
 ```ts
