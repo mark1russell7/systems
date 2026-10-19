@@ -4,10 +4,10 @@ import type { ListenOptions, Socket } from "node:net";
 import type { Cancel, Clock } from "../clock.ts";
 import { realClock } from "../clock.ts";
 import type { LateHold } from "../drains.ts";
-import { holdLate } from "../drains.ts";
+import { holdLate, noteOutside } from "../drains.ts";
 import { millisecondsOf as knobMilliseconds } from "../knobs.ts";
 import type { Lifecycle, TransportImpl } from "../lifecycle.ts";
-import { awaitsAnswer, watchAnswers } from "./answers.ts";
+import { answerOwner, watchAnswers } from "./answers.ts";
 
 /**
  * These are the knobs of an HTTP transport, by the names of the ordering law. The transport has no
@@ -210,7 +210,7 @@ const STATUS_TEXT: Readonly<Record<number, string>> = { 404: "Not Found", 500: "
  * - `drain` waits until no work is in flight, or until the deadline. It gives the cooperative abort to
  *   the handlers through their context. At the deadline, it also waits for each answer that is to come
  *   or to go out (SYS-29). The cap of the phase bounds that wait. Answers that did not go out by the
- *   cap are not a failure of the phase.
+ *   cap are not a failure of the phase. A stream outside the lifecycle of the transport does not hold it.
  * - `close` destroys each connection. A second close gives the same promise.
  * - The mounts share one port. The first request handler that gives true answers. After the stop of
  *   the intake, only the mounts until `close transports` answer, and each other request gets a 503.
@@ -276,21 +276,26 @@ export const httpTransport = (server: Server, knobs: HttpKnobs, options: HttpTra
    * This function gives what holds a drain after its deadline. An answer is unflushed when its handler
    * ended it and its bytes did not all go. It is unflushed too while `writeOutcome` waits for a client
    * that does not read. A call runs while `writeOutcome` waits for the end of its request, which the
-   * cut of the drain gives. A response that is open for another reason does not hold the drain.
+   * cut of the drain gives. Only a stream of the lifecycle of the transport counts, because only its
+   * cut ends the stream. A response that is open for another reason does not hold the drain.
    */
-  const lateHold = (): LateHold => {
+  const lateHold = (): LateHold & { readonly outside: number } => {
     let running = 0;
     let unflushed = 0;
+    let outside = 0;
     for (const res of responses) {
       if (res.destroyed) continue;
       if (res.writableEnded) {
         if (!res.writableFinished) unflushed += 1;
-      } else if (awaitsAnswer(res)) {
-        if (res.writableNeedDrain) unflushed += 1;
-        else running += 1;
+        continue;
       }
+      const owner = answerOwner(res);
+      if (owner === undefined) continue;
+      if (life === null || owner !== life) outside += 1;
+      else if (res.writableNeedDrain) unflushed += 1;
+      else running += 1;
     }
-    return { running, unflushed };
+    return { running, unflushed, outside };
   };
   const answering = (): boolean => {
     const hold = lateHold();
@@ -526,7 +531,14 @@ export const httpTransport = (server: Server, knobs: HttpKnobs, options: HttpTra
           late = true;
           unwatch = watchAnswers(check);
           // the lifecycle reads the hold at the cap: answers that do not go out are not a failure of the phase
-          if (life !== null) unhold = holdLate(life, lateHold);
+          if (life !== null) {
+            unhold = holdLate(life, () => {
+              const { running, unflushed } = lateHold();
+              return { running, unflushed };
+            });
+            // a stream outside the lifecycle does not hold the drain: the record of the phase gives the count
+            noteOutside(life, lateHold().outside);
+          }
           check();
         };
         drainers.add(check);
