@@ -79,6 +79,12 @@ export interface RunCheck<A = Quantity> {
   readonly why: string;
   readonly value: A | null;
   readonly facts: RunFacts<A>;
+  /**
+   * This text tells why a run that agrees with the law is past its calibrated band. A request failed
+   * after the window, but before the rules of its node dropped the target. Such a run makes its cell
+   * `extend`, and the cell does not hold (D-EXTEND).
+   */
+  readonly tail?: string | undefined;
 }
 
 /** A kind decision is the result of a kind cell. */
@@ -224,7 +230,18 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
       const late = relevant.filter((request) => request.t < lo || request.t > hi);
       // a request outside the window that reuses the port of a reset is the CLOSE entry of that reset
       const reused = reuse === undefined ? [] : late.filter((request) => reusesReset(request, failures, reuse));
-      const outside = late.filter((request) => !reused.includes(request));
+      // a request after the window that started before the rules of its node dropped the target agrees
+      // with the law: only the calibrated band is short (D-EXTEND). A request after the drop is still late
+      const origin = facts.deletion ?? (cell.trigger.kind === "crash" ? run.acts.fault : null);
+      const dropped = (node: string): number | null => {
+        const propagated = facts.propagation[node];
+        return origin === null || propagated === undefined || propagated === null ? null : origin + valueIn(propagated.by, "ms");
+      };
+      const tail = late.filter((request) => {
+        const drop = request.t > hi && !reused.includes(request) ? dropped(request.n) : null;
+        return drop !== null && request.t <= drop + NOISE;
+      });
+      const outside = late.filter((request) => !reused.includes(request) && !tail.includes(request));
       const problems: string[] = [];
       if (outside.length > 0) problems.push(`${outside.length} failed requests outside [${sec(lo - start)}, ${sec(hi - start)}] s after ${prediction.start.from}`);
       if (others.length > 0) problems.push(`${others.length} failed requests on nodes whose kube-proxy did not pause`);
@@ -240,7 +257,10 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
         reused.length === 0
           ? `${relevant.length} failed requests, all in the window (span ${span} s)`
           : `${inside.length} failed requests in the window (span ${span} s), and ${reused.length} on a port that a reset closed`;
-      return done(problems.length === 0, problems.length === 0 ? agrees : problems.join("; "), relevant.length);
+      const checked = done(problems.length === 0, problems.length === 0 ? agrees : problems.join("; "), relevant.length);
+      if (problems.length > 0 || tail.length === 0) return checked;
+      const last = tail.at(-1)!;
+      return { ...checked, tail: `${tail.length} failed requests after the window, the last ${sec(last.t - hi + NOISE)} s after it on ${last.n}, before the rules of ${last.n} dropped the target` };
     }
     case "removal": {
       const fault = run.acts.fault;
@@ -357,6 +377,10 @@ export const judgeKind = (cell: KindCell, runs: readonly KindRun[]): KindVerdict
     const first = checks.find((check) => !check.ok)!;
     return { decision: "fails", counted: counted.length, voided, failed, median, why: `${failed} of ${counted.length} runs disagree, the first: ${first.why}`, checks };
   }
+  // a run past its calibrated band agrees with the law, but the band is short: the cell needs a longer one
+  const tails = checks.filter((check) => check.tail !== undefined);
+  if (tails.length > 0)
+    return { decision: "extend", counted: counted.length, voided, failed, median, why: `${tails.length} of ${counted.length} runs are past the calibrated band, the first: ${tails[0]!.tail}`, checks };
   if (band !== null && values.length > 0) {
     const ends = secondsOf(band);
     const [from, to] = medianInterval(values);

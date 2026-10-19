@@ -63,15 +63,16 @@ Histories of operations and their checkers, load, exhaustion, retry storms and m
 
 ### S4 · The host, the NIC and the cloud
 
-- **Status:** waiting on Mark
+- **Status:** later
 - **Area:** program
 - **Depends on:** S1
 - **Started:**
 - **Shipped:**
 - **Links:**
-- **Waiting on Mark:** Set up one Linux box as the VM tier, with KVM and QEMU. Check the box for an SR-IOV NIC. If it has none, order a used one. Tell if the box can stay on.
 
 VMs with a kernel for each node, the failover of a host, block storage and shared fate. The cloud adds managed load balancers and real zones.
+
+Mark's decision of 2026-10-19: the VM tier runs on the hosted Linux runners of GitHub. Their KVM lets QEMU start one VM for each node. systems is public, thus its CI is free. The tier needs no hardware from Mark. The SR-IOV NIC and a cloud account wait until S4 starts.
 
 ### S5 · Silicon
 
@@ -450,6 +451,17 @@ No package of systems or of the client had a rate limit for each tenant or princ
 The store is an interface, and each store decides a take in one atomic step on its own clock. `memoryStore` is the store of one replica. Without a shared store, each replica holds limit / N, and that sum holds only on average. A shared store declares `onStoreFailure`, `open` or `closed`, with no default. The eviction is exact, the count of keys has a bound, and a new key at the cap waits at most the idle span.
 
 `lint()` applies two new rules to each limiter. O29 bounds the longest `Retry-After` by the retry window of the caller, at the cap of keys too. O30 bounds the retry delay of the caller from below. Their identifiers are provisional, because the corpus of the law does not have them yet.
+
+### SYS-29 · The answers of a cut call before the close of the sockets
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:**
+- **Started:** 2026-10-19
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+At the drain deadline, the drain timer of `httpTransport` resolves before the cut timer of the requests. Thus the listener does not wait for the answers of the cut calls. A 500, a 503 or the in-band end of a cut call can then race the close of its socket. The host of the client waits for them by itself (client #69). A plain service app on `httpTransport` does not. The fix orders the timers. The cut goes first, and the drain resolves after the answers of the cut flush, under the cap of the phase. The server-stack session builds it, as service 0.5.5 (PATCH: a fix with no change to the API).
 
 It comes in service 0.5.3, a PATCH: new exports. The store in Redis (`redisLimiterStore`, one script that reads `TIME`) comes in 0.5.4, also a PATCH. The machine document and the harness cell come next. The client item CLI-40 builds the admission step of the procedures server on it.
 
@@ -941,48 +953,52 @@ Each week, one round makes the site and the tracker easier to read, with a visua
 
 ### D-IDENTITY · A scenario identity without the defaults
 
-- **Status:** waiting on Mark
+- **Status:** done
 - **Area:** decisions
 - **Depends on:** IMPORT
 - **Started:** 2026-10-17
-- **Shipped:**
+- **Shipped:** 2026-10-19
 - **Links:**
-- **Waiting on Mark:** Choose how a scenario is identified: by the settings that the landing stores, or by the defaults of the documents. The first lands the older runs again.
 
 A catalog cell gives each knob, and a compiled cell gives only the knobs that it moves. With the defaults out of the identity, both cells of one scenario become one entity.
 
+Decided on 2026-10-19: the identity of a scenario holds only the settings that differ from the defaults of the documents. It is the more general choice: one scenario is one entity, in each form of a cell. The next landing in jarvis applies it. Each new landing supersedes the old one, thus the older runs land again.
+
 ### D-EXTEND · A verdict for a late propagation in kind
 
-- **Status:** waiting on Mark
+- **Status:** done
 - **Area:** decisions
 - **Depends on:** KIND-LONE
 - **Started:** 2026-10-17
-- **Shipped:**
+- **Shipped:** 2026-10-19
 - **Links:**
-- **Waiting on Mark:** Decide if a failure before the rules of its node drop the pod, but after the calibrated band, is `extend` or `fails`.
 
 The calibration gives the propagation from 33 samples. A run can measure a longer tail, and its failures then come in the window of the law but outside the band.
 
+Decided on 2026-10-19: such a cell is `extend`. The run agrees with the law, and only the calibrated band is short. `extend` does not count as a hold. A failure after the drop still fails the cell. kind 0.1.8 applies it, and the check of the run tells its tail (`tail`).
+
 ### D-R2 · R2's choice of systems where the app runs
 
-- **Status:** waiting on Mark
+- **Status:** in progress
 - **Area:** decisions
 - **Depends on:** S0
 - **Started:** 2026-10-08
 - **Shipped:**
 - **Links:**
-- **Waiting on Mark:** In the shared checkout of jarvis, after a sync and a restart, enter `pnpm --filter @jarvis/systems-pages build`. Then enter `./jarvis options save --input @packages/systems-pages/R2/options.json`.
 
 The last step of S0. The options document of R2 lands where the app runs. A second landing does no harm.
 
+Mark's answer of 2026-10-19: yes. The jarvis session lands it: in the shared checkout of jarvis, after a sync and a restart, `pnpm --filter @jarvis/systems-pages build`, then `./jarvis options save --input @packages/systems-pages/R2/options.json`.
+
 ### D-REVIEW · The judgments of 2026-10-16 and 2026-10-17
 
-- **Status:** waiting on Mark
+- **Status:** done
 - **Area:** decisions
 - **Depends on:**
 - **Started:** 2026-10-16
-- **Shipped:**
+- **Shipped:** 2026-10-19
 - **Links:**
-- **Waiting on Mark:** Read the decisions of 2026-10-16 and 2026-10-17 in jarvis, and answer any that you want changed.
 
 The mechanisms of MongoDB, the name of the step-down window, the ack delay as a mechanism, and the first version of `@mark1russell7/machines`.
+
+Mark's answer of 2026-10-19: keep each of them, as `decisions.md` in jarvis records them.

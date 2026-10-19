@@ -128,4 +128,39 @@ describe("the judgement of a kind run", () => {
     expect(judgeKind(none, [{ ...good, void: "not at rest" }]).decision).toBe("void");
     expect(judgeKind({ ...none, calibrates: true }, [good]).decision).toBe("calibration");
   });
+
+  it("extends a cell whose request failed after the calibrated band, but before the rules of its node dropped the target", () => {
+    const window = cell({
+      kind: "window",
+      nodes: "all",
+      start: { from: "intake", band: b(0, 1) },
+      end: { from: "deletion", band: b(0, 2.5) },
+      certain: false,
+      why: "a test",
+    });
+    // the rules of w1 keep the target until 4000 ms, after the end of the window at 3500 ms
+    const slow = (extra: Line[]): KindRun => {
+      const run = runWith(extra);
+      const lines = run.lines.filter((line) => !(line.ev === "rules" && line["node"] === "w1"));
+      return {
+        ...run,
+        lines: [
+          ...lines,
+          { ev: "rules", t: 1100, prev: 1050, node: "w1", b: [`${TARGET.ip}:8080`, "10.244.2.4:8080"] },
+          { ev: "rules", t: 4000, prev: 3900, node: "w1", b: ["10.244.2.4:8080"] },
+        ],
+      };
+    };
+    const tail = checkRun(window, slow([request(3010, "refused"), request(3700, "refused")]));
+    expect(tail).toMatchObject({ ok: true, tail: "1 failed requests after the window, the last 0.2 s after it on w1, before the rules of w1 dropped the target" });
+    expect(judgeKind(window, [slow([request(3010, "refused")]), slow([request(3700, "refused")])])).toMatchObject({
+      decision: "extend",
+      why: "1 of 2 runs are past the calibrated band, the first: 1 failed requests after the window, the last 0.2 s after it on w1, before the rules of w1 dropped the target",
+    });
+    // after the drop, or on a node whose rules dropped the target in the band, the request is still late
+    expect(checkRun(window, slow([request(4200, "refused")])).ok).toBe(false);
+    expect(checkRun(window, slow([request(3700, "refused", "w2")])).ok).toBe(false);
+    // a run that disagrees still fails the cell
+    expect(judgeKind(window, [slow([request(3700, "refused")]), slow([request(4200, "refused")])]).decision).toBe("fails");
+  });
 });
