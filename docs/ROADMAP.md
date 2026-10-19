@@ -461,7 +461,7 @@ It comes in service 0.5.3, a PATCH: new exports. The store in Redis (`redisLimit
 - **Depends on:**
 - **Started:** 2026-10-19
 - **Shipped:**
-- **Links:** [#111](https://github.com/mark1russell7/systems/pull/111), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#111](https://github.com/mark1russell7/systems/pull/111), [#113](https://github.com/mark1russell7/systems/pull/113), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 The client item CLI-48 found it. At the deadline of the drain, the timer of the transport and the cut of the requests come at the same time. With `setTimeout`, the timer of the transport comes first. Then the drain ended before the cut calls had their answers. The close of the sockets raced the 503, the 500 or the in-band end of each call.
 
