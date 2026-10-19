@@ -26,6 +26,7 @@ const FINDINGS: ReadonlyArray<{ readonly page: string; readonly tag: string; rea
   { page: "pg", tag: "T01", anchor: "node-postgres", text: <>No timer of node-postgres ends a query at its defaults.</> },
   { page: "pg", tag: "T01 · T10", anchor: "hikaricp", text: <>Behind a black hole, the keepalive checks of HikariCP wait in one queue.</> },
   { page: "rabbitmq", tag: "T01", anchor: "what-the-cells-found", text: <>A stopped RabbitMQ broker resets its clients at once: its sockets have linger 0.</> },
+  { page: "rabbitmq", tag: "T11", anchor: "t11-the-cluster", text: <>A quorum queue fails over after 6 s, but amqplib leaves its client on the silent node for 3 minutes.</> },
   { page: "kind", tag: "T07", anchor: "what-the-cells-found", text: <>A stale conntrack entry catches a later connection.</> },
   { page: "calibration", tag: "Stage 0", anchor: "what-the-calibration-sets", text: <>More environments do not change the spread of keepalive.</> },
 ];

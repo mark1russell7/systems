@@ -2,10 +2,10 @@
 //
 //   pnpm exec tsx packages/site/scripts/rabbitmq.ts <folder>...
 //
-// The RabbitMQ cells put amqplib 2.2.0 on Node against one broker of RabbitMQ 4.3.6: T01, the direct
-// pair, at the defaults and at the borders of O03 and O17. Each folder is the output of one shard of
-// the workflow Cells on a runner of GitHub: the raw record of each cell, summary.ndjson and
-// runner.txt.
+// The RabbitMQ cells put amqplib 2.2.0 on Node against RabbitMQ 4.3.6. T01 is the direct pair with
+// one broker, at the defaults and at the borders of O03 and O17. T11 is a cluster of three nodes with
+// one quorum queue. Each folder is the output of one shard of the workflow Cells on a runner of
+// GitHub: the raw record of each cell, summary.ndjson and runner.txt.
 // The script reads each record again with the code of the harness (`judge`), and it stops when that
 // verdict disagrees with summary.ndjson. It also stops when a prediction disagrees with the catalog
 // at the HZ of the runner. The copy keeps only what the page shows.
@@ -13,8 +13,8 @@
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Cell, LineMatch, Reference } from "../../harness/src/index.ts";
-import { NOISE } from "../../harness/src/index.ts";
-import type { CellRecord, Summary } from "./judged.ts";
+import { CLUSTER_STAGES, NOISE } from "../../harness/src/index.ts";
+import type { CellRecord, Reading, Summary } from "./judged.ts";
 import { nameOf, read, resultOf } from "./judged.ts";
 import { dateOf, noiseOf, ofCatalog, only, ordinal, readFolders, runnerOf, secondsOf, stringify, timeAt } from "./records.ts";
 
@@ -28,12 +28,15 @@ if (folders.length === 0) {
 const runner = runnerOf(folders);
 process.env["CELLS_HZ"] = String(runner.hz);
 const { T01_AMQP, AMQP_DRIVER } = await import("../../cells/src/rabbit/t01.ts");
+const { T11_RABBIT } = await import("../../cells/src/rabbit/t11.ts");
+/** These are the RabbitMQ cells of the catalogs: T01, then T11. */
+const CATALOG = [...T01_AMQP, ...T11_RABBIT];
 const { ALL } = await import("../../cells/src/all.ts");
 
 // a full run of the catalogs holds the cells of each catalog: this export takes its own
 const found = ofCatalog(
   readFolders<CellRecord, Summary>(folders),
-  T01_AMQP.map((cell) => cell.name),
+  CATALOG.map((cell) => cell.name),
   ALL.map((cell) => cell.name),
 );
 
@@ -44,7 +47,11 @@ const TIMERS: Readonly<Record<string, string>> = {
   "the broker ends the connection: rx.rst": "the stopped broker resets the idle connection",
   retrans_giveup: "the retransmissions of the kernel give up",
   "the reset of the connect": "the reset of the SYN refuses the first connect",
+  "the first confirm through the new leader": "the queue gets a new leader, and the first publish after the fault gets its confirm through it",
+  "the next confirm, with no new leader": "the queue keeps its leader, and the next publish gets its confirm",
 };
+/** This phrase is the band of a cell of T11 with the client on the node of the fault. */
+const ON_THE_NODE = "the heartbeat of amqplib ends the connection of the client, and the first publish on the next node gets its confirm";
 /** These phrases name the reference of a band, in a sentence. */
 const FROMS: Readonly<Record<string, string>> = {
   "last-data": "the last segment with data from the broker",
@@ -52,6 +59,7 @@ const FROMS: Readonly<Record<string, string>> = {
   "first-retransmission": "the first retransmission of the RTO timer",
   "peer-closed": "the close of the socket of the broker",
   "client-start": "the start of the client",
+  fault: "the fault",
 };
 const from = (reference: Reference): string => {
   const text = FROMS[reference];
@@ -59,7 +67,7 @@ const from = (reference: Reference): string => {
   return text;
 };
 /** This function gives the phrase of the error of a band: the close of amqplib, which the kernel stamps by its FIN, or an error. */
-const withError = (name: string): string => (name === "CLOSED" ? ", and the kernel stamps its FIN" : ` with ${name}`);
+const withError = (name: string): string => (name === "CLOSED" ? ", and the kernel stamps its FIN" : name === "OK" ? "" : ` with ${name}`);
 
 /** This function names a line that a prediction does not let come after the fault. */
 const quietOf = (match: LineMatch): string => {
@@ -76,10 +84,14 @@ const predictionOf = (cell: Cell) => {
   const none = { low: null, high: null, window: null };
   if (p.detects === null) throw new Error(`${cell.name}: a measurement only, which the RabbitMQ cells do not have`);
   const quiet = (p.driver?.quiet ?? []).map(quietOf);
-  const extra = quiet.length > 0 ? [`The prediction has no ${listed(quiet)} after the fault.`] : [];
+  const extra = [
+    ...(quiet.length > 0 ? [`The prediction has no ${listed(quiet)} after the fault.`] : []),
+    ...(p.group?.quiet?.includes("elected") === true ? ["The prediction has no new leader of the queue."] : []),
+  ];
   const text = (first: string): string => [first, ...extra].join(" ");
   if (p.detects) {
-    const timer = TIMERS[p.timer];
+    // the client on the node of the fault: only the heartbeat of amqplib ends its connection
+    const timer = cell.clientAt === "leader" ? ON_THE_NODE : TIMERS[p.timer];
     if (timer === undefined) throw new Error(`${cell.name}: the timer "${p.timer}" has no text for the page`);
     const [low, high] = [secondsOf(p.low)!, secondsOf(p.high)!];
     return {
@@ -105,19 +117,50 @@ const predictionOf = (cell: Cell) => {
   return { kind: "silent", ...none, window, text: text(`The algebra predicts that nothing detects the fault in a window of ${at(window)}.`) };
 };
 
+/** This function gives each stage of the timeline of a cluster. A stage has its band, when the prediction gives one, and its median. */
+const stagesOf = (reading: Reading) => {
+  const group = reading.verdict.group;
+  if (group === undefined) return null;
+  return CLUSTER_STAGES.flatMap((stage) => {
+    const banded = group.stages.find((each) => each.stage === stage);
+    const median = secondsOf(group.medians[stage]);
+    if (banded === undefined && median === null) return [];
+    return [
+      { stage, low: banded === undefined ? null : secondsOf(banded.band.low), high: banded === undefined ? null : secondsOf(banded.band.high), median, decision: banded?.decision ?? null },
+    ];
+  });
+};
+
+/** This function gives what became of the publishes of a cluster cell: the confirmed publishes that the queue did not keep. */
+const publishesOf = (reading: Reading) => {
+  const group = reading.verdict.group;
+  if (group === undefined) return null;
+  const counted = reading.measured.filter((run) => run.void === null).length;
+  return {
+    kind: "publishes",
+    lost: group.lost,
+    old: group.old,
+    unknown: group.unknown,
+    errors: group.errors.map((each) => ({ name: each.name, runs: each.runs, first: secondsOf(each.first) })),
+    moved: 0,
+    stayed: counted,
+  };
+};
+
 /** This function gives the name of a cell without the client and the target, which each RabbitMQ cell has. */
 const shortOf = (name: string): string => {
-  const short = name.replace(/^amqplib-2\.2 to rabbitmq-4\.3, /, "");
+  const short = name.replace(/^amqplib-2\.2 to rabbitmq-4\.3( cluster)?, /, "");
   if (short === name) throw new Error(`${name}: not the client and the target of the RabbitMQ cells`);
   return short;
 };
 
-const cells = T01_AMQP.flatMap((catalog) => {
+const cells = CATALOG.flatMap((catalog) => {
   const entry = found.get(catalog.name);
   if (entry === undefined) return [];
   if (JSON.stringify(entry.record.cell.prediction) !== JSON.stringify(catalog.prediction))
     throw new Error(`${catalog.name}: the prediction of the record is not the prediction of the catalog at HZ ${runner.hz}`);
   const named = nameOf(catalog.name);
+  const reading = read(entry);
   return [
     {
       ...named,
@@ -126,11 +169,12 @@ const cells = T01_AMQP.flatMap((catalog) => {
       client: "amqplib",
       stage: named.plan?.includes(".border-off.") ? "border" : "defaults",
       prediction: predictionOf(entry.record.cell),
-      ...resultOf(read(entry)),
+      ...resultOf(reading),
+      ...(catalog.cluster === undefined ? {} : { stages: stagesOf(reading), writes: publishesOf(reading) }),
     },
   ];
 });
-const unknown = [...found.keys()].filter((name) => !T01_AMQP.some((cell) => cell.name === name));
+const unknown = [...found.keys()].filter((name) => !CATALOG.some((cell) => cell.name === name));
 if (unknown.length > 0) throw new Error(`no catalog has the cells ${unknown.join(", ")}`);
 
 const records = [...found.values()].map((entry) => entry.record);

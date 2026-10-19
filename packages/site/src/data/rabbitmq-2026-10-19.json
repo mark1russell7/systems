@@ -32,13 +32,13 @@
         "low": 119.999,
         "high": 180.031
       },
-      "median": 180.00434,
-      "why": "11 of the 11 counted runs are in the band of 119.999 s to 180.031 s. The median is 180.004 s, and its interval is 179.995 s to 180.01 s.",
+      "median": 180.007907,
+      "why": "11 of the 11 counted runs are in the band of 119.999 s to 180.031 s. The median is 180.008 s, and its interval is 180.006 s to 180.009 s.",
       "runs": [
-        [180.001932, 180.010367, 180.003013, 180.010053, 179.987416, 180.007258],
-        [180.00919, 180.00434, 180.009198, 179.995466, 179.998727]
+        [180.009185, 180.007793, 180.007141, 180.008864, 180.008721, 180.006493],
+        [180.007907, 180.008327, 180.006993, 180.006473, 180.007966]
       ],
-      "warmups": [179.943296, 179.966226],
+      "warmups": [180.007546, 180.008738],
       "voids": null
     },
     {
@@ -62,13 +62,13 @@
         "low": -0.001,
         "high": 0.003
       },
-      "median": 0.000776,
-      "why": "11 of the 11 counted runs are in the band of −1 ms to 3 ms. The median is 776 µs, and its interval is 651 µs to 1.01 ms.",
+      "median": 0.000681,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 3 ms. The median is 681 µs, and its interval is 620 µs to 1.06 ms.",
       "runs": [
-        [0.000764, 0.000959, 0.000779, 0.000812, 0.001011, 0.000651],
-        [0.000751, 0.001367, 0.000705, 0.000776, 0.000601]
+        [0.000657, 0.000641, 0.001058, 0.000782, 0.000566, 0.000681],
+        [0.001162, 0.00062, 0.000626, 0.000701, 0.000817]
       ],
-      "warmups": [0.000752, 0.000769],
+      "warmups": [0.000783, 0.000831],
       "voids": null
     },
     {
@@ -92,22 +92,22 @@
         "low": -0.001,
         "high": 0.013
       },
-      "median": 0.000045,
-      "why": "11 of the 11 counted runs are in the band of −1 ms to 13 ms. The median is 45 µs, and its interval is 44 µs to 48 µs.",
+      "median": 0.00005,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 13 ms. The median is 50 µs, and its interval is 48 µs to 57 µs.",
       "runs": [
-        [0.000044],
-        [0.00005],
-        [0.000047],
         [0.000048],
-        [0.000045],
-        [0.000044],
-        [0.000045],
-        [0.000047],
-        [0.000046],
-        [0.000045],
-        [0.000044]
+        [0.000074],
+        [0.000048],
+        [0.000049],
+        [0.00005],
+        [0.00005],
+        [0.000057],
+        [0.00005],
+        [0.000049],
+        [0.00005],
+        [0.000051]
       ],
-      "warmups": [0.000255, 0.000245, 0.000205, 0.000225, 0.000318, 0.000199, 0.000249, 0.000233, 0.000201, 0.000225, 0.00018],
+      "warmups": [0.0002, 0.000293, 0.001119, 0.000271, 0.000192, 0.000655, 0.000243, 0.00015, 0.000221, 0.000604, 0.000235],
       "voids": null
     },
     {
@@ -131,13 +131,13 @@
         "low": 2.999,
         "high": 3.33
       },
-      "median": 3.120022,
+      "median": 3.119997,
       "why": "11 of the 11 counted runs are in the band of 2.999 s to 3.33 s. The median is 3.12 s, and its interval is 3.12 s to 3.12 s.",
       "runs": [
-        [3.119997, 3.120022, 3.120049, 3.120027, 3.120053, 3.120022],
-        [3.12004, 3.120016, 3.120001, 3.120025, 3.120014]
+        [3.119997, 3.119998, 3.119996, 3.023999, 3.119999, 3.119995],
+        [3.120003, 3.119984, 3.119993, 3.120008, 3.120004]
       ],
-      "warmups": [3.120004, 3.119967],
+      "warmups": [3.120009, 3.120018],
       "voids": null
     },
     {
@@ -161,13 +161,13 @@
         "low": 119.999,
         "high": 180.031
       },
-      "median": 180.007638,
-      "why": "11 of the 11 counted runs are in the band of 119.999 s to 180.031 s. The median is 180.008 s, and its interval is 180.007 s to 180.009 s.",
+      "median": 180.008954,
+      "why": "11 of the 11 counted runs are in the band of 119.999 s to 180.031 s. The median is 180.009 s, and its interval is 180.004 s to 180.01 s.",
       "runs": [
-        [180.007666, 180.007188, 180.006967, 180.007118, 180.009118, 180.000447],
-        [180.007638, 180.008335, 180.009357, 180.007137, 180.007805]
+        [180.010304, 180.009254, 180.010478, 180.011275, 180.007976, 180.008688],
+        [180.007903, 180.008954, 180.004309, 180.010103, 180.004461]
       ],
-      "warmups": [180.006636, 180.005991],
+      "warmups": [180.005906, 180.007968],
       "voids": null
     },
     {
@@ -191,13 +191,13 @@
         "low": 1.603,
         "high": 1.797
       },
-      "median": 1.691796,
-      "why": "11 of the 11 counted runs are in the band of 1.603 s to 1.797 s. The median is 1.692 s, and its interval is 1.68 s to 1.705 s.",
+      "median": 1.686789,
+      "why": "11 of the 11 counted runs are in the band of 1.603 s to 1.797 s. The median is 1.687 s, and its interval is 1.66 s to 1.698 s.",
       "runs": [
-        [1.669241, 1.704788, 1.715039, 1.679847, 1.697005, 1.691796],
-        [1.688043, 1.697359, 1.689347, 1.696622, 1.689635]
+        [1.686789, 1.660359, 1.674749, 1.680594, 1.694668, 1.688572],
+        [1.655821, 1.700151, 1.698398, 1.694679, 1.681714]
       ],
-      "warmups": [1.662298, 1.685281],
+      "warmups": [1.70334, 1.69252],
       "voids": null
     },
     {
@@ -248,19 +248,19 @@
         "low": -0.001,
         "high": 0.023
       },
-      "median": 0.003078,
-      "why": "11 of the 11 counted runs are in the band of −1 ms to 23 ms. The median is 3.08 ms, and its interval is 2.92 ms to 3.86 ms.",
+      "median": 0.004861,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 23 ms. The median is 4.86 ms, and its interval is 4.5 ms to 5.34 ms.",
       "runs": [
-        [0.003078, 0.002983, 0.00355, 0.002984, 0.003864, 0.003752],
-        [0.003023, 0.003903, 0.002924, 0.002923, 0.003802]
+        [0.005562, 0.00475, 0.004676, 0.005338, 0.00473, 0.005226],
+        [0.004861, 0.004865, 0.005126, 0.00387, 0.004502]
       ],
-      "warmups": [0.004478, 0.002919],
+      "warmups": [0.004718, 0.004887],
       "voids": null
     },
     {
       "plan": "T01.border-off.161",
       "catalog": "T01",
-      "name": "middlebox-forget, idle, heartbeat 40 s, at the broker too: inside O03 against a silent-drop router at 30 s",
+      "name": "middlebox-forget, idle, heartbeat 40 s, at the broker too: inside O03 against a silent-drop router at 30 s, thus a heartbeat of 60 s",
       "group": "T01",
       "client": "amqplib",
       "stage": "border",
@@ -287,7 +287,7 @@
     {
       "plan": "T01.border-off.162",
       "catalog": "T01",
-      "name": "middlebox-forget, idle, heartbeat 80 s, at the broker too: outside O03 against a silent-drop router at 30 s",
+      "name": "middlebox-forget, idle, heartbeat 80 s, at the broker too: outside O03 against a silent-drop router at 30 s, thus a heartbeat of 60 s",
       "group": "T01",
       "client": "amqplib",
       "stage": "border",
@@ -305,13 +305,13 @@
         "low": 159.999,
         "high": 240.031
       },
-      "median": 240.013585,
-      "why": "11 of the 11 counted runs are in the band of 159.999 s to 240.031 s. The median is 240.014 s, and its interval is 239.999 s to 240.015 s.",
+      "median": 240.013177,
+      "why": "11 of the 11 counted runs are in the band of 159.999 s to 240.031 s. The median is 240.013 s, and its interval is 240.01 s to 240.016 s.",
       "runs": [
-        [239.999395, 240.008687, 239.942514, 240.011546, 240.014301, 240.013585],
-        [240.014502, 240.015339, 240.011965, 240.014735, 240.014939]
+        [240.013177, 240.013926, 240.015567, 240.010664, 240.010401, 240.007875],
+        [240.014338, 240.015525, 240.012624, 240.010854, 240.01369]
       ],
-      "warmups": [240.006301, 239.929585],
+      "warmups": [240.009042, 240.010656],
       "voids": null
     },
     {
@@ -335,13 +335,13 @@
         "low": 29.999,
         "high": 45.031
       },
-      "median": 45.010606,
-      "why": "11 of the 11 counted runs are in the band of 29.999 s to 45.031 s. The median is 45.011 s, and its interval is 45.006 s to 45.013 s.",
+      "median": 45.009556,
+      "why": "11 of the 11 counted runs are in the band of 29.999 s to 45.031 s. The median is 45.01 s, and its interval is 45.006 s to 45.013 s.",
       "runs": [
-        [45.009802, 45.012528, 45.010606, 45.01273, 45.014138, 45.013041],
-        [45.008981, 45.013437, 45.005066, 45.008584, 45.006376]
+        [45.009687, 45.007001, 45.005914, 45.009457, 45.012947, 45.005047],
+        [45.013204, 45.009556, 45.008719, 45.014063, 45.012775]
       ],
-      "warmups": [45.008514, 45.006263],
+      "warmups": [45.004306, 45.005972],
       "voids": null
     },
     {
@@ -365,14 +365,718 @@
         "low": 50.999,
         "high": 108.289
       },
-      "median": 53.016023,
-      "why": "11 of the 11 counted runs are in the band of 50.999 s to 108.289 s. The median is 53.016 s, and its interval is 52.815 s to 53.176 s.",
+      "median": 52.920025,
+      "why": "11 of the 11 counted runs are in the band of 50.999 s to 108.289 s. The median is 52.92 s, and its interval is 52.776 s to 53.104 s.",
       "runs": [
-        [53.008009, 52.808028, 53.09603, 52.920018, 53.216007, 53.04001],
-        [52.880021, 53.17604, 53.016023, 52.815052, 53.103995]
+        [52.808008, 53.104033, 52.920025, 52.75991, 53.040024, 52.856006],
+        [52.823991, 53.152008, 52.960043, 52.775996, 53.088037]
       ],
-      "warmups": [52.824053, 53.215992],
+      "warmups": [53.176012, 53.231965],
       "voids": null
+    },
+    {
+      "plan": "T11.defaults.7",
+      "catalog": "T11",
+      "name": "event:stepdown, transfer_leadership to a follower",
+      "group": "T11",
+      "client": "amqplib",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.196,
+        "window": null,
+        "text": "The algebra predicts that the queue gets a new leader, and the first publish after the fault gets its confirm through it. The band is 0 s to 196 ms after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.001,
+        "high": 0.197
+      },
+      "median": 0.020168,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 197 ms. The median is 20.2 ms, and its interval is 11.9 ms to 34.2 ms.",
+      "runs": [
+        [0.011869, 0.027953, 0.037176, 0.034243, 0.009969, 0.017502],
+        [0.017635, 0.028454, 0.018159, 0.030803, 0.020168]
+      ],
+      "warmups": [0.008177, 0.023109],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "elected",
+          "low": -0.001,
+          "high": 0.039,
+          "median": 0.004905,
+          "decision": "holds"
+        },
+        {
+          "stage": "followed",
+          "low": null,
+          "high": null,
+          "median": 0.00545,
+          "decision": null
+        },
+        {
+          "stage": "old-leader-steps-down",
+          "low": null,
+          "high": null,
+          "median": 0,
+          "decision": null
+        },
+        {
+          "stage": "first-write",
+          "low": -0.001,
+          "high": 0.199,
+          "median": 0.020168,
+          "decision": "holds"
+        }
+      ],
+      "writes": {
+        "kind": "publishes",
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 0,
+        "stayed": 11
+      }
+    },
+    {
+      "plan": "T11.defaults.74",
+      "catalog": "T11",
+      "name": "freeze-process at the node of the leader, 20 s",
+      "group": "T11",
+      "client": "amqplib",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 5.051,
+        "high": 12.003,
+        "window": null,
+        "text": "The algebra predicts that the queue gets a new leader, and the first publish after the fault gets its confirm through it. The band is 5.051 s to 12.003 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 5.05,
+        "high": 12.004
+      },
+      "median": 6.934654,
+      "why": "11 of the 11 counted runs are in the band of 5.05 s to 12.004 s. The median is 6.935 s, and its interval is 6.292 s to 7.931 s.",
+      "runs": [
+        [7.931197, 6.449693, 7.368031, 6.291666, 7.132425, 6.934654],
+        [8.087364, 6.857485, 7.05527, 6.875405, 6.099162]
+      ],
+      "warmups": [6.636784, 6.251046],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "elected",
+          "low": 5.05,
+          "high": 11.846,
+          "median": 6.932646,
+          "decision": "holds"
+        },
+        {
+          "stage": "followed",
+          "low": null,
+          "high": null,
+          "median": 6.933319,
+          "decision": null
+        },
+        {
+          "stage": "old-leader-steps-down",
+          "low": null,
+          "high": null,
+          "median": 20.004196,
+          "decision": null
+        },
+        {
+          "stage": "first-write",
+          "low": 5.05,
+          "high": 12.006,
+          "median": 6.934654,
+          "decision": "holds"
+        }
+      ],
+      "writes": {
+        "kind": "publishes",
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 1,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 0,
+        "stayed": 11
+      }
+    },
+    {
+      "plan": "T11.defaults.75",
+      "catalog": "T11",
+      "name": "blackhole at the node of the leader, cut from each node and the client, 20 s",
+      "group": "T11",
+      "client": "amqplib",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 5.051,
+        "high": 12.003,
+        "window": null,
+        "text": "The algebra predicts that the queue gets a new leader, and the first publish after the fault gets its confirm through it. The band is 5.051 s to 12.003 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 5.05,
+        "high": 12.004
+      },
+      "median": 8.255489,
+      "why": "11 of the 11 counted runs are in the band of 5.05 s to 12.004 s. The median is 8.255 s, and its interval is 7.336 s to 9.567 s.",
+      "runs": [
+        [8.555479, 7.25849, 8.255489, 7.834056, 8.782272, 8.310743],
+        [7.335981, 9.782552, 7.47194, 9.566975, 8.037656]
+      ],
+      "warmups": [7.891432, 8.286096],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "elected",
+          "low": 5.05,
+          "high": 11.846,
+          "median": 8.253324,
+          "decision": "holds"
+        },
+        {
+          "stage": "followed",
+          "low": null,
+          "high": null,
+          "median": 8.253932,
+          "decision": null
+        },
+        {
+          "stage": "old-leader-steps-down",
+          "low": null,
+          "high": null,
+          "median": 27.292946,
+          "decision": null
+        },
+        {
+          "stage": "first-write",
+          "low": 5.05,
+          "high": 12.006,
+          "median": 8.255489,
+          "decision": "holds"
+        }
+      ],
+      "writes": {
+        "kind": "publishes",
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 0,
+        "stayed": 11
+      }
+    },
+    {
+      "plan": "T11.defaults.76",
+      "catalog": "T11",
+      "name": "partition:complete, the node of the leader cut from the other nodes, 20 s",
+      "group": "T11",
+      "client": "amqplib",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 5.051,
+        "high": 12.003,
+        "window": null,
+        "text": "The algebra predicts that the queue gets a new leader, and the first publish after the fault gets its confirm through it. The band is 5.051 s to 12.003 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 5.05,
+        "high": 12.004
+      },
+      "median": 6.210407,
+      "why": "11 of the 11 counted runs are in the band of 5.05 s to 12.004 s. The median is 6.21 s, and its interval is 5.435 s to 8.893 s.",
+      "runs": [
+        [6.505369, 5.976319, 8.892929, 5.873067, 6.61347, 6.110723],
+        [5.433436, 6.210407, 5.434844, 6.597187, 9.798843]
+      ],
+      "warmups": [6.727492, 6.235902],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "elected",
+          "low": 5.05,
+          "high": 11.846,
+          "median": 6.208656,
+          "decision": "holds"
+        },
+        {
+          "stage": "followed",
+          "low": null,
+          "high": null,
+          "median": 6.209166,
+          "decision": null
+        },
+        {
+          "stage": "old-leader-steps-down",
+          "low": null,
+          "high": null,
+          "median": 27.160475,
+          "decision": null
+        },
+        {
+          "stage": "first-write",
+          "low": 5.05,
+          "high": 12.006,
+          "median": 6.210407,
+          "decision": "holds"
+        }
+      ],
+      "writes": {
+        "kind": "publishes",
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 0,
+        "stayed": 11
+      }
+    },
+    {
+      "plan": "T11.defaults.77",
+      "catalog": "T11",
+      "name": "partition:partial, the node of the leader cut from one follower, 20 s",
+      "group": "T11",
+      "client": "amqplib",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.16,
+        "window": null,
+        "text": "The algebra predicts that the queue keeps its leader, and the next publish gets its confirm. The band is 0 s to 160 ms after the fault. The prediction has no new leader of the queue."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.001,
+        "high": 0.161
+      },
+      "median": 0.017527,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 161 ms. The median is 17.5 ms, and its interval is 12.4 ms to 54.2 ms.",
+      "runs": [
+        [0.01244, 0.016281, 0.022857, 0.016454, 0.128217, 0.054182],
+        [0.021123, 0.017527, 0.024126, 0.012008, 0.017466]
+      ],
+      "warmups": [0.014447, 0.017205],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "followed",
+          "low": null,
+          "high": null,
+          "median": 20.015928,
+          "decision": null
+        },
+        {
+          "stage": "first-write",
+          "low": -0.001,
+          "high": 0.163,
+          "median": 0.017527,
+          "decision": "holds"
+        }
+      ],
+      "writes": {
+        "kind": "publishes",
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 1,
+          "held": 1
+        },
+        "errors": [],
+        "moved": 0,
+        "stayed": 11
+      }
+    },
+    {
+      "plan": "T11.defaults.78",
+      "catalog": "T11",
+      "name": "partition:simplex, the segments from the node of the leader to one follower dropped, 20 s",
+      "group": "T11",
+      "client": "amqplib",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.16,
+        "window": null,
+        "text": "The algebra predicts that the queue keeps its leader, and the next publish gets its confirm. The band is 0 s to 160 ms after the fault. The prediction has no new leader of the queue."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.001,
+        "high": 0.161
+      },
+      "median": 0.011382,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 161 ms. The median is 11.4 ms, and its interval is 5.75 ms to 53.7 ms.",
+      "runs": [
+        [0.006398, 0.013296, 0.003854, 0.016703, 0.053878, 0.011382],
+        [0.010749, 0.009653, 0.005749, 0.05372, 0.019525]
+      ],
+      "warmups": [0.008784, 0.055181],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "followed",
+          "low": null,
+          "high": null,
+          "median": 20.019581,
+          "decision": null
+        },
+        {
+          "stage": "first-write",
+          "low": -0.001,
+          "high": 0.163,
+          "median": 0.011382,
+          "decision": "holds"
+        }
+      ],
+      "writes": {
+        "kind": "publishes",
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 0,
+        "stayed": 11
+      }
+    },
+    {
+      "plan": "T11.defaults.79",
+      "catalog": "T11",
+      "name": "event:broker-drain, rabbitmq-upgrade drain at the node of the leader",
+      "group": "T11",
+      "client": "amqplib",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0.001,
+        "high": 0.294,
+        "window": null,
+        "text": "The algebra predicts that the queue gets a new leader, and the first publish after the fault gets its confirm through it. The band is 1 ms to 294 ms after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 0,
+        "high": 0.295
+      },
+      "median": 0.04826,
+      "why": "11 of the 11 counted runs are in the band of 0 s to 295 ms. The median is 48.3 ms, and its interval is 26.9 ms to 76.8 ms.",
+      "runs": [
+        [0.024822, 0.07679, 0.04826, 0.02718, 0.036113, 0.103392],
+        [0.069885, 0.03071, 0.057557, 0.050901, 0.026865]
+      ],
+      "warmups": [0.071938, 0.028659],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "monitor-down",
+          "low": null,
+          "high": null,
+          "median": 0,
+          "decision": null
+        },
+        {
+          "stage": "elected",
+          "low": 0,
+          "high": 0.137,
+          "median": 0.045068,
+          "decision": "holds"
+        },
+        {
+          "stage": "followed",
+          "low": null,
+          "high": null,
+          "median": 0.045598,
+          "decision": null
+        },
+        {
+          "stage": "first-write",
+          "low": 0,
+          "high": 0.297,
+          "median": 0.04826,
+          "decision": "holds"
+        }
+      ],
+      "writes": {
+        "kind": "publishes",
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [],
+        "moved": 0,
+        "stayed": 11
+      }
+    },
+    {
+      "plan": "T11.defaults.74",
+      "catalog": "T11",
+      "name": "freeze-process at the node of the leader, the client on it, 200 s",
+      "group": "T11",
+      "client": "amqplib",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 120.89,
+        "high": 181.162,
+        "window": null,
+        "text": "The algebra predicts that the heartbeat of amqplib ends the connection of the client, and the first publish on the next node gets its confirm. The band is 120.89 s to 181.162 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 120.889,
+        "high": 181.163
+      },
+      "median": 180.017506,
+      "why": "11 of the 11 counted runs are in the band of 120.889 s to 181.163 s. The median is 180.018 s, and its interval is 180.012 s to 180.026 s.",
+      "runs": [
+        [180.019628, 180.023214, 180.016496, 180.011557, 180.009446, 180.013762],
+        [180.027959, 180.023621, 180.017506, 180.017318, 180.025793]
+      ],
+      "warmups": [180.009349, 180.021384],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "elected",
+          "low": 5.05,
+          "high": 11.846,
+          "median": 6.439408,
+          "decision": "holds"
+        },
+        {
+          "stage": "followed",
+          "low": null,
+          "high": null,
+          "median": 6.439787,
+          "decision": null
+        },
+        {
+          "stage": "old-leader-steps-down",
+          "low": null,
+          "high": null,
+          "median": 200.013943,
+          "decision": null
+        },
+        {
+          "stage": "first-write",
+          "low": 120.889,
+          "high": 181.165,
+          "median": 180.017506,
+          "decision": "holds"
+        }
+      ],
+      "writes": {
+        "kind": "publishes",
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 0,
+          "held": 0
+        },
+        "errors": [
+          {
+            "name": "Error",
+            "runs": 11,
+            "first": 178.968488
+          }
+        ],
+        "moved": 0,
+        "stayed": 11
+      }
+    },
+    {
+      "plan": "T11.defaults.75",
+      "catalog": "T11",
+      "name": "blackhole at the node of the leader, the client on it, 200 s",
+      "group": "T11",
+      "client": "amqplib",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 120.89,
+        "high": 181.162,
+        "window": null,
+        "text": "The algebra predicts that the heartbeat of amqplib ends the connection of the client, and the first publish on the next node gets its confirm. The band is 120.89 s to 181.162 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 120.889,
+        "high": 181.163
+      },
+      "median": 180.015196,
+      "why": "11 of the 11 counted runs are in the band of 120.889 s to 181.163 s. The median is 180.015 s, and its interval is 180.004 s to 180.021 s.",
+      "runs": [
+        [180.007619, 180.019894, 180.024437, 180.015196, 180.021108, 180.00433],
+        [180.010127, 180.00199, 180.010136, 180.017109, 180.017068]
+      ],
+      "warmups": [180.019464, 180.029766],
+      "voids": null,
+      "stages": [
+        {
+          "stage": "elected",
+          "low": 5.05,
+          "high": 11.846,
+          "median": 7.443811,
+          "decision": "holds"
+        },
+        {
+          "stage": "followed",
+          "low": null,
+          "high": null,
+          "median": 7.444098,
+          "decision": null
+        },
+        {
+          "stage": "old-leader-steps-down",
+          "low": null,
+          "high": null,
+          "median": 200.625374,
+          "decision": null
+        },
+        {
+          "stage": "first-write",
+          "low": 120.889,
+          "high": 181.165,
+          "median": 180.015196,
+          "decision": "holds"
+        }
+      ],
+      "writes": {
+        "kind": "publishes",
+        "lost": {
+          "runs": 11,
+          "total": 0,
+          "median": 0,
+          "max": 0
+        },
+        "old": {
+          "median": 0,
+          "max": 0
+        },
+        "unknown": {
+          "total": 1,
+          "held": 0
+        },
+        "errors": [
+          {
+            "name": "Error",
+            "runs": 11,
+            "first": 178.962995
+          }
+        ],
+        "moved": 0,
+        "stayed": 11
+      }
     }
   ]
 }

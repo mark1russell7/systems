@@ -3,8 +3,8 @@ import rabbitmq from "./rabbitmq-2026-10-19.json";
 
 type Cell = (typeof rabbitmq.cells)[number];
 
-const cell = (plan: string): Cell => {
-  const found = rabbitmq.cells.find((each) => each.plan === plan);
+const cell = (plan: string, client = false): Cell => {
+  const found = rabbitmq.cells.find((each) => each.plan === plan && each.name.includes("the client on it") === client);
   if (found === undefined) throw new Error(`no cell ${plan}`);
   return found;
 };
@@ -13,15 +13,15 @@ const outside = (each: Cell): number[] =>
   each.runs.flat().flatMap((t) => (t === null || each.band === null || (t >= each.band.low && t <= each.band.high) ? [] : [t])).sort((a, b) => a - b);
 
 describe("the copy of the RabbitMQ cells holds the figures of their CI run", () => {
-  it("has 12 cells on Linux 6.17 at HZ 1000, each holds, with 132 counted runs and no void run", () => {
+  it("has 21 cells on Linux 6.17 at HZ 1000, each holds, with 231 counted runs and no void run", () => {
     expect([rabbitmq.kernel, rabbitmq.hz, rabbitmq.target]).toEqual(["6.17.0", 1000, "rabbitmq:4.3.6"]);
     expect(rabbitmq.clients).toEqual({ amqplib: "amqplib 2.2.0 on Node 24.21.0" });
-    expect(rabbitmq.cells).toHaveLength(12);
+    expect(rabbitmq.cells).toHaveLength(21);
     expect(rabbitmq.cells.every((each) => each.decision === "holds")).toBe(true);
-    expect(rabbitmq.cells.reduce((sum, each) => sum + each.counted, 0)).toBe(132);
+    expect(rabbitmq.cells.reduce((sum, each) => sum + each.counted, 0)).toBe(231);
     expect(rabbitmq.cells.reduce((sum, each) => sum + each.voided, 0)).toBe(0);
-    const count = (stage: string) => rabbitmq.cells.filter((each) => each.group === "T01" && each.stage === stage).length;
-    expect([count("defaults"), count("border")]).toEqual([8, 4]);
+    const count = (group: string, stage: string) => rabbitmq.cells.filter((each) => each.group === group && each.stage === stage).length;
+    expect([count("T01", "defaults"), count("T01", "border"), count("T11", "defaults")]).toEqual([8, 4, 9]);
     for (const each of rabbitmq.cells) expect(outside(each), each.plan ?? each.name).toEqual([]);
   });
 
@@ -51,6 +51,33 @@ describe("the copy of the RabbitMQ cells holds the figures of their CI run", () 
     expect(cell("T01.border-off.205").median).toBeLessThan(51);
     expect(cell("T01.border-off.206").median).toBeGreaterThan(51);
     expect(cell("T01.border-off.206").prediction.text).toMatch(/the retransmissions of the kernel give up with ETIMEDOUT/);
+  });
+
+  it("fails the quorum queue over 5 s to 12 s after a silent leader, at the poll of 5 s of RabbitMQ", () => {
+    for (const plan of ["T11.defaults.74", "T11.defaults.75", "T11.defaults.76"]) {
+      const each = cell(plan);
+      expect(each.band, plan).toEqual({ low: 5.05, high: 12.004 });
+      expect(each.median, plan).toBeGreaterThan(5.05);
+      expect(each.median, plan).toBeLessThan(12);
+      expect(each.stages?.find((stage) => stage.stage === "elected")?.decision, plan).toBe("holds");
+      expect(each.writes?.lost.total, plan).toBe(0);
+    }
+    // a cut of one follower: no new leader, and the next confirm at once
+    for (const plan of ["T11.defaults.77", "T11.defaults.78"]) {
+      expect(cell(plan).median, plan).toBeLessThan(0.161);
+      expect(cell(plan).prediction.text, plan).toMatch(/The prediction has no new leader of the queue\.$/);
+    }
+  });
+
+  it("moves a client on the node of the leader only at the heartbeat of amqplib, 3 minutes after the fault", () => {
+    for (const plan of ["T11.defaults.74", "T11.defaults.75"]) {
+      const each = cell(plan, true);
+      expect(each.median, plan).toBeGreaterThan(120.889);
+      expect(each.median, plan).toBeLessThan(181.163);
+      expect(each.prediction.text, plan).toMatch(/^The algebra predicts that the heartbeat of amqplib ends the connection of the client/);
+      // the queue itself fails over long before
+      expect(each.stages?.find((stage) => stage.stage === "elected")?.median, plan).toBeLessThan(12);
+    }
   });
 
   it("gives the return after a stall at the third firing of the RTO timer, in a band that holds the reply time of the broker", () => {

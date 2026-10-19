@@ -2,7 +2,7 @@
 title: RabbitMQ with amqplib
 sidebar:
   label: RabbitMQ
-description: The RabbitMQ cells on the runners of GitHub, with amqplib 2.2.0 against RabbitMQ 4.3.6 on the direct pair, at the defaults and at the borders of O03 and O17. Each of the 12 cells holds.
+description: The RabbitMQ cells on the runners of GitHub, with amqplib 2.2.0 against RabbitMQ 4.3.6. T01 is the direct pair, at the defaults and at the borders of O03 and O17. T11 is a cluster of three nodes with a quorum queue. Each of the 21 cells holds.
 ---
 
 import RunResults from "../../../components/RunResults.tsx";
@@ -14,24 +14,37 @@ import Borders from "../../../components/Borders.tsx";
 
 <CellMap copy="rabbitmq" />
 
-These are the results of the RabbitMQ cells, from 2026-10-19. The broker is RabbitMQ 4.3.6. The client is amqplib 2.2.0 on Node 24.21.0, with one connection and one channel at the defaults of amqplib. Each operation is an RPC of the channel: a passive declare of one queue, which the broker answers at once.
+These are the results of the RabbitMQ cells, from 2026-10-19. The broker is RabbitMQ 4.3.6. The client is amqplib 2.2.0 on Node 24.21.0, with one connection and one channel at the defaults of amqplib.
 
-T01 is the direct pair. The client and the broker are in their own network namespaces, with a pair of veth devices between them. A border of O03 has a router between them.
+- **T01** is the direct pair. The client and one broker are in their own network namespaces, with a pair of veth devices between them. A border of O03 has a router between them. Each operation is an RPC of the channel: a passive declare of one queue, which the broker answers at once.
+- **T11** is a cluster of three nodes with one quorum queue. The members of the queue elect its leader by Raft, one member on each node. The client publishes a stream of sequence numbers with confirms through one node. When its connection ends, it connects to the next node after 1 s, as an application does. amqplib does not connect again by itself.
 
-The machine documents give each band: `amqplib` and `rabbitmq-connection`, each from its source at its tag. The algebra composes each of them over Linux TCP.
+The machine documents give each band: `amqplib` and `rabbitmq-connection` for T01, and `aten` and `ra-member` for the cluster. Each fact comes from the source at its tag. The algebra composes the documents of T01 over Linux TCP.
 
-CI started the cells at main in the run [39216875830](https://github.com/mark1russell7/systems/actions/runs/39216875830), in 12 shards on the hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000. Each cell has 11 runs in 2 fresh environments, with one warm-up run in each environment. A `fin` stops the broker, thus each of its runs has its own environment.
+CI started the cells at main in the run [39234193377](https://github.com/mark1russell7/systems/actions/runs/39234193377), in 20 shards on the hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000. Each cell has 11 runs in 2 fresh environments, with one warm-up run in each environment. A `fin` stops the broker, thus each of its runs has its own environment.
 
-Each of the 12 cells holds against the prediction of the algebra. The cells have 132 counted runs, and no run is void.
+Each of the 21 cells holds against the prediction of the algebra. The cells have 231 counted runs, and no run is void.
 
 ## What the cells found
 
-- **The heartbeat of amqplib is the detector of a silent fault.** At the defaults amqplib takes the heartbeat of the broker, 60 s. Its receive check counts the bytes of the broker each 60 s, and two checks with nothing end the connection. Behind a black hole, an idle connection ended 180.004 s after the last data from the broker. The band is 120 s to 180.03 s. A frozen broker ends an RPC in flight the same way, at 180.008 s.
+### T01: one broker
+
+- **The heartbeat of amqplib is the detector of a silent fault.** At the defaults amqplib takes the heartbeat of the broker, 60 s. Its receive check counts the bytes of the broker each 60 s, and two checks with nothing end the connection. Behind a black hole, an idle connection ended 180.008 s after the last data from the broker. The band is 120 s to 180.03 s. A frozen broker ends an RPC in flight the same way, at 180.009 s.
   - amqplib checks with a repeating timer of Node. Node counts each next interval from the time that the callback ran, thus the lateness of each check adds to the next one. Thus the band ends 30 ms after 3 heartbeats, and not 10 ms after them.
-- **A stopped broker resets its clients at once.** RabbitMQ closes each socket with linger 0, thus its end of a connection is a reset, not a FIN. The reset came 45 µs after the broker stopped. A reset of an RPC in flight gives ECONNRESET in 0.8 ms, and a reset of the SYN refuses the first connect in 3.1 ms.
-- **The RTO after a stall holds the reply time of the broker.** Linux counts the RTO from the smoothed round trip. Each sample of amqplib is the time to the reply of the broker, which ACKs the RPC. After a stall of 1 s, the reply came at the third firing of the RTO timer, with a median of 1.692 s.
+- **A stopped broker resets its clients at once.** RabbitMQ closes each socket with linger 0, thus its end of a connection is a reset, not a FIN. The reset came 50 µs after the broker stopped. A reset of an RPC in flight gives ECONNRESET in 0.7 ms, and a reset of the SYN refuses the first connect in 4.9 ms.
+- **The RTO after a stall holds the reply time of the broker.** Linux counts the RTO from the smoothed round trip. Each sample of amqplib is the time to the reply of the broker, which ACKs the RPC. After a stall of 1 s, the reply came at the third firing of the RTO timer, with a median of 1.687 s.
 - **The kernel gives up on an unreachable host first.** With `tcp_retries2` = 3, an RPC in flight gets EHOSTUNREACH 3.120 s after the first retransmission.
 - **amqplib tunes the smaller heartbeat of the two.** A client that asks for 80 s against a broker that proposes 60 s gets 60 s. Thus the border of O03 outside sets the heartbeat at the broker too.
+
+### T11: the cluster
+
+- **RabbitMQ polls its failure detector each 5 s.** The detector, aten, finds a silent node 150 ms after its last heartbeat, at its next poll. By its own default it polls each 1 s, but RabbitMQ sets 5 s, for fewer false elections. A follower then waits 5 s to 6 s before its election. The first run of these cells measured the failover after 6.1 s to 10.4 s, against a band of 1.05 s to 4.0 s from the default of aten.
+- **A silent leader goes 6 s to 9 s after the fault.** With the client on a follower, the first confirm after a freeze of the node of the leader came at 6.93 s. It came at 8.26 s after a black hole, and at 6.21 s after a complete partition. The band is 5.05 s to 12.0 s.
+- **The old leader steps down only when it sees the new term.** A leader of Ra ignores the failure detector, thus in a minority it stays the leader and commits nothing. After a black hole of 20 s it stepped down 27.3 s after the fault: the link of the distribution retransmits after the heal.
+- **A step-down and a drain take milliseconds.** A transfer of the leadership gave the first confirm 20 ms after the old leader gave the leadership away. A drain does not transfer the leadership: it stops the member of the leader. A follower then elects after its shortest timeout, and the first confirm came 48 ms after it saw the leader go down.
+- **A cut of one follower gives no new leader.** The cut follower asks for pre-votes, and the other follower declines each one, because the log of the cut follower falls behind. The confirms go on: the next one came 18 ms after a cut in two directions, and 11 ms after a cut in one direction.
+- **With the client on the node of the leader, only the heartbeat of amqplib moves it.** The queue fails over in 6 s to 8 s, but the connection of the client to the silent node stays open. The heartbeat of amqplib ends it after 3 minutes. The client then connects to the next node, and its first confirm came at 180.018 s after a freeze and at 180.015 s after a black hole.
+- **The queue kept each publish that it confirmed.** No run of the cluster lost a confirmed publish.
 
 ## The borders
 
@@ -39,17 +52,18 @@ A border has two cells: a setting inside the border, and a setting outside it. E
 
 <Borders copy="rabbitmq" />
 
-- **O03: the frames of the broker against a router that forgets an idle flow in silence**, at 30 s: the Azure LB at 240 s, divided by 8. The broker sends a frame each half heartbeat. At a heartbeat of 40 s, at the client and at the broker, the frames each 20 s keep the flow, and nothing occurs in 150 s. At 80 s the router forgets the flow first, and the heartbeat of amqplib ends it 240.014 s after the last data.
-- **O17: the heartbeat against the give-up of the kernel**, behind a black hole with an RPC in flight and `tcp_retries2` = 7. The kernel gives up 51 s to 108.2 s after its first retransmission. A heartbeat of 15 s ends the connection first, 45.011 s after the last data. At 60 s the kernel gives up first, with ETIMEDOUT 53.016 s after its first retransmission.
+- **O03: the frames of the broker against a router that forgets an idle flow in silence**, at 30 s: the Azure LB at 240 s, divided by 8. The broker sends a frame each half heartbeat, thus the border is a heartbeat of 60 s. At a heartbeat of 40 s, at the client and at the broker, the frames each 20 s keep the flow, and nothing occurs in 150 s. At 80 s the router forgets the flow first, and the heartbeat of amqplib ends it 240.013 s after the last data.
+- **O17: the heartbeat against the give-up of the kernel**, behind a black hole with an RPC in flight and `tcp_retries2` = 7. The kernel gives up 51 s to 108.2 s after its first retransmission. A heartbeat of 15 s ends the connection first, 45.010 s after the last data. At 60 s the kernel gives up first, with ETIMEDOUT 52.920 s after its first retransmission.
 
 ## The cells that wait
 
-The plan of R3 has more cells over these systems. The catalog gives a reason for each cell that waits:
+The plan of R3 has more cells over these systems. The catalogs give a reason for each cell that waits:
 
-- A hold of a reply by the broker needs a resource alarm, timed to the request. A restart of the broker at its own address, and a fault timed to a reply, need features that the harness does not have.
+- In T01, a hold of a reply by the broker needs a resource alarm, timed to the request. A restart of the broker at its own address, and a fault timed to a reply, need features that the harness does not have.
 - A block of the event loop of Node waits for a document of how late the timers of Node are after it.
 - Two writes before a read need a workload of the client. The client of the harness sends one RPC at a time.
-- The array stage gives each cell at the defaults a practice profile. No profile sets a knob of amqplib, of RabbitMQ, or of the Linux TCP that the cell reads. Thus 8 array cells are aliases of their cells at the defaults, and 5 wait for the reasons of those cells.
+- In T11, four cells need features that the harness does not have. They are a drain of a node of Kubernetes, a throttle of the CPU, a rolling upgrade, and a restart from an empty volume.
+- The array stage gives each cell at the defaults a practice profile. In T01 no profile sets a knob of amqplib, of RabbitMQ, or of the Linux TCP that the cell reads. In T11 the profile DP42 sets the keepalive of the client. Linux sends no keepalive probe while data is in flight, thus that keepalive can end only some runs. Each array cell is thus an alias of its cell at the defaults, or it waits for the reason of that cell.
 
 ## T01: the direct pair
 
@@ -61,8 +75,14 @@ The plan of R3 has more cells over these systems. The catalog gives a reason for
 
 <RunResults copy="rabbitmq" group="T01" stage="border" client:visible />
 
+## T11: a cluster of three nodes
+
+A fault at the node of the leader is a freeze of its server, a black hole, or a partition from the other nodes. Each holds 20 s, or 200 s with the client on that node. The client is on a follower, or on the node of the leader. A step-down and a drain take their stamps from the log of the cluster. The stamp of a step-down is the NOTICE of the old leader. The stamp of a drain is the first follower that sees the leader go down.
+
+<RunResults copy="rabbitmq" group="T11" stage="defaults" client:visible />
+
 ## Where the data comes from
 
-Each runner wrote a raw record of each of its cells. A record has the cell and the manifests of its environments. It also has each warm-up run, and each run with its kernel records and the lines of the client.
+Each runner wrote a raw record of each of its cells. A record has the cell and the manifests of its environments. It also has each warm-up run, and each run with its kernel records and the lines of the client. A run of a cluster also has the log lines of each node.
 
 The script `packages/site/scripts/rabbitmq.ts` reads each record with the code of the harness, and it stops when a verdict disagrees with the summary of the run. It also stops when a prediction disagrees with the catalog at HZ 1000. It writes the copy that this page shows, and that copy names no machine. The cells and their predictions are in the [catalogs](https://github.com/mark1russell7/systems/tree/main/packages/cells).
