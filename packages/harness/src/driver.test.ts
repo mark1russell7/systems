@@ -261,4 +261,13 @@ describe("a band of a driver with more than one socket", () => {
       "a router forgot the flow of the monitor socket 20 s after the fault, where it should keep it",
     );
   });
+
+  it("counts a band of a driver from the last segment with data, and finds a reference that it does not know", () => {
+    // the monitor's last data is at -4 s, then an ACK at -3.9 s: the timer of a peer counts from that data
+    const fromData = (from: "last-data" | "ping-sent") =>
+      cellOf({ detects: true, timer: "idle_timeout", errno: "MongoServerSelectionError", from, low: s(69.9), high: s(70.1), driver: { socket: "monitor", ends: { ev: "fail", where: { n: 2 } } } });
+    expect(measure(fromData("last-data"), run())).toMatchObject({ elapsed: s(70.03), void: null, finding: null });
+    // through a proxy, an unknown reference was once the first close of a socket of the target: now it never comes
+    expect(measure(fromData("ping-sent"), run()).finding).toBe("it ended without its reference event (ping-sent on the monitor socket)");
+  });
 });

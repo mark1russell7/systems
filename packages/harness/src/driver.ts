@@ -151,9 +151,12 @@ const outsetOf = (run: Run): number => {
  *   the driver. It counts from the last segment with data that the socket received or sent.
  * - `request-sent`: the send of the operation into the fault, the second `sent` line.
  * - `first-retransmission`: the first retransmission of the RTO timer on the socket.
+ * - `last-data`: the last segment with data that the socket received or sent before the fault
+ *   held, for a band of the kernel too. An idle timer of a peer counts from the end of a stream.
  * - `peer-closed`: the change of state of the socket of the target, when its process dies.
  * - `fault`: the start of the commit of the fault. `client-start`: the `connecting` line.
  * - `first-sent`: the first segment with data that the socket sends after the fault.
+ * A reference that this judge does not know (`ping-sent`) does not come: its band is a finding.
  */
 export const referenceOf = (run: Run, from: Reference, role: string, data: boolean): number | undefined => {
   const ready = run.events.find((event) => event.ev === "ready");
@@ -163,10 +166,11 @@ export const referenceOf = (run: Run, from: Reference, role: string, data: boole
   if (from === "request-sent") return run.events.filter((event) => event.ev === "sent")[1]?.t;
   const { socket, place } = kernelOf(run, role, before);
   if (place === undefined) return undefined;
-  if (from === "last-received") {
+  if (from === "last-received" || from === "last-data") {
     // the idle timer of a Node socket starts again at each read and at each write of data
+    const withData = data || from === "last-data";
     const counts = (record: KernelRecord) =>
-      data ? (record.ev === "rx" || record.ev === "tx") && (record.seg?.len.value ?? 0) > 0 : record.ev === "rx";
+      withData ? (record.ev === "rx" || record.ev === "tx") && (record.seg?.len.value ?? 0) > 0 : record.ev === "rx";
     return place.records.filter((record) => record.mono <= before && counts(record)).at(-1)?.mono;
   }
   if (from === "first-sent")
@@ -177,6 +181,9 @@ export const referenceOf = (run: Run, from: Reference, role: string, data: boole
     const request = run.events.filter((event) => event.ev === "sent")[1]?.t ?? before;
     return place.records.find((record) => record.ev === "retrans" && record.why === "rto" && record.mono > request)?.mono;
   }
+  // before 0.11.22 an unknown reference fell to the close of the peer: through a proxy, that was the
+  // first close of a socket of the target, for example the idle close of an upstream connection
+  if (from !== "peer-closed") return undefined;
   // the close of the peer: the socket of the target leaves ESTABLISHED
   const peer = socket === undefined ? undefined : peerPlace(run, socket.local);
   const closed = peer?.records.find((record) => record.ev === "state" && oldState(record) === 1)?.mono;
