@@ -31,9 +31,18 @@ describe("the gRPC catalog of T03", () => {
     expect(cell("T03.defaults.47").prediction).toEqual(cell("T01.defaults.198").prediction);
     expect(cell("T03.defaults.46").prediction).toEqual(cell("T01.defaults.202").prediction);
     expect(cell("T03.defaults.49").prediction).toEqual(cell("T01.defaults.199").prediction);
-    // a black hole or a simplex drop toward the client: grpc-js has no detector
+    // a black hole toward the client: grpc-js has no detector
     expect(cell("T03.defaults.18").prediction).toMatchObject({ detects: false });
-    expect(cell("T03.defaults.48")).toMatchObject({ drops: "to-client", prediction: { detects: false } });
+    // a simplex drop toward the client: TCP_USER_TIMEOUT aborts the socket of the server, conntrack goes to CLOSE,
+    // and the router resets the first retransmission of the client after the CLOSE timeout (run 39278390448: 53.4 s)
+    const simplex = cell("T03.defaults.48");
+    expect(simplex).toMatchObject({ drops: "to-client", prediction: { detects: true, errno: "ECONNRESET", from: "request-sent" } });
+    if (simplex.prediction.detects !== true) throw new Error("a detection");
+    // the eighth retransmission of the client, at 51 s to 57 s for each HZ
+    expect(simplex.prediction.low.value).toBeGreaterThan(51);
+    expect(simplex.prediction.low.value).toBeLessThan(53.4);
+    expect(simplex.prediction.high.value).toBeGreaterThan(53.4);
+    expect(simplex.prediction.high.value).toBeLessThan(58);
   });
 
   it("keeps an idle flow through each preset: the listener of grpc-go probes each 15 s", () => {

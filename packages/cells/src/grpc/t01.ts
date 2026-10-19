@@ -1,8 +1,9 @@
 import type { Detector, KnobValues, Machine, Manifestation } from "@mark1russell7/algebra";
-import { detection, errnoOf, overValues, timerOf, timerUnder } from "@mark1russell7/algebra";
+import { detection, errnoOf, overValues, recovery, timerOf, timerUnder } from "@mark1russell7/algebra";
 import type { Cell, Prediction, RouterHop, Target } from "@mark1russell7/harness";
-import { ETCD_SERVER, GRPC_GO_SERVER, GRPC_JS, LINUX_TCP } from "@mark1russell7/machines";
+import { ETCD_SERVER, GRPC_GO_SERVER, GRPC_JS, LINUX_TCP, NF_CONNTRACK_TCP } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
+import { valueIn } from "@mark1russell7/quantity";
 import type { Spec } from "../catalog.ts";
 import { HZ, RTT_MS, RUNS, count, given, predict, predictAt, s, seconds, sysctlsOf } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
@@ -408,6 +409,50 @@ const policyPrediction = (spec: GrpcSpec, driver: KnobValues, slack: number): Pr
   };
 };
 
+/**
+ * This function gives the prediction of a simplex drop toward the client at a router of the reset-next
+ * form. A call is in flight to a server of grpc-go. The call reaches the server, and its reply and the
+ * ACKs of the server drop. TCP_USER_TIMEOUT aborts the socket of the server U after its reply, with a
+ * reset. Conntrack sees each segment before the rule drops it, thus that reset takes the entry to CLOSE.
+ * Each later packet of the flow arms the CLOSE timeout again. The first retransmission of the client
+ * after a wait longer than that timeout finds no entry, and the router resets it.
+ */
+const resetAfterClose = (spec: GrpcSpec, driver: KnobValues): Prediction => {
+  const values = given(serverValues(spec.server, spec.settings));
+  const lower = overValues(serverDoc(spec.server), values, given(linuxValues()));
+  const userTimeout = lower("tcp_user_timeout");
+  if (userTimeout === undefined || "unknown" in userTimeout || userTimeout.value === "infinite" || userTimeout.value === 0)
+    throw new Error(`${spec.plan}: the server sets no TCP_USER_TIMEOUT, thus it does not end the flow`);
+  // the reply goes out up to one reply time after the send of the call, and the abort comes U after it
+  const u = valueIn(userTimeout as { value: number; unit: string }, "s");
+  const abort = span(u, u + GRPC_LATENCY + seconds(timerOf(GRPC_GO_SERVER, "keepalive", values).lateness, "the slack"));
+  const close = seconds(timerOf(NF_CONNTRACK_TCP, "expire_close", given({ nf_conntrack_tcp_timeout_close: s(NF_CONNTRACK_TCP.knobs["nf_conntrack_tcp_timeout_close"]?.default ?? 10), gc_lag_max: s(0) })).duration, "the CLOSE timeout");
+  // the ladder of the client, at the round trip of the pair and at the reply time of the server: each RTT
+  // sample of the client holds the reply time of the server, as for the stall of T01
+  const ladderAt = (rttMs: number) => {
+    const ladder = recovery(LINUX_TCP, "retransmit", given({ ...linuxValues(spec.linux), rtt: { value: rttMs, unit: "ms" } }), s(120));
+    if ("unknown" in ladder) throw new Error(`${spec.plan}: ${ladder.unknown}`);
+    return ladder.firings.map((firing) => ({ lo: valueIn(firing.low, "s"), hi: valueIn(firing.high, "s") }));
+  };
+  const [fast, slow] = [ladderAt(RTT_MS), ladderAt(GRPC_LATENCY * 1000)];
+  const firings = fast.map((firing, at) => span(firing.lo, slow[at]!.hi));
+  // the entry lives while each packet comes less than the CLOSE timeout after the last one, from the abort
+  let alive = abort;
+  for (const firing of firings) {
+    if (firing.hi < alive.lo + close) {
+      // surely before the expiry: a firing after the abort arms the timeout again
+      if (firing.lo >= abort.hi) alive = firing;
+      continue;
+    }
+    if (firing.lo > alive.hi + close) {
+      // surely after the expiry: the router resets this retransmission, one round trip before the client reads it
+      return { detects: true, timer: "the reset of the router at a retransmission", errno: "ECONNRESET", from: "request-sent", low: s(firing.lo), high: s(firing.hi + GRPC_RTT_MS / 1000), driver: { socket: "connection" } };
+    }
+    throw new Error(`${spec.plan}: a retransmission can come before or after the end of the CLOSE timeout`);
+  }
+  throw new Error(`${spec.plan}: no retransmission comes after the end of the CLOSE timeout in 120 s`);
+};
+
 /** This function gives the prediction of a cell of the catalog. */
 export const grpcPrediction = (spec: GrpcSpec): Prediction => {
   if (spec.observer === "server") return serverPrediction(spec);
@@ -437,6 +482,7 @@ export const grpcPrediction = (spec: GrpcSpec): Prediction => {
   // a reset answers the call at once: the kernel reports it on the socket of the transport
   if (spec.fault === "rst") return { detects: true, timer: "the reset of the call", errno: "ECONNRESET", from: "request-sent", low: s(0), high: s(GRPC_RTT_MS / 1000), rtt, driver: { socket: "connection" } };
   if (spec.stream !== undefined) return policyPrediction(spec, driver, slack);
+  if (spec.fault === "simplex" && spec.drops === "to-client" && spec.router?.form === "reset-next" && spec.server === "grpc-go") return resetAfterClose(spec, driver);
   // an idle flow through a router, as the client sees it: the probes of the listener of the server
   // refresh it (O03), and nothing ends the connection in the window
   if (spec.fault === "middlebox-forget") {
