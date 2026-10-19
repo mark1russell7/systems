@@ -6,7 +6,7 @@ import { RUNS, given, s } from "../catalog.ts";
 import type { Alias, Waiting } from "../mongo/cells.ts";
 import type { Span } from "../mongo/model.ts";
 import { plus, span, spanOf } from "../mongo/model.ts";
-import { RABBIT_IMAGE, RABBIT_RTT_MS, RABBIT_TARGET } from "./t01.ts";
+import { RABBIT_IMAGE, RABBIT_LATENCY, RABBIT_RTT_MS, RABBIT_TARGET, amqpValues } from "./t01.ts";
 
 /**
  * The RabbitMQ catalog of T11: amqplib 2.2.0 on Node 24.21.0 against a cluster of three nodes of RabbitMQ
@@ -36,6 +36,10 @@ export const RABBIT_CLUSTER: Cluster = {
 export const INTERVAL = 0.05;
 /** This time is how long a network fault or a freeze holds, in seconds. Each band ends long before it. */
 export const HOLD = 20;
+/** This time is how long a fault holds when the client is on the node of the fault, in seconds. It is longer than the end of its heartbeat. */
+export const CLIENT_HOLD = 200;
+/** This time is the wait of the client before it connects to the next node, in seconds (client-cluster.mjs, --reconnect-ms). */
+export const RECONNECT = 1;
 /** This time is the error of the stamps of the log of a node on the monotonic clock. The clock lines of the client truncate to 1 ms. */
 export const NODE_STAMPS: Quantity = { value: 2, unit: "ms" };
 
@@ -46,6 +50,8 @@ export interface ClusterSpec {
   readonly fault: "blackhole" | "partition" | "freeze-process" | "step-down" | "drain";
   readonly at: GroupPlace;
   readonly hold?: number;
+  /** This place puts the client on the node of the leader. Without it, the client is on the node of a follower. */
+  readonly clientAt?: "leader";
 }
 
 /** These are the cells of T11 over amqplib-2.2 and rabbitmq-4.3 at the defaults that this catalog starts. */
@@ -69,6 +75,23 @@ export const T11_RABBIT_SPECS: readonly ClusterSpec[] = [
     hold: HOLD,
   },
   { plan: "T11.defaults.79", name: "event:broker-drain, rabbitmq-upgrade drain at the node of the leader", fault: "drain", at: { role: "primary" } },
+  // ---- the client on the node of the leader: its connection meets the fault too
+  {
+    plan: "T11.defaults.74",
+    name: `freeze-process at the node of the leader, the client on it, ${CLIENT_HOLD} s`,
+    fault: "freeze-process",
+    at: { role: "primary" },
+    hold: CLIENT_HOLD,
+    clientAt: "leader",
+  },
+  {
+    plan: "T11.defaults.75",
+    name: `blackhole at the node of the leader, the client on it, ${CLIENT_HOLD} s`,
+    fault: "blackhole",
+    at: { role: "primary", cuts: "all" },
+    hold: CLIENT_HOLD,
+    clientAt: "leader",
+  },
 ];
 
 /** This function gives the values of the knobs of a document: its defaults, and the round trip between the nodes. */
@@ -142,6 +165,22 @@ export const firstConfirm = (leader: Span): Span => {
 };
 
 /** This function gives the prediction of a cell: the band of its first confirm, and the stages of the cluster. */
+/**
+ * This function gives the band of the first confirm when the node of the client goes silent, from the
+ * fault. Only the heartbeat of amqplib ends the connection: 2 to 3 heartbeats after its last data, the
+ * last confirm before the fault. That confirm came up to one wait and one commit before the fault. Then
+ * the client waits, connects to the next node and opens its channel, and its publish takes one commit.
+ */
+export const silentClient = (): Span => {
+  const { commit, gap } = PARTS;
+  const heartbeat = spanOf(AMQPLIB, "heartbeat", given(amqpValues()));
+  const end = span(heartbeat.lo - gap.hi - commit, heartbeat.hi);
+  // the handshake of AMQP and the open of the channel and of its confirms: six exchanges with the broker
+  const connect = span(0, 6 * RABBIT_LATENCY);
+  const reconnect = span(RECONNECT, RECONNECT + gap.hi - gap.lo);
+  return plus(plus(end, reconnect), plus(connect, span(0, commit)));
+};
+
 export const clusterPrediction = (spec: ClusterSpec): Prediction => {
   const stages = (elected: Span, first: Span): GroupPrediction["stages"] => [
     { stage: "elected", low: s(elected.lo), high: s(elected.hi) },
@@ -155,7 +194,8 @@ export const clusterPrediction = (spec: ClusterSpec): Prediction => {
     return { detects: true, timer: "the next confirm, with no new leader", errno: "OK", from: "fault", low: s(first.lo), high: s(first.hi), group };
   }
   const elected = spec.fault === "step-down" || spec.fault === "drain" ? transfer() : silentLeader();
-  const first = firstConfirm(elected);
+  // the client on the silent node: its own heartbeat ends its connection long after the new leader
+  const first = spec.clientAt === "leader" ? silentClient() : firstConfirm(elected);
   const group: GroupPrediction = { lands: "same", failover: true, stages: stages(elected, first), stamps: NODE_STAMPS };
   return { detects: true, timer: "the first confirm through the new leader", errno: "OK", from: "fault", low: s(first.lo), high: s(first.hi), group };
 };
@@ -173,6 +213,7 @@ export const clusterCell = (spec: ClusterSpec): Cell => ({
   faultAt: spec.at,
   cluster: RABBIT_CLUSTER,
   ...(spec.hold === undefined ? {} : { hold: s(spec.hold) }),
+  ...(spec.clientAt === undefined ? {} : { clientAt: spec.clientAt }),
   prediction: clusterPrediction(spec),
   runs: RUNS,
   environments: 2,
@@ -195,14 +236,18 @@ export const T11_RABBIT_WAITING: readonly Waiting[] = [
 /**
  * The array stage of the plan gives each cell at the defaults the profile DP42. DP42 sets an aggressive
  * TCP keepalive (1 s, 1 s, 5 probes), the timeouts of a JDBC client and the DNS TTL of the JVM. It also
- * puts each host in the connection string. The client already connects to each node in turn. Its
- * keepalive acts on the socket of the client, and no fault of these cells acts on the node of the
- * client. Thus each array cell is its cell at the defaults, or it waits for the reason of that cell.
+ * puts each host in the connection string. The client already connects to each node in turn.
+ *
+ * The keepalive acts on the socket of the client. With the client on a follower, no fault acts on that
+ * socket. With the client on the node of the fault, Linux sends no keepalive probe while data is in
+ * flight (tcp_timer.c:757-758 at v6.6). The client sends its next publish into the fault in most runs,
+ * thus the keepalive can end only some runs. Thus each array cell is its cell at the defaults with the
+ * client on a follower, or it waits for the reason of that cell.
  */
-export const T11_RABBIT_ARRAY_ALIASES: readonly Alias[] = T11_RABBIT_SPECS.map((spec) => ({
-  plan: spec.plan.replace(".defaults.", ".array."),
-  is: spec.plan,
-  why: "DP42 sets the TCP keepalive of the client, and the fault does not act on the node of the client",
+export const T11_RABBIT_ARRAY_ALIASES: readonly Alias[] = [...new Set(T11_RABBIT_SPECS.map((spec) => spec.plan))].map((plan) => ({
+  plan: plan.replace(".defaults.", ".array."),
+  is: plan,
+  why: "DP42 sets the TCP keepalive of the client. With the client on a follower the fault does not act on its socket, and Linux sends no keepalive probe while data is in flight",
 }));
 
 /** These are the cells of the array stage that wait. Each one waits for the reason of its cell at the defaults. */

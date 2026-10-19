@@ -11,12 +11,13 @@ import {
   T11_RABBIT_SPECS,
   T11_RABBIT_WAITING,
   firstConfirm,
+  silentClient,
   silentLeader,
   transfer,
 } from "./t11.ts";
 
-const cell = (plan: string) => {
-  const found = T11_RABBIT.find((each) => each.name.startsWith(`${plan} amqplib-2.2 to rabbitmq-4.3 cluster, `));
+const cell = (plan: string, client = false) => {
+  const found = T11_RABBIT.find((each) => each.name.startsWith(`${plan} amqplib-2.2 to rabbitmq-4.3 cluster, `) && each.name.includes("the client on it") === client);
   if (found === undefined) throw new Error(`no cell ${plan}`);
   return found;
 };
@@ -26,7 +27,8 @@ const PLAN = [7, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84] as const;
 
 describe("the RabbitMQ catalog of T11", () => {
   it("gives each cell of the plan a cell, an alias or a reason to wait, once", () => {
-    const defaults = [...T11_RABBIT_SPECS.map((spec) => spec.plan), ...T11_RABBIT_WAITING.map((each) => each.plan)];
+    // two cells of the plan have a second cell with the client on the node of the leader
+    const defaults = [...new Set(T11_RABBIT_SPECS.map((spec) => spec.plan)), ...T11_RABBIT_WAITING.map((each) => each.plan)];
     expect(defaults.sort()).toEqual(PLAN.map((n) => `T11.defaults.${n}`).sort());
     const array = [...T11_RABBIT_ARRAY_ALIASES.map((each) => each.plan), ...T11_RABBIT_ARRAY_WAITING.map((each) => each.plan)];
     expect(array.sort()).toEqual(PLAN.map((n) => `T11.array.${n}`).sort());
@@ -78,6 +80,25 @@ describe("the RabbitMQ catalog of T11", () => {
       expect(p.group?.failover, plan).toBe(true);
     }
     expect(cell("T11.defaults.79").fault).toBe("drain");
+  });
+
+  it("ends the connection of a client on the silent node only at the heartbeat of amqplib, then connects to the next node", () => {
+    // 2 to 3 heartbeats of 60 s after the last confirm, the wait of 1 s, the connect, and one commit
+    const band = silentClient();
+    expect(band.lo).toBeCloseTo(120 - 0.06 - 0.05 + 1, 9);
+    expect(band.hi).toBeCloseTo(180.03 + 1.01 + 0.072 + 0.05, 9);
+    for (const plan of ["T11.defaults.74", "T11.defaults.75"]) {
+      const each = cell(plan, true);
+      expect(each.clientAt, plan).toBe("leader");
+      const p = each.prediction;
+      if (p.detects !== true) throw new Error("a band");
+      expect([p.low.value, p.high.value], plan).toEqual([band.lo, band.hi].map((value) => Math.round(value * 1e9) / 1e9));
+      // the queue fails over long before: its new leader has the band of the cell with the client on a follower
+      const other = cell(plan).prediction;
+      if (other.detects !== true) throw new Error("a band");
+      expect(p.group?.stages[0], plan).toEqual(other.group?.stages[0]);
+      expect(each.hold?.value, plan).toBeGreaterThan(band.hi);
+    }
   });
 
   it("keeps the leader when one follower is cut from it, and lets no new leader come", () => {
