@@ -4,10 +4,10 @@
 //
 // The PostgreSQL cells put two clients against one server of PostgreSQL 17.11: node-postgres
 // (pg 8.23.1 with pg-pool 3.14.0) and HikariCP 7.1.0 over pgjdbc 42.7.13. T01 is the direct pair,
-// T03 has a router of a cloud preset between them, and T10 has a pooler: PgBouncer 1.26.1, Pgpool-II
-// 4.7.3 or Supavisor 2.9.13. Each folder is
-// the output of one shard of the workflow Cells on a runner of GitHub: the raw record of each
-// cell, summary.ndjson and runner.txt.
+// T03 has a router of a cloud preset between them, and some T03 cells have Supavisor after the
+// router. T10 has a pooler: PgBouncer 1.26.1, Pgpool-II 4.7.3 or Supavisor 2.9.13. Each folder is the
+// output of one shard of the workflow Cells on a runner of GitHub: the raw record of each cell,
+// summary.ndjson and runner.txt.
 // The script reads each record again with the code of the harness (`judge`), and it stops when that
 // verdict disagrees with summary.ndjson. It also stops when a prediction disagrees with the catalog
 // at the HZ of the runner. The copy keeps only what the page shows.
@@ -43,7 +43,7 @@ const CATALOG = [
   ...T10_HIKARI.map((cell) => ({ cell, client: "HikariCP" })),
 ];
 
-/** This function gives the pooler of a cell of T10, by the name of its hop: PgBouncer, Pgpool-II or Supavisor. */
+/** This function gives the pooler of a cell of T03 or T10, by the name of its hop: PgBouncer, Pgpool-II or Supavisor. */
 const viaOf = (cell: Cell): string | undefined => {
   const hops = (cell.topology?.hops ?? []).map((hop) => hop.name);
   return hops.includes("pgpool") ? "Pgpool-II" : hops.includes("supavisor") ? "Supavisor" : hops.includes("pgbouncer") ? "PgBouncer" : undefined;
@@ -70,6 +70,7 @@ const TIMERS: Readonly<Record<string, string>> = {
   start_check: "the start of the pool fails after the sleep of its check",
   statement_timeout: "the statement timer of the server ends the query",
   client_idle_timeout: "client_idle_timeout of PgBouncer closes the idle client",
+  query_wait_timeout: "query_wait_timeout of PgBouncer ends the query that waits in its queue, and closes the client",
   syn_giveup: "the kernel of PgBouncer gives up on the SYNs of its connect to the server",
 };
 /**
