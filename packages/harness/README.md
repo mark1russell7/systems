@@ -167,7 +167,7 @@ The entry `@mark1russell7/harness/schema` has the zod schemas of a source (`imag
 
 The harness ships fifteen images, each as a shipped source (`ImageSource`). The tag of each image comes from the path of its Dockerfile and the content of all the files that its Dockerfile reads. The harness copies these files into a new build context, from its own package and from the prober package. Thus the build works in a workspace and from npm.
 
-From 0.11.20, the harness builds each image with the CLI of Docker (`docker build`), thus with BuildKit where the CLI has it. Testcontainers asks the daemon for the classic builder. On the kernel 7.0 of the runners of GitHub, each such build failed, and the same builds with BuildKit passed. The error of a failed build holds the last 15 lines of its output. Thus the host of a lab needs the CLI of Docker and its daemon.
+From 0.11.20, the harness builds each image with the CLI of Docker (`docker build`), thus with BuildKit where the CLI has it. Testcontainers reads nothing of the output of a build, and its error is "Failed to build image" only. The error of a failed build now holds each line of its output that names an error, and its last 15 lines (`buildFailure`). Thus the host of a lab needs the CLI of Docker and its daemon.
 
 - **The harness image** (`image/Dockerfile`) has two stages, each a digest-pinned Alpine. `Cargo.lock` pins the crates. The image holds:
   - the kernel program of the prober, compiled against the BTF of the kernel that builds it, and its Rust collector.

@@ -341,14 +341,25 @@ export const planOf = (source: string | ImageSource): ImagePlan => {
   return plan;
 };
 
-/** This count is how many lines of the output of a failed build its error holds. */
+/** These counts are how many lines of the output of a failed build its error holds: its error lines, then its last lines. */
+const BUILD_ERRORS = 10;
 const BUILD_TAIL = 15;
 
 /**
+ * This function gives the lines of the output of a failed build that its error holds: each line that
+ * names an error, for example the diagnostic of a compiler, then the last lines of the output.
+ */
+export const buildFailure = (output: string): string => {
+  const lines = output.trim().split(/\r?\n/);
+  const tail = lines.slice(-BUILD_TAIL);
+  const errors = lines.slice(0, -BUILD_TAIL).filter((line) => /\berror\b/i.test(line)).slice(0, BUILD_ERRORS);
+  return [...errors, ...(errors.length > 0 ? ["..."] : []), ...tail].join("\n");
+};
+
+/**
  * This function builds a staged context with the CLI of Docker, thus with BuildKit where the CLI has
- * it. Testcontainers asks the daemon for the classic builder. On the kernel 7.0 of the runners of
- * GitHub (image 20261018), the classic builder failed each build, and BuildKit built each image. The
- * error of a failed build holds the end of its output.
+ * it. Testcontainers reads nothing of the output of a build, and it fails with "Failed to build
+ * image" only. The error of a failed build here holds its error lines and the end of its output.
  */
 const dockerBuild = (context: string, plan: Extract<ImagePlan, { readonly kind: "build" }>): Promise<void> =>
   new Promise((resolve, reject) => {
@@ -358,8 +369,7 @@ const dockerBuild = (context: string, plan: Extract<ImagePlan, { readonly kind: 
         resolve();
         return;
       }
-      const tail = String(stderr).trim().split(/\r?\n/).slice(-BUILD_TAIL).join("\n");
-      reject(new Error(`docker build of ${plan.tag} failed (${error.message.split("\n")[0]}):\n${tail}`));
+      reject(new Error(`docker build of ${plan.tag} failed (${error.message.split("\n")[0]}):\n${buildFailure(String(stderr))}`));
     });
   });
 
