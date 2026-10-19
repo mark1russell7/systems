@@ -65,6 +65,33 @@ const RABBITMQ: Target = {
   command: ["sh", "-c", "echo loopback_users.guest = false > /etc/rabbitmq/conf.d/90-harness.conf; docker-entrypoint.sh rabbitmq-server & echo $! > /tmp/server.pid; while :; do sleep 3600; done"],
   kill: ["sh", "-c", 'for p in /proc/[0-9]*; do [ "$(cat "$p/comm" 2>/dev/null)" = beam.smp ] && kill -KILL "${p#/proc/}"; done; true'],
 };
+/** This base is the Alpine of the gRPC servers of the harness, for the record. */
+const ALPINE = "alpine:3.22@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8";
+/** This command holds a server as the child of a shell, thus a fin can stop it while the container stays up. */
+const held = (run: string): readonly string[] => ["sh", "-c", `${run} & echo $! > /tmp/server.pid; while :; do sleep 3600; done`];
+// a server of grpc-go v1.84.0 at its defaults, which the harness builds from its tag
+const GRPC_GO: Target = {
+  image: ALPINE,
+  subject: { kind: "shipped", name: "grpc-go" },
+  port: 50051,
+  ready: '"ev":"listening"',
+  lines: true,
+  program: "grpc-go-server",
+  command: held("grpc-go-server --port 50051"),
+  kill: ["sh", "-c", 'kill -KILL "$(cat /tmp/server.pid)"'],
+};
+// etcd v3.6.15 with one member at its defaults, and one client URL with no TLS
+const ETCD: Target = {
+  image: ALPINE,
+  subject: { kind: "shipped", name: "etcd" },
+  port: 2379,
+  ready: "serving client traffic insecurely",
+  program: "etcd",
+  command: held(
+    "etcd --name n1 --data-dir /tmp/etcd --listen-client-urls http://0.0.0.0:2379 --advertise-client-urls http://127.0.0.1:2379 --listen-peer-urls http://127.0.0.1:2380 --initial-advertise-peer-urls http://127.0.0.1:2380 --initial-cluster n1=http://127.0.0.1:2380",
+  ),
+  kill: ["sh", "-c", 'kill -KILL "$(cat /tmp/server.pid)"'],
+};
 /** This cluster is three nodes of RabbitMQ 4.3.6 with one quorum queue, at the defaults of each timer. */
 const CLUSTER: Cluster = {
   image: RABBITMQ.image,
@@ -363,6 +390,68 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
     const start = result.runs[0]?.events.find((event) => event.ev === "start");
     expect(start).toMatchObject({ client: "amqp", driver: "2.2.0" });
   }, 600_000);
+
+  it("connects grpc-js to a server of grpc-go, and a reset of the call in flight reaches the client as ECONNRESET", async () => {
+    const s = (value: number) => ({ value, unit: "s" });
+    const cell: Cell = {
+      name: "lab grpc-js to grpc-go-server, rst, a call in flight",
+      target: GRPC_GO,
+      sysctls: {},
+      probe: { mode: "inflight", keepalive: false, driver: { name: "grpc" } },
+      fault: "rst",
+      prediction: { detects: true, timer: "the reset of the call", errno: "ECONNRESET", from: "request-sent", low: s(0), high: s(1), driver: { socket: "connection" } },
+      runs: 1,
+      environments: 1,
+    };
+    const result = await runCell(cell);
+    expect(result.measured[0]).toMatchObject({ void: null, finding: null });
+    expect(result.manifests[0]?.client.kind).toBe("grpc");
+    const events = result.runs[0]?.events ?? [];
+    expect(events.find((event) => event.ev === "start")).toMatchObject({ client: "grpc", driver: "1.14.6" });
+    // the call in flight ends with UNAVAILABLE, and the server of the harness wrote its lines
+    expect(events.find((event) => event.ev === "fail" && event["n"] === 2)).toMatchObject({ name: "UNAVAILABLE" });
+    expect(result.runs[0]?.server?.some((line) => line.ev === "accept")).toBe(true);
+  }, 900_000);
+
+  it("holds a reply of the server of grpc-go, and the call in flight gets it with no timer of grpc-js", async () => {
+    const s = (value: number) => ({ value, unit: "s" });
+    const cell: Cell = {
+      name: "lab grpc-js to grpc-go-server, a reply held 2 s",
+      target: GRPC_GO,
+      sysctls: {},
+      probe: { mode: "inflight", keepalive: false, driver: { name: "grpc", hold: s(2) } },
+      fault: "app-stall",
+      prediction: {
+        detects: false,
+        window: s(10),
+        replies: { low: s(2), high: s(2.1) },
+        driver: { socket: "connection", reply: { from: "request-sent", ends: { ev: "ack", where: { n: 2 } } } },
+      },
+      runs: 1,
+      environments: 1,
+    };
+    const result = await runCell(cell);
+    expect(result.measured[0]).toMatchObject({ void: null, finding: null });
+    expect(result.runs[0]?.server?.filter((line) => line.ev === "hold" || line.ev === "held").map((line) => line.ev)).toEqual(["hold", "held"]);
+  }, 900_000);
+
+  it("connects grpc-js to etcd, and a stop of etcd ends the idle connection with an end of file", async () => {
+    const s = (value: number) => ({ value, unit: "s" });
+    const cell: Cell = {
+      name: "lab grpc-js to etcd, fin, idle",
+      target: ETCD,
+      sysctls: {},
+      probe: { mode: "idle", keepalive: false, driver: { name: "grpc" } },
+      fault: "fin",
+      prediction: { detects: true, timer: "etcd ends the connection", errno: "EOF", from: "peer-closed", low: s(0), high: s(1), driver: { socket: "connection" } },
+      runs: 1,
+      environments: 1,
+    };
+    const result = await runCell(cell);
+    expect(result.measured[0]).toMatchObject({ void: null, finding: null });
+    // the health service of etcd answers the first call
+    expect(result.runs[0]?.events.find((event) => event.ev === "ack" && event["n"] === 1)).toMatchObject({ status: "SERVING" });
+  }, 900_000);
 
   it("moves the leadership of a quorum queue of RabbitMQ to a follower, and the confirms of the publisher go on", async () => {
     const cell: Cell = {

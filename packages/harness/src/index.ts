@@ -113,6 +113,7 @@ export {
   SUBJECTS,
   amqpClientImage,
   goHttpImage,
+  grpcClientImage,
   harnessImage,
   imageOf,
   imageProblems,

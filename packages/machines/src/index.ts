@@ -5,6 +5,8 @@
 // (a citation) or from a measurement (a run).
 
 import type { Machine } from "@mark1russell7/algebra";
+import { ETCD_SERVER, GRPC_GO_SERVER } from "./grpc/grpc-go-server.ts";
+import { GRPC_JS } from "./grpc/grpc-js.ts";
 import { GO_TRANSPORT } from "./http/go-transport.ts";
 import { NODE_HTTP_AGENT } from "./http/node-agent.ts";
 import { NODE_HTTP_SERVER } from "./http/node-server.ts";
@@ -32,7 +34,10 @@ import { SENTINEL } from "./sentinel.ts";
 export {
   AMQPLIB,
   ATEN_DETECTOR,
+  ETCD_SERVER,
   GO_TRANSPORT,
+  GRPC_GO_SERVER,
+  GRPC_JS,
   HIKARICP_PGJDBC,
   IOREDIS_SENTINEL,
   IOREDIS_STATUS,
@@ -113,4 +118,7 @@ export const MACHINES: Readonly<Record<string, Machine>> = byId([
   RABBITMQ_CONNECTION,
   ATEN_DETECTOR,
   RA_MEMBER,
+  GRPC_JS,
+  GRPC_GO_SERVER,
+  ETCD_SERVER,
 ]);

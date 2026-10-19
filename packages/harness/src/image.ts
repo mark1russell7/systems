@@ -62,6 +62,12 @@ const SHIPPED: Readonly<Record<Shipped, ShippedContext>> = {
   hikari: { name: "loom-harness-hikari", dockerfile: "harness/image/hikari/Dockerfile", from: ["harness/image/hikari"] },
   // the RabbitMQ client: amqplib 2.2.0 on Node 24.21.0
   amqp: { name: "loom-harness-amqp", dockerfile: "harness/image/amqp/Dockerfile", from: ["harness/image/amqp"] },
+  // the gRPC client: grpc-js 1.14.6 on Node 24.21.0
+  grpc: { name: "loom-harness-grpc", dockerfile: "harness/image/grpc/Dockerfile", from: ["harness/image/grpc"] },
+  // the gRPC server: a server of grpc-go v1.84.0, built with Go 1.27.2, that can hold a reply
+  "grpc-go": { name: "loom-harness-grpc-go", dockerfile: "harness/image/grpc-go/Dockerfile", from: ["harness/image/grpc-go"] },
+  // etcd v3.6.15 from its image, on Alpine: a shell to hold it, and its binaries unchanged
+  etcd: { name: "loom-harness-etcd", dockerfile: "harness/image/etcd/Dockerfile", from: ["harness/image/etcd"] },
   // @procedures/client 0.7.0 on Node 24.21.0: its WebSocket client, and the script of its server
   procedures: { name: "loom-harness-procedures", dockerfile: "harness/image/procedures/Dockerfile", from: ["harness/image/procedures"] },
   // the router of a middlebox chain: NAT and conntrack, with a form for a forgotten flow
@@ -115,6 +121,7 @@ export const SHIPPED_CLIENTS: Readonly<Record<Client, ClientImage>> = {
     command: ["java", "-Dslf4j.internal.verbosity=ERROR", "-cp", "/opt/harness/hikari/classes:/opt/harness/hikari/lib/*", "ClientHikari"],
   },
   amqp: { image: shipped("amqp"), command: ["node", "/opt/harness/amqp/client-amqp.mjs"] },
+  grpc: { image: shipped("grpc"), command: ["node", "/opt/harness/grpc/client-grpc.mjs"] },
   "procedures-ws": { image: SUBJECTS.procedures.image, command: SUBJECTS.procedures.programs["client"]! },
 };
 
@@ -403,6 +410,9 @@ export const pgClientImage = (): Promise<string> => imageOf(shipped("pg"));
 export const hikariClientImage = (): Promise<string> => imageOf(shipped("hikari"));
 /** This function gives the image of the RabbitMQ client: amqplib, with the client and the admin of a cluster cell. */
 export const amqpClientImage = (): Promise<string> => imageOf(shipped("amqp"));
+
+/** This function gives the image of the gRPC client of the harness: grpc-js 1.14.6 on Node 24.21.0, with its client. */
+export const grpcClientImage = (): Promise<string> => imageOf(shipped("grpc"));
 /** This function gives the image of the procedures subject: the WebSocket client of `@procedures/client`, and its server. */
 export const proceduresImage = (): Promise<string> => imageOf(SUBJECTS.procedures.image);
 

@@ -100,6 +100,20 @@ describe("the image sources", () => {
     expect(SHIPPED_CLIENTS["procedures-ws"]).toEqual({ image: SUBJECTS.procedures.image, command: SUBJECTS.procedures.programs["client"] });
   });
 
+  it("publishes each file of each image that the harness ships: a build from npm reads the same files", () => {
+    // the files of the package on npm, by the field `files` of its package.json: a file, or a folder
+    const published: readonly string[] = JSON.parse(readFileSync(join(ABOVE, "harness", "package.json"), "utf8")).files;
+    const isPublished = (path: string) => published.some((entry) => path === entry || path.startsWith(`${entry}/`));
+    const missing = SHIPPED_NAMES.flatMap((name) => {
+      const plan = planOf({ kind: "shipped", name });
+      if (plan.kind !== "build") return [];
+      // the parts of the prober are in the package of the prober, and a .gitignore is not an input of a build
+      const own = [plan.dockerfile, ...plan.files.map((each) => each.at)].filter((at) => at.startsWith("harness/") && !at.endsWith("/.gitignore"));
+      return own.map((at) => at.slice("harness/".length)).filter((path) => !isPublished(path)).map((path) => `${name}: ${path}`);
+    });
+    expect(missing).toEqual([]);
+  });
+
   it("builds a caller's context: each file with its path in the context, and a new tag when a file changes", () => {
     const context = contextWith(APP);
     const plan = builtOf(build(context));

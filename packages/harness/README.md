@@ -165,7 +165,7 @@ The entry `@mark1russell7/harness/schema` has the zod schemas of a source (`imag
 
 ## The images
 
-The harness ships ten images, each as a shipped source (`ImageSource`). The tag of each image comes from the path of its Dockerfile and the content of all the files that its Dockerfile reads. The harness copies these files into a new build context, from its own package and from the prober package. Thus the build works in a workspace and from npm.
+The harness ships fifteen images, each as a shipped source (`ImageSource`). The tag of each image comes from the path of its Dockerfile and the content of all the files that its Dockerfile reads. The harness copies these files into a new build context, from its own package and from the prober package. Thus the build works in a workspace and from npm.
 
 - **The harness image** (`image/Dockerfile`) has two stages, each a digest-pinned Alpine. `Cargo.lock` pins the crates. The image holds:
   - the kernel program of the prober, compiled against the BTF of the kernel that builds it, and its Rust collector.
@@ -187,6 +187,17 @@ The harness ships ten images, each as a shipped source (`ImageSource`). The tag 
   - `client-amqp.mjs` opens one connection and one channel. Each operation is an RPC of the channel: the first declares a queue that the broker names, and each later one declares it passively (checkQueue). The queue is exclusive, because RabbitMQ 4.3 refuses a transient queue that is not.
   - The options of the cell (`Cell.driverOptions`) give `heartbeat` in seconds, the user and its password (guest at the defaults), and the socket options of amqplib.
   - It prints the lines of the pg client on the same clock. A `connection` line gives each event of the connection, and a `channel` line each event of the channel. The errno of a failure is the error of the connection when it has one.
+- **The gRPC client image** (`image/grpc`) is grpc-js 1.14.6 on Node 24.21.0. The digest of the image and an npm lockfile pin them. The probe is `{ driver: { name: "grpc", hold } }`.
+  - `client-grpc.mjs` opens one channel with no TLS. Each operation is a unary call of `grpc.health.v1.Health/Check`, with the messages encoded in the script. The first call makes the connection.
+  - The options of the cell (`Cell.driverOptions`) are the channel options of grpc-js (`grpc.*`), and `deadline_ms` for the deadline of each call. With `hold`, the call in flight asks the server of the harness to hold its reply that long.
+  - grpc-js does not give its socket, thus the script names each socket from `net.connect`, as the MongoDB client does. A `state` line gives each change of the connectivity state of the channel, and a `log` line each line that grpc-js logs.
+  - The errno of a failure is the error of the socket when it has one. It is EOF for an end by the server, else the status of the call.
+  - With `op: "watch"`, the operation in flight is a stream of `grpc.health.v1.Health/Watch`, which stays open. A GOAWAY of the server with `too_many_pings` gives the errno `too_many_pings`: grpc-js logs that refusal before the end of the socket.
+- **The grpc-go image** (`image/grpc-go`) is the gRPC server of the harness, a server of grpc-go v1.84.0, built with Go 1.27.2 on a digest-pinned Alpine. A target takes it as the image of a subject: `{ kind: "shipped", name: "grpc-go" }`.
+  - `go mod tidy` gets the modules of grpc-go at its tag, and the go command checks each module against the checksum database of Go. The build log prints the go.sum. The build does `gofmt` and `go vet` first.
+  - The server is at the defaults of grpc-go and of Go, and each flag sets one value over them. The flags set the keepalive, the policy for PINGs, the age of a connection and the TCP keepalive of the listener.
+  - It serves `grpc.health.v1.Health`. A check of the service `hold:<ms>` holds its reply for that time, and Watch holds a stream open. It writes JSON lines on the monotonic clock (`Target.lines`).
+- **The etcd image** (`image/etcd`) is etcd v3.6.15 on a digest-pinned Alpine. The binaries come unchanged from the image of etcd, pinned by digest. That image has no shell, and a cell holds the server as the child of a shell. A target takes it as the image of a subject: `{ kind: "shipped", name: "etcd" }`.
 - **The MongoDB client image** (`image/mongo`) is the driver mongodb 7.7.0 on Node 24.21.0. The digest of the image and an npm lockfile pin them. `client-mongo.mjs` prints the lines of the TCP client on the same clock:
   - Each socket of the driver is a `socket` line with its role: `monitor`, `rtt` or `pool`. The stack of the call that makes the socket gives the role.
   - The events of the driver are `sdam` lines (the heartbeats and the changes of each server), `cmap` lines (the pools) and `command` lines (each try of an operation).
