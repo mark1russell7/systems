@@ -1,0 +1,8 @@
+{
+  "name": "loom-harness-grpc-client",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@grpc/grpc-js": "1.14.6"
+  }
+}

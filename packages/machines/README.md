@@ -52,8 +52,11 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `RABBITMQ_CONNECTION` | `rabbitmq-connection` | RabbitMQ 4.3.6: one connection of AMQP 0-9-1 on the broker | server | 14 implemented, 1 documented |
 | `ATEN_DETECTOR` | `aten` | aten 0.6.0: one node that the failure detector of another node of RabbitMQ watches | server | 7 implemented |
 | `RA_MEMBER` | `ra-member` | ra 3.1.10: one member of the Raft cluster of a quorum queue of RabbitMQ 4.3.6 | server | 25 implemented |
+| `GRPC_JS` | `grpc-js` | grpc-js 1.14.6: one channel to a gRPC server, its HTTP/2 transport, its keepalive and a unary call | driver | 23 implemented |
+| `GRPC_GO_SERVER` | `grpc-go-server` | A server of grpc-go v1.84.0: one HTTP/2 connection, its keepalive, its policy for PINGs and its TCP socket | server | 12 implemented, 1 documented |
+| `ETCD_SERVER` | `etcd-server` | The server of etcd v3.6.15 on grpc-go v1.83.2: one gRPC connection of a client | server | 18 implemented, 1 documented |
 
-Twenty-one documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel, the replication of mongod, aten and the member of Ra operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
+Twenty-four documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel, the replication of mongod, aten and the member of Ra operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
 
 The package also gives these parts:
 
@@ -98,6 +101,13 @@ A document changes only for one of two reasons:
 A change to the version of a system changes its sources too. Each fact of the document then cites the new version.
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
+
+### 0.3.16
+
+- **gRPC: grpc-js 1.14.6, a server of grpc-go v1.84.0, and the server of etcd v3.6.15.** Three new documents, each from the source at its tag:
+  - `grpc-js`: one channel, its transport and a unary call. At the defaults the keepalive is off, a call has no deadline, and the connect has no timeout. grpc-js sets TCP_NODELAY and no TCP keepalive. When the transport ends, each call in flight ends with UNAVAILABLE, and grpc-js does not retry it.
+  - `grpc-go-server`: one connection of a server of grpc-go. The server sends a PING after 2 h with no read, and it closes the connection 20 s after it. Its keepalive is on, thus each accepted connection gets a TCP_USER_TIMEOUT of 20 s. With the TCP keepalive of Go (15 s, 15 s, 9), an idle connection to a client that is gone ends 30 s after the last data. The third PING that breaks the policy gives GOAWAY too_many_pings.
+  - `etcd-server`: the same transport with the values of etcd. A client can ping each 5 s with a stream open. etcd serves gRPC through cmux, thus its connections get no TCP_USER_TIMEOUT. Its listener sets the keepalive idle to 30 s: an idle connection to a client that is gone ends 165 s after the last data.
 
 ### 0.3.15
 

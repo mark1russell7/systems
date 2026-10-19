@@ -1,0 +1,5 @@
+module grpc-go-server
+
+go 1.25.0
+
+require google.golang.org/grpc v1.84.0

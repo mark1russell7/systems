@@ -707,9 +707,25 @@ export type HarnessImage = "procedures";
 
 /**
  * A shipped image is an image that the harness ships, by its name. Its build context is in the
- * package of the harness, and in the package of the prober for `harness`.
+ * package of the harness, and in the package of the prober for `harness`. `grpc-go` is a server of
+ * grpc-go and `etcd` is etcd on Alpine: each is a subject of a target (`Target.subject`).
  */
-export type Shipped = "harness" | "node" | "go-http" | "node-http" | "mongo" | "pg" | "hikari" | "amqp" | "procedures" | "router" | "pgbouncer" | "pgpool";
+export type Shipped =
+  | "harness"
+  | "node"
+  | "go-http"
+  | "node-http"
+  | "mongo"
+  | "pg"
+  | "hikari"
+  | "amqp"
+  | "grpc"
+  | "grpc-go"
+  | "etcd"
+  | "procedures"
+  | "router"
+  | "pgbouncer"
+  | "pgpool";
 
 /**
  * An image source tells where an image comes from, as data. The harness resolves each kind to an
@@ -771,10 +787,10 @@ export interface Subject {
 /**
  * A client is what the runs of a cell use: the TCP client of the harness, or a driver on its
  * socket. The HTTP clients are the `http.Transport` of Go (`go-http`), the `http.Agent` of Node
- * (`http-agent`) and an HTTP/1.1 `Client` of undici (`undici`). The MongoDB driver is `mongodb`, node-postgres is `pg`, HikariCP over pgjdbc is `hikari`, and
- * the WebSocket client of `@procedures/client` is `procedures-ws`.
+ * (`http-agent`) and an HTTP/1.1 `Client` of undici (`undici`). The MongoDB driver is `mongodb`, node-postgres is `pg`, and HikariCP over pgjdbc is `hikari`.
+ * The client of amqplib is `amqp`, the client of grpc-js is `grpc`, and the WebSocket client of `@procedures/client` is `procedures-ws`.
  */
-export type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici" | "mongodb" | "pg" | "hikari" | "amqp" | "procedures-ws";
+export type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici" | "mongodb" | "pg" | "hikari" | "amqp" | "grpc" | "procedures-ws";
 
 /**
  * A WebSocket probe is the workload and the settings of the WebSocket client of
@@ -899,13 +915,19 @@ export interface Cell {
      * A pg or hikari driver can send a different text in flight (`inflight`): the second query of
      * an in-flight run. The first query then makes the pool ready at once, and only the query in
      * flight is slow, for example `SELECT pg_sleep(20)`.
+     *
+     * A grpc driver is grpc-js on Node, with one channel. Its operation is a unary call of
+     * grpc.health.v1.Health/Check. `Cell.driverOptions` are its channel options (`grpc.*`) and
+     * `deadline_ms`. With `hold`, the call in flight asks the server of the harness to hold its reply
+     * that long.
      */
     readonly driver?:
       | { readonly name: "ioredis"; readonly keepAlive: Quantity }
       | { readonly name: "mongodb"; readonly set: string; readonly op?: "write" | "read-long" }
       | { readonly name: "pg"; readonly query?: string; readonly inflight?: string }
       | { readonly name: "hikari"; readonly query?: string; readonly inflight?: string }
-      | { readonly name: "amqp" };
+      | { readonly name: "amqp" }
+      | { readonly name: "grpc"; readonly hold?: Quantity };
     /** This workload is the workload of an HTTP client (`Cell.client` is an HTTP client). The client then ignores `keepalive` and `userTimeout`. */
     readonly http?: HttpProbe;
     /** These are the settings of the WebSocket client (`Cell.client` is `procedures-ws`). The client then ignores `keepalive` and `userTimeout`. */
