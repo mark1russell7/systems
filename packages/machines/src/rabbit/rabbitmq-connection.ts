@@ -122,10 +122,10 @@ export const RABBITMQ_CONNECTION: Machine = machineSchema.parse({
     heartbeat: {
       duration: { expr: "2 * heartbeat", unit: "s" },
       lateness: { expr: "heartbeat + slack", unit: "s" },
-      arms: ["rx.opened", "rx.frame", "local.alarm-cleared"],
+      arms: ["rx.opened", "enter:running", "rx.frame", "local.alarm-cleared"],
       cancels: ["local.alarm", "peer.fin", "peer.rst", "socket.error"],
       fires: "timer.heartbeat",
-      note: "rabbit_heartbeat.erl:80-85: the check each timeout, and the end at the second miss in a row: 2 to 3 timeouts after the last data. A block pauses it, and the unblock starts it again (rabbit_reader.erl:1803-1830)",
+      note: "rabbit_heartbeat.erl:80-85: the check each timeout, and the end at the second miss in a row: 2 to 3 timeouts after the last data. A block pauses it, and the unblock starts it again (rabbit_reader.erl:1803-1830). The entry to running names it here, but only bytes of the client start it again",
     },
     send: {
       duration: { knob: "send_timeout", unit: "ms" },

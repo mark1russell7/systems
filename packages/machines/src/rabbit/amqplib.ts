@@ -128,10 +128,10 @@ export const AMQPLIB: Machine = machineSchema.parse({
     heartbeat: {
       duration: { expr: "2 * heartbeat", unit: "s" },
       lateness: { expr: "heartbeat + slack", unit: "s" },
-      arms: ["local.opened", "rx.frame"],
+      arms: ["local.opened", "enter:idle", "enter:waiting", "rx.frame"],
       cancels: ["socket.error", "peer.rst", "peer.fin", "rx.connection-close"],
       fires: "timer.heartbeat",
-      note: "heartbeat.js:64-71: the receive check each interval, and a timeout at the second miss in a row. The timer runs at a phase from the open, thus the timeout comes 2 to 3 intervals after the last bytes of the broker",
+      note: "heartbeat.js:64-71: the receive check each interval, and a timeout at the second miss in a row. The timer runs at a phase from the open, thus the timeout comes 2 to 3 intervals after the last bytes of the broker. It runs in each state of an open connection: the entry to a state names it here, but only bytes of the broker start it again",
     },
   },
   realizes: {

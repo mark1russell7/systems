@@ -202,7 +202,8 @@ export const lines = <T extends { readonly ev: string }>(also?: (line: T) => voi
       return new Promise((resolve, reject) => {
         const timer = setTimeout(() => {
           // its last lines tell why: a fail line of a client that could not connect, or a text that is not a line
-          const last = seen.slice(-3).map((line) => JSON.stringify(line));
+          const failed = seen.filter((line) => line.ev === "fail" || line.ev === "error").slice(0, 3);
+          const last = [...new Set([...failed, ...seen.slice(-3)])].map((line) => JSON.stringify(line));
           const said = [...(last.length === 0 ? [] : [`its last lines: ${last.join(" | ")}`]), ...(other.length === 0 ? [] : [`it wrote: ${other.slice(-3).join(" | ")}`])];
           reject(new Error(`no ${kinds.join(" or ")} from the ${who} in ${within} ms${said.length === 0 ? "" : `; ${said.join("; ")}`}`));
         }, within);
