@@ -171,7 +171,9 @@ const serverOf = (variant: Variant): Machine =>
       },
       "systems.mechanism.idle-refresh-interval": {
         duration: { knob: "listener_keepidle", unit: "s" },
-        note: "The first probe of the TCP keepalive of the accepted connection: no other segment goes out on an idle connection for 2 h",
+        lateness: { model: "linux.wheel", knobs: ["listener_keepidle", "hz"], unit: "s" },
+        early: { model: "linux.jiffy", knobs: ["hz"], unit: "s" },
+        note: "The first probe of the TCP keepalive of the accepted connection, rounded up on the wheel: no other segment goes out on an idle connection for 2 h",
       },
     },
     transitions: [

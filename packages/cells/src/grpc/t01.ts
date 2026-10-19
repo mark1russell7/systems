@@ -1,6 +1,6 @@
 import type { Detector, KnobValues, Machine, Manifestation } from "@mark1russell7/algebra";
 import { detection, errnoOf, overValues, timerOf, timerUnder } from "@mark1russell7/algebra";
-import type { Cell, Prediction, Target } from "@mark1russell7/harness";
+import type { Cell, Prediction, RouterHop, Target } from "@mark1russell7/harness";
 import { ETCD_SERVER, GRPC_GO_SERVER, GRPC_JS, LINUX_TCP } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import type { Spec } from "../catalog.ts";
@@ -9,6 +9,8 @@ import { MANIFESTATIONS } from "../manifestations.ts";
 import type { Alias, Waiting } from "../mongo/cells.ts";
 import type { Span } from "../mongo/model.ts";
 import { linuxValues, span } from "../mongo/model.ts";
+import { PRESETS } from "../mongo/t03.ts";
+import { ackDelay, conntrackValues, o03, router as routerHop } from "../topologies.ts";
 
 /**
  * The gRPC catalog of T01: grpc-js 1.14.6 on Node 24.21.0 against one server, on the direct pair. The
@@ -118,8 +120,14 @@ export interface GrpcSpec {
   readonly plan: string;
   readonly name: string;
   readonly server: GrpcServer;
-  readonly fault: "blackhole" | "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none" | "app-stall";
+  readonly fault: "blackhole" | "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none" | "app-stall" | "middlebox-forget";
   readonly mode: "idle" | "inflight";
+  /** This side is the observer: the client, or the socket of the server for the connection of the client. */
+  readonly observer?: "server";
+  /** This router is between the client and the server: its form and its idle timeout, in whole seconds. */
+  readonly router?: { readonly form: RouterHop["form"]; readonly idle: number; readonly preset: string };
+  /** These are the sysctls of Linux TCP at the server that differ from Linux 6.6. */
+  readonly serverLinux?: Readonly<Record<string, Extent>>;
   readonly icmp?: "host" | "net" | "port" | "admin";
   /** This time is the length of a stall, in seconds. */
   readonly stall?: number;
@@ -258,8 +266,86 @@ const serverKeeps = (spec: GrpcSpec, window: number): void => {
   }
 };
 
+/** This function gives the values of the knobs of a server for a cell: the defaults of its document, and the settings of the cell. */
+export const serverValues = (server: GrpcServer, settings: Readonly<Record<string, number>> = {}): Record<string, Extent> => {
+  const doc = serverDoc(server);
+  const out: Record<string, Extent> = {};
+  for (const [name, knob] of Object.entries(doc.knobs)) {
+    if (knob.unit === null) continue;
+    const value = settings[name] ?? knob.default;
+    if (value === null) continue;
+    out[name] = { value: knob.off !== undefined && value === knob.off ? "infinite" : value, unit: knob.unit };
+  }
+  out["hz"] = { value: HZ, unit: "Hz" };
+  out["rtt"] = { value: RTT_MS, unit: "ms" };
+  return out;
+};
+
+/** This time is the window of a border cell where the flow lives, in seconds. */
+export const BORDER_WINDOW = 150;
+
+/**
+ * This function gives the prediction of a cell that observes the socket of the server, for the
+ * connection of an idle client. The kernel of the server times each end:
+ * - O25: the keepalive of the listener under TCP_USER_TIMEOUT, behind a black hole of the client.
+ * - O17: the keepalive of gRPC (a PING after Time with no read, the close Timeout after it) against
+ *   the give-up of the kernel on that PING, behind a black hole of the client.
+ * - O03: the keepalive of the listener against a router that forgets an idle flow. The router drops
+ *   each late packet from outside, thus the probes of the server get no answer after the forget.
+ */
+const serverPrediction = (spec: GrpcSpec): Prediction => {
+  const doc = serverDoc(spec.server);
+  const values = given(serverValues(spec.server, spec.settings));
+  const lower = overValues(doc, values, given(linuxValues(spec.serverLinux)));
+  const slack = seconds(timerOf(doc, "keepalive", values).lateness, "the slack of Go");
+  const abort = (): Prediction => {
+    const keepalive = timerUnder(LINUX_TCP, "keepalive", lower, MANIFESTATIONS.blackhole);
+    const duration = seconds(keepalive.duration, "the keepalive of the listener");
+    const band = span(duration - seconds(keepalive.early, "early"), duration + seconds(keepalive.lateness, "lateness"));
+    return { detects: true, timer: "keepalive", errno: "ETIMEDOUT", from: "last-received", low: s(band.lo), high: s(band.hi) };
+  };
+  if (spec.fault === "middlebox-forget") {
+    const router = spec.router;
+    if (router === undefined) throw new Error(`${spec.plan}: a forgotten flow needs a router`);
+    if (router.form !== "reset-next" && router.form !== "silent-drop") throw new Error(`${spec.plan}: the router must drop a late packet from outside, not ${router.form}`);
+    const verdict = o03({ doc, values }, conntrackValues(router.idle), GRPC_RTT_MS / 1000);
+    if (verdict.holds) return { detects: false, window: s(BORDER_WINDOW) };
+    // the router forgot the flow: each probe of the server drops, and the keepalive aborts the socket
+    return abort();
+  }
+  if (spec.fault !== "blackhole") throw new Error(`${spec.plan}: this catalog observes the server only behind a black hole or a router`);
+  // the keepalive of gRPC: the PING after Time with no read, then the close Timeout after it, before
+  // the kernel gives up on that PING. Its last read is the call of operation 1. The last segment
+  // that the server gets is the ACK of the client for the reply: up to one round trip and the delayed
+  // ACK after that read
+  const ping = timerOf(doc, "keepalive", values);
+  const time = seconds(ping.duration, "Time");
+  const timeout = seconds(timerOf(doc, "ping_timeout", values).duration, "Timeout");
+  const giveUp = timerUnder(LINUX_TCP, "retrans_giveup", lower, MANIFESTATIONS.blackhole);
+  const kernel = span(seconds(giveUp.duration, "the give-up") - seconds(giveUp.early, "early"), seconds(giveUp.duration, "the give-up") + seconds(giveUp.lateness, "lateness"));
+  const keepidle = seconds(lower("keepidle") ?? s(0), "the keepalive idle of the listener");
+  // the PING after the first probe of the listener: the keepalive of the listener ends the socket
+  if (time >= keepidle) return abort();
+  // the PING goes before the keepalive of the listener, and with data in flight that keepalive does
+  // not fire. The kernel gives up on the PING from its first retransmission, one RTO after it
+  if (timeout + 3 * slack < RTO_FIRST + kernel.lo) {
+    const before = GRPC_RTT_MS / 1000 + ackDelay(RTT_MS).hi + GRPC_LATENCY;
+    return { detects: true, timer: "ping_timeout", errno: "CLOSED", from: "last-received", low: s(time + timeout - before), high: s(time + timeout + 3 * slack) };
+  }
+  if (timeout > RTO_LAST + kernel.hi) return { detects: true, timer: "retrans_giveup", errno: "ETIMEDOUT", from: "first-retransmission", low: s(kernel.lo), high: s(kernel.hi) };
+  throw new Error(`${spec.plan}: the close of gRPC and the give-up of the kernel can both come first`);
+};
+
+/**
+ * These are the earliest and the latest first retransmission of the PING, after the PING. The RTO is
+ * 200 ms over the smoothed round trip. A sample of the server can hold the delayed ACK of the client.
+ */
+const RTO_FIRST = 0.2;
+const RTO_LAST = 0.2 + 0.05;
+
 /** This function gives the prediction of a cell of the catalog. */
 export const grpcPrediction = (spec: GrpcSpec): Prediction => {
+  if (spec.observer === "server") return serverPrediction(spec);
   if (spec.fault === "stall") {
     const stall: Spec = { name: spec.name, fault: "stall", manifestation: "blackhole", observer: "client", mode: "inflight", stall: spec.stall!, linux: spec.linux ?? {} };
     const stalled = predict(stall);
@@ -465,6 +551,95 @@ export const T01_GRPC_ARRAY_WAITING: readonly Waiting[] = T01_GRPC_WAITING.map((
   return { plan: `T01.array.${n}`, trigger: each.trigger, why: `as T01.defaults.${n}, under ${profile}: ${each.why}` };
 });
 
+/** This factor divides the idle timeout of the router of the borders of O03 of grpc-go: the AWS NAT form at 350 s is 35 s. */
+export const GRPC_K = 10;
+
+/** This router is the AWS NAT form with its idle timeout divided by GRPC_K: 35 s. Then it resets a late sender from inside, and it drops a late packet from outside. */
+export const GRPC_ROUTER = { ...PRESETS.aws, idle: PRESETS.aws.idle / GRPC_K, preset: `${PRESETS.aws.preset}, divided by ${GRPC_K}` };
+
+/** This value is the tcp_retries2 of the server for the borders of O17: its kernel gives up 51 s to 108.2 s after the first retransmission. */
+export const GRPC_O17_RETRIES = 7;
+
+/** These are the border cells of T01 over grpc-js-1.14 that observe the socket of the server. O03, O17 and O25 each have a setting inside and one outside. */
+export const T01_GRPC_BORDER_SPECS: readonly GrpcSpec[] = [
+  // ---- O03 of grpc-go: the probes of its listener refresh the flow. The keepalive of the listener moves, and the router stays at 35 s
+  ...([
+    ["T01.border-off.163", 15, "inside"],
+    ["T01.border-off.164", 45, "outside"],
+  ] as const).map(
+    ([plan, keepidle, side]): GrpcSpec => ({
+      plan,
+      server: "grpc-go",
+      name: `middlebox-forget, idle, the socket of the server, a keepalive of the listener of ${keepidle} s: ${side} O03 against the AWS NAT form at ${GRPC_ROUTER.idle} s`,
+      fault: "middlebox-forget",
+      mode: "idle",
+      observer: "server",
+      router: GRPC_ROUTER,
+      ...(keepidle === 15 ? {} : { settings: { listener_keepidle: keepidle } }),
+    }),
+  ),
+  // ---- O03 of etcd: its listener probes at 30 s, and no flag of etcd moves it. The router moves
+  ...([
+    ["T01.border-off.165", 45, "inside"],
+    ["T01.border-off.166", 20, "outside"],
+  ] as const).map(
+    ([plan, idle, side]): GrpcSpec => ({
+      plan,
+      server: "etcd",
+      name: `middlebox-forget, idle, the socket of the server: ${side} O03 for the probe of etcd at 30 s against the AWS NAT form at ${idle} s`,
+      fault: "middlebox-forget",
+      mode: "idle",
+      observer: "server",
+      router: { form: PRESETS.aws.form, idle, preset: `the AWS NAT form at ${idle} s` },
+    }),
+  ),
+  // ---- O17 of etcd: the PING of gRPC 10 s after the last read, against the give-up of the kernel on it
+  ...([
+    ["T01.border-off.209", 20, "inside"],
+    ["T01.border-off.210", 120, "outside"],
+  ] as const).map(
+    ([plan, timeout, side]): GrpcSpec => ({
+      plan,
+      server: "etcd",
+      name: `blackhole, idle, the socket of the server, a keepalive of gRPC of 10 s and ${timeout} s, tcp_retries2 = ${GRPC_O17_RETRIES} at the server: ${side} O17`,
+      fault: "blackhole",
+      mode: "idle",
+      observer: "server",
+      settings: { keepalive_time: 10, keepalive_timeout: timeout },
+      serverLinux: { tcp_retries2: count(GRPC_O17_RETRIES) },
+    }),
+  ),
+  // ---- O25 of grpc-go: TCP_USER_TIMEOUT (the Timeout of the keepalive of gRPC) against the window of the keepalive of the listener, 150 s
+  ...([
+    ["T01.border-off.225", 20, "inside"],
+    ["T01.border-off.226", 160, "outside"],
+  ] as const).map(
+    ([plan, timeout, side]): GrpcSpec => ({
+      plan,
+      server: "grpc-go",
+      name: `blackhole, idle, the socket of the server, TCP_USER_TIMEOUT ${timeout} s: ${side} O25 against the keepalive of the listener (15 s, 15 s, 9)`,
+      fault: "blackhole",
+      mode: "idle",
+      observer: "server",
+      ...(timeout === 20 ? {} : { settings: { keepalive_timeout: timeout } }),
+    }),
+  ),
+];
+
+/** These are the borders of O26 that wait: the policy of the server for the PINGs of the client. */
+export const T01_GRPC_BORDER_WAITING: readonly Waiting[] = [
+  ...["T01.border-off.229", "T01.border-off.230"].map((plan) => ({
+    plan,
+    trigger: "O26",
+    why: "the client of the harness reports no GOAWAY of grpc-js yet: the PINGs against the MinTime of grpc-go need it",
+  })),
+  ...["T01.border-off.231", "T01.border-off.232"].map((plan) => ({
+    plan,
+    trigger: "O26",
+    why: "etcd holds no call open by itself, thus the PINGs of a stream need a Watch of the client of the harness",
+  })),
+];
+
 /** This function gives the name of a cell: its cell of the plan, its tuple of systems, and what it does. */
 export const grpcNameOf = (spec: GrpcSpec): string => `${spec.plan} grpc-js-1.14 to ${spec.server === "grpc-go" ? "grpc-go-server" : "etcd-3.6"}, ${spec.name}`;
 
@@ -478,7 +653,10 @@ export const grpcCell = (spec: GrpcSpec): Cell => {
     probe: { mode: spec.mode, keepalive: false, driver: { name: "grpc", ...(spec.fault === "app-stall" ? { hold: s(GRPC_HOLD) } : {}) } },
     fault: spec.fault,
     prediction: grpcPrediction(spec),
+    ...(spec.observer === "server" ? { observer: "server" as const } : {}),
+    ...(spec.router === undefined ? {} : { topology: { name: "T01", hops: [routerHop(spec.router.form, spec.router.idle)] } }),
     ...(spec.fault === "unreachable" ? { targetSysctls: { "net.ipv4.icmp_ratelimit": "0" } } : {}),
+    ...(spec.serverLinux === undefined ? {} : { targetSysctls: sysctlsOf(linuxValues(spec.serverLinux)) }),
     ...(spec.stall === undefined ? {} : { stall: s(spec.stall) }),
     ...(spec.icmp === undefined ? {} : { icmp: spec.icmp }),
     ...(options === undefined ? {} : { driverOptions: options }),
@@ -490,4 +668,4 @@ export const grpcCell = (spec: GrpcSpec): Cell => {
 };
 
 /** These are the gRPC cells of T01 for the harness. */
-export const T01_GRPC: readonly Cell[] = [...T01_GRPC_SPECS, ...T01_GRPC_ARRAY_SPECS].map(grpcCell);
+export const T01_GRPC: readonly Cell[] = [...T01_GRPC_SPECS, ...T01_GRPC_ARRAY_SPECS, ...T01_GRPC_BORDER_SPECS].map(grpcCell);

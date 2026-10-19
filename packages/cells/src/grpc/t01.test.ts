@@ -5,15 +5,25 @@ import {
   ETCD_PORT,
   GRPC_HOLD,
   GRPC_PORT,
+  GRPC_O17_RETRIES,
+  GRPC_ROUTER,
   SILENT_WINDOW,
   T01_GRPC,
   T01_GRPC_ARRAY_ALIASES,
   T01_GRPC_ARRAY_SPECS,
   T01_GRPC_ARRAY_WAITING,
+  T01_GRPC_BORDER_SPECS,
+  T01_GRPC_BORDER_WAITING,
   T01_GRPC_SPECS,
   T01_GRPC_WAITING,
   grpcTarget,
 } from "./t01.ts";
+
+const lowOf = (plan: string): number => {
+  const prediction = cell(plan).prediction;
+  if (prediction.detects !== true) throw new Error(`${plan} detects nothing`);
+  return prediction.low.value;
+};
 
 const cell = (plan: string) => {
   const found = T01_GRPC.find((each) => each.name.startsWith(`${plan} grpc-js-1.14 to `));
@@ -44,8 +54,8 @@ describe("the gRPC catalog of T01", () => {
     expect(grpcTarget("grpc-go", { keepalive_timeout: 160, listener_keepcnt: 9 }).command?.[2]).toContain("--keepalive-timeout 160s --listener-keepalive-count 9");
     expect(grpcTarget("etcd", { keepalive_time: 10 }).command?.[2]).toContain("--grpc-keepalive-interval 10s");
     expect(() => grpcTarget("etcd", { listener_keepidle: 10 })).toThrow("the etcd server has no flag for listener_keepidle");
-    // each cell of a server starts it at its defaults
-    for (const each of T01_GRPC) expect(each.target.command, each.name).toEqual(grpcTarget(each.name.includes(" to etcd-3.6,") ? "etcd" : "grpc-go").command);
+    // each cell at the defaults starts its server at its defaults
+    for (const spec of T01_GRPC_SPECS) expect(cell(spec.plan).target.command, spec.plan).toEqual(grpcTarget(spec.server).command);
   });
 
   it("finds nothing at the client for a silent fault: grpc-js has no keepalive and no deadline", () => {
@@ -112,5 +122,28 @@ describe("the gRPC catalog of T01", () => {
     expect(deadline).toMatchObject({ detects: true, errno: "DEADLINE_EXCEEDED", from: "request-sent", low: { value: 4, unit: "s" } });
     if (deadline.detects !== true) throw new Error("a detection");
     expect(deadline.high.value).toBeLessThan(GRPC_HOLD);
+  });
+
+  it("places O03, O17 and O25 on the socket of the server, each with a setting inside and one outside, and lets O26 wait", () => {
+    const named = [...T01_GRPC_BORDER_SPECS.map((spec) => spec.plan), ...T01_GRPC_BORDER_WAITING.map((each) => each.plan)];
+    expect(named.sort()).toEqual([163, 164, 165, 166, 209, 210, 225, 226, 229, 230, 231, 232].map((n) => `T01.border-off.${n}`));
+    for (const spec of T01_GRPC_BORDER_SPECS) expect(cell(spec.plan).observer, spec.plan).toBe("server");
+    // O03: the probes of the listener refresh the flow inside, and the router forgets it outside. Its
+    // drop of a late packet from outside leaves each probe without an answer, until the keepalive aborts
+    expect(cell("T01.border-off.163").prediction).toMatchObject({ detects: false });
+    expect(cell("T01.border-off.163").topology?.hops[0]).toMatchObject({ kind: "router", form: "reset-next", idle: { value: GRPC_ROUTER.idle, unit: "s" } });
+    // grpc-go: TCP_USER_TIMEOUT 20 s, thus the abort comes at the second firing: 45 + 15
+    expect(cell("T01.border-off.164").prediction).toMatchObject({ detects: true, timer: "keepalive", errno: "ETIMEDOUT", from: "last-received" });
+    expect(lowOf("T01.border-off.164")).toBeCloseTo(60, 1);
+    expect(cell("T01.border-off.165").prediction).toMatchObject({ detects: false });
+    // etcd: no TCP_USER_TIMEOUT, thus 30 + 9 × 15
+    expect(cell("T01.border-off.166").prediction).toMatchObject({ detects: true, timer: "keepalive", errno: "ETIMEDOUT" });
+    expect(lowOf("T01.border-off.166")).toBeCloseTo(165, 1);
+    // O17: the close of gRPC 10 + 20 s after the last read, or the give-up of the kernel on the PING
+    expect(cell("T01.border-off.209").prediction).toMatchObject({ detects: true, timer: "ping_timeout", errno: "CLOSED", from: "last-received" });
+    expect(cell("T01.border-off.210").prediction).toMatchObject({ detects: true, timer: "retrans_giveup", errno: "ETIMEDOUT", from: "first-retransmission", low: { value: 51, unit: "s" } });
+    expect(cell("T01.border-off.210").targetSysctls).toMatchObject({ "net.ipv4.tcp_retries2": String(GRPC_O17_RETRIES) });
+    // O25: inside, the abort at 15 + 15; outside, U of 160 s moves it to 15 + 10 × 15, after the 150 s of the keepalive alone
+    expect([lowOf("T01.border-off.225"), lowOf("T01.border-off.226")].map((low) => Math.round(low))).toEqual([30, 165]);
   });
 });
