@@ -4,7 +4,8 @@
 //
 // The gRPC cells put grpc-js 1.14.6 on Node against two servers: a server of grpc-go v1.84.0 (the
 // server of the harness) and etcd v3.6.15. T01 is the direct pair, at the defaults, in the array
-// stage and at the borders of O03, O17, O25 and O26. Each folder is the output of one shard of the
+// stage and at the borders of O03, O17, O25 and O26. T03 puts a router of a cloud preset between
+// the client and grpc-go. Each folder is the output of one shard of the
 // workflow Cells on a runner of GitHub: the raw record of each cell, summary.ndjson and runner.txt.
 // The script reads each record again with the code of the harness (`judge`), and it stops when that
 // verdict disagrees with summary.ndjson. It also stops when a prediction disagrees with the catalog
@@ -28,12 +29,14 @@ if (folders.length === 0) {
 const runner = runnerOf(folders);
 process.env["CELLS_HZ"] = String(runner.hz);
 const { T01_GRPC, GRPC_DRIVER } = await import("../../cells/src/grpc/t01.ts");
+const { T03_GRPC } = await import("../../cells/src/grpc/t03.ts");
+const CATALOG = [...T01_GRPC, ...T03_GRPC];
 const { ALL } = await import("../../cells/src/all.ts");
 
 // a full run of the catalogs holds the cells of each catalog: this export takes its own
 const found = ofCatalog(
   readFolders<CellRecord, Summary>(folders),
-  T01_GRPC.map((cell) => cell.name),
+  CATALOG.map((cell) => cell.name),
   ALL.map((cell) => cell.name),
 );
 
@@ -48,6 +51,7 @@ const TIMERS: Readonly<Record<string, string>> = {
   deadline: "the deadline of the call ends it",
   ping_timeout: "the keepalive of gRPC at the server gets no ACK for its PING, and the server closes the connection",
   too_many_pings: "the server counts three PINGs as strikes, and it sends GOAWAY too_many_pings and closes the connection",
+  "the reset of the router at a retransmission": "the router resets the first retransmission of the client after the end of the CLOSE timeout of conntrack",
 };
 const timerText = (p: { readonly timer: string; readonly errno: string }): string | undefined => TIMERS[`${p.timer} ${p.errno}`] ?? TIMERS[p.timer];
 /** These phrases name the reference of a band, in a sentence. */
@@ -120,7 +124,12 @@ const predictionOf = (cell: Cell) => {
     };
   }
   const window = secondsOf(p.window)!;
-  return { kind: "silent", ...none, window, text: text(`The algebra predicts that nothing detects the fault in a window of ${at(window)}.`) };
+  const forgets = p.middlebox?.forgets;
+  const router =
+    forgets === undefined
+      ? []
+      : [`The router forgets the flow ${at(secondsOf(forgets.low)!)} to ${at(secondsOf(forgets.high)!)} after the last segment that the client got.`];
+  return { kind: "silent", ...none, window, text: [`The algebra predicts that nothing detects the fault in a window of ${at(window)}.`, ...router, ...extra].join(" ") };
 };
 
 /** This function gives the name of a cell with its server, and without the client, which each gRPC cell has. */
@@ -133,7 +142,7 @@ const shortOf = (name: string): string => {
 /** This function gives the stage of a cell by its cell of the plan: the defaults, the array stage or a border. */
 const stageOf = (plan: string | null): string => (plan?.includes(".border-off.") ? "border" : plan?.includes(".array.") ? "array" : "defaults");
 
-const cells = T01_GRPC.flatMap((catalog) => {
+const cells = CATALOG.flatMap((catalog) => {
   const entry = found.get(catalog.name);
   if (entry === undefined) return [];
   if (JSON.stringify(entry.record.cell.prediction) !== JSON.stringify(catalog.prediction))
@@ -152,7 +161,7 @@ const cells = T01_GRPC.flatMap((catalog) => {
     },
   ];
 });
-const unknown = [...found.keys()].filter((name) => !T01_GRPC.some((cell) => cell.name === name));
+const unknown = [...found.keys()].filter((name) => !CATALOG.some((cell) => cell.name === name));
 if (unknown.length > 0) throw new Error(`no catalog has the cells ${unknown.join(", ")}`);
 
 const records = [...found.values()].map((entry) => entry.record);
