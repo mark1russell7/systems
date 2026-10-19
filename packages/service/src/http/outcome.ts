@@ -1,6 +1,7 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { ownerOf, ownStream } from "../drains.ts";
 import type { Refused } from "../limiter/policy.ts";
 import { retryAfterSeconds } from "../limiter/policy.ts";
 import type { RequestEnd, RequestEvent, RequestOptions, RequestStream, RequestWork } from "../requests.ts";
@@ -197,6 +198,7 @@ const writeWhole = (res: ServerResponse, response: OutcomeResponse): void => {
  *   slows the work. An end before the first item gets a status, as a unary end does.
  * - The answer to come: until it writes the end, the response holds the drain of `httpTransport` past
  *   its deadline. The cut of the drain gives that end, and the drain waits until the end goes out.
+ *   Only a stream of `life.request` of the lifecycle of the transport holds the drain.
  */
 export const writeOutcome = async <T>(res: ServerResponse, stream: RequestStream<T>, options: OutcomeOptions<T>): Promise<RequestEnd | null> => {
   const iterator = stream[Symbol.asyncIterator]();
@@ -226,7 +228,7 @@ export const writeOutcome = async <T>(res: ServerResponse, stream: RequestStream
     const drained = new Promise<"drained">((resolve) => res.once("drain", () => resolve("drained")));
     return (await Promise.race([drained, closed])) === "drained";
   };
-  const answered = markAnswer(res);
+  const answered = markAnswer(res, ownerOf(stream));
   try {
     const format = options.stream;
     if (format === undefined) {
@@ -316,7 +318,8 @@ export const handle = <T>(controller: string, route: HandledRoute, work: Handled
       return true;
     }
     const given: RequestOptions = options.detail === undefined ? {} : { detail: options.detail(req) };
-    await writeOutcome(res, life.request(controller, name, (signal) => work(req, signal), given), written);
+    // the stream comes from the lifecycle of the transport, thus the drain of the transport can cut it
+    await writeOutcome(res, ownStream(life.request(controller, name, (signal) => work(req, signal), given), life), written);
     return true;
   };
 };

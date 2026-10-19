@@ -56,7 +56,7 @@ const tail = (): AsyncIterable<{ row: number }> => ({
   },
 });
 
-/** This stream comes from no lifecycle, thus no cut ends it: a call whose end never comes. */
+/** This stream comes from no lifecycle, thus no cut ends it: a stream outside the lifecycle, whose end never comes. */
 const endless = (): RequestStream<string> => ({
   [Symbol.asyncIterator]: () => ({ next: () => new Promise<IteratorResult<RequestEvent<string>>>(() => {}) }),
   collect: () => new Promise(() => {}),
@@ -366,32 +366,52 @@ describe("SYS-29: the drain waits for the answers of the calls that its deadline
     expect(r.process.exits).toEqual([0]);
   });
 
-  // a call whose end never comes, and a step of the drain that never ends: each one is work of the phase
-  for (const [what, path, stuckDrainStep] of [
-    ["a call whose end never comes", "/endless", false],
-    ["a step of the drain that never ends", "/work?stuck", true],
-  ] as const)
-    it(`fails the drain at its cap with exit 1 when work is still running there, as before: ${what}`, async () => {
-      const r = rigged({ stuckDrainStep });
-      const life = await r.start();
-      const stalled = r.app.connect();
-      void stalled.request("/once?stuck", "POST").catch(() => {});
-      void r.app.connect().request(path).catch(() => {});
-      await r.step(0);
-      stalled.socket.pause();
-      r.process.signal("SIGTERM");
-      await r.step(1000);
-      const drainAt = enter(r.events, "drain").at;
-      await r.step(4000);
-      // an answer did not go out too, but the work that is left fails the phase
-      expect(statesOf([stalled])).toEqual(["ended"]);
-      const closing = enter(r.events, "close transports");
-      expect([closing.on, closing.detail, closing.at - drainAt]).toEqual(["phase.cap", undefined, 4000]);
-      expect(life.errors).toEqual(["the phase drain did not end in its cap of 4 s"]);
-      await r.step(2000);
-      expect(await life.done).toBe(1);
-      expect(r.process.exits).toEqual([1]);
-    });
+  it("fails the drain at its cap with exit 1 when work is still running there, as before: a step of the drain that never ends", async () => {
+    const r = rigged({ stuckDrainStep: true });
+    const life = await r.start();
+    const stalled = r.app.connect();
+    void stalled.request("/once?stuck", "POST").catch(() => {});
+    void r.app.connect().request("/work?stuck").catch(() => {});
+    await r.step(0);
+    stalled.socket.pause();
+    r.process.signal("SIGTERM");
+    await r.step(1000);
+    const drainAt = enter(r.events, "drain").at;
+    await r.step(4000);
+    // an answer did not go out too, but the work that is left fails the phase
+    expect(statesOf([stalled])).toEqual(["ended"]);
+    const closing = enter(r.events, "close transports");
+    expect([closing.on, closing.detail, closing.at - drainAt]).toEqual(["phase.cap", undefined, 4000]);
+    expect(life.errors).toEqual(["the phase drain did not end in its cap of 4 s"]);
+    await r.step(2000);
+    expect(await life.done).toBe(1);
+    expect(r.process.exits).toEqual([1]);
+  });
+
+  it("ends the drain at its deadline with exit 0 for a stream outside the lifecycle, as 0.5.4 did, and its record gives their count", async () => {
+    const r = rigged();
+    const life = await r.start();
+    // writeOutcome over a stream that no life.request of this lifecycle made: no cut ends it
+    const outside = r.app.connect().request("/endless").then(
+      () => "answered",
+      (error: Error) => error.message,
+    );
+    await r.step(0);
+    expect(r.http.inFlight()).toBe(1);
+    r.process.signal("SIGTERM");
+    await r.step(1000);
+    const drainAt = enter(r.events, "drain").at;
+    await r.step(4000);
+    // the drain did not wait for it: the phase ended at its deadline, in time, and its record counts the stream
+    const closing = enter(r.events, "close transports");
+    expect([closing.on, closing.detail, closing.at - drainAt]).toEqual(["phase.done", "streams outside the lifecycle: 1", 4000]);
+    expect(life.errors).toEqual([]);
+    // the close of the transports destroyed its socket, as in 0.5.4
+    expect(await outside).toMatch(/ECONNRESET/);
+    await r.step(2000);
+    expect(await life.done).toBe(0);
+    expect(r.process.exits).toEqual([0]);
+  });
 
   it("changes nothing for a drain whose calls end before its deadline: it ends with the last answer", async () => {
     const r = rigged();

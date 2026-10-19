@@ -452,17 +452,6 @@ The store is an interface, and each store decides a take in one atomic step on i
 
 `lint()` applies two new rules to each limiter. O29 bounds the longest `Retry-After` by the retry window of the caller, at the cap of keys too. O30 bounds the retry delay of the caller from below. Their identifiers are provisional, because the corpus of the law does not have them yet.
 
-### SYS-29 · The answers of a cut call before the close of the sockets
-
-- **Status:** in progress
-- **Area:** server stack
-- **Depends on:**
-- **Started:** 2026-10-19
-- **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
-
-At the drain deadline, the drain timer of `httpTransport` resolves before the cut timer of the requests. Thus the listener does not wait for the answers of the cut calls. A 500, a 503 or the in-band end of a cut call can then race the close of its socket. The host of the client waits for them by itself (client #69). A plain service app on `httpTransport` does not. The fix orders the timers. The cut goes first, and the drain resolves after the answers of the cut flush, under the cap of the phase. The server-stack session builds it, as service 0.5.5 (PATCH: a fix with no change to the API).
-
 It comes in service 0.5.3, a PATCH: new exports. The store in Redis (`redisLimiterStore`, one script that reads `TIME`) comes in 0.5.4, also a PATCH. The machine document and the harness cell come next. The client item CLI-40 builds the admission step of the procedures server on it.
 
 ### SYS-29 · The drain of httpTransport waits for the answers of the cut calls
@@ -472,7 +461,7 @@ It comes in service 0.5.3, a PATCH: new exports. The store in Redis (`redisLimit
 - **Depends on:**
 - **Started:** 2026-10-19
 - **Shipped:**
-- **Links:** [#111](https://github.com/mark1russell7/systems/pull/111), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#111](https://github.com/mark1russell7/systems/pull/111), [#113](https://github.com/mark1russell7/systems/pull/113), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 The client item CLI-48 found it. At the deadline of the drain, the timer of the transport and the cut of the requests come at the same time. With `setTimeout`, the timer of the transport comes first. Then the drain ended before the cut calls had their answers. The close of the sockets raced the 503, the 500 or the in-band end of each call.
 
@@ -480,7 +469,9 @@ With the fix, the drain of `httpTransport` also waits at its deadline for each a
 
 A phase fails only for its own work (the review of the systems session). At the cap, a drain that waits only for the bytes of its answers did its work. Thus the cap is not a failure, and the exit code stays 0, as before 0.5.5. The event `phase.cap` gives the cause and the count, for example `answers not flushed: 2`. A call whose end did not come, or other work that did not end, still fails the phase with exit code 1.
 
-It comes in service 0.5.5, a PATCH: a bug fix, with no change to an export or to an exit code.
+It comes in service 0.5.5, a PATCH: a bug fix, with no change to an export.
+
+The drain waits only for work that it owns and can cut (the second review). `life.request` of a lifecycle records that lifecycle as the owner of each stream that it makes. A stream of `writeOutcome` from another lifecycle, or from none, does not hold the drain and does not count at the cap. Thus the drain ends at its deadline for such a stream, as in 0.5.4. The record of the drain gives their count, for example `streams outside the lifecycle: 1`. With this change in service 0.5.6, a PATCH, each exit code is the exit code of 0.5.4.
 
 ## The systems of S1
 
