@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { AMQPLIB, RABBITMQ_CONNECTION } from "@mark1russell7/machines";
 import { RUNS } from "../catalog.ts";
 import { T01_PG } from "../pg/t01.ts";
-import { RABBIT_LATENCY, RABBIT_TARGET, T01_AMQP, T01_AMQP_SPECS, T01_AMQP_WAITING } from "./t01.ts";
+import { O17_RETRIES, RABBIT_LATENCY, RABBIT_ROUTER, RABBIT_TARGET, T01_AMQP, T01_AMQP_BORDER_SPECS, T01_AMQP_SPECS, T01_AMQP_WAITING } from "./t01.ts";
 
 const cell = (plan: string) => {
   const found = T01_AMQP.find((each) => each.name.startsWith(`${plan} amqplib-2.2 to rabbitmq-4.3, `));
@@ -33,7 +33,7 @@ describe("the RabbitMQ catalog of T01", () => {
         detects: true,
         timer: "heartbeat",
         errno: "CLOSED",
-        from: "last-received",
+        from: "last-data",
         low: { value: 120, unit: "s" },
         high: { value: 180.01, unit: "s" },
       });
@@ -65,5 +65,25 @@ describe("the RabbitMQ catalog of T01", () => {
     expect(cell("T01.defaults.140").prediction).toMatchObject({ detects: false, window: { value: 300, unit: "s" } });
     // amqplib sets no TCP_NODELAY at the defaults: Nagle is on
     expect(AMQPLIB.knobs["noDelay"]?.default).toBe(0);
+  });
+
+  it("places O03 and O17 each with a setting inside and one outside", () => {
+    expect(T01_AMQP_BORDER_SPECS.map((spec) => spec.plan)).toEqual(["T01.border-off.161", "T01.border-off.162", "T01.border-off.205", "T01.border-off.206"]);
+    // O03: the broker sends a frame each heartbeat / 2. At 40 s, each 20 s keeps the flow through the router at 30 s
+    const inside = cell("T01.border-off.161");
+    expect(inside.prediction).toMatchObject({ detects: false, window: { value: 150, unit: "s" } });
+    expect(inside.topology?.hops[0]).toMatchObject({ kind: "router", form: "silent-drop", idle: { value: RABBIT_ROUTER.idle, unit: "s" } });
+    // at 80 s, each 40 s: the router forgets the flow, and the heartbeat of amqplib ends it 160 s to 240 s after the last data
+    expect(cell("T01.border-off.162").prediction).toMatchObject({ detects: true, timer: "heartbeat", from: "last-data", low: { value: 160, unit: "s" }, high: { value: 240.01, unit: "s" } });
+    // O17: the heartbeat against the give-up of the kernel, with tcp_retries2 = 7
+    const early = cell("T01.border-off.205").prediction;
+    const late = cell("T01.border-off.206").prediction;
+    if (early.detects !== true || late.detects !== true) throw new Error("detecting cells");
+    expect([early.timer, late.timer, late.errno]).toEqual(["heartbeat", "retrans_giveup", "ETIMEDOUT"]);
+    expect(cell("T01.border-off.206").sysctls).toMatchObject({ "net.ipv4.tcp_retries2": String(O17_RETRIES) });
+    // the reply to operation 1 is the last data, 0.3 s before the RPC, and the first retransmission comes after it:
+    // the heartbeat of 15 s ends before the kernel can, and the one of 60 s after the kernel must
+    expect(early.high.value).toBeLessThan(late.low.value);
+    expect(2 * 60 - 0.3).toBeGreaterThan(late.high.value + 0.21);
   });
 });

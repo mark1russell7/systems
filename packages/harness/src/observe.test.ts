@@ -237,6 +237,28 @@ describe("a run measured against its cell, from the kernel's own records", () =>
     expect(measure(stall, closed)).toMatchObject({ outcome: { kind: "answered" }, elapsed: s(1.6643), void: null, finding: null });
   });
 
+  it("times the heartbeat of a driver from the last data of the peer, not from a later ACK of its own heartbeat", () => {
+    const heartbeat: Cell = {
+      ...KEEPALIVE,
+      name: "a heartbeat",
+      probe: { mode: "idle", keepalive: false },
+      prediction: { detects: true, timer: "heartbeat", errno: "CLOSED", from: "last-data", low: s(120), high: s(180.01) },
+    };
+    const state = (mono: number, old: number, next: number) => k("state", mono, { ...({ old, new: next } as unknown as Partial<KernelRecord>) });
+    const kernel = [
+      ...reply,
+      // a heartbeat frame of the broker, 20 s after the reply: the last data
+      k("rx", T + 20_000_000_000, { seg: { seq: 8, len: { value: 8, unit: "B" } } }),
+      // the client sends its own heartbeat, and the broker acknowledges it with no data
+      k("tx", T + 40_000_000_000, { seg: { seq: 2, len: { value: 8, unit: "B" } } }),
+      k("rx", T + 40_040_000_000),
+      // the fault, then the client ends the connection at the second receive check with nothing
+      state(T + 170_000_000_000, 1, 4),
+    ];
+    const read = measure(heartbeat, run([...client], kernel, { t0: T + 45e9, t1: T + 45.004e9 }));
+    expect(read).toMatchObject({ outcome: { kind: "closed" }, elapsed: s(150), void: null, finding: null });
+  });
+
   it("calls a run silent when nothing ended the wait, and counts the ACKs a frozen kernel sent", () => {
     const frozen: Cell = {
       ...IN_FLIGHT,

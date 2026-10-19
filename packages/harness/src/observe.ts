@@ -191,7 +191,7 @@ const socketVantage = (
   request: ProbeEvent,
 ): Quantity | null => {
   const { from } = cell.prediction.detects === true ? cell.prediction : { from: undefined };
-  if (from === undefined || from === "peer-closed" || from === "fault" || from === "ping-sent" || from === "first-sent") return null;
+  if (from === undefined || from === "peer-closed" || from === "fault" || from === "ping-sent" || from === "first-sent" || from === "last-data") return null;
   const ended = events.find((event) => event.ev === "error" || event.ev === "eof");
   const reference =
     from === "last-received"
@@ -634,6 +634,9 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     const record: KernelRecord | undefined =
       from === "last-received"
         ? socket.filter((each) => each.ev === "rx" && each.mono <= before).at(-1)
+        : from === "last-data"
+          ? // the receive check of a heartbeat counts bytes, not an ACK: the last segment with data before the end
+            socket.filter((each) => each.ev === "rx" && (each.seg?.len.value ?? 0) > 0 && each.mono <= (ended ?? before)).at(-1)
         : from === "first-retransmission"
           ? retransmitted.find((each) => each.why === "rto" && each.mono > before)
           : from === "first-sent"

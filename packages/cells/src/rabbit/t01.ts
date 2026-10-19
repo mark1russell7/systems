@@ -1,6 +1,6 @@
 import type { Detector, KnobValues, Manifestation } from "@mark1russell7/algebra";
 import { detection, errnoOf, overValues, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
-import type { Cell, Prediction, Target } from "@mark1russell7/harness";
+import type { Cell, Prediction, RouterHop, Target } from "@mark1russell7/harness";
 import { AMQPLIB, LINUX_TCP, RABBITMQ_CONNECTION } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import { HZ, RTT_MS, RUNS, count, given, predict, s, seconds, sysctlsOf } from "../catalog.ts";
@@ -8,6 +8,8 @@ import { MANIFESTATIONS } from "../manifestations.ts";
 import type { Waiting } from "../mongo/cells.ts";
 import type { Span } from "../mongo/model.ts";
 import { linuxValues, span } from "../mongo/model.ts";
+import { PRESETS } from "../mongo/t03.ts";
+import { conntrackValues, o03, router as routerHop } from "../topologies.ts";
 
 /**
  * The RabbitMQ catalog of T01: amqplib 2.2.0 on Node 24.21.0 against one broker of RabbitMQ 4.3.6, on
@@ -52,7 +54,7 @@ export const RABBIT_LATENCY: number = RABBIT_RTT_MS / 1000 + (RABBITMQ_CONNECTIO
 export interface AmqpSpec {
   readonly plan: string;
   readonly name: string;
-  readonly fault: "blackhole" | "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none";
+  readonly fault: "blackhole" | "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none" | "middlebox-forget";
   readonly mode: "idle" | "inflight";
   readonly icmp?: "host" | "net" | "port" | "admin";
   /** This time is the length of a stall, in seconds. */
@@ -65,7 +67,15 @@ export interface AmqpSpec {
   readonly options?: Readonly<Record<string, number>>;
   /** This time is the window of a cell with no fault, in seconds. */
   readonly hold?: number;
+  /** This router is between the client and the broker: its form and its idle timeout, in whole seconds. */
+  readonly router?: { readonly form: RouterHop["form"]; readonly idle: number; readonly preset: string };
 }
+
+/** This factor divides the idle timeout of the router of the borders of O03, and the heartbeat goes with it: 240 s is 30 s. */
+export const RABBIT_K = 8;
+
+/** This router is the Azure LB at its default, with its idle timeout divided by RABBIT_K: a silent drop at 30 s. */
+export const RABBIT_ROUTER = { ...PRESETS.azureLb, idle: PRESETS.azureLb.idle / RABBIT_K, preset: `${PRESETS.azureLb.preset}, divided by ${RABBIT_K}` };
 
 /** This function gives the values of the knobs of amqplib for a cell: the defaults of the document, and the options of the cell. */
 export const amqpValues = (options: Readonly<Record<string, number>> = {}): Record<string, Extent> => {
@@ -180,6 +190,21 @@ export const amqpPrediction = (spec: AmqpSpec): Prediction => {
     const errno = transitionOn(LINUX_TCP, "ESTABLISHED", "rx.rst")?.errno ?? "ECONNRESET";
     return { detects: true, timer: "the reset of the operation", errno, from: "request-sent", low: s(0), high: s(RABBIT_RTT_MS / 1000), rtt, driver: { socket: "connection" } };
   }
+  // an idle flow through a router: O03 decides whether the frames of the broker refresh it before the
+  // router forgets it. A forgotten flow drops each frame in silence, and the heartbeat of amqplib ends it
+  if (spec.fault === "middlebox-forget") {
+    const router = spec.router;
+    if (router === undefined) throw new Error(`${spec.plan}: a forgotten flow needs a router`);
+    const heartbeat = seconds(driver("heartbeat"), "the heartbeat");
+    const broker = { doc: RABBITMQ_CONNECTION, values: given({ heartbeat: s(heartbeat), slack: s(RABBITMQ_CONNECTION.knobs["slack"]?.default ?? 0) }) };
+    const verdict = o03(broker, conntrackValues(router.idle), RABBIT_RTT_MS / 1000);
+    // the window holds three heartbeats: the latest end that the heartbeat of amqplib can give
+    if (verdict.holds) return { detects: false, window: s(spec.hold ?? 3 * heartbeat + 30), driver: { socket: "connection", quiet: [...QUIET] } };
+    if (router.form !== "silent-drop") throw new Error(`${spec.plan}: this catalog measures a forgotten flow only at a silent drop, not at ${router.form}`);
+    const first = firstOn("idle", MANIFESTATIONS.blackhole, driver, linux);
+    if (first.kind !== "timer" || first.layer !== "driver" || first.timer !== "heartbeat") throw new Error(`${spec.plan}: the heartbeat of amqplib does not end the forgotten flow first`);
+    return { detects: true, timer: first.timer, errno: "CLOSED", from: "last-data", low: s(first.band.lo), high: s(first.band.hi) };
+  }
   // no fault: the heartbeat frames of the broker keep the connection, and nothing ends it in the window
   if (spec.fault === "none") {
     brokerKeeps(spec.plan, driver);
@@ -194,7 +219,7 @@ export const amqpPrediction = (spec: AmqpSpec): Prediction => {
     // the heartbeat of amqplib: the second receive check with nothing, 2 to 3 heartbeats after the last
     // bytes of the broker. amqplib ends its socket, and the kernel stamps the change to FIN_WAIT1
     if (first.timer !== "heartbeat") throw new Error(`${spec.plan}: ${first.timer} of amqplib fires first, which this catalog does not measure yet`);
-    return { detects: true, timer: first.timer, errno: "CLOSED", from: "last-received", low: s(first.band.lo), high: s(first.band.hi) };
+    return { detects: true, timer: first.timer, errno: "CLOSED", from: "last-data", low: s(first.band.lo), high: s(first.band.hi) };
   }
   // the kernel gives up on the operation: its retransmissions count from the first one
   const from = first.timer === "retrans_giveup" ? "first-retransmission" : "last-received";
@@ -211,6 +236,55 @@ export const T01_AMQP_SPECS: readonly AmqpSpec[] = [
   { plan: "T01.defaults.139", name: "a 1 s stall, an operation in flight", fault: "stall", mode: "inflight", stall: 1 },
   { plan: "T01.defaults.140", name: "event:idle, no fault, idle for 300 s: the heartbeat frames keep the connection", fault: "none", mode: "idle", hold: 300 },
   { plan: "T01.defaults.142", name: "rst at the connect: the broker refuses before the client starts", fault: "rst", mode: "inflight", before: true },
+];
+
+/**
+ * This function gives the earliest give-up of the kernel on an RPC in a black hole, from its first
+ * retransmission. The heartbeat of amqplib is off, thus only the kernel detects.
+ */
+const giveUpOf = (retries: number): number => {
+  const first = firstOn("waiting", MANIFESTATIONS.blackhole, given(amqpValues({ heartbeat: 0 })), given(linuxValues({ tcp_retries2: count(retries) })));
+  if (first.kind !== "timer" || first.layer !== "kernel") throw new Error(`no give-up of the kernel with tcp_retries2 = ${retries}`);
+  return Math.floor(first.band.lo);
+};
+
+/**
+ * This value is the tcp_retries2 of the borders of O17: the kernel gives up 51 s to 108.2 s after the first
+ * retransmission. The last data before the RPC is the reply to operation 1, approximately 0.3 s before it. Thus a
+ * heartbeat of 15 s ends the connection at most 45 s after the RPC, and one of 60 s at least 119.7 s after it.
+ */
+export const O17_RETRIES = 7;
+
+/** These are the border cells of T01 over amqplib-2.2 and rabbitmq-4.3: O03 and O17, each with a setting inside and one outside. */
+export const T01_AMQP_BORDER_SPECS: readonly AmqpSpec[] = [
+  // ---- O03: the heartbeat frames of the broker, each heartbeat / 2, against a router that forgets an idle flow in silence
+  ...([
+    ["T01.border-off.161", 40, "inside"],
+    ["T01.border-off.162", 80, "outside"],
+  ] as const).map(
+    ([plan, heartbeat, side]): AmqpSpec => ({
+      plan,
+      name: `middlebox-forget, idle, heartbeat ${heartbeat} s: ${side} O03 against a ${RABBIT_ROUTER.form} router at ${RABBIT_ROUTER.idle} s`,
+      fault: "middlebox-forget",
+      mode: "idle",
+      router: RABBIT_ROUTER,
+      options: { heartbeat },
+    }),
+  ),
+  // ---- O17: the heartbeat of amqplib against the give-up of the kernel, behind a black hole with an RPC in flight
+  ...([
+    ["T01.border-off.205", 15, "inside"],
+    ["T01.border-off.206", 60, "outside"],
+  ] as const).map(
+    ([plan, heartbeat, side]): AmqpSpec => ({
+      plan,
+      name: `blackhole, an operation in flight, tcp_retries2 = ${O17_RETRIES}, heartbeat ${heartbeat} s: ${side} O17 against a give-up of the kernel at ${giveUpOf(O17_RETRIES)} s`,
+      fault: "blackhole",
+      mode: "inflight",
+      linux: { tcp_retries2: count(O17_RETRIES) },
+      options: { heartbeat },
+    }),
+  ),
 ];
 
 /** These are the cells of the plan over these systems at the defaults that this catalog does not start, each with its reason. */
@@ -246,10 +320,11 @@ export const amqpCell = (spec: AmqpSpec): Cell => ({
   ...(spec.icmp === undefined ? {} : { icmp: spec.icmp }),
   ...(spec.options === undefined ? {} : { driverOptions: spec.options }),
   ...(spec.before === true ? { before: true } : {}),
+  ...(spec.router === undefined ? {} : { topology: { name: "T01", hops: [routerHop(spec.router.form, spec.router.idle)] } }),
   runs: RUNS,
   // a killed broker cannot serve the next run: each run of a fin has its own environment
   environments: spec.fault === "fin" ? RUNS : 2,
 });
 
 /** These are the RabbitMQ cells of T01 for the harness. */
-export const T01_AMQP: readonly Cell[] = T01_AMQP_SPECS.map(amqpCell);
+export const T01_AMQP: readonly Cell[] = [...T01_AMQP_SPECS, ...T01_AMQP_BORDER_SPECS].map(amqpCell);

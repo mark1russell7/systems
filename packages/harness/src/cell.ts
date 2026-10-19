@@ -286,6 +286,7 @@ export interface Toxic {
  */
 export type Reference =
   | "last-received"
+  | "last-data"
   | "first-retransmission"
   | "request-sent"
   | "peer-closed"
