@@ -349,13 +349,22 @@ const dockerBuild = async (context: string, plan: Extract<ImagePlan, { readonly 
 const built = new Map<string, Promise<string>>();
 
 /**
+ * These are the waits before each next try of a build that fails, in milliseconds. A fault of a
+ * registry or of the network often stops in seconds. In run 39278390448 of the cells, two runners
+ * failed a build in the same second, and the same builds then passed.
+ */
+export const BUILD_WAITS: readonly number[] = [5_000, 20_000];
+
+/**
  * This function builds the image of a plan one time for each process, from a new context that it
- * copies the files into. Docker keeps its layers between runs. A build that fails leaves the cache.
- * Thus a later cell builds again after a fault of Docker or of the network.
+ * copies the files into. Docker keeps its layers between runs. A build that fails tries again after
+ * each wait (`waits`), and it writes each failure to stderr. A build that fails each try leaves the
+ * cache. Thus a later cell builds again after a fault of Docker or of the network.
  */
 export const buildOnce = (
   plan: Extract<ImagePlan, { readonly kind: "build" }>,
   builder: (context: string, plan: Extract<ImagePlan, { readonly kind: "build" }>) => Promise<void> = dockerBuild,
+  waits: readonly number[] = BUILD_WAITS,
 ): Promise<string> => {
   let tag = built.get(plan.tag);
   if (tag === undefined) {
@@ -366,7 +375,17 @@ export const buildOnce = (
           mkdirSync(dirname(join(context, at)), { recursive: true });
           copyFileSync(file, join(context, at));
         }
-        await builder(context, plan);
+        for (let attempt = 0; ; attempt += 1) {
+          try {
+            await builder(context, plan);
+            break;
+          } catch (error) {
+            const wait = waits[attempt];
+            if (wait === undefined) throw error;
+            process.stderr.write(`the build of ${plan.tag} failed (${error instanceof Error ? error.message : String(error)}): try ${attempt + 2} after ${wait} ms\n`);
+            await new Promise((resolve) => setTimeout(resolve, wait));
+          }
+        }
       } finally {
         rmSync(context, { recursive: true, force: true });
       }

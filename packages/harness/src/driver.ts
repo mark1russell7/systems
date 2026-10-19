@@ -280,6 +280,8 @@ const delayed = (place: KernelPlace, from: number, to: number, hz: number | unde
  * - Each later band (`then`) gets the same test. A later band outside its band, or absent, is a finding.
  * - A line that the prediction names as quiet, after the fault and in its window, is a finding.
  *   So is a flow of an open socket of the driver that a router forgot, for a silent prediction.
+ *   A prediction with `middlebox.forgets` gives a band for the flow of the socket of the driver. The
+ *   band counts from the last segment that the socket got before the fault.
  * - A silent prediction can time a reply (`reply`), and the verdict tests it against `replies`.
  *
  * A run is void when the prober lost records, or when the client did not get its first reply. It
@@ -346,10 +348,15 @@ export const measureDriver = (cell: Cell, run: Run): Measured => {
     const line = events.find((event) => event.t > after && event.t <= until && matches(event, match));
     if (line !== undefined) findings.push(`${wordsOf(match)} came ${between(after, line.t).value} s after the fault, where none should`);
   }
-  if (!prediction.detects && run.middlebox !== undefined) {
-    // a router forgets a flow of a socket that is still open: the flow of a live connection is gone
+  const expected = prediction.detects ? undefined : prediction.middlebox?.forgets;
+  if (!prediction.detects && (run.middlebox !== undefined || expected !== undefined)) {
+    // a router forgets a flow of a socket that is still open: the flow of a live connection is gone,
+    // unless the prediction says when the router forgets the flow of the socket of the driver
+    const own = socketAt(events, driver.socket, before)?.local;
+    if (expected !== undefined && own === undefined) findings.push(`the client opened no ${driver.socket} socket before the fault`);
+    const middlebox: NonNullable<Run["middlebox"]> = run.middlebox ?? [];
     for (const socket of socketsOf(events)) {
-      const forgot = run.middlebox.find(
+      const forgot = middlebox.find(
         (line) =>
           line.ev === "ct" &&
           line["type"] === "DESTROY" &&
@@ -358,7 +365,19 @@ export const measureDriver = (cell: Cell, run: Run): Measured => {
           (socket.ended === null || line.t < socket.ended) &&
           line.t <= until,
       );
-      if (forgot !== undefined) findings.push(`a router forgot the flow of the ${socket.role} socket ${between(after, forgot.t).value} s after the fault, where it should keep it`);
+      if (expected === undefined || socket.local !== own) {
+        if (forgot !== undefined) findings.push(`a router forgot the flow of the ${socket.role} socket ${between(after, forgot.t).value} s after the fault, where it should keep it`);
+        continue;
+      }
+      // the band counts from the last segment that the socket got before the fault, as for the client of TCP
+      const last = referenceOf(run, "last-received", driver.socket, false);
+      if (forgot === undefined) findings.push(`no router forgot the flow of the ${socket.role} socket in the window, where it should forget it`);
+      else if (last === undefined) findings.push(`the ${socket.role} socket got no segment before the fault`);
+      else {
+        const at = between(last, forgot.t).value;
+        const [low, high] = [round(valueIn(expected.low, "s") - noise), round(valueIn(expected.high, "s") + noise)];
+        if (at < low || at > high) findings.push(`a router forgot the flow of the ${socket.role} socket ${at} s after its last segment, outside [${low}, ${high}] s`);
+      }
     }
   }
   const stepTimes: DriverStepTime[] = (driver.then ?? []).map((step) => {

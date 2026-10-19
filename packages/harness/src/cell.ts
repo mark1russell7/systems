@@ -460,7 +460,8 @@ export interface GroupPrediction {
 /**
  * A middlebox expectation tells what the router of a topology does with the flow in the window of
  * a silent prediction. Without it, the router keeps the flow. With `forgets`, the router forgets
- * the flow in that band after the last segment of the client, and nothing detects it.
+ * the flow in that band after the last segment that the client got, and nothing detects it. For a
+ * driver cell, the flow is the one of the socket of the driver.
  */
 export interface MiddleboxExpectation {
   readonly forgets: { readonly low: Quantity; readonly high: Quantity };

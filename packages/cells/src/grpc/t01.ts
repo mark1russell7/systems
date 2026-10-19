@@ -1,14 +1,15 @@
 import type { Detector, KnobValues, Machine, Manifestation } from "@mark1russell7/algebra";
-import { detection, errnoOf, overValues, timerOf, timerUnder } from "@mark1russell7/algebra";
-import type { Cell, Prediction, RouterHop, Target } from "@mark1russell7/harness";
-import { ETCD_SERVER, GRPC_GO_SERVER, GRPC_JS, LINUX_TCP } from "@mark1russell7/machines";
+import { detection, errnoOf, overValues, recovery, timerOf, timerUnder } from "@mark1russell7/algebra";
+import type { Cell, MiddleboxExpectation, Prediction, RouterHop, Target } from "@mark1russell7/harness";
+import { ETCD_SERVER, GRPC_GO_SERVER, GRPC_JS, LINUX_TCP, NF_CONNTRACK_TCP } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
+import { valueIn } from "@mark1russell7/quantity";
 import type { Spec } from "../catalog.ts";
 import { HZ, RTT_MS, RUNS, count, given, predict, predictAt, s, seconds, sysctlsOf } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
 import type { Alias, Waiting } from "../mongo/cells.ts";
 import type { Span } from "../mongo/model.ts";
-import { linuxValues, span } from "../mongo/model.ts";
+import { linuxValues, span, spanOf } from "../mongo/model.ts";
 import { PRESETS } from "../mongo/t03.ts";
 import { ackDelay, conntrackValues, o03, router as routerHop } from "../topologies.ts";
 
@@ -120,7 +121,7 @@ export interface GrpcSpec {
   readonly plan: string;
   readonly name: string;
   readonly server: GrpcServer;
-  readonly fault: "blackhole" | "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none" | "app-stall" | "middlebox-forget";
+  readonly fault: "blackhole" | "rst" | "fin" | "unreachable" | "freeze-process" | "stall" | "none" | "app-stall" | "middlebox-forget" | "simplex";
   readonly mode: "idle" | "inflight";
   /** This side is the observer: the client, or the socket of the server for the connection of the client. */
   readonly observer?: "server";
@@ -128,6 +129,10 @@ export interface GrpcSpec {
   readonly router?: { readonly form: RouterHop["form"]; readonly idle: number; readonly preset: string };
   /** These are the sysctls of Linux TCP at the server that differ from Linux 6.6. */
   readonly serverLinux?: Readonly<Record<string, Extent>>;
+  /** This side is the one that a fault at the router faces. Without it, the fault is at the peer of the observer. */
+  readonly toward?: "client" | "target";
+  /** This direction is the one that a simplex fault drops. */
+  readonly drops?: "to-server" | "to-client";
   /**
    * This stream is the operation in flight of a border of O26. It is a call that the server of the
    * harness holds for `held` seconds, or a Watch that stays open. The PINGs of the client go on it.
@@ -244,6 +249,7 @@ const keepaliveBand = (driver: KnobValues): Span | null => {
 const manifestationOf = (spec: GrpcSpec): Manifestation => {
   if (spec.fault === "unreachable") return MANIFESTATIONS[`unreachable-${spec.icmp ?? "host"}` as keyof typeof MANIFESTATIONS];
   if (spec.fault === "freeze-process") return MANIFESTATIONS["freeze-process"];
+  if (spec.fault === "simplex") return MANIFESTATIONS[spec.drops === "to-server" ? "simplex-to-server" : "simplex-to-client"];
   // the kernel of a killed server closes its socket with a FIN: Go sets no linger, and nothing is unread
   if (spec.fault === "fin") return MANIFESTATIONS.fin;
   return MANIFESTATIONS.blackhole;
@@ -403,6 +409,79 @@ const policyPrediction = (spec: GrpcSpec, driver: KnobValues, slack: number): Pr
   };
 };
 
+/**
+ * This function gives the prediction of a simplex drop toward the client at a router of the reset-next
+ * form. A call is in flight to a server of grpc-go. The call reaches the server, and its reply and the
+ * ACKs of the server drop. TCP_USER_TIMEOUT aborts the socket of the server U after its reply, with a
+ * reset. Conntrack sees each segment before the rule drops it, thus that reset takes the entry to CLOSE.
+ * Each later packet of the flow arms the CLOSE timeout again. The first retransmission of the client
+ * after a wait longer than that timeout finds no entry, and the router resets it.
+ */
+const resetAfterClose = (spec: GrpcSpec): Prediction => {
+  const values = given(serverValues(spec.server, spec.settings));
+  const lower = overValues(serverDoc(spec.server), values, given(linuxValues()));
+  const userTimeout = lower("tcp_user_timeout");
+  if (userTimeout === undefined || "unknown" in userTimeout || userTimeout.value === "infinite" || userTimeout.value === 0)
+    throw new Error(`${spec.plan}: the server sets no TCP_USER_TIMEOUT, thus it does not end the flow`);
+  // the reply goes out up to one reply time after the send of the call, and the abort comes U after it
+  const u = valueIn(userTimeout as { value: number; unit: string }, "s");
+  const abort = span(u, u + GRPC_LATENCY + seconds(timerOf(GRPC_GO_SERVER, "keepalive", values).lateness, "the slack"));
+  const close = seconds(timerOf(NF_CONNTRACK_TCP, "expire_close", given({ nf_conntrack_tcp_timeout_close: s(NF_CONNTRACK_TCP.knobs["nf_conntrack_tcp_timeout_close"]?.default ?? 10), gc_lag_max: s(0) })).duration, "the CLOSE timeout");
+  // the ladder of the client, at the round trip of the pair and at the reply time of the server: each RTT
+  // sample of the client holds the reply time of the server, as for the stall of T01
+  const ladderAt = (rttMs: number) => {
+    const ladder = recovery(LINUX_TCP, "retransmit", given({ ...linuxValues(spec.linux), rtt: { value: rttMs, unit: "ms" } }), s(120));
+    if ("unknown" in ladder) throw new Error(`${spec.plan}: ${ladder.unknown}`);
+    return ladder.firings.map((firing) => ({ lo: valueIn(firing.low, "s"), hi: valueIn(firing.high, "s") }));
+  };
+  const [fast, slow] = [ladderAt(RTT_MS), ladderAt(GRPC_LATENCY * 1000)];
+  const firings = fast.map((firing, at) => span(firing.lo, slow[at]!.hi));
+  // the entry lives while each packet comes less than the CLOSE timeout after the last one, from the abort
+  let alive = abort;
+  for (const firing of firings) {
+    if (firing.hi < alive.lo + close) {
+      // surely before the expiry: a firing after the abort arms the timeout again
+      if (firing.lo >= abort.hi) alive = firing;
+      continue;
+    }
+    if (firing.lo > alive.hi + close) {
+      // surely after the expiry: the router resets this retransmission, one round trip before the client reads it
+      return { detects: true, timer: "the reset of the router at a retransmission", errno: "ECONNRESET", from: "request-sent", low: s(firing.lo), high: s(firing.hi + GRPC_RTT_MS / 1000), driver: { socket: "connection" } };
+    }
+    throw new Error(`${spec.plan}: a retransmission can come before or after the end of the CLOSE timeout`);
+  }
+  throw new Error(`${spec.plan}: no retransmission comes after the end of the CLOSE timeout in 120 s`);
+};
+
+/**
+ * This function gives when the router of a cell forgets the flow of an idle connection. A black hole
+ * toward the client stops the flow, and the band counts from the last segment that the client got.
+ * Each probe of the listener of the server drops, and the keepalive of its kernel aborts the socket
+ * with a reset (O25). Conntrack sees that reset before the black hole drops it, thus the entry goes to
+ * CLOSE. Nothing else crosses the router. The entry ends at the CLOSE timeout, when the GC worker reaps it.
+ *
+ * The kernel of the server counts from its own last segment: the ACK or the data of the client. That
+ * segment is up to one round trip and a delayed ACK from the last segment of the client, on each side.
+ */
+const forgetAfterAbort = (spec: GrpcSpec, window: number): MiddleboxExpectation | undefined => {
+  const router = spec.router;
+  if (router === undefined) return undefined;
+  if (spec.toward !== "client") throw new Error(`${spec.plan}: a black hole toward the server can drop the reset of the server before conntrack sees it`);
+  const lower = overValues(serverDoc(spec.server), given(serverValues(spec.server, spec.settings)), given(linuxValues(spec.serverLinux)));
+  const keepalive = timerUnder(LINUX_TCP, "keepalive", lower, MANIFESTATIONS.blackhole);
+  if ("unknown" in keepalive.duration || keepalive.duration.value === "infinite") return undefined;
+  const duration = seconds(keepalive.duration, "the keepalive of the listener");
+  const abort = span(duration - seconds(keepalive.early, "early"), duration + seconds(keepalive.lateness, "lateness"));
+  const conntrack = conntrackValues(router.idle);
+  const closeTimeout = s(NF_CONNTRACK_TCP.knobs["nf_conntrack_tcp_timeout_close"]?.default ?? 10);
+  const close = spanOf(NF_CONNTRACK_TCP, "expire_close", (name) => (name === "nf_conntrack_tcp_timeout_close" ? closeTimeout : conntrack(name)));
+  const shift = GRPC_RTT_MS / 1000 + ackDelay(RTT_MS).hi;
+  const forget = span(abort.lo + close.lo - shift, abort.hi + close.hi + shift);
+  if (forget.lo > window) return undefined;
+  if (forget.hi > window) throw new Error(`${spec.plan}: the router can forget the flow before or after the end of the window`);
+  return { forgets: { low: s(forget.lo), high: s(forget.hi) } };
+};
+
 /** This function gives the prediction of a cell of the catalog. */
 export const grpcPrediction = (spec: GrpcSpec): Prediction => {
   if (spec.observer === "server") return serverPrediction(spec);
@@ -432,6 +511,19 @@ export const grpcPrediction = (spec: GrpcSpec): Prediction => {
   // a reset answers the call at once: the kernel reports it on the socket of the transport
   if (spec.fault === "rst") return { detects: true, timer: "the reset of the call", errno: "ECONNRESET", from: "request-sent", low: s(0), high: s(GRPC_RTT_MS / 1000), rtt, driver: { socket: "connection" } };
   if (spec.stream !== undefined) return policyPrediction(spec, driver, slack);
+  if (spec.fault === "simplex" && spec.drops === "to-client" && spec.router?.form === "reset-next" && spec.server === "grpc-go") return resetAfterClose(spec);
+  // an idle flow through a router, as the client sees it: the probes of the listener of the server
+  // refresh it (O03), and nothing ends the connection in the window
+  if (spec.fault === "middlebox-forget") {
+    const router = spec.router;
+    if (router === undefined) throw new Error(`${spec.plan}: a forgotten flow needs a router`);
+    const doc = serverDoc(spec.server);
+    const verdict = o03({ doc, values: given(serverValues(spec.server, spec.settings)) }, conntrackValues(router.idle), GRPC_RTT_MS / 1000);
+    if (!verdict.holds) throw new Error(`${spec.plan}: the router forgets the flow, which this catalog observes only at the server`);
+    const window = spec.hold ?? BORDER_WINDOW;
+    serverKeeps(spec, window);
+    return { detects: false, window: s(window), driver: { socket: "connection", quiet: [...QUIET] } };
+  }
   // the server holds the reply. A deadline of the call shorter than the hold ends the call first
   if (spec.fault === "app-stall") {
     if (spec.server !== "grpc-go") throw new Error(`${spec.plan}: only the server of the harness holds a reply`);
@@ -477,8 +569,11 @@ export const grpcPrediction = (spec: GrpcSpec): Prediction => {
   if (keepalive !== null && (first.kind === "silent" || first.band.lo > keepalive.hi))
     return { detects: true, timer: "keepalive", errno: "CLOSED", from: "last-data", low: s(keepalive.lo - GRPC_LATENCY), high: s(keepalive.hi) };
   // nothing detects the fault in the window: the first detector, for example the idle timeout of the
-  // channel (30 min), comes after it
-  if (first.kind === "silent" || first.band.lo > SILENT_WINDOW) return { detects: false, window: s(SILENT_WINDOW), driver: { socket: "connection", quiet: [...QUIET] } };
+  // channel (30 min), comes after it. A router can forget the flow when the server aborts its socket
+  if (first.kind === "silent" || first.band.lo > SILENT_WINDOW) {
+    const middlebox = spec.fault === "blackhole" && spec.mode === "idle" ? forgetAfterAbort(spec, SILENT_WINDOW) : undefined;
+    return { detects: false, window: s(SILENT_WINDOW), ...(middlebox === undefined ? {} : { middlebox }), driver: { socket: "connection", quiet: [...QUIET] } };
+  }
   if (first.layer === "driver") throw new Error(`${spec.plan}: ${first.timer} of grpc-js fires first, which this catalog does not measure yet`);
   // the kernel gives up on the call: its retransmissions count from the first one
   const from = first.timer === "retrans_giveup" ? "first-retransmission" : "last-received";
@@ -742,6 +837,17 @@ export const T01_GRPC_POLICY_SPECS: readonly GrpcSpec[] = [
 /** This function gives the name of a cell: its cell of the plan, its tuple of systems, and what it does. */
 export const grpcNameOf = (spec: GrpcSpec): string => `${spec.plan} grpc-js-1.14 to ${spec.server === "grpc-go" ? "grpc-go-server" : "etcd-3.6"}, ${spec.name}`;
 
+/**
+ * This function gives the topology of a cell with a router, named for the template of its cell of the
+ * plan. The router sends the ICMP errors of an unreachable host at the router, at no rate limit.
+ */
+const topologyOf = (spec: GrpcSpec): Pick<Cell, "topology"> => {
+  if (spec.router === undefined) return {};
+  const hop = routerHop(spec.router.form, spec.router.idle);
+  const icmp = spec.fault === "unreachable" && spec.toward !== undefined;
+  return { topology: { name: spec.plan.split(".")[0]!, hops: [icmp ? { ...hop, sysctls: { "net.ipv4.icmp_ratelimit": "0" } } : hop] } };
+};
+
 /** This function gives the operation in flight of a spec: a held call, or a Watch. */
 const probeOf = (spec: GrpcSpec): { readonly hold?: { value: number; unit: string }; readonly op?: "watch" } => {
   if (spec.stream?.kind === "watch") return { op: "watch" };
@@ -760,8 +866,10 @@ export const grpcCell = (spec: GrpcSpec): Cell => {
     fault: spec.fault,
     prediction: grpcPrediction(spec),
     ...(spec.observer === "server" ? { observer: "server" as const } : {}),
-    ...(spec.router === undefined ? {} : { topology: { name: "T01", hops: [routerHop(spec.router.form, spec.router.idle)] } }),
-    ...(spec.fault === "unreachable" ? { targetSysctls: { "net.ipv4.icmp_ratelimit": "0" } } : {}),
+    ...topologyOf(spec),
+    ...(spec.router !== undefined && spec.toward !== undefined ? { faultAt: { hop: "nat", toward: spec.toward } } : {}),
+    ...(spec.drops === undefined ? {} : { drops: spec.drops }),
+    ...(spec.fault === "unreachable" && spec.toward === undefined ? { targetSysctls: { "net.ipv4.icmp_ratelimit": "0" } } : {}),
     ...(spec.serverLinux === undefined ? {} : { targetSysctls: sysctlsOf(linuxValues(spec.serverLinux)) }),
     ...(spec.stall === undefined ? {} : { stall: s(spec.stall) }),
     ...(spec.icmp === undefined ? {} : { icmp: spec.icmp }),
