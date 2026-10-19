@@ -50,8 +50,10 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `SUPAVISOR_SERVER` | `supavisor-server` | Supavisor 2.9.13 in transaction mode: one server connection of the pool of a tenant | proxy | 10 implemented, 1 observed |
 | `AMQPLIB` | `amqplib` | amqplib 2.2.0: one connection to an AMQP 0-9-1 broker, its heartbeat and an RPC of its channel | driver | 18 implemented, 1 documented |
 | `RABBITMQ_CONNECTION` | `rabbitmq-connection` | RabbitMQ 4.3.6: one connection of AMQP 0-9-1 on the broker | server | 14 implemented, 1 documented |
+| `ATEN_DETECTOR` | `aten` | aten 0.6.0: one node that the failure detector of another node of RabbitMQ watches | server | 7 implemented |
+| `RA_MEMBER` | `ra-member` | ra 3.1.10: one member of the Raft cluster of a quorum queue of RabbitMQ 4.3.6 | server | 25 implemented |
 
-Twenty-one documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel and the replication of mongod operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
+Twenty-one documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel, the replication of mongod, aten and the member of Ra operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
 
 The package also gives these parts:
 
@@ -96,6 +98,12 @@ A document changes only for one of two reasons:
 A change to the version of a system changes its sources too. Each fact of the document then cites the new version.
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
+
+### 0.3.15
+
+- **The cluster of a quorum queue of RabbitMQ 4.3.6.** Two new documents, each from the source in the release of RabbitMQ:
+  - `aten`: the failure detector between the nodes, aten 0.6.0. Each node sends a heartbeat to each other node each 100 ms. The detector polls each 1 s, and it reports a node down when the time since its last heartbeat is 1.5 times its gaps. Thus a silent node is down 150 ms to approximately 1.15 s after its last heartbeat.
+  - `ra-member`: one member of the Raft cluster of a quorum queue, ra 3.1.10. When aten reports the node of the leader down, a follower waits 1 s to 2 s, and then it asks for pre-votes. A majority makes a candidate, and the votes of a majority make the leader. A leader ignores aten, thus it stays the leader in a minority and commits nothing.
 
 ### 0.3.14
 
