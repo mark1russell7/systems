@@ -346,8 +346,8 @@ const BUILD_ERRORS = 10;
 const BUILD_TAIL = 15;
 
 /**
- * This function gives the lines of the output of a failed build that its error holds: each line that
- * names an error, for example the diagnostic of a compiler, then the last lines of the output.
+ * This function gives the lines of the output of a failed build that its error holds. They are each
+ * line that names an error, for example the diagnostic of a compiler, then the last lines.
  */
 export const buildFailure = (output: string): string => {
   const lines = output.trim().split(/\r?\n/);
