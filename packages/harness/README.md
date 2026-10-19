@@ -330,6 +330,7 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
   - The MongoDB client is ready when its first write has its reply and its monitor streams. The monitor sends its first awaited hello `minHeartbeatFrequencyMS` (500 ms) after its first check. A fault before that hello meets the start of the stream, not the stream that a cell measures.
   - Each later band (`then`) has its own reference and line. A later band outside its band, or absent, is a finding. So is a line that the prediction names as quiet, after the fault.
   - For a silent prediction, a flow of an open socket of the driver that a router forgot is a finding.
+  - A silent prediction can give a band for the forget of the flow of the socket of the driver (`Prediction.middlebox`). The band counts from the last segment that the socket got before the fault. A forget of another socket of the driver is still a finding.
 
 ## The verdict
 

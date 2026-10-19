@@ -243,4 +243,22 @@ describe("a band of a driver with more than one socket", () => {
     expect(read).toMatchObject({ outcome: { kind: "answered" }, elapsed: s(29.003), void: null, finding: null });
     expect(verdictOf(thaw.prediction, [read]).band).toEqual({ low: s(28.996), high: s(29.116) });
   });
+
+  it("times the forget of the flow of the socket of the driver from its last segment, when a silent prediction gives it", () => {
+    // the server aborts its socket and resets it: the router keeps the entry in CLOSE, then forgets it
+    const forgets = cellOf(
+      { detects: false, window: s(60), middlebox: { forgets: { low: s(40), high: s(41) } }, driver: { socket: "pool" } },
+      { probe: { mode: "idle", keepalive: false, driver: { name: "grpc" } } },
+    );
+    const destroy = (seconds: number, local: string) => ({ ev: "ct", t: at(seconds), type: "DESTROY", state: "CLOSE", orig: `${local}>10.0.0.2:27017`, hop: "nat" });
+    const idle = (middlebox: Run["middlebox"]) => run({ events: run().events.slice(0, 8), kernel: [rx(-11.69, POOL, 3), { ev: "clock", mono: at(70), lost: 0 }], middlebox });
+    // the last segment of the pool is at -11.69 s: a forget at 29 s is 40.69 s after it
+    expect(measure(forgets, idle([destroy(29, POOL)]))).toMatchObject({ outcome: { kind: "silent" }, void: null, finding: null });
+    expect(measure(forgets, idle([destroy(31, POOL)])).finding).toMatch(/^a router forgot the flow of the pool socket 42\.69 s after its last segment, outside \[/);
+    expect(measure(forgets, idle([])).finding).toBe("no router forgot the flow of the pool socket in the window, where it should forget it");
+    // the band is for the socket of the driver: a forget of another socket is still a finding
+    expect(measure(forgets, idle([destroy(29, POOL), destroy(20, MONITOR)])).finding).toBe(
+      "a router forgot the flow of the monitor socket 20 s after the fault, where it should keep it",
+    );
+  });
 });

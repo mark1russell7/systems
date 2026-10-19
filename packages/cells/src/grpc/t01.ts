@@ -1,6 +1,6 @@
 import type { Detector, KnobValues, Machine, Manifestation } from "@mark1russell7/algebra";
 import { detection, errnoOf, overValues, recovery, timerOf, timerUnder } from "@mark1russell7/algebra";
-import type { Cell, Prediction, RouterHop, Target } from "@mark1russell7/harness";
+import type { Cell, MiddleboxExpectation, Prediction, RouterHop, Target } from "@mark1russell7/harness";
 import { ETCD_SERVER, GRPC_GO_SERVER, GRPC_JS, LINUX_TCP, NF_CONNTRACK_TCP } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
@@ -9,7 +9,7 @@ import { HZ, RTT_MS, RUNS, count, given, predict, predictAt, s, seconds, sysctls
 import { MANIFESTATIONS } from "../manifestations.ts";
 import type { Alias, Waiting } from "../mongo/cells.ts";
 import type { Span } from "../mongo/model.ts";
-import { linuxValues, span } from "../mongo/model.ts";
+import { linuxValues, span, spanOf } from "../mongo/model.ts";
 import { PRESETS } from "../mongo/t03.ts";
 import { ackDelay, conntrackValues, o03, router as routerHop } from "../topologies.ts";
 
@@ -453,6 +453,35 @@ const resetAfterClose = (spec: GrpcSpec, driver: KnobValues): Prediction => {
   throw new Error(`${spec.plan}: no retransmission comes after the end of the CLOSE timeout in 120 s`);
 };
 
+/**
+ * This function gives when the router of a cell forgets the flow of an idle connection. A black hole
+ * toward the client stops the flow, and the band counts from the last segment that the client got.
+ * Each probe of the listener of the server drops, and the keepalive of its kernel aborts the socket
+ * with a reset (O25). Conntrack sees that reset before the black hole drops it, thus the entry goes to
+ * CLOSE. Nothing else crosses the router. The entry ends at the CLOSE timeout, when the GC worker reaps it.
+ *
+ * The kernel of the server counts from its own last segment: the ACK or the data of the client. That
+ * segment is up to one round trip and a delayed ACK from the last segment of the client, on each side.
+ */
+const forgetAfterAbort = (spec: GrpcSpec, window: number): MiddleboxExpectation | undefined => {
+  const router = spec.router;
+  if (router === undefined) return undefined;
+  if (spec.toward !== "client") throw new Error(`${spec.plan}: a black hole toward the server can drop the reset of the server before conntrack sees it`);
+  const lower = overValues(serverDoc(spec.server), given(serverValues(spec.server, spec.settings)), given(linuxValues(spec.serverLinux)));
+  const keepalive = timerUnder(LINUX_TCP, "keepalive", lower, MANIFESTATIONS.blackhole);
+  if ("unknown" in keepalive.duration || keepalive.duration.value === "infinite") return undefined;
+  const duration = seconds(keepalive.duration, "the keepalive of the listener");
+  const abort = span(duration - seconds(keepalive.early, "early"), duration + seconds(keepalive.lateness, "lateness"));
+  const conntrack = conntrackValues(router.idle);
+  const closeTimeout = s(NF_CONNTRACK_TCP.knobs["nf_conntrack_tcp_timeout_close"]?.default ?? 10);
+  const close = spanOf(NF_CONNTRACK_TCP, "expire_close", (name) => (name === "nf_conntrack_tcp_timeout_close" ? closeTimeout : conntrack(name)));
+  const shift = GRPC_RTT_MS / 1000 + ackDelay(RTT_MS).hi;
+  const forget = span(abort.lo + close.lo - shift, abort.hi + close.hi + shift);
+  if (forget.lo > window) return undefined;
+  if (forget.hi > window) throw new Error(`${spec.plan}: the router can forget the flow before or after the end of the window`);
+  return { forgets: { low: s(forget.lo), high: s(forget.hi) } };
+};
+
 /** This function gives the prediction of a cell of the catalog. */
 export const grpcPrediction = (spec: GrpcSpec): Prediction => {
   if (spec.observer === "server") return serverPrediction(spec);
@@ -540,8 +569,11 @@ export const grpcPrediction = (spec: GrpcSpec): Prediction => {
   if (keepalive !== null && (first.kind === "silent" || first.band.lo > keepalive.hi))
     return { detects: true, timer: "keepalive", errno: "CLOSED", from: "last-data", low: s(keepalive.lo - GRPC_LATENCY), high: s(keepalive.hi) };
   // nothing detects the fault in the window: the first detector, for example the idle timeout of the
-  // channel (30 min), comes after it
-  if (first.kind === "silent" || first.band.lo > SILENT_WINDOW) return { detects: false, window: s(SILENT_WINDOW), driver: { socket: "connection", quiet: [...QUIET] } };
+  // channel (30 min), comes after it. A router can forget the flow when the server aborts its socket
+  if (first.kind === "silent" || first.band.lo > SILENT_WINDOW) {
+    const middlebox = spec.fault === "blackhole" && spec.mode === "idle" ? forgetAfterAbort(spec, SILENT_WINDOW) : undefined;
+    return { detects: false, window: s(SILENT_WINDOW), ...(middlebox === undefined ? {} : { middlebox }), driver: { socket: "connection", quiet: [...QUIET] } };
+  }
   if (first.layer === "driver") throw new Error(`${spec.plan}: ${first.timer} of grpc-js fires first, which this catalog does not measure yet`);
   // the kernel gives up on the call: its retransmissions count from the first one
   const from = first.timer === "retrans_giveup" ? "first-retransmission" : "last-received";

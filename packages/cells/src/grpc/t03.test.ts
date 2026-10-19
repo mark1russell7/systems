@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { HZ } from "../catalog.ts";
 import { PRESETS } from "../mongo/t03.ts";
 import { T01_GRPC } from "./t01.ts";
 import { T03_GRPC, T03_GRPC_ALIASES, T03_GRPC_ARRAY_SPECS, T03_GRPC_SPECS, T03_GRPC_WAITING } from "./t03.ts";
@@ -31,8 +32,20 @@ describe("the gRPC catalog of T03", () => {
     expect(cell("T03.defaults.47").prediction).toEqual(cell("T01.defaults.198").prediction);
     expect(cell("T03.defaults.46").prediction).toEqual(cell("T01.defaults.202").prediction);
     expect(cell("T03.defaults.49").prediction).toEqual(cell("T01.defaults.199").prediction);
-    // a black hole toward the client: grpc-js has no detector
-    expect(cell("T03.defaults.18").prediction).toMatchObject({ detects: false });
+    // a black hole toward the client: grpc-js has no detector. The keepalive of the listener aborts the
+    // socket of the server with a reset at 30 s, conntrack goes to CLOSE, and the router forgets the flow
+    // 10 s later. Run 39285883658 measured 40.343 s to 40.808 s after the last segment of the client, at
+    // HZ 1000: each of the two firings of the keepalive is up to 512 ms late there, and 256 ms at HZ 250
+    const blackhole = cell("T03.defaults.18").prediction;
+    expect(blackhole).toMatchObject({ detects: false, driver: { socket: "connection" } });
+    if (blackhole.detects !== false || blackhole.middlebox === undefined) throw new Error("a forget of the router");
+    const { low, high } = blackhole.middlebox.forgets;
+    expect(low.value).toBeGreaterThan(39.9);
+    expect(low.value).toBeLessThan(40);
+    expect(high.value).toBeGreaterThan(HZ >= 1000 ? 41 : 40.5);
+    expect(high.value).toBeLessThan(41.2);
+    // with no router, nothing forgets the flow
+    expect(cell("T01.defaults.38").prediction).not.toHaveProperty("middlebox");
     // a simplex drop toward the client: TCP_USER_TIMEOUT aborts the socket of the server, conntrack goes to CLOSE,
     // and the router resets the first retransmission of the client after the CLOSE timeout (run 39278390448: 53.4 s)
     const simplex = cell("T03.defaults.48");
