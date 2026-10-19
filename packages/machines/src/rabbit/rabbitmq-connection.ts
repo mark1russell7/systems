@@ -114,18 +114,18 @@ export const RABBITMQ_CONNECTION: Machine = machineSchema.parse({
     },
     beat: {
       duration: { expr: "heartbeat / 2", unit: "s" },
-      lateness: { expr: "heartbeat / 2 + slack", unit: "s" },
+      lateness: { expr: "heartbeat / 2 + 2 * slack", unit: "s" },
       arms: ["rx.opened", "timer.beat"],
       fires: "timer.beat",
       note: "rabbit_heartbeat.erl:73-78, :150-158: the check each timeout / 2. Its own heartbeat does not count, thus an idle connection gets a frame each timeout / 2. After a frame of a channel, the next frame comes from timeout / 2 to one timeout later",
     },
     heartbeat: {
       duration: { expr: "2 * heartbeat", unit: "s" },
-      lateness: { expr: "heartbeat + slack", unit: "s" },
+      lateness: { expr: "heartbeat + 3 * slack", unit: "s" },
       arms: ["rx.opened", "enter:running", "rx.frame", "local.alarm-cleared"],
       cancels: ["local.alarm", "peer.fin", "peer.rst", "socket.error"],
       fires: "timer.heartbeat",
-      note: "rabbit_heartbeat.erl:80-85: the check each timeout, and the end at the second miss in a row: 2 to 3 timeouts after the last data. A block pauses it, and the unblock starts it again (rabbit_reader.erl:1803-1830). The entry to running names it here, but only bytes of the client start it again",
+      note: "rabbit_heartbeat.erl:80-85: the check each timeout, and the end at the second miss in a row: 2 to 3 timeouts after the last data. Each check arms the next one after it reads the stats (rabbit_heartbeat.erl:121-158), thus each one can be one slack late. A block pauses it, and the unblock starts it again (rabbit_reader.erl:1803-1830). The entry to running names it here, but only bytes of the client start it again",
     },
     send: {
       duration: { knob: "send_timeout", unit: "ms" },

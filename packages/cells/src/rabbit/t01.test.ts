@@ -35,7 +35,7 @@ describe("the RabbitMQ catalog of T01", () => {
         errno: "CLOSED",
         from: "last-data",
         low: { value: 120, unit: "s" },
-        high: { value: 180.01, unit: "s" },
+        high: { value: 180.03, unit: "s" },
       });
     }
   });
@@ -74,7 +74,7 @@ describe("the RabbitMQ catalog of T01", () => {
     expect(inside.prediction).toMatchObject({ detects: false, window: { value: 150, unit: "s" } });
     expect(inside.topology?.hops[0]).toMatchObject({ kind: "router", form: "silent-drop", idle: { value: RABBIT_ROUTER.idle, unit: "s" } });
     // at 80 s, each 40 s: the router forgets the flow, and the heartbeat of amqplib ends it 160 s to 240 s after the last data
-    expect(cell("T01.border-off.162").prediction).toMatchObject({ detects: true, timer: "heartbeat", from: "last-data", low: { value: 160, unit: "s" }, high: { value: 240.01, unit: "s" } });
+    expect(cell("T01.border-off.162").prediction).toMatchObject({ detects: true, timer: "heartbeat", from: "last-data", low: { value: 160, unit: "s" }, high: { value: 240.03, unit: "s" } });
     // O17: the heartbeat against the give-up of the kernel, with tcp_retries2 = 7
     const early = cell("T01.border-off.205").prediction;
     const late = cell("T01.border-off.206").prediction;

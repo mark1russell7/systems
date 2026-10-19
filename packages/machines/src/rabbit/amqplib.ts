@@ -54,6 +54,7 @@ export const AMQPLIB: Machine = machineSchema.parse({
     { ref: `${AT}/channel.js:155-159 the end of the channel fails the RPC in flight: 'Channel ended, no reply will be forthcoming'`, rung: "implemented" },
     { ref: "node v24.21.0 lib/net.js:589 (a socket has no timeout until setTimeout), :828-843 (setNoDelay)", rung: "implemented" },
     { ref: "node v24.21.0 lib/events.js:489-506 an error event with no listener throws", rung: "implemented" },
+    { ref: "node v24.21.0 lib/internal/timers.js:675-692 a repeating timer counts its next interval from the time that its callback runs: the lateness of each firing carries into the next", rung: "implemented" },
   ],
   states: {
     "[none]": { initial: true, pseudo: true, note: "Before amqplib.connect" },
@@ -120,18 +121,18 @@ export const AMQPLIB: Machine = machineSchema.parse({
     },
     beat: {
       duration: { expr: "heartbeat / 2", unit: "s" },
-      lateness: { expr: "heartbeat / 2 + slack", unit: "s" },
+      lateness: { expr: "heartbeat / 2 + 2 * slack", unit: "s" },
       arms: ["local.opened", "timer.beat"],
       fires: "timer.beat",
       note: "heartbeat.js:60: the send check each interval / 2. A send since the check before skips it, and the heartbeat counts as a send: thus an idle connection sends one each interval. The next frame of the client comes from interval / 2 to one interval after its last send",
     },
     heartbeat: {
       duration: { expr: "2 * heartbeat", unit: "s" },
-      lateness: { expr: "heartbeat + slack", unit: "s" },
+      lateness: { expr: "heartbeat + 3 * slack", unit: "s" },
       arms: ["local.opened", "enter:idle", "enter:waiting", "rx.frame"],
       cancels: ["socket.error", "peer.rst", "peer.fin", "rx.connection-close"],
       fires: "timer.heartbeat",
-      note: "heartbeat.js:64-71: the receive check each interval, and a timeout at the second miss in a row. The timer runs at a phase from the open, thus the timeout comes 2 to 3 intervals after the last bytes of the broker. It runs in each state of an open connection: the entry to a state names it here, but only bytes of the broker start it again",
+      note: "heartbeat.js:64-71: the receive check each interval, and a timeout at the second miss in a row. The timer runs at a phase from the open, thus the timeout comes 2 to 3 intervals after the last bytes of the broker. The timeout is the third firing at most after those bytes, and each firing can be one slack late (node lib/internal/timers.js:675-692). It runs in each state of an open connection: the entry to a state names it here, but only bytes of the broker start it again",
     },
   },
   realizes: {
@@ -140,7 +141,7 @@ export const AMQPLIB: Machine = machineSchema.parse({
     "systems.mechanism.heartbeat-interval": { timer: "beat" },
     "systems.mechanism.idle-refresh-interval": {
       duration: { expr: "heartbeat / 2", unit: "s" },
-      lateness: { expr: "heartbeat / 2 + slack", unit: "s" },
+      lateness: { expr: "heartbeat / 2 + 2 * slack", unit: "s" },
       note: "The heartbeat frames of the client on an idle connection: one each interval. The broker sends its own each interval / 2",
     },
   },
