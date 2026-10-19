@@ -453,6 +453,21 @@ The store is an interface, and each store decides a take in one atomic step on i
 
 It comes in service 0.5.3, a PATCH: new exports. The store in Redis (`redisLimiterStore`, one script that reads `TIME`) comes in 0.5.4, also a PATCH. The machine document and the harness cell come next. The client item CLI-40 builds the admission step of the procedures server on it.
 
+### SYS-29 · The drain of httpTransport waits for the answers of the cut calls
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:**
+- **Started:** 2026-10-19
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+The client item CLI-48 found it. At the deadline of the drain, the timer of the transport and the cut of the requests come at the same time. With `setTimeout`, the timer of the transport comes first. Then the drain ended before the cut calls had their answers. The close of the sockets raced the 503, the 500 or the in-band end of each call.
+
+With the fix, the drain of `httpTransport` also waits at its deadline for each answer that is to come or to go out. That is a response that `writeOutcome` writes, or an ended response whose bytes did not go. Thus the sequence of the two timers has no effect, and each app on `httpTransport` gets the fix. The cap of the phase bounds the wait. A client that does not read its answer holds the drain to the cap, and the phase records an error.
+
+It comes in service 0.5.5, a PATCH: a bug fix, with no change to a type or a signature.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue

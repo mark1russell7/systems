@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
+import type { Controller } from "../description.ts";
 import { fakeClock } from "../fakes.ts";
 import type { HttpKnobs, MountContext, RequestHandler } from "../http.ts";
-import { httpTransport, pathOf, probeHandler } from "../http.ts";
+import { handle, httpTransport, pathOf, probeHandler } from "../http.ts";
 import type { Health } from "../health.ts";
+import { tracker } from "../requests.ts";
 import { detachedLifecycle } from "../testing.ts";
 import { FakeServer } from "./fake-server.ts";
 import type { FakeAnswer } from "./fake-server.ts";
@@ -620,6 +622,90 @@ describe("the drain and the close", () => {
 
   it("ends the close of a transport that never listened at once", async () => {
     await httpTransport(new FakeServer().asServer, KNOBS).close();
+  });
+});
+
+describe("the drain at its deadline: the answers to come and to go out (SYS-29)", () => {
+  const controllers: Controller[] = [{ name: "api", requires: [], routes: { "GET /work": { idempotent: true } } }];
+  /** This function starts a transport whose lifecycle does each request through a tracker on the clock of the transport. */
+  const tracked = async () => {
+    const server = new FakeServer();
+    const clock = fakeClock();
+    const requests = tracker(controllers, clock, () => null);
+    const transport = httpTransport(server.asServer, KNOBS, { listen: { port: 8080 }, clock });
+    await transport.start(new AbortController().signal, { ...detachedLifecycle(), request: requests.request });
+    return { server, clock, requests, transport };
+  };
+  const draining = (drain: Promise<void> | void) => {
+    const state = { drained: false };
+    void Promise.resolve(drain).then(() => (state.drained = true));
+    return state;
+  };
+
+  it("waits after its deadline for a call that the cut ends later, and ends when its answer goes out", async () => {
+    const { server, clock, requests, transport } = await tracked();
+    // the work ignores its abort: only the cut ends it
+    transport.mount(handle("api", "GET /work", () => new Promise<string>(() => {})));
+    const answer = server.request("/work");
+    await turns();
+    transport.stopIntake();
+    requests.stopIntake();
+    const state = draining(transport.drain(clock.now() + 1000, new AbortController().signal));
+    // the transport reaches its deadline before the cut of the requests, as a later setTimeout for the same deadline does
+    await clock.advance(1000);
+    await turns();
+    expect(state.drained).toBe(false);
+    const cut = requests.drain(clock.now());
+    await clock.advance(0);
+    await cut;
+    const given = await answer;
+    expect([given.status, given.headers.get("retry-after")]).toEqual([503, "2"]);
+    expect(JSON.parse(given.body)).toMatchObject({ end: "cut", retryable: true, cause: "the drain reached its deadline" });
+    await turns();
+    expect(state.drained).toBe(true);
+  });
+
+  it("waits after its deadline for an ended answer whose bytes did not go, and ends when the client reads them", async () => {
+    const { server, clock, transport } = await started();
+    let finish: () => void = () => {};
+    transport.mount((_req, res) => {
+      finish = () => res.end("late");
+      return true;
+    });
+    const connection = server.connect();
+    const answer = connection.request("/");
+    await turns();
+    transport.stopIntake();
+    connection.socket.pause();
+    const state = draining(transport.drain(clock.now() + 1000, new AbortController().signal));
+    finish();
+    await clock.advance(1000);
+    await turns();
+    expect(state.drained).toBe(false);
+    connection.socket.resume();
+    expect((await answer).body).toBe("late");
+    await turns();
+    expect(state.drained).toBe(true);
+  });
+
+  it("does not wait after its deadline for a response that is open for another reason, or with a deadline in the past", async () => {
+    const { server, clock, transport } = await started();
+    transport.mount(() => true);
+    const held = server.request("/");
+    await turns();
+    transport.stopIntake();
+    const state = draining(transport.drain(clock.now() + 1000, new AbortController().signal));
+    await clock.advance(999);
+    await turns();
+    expect(state.drained).toBe(false);
+    await clock.advance(1);
+    await turns();
+    expect(state.drained).toBe(true);
+    const past = draining(transport.drain(clock.now() - 1, new AbortController().signal));
+    await turns();
+    expect(past.drained).toBe(true);
+    await transport.close();
+    await expect(held).rejects.toThrow(/ECONNRESET/);
   });
 });
 

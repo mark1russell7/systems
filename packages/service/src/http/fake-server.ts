@@ -9,6 +9,25 @@ import type { Server } from "node:http";
 export class FakeSocket extends EventEmitter {
   destroyed = false;
   readonly written: string[] = [];
+  /** This flag tells if the client stopped its reads. Then the bytes of an ended response do not go. */
+  paused = false;
+  private readonly reads: Array<() => void> = [];
+  /** This method stops the reads of the client, as a client that does not read its socket. */
+  pause(): this {
+    this.paused = true;
+    return this;
+  }
+  /** This method starts the reads of the client again: each ended response finishes. */
+  resume(): this {
+    this.paused = false;
+    for (const read of this.reads.splice(0)) read();
+    return this;
+  }
+  /** This method starts `read` when the client reads the bytes: at once, or at the next `resume()`. */
+  whenRead(read: () => void): void {
+    if (this.paused) this.reads.push(read);
+    else read();
+  }
   write(data: string): boolean {
     if (!this.destroyed) this.written.push(data);
     return true;
@@ -68,14 +87,21 @@ export class FakeResponse extends EventEmitter {
     this.chunks.push(typeof chunk === "string" ? chunk : Buffer.from(chunk).toString());
     return true;
   }
+  /**
+   * This method ends the response. Its bytes go when the client reads them, and then `finish` comes.
+   * A destroyed socket takes no bytes, thus the client does not get the answer, as in Node.
+   */
   end(chunk?: string | Uint8Array): this {
     if (this.writableEnded) return this;
     if (chunk !== undefined) this.write(chunk);
     else if (!this.headersSent) this.writeHead(this.statusCode);
     this.writableEnded = true;
-    this.writableFinished = true;
-    this.emit("finish");
-    process.nextTick(() => this.emit("close"));
+    this.socket.whenRead(() => {
+      if (this.socket.destroyed) return;
+      this.writableFinished = true;
+      this.emit("finish");
+      process.nextTick(() => this.emit("close"));
+    });
     return this;
   }
   destroy(): this {
@@ -125,8 +151,9 @@ export class FakeConnection {
         if (res.last) this.socket.destroy();
         else this.idle = true;
       });
+      // a socket that closes before the bytes of the response went closes the response too
       this.socket.once("close", () => {
-        if (!res.writableEnded) res.emit("close");
+        if (!res.writableFinished) res.emit("close");
       });
       this.server.emit("request", req, res);
     });

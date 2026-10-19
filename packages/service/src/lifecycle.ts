@@ -333,6 +333,7 @@ export const lifecycle = (
       }),
     );
     let cancelCap: Cancel = () => {};
+    // the timer of the cap starts after the timers of the work: at the same time, the work comes first
     const end = new Promise<"cap">((resolve) => {
       cancelCap = clock.after(cap, () => resolve("cap"));
     });
@@ -403,6 +404,8 @@ export const lifecycle = (
           requests.cooperativeAbort();
           record("drain", drainState, drainState, "drain.cooperative-abort");
         });
+        // the cut of the requests is the first work, thus its timer comes before the timer of the cap. A
+        // transport can reach the deadline before the cut: httpTransport then waits for the answers of the cut (SYS-29)
         work.push(({ deadline }) => requests.drain(deadline));
         for (const [, impl] of startedTransports)
           work.push(({ deadline }) => impl.drain(deadline, cooperative.signal));
