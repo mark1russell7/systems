@@ -13,8 +13,9 @@ const RMQ = "rabbitmq v4.3.6 deps/rabbit/src";
  * It gives the roles of the member, the election timers, and the change of leader.
  *
  * A follower watches the node of its leader with aten. When aten reports that node down, the follower
- * arms a long election timeout: 1 s and a random part up to 1 s. A valid message of the leader cancels
- * it. When the timeout fires, the follower asks for pre-votes in its term.
+ * arms a long election timeout. The timeout is the poll interval of aten, 5 s in RabbitMQ, and a random
+ * part up to 1 s. A valid message of the leader cancels it. When the timeout fires, the follower asks for pre-votes in
+ * its term.
  *
  * A member grants a pre-vote when the log of the candidate is not behind its own. A member that is
  * still a follower of a live leader grants it too. A majority of pre-votes makes a candidate. The
@@ -40,7 +41,10 @@ export const RA_MEMBER: Machine = machineSchema.parse({
   sources: [
     { ref: "rabbitmq v4.3.6 rabbitmq-components.mk:58 dep_ra = hex 3.1.10", rung: "implemented" },
     { ref: `${RA}/ra_server_proc.erl:66-68 DEFAULT_BROADCAST_TIME 100, DEFAULT_ELECTION_MULT 5, TICK_INTERVAL_MS 1000`, rung: "implemented" },
-    { ref: `${RA}/ra_server_proc.erl:384 the member reads the poll interval of aten (default 1000 ms)`, rung: "implemented" },
+    {
+      ref: `${RA}/ra_server_proc.erl:384 the member reads the poll interval of aten: 1000 ms by default, and 5000 ms in RabbitMQ (rabbit_prelaunch_conf.erl:112-120)`,
+      rung: "implemented",
+    },
     {
       ref: `${RA}/ra_server_proc.erl:1931-1950 the election timeouts: really_short rand(broadcast), short rand(5 × broadcast) + broadcast, medium rand(poll) + broadcast, long rand(10 × broadcast) + poll`,
       rung: "implemented",
@@ -97,7 +101,13 @@ export const RA_MEMBER: Machine = machineSchema.parse({
   knobs: {
     broadcast_time: { key: "broadcast_time of the ra server", scope: "queue", unit: "ms", default: 100, note: "ra_server_proc.erl:66: RabbitMQ sets none" },
     election_mult: { key: "DEFAULT_ELECTION_MULT", scope: "build", unit: "count", default: 5, note: "ra_server_proc.erl:67" },
-    aten_poll_interval: { key: "raft.adaptive_failure_detector.poll_interval (aten poll_interval)", scope: "node", unit: "ms", default: 1000, note: "ra_server_proc.erl:384" },
+    aten_poll_interval: {
+      key: "raft.adaptive_failure_detector.poll_interval (aten poll_interval)",
+      scope: "node",
+      unit: "ms",
+      default: 5000,
+      note: "ra_server_proc.erl:384 reads it. RabbitMQ sets 5000 (rabbit_prelaunch_conf.erl:112-120)",
+    },
     tick_timeout: { key: "quorum_tick_interval", scope: "node", unit: "ms", default: 5000, note: "rabbit_quorum_queue.erl:175, :2435-2441" },
     slack: {
       key: "the lateness of a timer of the BEAM for one step",
@@ -117,7 +127,7 @@ export const RA_MEMBER: Machine = machineSchema.parse({
   },
   timers: {
     election_long: {
-      // rand:uniform(broadcast_time × election_mult × 2) + the poll interval: 1001 ms to 2000 ms at the defaults
+      // rand:uniform(broadcast_time × election_mult × 2) + the poll interval: 5001 ms to 6000 ms in RabbitMQ
       duration: { expr: "aten_poll_interval + 1", unit: "ms" },
       lateness: { expr: "broadcast_time * election_mult * 2 - 1 + slack", unit: "ms" },
       arms: ["enter:follower", "enter:pre_vote", "local.leader-node-down", "rx.pre-vote-declined"],

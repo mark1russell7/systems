@@ -11,12 +11,13 @@ const ATEN = "aten 0.6.0";
  * node that another node watches: up or down, as the detector of the watching node sees it.
  *
  * Each node sends a heartbeat to each connected node each 100 ms. The sink of the watching node keeps
- * the gaps between the heartbeats of each node. Its detector polls each 1000 ms.
+ * the gaps between the heartbeats of each node. Its detector polls each 5000 ms: aten polls each 1000 ms
+ * by its own default, and RabbitMQ sets 5000 ms, for fewer false elections.
  *
  * At a poll, the probability of a failure is a share of the gaps. A gap counts when 1.5 times the gap
  * is not longer than the time since the last heartbeat. The node is down when that share reaches 0.99.
  * With gaps of approximately 100 ms, that is approximately 150 ms after the last heartbeat, at the first
- * poll after it. Thus a silent node is down 150 ms to approximately 1.15 s after its last heartbeat,
+ * poll after it. Thus a silent node is down 150 ms to approximately 5.2 s after its last heartbeat,
  * long before the tick of the distribution.
  *
  * A closed connection of the distribution (a stopped node) removes the data of the node from the
@@ -36,6 +37,14 @@ export const ATEN_DETECTOR: Machine = machineSchema.parse({
   },
   sources: [
     { ref: `${ATEN} src/aten.app.src: the defaults poll_interval 1000, scaling_factor 1.5, heartbeat_interval 100, detection_threshold 0.99`, rung: "implemented" },
+    {
+      ref: "rabbitmq v4.3.6 deps/rabbitmq_prelaunch/src/rabbit_prelaunch_conf.erl:112-120 RabbitMQ sets the poll interval of aten to 5000 ms, for fewer false elections of quorum queues",
+      rung: "implemented",
+    },
+    {
+      ref: "run 39218896659 of github.com/mark1russell7/systems: after a freeze and a black hole of the node of the leader, the new leader came 6.1 s to 10.4 s later, and not 1 s to 4 s",
+      rung: "observed",
+    },
     {
       ref: `${ATEN} src/aten_emitter.erl:49-54 and :95-98 the emitter arms its next send heartbeat_interval after it sends to each node, :63-82 it sends to each node in nodes() with noconnect and nosuspend`,
       rung: "implemented",
@@ -67,7 +76,13 @@ export const ATEN_DETECTOR: Machine = machineSchema.parse({
   },
   knobs: {
     heartbeat_interval: { key: "raft.adaptive_failure_detector.heartbeat_interval (aten heartbeat_interval)", scope: "node", unit: "ms", default: 100, note: "aten.app.src" },
-    poll_interval: { key: "raft.adaptive_failure_detector.poll_interval (aten poll_interval)", scope: "node", unit: "ms", default: 1000, note: "aten.app.src" },
+    poll_interval: {
+      key: "raft.adaptive_failure_detector.poll_interval (aten poll_interval)",
+      scope: "node",
+      unit: "ms",
+      default: 5000,
+      note: "RabbitMQ sets 5000 (rabbit_prelaunch_conf.erl:112-120). The default of aten itself is 1000 (aten.app.src)",
+    },
     scaling_factor: { key: "raft.adaptive_failure_detector.scaling_factor (aten scaling_factor)", scope: "node", unit: "count", default: 1.5, note: "aten.app.src" },
     detection_threshold: {
       key: "raft.adaptive_failure_detector.detection_threshold (aten detection_threshold)",
@@ -99,7 +114,7 @@ export const ATEN_DETECTOR: Machine = machineSchema.parse({
       lateness: { expr: "scaling_factor * gap_slack + poll_interval + slack", unit: "ms" },
       arms: ["rx.heartbeat"],
       fires: "timer.detect",
-      note: "150 ms after the last heartbeat at the defaults, and up to one poll later",
+      note: "150 ms after the last heartbeat at the defaults, and up to one poll of 5 s later",
     },
     nodedown_poll: {
       // a node that left the sink is down at the next poll (aten_detector.erl:159-175)

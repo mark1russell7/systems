@@ -43,18 +43,19 @@ describe("the RabbitMQ catalog of T11", () => {
   });
 
   it("finds a silent node of the leader by aten, then elects after the long timeout of Ra", () => {
-    // aten: 150 ms after the last heartbeat, and up to one poll of 1 s later
-    expect(ATEN_DETECTOR.knobs["poll_interval"]?.default).toBe(1000);
+    // aten: 150 ms after the last heartbeat, and up to one poll later. RabbitMQ polls each 5 s, not each 1 s:
+    // in run 39218896659 the new leader came 6.1 s to 10.4 s after the fault
+    expect(ATEN_DETECTOR.knobs["poll_interval"]?.default).toBe(5000);
     expect(PARTS.detect.lo).toBeCloseTo(0.15, 9);
-    expect(PARTS.detect.hi).toBeCloseTo(1.175, 9);
+    expect(PARTS.detect.hi).toBeCloseTo(5.175, 9);
     // the long election timeout: the poll interval and a random part up to 10 × broadcast_time
     expect(RA_MEMBER.knobs["broadcast_time"]?.default).toBe(100);
-    expect(PARTS.long.lo).toBeCloseTo(1.001, 9);
-    expect(PARTS.long.hi).toBeCloseTo(2.01, 9);
-    // a new leader 1.05 s after the fault at the earliest; one split vote adds a short timeout
+    expect(PARTS.long.lo).toBeCloseTo(5.001, 9);
+    expect(PARTS.long.hi).toBeCloseTo(6.01, 9);
+    // a new leader 5.05 s after the fault at the earliest; one split vote adds a short timeout
     const leader = silentLeader();
-    expect(leader.lo).toBeCloseTo(1.051, 9);
-    expect(leader.hi).toBeCloseTo(1.175 + 2.01 + 0.024 + 0.61 + 0.024, 9);
+    expect(leader.lo).toBeCloseTo(5.051, 9);
+    expect(leader.hi).toBeCloseTo(5.175 + 6.01 + 0.024 + 0.61 + 0.024, 9);
     for (const plan of ["T11.defaults.74", "T11.defaults.75", "T11.defaults.76"]) {
       const p = cell(plan).prediction;
       expect(p, plan).toMatchObject({ detects: true, errno: "OK", from: "fault", group: { lands: "same", failover: true } });
@@ -62,7 +63,7 @@ describe("the RabbitMQ catalog of T11", () => {
       expect(p.high.value, plan).toBeCloseTo(firstConfirm(leader).hi, 9);
       expect(p.group?.stages.map((stage) => stage.stage), plan).toEqual(["elected", "first-write"]);
       // each band ends long before the fault lifts
-      expect(p.high.value, plan).toBeLessThan(HOLD / 4);
+      expect(p.high.value, plan).toBeLessThan(HOLD * 0.75);
     }
   });
 

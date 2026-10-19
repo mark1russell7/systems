@@ -16,7 +16,8 @@ import { RABBIT_IMAGE, RABBIT_LATENCY, RABBIT_RTT_MS, RABBIT_TARGET, amqpValues 
  * leader acts on the queue, and not on the connection of the client.
  *
  * Each band comes from the documents `aten`, `ra-member` and `amqplib`. When the node of the leader goes
- * silent, aten on each follower reports it down. A follower then waits 1 s to 2 s for its election.
+ * silent, aten on each follower reports it down at a poll, each 5 s in RabbitMQ. A follower then waits
+ * 5 s to 6 s for its election.
  * The new leader tells the channel of the client, and the channel sends its pending publish again.
  */
 

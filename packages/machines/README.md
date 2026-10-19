@@ -102,8 +102,8 @@ In this repository, a snapshot of the predictions of the cells (`packages/cells/
 ### 0.3.15
 
 - **The cluster of a quorum queue of RabbitMQ 4.3.6.** Two new documents, each from the source in the release of RabbitMQ:
-  - `aten`: the failure detector between the nodes, aten 0.6.0. Each node sends a heartbeat to each other node each 100 ms. The detector polls each 1 s, and it reports a node down when the time since its last heartbeat is 1.5 times its gaps. Thus a silent node is down 150 ms to approximately 1.15 s after its last heartbeat.
-  - `ra-member`: one member of the Raft cluster of a quorum queue, ra 3.1.10. When aten reports the node of the leader down, a follower waits 1 s to 2 s, and then it asks for pre-votes. A majority makes a candidate, and the votes of a majority make the leader. A leader ignores aten, thus it stays the leader in a minority and commits nothing.
+  - `aten`: the failure detector between the nodes, aten 0.6.0. Each node sends a heartbeat to each other node each 100 ms. The detector polls each 5 s in RabbitMQ (1 s at the defaults of aten). It reports a node down when the time since its last heartbeat is 1.5 times its gaps. Thus a silent node is down 150 ms to approximately 5.2 s after its last heartbeat.
+  - `ra-member`: one member of the Raft cluster of a quorum queue, ra 3.1.10. When aten reports the node of the leader down, a follower waits 5 s to 6 s, and then it asks for pre-votes. A majority makes a candidate, and the votes of a majority make the leader. A leader ignores aten, thus it stays the leader in a minority and commits nothing.
 
 ### 0.3.14
 
