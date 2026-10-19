@@ -20,9 +20,11 @@ describe("the gRPC catalog of T02", () => {
     for (const each of T02_GRPC) expect(each.topology?.hops, each.name).toHaveLength(1);
   });
 
-  it("answers a reset of the upstream of Envoy with its local reply: UNAVAILABLE at once, on the open connection", () => {
+  it("answers a reset at the server behind Envoy with the local reply of Envoy: UNAVAILABLE at once, on the open connection", () => {
     const reset = cell("T02.defaults.31");
-    expect(reset).toMatchObject({ fault: "rst", faultAt: { hop: "envoy", toward: "target" }, prediction: { detects: true, errno: "UNAVAILABLE", from: "request-sent" } });
+    // the reset is at the server: it answers the request of Envoy, and Envoy answers the client
+    expect(reset).toMatchObject({ fault: "rst", prediction: { detects: true, errno: "UNAVAILABLE", from: "request-sent" } });
+    expect(reset).not.toHaveProperty("faultAt");
     if (reset.prediction.detects !== true) throw new Error("a detection");
     // two hops of 2 ms, and one step of Envoy and of Node
     expect(reset.prediction.high.value).toBeCloseTo(0.024, 6);
@@ -35,6 +37,8 @@ describe("the gRPC catalog of T02", () => {
     expect(cell("T02.defaults.48")).toMatchObject({ fault: "fin", prediction: { errno: "EOF", from: "peer-closed" } });
     // a stopped proxy and a killed server cannot serve the next run
     for (const plan of ["T02.defaults.35", "T02.defaults.36", "T02.defaults.48"]) expect(cell(plan).environments).toBe(cell(plan).runs);
+    // the stop of a proxy ends the environment, thus its warm-up is a dry run
+    for (const plan of ["T02.defaults.35", "T02.defaults.36"]) expect(cell(plan).fresh).toBe(true);
     // docker-proxy gets /dev/null on the fd of the pipe of its parent, and the script tells when it listens
     expect(proxyHop("docker-proxy").files?.["/proxy.sh"]).toContain("3>/dev/null");
   });

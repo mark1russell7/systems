@@ -24,7 +24,10 @@ export interface T02Spec {
   readonly proxy: GrpcProxy;
   readonly fault: "rst" | "fin" | "hop-event";
   readonly mode: "idle" | "inflight";
-  /** This side is the one that a fault at the proxy faces. */
+  /**
+   * This side is the one that a fault at the proxy faces. A fault there acts on the packets that come
+   * from that side: a reset goes back to that side. Without it, the fault is at the server.
+   */
   readonly toward?: "target";
   /** This signal is the event of a `hop-event` at the proxy. */
   readonly signal?: HopSignal;
@@ -151,8 +154,10 @@ export const t02Prediction = (spec: T02Spec): Prediction => {
     return found;
   };
   if (spec.fault === "rst") {
-    if (spec.proxy !== "envoy" || spec.toward !== "target" || spec.mode !== "inflight") throw new Error(`${spec.plan}: this catalog resets a call in flight at Envoy toward the target only`);
-    // the upstream connection ends with a reset while the call waits: the local reply of Envoy, before any header of a response
+    if (spec.proxy !== "envoy" || spec.toward !== undefined || spec.mode !== "inflight") throw new Error(`${spec.plan}: this catalog resets a call in flight at the server behind Envoy only`);
+    // the server answers the request of Envoy with a reset: the upstream connection ends while the call
+    // waits, and Envoy sends its local reply, before any header of a response. A reset at the hop toward
+    // the target would reset the server instead, and Envoy would wait for the timeout of its route
     const reply = transition("env.upstream-reset");
     const ends = { ev: "error", name: "errno" } as const;
     return { detects: true, timer: "the local reply of Envoy to the reset of its upstream", errno: reply.errno!, from: "request-sent", low: s(0), high: s(hops + steps), rtt, driver: { socket: "connection", ends } };
@@ -172,7 +177,7 @@ export const t02Prediction = (spec: T02Spec): Prediction => {
 
 /** These are the cells of T02 over grpc-js-1.14 and grpc-go-server that this catalog starts. */
 export const T02_GRPC_SPECS: readonly T02Spec[] = [
-  { plan: "T02.defaults.31", name: "through Envoy 1.39, rst at Envoy toward the server, a call in flight: Envoy answers UNAVAILABLE", proxy: "envoy", fault: "rst", mode: "inflight", toward: "target" },
+  { plan: "T02.defaults.31", name: "through Envoy 1.39, rst at the server, a call in flight: Envoy answers UNAVAILABLE", proxy: "envoy", fault: "rst", mode: "inflight" },
   { plan: "T02.defaults.35", name: "through Toxiproxy 2.12, idle: SIGTERM stops Toxiproxy, and its exit closes the connection", proxy: "toxiproxy", fault: "hop-event", mode: "idle", signal: "TERM" },
   { plan: "T02.defaults.36", name: "through docker-proxy 29.1, idle: Docker stops docker-proxy with SIGINT, as at a restart of the container", proxy: "docker-proxy", fault: "hop-event", mode: "idle", signal: "INT" },
   { plan: "T02.defaults.48", name: "through Toxiproxy 2.12, fin, idle: the killed server ends the connection, and Toxiproxy closes both sockets", proxy: "toxiproxy", fault: "fin", mode: "idle" },
@@ -194,6 +199,8 @@ export const t02Cell = (spec: T02Spec): Cell => {
     topology: { name: "T02", hops: [hop] },
     ...(spec.toward === undefined ? {} : { faultAt: { hop: hop.name, toward: spec.toward } }),
     ...(spec.signal === undefined ? {} : { event: { hop: hop.name, signal: spec.signal } }),
+    // a stopped proxy ends its environment: the warm-up is a dry run, as for the kill of a server
+    ...(spec.fault === "hop-event" ? { fresh: true } : {}),
     runs: RUNS,
     // a killed server, and a stopped proxy, cannot serve the next run: each run has its own environment
     environments: spec.fault === "rst" ? 2 : RUNS,
