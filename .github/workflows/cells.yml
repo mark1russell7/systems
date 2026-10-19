@@ -68,11 +68,13 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # the output of each lab test stays in the log: the memory of the runner with a replica set of three
+      # the output of each lab test stays in the log: the memory of the runner with a replica set of three.
+      # A lab test that fails runs once more, and the log keeps the first failure. In run 39178402327, one
+      # run of the lab of Pgpool-II found no end of its idle client, and no cell of the run started
       - name: The harness's lab test
         env:
           HARNESS_LAB: "1"
-        run: pnpm --filter @mark1russell7/harness exec vitest run --silent=false
+        run: pnpm --filter @mark1russell7/harness exec vitest run --silent=false --retry=1
       # the lab builds an image with no output of the build: the log of a build that fails tells why
       - name: The images of the harness that do not build, after a failure
         if: failure()
