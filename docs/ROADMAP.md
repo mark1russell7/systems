@@ -705,12 +705,15 @@ The heartbeats of AMQP and the timers of the broker. R3 puts 54 cells on amqplib
   - These profiles name the defaults of RabbitMQ, PostgreSQL, gRPC or a managed Redis. No profile sets a knob of amqplib, of RabbitMQ, or of the Linux TCP that the cell reads.
   - Thus 8 array cells are aliases of their cells at the defaults, and 5 wait for the reasons of those cells.
   - DP44 gives the client a connect timeout of 5 s. The client clears that timeout when the connection opens, thus it does not change a fault with an operation in flight.
-- T11 is a cluster of three nodes of RabbitMQ 4.3.6 with one quorum queue. The client of amqplib publishes a stream of sequence numbers with confirms through one node.
+- T11 is a cluster of three nodes of RabbitMQ 4.3.6 with one quorum queue (#102). The client of amqplib publishes a stream of sequence numbers with confirms through one node.
   - Two machine documents come from the release tarball of RabbitMQ 4.3.6 (machines 0.3.15). `aten` is the failure detector between the nodes, aten 0.6.0. RabbitMQ sets its poll to 5 s, thus a silent node is down 150 ms to 5.2 s after its last heartbeat. `ra-member` is one member of the queue, ra 3.1.10. A follower elects 5 s to 6 s after aten reports the node of its leader down.
   - A leader of Ra ignores aten. Thus in a minority it stays the leader, and it commits nothing.
   - A drain does not transfer the leadership: it stops the member of the leader, and a follower elects after 1 ms to 100 ms.
   - The harness has a cluster lab. The nodes form the cluster from the list of their names, and the timeline comes from the NOTICE and the INFO lines of Ra. The client connects to the next node when its connection ends (harness 0.11.17).
-  - The catalog has 9 cells at the defaults. With the client on a follower, the queue gets a new leader 5.05 s to 11.84 s after a silent leader. A cut of one follower gives no new leader. With the client on the node of the leader, only the heartbeat of amqplib ends its connection, 2 to 3 minutes after the fault.
+  - 9 cells at the defaults hold, with 11 runs each (runs 39218896659 and 39222600732). With the client on a follower, the first confirm comes 6.61 s after a freeze of the node of the leader. It comes at 6.68 s after a black hole, and at 8.05 s after a complete partition. The band is 5.05 s to 12.0 s.
+  - The first run measured 6.1 s to 10.4 s against a band of 1.05 s to 4.0 s. RabbitMQ sets the poll interval of aten to 5000 ms, for fewer false elections, and aten itself polls each 1000 ms.
+  - A step-down gives the first confirm 28.7 ms after the NOTICE of the old leader, and a drain 35 ms after the first monitor-down. A cut of one follower, in two directions or in one, gives no new leader, and the confirms go on.
+  - With the client on the node of the leader, only the heartbeat of amqplib ends its connection. The client then connects to the next node, and its first confirm comes at 180.012 s after a freeze and at 180.039 s after a black hole.
   - 5 cells at the defaults wait, each with its reason. The 12 cells of the array stage are 7 aliases and 5 cells that wait. Linux sends no keepalive probe while data is in flight, thus the keepalive of DP42 can end only some runs.
 
 ### H2 · HTTP/2 and gRPC
