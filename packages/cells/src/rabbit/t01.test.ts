@@ -13,6 +13,8 @@ import {
   T01_AMQP_BORDER_SPECS,
   T01_AMQP_SPECS,
   T01_AMQP_WAITING,
+  rabbitTarget,
+  tunedHeartbeat,
 } from "./t01.ts";
 
 const cell = (plan: string) => {
@@ -29,11 +31,25 @@ describe("the RabbitMQ catalog of T01", () => {
     const named = [...T01_AMQP_SPECS.map((spec) => spec.plan), ...T01_AMQP_WAITING.map((each) => each.plan)];
     expect(named.sort()).toEqual(PLAN.map((n) => `T01.defaults.${n}`).sort());
     for (const each of T01_AMQP) {
-      expect(each.target, each.name).toBe(RABBIT_TARGET);
+      // a cell with settings of the broker has its own command, which writes them to conf.d
+      if (each.name.includes("at the broker too")) expect({ ...each.target, command: undefined }, each.name).toEqual({ ...RABBIT_TARGET, command: undefined });
+      else expect(each.target, each.name).toBe(RABBIT_TARGET);
       expect(each.probe.driver, each.name).toEqual({ name: "amqp" });
       expect(each.runs, each.name).toBe(RUNS);
     }
     expect(RABBIT_TARGET.image).toMatch(/^rabbitmq:4\.3\.6@sha256:[0-9a-f]{64}$/);
+  });
+
+  it("tunes the smaller heartbeat of the broker and the client, as amqplib does, and writes a heartbeat of the broker to conf.d", () => {
+    expect([tunedHeartbeat(60, undefined), tunedHeartbeat(60, 0), tunedHeartbeat(60, 80), tunedHeartbeat(60, 15), tunedHeartbeat(0, 80)]).toEqual([60, 0, 60, 15, 80]);
+    expect(rabbitTarget({ heartbeat: 80 }).command).toEqual([
+      "sh",
+      "-c",
+      "printf '%s\\n' 'loopback_users.guest = false' 'heartbeat = 80' > /etc/rabbitmq/conf.d/90-harness.conf; docker-entrypoint.sh rabbitmq-server & echo $! > /tmp/server.pid; while :; do sleep 3600; done",
+    ]);
+    expect(() => rabbitTarget({ heartbeats: 80 })).toThrow("the broker has no knob heartbeats");
+    // outside O03 the heartbeat is 80 s at the client and at the broker: amqplib would tune 60 s from 80 s alone
+    expect(T01_AMQP_BORDER_SPECS.find((spec) => spec.plan === "T01.border-off.162")).toMatchObject({ options: { heartbeat: 80 }, broker: { heartbeat: 80 } });
   });
 
   it("gives each cell of the array stage the cell at the defaults with its number, as an alias or as a cell that waits", () => {
