@@ -73,6 +73,10 @@ describe("a cluster of RabbitMQ as data", () => {
     expect(nodeLineOf("r1", "2026-10-19 06:10:00.000001+00:00 [info] <0.1.0> Server startup complete; 0 plugins started.", "cells")).toBeNull();
     expect(nodeLineOf("r1", "2026-10-19 06:10:00.000001+00:00 [warning] <0.1.0> This node is being put into maintenance (drain) mode", "cells")).not.toBeNull();
     expect(nodeLineOf("r1", "not a line of the log", "cells")).toBeNull();
+    // the console colors each line by its level: a NOTICE starts with an escape of ANSI, and each line ends with one
+    const escape = String.fromCharCode(27);
+    const colored = nodeLineOf("r1", `${escape}[38;5;87m2026-10-19 07:21:54.986692+00:00 [notice] <0.1192.0> ${logNameOf("cells")}: leader -> await_condition in term: 1 machine version: 8, last applied 35${escape}[0m`, "cells");
+    expect(colored).toMatchObject({ level: "notice", msg: `${logNameOf("cells")}: leader -> await_condition in term: 1 machine version: 8, last applied 35` });
     // the wall clock of a line goes onto the monotonic clock by the offset of the client
     expect(nodesOnMonotonic([leader!], 1e15)[0]!.t).toBe(Math.round(leader!.real * 1e6 - 1e15));
   });

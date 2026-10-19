@@ -36,6 +36,12 @@ export interface NodeLine extends SentinelEvent {
 /** This form is a line of the console log of RabbitMQ 4.3: the time with its offset, the level, the process and the message. */
 const LINE = /^(\d{4}-\d\d-\d\d) (\d\d:\d\d:\d\d)\.(\d{3})(\d*)([+-]\d\d:\d\d) \[(\w+)\] <[^>]*> (.*)$/;
 
+/** This form is an escape of ANSI: RabbitMQ colors each line of its console by its level. */
+const ANSI = new RegExp(String.fromCharCode(27) + "\\[[0-9;]*m", "g");
+
+/** This function gives a line of the console without its colors. */
+export const plainOf = (text: string): string => text.replace(ANSI, "").trim();
+
 /** This text is the name of a quorum queue in the log of Ra: its friendly name. */
 export const logNameOf = (queue: string): string => `queue '${queue}' in vhost '/'`;
 
@@ -45,7 +51,7 @@ export const logNameOf = (queue: string): string => `queue '${queue}' in vhost '
  * mode of a drain.
  */
 export const nodeLineOf = (member: string, text: string, queue: string): NodeLine | null => {
-  const found = LINE.exec(text);
+  const found = LINE.exec(plainOf(text));
   if (found === null) return null;
   const [, day, time, ms, us, offset, level, msg] = found as unknown as [string, string, string, string, string, string, string, string];
   const kept = msg.includes(logNameOf(queue)) || level === "warning" || level === "error" || msg.includes("maintenance");
