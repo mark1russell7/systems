@@ -54,13 +54,13 @@ const POSTGRES: Target = {
   command: ["sh", "-c", "POSTGRES_HOST_AUTH_METHOD=trust docker-entrypoint.sh postgres & echo $! > /tmp/server.pid; while :; do sleep 3600; done"],
   kill: ["sh", "-c", 'for p in /proc/[0-9]*; do [ "$(cat "$p/comm" 2>/dev/null)" = postgres ] && kill -KILL "${p#/proc/}"; done; true'],
 };
-// RabbitMQ 4.3.6 with the user harness: the user guest connects only from localhost (loopback_users)
+// RabbitMQ 4.3.6. The user guest connects only from localhost at the defaults (loopback_users): a file of conf.d lets it connect from the client
 const RABBITMQ: Target = {
   image: "rabbitmq:4.3.6@sha256:3e5cc23235b0eb850f604e8ace10d9a9b6d05be3e36730e53522ee9ead707a9e",
   port: 5672,
   ready: "Server startup complete",
   program: "beam.smp",
-  command: ["sh", "-c", "RABBITMQ_DEFAULT_USER=harness RABBITMQ_DEFAULT_PASS=harness docker-entrypoint.sh rabbitmq-server & echo $! > /tmp/server.pid; while :; do sleep 3600; done"],
+  command: ["sh", "-c", "echo loopback_users.guest = false > /etc/rabbitmq/conf.d/90-harness.conf; docker-entrypoint.sh rabbitmq-server & echo $! > /tmp/server.pid; while :; do sleep 3600; done"],
   kill: ["sh", "-c", 'for p in /proc/[0-9]*; do [ "$(cat "$p/comm" 2>/dev/null)" = beam.smp ] && kill -KILL "${p#/proc/}"; done; true'],
 };
 const SET: ReplicaSet = {

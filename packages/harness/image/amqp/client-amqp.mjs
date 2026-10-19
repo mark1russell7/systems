@@ -12,7 +12,8 @@
 //
 // The options (--options JSON): `heartbeat` in seconds goes in the URL. Without it, amqplib takes
 // the heartbeat that the broker proposes. The others are the socket options of amqplib: noDelay,
-// keepAlive, keepAliveDelay (ms) and timeout (ms). The user of the broker is harness.
+// keepAlive, keepAliveDelay (ms) and timeout (ms). `user` and `password` are the user of the broker:
+// guest, as amqplib gives it, when the options name none.
 //
 // The lines:
 // - start: the versions of amqplib and Node, the mode and the options.
@@ -55,7 +56,7 @@ const go = flag("--go") ?? "/tmp/go";
 const before = argv.includes("--before");
 // the options of the connection. A cell gives each option that it changes, and amqplib gives the others
 const options = JSON.parse(flag("--options") ?? "{}");
-const { heartbeat, ...socketOptions } = options;
+const { heartbeat, user = "guest", password = "guest", ...socketOptions } = options;
 
 const { default: amqp } = await import("amqplib");
 const versionOf = (name) => JSON.parse(readFileSync(new URL(`./node_modules/${name}/package.json`, import.meta.url), "utf8")).version;
@@ -69,7 +70,7 @@ const bootId = () => {
 };
 emit("start", { boot_id: bootId(), client: "amqp", driver: versionOf("amqplib"), node: process.versions.node, mode, options });
 
-const url = `amqp://harness:harness@${host}:${port}/${heartbeat === undefined ? "" : `?heartbeat=${heartbeat}`}`;
+const url = `amqp://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${heartbeat === undefined ? "" : `?heartbeat=${heartbeat}`}`;
 const QUEUE = "harness";
 
 /** This function gives the error of amqplib as data: its name, its code and its message. */
@@ -90,16 +91,23 @@ const open = async () => {
   emit("connected", { local });
   socket.once("close", (hadError) => emit("socket-end", { role: "connection", local, error: hadError }));
   socket.once("error", (error) => emit("socket-error", { role: "connection", local, errno: errnoOf(error), message: error.message }));
+  // the first end of the connection: its error, or its close. The connection in idle mode: that
+  // end is the detection, as for the TCP client
+  const ended = (error) => {
+    if (cause !== null) return;
+    cause = error;
+    if (mode === "idle") emit("error", { errno: errnoOf(error), message: error.message });
+  };
   // amqplib emits each error once, then its close. Without a listener, Node throws the error
   connection.on("error", (error) => {
     emit("connection", { event: "error", failure: failure(error) });
-    if (cause === null) {
-      cause = error;
-      // the connection in idle mode: its error is the detection, as for the TCP client
-      if (mode === "idle") emit("error", { errno: errnoOf(error), message: error.message });
-    }
+    ended(error);
   });
-  connection.on("close", (error) => emit("connection", { event: "close", failure: failure(error) }));
+  // a close of the broker with 320 (CONNECTION_FORCED) is not an error for amqplib: only its close tells
+  connection.on("close", (error) => {
+    emit("connection", { event: "close", failure: failure(error) });
+    if (!stopped) ended(error ?? new Error("Connection closed"));
+  });
   connection.on("blocked", (reason) => emit("connection", { event: "blocked", reason }));
   connection.on("unblocked", () => emit("connection", { event: "unblocked" }));
   channel = await connection.createChannel();
