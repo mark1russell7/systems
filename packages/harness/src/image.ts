@@ -350,7 +350,7 @@ const built = new Map<string, Promise<string>>();
 
 /**
  * These are the waits before each next try of a build that fails, in milliseconds. A fault of a
- * registry or of the network often stops in seconds: in run 39278390448 of the cells, two runners
+ * registry or of the network often stops in seconds. In run 39278390448 of the cells, two runners
  * failed a build in the same second, and the same builds then passed.
  */
 export const BUILD_WAITS: readonly number[] = [5_000, 20_000];
