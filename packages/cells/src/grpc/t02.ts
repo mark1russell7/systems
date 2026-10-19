@@ -1,5 +1,5 @@
 import type { Cell, HopSignal, Prediction, ProxyHop } from "@mark1russell7/harness";
-import { DOCKER_PROXY_LINK, ENVOY_HTTP2, GRPC_JS, TOXIPROXY_LINK } from "@mark1russell7/machines";
+import { CADDY_HTTP2, DOCKER_PROXY_LINK, ENVOY_HTTP2, GRPC_JS, TOXIPROXY_LINK } from "@mark1russell7/machines";
 import { RUNS, s, sysctlsOf } from "../catalog.ts";
 import type { Alias, Waiting } from "../mongo/cells.ts";
 import { linuxValues } from "../mongo/model.ts";
@@ -12,17 +12,18 @@ import { GRPC_PORT, GRPC_RTT_MS, grpcTarget } from "./t01.ts";
  * - Envoy 1.39.4 answers a reset of its upstream itself, with a local reply: UNAVAILABLE at once.
  * - Toxiproxy 2.12.0 closes both sockets at an end of file of either side, and its stop closes them too.
  * - docker-proxy of Docker 29.1.5 ends each connection when Docker stops it, as at a restart.
+ * - Caddy 2.11.7 sends GOAWAY on a connection with no stream for 5 min, and grpc-js drops that transport.
  */
 
 /** These are the proxies of the catalog. */
-export type GrpcProxy = "envoy" | "toxiproxy" | "docker-proxy";
+export type GrpcProxy = "envoy" | "toxiproxy" | "docker-proxy" | "caddy";
 
 /** A spec of T02 is one cell of the plan through one proxy. */
 export interface T02Spec {
   readonly plan: string;
   readonly name: string;
   readonly proxy: GrpcProxy;
-  readonly fault: "rst" | "fin" | "hop-event";
+  readonly fault: "rst" | "fin" | "hop-event" | "none";
   readonly mode: "idle" | "inflight";
   /**
    * This side is the one that a fault at the proxy faces. A fault there acts on the packets that come
@@ -35,6 +36,20 @@ export interface T02Spec {
 
 /** This image is Envoy 1.39.4, pinned by digest. */
 export const ENVOY_IMAGE = "envoyproxy/envoy:v1.39.4@sha256:74bd4eb5629708d3fadca1a5e6b85d208f338d7bb54e06b69565905c5294cc01";
+
+/** This image is Caddy 2.11.7, pinned by digest. */
+export const CADDY_IMAGE = "caddy:2.11.7@sha256:685ae3d7c34d9b5f8caeddc5d14051db7bbd88ff1f5a2fa0c16bd8ca328fb7af";
+
+/** This configuration is the Caddyfile of the document `caddy-http2`: one server of h1 and h2c, and reverse_proxy to the next hop over h2c. */
+const CADDYFILE = `{
+	servers {
+		protocols h1 h2c
+	}
+}
+:${GRPC_PORT} {
+	reverse_proxy h2c://{{next}}
+}
+`;
 
 /**
  * This configuration is the static configuration of Envoy for the document `envoy-http2`. It has one
@@ -114,6 +129,17 @@ export const proxyHop = (proxy: GrpcProxy): ProxyHop => {
         ready: "Starting Toxiproxy HTTP server",
         program: "toxiproxy",
       };
+    case "caddy":
+      return {
+        name: "caddy",
+        kind: "proxy",
+        image: CADDY_IMAGE,
+        port: GRPC_PORT,
+        command: ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"],
+        files: { "/etc/caddy/Caddyfile": CADDYFILE },
+        ready: "serving initial configuration",
+        program: "caddy",
+      };
     case "docker-proxy":
       return {
         name: "docker-proxy",
@@ -129,7 +155,7 @@ export const proxyHop = (proxy: GrpcProxy): ProxyHop => {
 };
 
 /** These are the documents of the proxies, by their names. */
-const DOCUMENTS = { envoy: ENVOY_HTTP2, toxiproxy: TOXIPROXY_LINK, "docker-proxy": DOCKER_PROXY_LINK } as const;
+const DOCUMENTS = { envoy: ENVOY_HTTP2, toxiproxy: TOXIPROXY_LINK, "docker-proxy": DOCKER_PROXY_LINK, caddy: CADDY_HTTP2 } as const;
 
 /** This function gives the slack of one step of a program, from its document: the assumption that each document states. */
 const slackOf = (doc: (typeof DOCUMENTS)[GrpcProxy] | typeof GRPC_JS): number => {
@@ -162,6 +188,17 @@ export const t02Prediction = (spec: T02Spec): Prediction => {
     const ends = { ev: "error", name: "errno" } as const;
     return { detects: true, timer: "the local reply of Envoy to the reset of its upstream", errno: reply.errno!, from: "request-sent", low: s(0), high: s(hops + steps), rtt, driver: { socket: "connection", ends } };
   }
+  if (spec.fault === "none") {
+    if (spec.proxy !== "caddy" || spec.mode !== "idle") throw new Error(`${spec.plan}: this catalog keeps an idle connection through Caddy only`);
+    // an idle gap longer than the idle timeout of Caddy: its timer starts at the close of the last stream,
+    // just before the last data of the client, and its GOAWAY makes grpc-js drop the transport
+    const idle = transition("cd.idle");
+    if (!idle.emits?.includes("tx.goaway")) throw new Error(`${spec.plan}: ${doc.id} sends no GOAWAY at its idle timeout`);
+    const timeout = doc.knobs["idle_timeout"]?.default;
+    if (typeof timeout !== "number") throw new Error(`${spec.plan}: ${doc.id} gives no idle timeout`);
+    const ends = { ev: "state", where: { to: "IDLE" }, name: "to" } as const;
+    return { detects: true, timer: "the idle timeout of Caddy, and its GOAWAY", errno: "IDLE", from: "last-data", low: s(timeout - hops / 2), high: s(timeout + hops / 2 + steps), rtt, driver: { socket: "connection", ends } };
+  }
   if (spec.fault === "fin") {
     if (spec.proxy !== "toxiproxy") throw new Error(`${spec.plan}: this catalog stops the server behind Toxiproxy only`);
     // the FIN of the killed server ends the link from the upstream, and Toxiproxy closes the client: no half-close
@@ -181,6 +218,7 @@ export const T02_GRPC_SPECS: readonly T02Spec[] = [
   { plan: "T02.defaults.35", name: "through Toxiproxy 2.12, idle: SIGTERM stops Toxiproxy, and its exit closes the connection", proxy: "toxiproxy", fault: "hop-event", mode: "idle", signal: "TERM" },
   { plan: "T02.defaults.36", name: "through docker-proxy 29.1, idle: Docker stops docker-proxy with SIGINT, as at a restart of the container", proxy: "docker-proxy", fault: "hop-event", mode: "idle", signal: "INT" },
   { plan: "T02.defaults.48", name: "through Toxiproxy 2.12, fin, idle: the killed server ends the connection, and Toxiproxy closes both sockets", proxy: "toxiproxy", fault: "fin", mode: "idle" },
+  { plan: "T02.defaults.41", name: "through Caddy 2.11, an idle gap of 5 min: Caddy sends GOAWAY, and grpc-js drops the transport", proxy: "caddy", fault: "none", mode: "idle" },
 ];
 
 /** This function gives the name of a cell of T02. */
@@ -213,21 +251,26 @@ export const T02_GRPC_ALIASES: readonly Alias[] = [
   { plan: "T02.array.35", is: "T02.defaults.35", why: "DP20 sets the pool mode and the query timeout of a pooler: no knob of these systems" },
   { plan: "T02.array.36", is: "T02.defaults.36", why: "DP18 sets the timers of PgBouncer: no knob of these systems" },
   { plan: "T02.array.48", is: "T02.defaults.48", why: "DP01 sets the timers of an ALB and of a Node server: no knob of grpc-js, Toxiproxy or grpc-go" },
+  { plan: "T02.array.41", is: "T02.defaults.41", why: "DP07 sets the timeouts of ingress-nginx: no knob of Caddy" },
 ];
-
-const NEXT = "the machine document of this proxy, from its source, is the next step of T02 (the facts are in, the document is not)";
 
 /** These are the cells of the plan over these systems that this catalog does not start, each with its reason. */
 export const T02_GRPC_WAITING: readonly Waiting[] = [
-  { plan: "T02.defaults.32", trigger: "event:maxRequestsPerSocket", why: `Traefik 3.7: ${NEXT}. Its keepAliveMaxRequests is 0 (off) at its defaults` },
+  {
+    plan: "T02.defaults.32",
+    trigger: "event:maxRequestsPerSocket",
+    why: "keepAliveMaxRequests of Traefik 3.7 is 0 (off) at its defaults (pkg/config/static/entrypoints.go:203-217): no event comes",
+  },
   { plan: "T02.defaults.33", trigger: "event:idle-gap", why: "the target of this tuple is Caddy 2.11, and Caddy serves no gRPC by itself: the health service of the client gets no reply" },
   { plan: "T02.defaults.34", trigger: "in-process:event-loop", why: "the harness has no injector that blocks the event loop of a worker of nginx" },
-  { plan: "T02.defaults.41", trigger: "event:idle-gap", why: `Caddy 2.11: ${NEXT}` },
   { plan: "T02.array.32", trigger: "event:maxRequestsPerSocket", why: "as T02.defaults.32, under DP05: DP05 sets the timers of GCLB, no knob of Traefik" },
   { plan: "T02.array.33", trigger: "event:idle-gap", why: "as T02.defaults.33, under DP19" },
   { plan: "T02.array.34", trigger: "in-process:event-loop", why: "as T02.defaults.34, under DP08" },
-  { plan: "T02.array.41", trigger: "event:idle-gap", why: "as T02.defaults.41, under DP07" },
-  { plan: "T02.array.77", trigger: "event:proxy-reload", why: `Traefik 3.7: ${NEXT}. DP06 sets the keepalive of a backend of GCLB, no knob of Traefik` },
+  {
+    plan: "T02.array.77",
+    trigger: "event:proxy-reload",
+    why: "a reload of Traefik is a change of its dynamic configuration file, and the harness has no hop event that writes a file. DP06 sets no knob of Traefik",
+  },
   ...(["74", "75", "76", "78"] as const).map((n) => ({
     plan: `T02.array.${n}`,
     trigger: "event:maxRequestsPerSocket",

@@ -42,4 +42,13 @@ describe("the gRPC catalog of T02", () => {
     // docker-proxy gets /dev/null on the fd of the pipe of its parent, and the script tells when it listens
     expect(proxyHop("docker-proxy").files?.["/proxy.sh"]).toContain("3>/dev/null");
   });
+
+  it("drops the transport of an idle connection at the GOAWAY of Caddy, 5 min after the last stream", () => {
+    const gap = cell("T02.defaults.41");
+    expect(gap).toMatchObject({ fault: "none", probe: { mode: "idle" }, prediction: { detects: true, errno: "IDLE", from: "last-data", driver: { ends: { ev: "state", where: { to: "IDLE" } } } } });
+    if (gap.prediction.detects !== true) throw new Error("a detection");
+    expect([gap.prediction.low.value, gap.prediction.high.value]).toEqual([299.998, 300.022]);
+    // h2c on the plain port of Caddy, stated in its configuration
+    expect(proxyHop("caddy").files?.["/etc/caddy/Caddyfile"]).toContain("protocols h1 h2c");
+  });
 });
