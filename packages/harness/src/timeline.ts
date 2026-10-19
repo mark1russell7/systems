@@ -1,14 +1,14 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
-import type { Cell, KernelRecord, ProbeEvent, ReplicaSetStage, Run, SentinelEvent, SentinelStage, Stage } from "./cell.ts";
+import type { Cell, ClusterStage, KernelRecord, ProbeEvent, ReplicaSetStage, Run, SentinelEvent, SentinelStage, Stage } from "./cell.ts";
 import { socketsOf } from "./driver.ts";
 import { INJECT, noiseOf } from "./verdict.ts";
 
 /**
  * This module measures a run of a group cell. It gives the first write that a primary accepted
  * after the fault, and the timeline of the group. The Sentinels of a group announce its timeline.
- * The logs of the members of a replica set and its client tell it. The module also gives what
- * became of each write.
+ * The logs of the members of a replica set or of the nodes of a cluster, and its client, tell it. The
+ * module also gives what became of each write.
  */
 
 /** These are the stages of a timeline under Sentinels, in their sequence after a fault. */
@@ -32,7 +32,8 @@ export interface ErrorOnTheWay {
 
 /**
  * A writes record tells what became of the writes of a run, by their sequence numbers:
- * - `old` counts the writes that the primary of the start of the run accepted after the fault.
+ * - `old` counts the writes that the primary of the start of the run accepted after the fault. A
+ *   cluster counts none: its client publishes through one node, not through the leader of the queue.
  * - `lost` are the writes that a primary accepted and the group did not keep. They are the cost
  *   of a split brain. It is null when the group did not converge after the run.
  * - `unknown` are the writes that the client sent and did not see accepted: an error, or no answer.
@@ -168,6 +169,43 @@ export const replicaSetStagesOf = (
   return out;
 };
 
+/** These are the stages of the timeline of a cluster of RabbitMQ, in their usual sequence after a fault. */
+export const CLUSTER_STAGES: readonly ClusterStage[] = ["monitor-down", "elected", "followed", "old-leader-steps-down", "first-write"];
+
+/**
+ * These are the log lines of RabbitMQ that mark each stage of a cluster, by their message (ra 3.1.10,
+ * ra_server_proc.erl:871, :1336-1345 and :1974). `at` tells where the line comes from: the node of the
+ * old leader, or another node.
+ */
+export const NODE_MARKS: Readonly<Record<Exclude<ClusterStage, "first-write">, { readonly message: RegExp; readonly at: "old" | "other" }>> = {
+  "monitor-down": { message: /Leader monitor down/, at: "other" },
+  elected: { message: /: candidate -> leader in term/, at: "other" },
+  followed: { message: /detected a new leader/, at: "other" },
+  "old-leader-steps-down": { message: /: leader -> \w+ in term/, at: "old" },
+};
+
+/**
+ * This function gives the time of each stage of a cluster from an instant, in a run. The stages of
+ * the nodes come from their log lines (`ev` "rabbit"), whose times the lab puts on the monotonic
+ * clock. `first-write` is the first confirm of a publish that the client sent after the commit of
+ * the fault (`sentAfter`), through any node.
+ */
+export const clusterStagesOf = (run: Run, from: number, sentAfter: number): Partial<Record<Stage, Quantity>> => {
+  const out: Partial<Record<Stage, Quantity>> = {};
+  const old = run.group?.primary ?? "";
+  for (const line of run.group?.timeline ?? []) {
+    if (line.ev !== "rabbit" || line.t < from) continue;
+    const member = String(line["member"] ?? "");
+    for (const stage of Object.keys(NODE_MARKS) as Array<keyof typeof NODE_MARKS>) {
+      const mark = NODE_MARKS[stage];
+      if (out[stage] === undefined && (mark.at === "old") === (member === old) && mark.message.test(String(line["msg"] ?? ""))) out[stage] = between(from, line.t);
+    }
+  }
+  const accepted = acceptedAfter(run, sentAfter, "same");
+  if (accepted !== undefined) out["first-write"] = between(from, accepted.t);
+  return out;
+};
+
 /** This function gives the first write that a primary accepted, of a write sent after an instant. It is on a new primary for `new`. */
 const acceptedAfter = (run: Run, sentAfter: number, lands: "new" | "same"): ProbeEvent | undefined => {
   const sent = new Map<number, number>();
@@ -297,10 +335,12 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
   const timeline = run.group?.timeline ?? [];
   const heal = run.heal ?? null;
   const lands = expected?.lands ?? "new";
-  // a replica set has no authority: its members and the client tell its stages
-  const replica = cell.replicaSet !== undefined;
+  // a replica set and a cluster have no authority: their members and the client tell their stages. The
+  // client of a cluster publishes through one node, and the leader of the queue can be on another one
+  const cluster = cell.cluster !== undefined;
+  const replica = cell.replicaSet !== undefined || cluster;
   const stall = prediction.detects === false && prediction.recovers !== undefined;
-  const stages = replica ? replicaSetStagesOf(run, t0, run.fault.t1, lands) : stagesOf(timeline, t0);
+  const stages = cluster ? clusterStagesOf(run, t0, run.fault.t1) : replica ? replicaSetStagesOf(run, t0, run.fault.t1, lands) : stagesOf(timeline, t0);
   // the first write that a primary accepted after the fault: on a new primary, or on the same one
   // after the lift. In a replica set, it is the first write sent after the commit of the fault
   // that a primary accepts: a partial cut leaves the old primary its writes
@@ -311,7 +351,7 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
     if (event.ev !== "ack" || event.t <= after) return false;
     if (replica && (sentAt.get(Number(event["n"])) ?? -Infinity) <= run.fault!.t1) return false;
     const member = memberAt(run, event["at"]);
-    return member !== null && (lands === "new" ? member !== primary : true);
+    return member !== null && (lands === "new" && !cluster ? member !== primary : true);
   });
   const to = accepted === undefined ? null : memberAt(run, accepted["at"]);
   // the first write of a replica set is the outcome itself: a stall's first write is the write into it
@@ -323,7 +363,7 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
     from: primary,
     to,
     stages,
-    writes: writesOf(run, t0, primary),
+    writes: writesOf(run, t0, cluster ? "" : primary),
     errors: errorsOf(events, t0),
     ...(cell.calibrates === "sentinels" ? { lags: lagsOf(run, kernel) } : {}),
   };
@@ -349,12 +389,16 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
         voided = `the lift came ${Math.round(late * 1e4) / 10} ms after its hold: the injector was late, not the group`;
     }
   }
-  // a band holds for the round trips that it assumes: the first one of the client's socket to the old primary
+  // a band holds for the round trips that it assumes: the first one of the client's socket to the old
+  // primary, or to the first node of a cluster
+  const firstAddress = cluster
+    ? String(events.find((event) => event.ev === "connected")?.["at"] ?? "")
+    : `${run.group?.members[primary]?.ip}:${(cell.group ?? cell.replicaSet)?.port}`;
   const assumed = prediction.detects === null ? undefined : prediction.rtt;
   const first = kernel.find(
     (record) =>
       record.netns === run.netns &&
-      record.dst === `${run.group?.members[primary]?.ip}:${(cell.group ?? cell.replicaSet)?.port}` &&
+      record.dst === firstAddress &&
       record.tcp?.srtt !== undefined,
   );
   const rtt = first?.tcp?.srtt === undefined ? null : valueIn(first.tcp.srtt, "us") / 1000;
@@ -392,7 +436,7 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
     const at = stages[stage];
     if (at !== undefined) findings.push(`${stage} came ${at.value} s after the fault, where it should not`);
   }
-  if (accepted !== undefined && lands === "same" && to !== primary)
+  if (accepted !== undefined && lands === "same" && !cluster && to !== primary)
     findings.push(`the client wrote to ${to ?? String(accepted["at"])}, where it should stay on ${primary}`);
   for (const error of expected?.errors ?? []) {
     const met = group.errors.find((each) => each.name === error.name);

@@ -68,6 +68,8 @@
     "image/hikari/jars.sha256",
     "image/amqp/Dockerfile",
     "image/amqp/client-amqp.mjs",
+    "image/amqp/client-cluster.mjs",
+    "image/amqp/admin-cluster.mjs",
     "image/amqp/package.json",
     "image/amqp/npm-lock.json",
     "image/procedures/Dockerfile",

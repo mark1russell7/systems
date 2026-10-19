@@ -437,7 +437,7 @@ export const requestOf = (events: readonly ProbeEvent[]): RequestReading | null 
 
 /** This function reads the socket of one run against its cell, as `measure` does without the second request of an HTTP client. */
 const measureSocket = (cell: Cell, run: Run): Measured => {
-  if (cell.group !== undefined || cell.replicaSet !== undefined) {
+  if (cell.group !== undefined || cell.replicaSet !== undefined || cell.cluster !== undefined) {
     const read = measureGroup(cell, run);
     return {
       environment: run.environment,

@@ -56,6 +56,12 @@ export type { KernelRecord };
  *
  * This fault is of a replica set (`Cell.replicaSet`):
  * - `step-down` sends `replSetStepDown` to the primary, as a client sends a command.
+ *
+ * These faults are of a cluster of RabbitMQ (`Cell.cluster`):
+ * - `step-down` moves the leadership of the queue to a follower: `rabbitmq-queues transfer_leadership`.
+ * - `drain` puts the node of the part in maintenance mode: `rabbitmq-upgrade drain`. The node closes the
+ *   connections of its clients, and it moves the leadership of each of its queues to another node.
+ *   `rabbitmq-upgrade revive` ends it after the run.
  */
 export type Fault =
   | "blackhole"
@@ -75,6 +81,7 @@ export type Fault =
   | "planned-failover"
   | "app-stall"
   | "step-down"
+  | "drain"
   | "hop-event"
   | "none";
 
@@ -230,6 +237,44 @@ export interface ReplicaSet {
   readonly ready: string;
 }
 
+/**
+ * A cluster is a cluster of RabbitMQ nodes with one quorum queue, as data. The members of the queue
+ * elect its leader by Raft, one member on each node. Each node is a container from the same stock
+ * image, pinned by digest, in its own network namespace. The nodes form the cluster from a fixed
+ * list of names. The client publishes a stream of sequence numbers to the queue, each with a
+ * confirm, through one node. When its connection ends, it connects to the next node.
+ */
+export interface Cluster {
+  /** This image is the stock image of each node, pinned by digest. */
+  readonly image: string;
+  /** These are the names of the nodes: each node is `rabbit@<name>`. The first node declares the queue, thus its member is the first leader. */
+  readonly members: readonly string[];
+  readonly port: number;
+  /** This text is the Erlang cookie that each node shares. */
+  readonly cookie: string;
+  /** These are lines of rabbitmq.conf after the formation of the cluster, for example `raft.adaptive_failure_detector.poll_interval = 1000`. */
+  readonly conf: readonly string[];
+  /** This name is the name of the quorum queue. */
+  readonly queue: string;
+  /** This line tells that a node serves. */
+  readonly ready: string;
+  /** These are the programs of the image: the server, whose process a signal acts on, and the command that starts the node again. */
+  readonly programs: { readonly server: string; readonly start: string };
+}
+
+/**
+ * A cluster stage is one step of the timeline of a cluster after a fault. A line of the log of a
+ * node marks it, or a line of the client. These are the stages:
+ * - `monitor-down`: a follower sees the process of its leader go down.
+ * - `elected`: the new leader, and `followed`: a follower that sees it.
+ * - `old-leader-steps-down`: the old leader becomes a follower.
+ * - `first-write`: the line of the client of the first publish that the queue confirms.
+ */
+export type ClusterStage = "monitor-down" | "elected" | "followed" | "old-leader-steps-down" | "first-write";
+
+/** This type is the node of the client in a cluster at the start of a run. It is the node of the leader of the queue, or of a follower. */
+export type ClusterClientAt = "leader" | "follower";
+
 /** A group role is a part of a group by its role at the start of a run: the primary, a replica, or a Sentinel. */
 export type GroupRole = "primary" | "replica" | "sentinel";
 
@@ -383,8 +428,8 @@ export type ReplicaSetStage =
   | "written-off"
   | "first-write";
 
-/** A stage is one step of the timeline of a group: of a group under Sentinels, or of a replica set. */
-export type Stage = SentinelStage | ReplicaSetStage;
+/** A stage is one step of the timeline of a group under Sentinels, of a replica set, or of a cluster of RabbitMQ. */
+export type Stage = SentinelStage | ReplicaSetStage | ClusterStage;
 
 /** A stage band is when the first part announces a stage, from the reference of the cell. */
 export interface StageBand {
@@ -927,6 +972,14 @@ export interface Cell {
    * `target` stays for the record, and the set does not read it.
    */
   readonly replicaSet?: ReplicaSet;
+  /**
+   * This cluster replaces the target: a cluster of RabbitMQ with one quorum queue. The client is then
+   * amqplib, and it publishes a stream of sequence numbers with confirms. `target` stays for the
+   * record, and the cluster does not read it.
+   */
+  readonly cluster?: Cluster;
+  /** This place is the node of the client in a cluster: the node of the leader, or of a follower. Without it, the node of a follower. */
+  readonly clientAt?: ClusterClientAt;
   /**
    * This time is how long a fault on a group holds after its commit. The injector then lifts it at
    * that instant, on the clock of the VM. On a direct pair, a frozen target thaws after it.
