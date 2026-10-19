@@ -1,6 +1,6 @@
 import { valueIn } from "@mark1russell7/quantity";
 import type { Cell, FaultPlace, KernelRecord, ProbeEvent, Run } from "./cell.ts";
-import { isHopPlace, latestEndOf } from "./cell.ts";
+import { isHopPlace, latestEndOf, requestFirst } from "./cell.ts";
 import { longestOf, settled as driverSettled } from "./driver.ts";
 import { groupOnce, openGroupLab } from "./group.ts";
 import type { FaultOptions, Lab, Manifest, Probe } from "./lab.ts";
@@ -374,10 +374,11 @@ const once = async (
     } else {
       // the in-flight data of a run on the server side is the reply of the server. The request goes
       // out first, and the fault occurs while the server holds it (the timeout of BLPOP). A fin with
-      // a request in flight kills the server while it holds the request, so it goes first too
+      // a request in flight kills the server while it holds the request, so it goes first too. So
+      // does the request of an event at a hop that comes while the request is in flight
       const replyInFlight =
         cell.probe.mode === "inflight" &&
-        ((server && cell.fault !== "mtu-blackhole") || cell.fault === "fin");
+        ((server && cell.fault !== "mtu-blackhole") || cell.fault === "fin" || requestFirst(cell));
       if (replyInFlight) {
         // the client sends one sample after the file appears. The request reaches the server well
         // in the pause, and the reply waits for the timeout of the request
@@ -456,6 +457,9 @@ const once = async (
           case "server-close":
             await lab.serverClose();
             return null;
+          case "hop-event":
+            if (cell.event === undefined) throw new Error(`${cell.name} names no event`);
+            return lab.event(cell.event);
           default:
             // a stall is a black hole that stops by itself
             return lab.fault("blackhole", faultAt);
@@ -476,6 +480,10 @@ const once = async (
           case "server-close":
           case "app-stall":
           case "none":
+            return undefined;
+          case "hop-event":
+            // the undo of a query on the console, for example RESUME after PAUSE
+            if (cell.event !== undefined) await lab.event(cell.event, true);
             return undefined;
           case "unreachable":
             return lab.lift("reject", faultAt, { code: cell.icmp ?? "host" });

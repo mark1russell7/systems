@@ -33,6 +33,9 @@ export type { KernelRecord };
  *   target (`Target.close`): `CLIENT KILL` in Redis.
  * - `none` injects nothing. A calibration cell measures the path itself: for example the time of a
  *   proxy between its two sockets (`Cell.calibrates`).
+ * - `hop-event` is an event at a proxy of the topology (`Cell.event`): a signal to its program, or a
+ *   query on its console. Examples are a reload of the configuration (SIGHUP) and PAUSE on the
+ *   console of PgBouncer.
  *
  * A fault at a router of the topology (`Cell.faultAt`) acts on what the router forwards toward
  * one side. It is a black hole, a reset or an ICMP unreachable. It can also be a simplex drop, an
@@ -72,6 +75,7 @@ export type Fault =
   | "planned-failover"
   | "app-stall"
   | "step-down"
+  | "hop-event"
   | "none";
 
 /**
@@ -136,7 +140,24 @@ export interface ProxyHop {
   readonly sysctls?: Readonly<Record<string, string>>;
   /** These are the settings of the proxy, for the manifest: for example its idle timeouts. */
   readonly settings?: Readonly<Record<string, string>>;
+  /** This name is the process of the proxy, as /proc/PID/comm holds it, for a signal of a `hop-event`. */
+  readonly program?: string;
 }
+
+/**
+ * An event at a proxy hop (`hop-event`). A signal goes to each process of the program of the hop
+ * (`ProxyHop.program`). A query goes to the console of the hop from its own namespace, as a user
+ * that the console trusts. Its `undo` lifts it after the run. Without `inFlight`, the event
+ * comes first, and the request of the client meets it. With `inFlight`, the request goes first,
+ * and the event comes while it is in flight.
+ */
+export type HopEvent =
+  | { readonly hop: string; readonly signal: "HUP"; readonly inFlight?: true }
+  | {
+      readonly hop: string;
+      readonly console: { readonly port: number; readonly user: string; readonly database: string; readonly query: string; readonly undo?: string };
+      readonly inFlight?: true;
+    };
 
 /**
  * A hop is one box between the client and the target. Each hop is on two networks: the network
@@ -879,6 +900,8 @@ export interface Cell {
   readonly idleBefore?: Quantity;
   /** This toxic is the toxic of a `toxic` fault, which the Toxiproxy hop gets. */
   readonly toxic?: Toxic;
+  /** This event is the event of a `hop-event` fault, at a proxy of the topology. */
+  readonly event?: HopEvent;
   /** This image, or this client of the harness, replaces the TCP client of the harness for each run. An HTTP client is one. */
   readonly client?: ClientImage | Client;
   /**
@@ -961,6 +984,12 @@ export type FaultPlace = "target" | "client" | HopPlace | GroupPlace;
 /** This function tells if a fault place is a hop of a topology. */
 export const isHopPlace = (place: FaultPlace | undefined): place is HopPlace =>
   typeof place === "object" && "hop" in place;
+
+/**
+ * This function tells if the request of a client goes before the fault of its cell. That is so for a
+ * hop event that comes while the request is in flight (`HopEvent.inFlight`). Then a request after the fault is void.
+ */
+export const requestFirst = (cell: Cell): boolean => cell.fault === "hop-event" && cell.event?.inFlight === true;
 
 /**
  * This function gives the latest end of a band in seconds, from the reply of the client. It is

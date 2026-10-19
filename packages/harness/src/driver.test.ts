@@ -141,6 +141,17 @@ describe("a band of a driver with more than one socket", () => {
     expect(measureDriver(held, run({ heal: { t0: at(41.01), t1: at(41.011) } })).void).toBe("the lift came 10 ms after its hold: the injector was late, not the client");
   });
 
+  it("voids a run whose event at a hop came before the operation, when the event must come while it is in flight", () => {
+    const reload: Cell = { ...CELL, fault: "hop-event", event: { hop: "pgbouncer", signal: "HUP", inFlight: true } };
+    // the operation goes at 0.05 s: an event 200 ms after it holds, and an event before it is void
+    expect(measureDriver(reload, run({ fault: { t0: at(0.25), t1: at(0.2501) } })).void).toBeNull();
+    expect(measureDriver(reload, run()).void).toBe("the event came before the operation");
+    // without inFlight, the event comes first, as a fault does
+    const pause: Cell = { ...CELL, fault: "hop-event", event: { hop: "pgbouncer", console: { port: 6432, user: "postgres", database: "pgbouncer", query: "PAUSE", undo: "RESUME" } } };
+    expect(measureDriver(pause, run()).void).toBeNull();
+    expect(measureDriver(pause, run({ fault: { t0: at(0.25), t1: at(0.2501) } })).void).toBe("the operation went out before the fault held");
+  });
+
   it("ends a band of the kernel at the report on its socket: a keepalive of the idle pool", () => {
     const idle = cellOf(
       { detects: true, timer: "keepalive", errno: "ETIMEDOUT", from: "last-received", low: s(129.999), high: s(134.736), driver: { socket: "pool", quiet: [{ ev: "sdam", where: { event: "heartbeat-failed" } }] } },

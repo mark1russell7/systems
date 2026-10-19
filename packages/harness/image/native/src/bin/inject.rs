@@ -27,13 +27,17 @@
 //!   toxic of Toxiproxy. The stamps bracket the request and its answer, after the connect, so the
 //!   commit of the toxic is known on the same clock as the kernel's records.
 //!
-//! - `signal NAME SIGNAL`: SIGNAL (KILL, STOP, CONT or TERM) to each process whose name is NAME,
-//!   in the process namespace this sidecar shares with a member of a group. STOP and CONT freeze
-//!   a server and thaw it while its kernel stays up; KILL stops it, and its kernel closes its
-//!   sockets. The stamps bracket the kill(2) calls.
+//! - `signal NAME SIGNAL`: SIGNAL (KILL, STOP, CONT, TERM or HUP) to each process whose name is
+//!   NAME, in the process namespace this sidecar shares with a member of a group or a hop. STOP and
+//!   CONT freeze a server and thaw it while its kernel stays up; KILL stops it, and its kernel
+//!   closes its sockets; HUP asks a pooler to read its configuration again. The stamps bracket the
+//!   kill(2) calls.
 //! - `resp ADDR:PORT ARG...`: one command to a Redis-protocol server, for example
 //!   `SENTINEL FAILOVER mymaster` to a Sentinel. The stamps bracket the write of the command and
 //!   the first line of its reply, so a planned failover starts at a known instant.
+//! - `query ADDR:PORT USER DATABASE SQL`: one simple query to a server of the PostgreSQL protocol
+//!   that trusts the user, for example `PAUSE` on the console of PgBouncer. The stamps bracket the
+//!   write of the query and its ReadyForQuery, after the login, so the end of a PAUSE is known.
 //!
 //! A filter rule's PEER can be a list, `A,B,C`: the rules for each peer go in the same commit, so
 //! a part of a group loses all of its peers at one instant.
@@ -252,6 +256,7 @@ fn signal_number(name: &str) -> Result<libc::c_int, Box<dyn Error>> {
         "STOP" => libc::SIGSTOP,
         "CONT" => libc::SIGCONT,
         "TERM" => libc::SIGTERM,
+        "HUP" => libc::SIGHUP,
         other => return Err(format!("not a signal this injector sends: {other}").into()),
     })
 }
@@ -296,7 +301,7 @@ fn processes(name: &str) -> Result<Vec<libc::pid_t>, Box<dyn Error>> {
 /// `signal NAME SIGNAL [--at NS]`: the signal to each process of that name, bracketed by stamps
 fn signal(args: &[String]) -> Result<(), Box<dyn Error>> {
     let name = process_name(args.get(1).ok_or("signal NAME SIGNAL [--at NS]")?)?;
-    let sig = signal_number(args.get(2).ok_or("and the signal: KILL, STOP, CONT or TERM")?)?;
+    let sig = signal_number(args.get(2).ok_or("and the signal: KILL, STOP, CONT, TERM or HUP")?)?;
     let opts = options(&args[3..])?;
     let pids = processes(name)?;
     if pids.is_empty() {
@@ -357,6 +362,98 @@ fn resp(args: &[String]) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// a message of the PostgreSQL protocol from the client: its type, its length and its body
+fn pg_message(kind: u8, body: &[u8]) -> Vec<u8> {
+    let mut out = vec![kind];
+    out.extend_from_slice(&((body.len() + 4) as u32).to_be_bytes());
+    out.extend_from_slice(body);
+    out
+}
+
+/// the startup message of the protocol 3.0 for a user and a database: it has no type byte
+fn pg_startup(user: &str, database: &str) -> Vec<u8> {
+    let mut body = 196_608u32.to_be_bytes().to_vec();
+    for (key, value) in [("user", user), ("database", database)] {
+        body.extend_from_slice(key.as_bytes());
+        body.push(0);
+        body.extend_from_slice(value.as_bytes());
+        body.push(0);
+    }
+    body.push(0);
+    let mut out = ((body.len() + 4) as u32).to_be_bytes().to_vec();
+    out.extend_from_slice(&body);
+    out
+}
+
+/// one message of the server: its type and its body
+fn pg_read(stream: &mut impl std::io::Read) -> Result<(u8, Vec<u8>), Box<dyn Error>> {
+    let mut head = [0u8; 5];
+    stream.read_exact(&mut head)?;
+    let length = u32::from_be_bytes([head[1], head[2], head[3], head[4]]) as usize;
+    if length < 4 {
+        return Err("a message of the server is shorter than its length field".into());
+    }
+    let mut body = vec![0u8; length - 4];
+    stream.read_exact(&mut body)?;
+    Ok((head[0], body))
+}
+
+/// the text of an ErrorResponse: its field M, or the whole body when it has none
+fn pg_error(body: &[u8]) -> String {
+    body.split(|byte| *byte == 0)
+        .filter_map(|field| field.split_first())
+        .find(|(kind, _)| **kind == b'M')
+        .map(|(_, text)| String::from_utf8_lossy(text).to_string())
+        .unwrap_or_else(|| String::from_utf8_lossy(body).to_string())
+}
+
+/// `query ADDR:PORT USER DATABASE SQL [--at NS]`: one simple query, and its ReadyForQuery, bracketed
+/// by stamps. The login must need no password: the console of PgBouncer with auth_type trust is one
+fn query(args: &[String]) -> Result<(), Box<dyn Error>> {
+    use std::net::{SocketAddrV4, TcpStream};
+    let usage = "query ADDR:PORT USER DATABASE SQL [--at NS]";
+    let addr: SocketAddrV4 = args.get(1).ok_or(usage)?.parse()?;
+    let user = args.get(2).ok_or(usage)?;
+    let database = args.get(3).ok_or(usage)?;
+    let sql = args.get(4).ok_or(usage)?;
+    let opts = options(&args[5..])?;
+    let mut stream = TcpStream::connect(addr)?;
+    stream.write_all(&pg_startup(user, database))?;
+    // the login: AuthenticationOk, the parameters of the server, then ReadyForQuery
+    loop {
+        let (kind, body) = pg_read(&mut stream)?;
+        match kind {
+            b'R' if body.get(..4) == Some(&[0u8, 0, 0, 0][..]) => {}
+            b'R' => return Err("the server asks for a password: the query needs a user that it trusts".into()),
+            b'E' => return Err(format!("the login failed: {}", pg_error(&body)).into()),
+            b'Z' => break,
+            _ => {}
+        }
+    }
+    if let Some(at) = opts.at {
+        until(at)?;
+    }
+    let t0 = monotonic_ns();
+    let mut text = sql.as_bytes().to_vec();
+    text.push(0);
+    stream.write_all(&pg_message(b'Q', &text))?;
+    let mut tag = String::new();
+    loop {
+        let (kind, body) = pg_read(&mut stream)?;
+        match kind {
+            b'C' => tag = String::from_utf8_lossy(body.split(|byte| *byte == 0).next().unwrap_or(&[])).to_string(),
+            b'E' => return Err(format!("{sql} failed: {}", pg_error(&body)).into()),
+            b'Z' => break,
+            _ => {}
+        }
+    }
+    let t1 = monotonic_ns();
+    // Terminate: the server closes the session, and the sidecar does not wait for it
+    stream.write_all(&pg_message(b'X', &[]))?;
+    println!("{}", json!({ "action": "query", "query": sql, "tag": tag, "t0": t0, "t1": t1 }));
+    Ok(())
+}
+
 /// the peers of a filter rule: one address, or a list `A,B,C`
 fn peers(text: &str) -> Result<Vec<Ipv4Addr>, Box<dyn Error>> {
     let list: Vec<Ipv4Addr> = text.split(',').map(str::parse).collect::<Result<_, _>>()?;
@@ -377,6 +474,9 @@ fn run() -> Result<(), Box<dyn Error>> {
     }
     if action == "resp" {
         return resp(&args);
+    }
+    if action == "query" {
+        return query(&args);
     }
     match action {
         "netem" | "clear-netem" | "offload" => {
@@ -522,7 +622,8 @@ mod tests {
         assert_eq!(signal_number("STOP").unwrap(), libc::SIGSTOP);
         assert_eq!(signal_number("CONT").unwrap(), libc::SIGCONT);
         assert_eq!(signal_number("KILL").unwrap(), libc::SIGKILL);
-        assert!(signal_number("HUP").is_err());
+        assert_eq!(signal_number("HUP").unwrap(), libc::SIGHUP);
+        assert!(signal_number("USR1").is_err());
         assert!(process_name("valkey-server").is_ok());
         assert!(process_name("valkey-sentinel").is_ok());
         for name in ["", "a b", "x;y", "much-too-long-a-name"] {
@@ -541,6 +642,22 @@ mod tests {
             resp_command(&args),
             b"*3\r\n$8\r\nSENTINEL\r\n$8\r\nFAILOVER\r\n$8\r\nmymaster\r\n".to_vec()
         );
+    }
+
+    #[test]
+    fn a_query_is_a_startup_message_and_a_simple_query() {
+        // the length counts itself, then the protocol 3.0, then each pair, then a final zero
+        let startup = pg_startup("postgres", "pgbouncer");
+        assert_eq!(&startup[..4], &(startup.len() as u32).to_be_bytes());
+        assert_eq!(&startup[4..8], &[0, 3, 0, 0]);
+        assert_eq!(&startup[8..], b"user\0postgres\0database\0pgbouncer\0\0");
+        assert_eq!(pg_message(b'Q', b"PAUSE\0"), b"Q\0\0\0\x0aPAUSE\0".to_vec());
+        assert_eq!(pg_message(b'X', &[]), b"X\0\0\0\x04".to_vec());
+        let mut reply: &[u8] = b"Z\0\0\0\x05I";
+        assert_eq!(pg_read(&mut reply).unwrap(), (b'Z', b"I".to_vec()));
+        let mut short: &[u8] = b"Z\0\0\0\x03";
+        assert!(pg_read(&mut short).is_err());
+        assert_eq!(pg_error(b"SERROR\0C08P01\0Mno such command\0\0"), "no such command");
     }
 
     #[test]

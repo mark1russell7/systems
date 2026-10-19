@@ -241,6 +241,87 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
     expect(result.manifests[0]?.hops?.[0]).toMatchObject({ name: "pgbouncer", kind: "proxy" });
   }, 600_000);
 
+  it("signals the program of PgBouncer and queries its console: a reload keeps a query in flight, and a query after PAUSE waits", async () => {
+    const s = (value: number) => ({ value, unit: "s" });
+    // the console trusts the user postgres, and a query waits 2 s at most in the queue
+    const pgbouncer: ProxyHop = {
+      name: "pgbouncer",
+      kind: "proxy",
+      image: { kind: "shipped", name: "pgbouncer" },
+      port: 6432,
+      program: "pgbouncer",
+      files: {
+        "/etc/pgbouncer/pgbouncer.ini": [
+          "[databases]",
+          "postgres = host={{next.host}} port={{next.port}} dbname=postgres",
+          "[pgbouncer]",
+          "listen_addr = 0.0.0.0",
+          "listen_port = 6432",
+          "auth_type = trust",
+          "auth_file = /etc/pgbouncer/userlist.txt",
+          "pool_mode = transaction",
+          "admin_users = postgres",
+          "query_wait_timeout = 2",
+          "",
+        ].join("\n"),
+        "/etc/pgbouncer/userlist.txt": '"postgres" ""\n',
+      },
+      ready: "process up: PgBouncer 1.26.1",
+    };
+    const reload: Cell = {
+      name: "lab pg through pgbouncer, a reload while the server holds the query 2 s",
+      target: POSTGRES,
+      sysctls: {},
+      probe: { mode: "inflight", keepalive: false, driver: { name: "pg", inflight: "SELECT pg_sleep(2)" } },
+      fault: "hop-event",
+      event: { hop: "pgbouncer", signal: "HUP", inFlight: true },
+      topology: { name: "T10", hops: [pgbouncer] },
+      // PgBouncer reads its configuration again (src/main.c:619-627), and an unchanged database keeps its servers
+      prediction: {
+        detects: false,
+        window: s(10),
+        replies: { low: s(2), high: s(2.2) },
+        driver: { socket: "pool", reply: { from: "request-sent", ends: { ev: "ack", where: { n: 2 } } }, quiet: [{ ev: "fail" }] },
+      },
+      runs: 1,
+      environments: 1,
+    };
+    const reloaded = await runCell(reload);
+    expect(reloaded.measured[0]).toMatchObject({ void: null, finding: null });
+    // the injector signalled PgBouncer after the query went out
+    const sent = reloaded.runs[0]?.events.find((event) => event.ev === "sent" && event["n"] === 2);
+    expect(reloaded.runs[0]?.fault?.t0).toBeGreaterThan(sent?.t ?? Number.POSITIVE_INFINITY);
+    const pause: Cell = {
+      name: "lab pg through pgbouncer, PAUSE on the console, then a query",
+      target: POSTGRES,
+      sysctls: {},
+      probe: { mode: "inflight", keepalive: false, driver: { name: "pg" } },
+      fault: "hop-event",
+      event: { hop: "pgbouncer", console: { port: 6432, user: "postgres", database: "pgbouncer", query: "PAUSE", undo: "RESUME" } },
+      topology: { name: "T10", hops: [pgbouncer] },
+      // during PAUSE the query gets no server, and the janitor ends its wait (src/janitor.c:343-344)
+      prediction: {
+        detects: true,
+        timer: "query_wait_timeout",
+        errno: "08P01",
+        from: "request-sent",
+        low: s(2),
+        high: s(2.5),
+        driver: { socket: "pool", ends: { ev: "fail", where: { n: 2 }, name: "code" } },
+      },
+      runs: 2,
+      environments: 1,
+    };
+    const paused = await runCell(pause);
+    // RESUME after the first run lets the second one connect and pause again
+    expect(paused.measured.map((read) => [read.void, read.finding])).toEqual([
+      [null, null],
+      [null, null],
+    ]);
+    const waited = paused.runs[0]?.events.find((event) => event.ev === "fail" && event["n"] === 2);
+    expect(waited).toMatchObject({ code: "08P01", message: "query_wait_timeout" });
+  }, 900_000);
+
   it("passes a query of node-postgres through Pgpool-II, and the FIN of a stopped server ends the idle client", async () => {
     const s = (value: number) => ({ value, unit: "s" });
     const pgpool: ProxyHop = {

@@ -20,6 +20,7 @@ export type {
   GroupRole,
   HarnessImage,
   Hop,
+  HopEvent,
   HopPlace,
   HttpProbe,
   ImageSource,

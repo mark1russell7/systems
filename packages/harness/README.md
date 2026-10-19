@@ -213,6 +213,10 @@ ioredis sets the keepalive of its socket itself, after it connects. Thus a cell 
 - **A toxic** (`toxic`, `Cell.toxic`) is one toxic of Toxiproxy, added through its HTTP API by `inject http`, with monotonic stamps around the request. Its name is `fault`, and the harness removes it after the run. A cell whose fault is another one adds its toxic first: a slow close, then the close of the server.
 - **A close of the server** (`server-close`) makes the server close the connection of each client, with `Target.close`: `CLIENT KILL` for Redis.
 - **A stall of the application** (`app-stall`) injects nothing. The server process holds the reply, because the request asks for it (`HttpProbe.hold`), and its kernel stays up.
+- **An event at a proxy** (`hop-event`, `Cell.event`) is a signal to the program of the proxy, or a query on its console. Examples are a reload of the configuration and PAUSE on the console of PgBouncer.
+  - A signal goes to each process of `ProxyHop.program`. A sidecar in the network and process namespaces of the proxy sends it (`inject signal NAME HUP`). The lab starts that sidecar at the first signal.
+  - A query goes from the injector of the proxy to its console on 127.0.0.1, as a user that the console trusts (`inject query`). The injector speaks the simple query of the PostgreSQL protocol. Its stamps bracket the query and its ReadyForQuery. After the run, the harness sends the `undo` of the query, for example RESUME after PAUSE.
+  - Without `inFlight`, the event comes first, and the request meets it. With `inFlight`, the request goes first, and the event comes while it is in flight. A run whose order is not that order is void.
 - **A fault on a group** acts on the part that `Cell.faultAt` names by its role:
   - A black hole (`blackhole`) drops each segment between the part and each peer. A reset (`rst`) answers each segment from a peer with a reset, thus the part refuses each connection.
   - A partial partition (`partition`) is a black hole between the part and some of its peers (`GroupPlace.cuts`). `group` cuts the part from the other members and the Sentinels, and `clients` cuts it from the client.

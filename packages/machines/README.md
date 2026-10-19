@@ -95,6 +95,12 @@ A change to the version of a system changes its sources too. Each fact of the do
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
 
+### 0.3.13
+
+- **A reload of a pooler.** `pgbouncer-client`, `pgbouncer-server` and `pgpool-session` have the event `local.reload`: SIGHUP, which reads the configuration again. No transition takes it, thus a session keeps its state, its server and each timer.
+  - PgBouncer: src/main.c:619-627, and src/loader.c:394-419 closes a server only when the connection of its database changed.
+  - Pgpool-II: src/main/pgpool_main.c:3551-3566 sends SIGHUP to each child, and a child in a session reads the configuration again in the loop of its query (src/protocol/pool_process_query.c:456-466).
+
 ### 0.3.12
 
 - **The send timeout of the client socket of Supavisor.** Supavisor 2.9.13 locks ranch 2.2.0. ranch gives each client socket a send timeout of 30 s that closes the socket (src/ranch_tcp.erl:108-109). Thus a write of a reply that waits 30 s ends the client. `supavisor-client` gives it as a source and a note, with no timer. A write waits only when the client takes no data, and on a broken path the FIN of the close waits behind the data. In run 39170773426, behind an MTU black hole, the socket closed 30.068 to 30.086 s after the fault in each of 11 runs.
