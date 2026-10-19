@@ -720,14 +720,32 @@ The heartbeats of AMQP and the timers of the broker. R3 puts 54 cells on amqplib
 
 ### H2 · HTTP/2 and gRPC
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** HTTP
-- **Started:**
+- **Started:** 2026-10-19
 - **Shipped:**
 - **Links:**
 
-The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a gRPC server.
+The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a gRPC server. R3 puts 148 cells on grpc-js 1.14 and on a server of grpc-go. 66 are in T01: 27 at the defaults, 12 borders of O03, O17, O25 and O26, and 27 in the array stage. The other cells are 22 in T02 (proxies), 22 in T03 (the routers of the clouds), 16 in T07 (kind) and 22 in T15 (Istio).
+
+- The facts from the sources: grpc-js 1.14.6, grpc-go v1.84.0, and etcd v3.6.15 on grpc-go v1.83.2.
+  - grpc-js sets TCP_NODELAY on each connection. It sets no TCP keepalive and no connect timeout.
+  - The keepalive of grpc-js is off at the defaults. When it is on, the client waits 20 s for the ACK of each PING. A GOAWAY with `too_many_pings` doubles its keepalive time.
+  - A call of grpc-js has no deadline at the defaults. Thus a call on a silent connection waits for the kernel.
+  - When a connection ends, each call in flight on it ends with UNAVAILABLE, and grpc-js does not retry it. It retries only a call that did not start, and once a stream that the server refused.
+  - grpc-js connects again after 1 s, then each wait is 1.6 times longer, up to 120 s, with a jitter of 20 %. A channel with no call for 30 min goes idle.
+  - A server of grpc-go sends a PING after 2 h with no read. It closes the connection when the ACK does not come in 20 s.
+  - Because its keepalive is on, grpc-go gives each accepted connection a TCP_USER_TIMEOUT of 20 s. Go accepts each connection with a TCP keepalive of 15 s idle, 15 s between probes and 9 probes. Thus an idle connection to a client that is gone ends 30 s after the last data, at the second firing of the keepalive.
+  - A PING from the client is a strike when it comes less than 5 min after the last one. With no stream open, the minimum is 2 h. Headers or data from the server clear the strikes. The third strike gives GOAWAY ENHANCE_YOUR_CALM with `too_many_pings`, and the server closes the connection.
+  - etcd sets the keepalive of its server to 2 h and 20 s. A client can ping each 5 s, but not with no stream open.
+  - The server of etcd serves gRPC and HTTP on one port through cmux. The transport of grpc-go sets TCP_USER_TIMEOUT only on a TCPConn of Go, thus the client connections of etcd have none. The listener of etcd sets the keepalive idle to 30 s. The 15 s between probes and the 9 probes of Go stay. Thus an idle connection to a client that is gone ends 165 s after the last data.
+  - etcd registers the health service of gRPC. Thus one client of the harness operates on both servers.
+- The steps:
+  - The machine documents of grpc-js, of a server of grpc-go, and of the server of etcd, each fact from the source at its tag.
+  - A client of grpc-js in the harness, which calls `grpc.health.v1.Health/Check`. A server of grpc-go in the harness, built from its tag, that can hold a reply for a cell. A target of etcd, pinned by digest.
+  - The T01 catalog at the defaults, with the borders of O03, O17, O25 and O26. Then the array stage, then T03, T02, T07 and T15.
+  - The page of the results on the site.
 
 ## Kubernetes
 
