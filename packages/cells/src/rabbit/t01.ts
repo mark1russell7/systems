@@ -5,7 +5,7 @@ import { AMQPLIB, LINUX_TCP, RABBITMQ_CONNECTION } from "@mark1russell7/machines
 import type { Extent } from "@mark1russell7/quantity";
 import { HZ, RTT_MS, RUNS, count, given, predict, s, seconds, sysctlsOf } from "../catalog.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
-import type { Waiting } from "../mongo/cells.ts";
+import type { Alias, Waiting } from "../mongo/cells.ts";
 import type { Span } from "../mongo/model.ts";
 import { linuxValues, span } from "../mongo/model.ts";
 import { PRESETS } from "../mongo/t03.ts";
@@ -303,6 +303,54 @@ export const T01_AMQP_WAITING: readonly Waiting[] = [
     why: "the client of the harness sends one RPC at a time. Two writes before a read need a workload of the client, with Nagle on in amqplib",
   },
 ];
+
+/**
+ * The array stage of the plan gives each cell at the defaults a practice profile (R3, D-profiles.json),
+ * with the same trigger. A profile sets only the knobs of the systems that it names. These profiles
+ * name PostgreSQL, gRPC or a managed Redis, or the defaults of RabbitMQ. They set no knob of amqplib or
+ * of RabbitMQ, and no knob of Linux TCP that the cell reads. Thus each array cell is its cell at the defaults.
+ */
+export const T01_AMQP_ARRAY_ALIASES: readonly Alias[] = [
+  {
+    plan: "T01.array.134",
+    is: "T01.defaults.134",
+    why: "DP21 sets the timers of the PostgreSQL server, and it keeps the keepalive of the kernel at its defaults. amqplib sets no keepalive",
+  },
+  {
+    plan: "T01.array.135",
+    is: "T01.defaults.135",
+    why: "DP45 is the defaults of RabbitMQ 4.3: consumer_timeout of 30 min, which binds only a quorum queue, and a heartbeat of 60 s",
+  },
+  {
+    plan: "T01.array.136",
+    is: "T01.defaults.136",
+    why: "DP22 sets the timers and the keepalive of the PostgreSQL server. The killed broker resets the connection before a timer can fire",
+  },
+  {
+    plan: "T01.array.137",
+    is: "T01.defaults.137",
+    why: "DP44 gives the client a connect timeout of 5 s and a command timeout. amqplib clears its connect timeout when the connection opens (connect.js:157-159), and it has no command timeout",
+  },
+  { plan: "T01.array.138", is: "T01.defaults.138", why: "DP48 is the connect path at the defaults, and the operation of this cell is in flight on an open connection" },
+  { plan: "T01.array.139", is: "T01.defaults.139", why: "DP23 is gRPC at its defaults: it sets no knob of these systems" },
+  { plan: "T01.array.140", is: "T01.defaults.140", why: "DP24 is the keepalive of gRPC that its vendor recommends: it sets no knob of these systems" },
+  {
+    plan: "T01.array.142",
+    is: "T01.defaults.142",
+    why: "DP25 is the keepalive of a gRPC client against a server that enforces a minimum: it sets no knob of these systems, and the reset comes before the handshake",
+  },
+];
+
+/** These are the profiles of the array cells whose cell at the defaults waits, by the number of the cell. */
+const ARRAY_PROFILES: Readonly<Record<string, string>> = { "10": "DP47", "141": "DP42", "143": "DP40", "144": "DP44", "145": "DP44" };
+
+/** These are the cells of the array stage that wait. Each one waits for the reason of its cell at the defaults. */
+export const T01_AMQP_ARRAY_WAITING: readonly Waiting[] = T01_AMQP_WAITING.map((each) => {
+  const n = each.plan.replace(/^T01\.defaults\./, "");
+  const profile = ARRAY_PROFILES[n];
+  if (profile === undefined) throw new Error(`${each.plan}: no profile of the array stage`);
+  return { plan: `T01.array.${n}`, trigger: each.trigger, why: `as T01.defaults.${n}, under ${profile}: ${each.why}` };
+});
 
 /** This function gives the name of a cell: its cell of the plan, its tuple of systems, and what it does. */
 export const amqpNameOf = (spec: AmqpSpec): string => `${spec.plan} amqplib-2.2 to rabbitmq-4.3, ${spec.name}`;

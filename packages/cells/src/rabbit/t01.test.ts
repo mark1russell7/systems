@@ -2,7 +2,18 @@ import { describe, expect, it } from "vitest";
 import { AMQPLIB, RABBITMQ_CONNECTION } from "@mark1russell7/machines";
 import { RUNS } from "../catalog.ts";
 import { T01_PG } from "../pg/t01.ts";
-import { O17_RETRIES, RABBIT_LATENCY, RABBIT_ROUTER, RABBIT_TARGET, T01_AMQP, T01_AMQP_BORDER_SPECS, T01_AMQP_SPECS, T01_AMQP_WAITING } from "./t01.ts";
+import {
+  O17_RETRIES,
+  RABBIT_LATENCY,
+  RABBIT_ROUTER,
+  RABBIT_TARGET,
+  T01_AMQP,
+  T01_AMQP_ARRAY_ALIASES,
+  T01_AMQP_ARRAY_WAITING,
+  T01_AMQP_BORDER_SPECS,
+  T01_AMQP_SPECS,
+  T01_AMQP_WAITING,
+} from "./t01.ts";
 
 const cell = (plan: string) => {
   const found = T01_AMQP.find((each) => each.name.startsWith(`${plan} amqplib-2.2 to rabbitmq-4.3, `));
@@ -23,6 +34,21 @@ describe("the RabbitMQ catalog of T01", () => {
       expect(each.runs, each.name).toBe(RUNS);
     }
     expect(RABBIT_TARGET.image).toMatch(/^rabbitmq:4\.3\.6@sha256:[0-9a-f]{64}$/);
+  });
+
+  it("gives each cell of the array stage the cell at the defaults with its number, as an alias or as a cell that waits", () => {
+    const named = [...T01_AMQP_ARRAY_ALIASES.map((each) => each.plan), ...T01_AMQP_ARRAY_WAITING.map((each) => each.plan)];
+    expect(named.sort()).toEqual(PLAN.map((n) => `T01.array.${n}`).sort());
+    for (const alias of T01_AMQP_ARRAY_ALIASES) {
+      expect(alias.is, alias.plan).toBe(alias.plan.replace(".array.", ".defaults."));
+      expect(() => cell(alias.is), alias.plan).not.toThrow();
+    }
+    // an array cell waits only when its cell at the defaults waits, with the same trigger
+    for (const each of T01_AMQP_ARRAY_WAITING) {
+      const defaults = T01_AMQP_WAITING.find((wait) => wait.plan === each.plan.replace(".array.", ".defaults."));
+      expect(defaults?.trigger, each.plan).toBe(each.trigger);
+      expect(each.why, each.plan).toContain(defaults!.why);
+    }
   });
 
   it("ends a silent fault at the heartbeat of amqplib, 2 to 3 heartbeats after the last bytes of the broker", () => {

@@ -686,6 +686,10 @@ The heartbeats of AMQP and the timers of the broker. R3 puts 54 cells on amqplib
   - A client of amqplib in the harness, and RabbitMQ as a target, pinned by digest.
   - The T01 catalog at the defaults, with the borders of O03 and O17. Then the array stage, and T11.
   - The page of the results on the site.
+- The array stage of T01 gives each of the 13 cells at the defaults a practice profile, with the same trigger (#100).
+  - These profiles name the defaults of RabbitMQ, PostgreSQL, gRPC or a managed Redis. No profile sets a knob of amqplib, of RabbitMQ, or of the Linux TCP that the cell reads.
+  - Thus 8 array cells are aliases of their cells at the defaults, and 5 wait for the reasons of those cells.
+  - DP44 gives the client a connect timeout of 5 s. The client clears that timeout when the connection opens, thus it does not change a fault with an operation in flight.
 
 ### H2 · HTTP/2 and gRPC
 
