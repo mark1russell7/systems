@@ -754,7 +754,7 @@ The heartbeats of AMQP and the timers of the broker. R3 puts 54 cells on amqplib
 - **Depends on:** HTTP
 - **Started:** 2026-10-19
 - **Shipped:**
-- **Links:**
+- **Links:** [The results](https://mark1russell7.github.io/systems/results/grpc/), [#105](https://github.com/mark1russell7/systems/pull/105), [The run at main](https://github.com/mark1russell7/systems/actions/runs/39288251967)
 
 The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a gRPC server. R3 puts 148 cells on grpc-js 1.14 and on a server of grpc-go. 66 are in T01: 27 at the defaults, 12 borders of O03, O17, O25 and O26, and 27 in the array stage. The other cells are 22 in T02 (proxies), 22 in T03 (the routers of the clouds), 16 in T07 (kind) and 22 in T15 (Istio).
 
@@ -784,6 +784,7 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - Two deadlines race. A call with a deadline gets a timer of the same time at the server of grpc-go, from the header grpc-timeout. The server resets the stream at its end. With a deadline of 4 s, 4 of 11 calls got CANCELLED and not DEADLINE_EXCEEDED, thus that cell of DP44 is a measurement. Its next run gave 8 DEADLINE_EXCEEDED and 3 CANCELLED, with a median of 4.003 s.
   - O03, O17 and O25 observe the socket of the server. A router forgets the flow at 35 s. A probe of the listener of grpc-go at 15 s keeps the flow. At 45 s the kernel of the server aborts the socket at 60.947 s. etcd probes at 30 s, with no TCP_USER_TIMEOUT. A router at 45 s keeps the flow, and behind one at 20 s the kernel of etcd aborts the socket at 168.691 s. A PING of etcd 10 s after the last read closes the connection at 30.002 s with a Timeout of 20 s. With 120 s, the kernel gives up first, 52.168 s after the first retransmission. TCP_USER_TIMEOUT of 20 s on grpc-go aborts an idle connection to a gone client at 30.599 s. With 160 s, above the 150 s of the keepalive alone, the abort moves to 169.010 s.
   - O26: the PINGs of grpc-js on a stream in flight, against a MinTime of 5 s. With a keepalive of 6 s, the call held 30 s gets its reply at 30.003 s, and a Watch of etcd stays open. With 4 s, the server sends GOAWAY too_many_pings at the fourth PING. The held call to grpc-go ended 16.034 s after the start of the client, and grpc-js logged it 16.007 s after the reply to the first call. The first PING clears the strikes, because the server wrote a reply since the last one.
+- The page of the results gives the 32 cells of T01 from the run at main 39288251967. 31 cells hold, and the race of the two deadlines is a measurement: 2 of 11 calls got CANCELLED. The cells counted 352 runs, and no run was void. The export `scripts/grpc.ts` reads each raw record again with the judge of the harness. The ledger and the map of the cells add the page.
 
 ## Kubernetes
 

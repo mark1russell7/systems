@@ -27,6 +27,8 @@ const FINDINGS: ReadonlyArray<{ readonly page: string; readonly tag: string; rea
   { page: "pg", tag: "T01 · T10", anchor: "hikaricp", text: <>Behind a black hole, the keepalive checks of HikariCP wait in one queue.</> },
   { page: "rabbitmq", tag: "T01", anchor: "what-the-cells-found", text: <>A stopped RabbitMQ broker resets its clients at once: its sockets have linger 0.</> },
   { page: "rabbitmq", tag: "T11", anchor: "t11-the-cluster", text: <>A quorum queue fails over after 6 s, but amqplib leaves its client on the silent node for 3 minutes.</> },
+  { page: "grpc", tag: "T01", anchor: "what-the-cells-found", text: <>A server of grpc-go finds a client that is gone in 30 s, and grpc-js does not find a server that is gone.</> },
+  { page: "grpc", tag: "T01", anchor: "what-the-cells-found", text: <>The deadline of a gRPC call races the same deadline at a server of grpc-go: the call can end with CANCELLED.</> },
   { page: "kind", tag: "T07", anchor: "what-the-cells-found", text: <>A stale conntrack entry catches a later connection.</> },
   { page: "calibration", tag: "Stage 0", anchor: "what-the-calibration-sets", text: <>More environments do not change the spread of keepalive.</> },
 ];
