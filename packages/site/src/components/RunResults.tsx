@@ -1,6 +1,6 @@
 /**
  * The results of the cells from the hosted runners of GitHub: T12 under Sentinels, the HTTP
- * keep-alive race, MongoDB, PostgreSQL, RabbitMQ, gRPC, and Kubernetes in kind. Each harness cell has a frame with a strip chart,
+ * keep-alive race, MongoDB, PostgreSQL, RabbitMQ, gRPC and kind. Each harness cell has a frame with a strip chart,
  * its prediction and its verdict. The chart has a dot for each counted run, against the band. A frame
  * of a group also has the stages of the failover. A kind cell has a frame with its verdict, and a
  * strip chart when its main value is a time.
