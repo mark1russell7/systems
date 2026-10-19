@@ -452,18 +452,26 @@ The store is an interface, and each store decides a take in one atomic step on i
 
 `lint()` applies two new rules to each limiter. O29 bounds the longest `Retry-After` by the retry window of the caller, at the cap of keys too. O30 bounds the retry delay of the caller from below. Their identifiers are provisional, because the corpus of the law does not have them yet.
 
-### SYS-29 · The answers of a cut call before the close of the sockets
+It comes in service 0.5.3, a PATCH: new exports. The store in Redis (`redisLimiterStore`, one script that reads `TIME`) comes in 0.5.4, also a PATCH. The machine document and the harness cell come next. The client item CLI-40 builds the admission step of the procedures server on it.
 
-- **Status:** in progress
+### SYS-29 · The drain of httpTransport waits for the answers of the cut calls
+
+- **Status:** done
 - **Area:** server stack
 - **Depends on:**
 - **Started:** 2026-10-19
-- **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Shipped:** 2026-10-19
+- **Links:** [#111](https://github.com/mark1russell7/systems/pull/111), [#113](https://github.com/mark1russell7/systems/pull/113), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-At the drain deadline, the drain timer of `httpTransport` resolves before the cut timer of the requests. Thus the listener does not wait for the answers of the cut calls. A 500, a 503 or the in-band end of a cut call can then race the close of its socket. The host of the client waits for them by itself (client #69). A plain service app on `httpTransport` does not. The fix orders the timers. The cut goes first, and the drain resolves after the answers of the cut flush, under the cap of the phase. The server-stack session builds it, as service 0.5.5 (PATCH: a fix with no change to the API).
+The client item CLI-48 found it. At the deadline of the drain, the timer of the transport and the cut of the requests come at the same time. With `setTimeout`, the timer of the transport comes first. Then the drain ended before the cut calls had their answers. The close of the sockets raced the 503, the 500 or the in-band end of each call.
 
-It comes in service 0.5.3, a PATCH: new exports. The store in Redis (`redisLimiterStore`, one script that reads `TIME`) comes in 0.5.4, also a PATCH. The machine document and the harness cell come next. The client item CLI-40 builds the admission step of the procedures server on it.
+With the fix, the drain of `httpTransport` also waits at its deadline for each answer that is to come or to go out. That is a response that `writeOutcome` writes, or an ended response whose bytes did not go. Thus the sequence of the two timers has no effect, and each app on `httpTransport` gets the fix. The cap of the phase bounds the wait. A client that does not read its answer holds the drain to the cap.
+
+A phase fails only for its own work (the review of the systems session). At the cap, a drain that waits only for the bytes of its answers did its work. Thus the cap is not a failure, and the exit code stays 0, as before 0.5.5. The event `phase.cap` gives the cause and the count, for example `answers not flushed: 2`. A call whose end did not come, or other work that did not end, still fails the phase with exit code 1.
+
+It comes in service 0.5.5, a PATCH: a bug fix, with no change to an export.
+
+The drain waits only for work that it owns and can cut (the second review). `life.request` of a lifecycle records that lifecycle as the owner of each stream that it makes. A stream of `writeOutcome` from another lifecycle, or from none, does not hold the drain and does not count at the cap. Thus the drain ends at its deadline for such a stream, as in 0.5.4. The record of the drain gives their count, for example `streams outside the lifecycle: 1`. With this change in service 0.5.6, a PATCH, each exit code is the exit code of 0.5.4.
 
 ## The systems of S1
 
@@ -790,7 +798,19 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - The listener of grpc-go probes each 15 s. Thus an idle flow lives through the GCP form (600 s) for 700 s, and through the AWS form (350 s) under DP11 for 400 s.
   - A simplex drop toward the client ends in a reset of the router. TCP_USER_TIMEOUT aborts the socket of the server with a reset. Conntrack sees that reset before the rule drops it, and each later packet arms the CLOSE timeout of 10 s again. The 8th retransmission of the client finds no entry, and the router of the reset-next form resets it, at 53.552 s.
   - Behind a black hole toward the client, nothing at the client detects the fault. The keepalive of the listener aborts the socket of the server at 30 s, and its reset takes the entry to CLOSE. The router forgets the flow 10 s later: 40.377 s to 40.839 s after the last segment of the client. From harness 0.11.19, the judge of a driver cell tests that band.
-  - From harness 0.11.19, a failed build of an image tries again after 5 s and 20 s. Four shards of these runs failed with "Failed to build image", and the step after each failure built each image with no error.
+  - Shards of these runs failed with "Failed to build image", on the new image of the runners of GitHub. That image has Linux 7.0. Linux 7.0 moved the retransmit timer and the keepalive timer of TCP to new fields, and the prober did not compile against them. From prober 0.3.2, the prober reads each field of either kernel (#112). From harness 0.11.20, the harness builds each image with the CLI of Docker. Thus the error of a failed build shows the error of its compiler.
+- The plan of T02: grpc-js through one proxy to grpc-go. R3 gives 8 cells at the defaults and 14 in the array stage. The proxies are Envoy 1.39, Traefik 3.7, Caddy 2.11, nginx before 1.29.7, Toxiproxy 2.12 and docker-proxy 29.1. The facts come from the source at these tags: Envoy v1.39.4, Traefik v3.7.15, Caddy v2.11.7, nginx release-1.29.6, Toxiproxy v2.12.0 and moby docker-v29.1.5.
+  - A proxy answers a fault of its upstream itself. Before the headers of the response, Envoy, Traefik, Caddy and nginx send a 502, 503 or 504. grpc-js reads UNAVAILABLE. After the headers, each one resets the stream with INTERNAL_ERROR, and grpc-js reads INTERNAL. None of them retries a call at its defaults.
+  - Envoy ends each call 15 s after the end of its request, at the timeout of its route: 504 "upstream request timeout", thus UNAVAILABLE. It forwards `grpc-timeout` and does not read it. Thus a call into a black hole through Envoy ends at 15 s, where on the direct pair nothing ends it.
+  - Each of the four sends GOAWAY(NO_ERROR) on a connection with no stream at its idle close. That is 1 h for Envoy, 180 s for Traefik, 5 min for Caddy and 75 s for nginx. A PING of the client does not reset it. Traefik ends a stream at 60 s when its request still sends (`readTimeout`). Caddy ends a stream whose request sends nothing for 60 s (`read_body_idle`).
+  - At SIGTERM, Envoy and nginx close each connection with no GOAWAY. Traefik sends GOAWAY and closes each connection 10 s later. Caddy waits for each stream at its defaults.
+  - Toxiproxy and docker-proxy copy TCP and know no HTTP. Toxiproxy has no half-close: a FIN of either side closes both sockets. But docker-proxy passes a FIN as a half-close, and it ends each connection when Docker stops it. Neither has a timer. Go gives each of their sockets a TCP keepalive of 15 s, 15 s and 9 probes.
+- The steps of T02: the machine documents of the six proxies, and then their hops in the harness. A hop has an image pinned by digest, a static configuration and a ready line. Then a `hop-event` gets a signal other than HUP (a stop), and then the catalog follows. A cell of the array stage whose profile sets no knob of a proxy is an alias of its cell at the defaults.
+- The first cells of T02 go through Envoy, Toxiproxy and docker-proxy (machines 0.3.17, harness 0.11.21). Each band comes from the document of its proxy:
+  - T02.defaults.31: a reset at Envoy toward the server, with a call in flight. Envoy answers with its local reply, UNAVAILABLE, on the open connection.
+  - T02.defaults.35 and .36: a stop of Toxiproxy (SIGTERM) and of docker-proxy (SIGINT, as Docker stops it at a restart). The exit of the proxy closes the idle connection.
+  - T02.defaults.48: the FIN of the stopped server, which Toxiproxy passes as a close of the client.
+  - 4 array cells are aliases. The cells over Traefik, Caddy and nginx wait for their documents. 4 cells of docker-proxy wait, because it counts no request.
 
 ## Kubernetes
 

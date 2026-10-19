@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/harness",
-  "version": "0.11.19",
+  "version": "0.11.21",
   "description": "A fault-injection harness for connection timers: a cell runs a client against a stock target in Docker, through a topology of routers and proxies, a replicated group under Sentinels or a replica set, injects a fault, measures the kernel's own records and judges a prediction. HTTP clients of Go, Node and undici race the keep-alive of a Node server, and the MongoDB driver meets the faults of a replica set. The WebSocket client of @procedures/client drops a silent connection on its own heartbeat, and the harness times that detection and the reconnect from the program's lines and the kernel's stamps.",
   "keywords": [
     "fault-injection",
@@ -92,6 +92,7 @@
     "image/router/resetter.py",
     "image/pgbouncer/Dockerfile",
     "image/pgpool/Dockerfile",
+    "image/docker-proxy/Dockerfile",
     "README.md",
     "LICENSE"
   ],

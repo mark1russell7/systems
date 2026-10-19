@@ -55,8 +55,11 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `GRPC_JS` | `grpc-js` | grpc-js 1.14.6: one channel to a gRPC server, its HTTP/2 transport, its keepalive and a unary call | driver | 26 implemented, 1 observed |
 | `GRPC_GO_SERVER` | `grpc-go-server` | A server of grpc-go v1.84.0: one HTTP/2 connection, its keepalive, its policy for PINGs and its TCP socket | server | 13 implemented, 1 documented |
 | `ETCD_SERVER` | `etcd-server` | The server of etcd v3.6.15 on grpc-go v1.83.2: one gRPC connection of a client | server | 19 implemented, 1 documented |
+| `ENVOY_HTTP2` | `envoy-http2` | Envoy 1.39.4 as an HTTP/2 proxy of gRPC: one connection of a client, its streams, the local replies and the close | proxy | 16 implemented |
+| `TOXIPROXY_LINK` | `toxiproxy-link` | Toxiproxy 2.12.0 with no toxic: one proxied TCP connection and its close | proxy | 9 implemented |
+| `DOCKER_PROXY_LINK` | `docker-proxy-link` | docker-proxy of Docker Engine 29.1.5: one proxied TCP connection and its close | proxy | 9 implemented |
 
-Twenty-four documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel, the replication of mongod, aten and the member of Ra operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
+Twenty-seven documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel, the replication of mongod, aten and the member of Ra operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
 
 The package also gives these parts:
 
@@ -101,6 +104,13 @@ A document changes only for one of two reasons:
 A change to the version of a system changes its sources too. Each fact of the document then cites the new version.
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
+
+### 0.3.17
+
+- **The proxies of T02 for gRPC: Envoy 1.39.4, Toxiproxy 2.12.0 and docker-proxy 29.1.5.** Three new documents, each from the source at its tag:
+  - `envoy-http2`: one connection of a client through Envoy to one cluster of h2c. Envoy answers a failure of its upstream itself. Before the headers of a response, it sends a local reply of trailers only: 503 or 504, thus UNAVAILABLE. After the headers, it resets the stream with INTERNAL_ERROR. It retries no call at the defaults. The route ends each call 15 s after the end of its request. Envoy sets no keepalive of HTTP/2 or of TCP, and at SIGTERM it closes each connection with no GOAWAY.
+  - `toxiproxy-link`: a TCP copy with no timer. Each socket gets the TCP keepalive of Go (15 s, 15 s, 9). An end of file or a reset of either side closes both sockets: Toxiproxy has no half-close.
+  - `docker-proxy-link`: a TCP copy with no timer, with the same keepalive. A FIN passes as a half-close, and a reset of one side becomes a FIN toward the other. Docker stops the proxy with SIGINT at a stop or a restart of its container, and each connection then closes fully.
 
 ### 0.3.16
 

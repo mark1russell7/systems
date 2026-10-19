@@ -165,7 +165,9 @@ The entry `@mark1russell7/harness/schema` has the zod schemas of a source (`imag
 
 ## The images
 
-The harness ships fifteen images, each as a shipped source (`ImageSource`). The tag of each image comes from the path of its Dockerfile and the content of all the files that its Dockerfile reads. The harness copies these files into a new build context, from its own package and from the prober package. Thus the build works in a workspace and from npm.
+The harness ships sixteen images, each as a shipped source (`ImageSource`). The tag of each image comes from the path of its Dockerfile and the content of all the files that its Dockerfile reads. The harness copies these files into a new build context, from its own package and from the prober package. Thus the build works in a workspace and from npm.
+
+From 0.11.20, the harness builds each image with the CLI of Docker (`docker build`), thus with BuildKit where the CLI has it. Testcontainers reads nothing of the output of a build, and its error is "Failed to build image" only. The error of a failed build holds each line of its output that names an error, and its last 15 lines (`buildFailure`). Thus the host of a lab needs the CLI of Docker and its daemon.
 
 - **The harness image** (`image/Dockerfile`) has two stages, each a digest-pinned Alpine. `Cargo.lock` pins the crates. The image holds:
   - the kernel program of the prober, compiled against the BTF of the kernel that builds it, and its Rust collector.
@@ -210,6 +212,7 @@ The harness ships fifteen images, each as a shipped source (`ImageSource`). The 
   - A cell gives its configuration as files of the hop (`ProxyHop.files`): `/etc/pgbouncer/pgbouncer.ini` and `/etc/pgbouncer/userlist.txt`. In them, `{{next.host}}` and `{{next.port}}` are the host and the port of the server.
   - PgBouncer does not start as root, thus it operates as its own user.
 - **The Pgpool-II image** (`image/pgpool`) is Pgpool-II 4.7.3, a pooler hop, on a digest-pinned Alpine. The build gets the source of the tag V4_7_3 from GitHub and checks its SHA-256 before it builds. The tree of git holds no `configure`, thus the build runs autoreconf, and bison and flex make the parser.
+- **The docker-proxy image** (`image/docker-proxy`) is docker-proxy of Docker Engine 29.1.5, the userland proxy of a published port, as a proxy hop. The build gets the static bundle of Docker 29.1.5 and checks its SHA-256. The proxy writes its status to fd 3, the pipe of its parent in Docker. Thus a cell starts it with `3>/dev/null`.
   - A hop takes the image as a shipped source: `{ kind: "shipped", name: "pgpool" }`.
   - A cell gives its configuration as one file of the hop: `/etc/pgpool/pgpool.conf`. Each other file that Pgpool-II reads is empty in the image. Pgpool-II operates in the foreground as its own user.
 
@@ -243,8 +246,8 @@ ioredis sets the keepalive of its socket itself, after it connects. Thus a cell 
 - **A toxic** (`toxic`, `Cell.toxic`) is one toxic of Toxiproxy, added through its HTTP API by `inject http`, with monotonic stamps around the request. Its name is `fault`, and the harness removes it after the run. A cell whose fault is another one adds its toxic first: a slow close, then the close of the server.
 - **A close of the server** (`server-close`) makes the server close the connection of each client, with `Target.close`: `CLIENT KILL` for Redis.
 - **A stall of the application** (`app-stall`) injects nothing. The server process holds the reply, because the request asks for it (`HttpProbe.hold`), and its kernel stays up.
-- **An event at a proxy** (`hop-event`, `Cell.event`) is a signal to the program of the proxy, or a query on its console. Examples are a reload of the configuration and PAUSE on the console of PgBouncer.
-  - A signal goes to each process of `ProxyHop.program`. A sidecar in the network and process namespaces of the proxy sends it (`inject signal NAME HUP`). The lab starts that sidecar at the first signal.
+- **An event at a proxy** (`hop-event`, `Cell.event`) is a signal to the program of the proxy, or a query on its console. Examples are a reload of the configuration, a stop of a proxy and PAUSE on the console of PgBouncer.
+  - A signal goes to each process of `ProxyHop.program`: HUP, TERM or INT (`HopSignal`). A sidecar in the network and process namespaces of the proxy sends it (`inject signal NAME HUP`). The lab starts that sidecar at the first signal.
   - A query goes from the injector of the proxy to its console on 127.0.0.1, as a user that the console trusts (`inject query`). The injector speaks the simple query of the PostgreSQL protocol. Its stamps bracket the query and its ReadyForQuery. After the run, the harness sends the `undo` of the query, for example RESUME after PAUSE.
   - Without `inFlight`, the event comes first, and the request meets it. With `inFlight`, the request goes first, and the event comes while it is in flight. A run whose order is not that order is void.
 - **A fault on a group** acts on the part that `Cell.faultAt` names by its role:

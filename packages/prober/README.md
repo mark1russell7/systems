@@ -23,6 +23,8 @@ The kernel program records these events:
 
 The state of the retransmit timer tells the tail loss probe from the retransmissions of the RTO timer. Only the RTO timer counts toward `tcp_retries2`.
 
+Linux 7.0 moved the two timers of TCP. Before it, the retransmit timer is `icsk_retransmit_timer` of the connection socket, and the keepalive timer is `sk_timer` of the socket. From it, the retransmit timer is `tcp_retransmit_timer` of the socket, and the keepalive timer is `icsk_keepalive_timer` of the connection socket. From 0.3.2, the program names each field through a flavor of CO-RE. Thus it compiles and finds the socket of each timer on either kernel.
+
 Each record with TCP state (`tcp`) also has the SACK scoreboard and the reordering state of the socket, by the names of `tcp_info`:
 
 - **`sacked`** and **`lost`** are the segments that the peer SACKed and that the kernel marked lost.

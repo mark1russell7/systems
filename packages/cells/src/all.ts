@@ -3,6 +3,7 @@ import { SUBJECTS } from "@mark1russell7/harness";
 import { CAL_CELLS } from "./calibration.ts";
 import { CELLS } from "./catalog.ts";
 import { T01_GRPC } from "./grpc/t01.ts";
+import { T02_GRPC } from "./grpc/t02.ts";
 import { T03_GRPC } from "./grpc/t03.ts";
 import { HTTP_CAL_CELLS, HTTP_HARNESS_CELLS } from "./http/cells.ts";
 import { MONGO_CELLS } from "./mongo/harness.ts";
@@ -60,6 +61,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...T11_RABBIT,
     ...T01_GRPC,
     ...T03_GRPC,
+    ...T02_GRPC,
   ];
 };
 
