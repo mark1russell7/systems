@@ -150,14 +150,35 @@ describe("the image sources", () => {
       staged.push(readdirSync(context).sort());
       if (staged.length === 1) throw new Error("the daemon went away");
     };
-    await expect(buildOnce(plan, flaky)).rejects.toThrow(/the daemon went away/);
-    await expect(buildOnce(plan, flaky)).resolves.toBe(plan.tag);
+    // with no waits, a failed build fails at once
+    await expect(buildOnce(plan, flaky, [])).rejects.toThrow(/the daemon went away/);
+    await expect(buildOnce(plan, flaky, [])).resolves.toBe(plan.tag);
     // a build that worked stays: the third call builds nothing
-    await expect(buildOnce(plan, flaky)).resolves.toBe(plan.tag);
+    await expect(buildOnce(plan, flaky, [])).resolves.toBe(plan.tag);
     expect(staged).toEqual([
       ["Dockerfile", "app.mjs", "npm-lock.json", "package.json"],
       ["Dockerfile", "app.mjs", "npm-lock.json", "package.json"],
     ]);
+  });
+
+  it("tries a failed build again after each wait, in the same context, and fails after the last one", async () => {
+    const plan = builtOf(build(contextWith(APP), { name: "retried" }));
+    let tries = 0;
+    const twice = async () => {
+      tries += 1;
+      if (tries <= 2) throw new Error("the registry did not answer");
+    };
+    await expect(buildOnce(plan, twice, [1, 1])).resolves.toBe(plan.tag);
+    expect(tries).toBe(3);
+    const never = builtOf(build(contextWith(APP), { name: "never" }));
+    let failed = 0;
+    await expect(
+      buildOnce(never, async () => {
+        failed += 1;
+        throw new Error("the registry did not answer");
+      }, [1]),
+    ).rejects.toThrow(/the registry did not answer/);
+    expect(failed).toBe(2);
   });
 
   it("finds each FROM that no digest pins", () => {
