@@ -163,6 +163,8 @@ export interface ClusterLab {
   readonly kernel: readonly KernelRecord[];
   /** These are the log lines of the nodes that a run keeps, in the sequence of their arrival, with `t` at 0. */
   readonly log: readonly NodeLine[];
+  /** These are the last raw lines of the console of each node, for the diagnosis of a lab: at most RAW_TAIL of each. */
+  readonly raw: Readonly<Record<string, readonly string[]>>;
   /** This method sets the sysctls of the client namespace through its privileged sidecar, and reads them back. */
   sysctl(values: Readonly<Record<string, string>>): Promise<Record<string, string>>;
   /** This method waits until the queue is whole and calm, and gives the name of the node of its leader. */
@@ -199,6 +201,9 @@ export interface ClusterLab {
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** This count is the number of raw lines of the console of each node that a lab keeps. */
+export const RAW_TAIL = 400;
+
 /**
  * This function opens one environment of a cluster cell:
  * - one new network, with each node, the client and the admin on it.
@@ -233,6 +238,7 @@ export const openClusterLab = async (cluster: Cluster): Promise<ClusterLab> => {
     const injectors = new Map<string, StartedTestContainer>();
     const members: Record<string, RunPart> = {};
     const log: NodeLine[] = [];
+    const raw: Record<string, string[]> = {};
     for (const name of cluster.members) {
       let partial = "";
       const box = await new GenericContainer(cluster.image)
@@ -252,6 +258,9 @@ export const openClusterLab = async (cluster: Cluster): Promise<ClusterLab> => {
             const split = partial.split("\n");
             partial = split.pop() ?? "";
             for (const text of split) {
+              const tail = (raw[name] ??= []);
+              tail.push(text);
+              if (tail.length > RAW_TAIL) tail.shift();
               const line = nodeLineOf(name, text.trim(), cluster.queue);
               if (line !== null) log.push(line);
             }
@@ -370,6 +379,7 @@ export const openClusterLab = async (cluster: Cluster): Promise<ClusterLab> => {
       netns: { client: clientNetns },
       kernel: records.seen,
       log,
+      raw,
       async sysctl(values) {
         const settings = Object.entries(values).map(([key, value]) => `${key}=${value}`);
         if (settings.length > 0) await output(admin, ["sysctl", "-q", "-w", ...settings]);

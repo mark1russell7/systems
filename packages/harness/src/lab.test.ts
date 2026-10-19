@@ -392,6 +392,11 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
       expect(run.group?.after).not.toBe(run.group?.primary);
       const read = measure(cell, run);
       expect(read).toMatchObject({ outcome: { kind: "answered" }, void: null });
+      // a stage that is missing: the lines that the run kept, and the last raw lines of each node, for the log
+      if (read.group?.stages["elected"] === undefined || read.group?.stages["old-leader-steps-down"] === undefined) {
+        console.log(`the timeline of the run: ${JSON.stringify(run.group?.timeline)}`);
+        for (const [name, tail] of Object.entries(lab.raw)) console.log(`the last lines of ${name}:\n${tail.slice(-60).join("\n")}`);
+      }
       expect(read.group?.stages["elected"]).toBeDefined();
       expect(read.group?.stages["old-leader-steps-down"]).toBeDefined();
       expect(read.group?.writes.lost).toEqual([]);
