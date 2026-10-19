@@ -131,6 +131,7 @@ const probeArgs = (cell: Cell, lab: Lab): string[] => {
   if (probe.driver?.name === "grpc") {
     // grpc-js: its channel options and the deadline of a call, and the hold of the reply in flight
     if (probe.driver.hold !== undefined) args.push("--hold-ms", String(valueIn(probe.driver.hold, "ms")));
+    if (probe.driver.op !== undefined) args.push("--op", probe.driver.op);
     if (cell.before === true) args.push("--before");
     if (cell.driverOptions !== undefined) args.push("--options", JSON.stringify(cell.driverOptions));
     args.push("--max-s", String(Math.ceil(longest * 2 + 10)));

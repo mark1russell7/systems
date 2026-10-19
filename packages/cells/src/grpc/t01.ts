@@ -128,6 +128,11 @@ export interface GrpcSpec {
   readonly router?: { readonly form: RouterHop["form"]; readonly idle: number; readonly preset: string };
   /** These are the sysctls of Linux TCP at the server that differ from Linux 6.6. */
   readonly serverLinux?: Readonly<Record<string, Extent>>;
+  /**
+   * This stream is the operation in flight of a border of O26. It is a call that the server of the
+   * harness holds for `held` seconds, or a Watch that stays open. The PINGs of the client go on it.
+   */
+  readonly stream?: { readonly kind: "held"; readonly held: number } | { readonly kind: "watch" };
   readonly icmp?: "host" | "net" | "port" | "admin";
   /** This time is the length of a stall, in seconds. */
   readonly stall?: number;
@@ -343,6 +348,52 @@ const serverPrediction = (spec: GrpcSpec): Prediction => {
 const RTO_FIRST = 0.2;
 const RTO_LAST = 0.2 + 0.05;
 
+/** This time is the window of a border of O26 with a Watch and no GOAWAY, in seconds: six PINGs at 6 s. */
+export const POLICY_WINDOW = 40;
+
+/**
+ * This function gives the prediction of a border of O26: the PINGs of grpc-js on a stream in flight,
+ * against the policy of the server. The keepalive timer starts with operation 1, and each next PING
+ * comes keepalive_time after the ACK of the one before. The first PING clears the strikes, because the
+ * server wrote a reply since the last PING. Each later PING less than MinTime after the one before is a
+ * strike. The strike after max_ping_strikes gives GOAWAY too_many_pings, and the server closes the connection.
+ */
+const policyPrediction = (spec: GrpcSpec, driver: KnobValues, slack: number): Prediction => {
+  const stream = spec.stream;
+  if (stream === undefined) throw new Error(`${spec.plan}: a border of O26 needs a stream in flight`);
+  const interval = seconds(timerOf(GRPC_JS, "keepalive", driver).duration, "the keepalive of grpc-js");
+  const values = given(serverValues(spec.server, spec.settings));
+  const minTime = seconds(values("min_time") ?? s(0), "MinTime");
+  const allowed = values("max_ping_strikes");
+  if (allowed === undefined || "unknown" in allowed || typeof allowed.value !== "number") throw new Error(`${spec.plan}: no count of the strikes of the server`);
+  const strikes = allowed.value;
+  if (interval >= minTime) {
+    // no PING is a strike: the stream ends at its own end, or it stays open
+    if (stream.kind === "watch") return { detects: false, window: s(POLICY_WINDOW), driver: { socket: "connection", quiet: [...QUIET] } };
+    const reply = { from: "request-sent", ends: { ev: "ack", where: { n: 2 } } } as const;
+    return {
+      detects: false,
+      window: s(2 * stream.held),
+      replies: { low: s(stream.held), high: s(stream.held + GRPC_LATENCY + 2 * slack) },
+      driver: { socket: "connection", reply, quiet: [...QUIET] },
+    };
+  }
+  // the first PING clears the strikes, thus the GOAWAY comes at the PING after max_ping_strikes more
+  const pings = strikes + 2;
+  const at = pings * interval;
+  if (stream.kind === "held" && stream.held <= at) throw new Error(`${spec.plan}: the held reply comes before the GOAWAY`);
+  const ends = { ev: "error", name: "errno" } as const;
+  return {
+    detects: true,
+    timer: "too_many_pings",
+    errno: "too_many_pings",
+    from: "last-data",
+    low: s(at - GRPC_LATENCY),
+    high: s(at + pings * (slack + GRPC_LATENCY) + slack),
+    driver: { socket: "connection", ends },
+  };
+};
+
 /** This function gives the prediction of a cell of the catalog. */
 export const grpcPrediction = (spec: GrpcSpec): Prediction => {
   if (spec.observer === "server") return serverPrediction(spec);
@@ -371,6 +422,7 @@ export const grpcPrediction = (spec: GrpcSpec): Prediction => {
   }
   // a reset answers the call at once: the kernel reports it on the socket of the transport
   if (spec.fault === "rst") return { detects: true, timer: "the reset of the call", errno: "ECONNRESET", from: "request-sent", low: s(0), high: s(GRPC_RTT_MS / 1000), rtt, driver: { socket: "connection" } };
+  if (spec.stream !== undefined) return policyPrediction(spec, driver, slack);
   // the server holds the reply. A deadline of the call shorter than the hold ends the call first
   if (spec.fault === "app-stall") {
     if (spec.server !== "grpc-go") throw new Error(`${spec.plan}: only the server of the harness holds a reply`);
@@ -626,22 +678,58 @@ export const T01_GRPC_BORDER_SPECS: readonly GrpcSpec[] = [
   ),
 ];
 
-/** These are the borders of O26 that wait: the policy of the server for the PINGs of the client. */
-export const T01_GRPC_BORDER_WAITING: readonly Waiting[] = [
-  ...["T01.border-off.229", "T01.border-off.230"].map((plan) => ({
-    plan,
-    trigger: "O26",
-    why: "the client of the harness reports no GOAWAY of grpc-js yet: the PINGs against the MinTime of grpc-go need it",
-  })),
-  ...["T01.border-off.231", "T01.border-off.232"].map((plan) => ({
-    plan,
-    trigger: "O26",
-    why: "etcd holds no call open by itself, thus the PINGs of a stream need a Watch of the client of the harness",
-  })),
+/** This value is the MinTime of the server of the harness for the borders of O26: its 5 min divided by 60, as etcd sets it. */
+export const GRPC_MIN_TIME = 5;
+
+/** This time is the hold of the call in flight of a border of O26 against grpc-go, in seconds. */
+export const POLICY_HOLD = 30;
+
+/**
+ * These are the borders of O26: the PINGs of grpc-js on a stream in flight, against the MinTime of the
+ * server. A keepalive of 6 s is inside the MinTime of 5 s, and one of 4 s is outside it. Against grpc-go
+ * the stream is a call held 30 s, and against etcd a Watch.
+ */
+export const T01_GRPC_POLICY_SPECS: readonly GrpcSpec[] = [
+  ...([
+    ["T01.border-off.229", 6, "inside"],
+    ["T01.border-off.230", 4, "outside"],
+  ] as const).map(
+    ([plan, keepalive, side]): GrpcSpec => ({
+      plan,
+      server: "grpc-go",
+      name: `a call held ${POLICY_HOLD} s, the keepalive of grpc-js at ${keepalive} s: ${side} O26 against a MinTime of ${GRPC_MIN_TIME} s`,
+      fault: "app-stall",
+      mode: "inflight",
+      options: { keepalive_time: keepalive * 1000 },
+      settings: { min_time: GRPC_MIN_TIME },
+      stream: { kind: "held", held: POLICY_HOLD },
+    }),
+  ),
+  ...([
+    ["T01.border-off.231", 6, "inside"],
+    ["T01.border-off.232", 4, "outside"],
+  ] as const).map(
+    ([plan, keepalive, side]): GrpcSpec => ({
+      plan,
+      server: "etcd",
+      name: `a Watch, the keepalive of grpc-js at ${keepalive} s: ${side} O26 against the MinTime of etcd, 5 s`,
+      fault: "app-stall",
+      mode: "inflight",
+      options: { keepalive_time: keepalive * 1000 },
+      stream: { kind: "watch" },
+    }),
+  ),
 ];
 
 /** This function gives the name of a cell: its cell of the plan, its tuple of systems, and what it does. */
 export const grpcNameOf = (spec: GrpcSpec): string => `${spec.plan} grpc-js-1.14 to ${spec.server === "grpc-go" ? "grpc-go-server" : "etcd-3.6"}, ${spec.name}`;
+
+/** This function gives the operation in flight of a spec: a held call, or a Watch. */
+const probeOf = (spec: GrpcSpec): { readonly hold?: { value: number; unit: string }; readonly op?: "watch" } => {
+  if (spec.stream?.kind === "watch") return { op: "watch" };
+  if (spec.stream?.kind === "held") return { hold: s(spec.stream.held) };
+  return spec.fault === "app-stall" ? { hold: s(GRPC_HOLD) } : {};
+};
 
 /** This function gives the harness cell of a spec. */
 export const grpcCell = (spec: GrpcSpec): Cell => {
@@ -650,7 +738,7 @@ export const grpcCell = (spec: GrpcSpec): Cell => {
     name: grpcNameOf(spec),
     target: grpcTarget(spec.server, spec.settings),
     sysctls: sysctlsOf(linuxValues(spec.linux)),
-    probe: { mode: spec.mode, keepalive: false, driver: { name: "grpc", ...(spec.fault === "app-stall" ? { hold: s(GRPC_HOLD) } : {}) } },
+    probe: { mode: spec.mode, keepalive: false, driver: { name: "grpc", ...probeOf(spec) } },
     fault: spec.fault,
     prediction: grpcPrediction(spec),
     ...(spec.observer === "server" ? { observer: "server" as const } : {}),
@@ -668,4 +756,4 @@ export const grpcCell = (spec: GrpcSpec): Cell => {
 };
 
 /** These are the gRPC cells of T01 for the harness. */
-export const T01_GRPC: readonly Cell[] = [...T01_GRPC_SPECS, ...T01_GRPC_ARRAY_SPECS, ...T01_GRPC_BORDER_SPECS].map(grpcCell);
+export const T01_GRPC: readonly Cell[] = [...T01_GRPC_SPECS, ...T01_GRPC_ARRAY_SPECS, ...T01_GRPC_BORDER_SPECS, ...T01_GRPC_POLICY_SPECS].map(grpcCell);

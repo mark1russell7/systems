@@ -1,5 +1,5 @@
 // client-grpc HOST PORT --mode idle|inflight|stream [--interval-ms N] [--max-s N] [--go PATH] [--before]
-//             [--options JSON] [--hold-ms N]
+//             [--options JSON] [--hold-ms N] [--op check|watch]
 //
 // The client of a gRPC cell: grpc-js 1.14.6 on Node 24.21.0, with one channel to one server and no TLS.
 // Each event is a JSON line with `ev` and `t`, the time on CLOCK_MONOTONIC in nanoseconds
@@ -12,6 +12,8 @@
 // HealthCheckResponse has one enum (field 1). Operation 1 makes the connection: the channel connects
 // at its first call. With --hold-ms, the call in flight asks for the service `hold:<ms>`, and the
 // server of the harness holds its reply for that time. Another server answers NOT_FOUND to it.
+// With --op watch, the operation in flight is a stream of grpc.health.v1.Health/Watch. The server sends
+// SERVING, and the stream stays open: a stream for the policy of a server for the PINGs of a client.
 //
 // The options (--options JSON): each name that starts with `grpc.` is a channel option of grpc-js,
 // for example grpc.keepalive_time_ms. `deadline_ms` is the deadline of each call.
@@ -23,7 +25,9 @@
 //   address. connect-error: a connect that failed, with its error.
 // - connected: the first of them. The TCP client of the harness names its own socket so.
 // - state: each change of the connectivity state of the channel.
-// - log: a line that grpc-js logs, for example the refusal of its PINGs by the server.
+// - log: a line that grpc-js logs, for example the refusal of its PINGs by the server. That refusal
+//   (a GOAWAY with too_many_pings) is the cause of the end of the connection: its errno is too_many_pings.
+// - watch-data: each message of the stream of a Watch.
 // - ready: the reply to operation 1: the channel is idle (idle, inflight), or the stream starts.
 // - sent, ack, fail: each operation by its sequence number, with its status.
 // - data, error: the end of the operation in flight, as the TCP client of the harness tells it. In
@@ -60,6 +64,11 @@ const max = Number(flag("--max-s") ?? 120) * 1000;
 const go = flag("--go") ?? "/tmp/go";
 const before = argv.includes("--before");
 const hold = flag("--hold-ms");
+const op = flag("--op") ?? "check";
+if (op !== "check" && op !== "watch") {
+  emit("fail", { why: "--op check|watch" });
+  process.exit(1);
+}
 // the options of the channel. A cell gives each option that it changes, and grpc-js gives the others
 const options = JSON.parse(flag("--options") ?? "{}");
 const { deadline_ms: deadlineMs, ...channelOptions } = options;
@@ -111,8 +120,18 @@ net.connect = function (...args) {
 
 const grpc = await import("@grpc/grpc-js");
 const version = JSON.parse(readFileSync(new URL("./node_modules/@grpc/grpc-js/package.json", import.meta.url), "utf8")).version;
-// each line that grpc-js logs, with no trace: an error of a subchannel, or the doubled keepalive after too_many_pings
-grpc.setLogger({ error: (...parts) => emit("log", { text: parts.map(String).join(" ") }) });
+// each line that grpc-js logs, with no trace: an error of a subchannel, or the doubled keepalive after
+// too_many_pings. grpc-js logs that refusal when the GOAWAY comes, before the end of the socket (subchannel.ts:280-289)
+grpc.setLogger({
+  error: (...parts) => {
+    const text = parts.map(String).join(" ");
+    emit("log", { text });
+    if (/excess pings/.test(text) && cause === null && !stopped) {
+      cause = { errno: "too_many_pings" };
+      if (mode === "idle") emit("error", { errno: cause.errno });
+    }
+  },
+});
 grpc.setLogVerbosity(grpc.logVerbosity.ERROR);
 
 const bootId = () => {
@@ -122,7 +141,7 @@ const bootId = () => {
     return null;
   }
 };
-emit("start", { boot_id: bootId(), client: "grpc", driver: version, node: process.versions.node, mode, options, hold: hold === undefined ? null : Number(hold) });
+emit("start", { boot_id: bootId(), client: "grpc", driver: version, node: process.versions.node, mode, op, options, hold: hold === undefined ? null : Number(hold) });
 
 // ---- the messages of grpc.health.v1, encoded by hand
 const encodeRequest = (service) => {
@@ -181,6 +200,22 @@ const operate = (n, service = "") =>
     });
   });
 
+/** This function opens the stream of a Watch as operation n. It gives null when the server ends the stream, or the error. */
+const watchOf = (n) =>
+  new Promise((resolve) => {
+    emit("sent", { n, op: "watch" });
+    const stream = client.makeServerStreamRequest("/grpc.health.v1.Health/Watch", encodeRequest, decodeResponse, "", new grpc.Metadata(), {});
+    stream.on("data", (reply) => emit("watch-data", { n, status: reply.status }));
+    stream.on("error", (error) => {
+      emit("fail", { n, ...failure(error) });
+      resolve(error);
+    });
+    stream.on("end", () => {
+      emit("ack", { n });
+      resolve(null);
+    });
+  });
+
 /** This function gives the errno of the end of a call: the end of its socket when it has one, else its status. */
 const errnoOf = (error) => cause?.errno ?? grpc.status[error.code] ?? error.message;
 
@@ -214,7 +249,7 @@ if (mode === "stream") {
           resolve();
         }, 2);
       });
-      const error = await operate(2, hold === undefined ? "" : `hold:${hold}`);
+      const error = op === "watch" ? await watchOf(2) : await operate(2, hold === undefined ? "" : `hold:${hold}`);
       if (error === null) emit("data", { n: 2 });
       else emit("error", { errno: errnoOf(error), message: error.details ?? error.message });
     }

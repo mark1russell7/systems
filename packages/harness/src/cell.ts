@@ -919,7 +919,7 @@ export interface Cell {
      * A grpc driver is grpc-js on Node, with one channel. Its operation is a unary call of
      * grpc.health.v1.Health/Check. `Cell.driverOptions` are its channel options (`grpc.*`) and
      * `deadline_ms`. With `hold`, the call in flight asks the server of the harness to hold its reply
-     * that long.
+     * that long. With `op: "watch"`, the operation in flight is a stream of Health/Watch, which stays open.
      */
     readonly driver?:
       | { readonly name: "ioredis"; readonly keepAlive: Quantity }
@@ -927,7 +927,7 @@ export interface Cell {
       | { readonly name: "pg"; readonly query?: string; readonly inflight?: string }
       | { readonly name: "hikari"; readonly query?: string; readonly inflight?: string }
       | { readonly name: "amqp" }
-      | { readonly name: "grpc"; readonly hold?: Quantity };
+      | { readonly name: "grpc"; readonly hold?: Quantity; readonly op?: "check" | "watch" };
     /** This workload is the workload of an HTTP client (`Cell.client` is an HTTP client). The client then ignores `keepalive` and `userTimeout`. */
     readonly http?: HttpProbe;
     /** These are the settings of the WebSocket client (`Cell.client` is `procedures-ws`). The client then ignores `keepalive` and `userTimeout`. */

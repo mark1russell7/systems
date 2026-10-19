@@ -6,14 +6,16 @@ import {
   GRPC_HOLD,
   GRPC_PORT,
   GRPC_O17_RETRIES,
+  GRPC_MIN_TIME,
   GRPC_ROUTER,
+  POLICY_HOLD,
   SILENT_WINDOW,
   T01_GRPC,
   T01_GRPC_ARRAY_ALIASES,
   T01_GRPC_ARRAY_SPECS,
   T01_GRPC_ARRAY_WAITING,
   T01_GRPC_BORDER_SPECS,
-  T01_GRPC_BORDER_WAITING,
+  T01_GRPC_POLICY_SPECS,
   T01_GRPC_SPECS,
   T01_GRPC_WAITING,
   grpcTarget,
@@ -124,8 +126,8 @@ describe("the gRPC catalog of T01", () => {
     expect(deadline.high.value).toBeLessThan(GRPC_HOLD);
   });
 
-  it("places O03, O17 and O25 on the socket of the server, each with a setting inside and one outside, and lets O26 wait", () => {
-    const named = [...T01_GRPC_BORDER_SPECS.map((spec) => spec.plan), ...T01_GRPC_BORDER_WAITING.map((each) => each.plan)];
+  it("places O03, O17 and O25 on the socket of the server, each with a setting inside and one outside", () => {
+    const named = [...T01_GRPC_BORDER_SPECS.map((spec) => spec.plan), ...T01_GRPC_POLICY_SPECS.map((spec) => spec.plan)];
     expect(named.sort()).toEqual([163, 164, 165, 166, 209, 210, 225, 226, 229, 230, 231, 232].map((n) => `T01.border-off.${n}`));
     for (const spec of T01_GRPC_BORDER_SPECS) expect(cell(spec.plan).observer, spec.plan).toBe("server");
     // O03: the probes of the listener refresh the flow inside, and the router forgets it outside. Its
@@ -145,5 +147,20 @@ describe("the gRPC catalog of T01", () => {
     expect(cell("T01.border-off.210").targetSysctls).toMatchObject({ "net.ipv4.tcp_retries2": String(GRPC_O17_RETRIES) });
     // O25: inside, the abort at 15 + 15; outside, U of 160 s moves it to 15 + 10 × 15, after the 150 s of the keepalive alone
     expect([lowOf("T01.border-off.225"), lowOf("T01.border-off.226")].map((low) => Math.round(low))).toEqual([30, 165]);
+  });
+
+  it("gives O26 a GOAWAY too_many_pings at the fourth PING outside, and none inside", () => {
+    // grpc-go: MinTime 5 s by its flag, and a call held 30 s; etcd: its own 5 s, and a Watch
+    expect(cell("T01.border-off.229").target.command?.[2]).toContain(`--min-time ${GRPC_MIN_TIME}s`);
+    expect(cell("T01.border-off.229").probe.driver).toEqual({ name: "grpc", hold: { value: POLICY_HOLD, unit: "s" } });
+    expect(cell("T01.border-off.231").probe.driver).toEqual({ name: "grpc", op: "watch" });
+    expect(cell("T01.border-off.229").prediction).toMatchObject({ detects: false, replies: { low: { value: POLICY_HOLD, unit: "s" } } });
+    expect(cell("T01.border-off.231").prediction).toMatchObject({ detects: false });
+    for (const plan of ["T01.border-off.230", "T01.border-off.232"]) {
+      // the first PING clears the strikes, and the third strike is the fourth PING: 4 × 4 s
+      expect(cell(plan).prediction, plan).toMatchObject({ detects: true, errno: "too_many_pings", from: "last-data", driver: { ends: { ev: "error", name: "errno" } } });
+      expect(Math.round(lowOf(plan)), plan).toBe(16);
+      expect(cell(plan).driverOptions, plan).toEqual({ "grpc.keepalive_time_ms": 4000 });
+    }
   });
 });
