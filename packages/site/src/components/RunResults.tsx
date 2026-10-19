@@ -1,6 +1,6 @@
 /**
  * The results of the cells from the hosted runners of GitHub: T12 under Sentinels, the HTTP
- * keep-alive race, MongoDB, PostgreSQL, and Kubernetes in kind. Each harness cell has a frame with a strip chart,
+ * keep-alive race, MongoDB, PostgreSQL, RabbitMQ, and Kubernetes in kind. Each harness cell has a frame with a strip chart,
  * its prediction and its verdict. The chart has a dot for each counted run, against the band. A frame
  * of a group also has the stages of the failover. A kind cell has a frame with its verdict, and a
  * strip chart when its main value is a time.
@@ -11,6 +11,7 @@ import kind from "../data/kind-2026-10-18.json";
 import mongodb from "../data/mongodb-2026-10-18.json";
 import pg from "../data/pg-2026-10-19.json";
 import r3 from "../data/r3-2026-10-17.json";
+import rabbitmq from "../data/rabbitmq-2026-10-19.json";
 import sentinel from "../data/sentinel-2026-10-17.json";
 import { count as digits, duration, reading } from "../lib/format.ts";
 import { axisOf, code, joined, predictionText, runsText } from "./CellFrame.tsx";
@@ -70,13 +71,14 @@ export interface RunCell {
 }
 
 /** A copy is the copy of one CI run that a page of results shows. */
-export type Copy = "sentinel" | "http" | "mongodb" | "pg" | "r3";
+export type Copy = "sentinel" | "http" | "mongodb" | "pg" | "rabbitmq" | "r3";
 
 export const COPIES: Readonly<Record<Copy, readonly RunCell[]>> = {
   sentinel: sentinel.cells,
   http: http.cells,
   mongodb: mongodb.cells,
   pg: pg.cells,
+  rabbitmq: rabbitmq.cells,
   r3: r3.cells,
 };
 

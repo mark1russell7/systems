@@ -1,0 +1,68 @@
+---
+title: RabbitMQ with amqplib
+sidebar:
+  label: RabbitMQ
+description: The RabbitMQ cells on the runners of GitHub, with amqplib 2.2.0 against RabbitMQ 4.3.6 on the direct pair, at the defaults and at the borders of O03 and O17. Each of the 12 cells holds.
+---
+
+import RunResults from "../../../components/RunResults.tsx";
+import { Summary } from "../../../components/Ledger.tsx";
+import CellMap from "../../../components/CellMap.tsx";
+import Borders from "../../../components/Borders.tsx";
+
+<Summary of="rabbitmq" />
+
+<CellMap copy="rabbitmq" />
+
+These are the results of the RabbitMQ cells, from 2026-10-19. The broker is RabbitMQ 4.3.6. The client is amqplib 2.2.0 on Node 24.21.0, with one connection and one channel at the defaults of amqplib. Each operation is an RPC of the channel: a passive declare of one queue, which the broker answers at once.
+
+T01 is the direct pair. The client and the broker are in their own network namespaces, with a pair of veth devices between them. A border of O03 has a router between them.
+
+The machine documents give each band: `amqplib` and `rabbitmq-connection`, each from its source at its tag. The algebra composes each of them over Linux TCP.
+
+CI started the cells at main in the run [39216875830](https://github.com/mark1russell7/systems/actions/runs/39216875830), in 12 shards on the hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000. Each cell has 11 runs in 2 fresh environments, with one warm-up run in each environment. A `fin` stops the broker, thus each of its runs has its own environment.
+
+Each of the 12 cells holds against the prediction of the algebra. The cells have 132 counted runs, and no run is void.
+
+## What the cells found
+
+- **The heartbeat of amqplib is the detector of a silent fault.** At the defaults amqplib takes the heartbeat of the broker, 60 s. Its receive check counts the bytes of the broker each 60 s, and two checks with nothing end the connection. Behind a black hole, an idle connection ended 180.004 s after the last data from the broker. The band is 120 s to 180.03 s. A frozen broker ends an RPC in flight the same way, at 180.008 s.
+  - amqplib checks with a repeating timer of Node. Node counts each next interval from the time that the callback ran, thus the lateness of each check adds to the next one. Thus the band ends 30 ms after 3 heartbeats, and not 10 ms after them.
+- **A stopped broker resets its clients at once.** RabbitMQ closes each socket with linger 0, thus its end of a connection is a reset, not a FIN. The reset came 45 µs after the broker stopped. A reset of an RPC in flight gives ECONNRESET in 0.8 ms, and a reset of the SYN refuses the first connect in 3.1 ms.
+- **The RTO after a stall holds the reply time of the broker.** Linux counts the RTO from the smoothed round trip. Each sample of amqplib is the time to the reply of the broker, which ACKs the RPC. After a stall of 1 s, the reply came at the third firing of the RTO timer, with a median of 1.692 s.
+- **The kernel gives up on an unreachable host first.** With `tcp_retries2` = 3, an RPC in flight gets EHOSTUNREACH 3.120 s after the first retransmission.
+- **amqplib tunes the smaller heartbeat of the two.** A client that asks for 80 s against a broker that proposes 60 s gets 60 s. Thus the border of O03 outside sets the heartbeat at the broker too.
+
+## The borders
+
+A border has two cells: a setting inside the border, and a setting outside it. Each chart shows the two cells on one axis of time. The dashed line is the border, and the mark above each track is the setting of its cell. The bar is the band of the prediction, and each dot is a counted run.
+
+<Borders copy="rabbitmq" />
+
+- **O03: the frames of the broker against a router that forgets an idle flow in silence**, at 30 s: the Azure LB at 240 s, divided by 8. The broker sends a frame each half heartbeat. At a heartbeat of 40 s, at the client and at the broker, the frames each 20 s keep the flow, and nothing occurs in 150 s. At 80 s the router forgets the flow first, and the heartbeat of amqplib ends it 240.014 s after the last data.
+- **O17: the heartbeat against the give-up of the kernel**, behind a black hole with an RPC in flight and `tcp_retries2` = 7. The kernel gives up 51 s to 108.2 s after its first retransmission. A heartbeat of 15 s ends the connection first, 45.011 s after the last data. At 60 s the kernel gives up first, with ETIMEDOUT 53.016 s after its first retransmission.
+
+## The cells that wait
+
+The plan of R3 has more cells over these systems. The catalog gives a reason for each cell that waits:
+
+- A hold of a reply by the broker needs a resource alarm, timed to the request. A restart of the broker at its own address, and a fault timed to a reply, need features that the harness does not have.
+- A block of the event loop of Node waits for a document of how late the timers of Node are after it.
+- Two writes before a read need a workload of the client. The client of the harness sends one RPC at a time.
+- The array stage gives each cell at the defaults a practice profile. No profile sets a knob of amqplib, of RabbitMQ, or of the Linux TCP that the cell reads. Thus 8 array cells are aliases of their cells at the defaults, and 5 wait for the reasons of those cells.
+
+## T01: the direct pair
+
+### At the defaults
+
+<RunResults copy="rabbitmq" group="T01" stage="defaults" client:visible />
+
+### At the borders
+
+<RunResults copy="rabbitmq" group="T01" stage="border" client:visible />
+
+## Where the data comes from
+
+Each runner wrote a raw record of each of its cells. A record has the cell and the manifests of its environments. It also has each warm-up run, and each run with its kernel records and the lines of the client.
+
+The script `packages/site/scripts/rabbitmq.ts` reads each record with the code of the harness, and it stops when a verdict disagrees with the summary of the run. It also stops when a prediction disagrees with the catalog at HZ 1000. It writes the copy that this page shows, and that copy names no machine. The cells and their predictions are in the [catalogs](https://github.com/mark1russell7/systems/tree/main/packages/cells).

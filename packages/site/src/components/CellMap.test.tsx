@@ -8,7 +8,7 @@ const ids = (html: string, pattern: RegExp): string[] => [...html.matchAll(patte
 
 describe("the map of the cells", () => {
   it("has a tile for each cell, and each tile links to the frame of its cell", () => {
-    for (const copy of ["sentinel", "http", "mongodb", "pg", "r3"] as const satisfies readonly Copy[]) {
+    for (const copy of ["sentinel", "http", "mongodb", "pg", "rabbitmq", "r3"] as const satisfies readonly Copy[]) {
       const cells = COPIES[copy];
       const html = renderToString(<CellMap copy={copy} />);
       const links = ids(html, /class="sy-tile" href="#([^"]+)"/g);
