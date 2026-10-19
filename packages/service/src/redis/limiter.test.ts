@@ -9,7 +9,7 @@ const count = (value: number) => ({ value, unit: "count" });
 const SHARED: LimiterSpec = {
   key: "tenant",
   policy: { type: "token-bucket", rate: { value: 10, unit: "count/s" }, burst: count(3) },
-  store: { kind: "shared", dependency: "cache" },
+  store: { kind: "shared", dependency: "cache", onStoreFailure: "closed" },
   evict: { maxKeys: count(50) },
 };
 
@@ -63,19 +63,34 @@ describe("the Redis store of a keyed limiter (SYS-28)", () => {
     });
   });
 
-  it("rejects the take on an error, on an outcome that is not certain, and on a reply of another shape", async () => {
+  it("rejects the take of the store on an error, on an outcome that is not certain, and on a reply of another shape", async () => {
     const { sender } = scripted(
       { outcome: "error", error: "NOSCRIPT", reply: true, attempts: 1 },
       { outcome: "indeterminate", error: "the command timed out", attempts: 1 },
       ok("OK"),
       ok([0, "0", "limit"]),
     );
-    const limiter = keyedLimiter("writes", SHARED, redisLimiterStore(sender, { prefix: "" }));
-    await expect(limiter.take("a")).rejects.toThrow("the limiter store writes failed (error): NOSCRIPT");
-    await expect(limiter.take("a")).rejects.toThrow("failed (indeterminate): the command timed out");
-    await expect(limiter.take("a")).rejects.toThrow(/gave a reply that is not a decision: "OK"/);
+    const store = redisLimiterStore(sender, { prefix: "" });
+    const request = { limiter: "writes", key: "a", rule: { type: "token-bucket", interval: 100, burst: 3 }, maxKeys: 50 } as const;
+    await expect(store.take(request)).rejects.toThrow("the limiter store writes failed (error): NOSCRIPT");
+    await expect(store.take(request)).rejects.toThrow("failed (indeterminate): the command timed out");
+    await expect(store.take(request)).rejects.toThrow(/gave a reply that is not a decision: "OK"/);
     // a refusal is always above zero
-    await expect(limiter.take("a")).rejects.toThrow(/not a decision/);
+    await expect(store.take(request)).rejects.toThrow(/not a decision/);
+  });
+
+  it("follows onStoreFailure through the limiter: closed refuses with the cause store, and open lets the take in", async () => {
+    const down = (): Sent<unknown> => ({ outcome: "indeterminate", error: "the command timed out", attempts: 1 });
+    const closed = keyedLimiter("writes", SHARED, redisLimiterStore(scripted(down()).sender, { prefix: "" }));
+    // the longest retryAfter of the policy: one token each 100 ms
+    expect(await closed.take("a")).toEqual({
+      allowed: false,
+      retryAfter: { value: 100, unit: "ms" },
+      cause: "store",
+      failure: "the limiter store writes failed (indeterminate): the command timed out",
+    });
+    const open = keyedLimiter("writes", { ...SHARED, store: { kind: "shared", dependency: "cache", onStoreFailure: "open" } }, redisLimiterStore(scripted(ok("OK")).sender, { prefix: "" }));
+    expect(await open.take("a")).toEqual({ allowed: true, remaining: 0, failure: 'the limiter store writes gave a reply that is not a decision: "OK"' });
   });
 
   it("is a shared store, and refuses a prefix with a brace", () => {

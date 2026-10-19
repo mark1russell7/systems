@@ -80,7 +80,7 @@ describe.skipIf(!RUN)("the Redis client against a real Redis 7.4 (REDIS_IT=1)", 
   const BUCKET: LimiterSpec = {
     key: "tenant",
     policy: { type: "token-bucket", rate: { value: 1, unit: "count/s" }, burst: count(3) },
-    store: { kind: "shared", dependency: "cache" },
+    store: { kind: "shared", dependency: "cache", onStoreFailure: "closed" },
     evict: { maxKeys: count(8) },
   };
   const WINDOW: LimiterSpec = { ...BUCKET, policy: { type: "sliding-window", limit: count(3), window: { value: 60, unit: "s" } } };

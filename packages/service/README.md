@@ -480,9 +480,10 @@ const life = await app.run(); // the process exits after SIGTERM, with 0 or 1
 - **The close.** At the shutdown, the client sends `QUIT`, and it disconnects at its `close_bound`. Thus a silent server cannot hold the phase past its cap.
 - **The manifestations.** `meets` lists the manifestations that the client can meet, and the detectors of each, with their times from the knobs. `unwatched(meets)` lists each manifestation and situation that no detector finds.
 - **The machine.** `REDIS_CLIENT_MACHINE` is the client as a `mark1russell7.machine/1` document. The tests replay the transitions of the client against it.
-- **The store of a keyed limiter.** `redisLimiterStore(client, { prefix })` keeps the counts of a [keyed limiter](#the-keyed-limiter) in Redis 7, for each replica of a service. Give it to `keyedLimiter` with `{ kind: "shared", dependency }`.
+- **The store of a keyed limiter.** `redisLimiterStore(client, { prefix })` keeps the counts of a [keyed limiter](#the-keyed-limiter) in Redis 7, for each replica of a service. Give it to `keyedLimiter` with `{ kind: "shared", dependency, onStoreFailure }`.
 - **One atomic step.** Each take is one `EVAL` of `LIMITER_SCRIPT`, which does the arithmetic of `decide`. The script reads `TIME` of the server, thus each replica gets the one clock of the store.
-- **No second send.** `EVAL` is not idempotent, thus the client does not send a take again. An error or an outcome that is not certain rejects the take.
+- **No second send.** `EVAL` is not idempotent, thus the client does not send a take again. An error or an outcome that is not certain rejects the take of the store. `keyedLimiter` then applies `onStoreFailure`, as for each shared store.
+- **The clock of the store.** `TIME` is the wall clock of the Redis host, not a monotonic clock. Thus a step of that clock moves the counts of each key. The replicas still share one clock.
 - **Exact eviction in Redis.** The state of each key expires at the time that the key is free. A sorted set of each limiter bounds its busy keys to `maxKeys`, and it gives the exact `retryAfter` of a key at the cap.
 - **Redis Cluster.** The names of the keys put the limiter in braces, a hash tag. Thus the state and the index of a limiter are in one slot. The prefix has no braces.
 - **The test clock.** With `{ clock }`, the script uses the time of that clock in place of `TIME`. The tests use it to compare each decision of Redis with `decide`.

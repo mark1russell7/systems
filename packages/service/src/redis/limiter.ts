@@ -120,8 +120,10 @@ export type RedisSender = Pick<RedisClient, "send">;
  *   limiter are in one slot of a Redis Cluster.
  * - Each state expires at the time that the key is free, thus the eviction is exact, as in the memory
  *   store. The index of the limiter bounds the count of busy keys to `maxKeys`.
- * - A reply of an error, or an outcome that is not certain, rejects the take. The caller decides what
- *   a failure of the store does.
+ * - A reply of an error, an outcome that is not certain, or a reply of another shape rejects the
+ *   take of the store. `keyedLimiter` then applies the `onStoreFailure` of the spec.
+ * - `TIME` is the wall clock of the Redis host, not a monotonic clock. Thus a step of that clock
+ *   moves the counts of each key. The replicas still share one clock.
  */
 export const redisLimiterStore = (client: RedisSender, options: RedisLimiterOptions): LimiterStore => {
   if (/[{}]/.test(options.prefix)) throw new Error(`the prefix ${options.prefix} of a limiter store has a brace: the store puts the hash tag in it`);
