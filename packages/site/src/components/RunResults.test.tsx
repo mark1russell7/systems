@@ -33,7 +33,9 @@ describe("the components of the CI runs", () => {
       <RunResults copy="pg" group="T01" pool="node-postgres" stage="border" />,
       <RunResults copy="pg" group="T01" pool="HikariCP" stage="defaults" />,
       <RunResults copy="pg" group="T01" pool="HikariCP" stage="border" />,
-      <RunResults copy="pg" group="T03" stage="defaults" />,
+      <RunResults copy="pg" group="T03" via={null} stage="defaults" />,
+      <RunResults copy="pg" group="T03" via="Supavisor" stage="defaults" />,
+      <RunResults copy="pg" group="T10" via="PgBouncer" pool="node-postgres" stage="defaults" />,
       <RunResults copy="pg" group="T10" via="PgBouncer" pool="HikariCP" stage="defaults" />,
       <RunResults copy="pg" group="T10" via="PgBouncer" pool="node-postgres" stage="border" />,
       <RunResults copy="pg" group="T10" via="PgBouncer" pool="HikariCP" stage="border" />,
@@ -43,10 +45,10 @@ describe("the components of the CI runs", () => {
     const html = parts.map((part) => renderToString(part));
     const frames = html.slice(0, 12).map((each) => each.split('class="sy-frame').length - 1);
     expect(frames).toEqual([8, 4, 1, 21, 8, 10, 8, 18, 9, 6, 7, 10]);
-    // the PostgreSQL cells: for each client in T01, 9 at the defaults and 8 at the borders, then 7 in T03. In T10, through
-    // PgBouncer: 3 of HikariCP at the defaults, and 2 of node-postgres and 10 of HikariCP at the borders. Then 5 through
-    // Pgpool-II and 4 through Supavisor
-    expect(html.slice(-10).map((each) => each.split('class="sy-frame').length - 1)).toEqual([9, 8, 9, 8, 7, 3, 2, 10, 5, 4]);
+    // the PostgreSQL cells: for each client in T01, 9 at the defaults and 8 at the borders. In T03, 7 through a router
+    // and 7 through a router and Supavisor. In T10 through PgBouncer: 1 of node-postgres and 4 of HikariCP at the
+    // defaults, and 2 of node-postgres and 10 of HikariCP at the borders. Then 6 through Pgpool-II and 4 through Supavisor
+    expect(html.slice(-12).map((each) => each.split('class="sy-frame').length - 1)).toEqual([9, 8, 9, 8, 7, 7, 1, 4, 2, 10, 6, 4]);
     // the border of undici at 100 ms closes 6.5 ms before the end of its band: the table gives 4 decimals from 1 s
     expect(html[14]).toContain("5.9126 s");
     expect(html[14]).toContain("5.9191 s");

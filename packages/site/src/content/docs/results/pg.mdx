@@ -2,7 +2,7 @@
 title: PostgreSQL with node-postgres and HikariCP
 sidebar:
   label: PostgreSQL
-description: The PostgreSQL cells on the runners of GitHub, with node-postgres and HikariCP against PostgreSQL 17.11. The cells are on the direct pair, through a router, and through PgBouncer, Pgpool-II and Supavisor. Each of the 65 cells holds.
+description: The PostgreSQL cells on the runners of GitHub, with node-postgres and HikariCP against PostgreSQL 17.11. The cells are on the direct pair, through a router, and through PgBouncer, Pgpool-II and Supavisor. Each of the 75 cells holds.
 ---
 
 import RunResults from "../../../components/RunResults.tsx";
@@ -14,12 +14,12 @@ import Borders from "../../../components/Borders.tsx";
 
 <CellMap copy="pg" />
 
-These are the results of the PostgreSQL cells, from 2026-10-18. The server is PostgreSQL 17.11. Two clients use it, each as one pool at its defaults:
+These are the results of the PostgreSQL cells, from 2026-10-19. The server is PostgreSQL 17.11. Two clients use it, each as one pool at its defaults:
 
 - node-postgres: pg 8.23.1 with pg-pool 3.14.0 on Node 24.21.0, as one `pg.Pool`.
 - HikariCP 7.1.0 over pgjdbc 42.7.13, on Temurin 21.0.12.1.
 
-T01 is the direct pair. In T03, a router in the form of a cloud preset is between the client and the server. In T10, a pooler is between them:
+T01 is the direct pair. In T03, a router in the form of a cloud preset is between the client and the server. Some T03 cells have Supavisor after the router. In T10, a pooler is between the client and the server:
 
 - PgBouncer 1.26.1 in transaction pooling.
 - Pgpool-II 4.7.3 in streaming replication mode, with one server.
@@ -27,9 +27,9 @@ T01 is the direct pair. In T03, a router in the form of a cloud preset is betwee
 
 The machine documents give each band: `node-postgres`, `hikaricp-pgjdbc` and `postgres-session`, and the documents of the poolers. These are `pgbouncer-client`, `pgbouncer-server`, `pgpool-session`, `supavisor-client` and `supavisor-server`. The algebra composes each pool over Linux TCP.
 
-CI started the cells at main in the run [39169339494](https://github.com/mark1russell7/systems/actions/runs/39169339494), in 20 shards on the hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000. Each cell has 11 runs in 2 fresh environments, with one warm-up run in each environment. A `fin` stops the server, thus each of its runs has its own environment. Some T10 cells change the state of the pooler, and each of their runs has its own environment too.
+CI started the cells at main in the run [39182922975](https://github.com/mark1russell7/systems/actions/runs/39182922975), in 20 shards on the hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000. Each cell has 11 runs in 2 fresh environments, with one warm-up run in each environment. A `fin` stops the server, thus each of its runs has its own environment. Some T10 cells change the state of the pooler, and each of their runs has its own environment too.
 
-Each of the 65 cells holds against the prediction of the algebra. The cells have 715 counted runs, and no run is void.
+Each of the 75 cells holds against the prediction of the algebra. The cells have 825 counted runs, and no run is void.
 
 ## What the cells found
 
@@ -39,33 +39,33 @@ Each of the 65 cells holds against the prediction of the algebra. The cells have
   - Behind a black hole, the pool emits `remove` only when the socket closes, and the FIN of the pool gets no answer. Thus the kernel stamps the close: the change from ESTABLISHED to FIN_WAIT1.
 - **No timer of pg ends a query at the defaults.** A server that holds each reply 5 s (`pg_sleep`) gives the reply at 5.006 s, and no failure comes. A frozen server has no detector in 60 s.
 - **The timers of the pool place the borders of O13 and O15.**
-  - `query_timeout` ends a query in a black hole at 9.503 s and 10.501 s, on each side of the slowest poll of 10 s.
+  - `query_timeout` ends a query in a black hole at 9.503 s and 10.502 s, on each side of the slowest poll of 10 s.
   - `connectionTimeoutMillis` ends the first connect at 29.007 s and 31.008 s, on each side of the startup budget of 30 s. The kernel gives up on the SYNs only at 131 s.
 - **The statement timer of the server places the border of O07.** The server has a `statement_timeout` of 10 s, and the query sleeps 20 s.
   - With a `query_timeout` of 10.5 s, the server ends the query first, with ERROR 57014 at 10.003 s.
   - With a `query_timeout` of 9.5 s, pg gives up at 9.503 s, and the server goes on with the statement.
 - **A router that forgets in silence leaves a backend for a client that is gone (O03).** The router forgets an idle flow at 12 s.
-  - Inside, the pool closes its client at 10 s, and its FIN reaches the server at 10.004 s.
+  - Inside, the pool closes its client at 10 s, and its FIN reaches the server at 10.003 s.
   - Outside, with an idle timer of 14 s, the router forgets the flow first and drops the FIN of the pool. The socket of the server stays established for the 30 s of the window.
 - **A band of a fault before the first connect counts from that connect.** The pool arms its connect timer at the first query, 3.7 ms after the first line of the client. The client writes a `connecting` line at its first query, and the band counts from it.
-- **A reset or a FIN comes at once.** A reset of a query in flight gives ECONNRESET in 0.8 ms, and a reset of the SYN refuses the first connect in 3 ms. The FIN of a stopped server ends an idle client in 16 µs.
+- **A reset or a FIN comes at once.** A reset of a query in flight gives ECONNRESET in 0.8 ms, and a reset of the SYN refuses the first connect in 3.6 ms. The FIN of a stopped server ends an idle client in 18 µs.
 
 ### HikariCP
 
-- **HikariCP reads no idle socket, and its keepalive finds a black hole.** The keepalive checks an idle connection with the empty query, each 96 to 120 s. Behind a black hole, the read timeout of the check closes the socket 5.002 s after that query (`validationTimeout` 5 s).
+- **HikariCP reads no idle socket, and its keepalive finds a black hole.** The keepalive checks an idle connection with the empty query, each 96 to 120 s. Behind a black hole, the read timeout of the check closes the socket 5.003 s after that query (`validationTimeout` 5 s).
   - The keepalive tasks of the pool share one thread. Behind the black hole, each check waits for the checks before it, and each one takes 5 s. Thus at the defaults, the latest start of a check is 165 s after the connection, and not 120 s.
 - **No timer of pgjdbc ends a query at the defaults.** A server that holds the query 5 s gives the reply at 5.005 s. A freeze and an idle pool have no detector in 60 s.
 - **The read timeout of pgjdbc places the borders of O13 and O07.**
-  - Behind a black hole, a `socketTimeout` of 9 s closes the socket at 9.007 s, and one of 11 s at 11.011 s. The two are on each side of the slowest poll of 10 s.
-  - Against a `statement_timeout` of 10 s, a `socketTimeout` of 11 s lets the server end the query with ERROR 57014 at 10.005 s. A `socketTimeout` of 9 s closes the socket first, at 9.008 s.
+  - Behind a black hole, a `socketTimeout` of 9 s closes the socket at 9.010 s, and one of 11 s at 11.011 s. The two are on each side of the slowest poll of 10 s.
+  - Against a `statement_timeout` of 10 s, a `socketTimeout` of 11 s lets the server end the query with ERROR 57014 at 10.004 s. A `socketTimeout` of 9 s closes the socket first, at 9.010 s.
   - The JDK waits for a read in poll(), and Linux ends that wait up to 0.1 % of its time late. The document of pgjdbc has that slack.
 - **The start of the pool tries once.** After a failure, the pool sleeps 1 s, and then the start fails with PoolInitializationException.
-  - A reset of the first connect fails the start at 1.007 s.
-  - Behind a black hole, a `connectTimeout` of 28 s fails the start at 29.030 s, and one of 30 s at 31.039 s. The two are on each side of the startup budget of 30 s (O15).
+  - A reset of the first connect fails the start at 1.008 s.
+  - Behind a black hole, a `connectTimeout` of 28 s fails the start at 29.035 s, and one of 30 s at 31.021 s. The two are on each side of the startup budget of 30 s (O15).
 - **The keepalive places the border of O03.** The router forgets an idle flow at 60 s. HikariCP turns a keepalive below 30 s off, thus the cells divide each timer by 4.
   - Inside, a `keepaliveTime` of 55 s refreshes the flow, and nothing occurs in 150 s.
-  - Outside, a `keepaliveTime` of 80 s comes after the router forgot the flow. The router drops the empty query of the check, and its read timeout closes the socket 5.003 s later.
-- **A reset or a FIN comes at once.** A reset of a query in flight gives ECONNRESET in 0.5 ms. The FIN of a stopped server ends an idle connection in 9 µs.
+  - Outside, a `keepaliveTime` of 80 s comes after the router forgot the flow. The router drops the empty query of the check, and its read timeout closes the socket 5.005 s later.
+- **A reset or a FIN comes at once.** A reset of a query in flight gives ECONNRESET in 0.3 ms. The FIN of a stopped server ends an idle connection in 14 µs.
 - **The first uses of the JVM are slow.** The client starts the code of a connect, of a pool and of SecureRandom before its first line. Before that, the first connect of a cell was 22 ms late.
 
 ### Through a router (T03)
@@ -74,32 +74,43 @@ Each of the 65 cells holds against the prediction of the algebra. The cells have
 - **An MTU black hole at the router takes each long segment of a reply of 2 MB.** Nothing ends the read in 60 s.
 - **The keepalive of HikariCP keeps an idle flow through a NAT.** Through the Azure NAT form (240 s) and the AWS NAT form (350 s), nothing occurs in 300 s and in 400 s.
 
+### Through a router and Supavisor (T03)
+
+- **A fault at the router in front of Supavisor has the band of the same fault at the router alone.** A black hole of an idle connection gives the read timeout of the check at 5.004 s, and an unreachable host gives EHOSTUNREACH at 3.120 s.
+- **Behind a simplex drop to the client, Supavisor gets the empty query of the check, but its answer does not come back.** The read timeout of the check closes the socket 5.004 s after that query, as behind a black hole.
+- **After a stall, the first segment back can be the reply of Supavisor.** It comes one step of Supavisor later than through the router alone. The median is 1.668 s, and the band ends at 1.71 s, not at 1.698 s.
+- **Supavisor closes a client whose write waits 30 s.** ranch gives each client socket of Supavisor a send timeout of 30 s that closes it. Behind an MTU black hole, the FIN of that close waits behind the long segments, thus the client gets nothing in 60 s.
+- **The keepalive and the heartbeat of Supavisor keep an idle flow.** Through the Azure NAT form and the AWS NAT form, nothing occurs in 300 s and in 400 s.
+
 ### Through PgBouncer (T10)
 
-- **PgBouncer does not answer a query by itself.** Behind a black hole of the server, the keepalive of HikariCP sends its empty query to PgBouncer, and no reply comes. The read timeout of the check closes the socket at 5.005 s, as on the direct pair.
+- **PgBouncer does not answer a query by itself.** Behind a black hole of the server, the keepalive of HikariCP sends its empty query to PgBouncer, and no reply comes. The read timeout of the check closes the socket at 5.004 s, as on the direct pair.
 - **PgBouncer adds no timer to a query at the defaults.** The server holds the query 5 s, and the reply comes at 5.004 s. At the defaults, the earliest timer of PgBouncer is `query_wait_timeout`, 120 s.
+- **A reload keeps each query.** SIGHUP reads the configuration again, and a database with the same connection keeps its servers. The signal comes while the server holds the query 5 s, and the reply comes at 5.006 s.
+- **During PAUSE, a query waits in the queue.** PAUSE on the console gives no server to a new query. The janitor still runs `query_wait_timeout`, and it ends the query of node-postgres with FATAL 08P01 at 120.051 s.
 - **HikariCP of the earlier epoch has no keepalive.** With a `keepaliveTime` of 0, nothing finds the black hole in 60 s.
 - **The timers of PgBouncer and of the clients place six borders.**
-  - `query_timeout` against a hold of 5 s. At 6 s, the reply comes first, at 5.006 s. At 4 s, PgBouncer ends the query with FATAL 08P01 and closes the client at 4.071 s.
-  - `client_idle_timeout` of 12 s against the idle timer of node-postgres (O01). At an idle timer of 10 s, the pool closes its client first, at 10.003 s. At 14 s, PgBouncer closes the client first, at 12.251 s.
-  - `server_connect_timeout` against the give-up of the SYNs, with the client started into a black hole of the server. At 128 s, the connect timer of PgBouncer closes its socket in SYN_SENT at 128.000 s. At 140 s, the kernel of PgBouncer gives up first, with ETIMEDOUT at 132.895 s.
-  - The read timeout of pgjdbc against the give-up of the kernel of PgBouncer, with `tcp_retries2` = 4 at PgBouncer. A `socketTimeout` of 5 s comes first, and PgBouncer closes its server socket at 5.006 s. At 15 s, the kernel of PgBouncer gives up first, 13.024 s after its first retransmission.
-  - The read timeout of pgjdbc against a hold of the server. Against a `socketTimeout` of 10 s, a hold of 9 s gives the reply at 9.005 s. A hold of 11 s lets the read timeout close the socket at 10.010 s.
-  - O07 through PgBouncer. With a `socketTimeout` of 11 s, the server ends the query with ERROR 57014 at 10.003 s. With 9 s, the read timeout closes the socket at 9.009 s.
+  - `query_timeout` against a hold of 5 s. At 6 s, the reply comes first, at 5.005 s. At 4 s, PgBouncer ends the query with FATAL 08P01 and closes the client at 4.071 s.
+  - `client_idle_timeout` of 12 s against the idle timer of node-postgres (O01). At an idle timer of 10 s, the pool closes its client first, at 10.003 s. At 14 s, PgBouncer closes the client first, at 12.295 s.
+  - `server_connect_timeout` against the give-up of the SYNs, with the client started into a black hole of the server. At 128 s, the connect timer of PgBouncer closes its socket in SYN_SENT at 128.001 s. At 140 s, the kernel of PgBouncer gives up first, with ETIMEDOUT at 133.204 s.
+  - The read timeout of pgjdbc against the give-up of the kernel of PgBouncer, with `tcp_retries2` = 4 at PgBouncer. A `socketTimeout` of 5 s comes first, and PgBouncer closes its server socket at 5.004 s. At 15 s, the kernel of PgBouncer gives up first, 13.008 s after its first retransmission.
+  - The read timeout of pgjdbc against a hold of the server. Against a `socketTimeout` of 10 s, a hold of 9 s gives the reply at 9.010 s. A hold of 11 s lets the read timeout close the socket at 10.008 s.
+  - O07 through PgBouncer. With a `socketTimeout` of 11 s, the server ends the query with ERROR 57014 at 10.005 s. With 9 s, the read timeout closes the socket at 9.010 s.
 - **The connect timer of PgBouncer can fire early.** libevent counts a timeout from its cached time of the pass, not from the clock. In an earlier run the timer closed the socket 1 ms before 128 s, thus its band has an early slack of 10 ms.
 - **The give-up of the SYNs is late on the timer wheel.** Each wait of the SYN is a timer of the wheel, which rounds it up. At HZ 1000 the give-up can be up to 6.08 s late, thus its band is 131 s to 137.08 s.
 
 ### Through Pgpool-II (T10)
 
-- **The FIN of the server ends the session of Pgpool-II.** Pgpool-II then closes the idle client of node-postgres, which gets an end of file 0.5 ms after the FIN.
+- **The FIN of the server ends the session of Pgpool-II.** Pgpool-II then closes the idle client of node-postgres, which gets an end of file 0.7 ms after the FIN.
+- **A reload keeps the session.** The parent of Pgpool-II sends SIGHUP to each child, and a child in a session reads the configuration again in the loop of its query. The reply of a query of 5 s comes at 5.008 s.
 - **Pgpool-II waits on a frozen server with no bound.** Nothing ends the query of HikariCP in 60 s.
-- **The keepalive of HikariCP sends its empty query through Pgpool-II.** Behind a black hole of the server, its read timeout closes the socket at 5.003 s.
+- **The keepalive of HikariCP sends its empty query through Pgpool-II.** Behind a black hole of the server, its read timeout closes the socket at 5.004 s.
   - That cell keeps one connection (`minimumIdle` 1), and each run has its own environment. A failed connect of Pgpool-II gives a failover. With its only server detached, Pgpool-II then refuses each client.
-- **O07 through Pgpool-II.** With a `socketTimeout` of 11 s, the server ends the query with ERROR 57014 at 10.004 s. With 9 s, the read timeout closes the socket at 9.007 s.
+- **O07 through Pgpool-II.** With a `socketTimeout` of 11 s, the server ends the query with ERROR 57014 at 10.006 s. With 9 s, the read timeout closes the socket at 9.008 s.
 
 ### Through Supavisor (T10)
 
-- **Between two transactions, a client of Supavisor holds no server connection.** Behind a black hole of the server, the idle client of node-postgres gets nothing. The pool closes it at its idle timer, at 10.004 s, and Supavisor closes it at its `Terminate`.
+- **Between two transactions, a client of Supavisor holds no server connection.** Behind a black hole of the server, the idle client of node-postgres gets nothing. The pool closes it at its idle timer, at 10.003 s, and Supavisor closes it at its `Terminate`.
 - **No timer of Supavisor bounds a query.** Behind a frozen server, and behind a black hole with a query in flight, nothing ends the query in 60 s. When the server holds the query 5 s, the reply comes at 5.007 s.
 - **client_idle_timeout ends no session in Supavisor 2.9.13.** Its timer fires an event that no clause of the client handler takes.
 
@@ -119,9 +130,8 @@ The plan of R3 has more cells over these systems. The catalogs give a reason for
 - A block of the event loop of Node and a pause of the JVM wait for a document. No document gives how late the timers are after one.
 - Write-write-read does not occur, because pg and pgjdbc each set TCP_NODELAY.
 - Two borders of node-postgres need a client that the application holds. Two borders of HikariCP need a virtual IP that kube-vip moves.
-- Eight T03 cells put a router in front of Supavisor 2.9. They are not in this run.
-- Through Supavisor, T10.defaults.3 waits. After the FIN of the server, the end of an idle client of HikariCP depends on a race in the shutdown of the server.
-- Most other T10 cells need several clients, a SIGHUP or a console command at a hop, or a fault timed to a reply. One needs two nodes of Supavisor.
+- Through Supavisor, T10.defaults.3 and T03.defaults.61 wait. After the FIN of the server, the end of an idle client of HikariCP depends on a race in the shutdown of the server.
+- Most other T10 cells need several clients or a fault timed to a reply. One needs two nodes of Supavisor. Another needs PAUSE through Pgpool-II, which has no such command.
 
 ## T01: the direct pair
 
@@ -147,15 +157,23 @@ The client and the server are in their own network namespaces, with a pair of ve
 
 The router is the router image of the harness: a NAT with conntrack, in the form of a cloud preset. Each cell names its preset. The client of each T03 cell is HikariCP.
 
-<RunResults copy="pg" group="T03" stage="defaults" client:visible />
+<RunResults copy="pg" group="T03" via={null} stage="defaults" client:visible />
+
+### Through a router and Supavisor
+
+The router is in front of Supavisor, and Supavisor is in front of the server. A fault at the router acts between the client and Supavisor, and the client connects as the user of the tenant.
+
+<RunResults copy="pg" group="T03" via="Supavisor" stage="defaults" client:visible />
 
 ## T10: through a pooler
 
-A fault at the server is between the pooler and the server.
+A fault at the server is between the pooler and the server. An event at the pooler is a signal to its program, or a query on its console.
 
 ### Through PgBouncer
 
 PgBouncer 1.26.1 is in transaction pooling, with its defaults for each timer. The harness builds it from its release tarball, by its SHA-256.
+
+<RunResults copy="pg" group="T10" via="PgBouncer" pool="node-postgres" stage="defaults" client:visible />
 
 <RunResults copy="pg" group="T10" via="PgBouncer" pool="HikariCP" stage="defaults" client:visible />
 

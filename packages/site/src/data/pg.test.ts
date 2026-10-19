@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import pg from "./pg-2026-10-18.json";
+import pg from "./pg-2026-10-19.json";
 
 type Cell = (typeof pg.cells)[number];
 
@@ -13,22 +13,24 @@ const outside = (each: Cell): number[] =>
   each.runs.flat().flatMap((t) => (t === null || each.band === null || (t >= each.band.low && t <= each.band.high) ? [] : [t])).sort((a, b) => a - b);
 
 describe("the copy of the PostgreSQL cells holds the figures of their CI run", () => {
-  it("has 65 cells on Linux 6.17 at HZ 1000, each holds, with 715 counted runs and no void run", () => {
+  it("has 75 cells on Linux 6.17 at HZ 1000, each holds, with 825 counted runs and no void run", () => {
     expect([pg.kernel, pg.hz, pg.target]).toEqual(["6.17.0", 1000, "postgres:17.11"]);
     expect(pg.clients).toEqual({ "node-postgres": "pg 8.23.1 with pg-pool 3.14.0 on Node 24.21.0", HikariCP: "HikariCP 7.1.0 over pgjdbc 42.7.13 on Temurin 21.0.12.1" });
-    expect(pg.cells).toHaveLength(65);
+    expect(pg.cells).toHaveLength(75);
     expect(pg.cells.every((each) => each.decision === "holds")).toBe(true);
-    expect(pg.cells.reduce((sum, each) => sum + each.counted, 0)).toBe(715);
+    expect(pg.cells.reduce((sum, each) => sum + each.counted, 0)).toBe(825);
     expect(pg.cells.reduce((sum, each) => sum + each.voided, 0)).toBe(0);
     const count = (group: string, client: string, stage: string) => pg.cells.filter((each) => each.group === group && each.client === client && each.stage === stage).length;
     expect([count("T01", "node-postgres", "defaults"), count("T01", "node-postgres", "border")]).toEqual([9, 8]);
     expect([count("T01", "HikariCP", "defaults"), count("T01", "HikariCP", "border")]).toEqual([9, 8]);
-    expect([count("T03", "HikariCP", "defaults"), count("T10", "HikariCP", "defaults"), count("T10", "HikariCP", "border")]).toEqual([7, 5, 12]);
-    expect([count("T10", "node-postgres", "defaults"), count("T10", "node-postgres", "border")]).toEqual([5, 2]);
-    // each cell of T10 names its pooler, and no other cell names one
+    expect([count("T03", "HikariCP", "defaults"), count("T10", "HikariCP", "defaults"), count("T10", "HikariCP", "border")]).toEqual([14, 6, 12]);
+    expect([count("T10", "node-postgres", "defaults"), count("T10", "node-postgres", "border")]).toEqual([7, 2]);
+    // each cell of T10 names its pooler, and in T03 only the chain through Supavisor names one
     const via = (name: string) => pg.cells.filter((each) => each.via === name).length;
-    expect([via("PgBouncer"), via("Pgpool-II"), via("Supavisor")]).toEqual([15, 5, 4]);
-    expect(pg.cells.every((each) => (each.group === "T10") === (each.via !== undefined))).toBe(true);
+    expect([via("PgBouncer"), via("Pgpool-II"), via("Supavisor")]).toEqual([17, 6, 11]);
+    expect(pg.cells.filter((each) => each.group === "T10").every((each) => each.via !== undefined)).toBe(true);
+    expect(pg.cells.filter((each) => each.group === "T03" && each.via !== undefined).map((each) => each.via)).toEqual(Array(7).fill("Supavisor"));
+    expect(pg.cells.filter((each) => each.group === "T01").every((each) => each.via === undefined)).toBe(true);
   });
 
   it("places the borders through PgBouncer on each side of its timers", () => {
@@ -44,6 +46,32 @@ describe("the copy of the PostgreSQL cells holds the figures of their CI run", (
     expect(inside!.median).toBeLessThan(12);
     expect(outside!.median).toBeGreaterThan(12);
     expect(outside!.prediction.text).toMatch(/^The algebra predicts that client_idle_timeout of PgBouncer closes the idle client/);
+  });
+
+  it("gives a fault at the router in front of Supavisor the band of the router alone, and one step of Supavisor after a stall", () => {
+    for (const [chain, alone] of [
+      ["T03.defaults.36", "T03.defaults.6"],
+      ["T03.defaults.29", "T03.defaults.6"],
+      ["T03.defaults.58", "T03.defaults.9"],
+    ] as const)
+      expect(cell(chain).band, chain).toEqual(cell(alone).band);
+    const stall = cell("T03.defaults.35");
+    expect(stall.band).toEqual({ low: 1.603, high: 1.71 });
+    expect(cell("T03.defaults.52").band).toEqual({ low: 1.603, high: 1.698 });
+    expect(outside(stall)).toEqual([]);
+  });
+
+  it("keeps a query through a reload of the pooler, and ends a query after PAUSE at query_wait_timeout", () => {
+    for (const plan of ["T10.defaults.15", "T10.defaults.8"]) {
+      const each = cell(plan);
+      expect(each.median, plan).toBeGreaterThan(5);
+      expect(each.median, plan).toBeLessThan(5.03);
+      expect(outside(each), plan).toEqual([]);
+    }
+    const paused = cell("T10.defaults.7");
+    expect(paused.median).toBeGreaterThan(120);
+    expect(paused.median).toBeLessThan(120.38);
+    expect(paused.prediction.text).toMatch(/^The algebra predicts that query_wait_timeout of PgBouncer ends the query that waits in its queue, and closes the client with 08P01./);
   });
 
   it("gives no timer of Supavisor to an idle client or to a query", () => {
@@ -113,6 +141,9 @@ describe("the copy of the PostgreSQL cells holds the figures of their CI run", (
         "T10.defaults.2",
         "T10.defaults.28",
         "T10.defaults.30",
+        "T03.defaults.7",
+        "T03.defaults.59",
+        "T03.defaults.60",
       ].sort(),
     );
     for (const each of quiet) expect(each.runs.flat().every((t) => t === null), each.plan).toBe(true);

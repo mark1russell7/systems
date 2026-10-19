@@ -1,6 +1,6 @@
 {
   "source": "the raw records of the runners of GitHub, judged again by the harness",
-  "ranAt": "2026-10-18",
+  "ranAt": "2026-10-19",
   "units": "s",
   "noise": 0.001,
   "runs": 11,
@@ -33,13 +33,13 @@
         "low": -0.001,
         "high": 0.023
       },
-      "median": 0.002989,
-      "why": "11 of the 11 counted runs are in the band of −1 ms to 23 ms. The median is 2.99 ms, and its interval is 2.91 ms to 3.44 ms.",
+      "median": 0.003597,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 23 ms. The median is 3.6 ms, and its interval is 3.36 ms to 4.2 ms.",
       "runs": [
-        [0.002896, 0.003072, 0.003042, 0.002962, 0.002959, 0.002905],
-        [0.003161, 0.002927, 0.003685, 0.003435, 0.002989]
+        [0.003658, 0.003626, 0.003537, 0.003827, 0.004276, 0.004203],
+        [0.003597, 0.00348, 0.003051, 0.003357, 0.003597]
       ],
-      "warmups": [0.002873, 0.002944],
+      "warmups": [0.003979, 0.003705],
       "voids": null
     },
     {
@@ -63,13 +63,13 @@
         "low": 9.999,
         "high": 10.011
       },
-      "median": 10.003599,
-      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.011 s. The median is 10.004 s, and its interval is 10.003 s to 10.004 s.",
+      "median": 10.003621,
+      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.011 s. The median is 10.004 s, and its interval is 10.003 s to 10.005 s.",
       "runs": [
-        [10.003733, 10.003893, 10.00414, 10.003727, 10.003736, 10.002594],
-        [10.003076, 10.002695, 10.003599, 10.002736, 10.002545]
+        [10.003551, 10.004646, 10.004724, 10.003621, 10.003867, 10.002656],
+        [10.003824, 10.00379, 10.003521, 10.002585, 10.003336]
       ],
-      "warmups": [10.003946, 10.002762],
+      "warmups": [10.003589, 10.004048],
       "voids": null
     },
     {
@@ -93,13 +93,13 @@
         "low": -0.001,
         "high": 0.003
       },
-      "median": 0.000833,
-      "why": "11 of the 11 counted runs are in the band of −1 ms to 3 ms. The median is 833 µs, and its interval is 646 µs to 1.5 ms.",
+      "median": 0.000812,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 3 ms. The median is 812 µs, and its interval is 631 µs to 1.38 ms.",
       "runs": [
-        [0.001146, 0.0015, 0.000833, 0.000694, 0.000709, 0.001098],
-        [0.001783, 0.000881, 0.000646, 0.000819, 0.000646]
+        [0.001379, 0.000603, 0.001634, 0.001118, 0.000687, 0.000631],
+        [0.000855, 0.001219, 0.000632, 0.000812, 0.000655]
       ],
-      "warmups": [0.000852, 0.000949],
+      "warmups": [0.000607, 0.000957],
       "voids": null
     },
     {
@@ -123,20 +123,20 @@
         "low": -0.001,
         "high": 0.013
       },
-      "median": 0.000016,
-      "why": "11 of the 11 counted runs are in the band of −1 ms to 13 ms. The median is 16 µs, and its interval is 15 µs to 19 µs.",
+      "median": 0.000018,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 13 ms. The median is 18 µs, and its interval is 16 µs to 22 µs.",
       "runs": [
-        [0.000018],
-        [0.000016],
-        [0.000015],
-        [0.000015],
-        [0.000016],
-        [0.000019],
-        [0.000016],
         [0.000017],
+        [0.000017],
+        [0.000019],
+        [0.000018],
+        [0.000043],
+        [0.000019],
+        [0.000021],
+        [0.000022],
         [0.000016],
         [0.000018],
-        [0.000024]
+        [0.000013]
       ],
       "warmups": [null, null, null, null, null, null, null, null, null, null, null],
       "voids": null
@@ -162,13 +162,13 @@
         "low": 2.999,
         "high": 3.33
       },
-      "median": 3.119999,
+      "median": 3.120003,
       "why": "11 of the 11 counted runs are in the band of 2.999 s to 3.33 s. The median is 3.12 s, and its interval is 3.12 s to 3.12 s.",
       "runs": [
-        [3.119983, 3.120011, 3.120008, 3.119989, 3.119985, 3.119974],
-        [3.12002, 3.119998, 3.120002, 3.12001, 3.119999]
+        [3.120023, 3.120007, 3.120003, 3.119997, 3.120004, 3.119988],
+        [3.120009, 3.120016, 3.11999, 3.119999, 3.119976]
       ],
-      "warmups": [3.119953, 3.120009],
+      "warmups": [3.119993, 3.12002],
       "voids": null
     },
     {
@@ -219,13 +219,13 @@
         "low": 1.603,
         "high": 1.698
       },
-      "median": 1.66819,
-      "why": "11 of the 11 counted runs are in the band of 1.603 s to 1.698 s. The median is 1.668 s, and its interval is 1.63 s to 1.683 s.",
+      "median": 1.64602,
+      "why": "11 of the 11 counted runs are in the band of 1.603 s to 1.698 s. The median is 1.646 s, and its interval is 1.637 s to 1.665 s.",
       "runs": [
-        [1.62984, 1.684427, 1.675097, 1.66819, 1.665129, 1.677695],
-        [1.64543, 1.627935, 1.682601, 1.647969, 1.672673]
+        [1.640145, 1.648197, 1.665425, 1.641387, 1.658031, 1.644345],
+        [1.646284, 1.631362, 1.64602, 1.689904, 1.63675]
       ],
-      "warmups": [1.653386, 1.646123],
+      "warmups": [1.633034, 1.629669],
       "voids": null
     },
     {
@@ -249,13 +249,13 @@
         "low": 9.999,
         "high": 10.011
       },
-      "median": 10.003573,
+      "median": 10.003785,
       "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.011 s. The median is 10.004 s, and its interval is 10.003 s to 10.004 s.",
       "runs": [
-        [10.003287, 10.003559, 10.003589, 10.003822, 10.004298, 10.003573],
-        [10.003511, 10.004352, 10.003662, 10.003383, 10.003512]
+        [10.002631, 10.003821, 10.003971, 10.002918, 10.002908, 10.003541],
+        [10.004684, 10.003948, 10.00417, 10.003785, 10.003663]
       ],
-      "warmups": [10.003362, 10.003303],
+      "warmups": [10.003603, 10.003781],
       "voids": null
     },
     {
@@ -279,13 +279,13 @@
         "low": 4.999,
         "high": 5.023
       },
-      "median": 5.006137,
-      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.023 s. The median is 5.006 s, and its interval is 5.002 s to 5.007 s.",
+      "median": 5.006436,
+      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.023 s. The median is 5.006 s, and its interval is 5.006 s to 5.007 s.",
       "runs": [
-        [5.002237, 5.006137, 5.007412, 5.006685, 5.001945, 5.002272],
-        [5.002599, 5.006902, 5.006786, 5.002783, 5.007208]
+        [5.005728, 5.007026, 5.005661, 5.006436, 5.006728, 5.006483],
+        [5.006844, 5.002968, 5.006111, 5.00635, 5.006976]
       ],
-      "warmups": [5.006594, 5.003811],
+      "warmups": [5.00699, 5.002858],
       "voids": null
     },
     {
@@ -309,13 +309,13 @@
         "low": 9.999,
         "high": 10.033
       },
-      "median": 10.003118,
-      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.033 s. The median is 10.003 s, and its interval is 10.003 s to 10.004 s.",
+      "median": 10.002698,
+      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.033 s. The median is 10.003 s, and its interval is 10.003 s to 10.003 s.",
       "runs": [
-        [10.003122, 10.003118, 10.002615, 10.003358, 10.002741, 10.003156],
-        [10.002984, 10.002734, 10.002769, 10.003513, 10.003651]
+        [10.002991, 10.002582, 10.002866, 10.002585, 10.003747, 10.002681],
+        [10.002546, 10.002619, 10.002698, 10.00332, 10.003168]
       ],
-      "warmups": [10.002663, 10.002791],
+      "warmups": [10.002588, 10.002639],
       "voids": null
     },
     {
@@ -339,13 +339,13 @@
         "low": 9.499,
         "high": 9.511
       },
-      "median": 9.503322,
-      "why": "11 of the 11 counted runs are in the band of 9.499 s to 9.511 s. The median is 9.503 s, and its interval is 9.503 s to 9.504 s.",
+      "median": 9.502679,
+      "why": "11 of the 11 counted runs are in the band of 9.499 s to 9.511 s. The median is 9.503 s, and its interval is 9.502 s to 9.503 s.",
       "runs": [
-        [9.502963, 9.503322, 9.503557, 9.503055, 9.502901, 9.502728],
-        [9.50498, 9.503865, 9.503808, 9.503824, 9.502803]
+        [9.502662, 9.502491, 9.502448, 9.503355, 9.503367, 9.503479],
+        [9.503233, 9.502451, 9.503274, 9.502564, 9.502679]
       ],
-      "warmups": [9.50274, 9.5028],
+      "warmups": [9.503536, 9.503551],
       "voids": null
     },
     {
@@ -369,13 +369,13 @@
         "low": 9.958,
         "high": 10.013
       },
-      "median": 10.003998,
-      "why": "11 of the 11 counted runs are in the band of 9.958 s to 10.013 s. The median is 10.004 s, and its interval is 10.004 s to 10.005 s.",
+      "median": 10.0034,
+      "why": "11 of the 11 counted runs are in the band of 9.958 s to 10.013 s. The median is 10.003 s, and its interval is 10.002 s to 10.004 s.",
       "runs": [
-        [10.005395, 10.004306, 10.003748, 10.004052, 10.003998, 10.004952],
-        [10.003221, 10.003953, 10.003986, 10.003525, 10.004152]
+        [10.004286, 10.004259, 10.002464, 10.003446, 10.004399, 10.00397],
+        [10.002219, 10.002651, 10.0034, 10.00272, 10.00224]
       ],
-      "warmups": [10.004071, 10.003971],
+      "warmups": [10.002774, 10.003259],
       "voids": null
     },
     {
@@ -426,13 +426,13 @@
         "low": 9.499,
         "high": 9.511
       },
-      "median": 9.503104,
-      "why": "11 of the 11 counted runs are in the band of 9.499 s to 9.511 s. The median is 9.503 s, and its interval is 9.503 s to 9.504 s.",
+      "median": 9.5025,
+      "why": "11 of the 11 counted runs are in the band of 9.499 s to 9.511 s. The median is 9.502 s, and its interval is 9.502 s to 9.503 s.",
       "runs": [
-        [9.503104, 9.502928, 9.50351, 9.50249, 9.503082, 9.504529],
-        [9.503138, 9.503454, 9.503081, 9.502615, 9.50376]
+        [9.50331, 9.503753, 9.503286, 9.502904, 9.502295, 9.503271],
+        [9.502334, 9.502273, 9.502325, 9.50235, 9.5025]
       ],
-      "warmups": [9.50393, 9.50393],
+      "warmups": [9.503257, 9.502411],
       "voids": null
     },
     {
@@ -456,13 +456,13 @@
         "low": 10.499,
         "high": 10.511
       },
-      "median": 10.501419,
-      "why": "11 of the 11 counted runs are in the band of 10.499 s to 10.511 s. The median is 10.501 s, and its interval is 10.501 s to 10.502 s.",
+      "median": 10.501986,
+      "why": "11 of the 11 counted runs are in the band of 10.499 s to 10.511 s. The median is 10.502 s, and its interval is 10.502 s to 10.503 s.",
       "runs": [
-        [10.501326, 10.50203, 10.501325, 10.503332, 10.501419, 10.502303],
-        [10.501307, 10.501412, 10.501935, 10.50141, 10.501794]
+        [10.502697, 10.502779, 10.501828, 10.501986, 10.501959, 10.502218],
+        [10.501901, 10.501623, 10.50261, 10.50241, 10.501805]
       ],
-      "warmups": [10.502827, 10.502412],
+      "warmups": [10.502761, 10.502999],
       "voids": null
     },
     {
@@ -486,13 +486,13 @@
         "low": 28.999,
         "high": 29.011
       },
-      "median": 29.006711,
-      "why": "11 of the 11 counted runs are in the band of 28.999 s to 29.011 s. The median is 29.007 s, and its interval is 29.003 s to 29.007 s.",
+      "median": 29.006712,
+      "why": "11 of the 11 counted runs are in the band of 28.999 s to 29.011 s. The median is 29.007 s, and its interval is 29.006 s to 29.008 s.",
       "runs": [
-        [29.006973, 29.007653, 29.00648, 29.004871, 29.006711, 29.006882],
-        [29.007425, 29.006682, 29.003402, 29.002804, 29.006795]
+        [29.004414, 29.006712, 29.006344, 29.007694, 29.005956, 29.007239],
+        [29.006635, 29.006597, 29.008623, 29.007689, 29.007486]
       ],
-      "warmups": [29.006545, 29.007928],
+      "warmups": [29.007858, 29.005086],
       "voids": null
     },
     {
@@ -516,13 +516,13 @@
         "low": 30.999,
         "high": 31.011
       },
-      "median": 31.007654,
-      "why": "11 of the 11 counted runs are in the band of 30.999 s to 31.011 s. The median is 31.008 s, and its interval is 31.007 s to 31.009 s.",
+      "median": 31.00826,
+      "why": "11 of the 11 counted runs are in the band of 30.999 s to 31.011 s. The median is 31.008 s, and its interval is 31.007 s to 31.008 s.",
       "runs": [
-        [31.009017, 31.007369, 31.007689, 31.007489, 31.007491, 31.003975],
-        [31.007927, 31.008503, 31.007523, 31.008574, 31.007654]
+        [31.008344, 31.007976, 31.00765, 31.008114, 31.008407, 31.004377],
+        [31.00727, 31.008363, 31.008318, 31.00826, 31.008275]
       ],
-      "warmups": [31.008419, 31.00627],
+      "warmups": [31.008444, 31.008707],
       "voids": null
     },
     {
@@ -546,13 +546,13 @@
         "low": -0.001,
         "high": 0.003
       },
-      "median": 0.000487,
-      "why": "11 of the 11 counted runs are in the band of −1 ms to 3 ms. The median is 487 µs, and its interval is 426 µs to 687 µs.",
+      "median": 0.000324,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 3 ms. The median is 324 µs, and its interval is 301 µs to 540 µs.",
       "runs": [
-        [0.000755, 0.000498, 0.000594, 0.000471, 0.00038, 0.000577],
-        [0.000483, 0.000687, 0.000484, 0.000426, 0.000487]
+        [0.000404, 0.001476, 0.000312, 0.000323, 0.000347, 0.00054],
+        [0.000301, 0.000324, 0.000328, 0.000317, 0.000275]
       ],
-      "warmups": [0.000417, 0.00047],
+      "warmups": [0.000314, 0.000389],
       "voids": null
     },
     {
@@ -576,13 +576,13 @@
         "low": 4.999,
         "high": 5.016
       },
-      "median": 5.002341,
-      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.016 s. The median is 5.002 s, and its interval is 5.001 s to 5.005 s.",
+      "median": 5.003372,
+      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.016 s. The median is 5.003 s, and its interval is 5.001 s to 5.005 s.",
       "runs": [
-        [5.005289, 5.001965, 5.000939, 5.000546, 5.004026, 5.002682],
-        [5.001304, 5.002341, 5.000779, 5.005227, 5.004758]
+        [5.005102, 5.005205, 5.005364, 5.001385, 5.001698, 5.003372],
+        [5.004509, 5.004938, 5.001027, 5.000966, 5.00047]
       ],
-      "warmups": [5.005237, 5.005196],
+      "warmups": [5.002705, 5.005375],
       "voids": null
     },
     {
@@ -606,20 +606,20 @@
         "low": -0.001,
         "high": 0.003
       },
-      "median": 0.000009,
-      "why": "11 of the 11 counted runs are in the band of −1 ms to 3 ms. The median is 9 µs, and its interval is 7 µs to 12 µs.",
+      "median": 0.000014,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 3 ms. The median is 14 µs, and its interval is 13 µs to 22 µs.",
       "runs": [
-        [0.000008],
-        [0.000011],
-        [0.000009],
-        [0.000008],
-        [0.000014],
-        [0.00001],
+        [0.000015],
         [0.000012],
-        [0.000011],
-        [0.000008],
-        [0.000006],
-        [0.000007]
+        [0.000022],
+        [0.000015],
+        [0.000014],
+        [0.000013],
+        [0.000016],
+        [0.000014],
+        [0.000029],
+        [0.000013],
+        [0.000014]
       ],
       "warmups": [null, null, null, null, null, null, null, null, null, null, null],
       "voids": null
@@ -645,13 +645,13 @@
         "low": 2.999,
         "high": 3.33
       },
-      "median": 3.120005,
+      "median": 3.119997,
       "why": "11 of the 11 counted runs are in the band of 2.999 s to 3.33 s. The median is 3.12 s, and its interval is 3.12 s to 3.12 s.",
       "runs": [
-        [3.120001, 3.120006, 3.120006, 3.120005, 3.120005, 3.120005],
-        [3.120014, 3.121011, 3.120011, 3.120004, 3.120004]
+        [3.119995, 3.120005, 3.120018, 3.119986, 3.119991, 3.119994],
+        [3.12001, 3.120013, 3.120011, 3.119981, 3.119997]
       ],
-      "warmups": [3.12, 3.120012],
+      "warmups": [3.120007, 3.120004],
       "voids": null
     },
     {
@@ -702,13 +702,13 @@
         "low": 1.603,
         "high": 1.698
       },
-      "median": 1.646355,
-      "why": "11 of the 11 counted runs are in the band of 1.603 s to 1.698 s. The median is 1.646 s, and its interval is 1.629 s to 1.681 s.",
+      "median": 1.66511,
+      "why": "11 of the 11 counted runs are in the band of 1.603 s to 1.698 s. The median is 1.665 s, and its interval is 1.631 s to 1.678 s.",
       "runs": [
-        [1.654907, 1.646355, 1.681323, 1.637745, 1.6795, 1.643156],
-        [1.645657, 1.649697, 1.627179, 1.68598, 1.62859]
+        [1.653783, 1.676651, 1.66511, 1.671553, 1.677802, 1.688485],
+        [1.644186, 1.632267, 1.627176, 1.631476, 1.668983]
       ],
-      "warmups": [1.688394, 1.666448],
+      "warmups": [1.635903, 1.665208],
       "voids": null
     },
     {
@@ -759,13 +759,13 @@
         "low": 0.999,
         "high": 1.013
       },
-      "median": 1.007342,
-      "why": "11 of the 11 counted runs are in the band of 999 ms to 1.013 s. The median is 1.007 s, and its interval is 1.007 s to 1.009 s.",
+      "median": 1.008328,
+      "why": "11 of the 11 counted runs are in the band of 999 ms to 1.013 s. The median is 1.008 s, and its interval is 1.008 s to 1.01 s.",
       "runs": [
-        [1.007722, 1.006542, 1.006665, 1.007342, 1.006565, 1.006332],
-        [1.008738, 1.006894, 1.00748, 1.007505, 1.00883]
+        [1.00831, 1.009423, 1.009711, 1.008247, 1.007848, 1.007652],
+        [1.007892, 1.008328, 1.009928, 1.008416, 1.008697]
       ],
-      "warmups": [1.0075, 1.00801],
+      "warmups": [1.008268, 1.008234],
       "voids": null
     },
     {
@@ -789,13 +789,13 @@
         "low": 4.999,
         "high": 5.013
       },
-      "median": 5.005418,
+      "median": 5.00514,
       "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.013 s. The median is 5.005 s, and its interval is 5.002 s to 5.006 s.",
       "runs": [
-        [5.005495, 5.005418, 5.005513, 5.0021, 5.00561, 5.004518],
-        [5.006749, 5.005242, 5.006159, 5.001198, 5.004962]
+        [5.00506, 5.001666, 5.002448, 5.006079, 5.001417, 5.006387],
+        [5.002945, 5.00523, 5.005241, 5.005471, 5.00514]
       ],
-      "warmups": [5.002914, 5.006055],
+      "warmups": [5.005481, 5.006481],
       "voids": null
     },
     {
@@ -846,13 +846,13 @@
         "low": 4.999,
         "high": 5.016
       },
-      "median": 5.003449,
-      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.016 s. The median is 5.003 s, and its interval is 5.001 s to 5.005 s.",
+      "median": 5.004973,
+      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.016 s. The median is 5.005 s, and its interval is 5.002 s to 5.005 s.",
       "runs": [
-        [5.001279, 5.004013, 5.004525, 5.005014, 5.001967, 5.003449],
-        [5.004469, 5.005242, 5.001819, 5.000454, 5.000782]
+        [5.00085, 5.002869, 5.005217, 5.005286, 5.004602, 5.005166],
+        [5.004973, 5.005254, 5.004506, 5.001587, 5.005311]
       ],
-      "warmups": [5.000991, 5.004998],
+      "warmups": [5.005252, 5.002054],
       "voids": null
     },
     {
@@ -876,13 +876,13 @@
         "low": 8.999,
         "high": 9.02
       },
-      "median": 9.007499,
-      "why": "11 of the 11 counted runs are in the band of 8.999 s to 9.02 s. The median is 9.007 s, and its interval is 9.005 s to 9.01 s.",
+      "median": 9.009813,
+      "why": "11 of the 11 counted runs are in the band of 8.999 s to 9.02 s. The median is 9.01 s, and its interval is 9.002 s to 9.01 s.",
       "runs": [
-        [9.001268, 9.009971, 9.009118, 9.010347, 9.008706, 9.010037],
-        [9.007499, 9.007168, 9.00488, 9.006357, 9.004741]
+        [9.009803, 9.001998, 9.004053, 9.001267, 9.009864, 9.009862],
+        [9.00982, 9.002527, 9.009813, 9.009905, 9.009868]
       ],
-      "warmups": [9.010221, 9.010017],
+      "warmups": [9.00988, 9.004845],
       "voids": null
     },
     {
@@ -906,13 +906,13 @@
         "low": 10.999,
         "high": 11.022
       },
-      "median": 11.011057,
-      "why": "11 of the 11 counted runs are in the band of 10.999 s to 11.022 s. The median is 11.011 s, and its interval is 11.006 s to 11.012 s.",
+      "median": 11.010665,
+      "why": "11 of the 11 counted runs are in the band of 10.999 s to 11.022 s. The median is 11.011 s, and its interval is 11.004 s to 11.012 s.",
       "runs": [
-        [11.011919, 11.004796, 11.005841, 11.011947, 11.012275, 11.011992],
-        [11.012047, 11.010526, 11.010733, 11.005938, 11.011057]
+        [11.010665, 11.002901, 11.006758, 11.011765, 11.012342, 11.004904],
+        [11.003893, 11.011745, 11.011735, 11.008379, 11.010897]
       ],
-      "warmups": [11.00273, 11.010605],
+      "warmups": [11.011391, 11.004596],
       "voids": null
     },
     {
@@ -936,13 +936,13 @@
         "low": 9.999,
         "high": 10.023
       },
-      "median": 10.004504,
-      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.023 s. The median is 10.005 s, and its interval is 10.004 s to 10.005 s.",
+      "median": 10.003622,
+      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.023 s. The median is 10.004 s, and its interval is 10.003 s to 10.005 s.",
       "runs": [
-        [10.004468, 10.004045, 10.005238, 10.004333, 10.004696, 10.004504],
-        [10.005727, 10.005012, 10.004278, 10.004278, 10.004511]
+        [10.004743, 10.00413, 10.003467, 10.004253, 10.003796, 10.003442],
+        [10.003608, 10.003594, 10.004558, 10.003358, 10.003622]
       ],
-      "warmups": [10.004959, 10.004217],
+      "warmups": [10.004621, 10.003635],
       "voids": null
     },
     {
@@ -966,13 +966,13 @@
         "low": 8.999,
         "high": 9.02
       },
-      "median": 9.008439,
-      "why": "11 of the 11 counted runs are in the band of 8.999 s to 9.02 s. The median is 9.008 s, and its interval is 9.001 s to 9.01 s.",
+      "median": 9.009767,
+      "why": "11 of the 11 counted runs are in the band of 8.999 s to 9.02 s. The median is 9.01 s, and its interval is 9.004 s to 9.01 s.",
       "runs": [
-        [9.007886, 9.001246, 9.009708, 9.004707, 9.008439, 9.00344],
-        [9.009871, 9.001206, 9.009854, 9.010168, 9.00993]
+        [9.005117, 9.009864, 9.009795, 9.009694, 9.004005, 9.003503],
+        [9.005845, 9.009871, 9.009802, 9.009876, 9.009767]
       ],
-      "warmups": [9.005093, 9.009665],
+      "warmups": [9.010133, 9.004162],
       "voids": null
     },
     {
@@ -996,13 +996,13 @@
         "low": 29,
         "high": 29.06
       },
-      "median": 29.030458,
-      "why": "11 of the 11 counted runs are in the band of 29 s to 29.06 s. The median is 29.03 s, and its interval is 29.011 s to 29.037 s.",
+      "median": 29.034993,
+      "why": "11 of the 11 counted runs are in the band of 29 s to 29.06 s. The median is 29.035 s, and its interval is 29.013 s to 29.038 s.",
       "runs": [
-        [29.035781, 29.036508, 29.036662, 29.012062, 29.030458, 29.011208],
-        [29.009018, 29.037597, 29.016152, 29.015547, 29.037169]
+        [29.012516, 29.03917, 29.038283, 29.015293, 29.036623, 29.015725],
+        [29.034993, 29.037487, 29.013052, 29.037184, 29.011828]
       ],
-      "warmups": [29.02746, 29.015818],
+      "warmups": [29.030504, 29.014233],
       "voids": null
     },
     {
@@ -1026,13 +1026,13 @@
         "low": 31,
         "high": 31.062
       },
-      "median": 31.038868,
-      "why": "11 of the 11 counted runs are in the band of 31 s to 31.062 s. The median is 31.039 s, and its interval is 31.019 s to 31.042 s.",
+      "median": 31.020789,
+      "why": "11 of the 11 counted runs are in the band of 31 s to 31.062 s. The median is 31.021 s, and its interval is 31.01 s to 31.034 s.",
       "runs": [
-        [31.022879, 31.018993, 31.041586, 31.039685, 31.013585, 31.04206],
-        [31.019471, 31.03978, 31.019581, 31.03964, 31.038868]
+        [31.034028, 31.009679, 31.027956, 31.012228, 31.024501, 31.020789],
+        [31.010885, 31.008794, 31.03811, 31.019999, 31.025607]
       ],
-      "warmups": [31.038088, 31.027811],
+      "warmups": [31.012825, 31.022058],
       "voids": null
     },
     {
@@ -1056,13 +1056,13 @@
         "low": 4.999,
         "high": 5.016
       },
-      "median": 5.004607,
+      "median": 5.00505,
       "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.016 s. The median is 5.005 s, and its interval is 5.002 s to 5.005 s.",
       "runs": [
-        [5.004908, 5.004613, 5.004607, 5.002096, 5.002486, 5.00095],
-        [5.004264, 5.005258, 5.005246, 5.004404, 5.005221]
+        [5.005285, 5.001653, 5.002156, 5.003488, 5.005323, 5.00505],
+        [5.005222, 5.005329, 5.005245, 5.003462, 5.004411]
       ],
-      "warmups": [5.005137, 5.004611],
+      "warmups": [5.005197, 5.001201],
       "voids": null
     },
     {
@@ -1113,13 +1113,13 @@
         "low": 2.999,
         "high": 3.33
       },
-      "median": 3.120003,
+      "median": 3.120009,
       "why": "11 of the 11 counted runs are in the band of 2.999 s to 3.33 s. The median is 3.12 s, and its interval is 3.12 s to 3.12 s.",
       "runs": [
-        [3.119999, 3.120003, 3.120005, 3.120005, 3.12001, 3.120033],
-        [3.11999, 3.120002, 3.119996, 3.119998, 3.120003]
+        [3.119987, 3.120019, 3.120017, 3.120009, 3.120001, 3.120006],
+        [3.120012, 3.120006, 3.120011, 3.120003, 3.120011]
       ],
-      "warmups": [3.12001, 3.120023],
+      "warmups": [3.119992, 3.120006],
       "voids": null
     },
     {
@@ -1170,20 +1170,20 @@
         "low": -0.001,
         "high": 0.003
       },
-      "median": 0.000049,
-      "why": "11 of the 11 counted runs are in the band of −1 ms to 3 ms. The median is 49 µs, and its interval is 43 µs to 54 µs.",
+      "median": 0.000034,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 3 ms. The median is 34 µs, and its interval is 31 µs to 42 µs.",
       "runs": [
-        [0.000059],
-        [0.000054],
-        [0.000054],
-        [0.000043],
-        [0.000049],
-        [0.000049],
-        [0.000049],
-        [0.000045],
-        [0.00005],
-        [0.000052],
-        [0.000037]
+        [0.000038],
+        [0.000039],
+        [0.000027],
+        [0.000044],
+        [0.000033],
+        [0.000042],
+        [0.000032],
+        [0.000038],
+        [0.000031],
+        [0.000034],
+        [0.000032]
       ],
       "warmups": [null, null, null, null, null, null, null, null, null, null, null],
       "voids": null
@@ -1236,13 +1236,221 @@
         "low": 1.603,
         "high": 1.698
       },
-      "median": 1.650793,
-      "why": "11 of the 11 counted runs are in the band of 1.603 s to 1.698 s. The median is 1.651 s, and its interval is 1.634 s to 1.681 s.",
+      "median": 1.649959,
+      "why": "11 of the 11 counted runs are in the band of 1.603 s to 1.698 s. The median is 1.65 s, and its interval is 1.631 s to 1.667 s.",
       "runs": [
-        [1.638195, 1.646308, 1.681118, 1.627442, 1.660488, 1.650793],
-        [1.63425, 1.657554, 1.684915, 1.654669, 1.643726]
+        [1.657998, 1.630594, 1.632692, 1.641324, 1.627422, 1.67445],
+        [1.648314, 1.66746, 1.649959, 1.651425, 1.659735]
       ],
-      "warmups": [1.641392, 1.660001],
+      "warmups": [1.654142, 1.632295],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.7",
+      "catalog": "T03",
+      "name": "middlebox-forget through Supavisor, idle for 300 s: the keepalive keeps the flow, Azure NAT form",
+      "group": "T03",
+      "via": "Supavisor",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 300,
+        "text": "The algebra predicts that nothing detects the fault in a window of 300 s. The prediction has no failed query after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 300 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.29",
+      "catalog": "T03",
+      "name": "simplex-to-client at the router in front of Supavisor, idle: the keepalive checks the connection, AWS NAT form",
+      "group": "T03",
+      "via": "Supavisor",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 5,
+        "high": 5.015,
+        "window": null,
+        "text": "The algebra predicts that the check of the pool gets no reply, and its read timeout closes the socket, and the kernel stamps its FIN. The band is 5 s to 5.015 s after the empty query of the check, the first segment after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 4.999,
+        "high": 5.016
+      },
+      "median": 5.004492,
+      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.016 s. The median is 5.004 s, and its interval is 5.001 s to 5.005 s.",
+      "runs": [
+        [5.004125, 5.004766, 5.005233, 5.000432, 5.001639, 5.001249],
+        [5.005216, 5.005006, 5.004492, 5.001671, 5.005239]
+      ],
+      "warmups": [5.000844, 5.001067],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.35",
+      "catalog": "T03",
+      "name": "a 1 s stall at the router in front of Supavisor, a query in flight, GCP firewall form",
+      "group": "T03",
+      "via": "Supavisor",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "recovers",
+        "low": 1.604,
+        "high": 1.709,
+        "window": 20,
+        "text": "The algebra predicts that the reply comes back at the third firing of the RTO timer. The band is 1.604 s to 1.709 s after the send of the query."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 1.603,
+        "high": 1.71
+      },
+      "median": 1.668142,
+      "why": "11 of the 11 counted runs are in the band of 1.603 s to 1.71 s. The median is 1.668 s, and its interval is 1.63 s to 1.686 s.",
+      "runs": [
+        [1.679573, 1.661289, 1.68621, 1.630382, 1.672905, 1.679126],
+        [1.686345, 1.627278, 1.644026, 1.635906, 1.668142]
+      ],
+      "warmups": [1.666813, 1.659749],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.36",
+      "catalog": "T03",
+      "name": "blackhole at a plain router in front of Supavisor, idle: the keepalive checks the connection",
+      "group": "T03",
+      "via": "Supavisor",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 5,
+        "high": 5.015,
+        "window": null,
+        "text": "The algebra predicts that the check of the pool gets no reply, and its read timeout closes the socket, and the kernel stamps its FIN. The band is 5 s to 5.015 s after the empty query of the check, the first segment after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 4.999,
+        "high": 5.016
+      },
+      "median": 5.004084,
+      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.016 s. The median is 5.004 s, and its interval is 5.001 s to 5.005 s.",
+      "runs": [
+        [5.005479, 5.00515, 5.004714, 5.001694, 5.003507, 5.004084],
+        [5.004246, 5.000894, 5.005185, 5.000773, 5.000933]
+      ],
+      "warmups": [5.00521, 5.005227],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.58",
+      "catalog": "T03",
+      "name": "unreachable-host at the router in front of Supavisor, a query in flight, tcp_retries2 = 3, AWS NAT form",
+      "group": "T03",
+      "via": "Supavisor",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 3,
+        "high": 3.329,
+        "window": null,
+        "text": "The algebra predicts that the retransmissions of the kernel give up with EHOSTUNREACH. The band is 3 s to 3.329 s after the first retransmission of the RTO timer."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 2.999,
+        "high": 3.33
+      },
+      "median": 3.120005,
+      "why": "11 of the 11 counted runs are in the band of 2.999 s to 3.33 s. The median is 3.12 s, and its interval is 3.12 s to 3.121 s.",
+      "runs": [
+        [3.120923, 3.120002, 3.120005, 3.120021, 3.120019, 3.119999],
+        [3.119993, 3.120954, 3.118997, 3.120997, 3.119998]
+      ],
+      "warmups": [3.119999, 3.12001],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.59",
+      "catalog": "T03",
+      "name": "mtu-blackhole at the router in front of Supavisor, a long reply in flight, AWS NAT form",
+      "group": "T03",
+      "via": "Supavisor",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 60,
+        "text": "The algebra predicts that nothing detects the fault in a window of 60 s. The prediction has no failed query after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 60 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
+      "voids": null
+    },
+    {
+      "plan": "T03.defaults.60",
+      "catalog": "T03",
+      "name": "event:idle through Supavisor, no fault, idle for 400 s: the keepalive keeps the flow, AWS NAT form",
+      "group": "T03",
+      "via": "Supavisor",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "silent",
+        "low": null,
+        "high": null,
+        "window": 400,
+        "text": "The algebra predicts that nothing detects the fault in a window of 400 s. The prediction has no failed query after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": null,
+      "median": null,
+      "why": "Nothing detected the fault in the 11 counted runs, each of 400 s.",
+      "runs": [
+        [null, null, null, null, null, null],
+        [null, null, null, null, null]
+      ],
+      "warmups": [null, null],
       "voids": null
     },
     {
@@ -1267,13 +1475,13 @@
         "low": 9.999,
         "high": 10.023
       },
-      "median": 10.003313,
-      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.023 s. The median is 10.003 s, and its interval is 10.002 s to 10.004 s.",
+      "median": 10.002986,
+      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.023 s. The median is 10.003 s, and its interval is 10.003 s to 10.004 s.",
       "runs": [
-        [10.001731, 10.004367, 10.004289, 10.003313, 10.003298, 10.003285],
-        [10.001005, 10.003532, 10.004379, 10.003181, 10.003751]
+        [10.003592, 10.003312, 10.002918, 10.002235, 10.003099, 10.002986],
+        [10.003027, 10.002985, 10.003557, 10.002916, 10.002961]
       ],
-      "warmups": [10.003204, 10.003161],
+      "warmups": [10.002925, 10.002728],
       "voids": null
     },
     {
@@ -1298,13 +1506,75 @@
         "low": 11.987,
         "high": 12.346333
       },
-      "median": 12.251063,
-      "why": "11 of the 11 counted runs are in the band of 11.987 s to 12.346 s. The median is 12.251 s, and its interval is 12.24 s to 12.294 s.",
+      "median": 12.295182,
+      "why": "11 of the 11 counted runs are in the band of 11.987 s to 12.346 s. The median is 12.295 s, and its interval is 12.003 s to 12.332 s.",
       "runs": [
-        [12.281798, 12.293715, 12.251063, 12.293968, 12.286486, 12.278377],
-        [12.239825, 12.242182, 12.243934, 12.240315, 12.230832]
+        [12.331558, 12.006418, 12.004054, 12.002726, 12.003753, 12.002404],
+        [12.332342, 12.295182, 12.308358, 12.322302, 12.322705]
       ],
-      "warmups": [12.070856, 12.274322],
+      "warmups": [12.302076, 12.25521],
+      "voids": null
+    },
+    {
+      "plan": "T10.defaults.7",
+      "catalog": "T10",
+      "name": "event:PAUSE on the console of PgBouncer, then a query: it waits in the queue, and query_wait_timeout ends it",
+      "group": "T10",
+      "via": "PgBouncer",
+      "client": "node-postgres",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 120,
+        "high": 120.375333,
+        "window": null,
+        "text": "The algebra predicts that query_wait_timeout of PgBouncer ends the query that waits in its queue, and closes the client with 08P01. The band is 120 s to 120.375 s after the send of the query."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 119.999,
+        "high": 120.376333
+      },
+      "median": 120.051429,
+      "why": "11 of the 11 counted runs are in the band of 119.999 s to 120.376 s. The median is 120.051 s, and its interval is 120.042 s to 120.059 s.",
+      "runs": [
+        [120.041747, 120.051429, 120.057574, 120.059016, 120.077218, 120.0478],
+        [120.058534, 120.054186, 120.0447, 120.04615, 120.033084]
+      ],
+      "warmups": [120.023996, 120.045574],
+      "voids": null
+    },
+    {
+      "plan": "T10.defaults.8",
+      "catalog": "T10",
+      "name": "event:reload behind Pgpool-II: SIGHUP while the server holds the query 5 s, and the reply comes",
+      "group": "T10",
+      "via": "Pgpool-II",
+      "client": "node-postgres",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "replies",
+        "low": 5,
+        "high": 5.034,
+        "window": 30,
+        "text": "The algebra predicts that no timer ends the query, and that the reply comes back after the hold of the server. The band of the reply is 5 s to 5.034 s after the send of the query. The prediction has no failed query or socket error after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 4.999,
+        "high": 5.035
+      },
+      "median": 5.00759,
+      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.035 s. The median is 5.008 s, and its interval is 5.007 s to 5.008 s.",
+      "runs": [
+        [5.008348, 5.007499, 5.007504, 5.007752, 5.007652, 5.007642],
+        [5.00759, 5.003072, 5.007551, 5.007575, 5.007756]
+      ],
+      "warmups": [5.00297, 5.00335],
       "voids": null
     },
     {
@@ -1329,22 +1599,22 @@
         "low": -0.001,
         "high": 0.025
       },
-      "median": 0.000525,
-      "why": "11 of the 11 counted runs are in the band of −1 ms to 25 ms. The median is 525 µs, and its interval is 444 µs to 872 µs.",
+      "median": 0.000684,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 25 ms. The median is 684 µs, and its interval is 483 µs to 1.24 ms.",
       "runs": [
-        [0.000652],
-        [0.000513],
-        [0.000483],
-        [0.000442],
-        [0.000872],
-        [0.000988],
-        [0.000587],
-        [0.000587],
-        [0.000525],
-        [0.000444],
-        [0.000497]
+        [0.000862],
+        [0.001243],
+        [0.000684],
+        [0.001218],
+        [0.000458],
+        [0.000595],
+        [0.00053],
+        [0.000707],
+        [0.000518],
+        [0.001304],
+        [0.000483]
       ],
-      "warmups": [-0.000034, -0.000806, -0.000026, null, -0.000038, -0.000034, null, -0.000039, null, null, -0.000024],
+      "warmups": [-0.000038, -0.00006, null, null, -0.000029, -0.000048, -0.000035, -0.000042, -0.000038, -0.000034, -0.00003],
       "voids": null
     },
     {
@@ -1369,13 +1639,13 @@
         "low": 9.999,
         "high": 10.023
       },
-      "median": 10.003628,
-      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.023 s. The median is 10.004 s, and its interval is 10.003 s to 10.005 s.",
+      "median": 10.003411,
+      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.023 s. The median is 10.003 s, and its interval is 10.003 s to 10.004 s.",
       "runs": [
-        [10.003924, 10.003429, 10.004877, 10.004285, 10.0035, 10.003828],
-        [10.002288, 10.004875, 10.003628, 10.003622, 10.003467]
+        [10.003411, 10.003241, 10.004147, 10.003545, 10.003668, 10.00327],
+        [10.003342, 10.003398, 10.004319, 10.002983, 10.00423]
       ],
-      "warmups": [10.004734, 10.003841],
+      "warmups": [10.003201, 10.0032],
       "voids": null
     },
     {
@@ -1456,13 +1726,13 @@
         "low": 4.999,
         "high": 5.035
       },
-      "median": 5.006844,
+      "median": 5.006556,
       "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.035 s. The median is 5.007 s, and its interval is 5.003 s to 5.007 s.",
       "runs": [
-        [5.00801, 5.007433, 5.006846, 5.006352, 5.006254, 5.007195],
-        [5.006597, 5.006844, 5.00295, 5.007436, 5.002484]
+        [5.006556, 5.003206, 5.007176, 5.007482, 5.006855, 5.004056],
+        [5.006061, 5.002859, 5.006467, 5.006903, 5.007439]
       ],
-      "warmups": [5.002824, 5.007991],
+      "warmups": [5.006358, 5.006915],
       "voids": null
     },
     {
@@ -1487,13 +1757,13 @@
         "low": 4.999,
         "high": 5.016
       },
-      "median": 5.004934,
-      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.016 s. The median is 5.005 s, and its interval is 5.001 s to 5.005 s.",
+      "median": 5.004497,
+      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.016 s. The median is 5.004 s, and its interval is 5.002 s to 5.005 s.",
       "runs": [
-        [5.001992, 5.001887, 5.000593, 5.004934, 5.001593, 5.005465],
-        [5.0052, 5.005238, 5.001392, 5.005201, 5.005217]
+        [5.002694, 5.003831, 5.005203, 5.004757, 5.003348, 5.004497],
+        [5.005223, 5.00241, 5.004766, 5.005178, 5.000831]
       ],
-      "warmups": [5.002292, 5.001505],
+      "warmups": [5.005223, 5.001239],
       "voids": null
     },
     {
@@ -1518,13 +1788,44 @@
         "low": 4.999,
         "high": 5.025
       },
-      "median": 5.003869,
-      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.025 s. The median is 5.004 s, and its interval is 5.002 s to 5.006 s.",
+      "median": 5.004005,
+      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.025 s. The median is 5.004 s, and its interval is 5.003 s to 5.006 s.",
       "runs": [
-        [5.006282, 5.005022, 5.002573, 5.003869, 5.002299, 5.001599],
-        [5.006081, 5.002439, 5.005913, 5.005318, 5.001442]
+        [5.00402, 5.005884, 5.005576, 5.002642, 5.006421, 5.003051],
+        [5.00244, 5.004005, 5.005349, 5.002856, 5.002602]
       ],
-      "warmups": [5.00664, 5.002343],
+      "warmups": [5.005978, 5.006219],
+      "voids": null
+    },
+    {
+      "plan": "T10.defaults.15",
+      "catalog": "T10",
+      "name": "event:reload behind PgBouncer: SIGHUP while the server holds the query 5 s, and the reply comes",
+      "group": "T10",
+      "via": "PgBouncer",
+      "client": "HikariCP",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "replies",
+        "low": 5,
+        "high": 5.024,
+        "window": 30,
+        "text": "The algebra predicts that no timer ends the query, and that the reply comes back after the hold of the server. The band of the reply is 5 s to 5.024 s after the send of the query. The prediction has no failed query after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 4.999,
+        "high": 5.025
+      },
+      "median": 5.005982,
+      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.025 s. The median is 5.006 s, and its interval is 5.004 s to 5.006 s.",
+      "runs": [
+        [5.006105, 5.001666, 5.005275, 5.006179, 5.006044, 5.00596],
+        [5.004581, 5.006118, 5.00618, 5.003628, 5.005982]
+      ],
+      "warmups": [5.005124, 5.006409],
       "voids": null
     },
     {
@@ -1577,13 +1878,13 @@
         "low": 4.999,
         "high": 5.025
       },
-      "median": 5.006092,
-      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.025 s. The median is 5.006 s, and its interval is 5.003 s to 5.007 s.",
+      "median": 5.004766,
+      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.025 s. The median is 5.005 s, and its interval is 5.003 s to 5.006 s.",
       "runs": [
-        [5.006092, 5.006118, 5.006785, 5.002455, 5.003335, 5.002842],
-        [5.00384, 5.00645, 5.007475, 5.003202, 5.006323]
+        [5.003656, 5.003313, 5.001439, 5.006317, 5.00525, 5.005376],
+        [5.002608, 5.004766, 5.006019, 5.005519, 5.003485]
       ],
-      "warmups": [5.006155, 5.00421],
+      "warmups": [5.002254, 5.004027],
       "voids": null
     },
     {
@@ -1608,13 +1909,13 @@
         "low": 3.999,
         "high": 4.356333
       },
-      "median": 4.071222,
-      "why": "11 of the 11 counted runs are in the band of 3.999 s to 4.356 s. The median is 4.071 s, and its interval is 4.052 s to 4.107 s.",
+      "median": 4.071174,
+      "why": "11 of the 11 counted runs are in the band of 3.999 s to 4.356 s. The median is 4.071 s, and its interval is 4.04 s to 4.089 s.",
       "runs": [
-        [4.05219, 4.054441, 4.109105, 4.041741, 4.092859, 4.071222],
-        [4.065696, 4.089715, 4.090931, 4.107436, 4.069158]
+        [4.056709, 4.084231, 4.066844, 4.088884, 4.071847, 4.040272],
+        [4.1233, 4.071174, 4.077339, 4.063868, 4.029346]
       ],
-      "warmups": [4.040008, 4.33212],
+      "warmups": [4.163581, 4.192789],
       "voids": null
     },
     {
@@ -1639,22 +1940,22 @@
         "low": 4.999,
         "high": 5.028
       },
-      "median": 5.005814,
-      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.028 s. The median is 5.006 s, and its interval is 5.002 s to 5.006 s.",
+      "median": 5.003573,
+      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.028 s. The median is 5.004 s, and its interval is 5.001 s to 5.006 s.",
       "runs": [
-        [5.005814],
-        [5.003895],
-        [5.005101],
-        [5.006118],
-        [5.005737],
-        [5.001957],
-        [5.001772],
-        [5.006327],
-        [5.006151],
-        [5.006117],
-        [5.006675]
+        [5.006066],
+        [5.002491],
+        [5.005969],
+        [5.001393],
+        [5.002415],
+        [5.003573],
+        [5.003721],
+        [5.001492],
+        [5.003761],
+        [5.002017],
+        [5.005874]
       ],
-      "warmups": [5.003077, 5.002196, 5.002001, 5.005257, 5.001724, 5.003306, 5.006258, 5.001751, 5.002972, 5.005636, 5.005948],
+      "warmups": [5.003081, 5.004274, 5.003453, 5.005588, 5.001482, 5.00629, 5.006668, 5.006418, 5.001274, 5.002535, 5.006112],
       "voids": null
     },
     {
@@ -1679,22 +1980,22 @@
         "low": 6.199,
         "high": 13.345
       },
-      "median": 13.023999,
-      "why": "11 of the 11 counted runs are in the band of 6.199 s to 13.345 s. The median is 13.024 s, and its interval is 12.832 s to 13.032 s.",
+      "median": 13.008016,
+      "why": "11 of the 11 counted runs are in the band of 6.199 s to 13.345 s. The median is 13.008 s, and its interval is 12.872 s to 13.024 s.",
       "runs": [
-        [13.031995],
-        [12.896999],
-        [12.952016],
-        [13.040005],
-        [12.903998],
-        [13.023999],
-        [13.024021],
-        [6.200014],
-        [13.03199],
-        [12.832012],
-        [13.032003]
+        [12.999993],
+        [13.01596],
+        [12.92799],
+        [13.024001],
+        [12.968025],
+        [13.015975],
+        [13.03198],
+        [13.023986],
+        [12.872015],
+        [13.008016],
+        [12.832008]
       ],
-      "warmups": [13.072008, 6.200009, 12.783979, 12.95997, 12.736007, 12.936004, 13.071987, 12.824006, 12.903982, 12.631993, 12.895967],
+      "warmups": [12.80803, 13.080009, 12.775979, 13.040005, 12.776, 13.008, 6.199959, 12.92801, 12.672014, 12.903999, 12.64802],
       "voids": null
     },
     {
@@ -1719,13 +2020,13 @@
         "low": 127.989,
         "high": 128.011
       },
-      "median": 128.000406,
-      "why": "11 of the 11 counted runs are in the band of 127.989 s to 128.011 s. The median is 128 s, and its interval is 128 s to 128.001 s.",
+      "median": 128.00077,
+      "why": "11 of the 11 counted runs are in the band of 127.989 s to 128.011 s. The median is 128.001 s, and its interval is 128 s to 128.001 s.",
       "runs": [
-        [127.999845, 128.000402, 128.000406, 128.001081, 128.000404, 127.999841],
-        [128.001388, 128.001068, 127.999347, 128.001552, 128.001283]
+        [128.001305, 128.001019, 128.00077, 128.001358, 128.000505, 128.000899],
+        [128.000735, 128.000883, 127.999993, 128.000351, 128.000394]
       ],
-      "warmups": [127.999541, 128.000109],
+      "warmups": [128.001356, 128.000977],
       "voids": null
     },
     {
@@ -1750,13 +2051,13 @@
         "low": 130.999,
         "high": 137.081
       },
-      "median": 132.894675,
-      "why": "11 of the 11 counted runs are in the band of 130.999 s to 137.081 s. The median is 132.895 s, and its interval is 132.597 s to 133.214 s.",
+      "median": 133.203984,
+      "why": "11 of the 11 counted runs are in the band of 130.999 s to 137.081 s. The median is 133.204 s, and its interval is 132.87 s to 133.665 s.",
       "runs": [
-        [133.213771, 133.393634, 132.558334, 132.729003, 132.877231, 133.055623],
-        [132.597187, 132.764155, 132.894675, 133.088204, 133.213592]
+        [132.870221, 133.032735, 133.203984, 133.338636, 133.524541, 133.701156],
+        [133.511451, 133.665485, 132.812138, 132.98265, 133.134224]
       ],
-      "warmups": [132.662343, 133.993532],
+      "warmups": [133.408747, 133.993138],
       "voids": null
     },
     {
@@ -1781,13 +2082,13 @@
         "low": 8.999,
         "high": 9.025
       },
-      "median": 9.004604,
-      "why": "11 of the 11 counted runs are in the band of 8.999 s to 9.025 s. The median is 9.005 s, and its interval is 9.003 s to 9.01 s.",
+      "median": 9.010337,
+      "why": "11 of the 11 counted runs are in the band of 8.999 s to 9.025 s. The median is 9.01 s, and its interval is 9.003 s to 9.011 s.",
       "runs": [
-        [9.001481, 9.00459, 9.004405, 9.004604, 9.010283, 9.010513],
-        [9.003509, 9.010395, 9.009847, 9.003165, 9.005654]
+        [9.011145, 9.010439, 9.005144, 9.011911, 9.002634, 9.0109],
+        [9.010337, 9.007152, 9.003894, 9.010477, 9.003048]
       ],
-      "warmups": [9.010888, 9.010813],
+      "warmups": [9.010889, 9.005326],
       "voids": null
     },
     {
@@ -1812,13 +2113,13 @@
         "low": 9.999,
         "high": 10.021
       },
-      "median": 10.010101,
-      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.021 s. The median is 10.01 s, and its interval is 10.002 s to 10.011 s.",
+      "median": 10.008079,
+      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.021 s. The median is 10.008 s, and its interval is 10.003 s to 10.011 s.",
       "runs": [
-        [10.001614, 10.010862, 10.009378, 10.001587, 10.007601, 10.011012],
-        [10.002531, 10.01068, 10.01109, 10.010871, 10.010101]
+        [10.003418, 10.003779, 10.010796, 10.005532, 10.008079, 10.009412],
+        [10.01069, 10.010707, 10.007948, 10.001673, 10.010747]
       ],
-      "warmups": [10.010993, 10.010805],
+      "warmups": [10.010691, 10.010771],
       "voids": null
     },
     {
@@ -1871,20 +2172,20 @@
         "low": 4.999,
         "high": 5.016
       },
-      "median": 5.003373,
-      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.016 s. The median is 5.003 s, and its interval is 5.001 s to 5.005 s.",
+      "median": 5.003939,
+      "why": "11 of the 11 counted runs are in the band of 4.999 s to 5.016 s. The median is 5.004 s, and its interval is 5.001 s to 5.005 s.",
       "runs": [
-        [5.003373],
-        [5.004412],
-        [5.00056],
-        [5.002307],
-        [5.005098],
-        [5.005164],
-        [5.005442],
-        [5.000475],
-        [5.003715],
-        [5.003345],
-        [5.001166]
+        [5.005454],
+        [5.005299],
+        [5.002219],
+        [5.000844],
+        [5.00541],
+        [5.000698],
+        [5.005426],
+        [5.001693],
+        [5.003368],
+        [5.005561],
+        [5.003939]
       ],
       "warmups": [null, null, null, null, null, null, null, null, null, null, null],
       "voids": null
@@ -1911,13 +2212,13 @@
         "low": 9.999,
         "high": 10.035
       },
-      "median": 10.004347,
-      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.035 s. The median is 10.004 s, and its interval is 10.004 s to 10.005 s.",
+      "median": 10.005556,
+      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.035 s. The median is 10.006 s, and its interval is 10.005 s to 10.006 s.",
       "runs": [
-        [10.00467, 10.004053, 10.004524, 10.004339, 10.003972, 10.004752],
-        [10.005143, 10.003982, 10.004347, 10.004562, 10.0041]
+        [10.004815, 10.006045, 10.005572, 10.004402, 10.005201, 10.005581],
+        [10.006248, 10.005263, 10.004947, 10.008109, 10.005556]
       ],
-      "warmups": [10.006329, 10.006448],
+      "warmups": [10.007749, 10.006695],
       "voids": null
     },
     {
@@ -1942,13 +2243,13 @@
         "low": 8.999,
         "high": 9.02
       },
-      "median": 9.007123,
-      "why": "11 of the 11 counted runs are in the band of 8.999 s to 9.02 s. The median is 9.007 s, and its interval is 9.002 s to 9.01 s.",
+      "median": 9.008388,
+      "why": "11 of the 11 counted runs are in the band of 8.999 s to 9.02 s. The median is 9.008 s, and its interval is 9.005 s to 9.01 s.",
       "runs": [
-        [9.007361, 9.001818, 9.005467, 9.009763, 9.011127, 9.00283],
-        [9.002967, 9.009734, 9.007123, 9.002117, 9.009858]
+        [9.006442, 9.009782, 9.009654, 9.009831, 9.005228, 9.009857],
+        [9.002893, 9.008388, 9.00821, 9.009787, 9.005541]
       ],
-      "warmups": [9.005289, 9.008347],
+      "warmups": [9.009972, 9.008912],
       "voids": null
     },
     {
@@ -1973,13 +2274,13 @@
         "low": 9.999,
         "high": 10.035
       },
-      "median": 10.00314,
-      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.035 s. The median is 10.003 s, and its interval is 10.003 s to 10.004 s.",
+      "median": 10.004848,
+      "why": "11 of the 11 counted runs are in the band of 9.999 s to 10.035 s. The median is 10.005 s, and its interval is 10.004 s to 10.005 s.",
       "runs": [
-        [10.003132, 10.003674, 10.002987, 10.003398, 10.00314, 10.003171],
-        [10.003094, 10.002982, 10.003691, 10.003108, 10.003427]
+        [10.005347, 10.004619, 10.005143, 10.005751, 10.004833, 10.004372],
+        [10.004899, 10.005021, 10.004609, 10.004395, 10.004848]
       ],
-      "warmups": [10.003698, 10.003168],
+      "warmups": [10.004836, 10.0053],
       "voids": null
     },
     {
@@ -2004,13 +2305,13 @@
         "low": 8.999,
         "high": 9.02
       },
-      "median": 9.008587,
-      "why": "11 of the 11 counted runs are in the band of 8.999 s to 9.02 s. The median is 9.009 s, and its interval is 9.002 s to 9.01 s.",
+      "median": 9.009682,
+      "why": "11 of the 11 counted runs are in the band of 8.999 s to 9.02 s. The median is 9.01 s, and its interval is 9.004 s to 9.01 s.",
       "runs": [
-        [9.009719, 9.004855, 9.010053, 9.001487, 9.005149, 9.005265],
-        [9.009709, 9.010718, 9.002443, 9.00973, 9.008587]
+        [9.009707, 9.003833, 9.009756, 9.003719, 9.009682, 9.009778],
+        [9.007887, 9.009682, 9.005983, 9.009834, 9.009701]
       ],
-      "warmups": [9.009654, 9.009699],
+      "warmups": [9.0032, 9.010417],
       "voids": null
     }
   ]

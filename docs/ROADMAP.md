@@ -819,9 +819,9 @@ The full run of the catalogs at main gives five pages their copies: the network 
 - **Depends on:** PG
 - **Started:** 2026-10-18
 - **Shipped:** 2026-10-18
-- **Links:** [The page](https://mark1russell7.github.io/systems/results/pg/), [The run at main](https://github.com/mark1russell7/systems/actions/runs/39169339494), [#74](https://github.com/mark1russell7/systems/pull/74), [#95](https://github.com/mark1russell7/systems/pull/95)
+- **Links:** [The page](https://mark1russell7.github.io/systems/results/pg/), [The run at main](https://github.com/mark1russell7/systems/actions/runs/39182922975), [#74](https://github.com/mark1russell7/systems/pull/74), [#95](https://github.com/mark1russell7/systems/pull/95)
 
-The page gives the 65 PostgreSQL cells of one run at main. They are T01 for each client, T03 through a router, and T10 through PgBouncer, Pgpool-II and Supavisor. Each cell holds, with 715 counted runs and no void run. The export `scripts/pg.ts` reads each raw record again with the judge of the harness, and it stops when a prediction disagrees with the catalog. The map of the cells has a row for each pooler, and the ledger and the home page add the page.
+The page gives the 75 PostgreSQL cells of one run at main. They are T01 for each client, T03 through a router and through a router and Supavisor, and T10 through PgBouncer, Pgpool-II and Supavisor. Each cell holds, with 825 counted runs and no void run. The export `scripts/pg.ts` reads each raw record again with the judge of the harness, and it stops when a prediction disagrees with the catalog. The map of the cells has a row for each pooler, and the ledger and the home page add the page.
 
 ### CANONICAL · The canonical cells, measured to the close of Redis
 

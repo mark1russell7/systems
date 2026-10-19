@@ -32,20 +32,21 @@ describe("the map of the cells", () => {
       "T01 node-postgres",
       "T01 HikariCP",
       "T03 HikariCP",
+      "T03 HikariCP Supavisor",
       "T10 node-postgres PgBouncer",
       "T10 node-postgres Pgpool-II",
       "T10 node-postgres Supavisor",
       "T10 HikariCP PgBouncer",
       "T10 HikariCP Pgpool-II",
     ]);
-    // through PgBouncer, HikariCP has 3 cells at the defaults and 10 at the borders
-    expect(rows[6]!.clusters.map((cluster) => [cluster.stage, cluster.cells.length])).toEqual([
-      ["defaults", 3],
+    // through PgBouncer, HikariCP has 4 cells at the defaults and 10 at the borders
+    expect(rows[7]!.clusters.map((cluster) => [cluster.stage, cluster.cells.length])).toEqual([
+      ["defaults", 4],
       ["border", 10],
     ]);
     const html = renderToString(<CellMap copy="pg" />);
-    // a row of one stage shows it when it is not the defaults: the borders of node-postgres through PgBouncer
-    expect(rows.map(labelled)).toEqual([true, true, false, true, false, false, true, true]);
+    // a row of one stage shows it only when it is not the defaults
+    expect(rows.map(labelled)).toEqual([true, true, false, false, true, false, false, true, true]);
     // React puts a comment between the two parts of the label
     expect(html).toMatch(/class="sy-map-via">through (?:<!-- -->)?Supavisor</);
     expect(rows[0]!.clusters.map((cluster) => [cluster.stage, cluster.cells.length])).toEqual([
@@ -77,7 +78,7 @@ describe("the charts of the borders", () => {
     // the read timeout of the check counts from its empty query, which comes at a phase of the keepalive: the chart gives it as text
     expect(onAxis(o03!.outside, o03!.at)).toBe(false);
     const html = renderToString(<Borders copy="pg" />);
-    expect(html).toContain("it ended 5.0034 s after the empty query of the check");
+    expect(html).toContain("it ended 5.005 s after the empty query of the check");
     expect(html).toContain("nothing ended it in the window of 30 s");
     expect(html.split('class="sy-border"').length - 1).toBe(8);
   });
