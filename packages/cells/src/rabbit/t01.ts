@@ -42,6 +42,31 @@ export const RABBIT_TARGET: Target = {
   kill: ["sh", "-c", 'for p in /proc/[0-9]*; do [ "$(cat "$p/comm" 2>/dev/null)" = beam.smp ] && kill -KILL "${p#/proc/}"; done; true'],
 };
 
+/**
+ * This function gives the target of a broker with settings of its own, for example a heartbeat of 80 s.
+ * The names are the names of the document `rabbitmq-connection`. Each one is a line of rabbitmq.conf
+ * in the file of conf.d. With no settings, it is RABBIT_TARGET.
+ */
+export const rabbitTarget = (broker: Readonly<Record<string, number>> = {}): Target => {
+  const unknown = Object.keys(broker).filter((name) => RABBITMQ_CONNECTION.knobs[name] === undefined);
+  if (unknown.length > 0) throw new Error(`the broker has no knob ${unknown.join(", ")}`);
+  if (Object.keys(broker).length === 0) return RABBIT_TARGET;
+  const lines = ["loopback_users.guest = false", ...Object.entries(broker).map(([name, value]) => `${name} = ${value}`)];
+  const conf = `printf '%s\\n' ${lines.map((line) => `'${line}'`).join(" ")} > /etc/rabbitmq/conf.d/90-harness.conf`;
+  return { ...RABBIT_TARGET, command: ["sh", "-c", `${conf}; docker-entrypoint.sh rabbitmq-server & echo $! > /tmp/server.pid; while :; do sleep 3600; done`] };
+};
+
+/**
+ * This function gives the heartbeat that amqplib tunes (connection.js:120-131, :162-168). With no
+ * heartbeat of the caller, it is the heartbeat of the broker. At 0 there is none. Else it is the
+ * smaller of the two, or the one that is not 0.
+ */
+export const tunedHeartbeat = (broker: number, client: number | undefined): number => {
+  if (client === undefined) return broker;
+  if (client === 0) return 0;
+  return broker === 0 ? client : Math.min(broker, client);
+};
+
 /** This text is the version of the client that each cell loads, as the lockfile of its image pins it. */
 export const AMQP_DRIVER = "amqplib 2.2.0 on Node 24.21.0";
 
@@ -66,6 +91,8 @@ export interface AmqpSpec {
   readonly before?: true;
   /** These are the options of amqplib that differ from the defaults, by the names and in the units of the document. */
   readonly options?: Readonly<Record<string, number>>;
+  /** These are the settings of the broker that differ from the defaults, by the names and in the units of `rabbitmq-connection`. */
+  readonly broker?: Readonly<Record<string, number>>;
   /** This time is the window of a cell with no fault, in seconds. */
   readonly hold?: number;
   /** This router is between the client and the broker: its form and its idle timeout, in whole seconds. */
@@ -78,12 +105,16 @@ export const RABBIT_K = 8;
 /** This router is the Azure LB at its default, with its idle timeout divided by RABBIT_K: a silent drop at 30 s. */
 export const RABBIT_ROUTER = { ...PRESETS.azureLb, idle: PRESETS.azureLb.idle / RABBIT_K, preset: `${PRESETS.azureLb.preset}, divided by ${RABBIT_K}` };
 
-/** This function gives the values of the knobs of amqplib for a cell: the defaults of the document, and the options of the cell. */
-export const amqpValues = (options: Readonly<Record<string, number>> = {}): Record<string, Extent> => {
+/**
+ * This function gives the values of the knobs of amqplib for a cell: the defaults of the document, and
+ * the options of the cell. The heartbeat is the one that amqplib tunes with the heartbeat of the broker.
+ */
+export const amqpValues = (options: Readonly<Record<string, number>> = {}, broker: Readonly<Record<string, number>> = {}): Record<string, Extent> => {
   const out: Record<string, Extent> = {};
+  const tuned = tunedHeartbeat(broker["heartbeat"] ?? RABBITMQ_CONNECTION.knobs["heartbeat"]?.default ?? 0, options["heartbeat"]);
   for (const [name, knob] of Object.entries(AMQPLIB.knobs)) {
     if (knob.unit === null) continue;
-    const value = options[name] ?? knob.default;
+    const value = name === "heartbeat" ? tuned : (options[name] ?? knob.default);
     if (value === null) continue;
     out[name] = { value: knob.off !== undefined && value === knob.off ? "infinite" : value, unit: knob.unit };
   }
@@ -183,7 +214,7 @@ export const amqpPrediction = (spec: AmqpSpec): Prediction => {
     return { ...stalled, recovers: { ...stalled.recovers, high: slowest.recovers.high } };
   }
   const rtt = { low: { value: 0, unit: "ms" }, high: { value: RABBIT_RTT_MS, unit: "ms" } } as const;
-  const driver = given(amqpValues(spec.options));
+  const driver = given(amqpValues(spec.options, spec.broker));
   const linux = given(linuxValues(spec.linux));
   const slack = seconds(timerOf(AMQPLIB, "connect_timeout", driver).lateness, "the slack of Node");
   // a reset of the SYN refuses the connect at once: the fail line of operation 1 gives the code of the socket
@@ -269,13 +300,15 @@ export const T01_AMQP_BORDER_SPECS: readonly AmqpSpec[] = [
     ["T01.border-off.161", 40, "inside"],
     ["T01.border-off.162", 80, "outside"],
   ] as const).map(
+    // amqplib tunes the smaller heartbeat of the two: the broker gets the same one, thus 80 s is 80 s and not 60 s
     ([plan, heartbeat, side]): AmqpSpec => ({
       plan,
-      name: `middlebox-forget, idle, heartbeat ${heartbeat} s: ${side} O03 against a ${RABBIT_ROUTER.form} router at ${RABBIT_ROUTER.idle} s`,
+      name: `middlebox-forget, idle, heartbeat ${heartbeat} s, at the broker too: ${side} O03 against a ${RABBIT_ROUTER.form} router at ${RABBIT_ROUTER.idle} s`,
       fault: "middlebox-forget",
       mode: "idle",
       router: RABBIT_ROUTER,
       options: { heartbeat },
+      broker: { heartbeat },
     }),
   ),
   // ---- O17: the heartbeat of amqplib against the give-up of the kernel, behind a black hole with an RPC in flight
@@ -365,7 +398,7 @@ export const amqpNameOf = (spec: AmqpSpec): string => `${spec.plan} amqplib-2.2 
 /** This function gives the harness cell of a spec. */
 export const amqpCell = (spec: AmqpSpec): Cell => ({
   name: amqpNameOf(spec),
-  target: RABBIT_TARGET,
+  target: rabbitTarget(spec.broker),
   sysctls: sysctlsOf(linuxValues(spec.linux)),
   probe: { mode: spec.mode, keepalive: false, driver: { name: "amqp" } },
   fault: spec.fault,
