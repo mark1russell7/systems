@@ -55,6 +55,14 @@ export default defineConfig({
           ],
         },
         { label: "About", items: ["about"] },
+        // the pages of @mark1russell7/site-pages: the Pages workflow writes them at deploy time
+        {
+          label: "Project",
+          items: [
+            { label: "Releases", link: "https://mark1russell7.github.io/systems/releases/" },
+            { label: "Status", link: "https://mark1russell7.github.io/systems/status/" },
+          ],
+        },
       ],
     }),
     react(),
