@@ -1,11 +1,12 @@
 import { overValues, timerOf, transitionOn } from "@mark1russell7/algebra";
 import type { Cell, MiddleboxForm, Prediction, Subject } from "@mark1russell7/harness";
-import { SUBJECTS, subjectClient } from "@mark1russell7/harness";
+import { subjectClient } from "@mark1russell7/harness";
 import { LINUX_TCP, NF_CONNTRACK_TCP, PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "@mark1russell7/machines";
 import { RTT_MS, RUNS, WINDOW, given, q, seconds, sysctlsOf } from "./catalog.ts";
 import type { Span } from "./mongo/model.ts";
 import { plus, spanOf } from "./mongo/model.ts";
 import { assuming } from "./rtt.ts";
+import { PROCEDURES } from "./subjects.ts";
 import { PROXY_SYSCTLS } from "./t02.ts";
 import { IDLE, routerValues } from "./t03.ts";
 import type { O03Verdict } from "./topologies.ts";
@@ -352,7 +353,7 @@ export const predictWst = (spec: WstSpec): Prediction => assuming((rtt) => predi
  * gets the knobs of Linux TCP. The cells go one at a time, as the cells of T03: the listing of a
  * router evicts the expired flows of each namespace.
  */
-export const wstCellOf = (spec: WstSpec, subject: Subject = SUBJECTS.procedures): Cell => {
+export const wstCellOf = (spec: WstSpec, subject: Subject = PROCEDURES): Cell => {
   const ws = asWs(spec);
   const server = ws.observer === "server";
   const target = wsServer(ws.server, false, subject);
@@ -381,5 +382,5 @@ export const wstCellOf = (spec: WstSpec, subject: Subject = SUBJECTS.procedures)
 /** This function gives the cells of the WST catalog on a subject, in the sequence of the specs. */
 export const wstCells = (subject: Subject): readonly Cell[] => WST_SPECS.map((spec) => wstCellOf(spec, subject));
 
-/** These are the cells of the WST catalog on the subject that the harness ships. */
-export const WST_CELLS: readonly Cell[] = wstCells(SUBJECTS.procedures);
+/** These are the cells of the WST catalog on the procedures subject of the client repository. */
+export const WST_CELLS: readonly Cell[] = wstCells(PROCEDURES);
