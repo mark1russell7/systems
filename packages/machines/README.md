@@ -34,6 +34,7 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `NODE_HTTP_SERVER` | `node-http-server` | One connection of the `http.Server` of Node 24.21.0 | server | 8 implemented |
 | `NODE_HTTP_AGENT` | `node-http-agent` | One socket of the `http.Agent` of Node 24.21.0 | driver | 9 implemented |
 | `UNDICI_CLIENT` | `undici-client-h1` | The socket of an HTTP/1.1 `Client` of undici 8.12.2 | driver | 8 implemented |
+| `UNDICI_RETRY` | `undici-retry-agent` | One request through a `RetryAgent` of undici 8.12.2 | driver | 7 implemented, 1 normative |
 | `GO_TRANSPORT` | `go-nethttp-transport` | One connection of the `http.Transport` of Go 1.27.2 | driver | 7 implemented |
 | `PROCEDURES_WS_CLIENT` | `procedures-ws-client` | The WebSocket client of `@procedures/client` 0.3.0 | driver | 9 implemented, 1 documented |
 | `PROCEDURES_WS_SERVER` | `procedures-ws-server` | The WebSocket server of `@procedures/client` 0.3.0 | server | 4 implemented |
@@ -60,7 +61,7 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `DOCKER_PROXY_LINK` | `docker-proxy-link` | docker-proxy of Docker Engine 29.1.5: one proxied TCP connection and its close | proxy | 9 implemented |
 | `CADDY_HTTP2` | `caddy-http2` | Caddy 2.11.7 as an HTTP/2 proxy of gRPC: one connection of a client, its idle close, its replies and its stop | proxy | 12 implemented |
 
-Twenty-eight documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel, the replication of mongod, aten and the member of Ra operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
+Twenty-eight documents operate on Linux TCP (`over`). Seven documents operate on no other document: Linux TCP, conntrack, the Sentinel, the replication of mongod, aten, the member of Ra and the `RetryAgent` of undici. The `RetryAgent` is one request above the sockets of a `Client`. Its timer is the delay of a retry. Each retry can go on a new socket. The `conditions` of each document give the range where it holds, for example a range of kernels.
 
 The package also gives these parts:
 

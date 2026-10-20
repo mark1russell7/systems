@@ -334,9 +334,15 @@ export interface Toxic {
  *
  * A connect timer counts from the change of its socket to SYN_SENT (`syn-sent`). A pooler connects
  * to the server by itself, thus the kernel stamps that connect, and no line of the client does.
+ *
+ * A retry of a client after a refusal counts from the refusal (`last-reply`), for example a 429 with
+ * `Retry-After`. That is the last segment with data that a socket of the client received before
+ * the line that ends the band. The retry can go on a new connection. Each band of a driver has
+ * its own, thus each retry counts from the refusal before it.
  */
 export type Reference =
   | "last-received"
+  | "last-reply"
   | "last-data"
   | "first-retransmission"
   | "request-sent"

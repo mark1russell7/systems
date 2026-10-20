@@ -6,6 +6,7 @@ import { T01_GRPC } from "./grpc/t01.ts";
 import { T02_GRPC } from "./grpc/t02.ts";
 import { T03_GRPC } from "./grpc/t03.ts";
 import { HTTP_CAL_CELLS, HTTP_HARNESS_CELLS } from "./http/cells.ts";
+import { LIMITER_CELLS } from "./limiter.ts";
 import { MONGO_CELLS } from "./mongo/harness.ts";
 import { T01_HIKARI } from "./pg/hikari.ts";
 import { T01_PG } from "./pg/t01.ts";
@@ -35,7 +36,8 @@ export interface Subjects {
  * calibration of the stamps of its Sentinels come next. The HTTP cells of T01 and T03 come next,
  * with the calibration of the handling time of the Node clients. The WS cells follow, then the
  * WST cells: the same client through a router or a proxy. The MongoDB cells of T01, T03 and T11
- * come next, then the PostgreSQL cells of T01, T03 and T10. The RabbitMQ cells of T01 and T11 come next, and the gRPC cells of T01 and T03 last.
+ * come next, then the PostgreSQL cells of T01, T03 and T10. The RabbitMQ cells of T01 and T11 come
+ * next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter (O29 and O30) are last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: SUBJECTS.procedures, ...given };
@@ -62,6 +64,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...T01_GRPC,
     ...T03_GRPC,
     ...T02_GRPC,
+    ...LIMITER_CELLS,
   ];
 };
 

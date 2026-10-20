@@ -11,6 +11,7 @@ import { GO_TRANSPORT } from "./http/go-transport.ts";
 import { NODE_HTTP_AGENT } from "./http/node-agent.ts";
 import { NODE_HTTP_SERVER } from "./http/node-server.ts";
 import { UNDICI_CLIENT } from "./http/undici.ts";
+import { UNDICI_RETRY } from "./http/undici-retry.ts";
 import { IOREDIS_SENTINEL } from "./ioredis-sentinel.ts";
 import { IOREDIS_STATUS, LINUX_TCP, NF_CONNTRACK_TCP, REDIS_CLIENT } from "./json.ts";
 import { MONGOD_REPL } from "./mongo/mongod-replication.ts";
@@ -69,6 +70,7 @@ export {
   SUPAVISOR_SERVER,
   TOXIPROXY_LINK,
   UNDICI_CLIENT,
+  UNDICI_RETRY,
 };
 export { MANIFESTATIONS } from "./json.ts";
 export {
@@ -107,6 +109,7 @@ export const MACHINES: Readonly<Record<string, Machine>> = byId([
   NODE_HTTP_SERVER,
   NODE_HTTP_AGENT,
   UNDICI_CLIENT,
+  UNDICI_RETRY,
   GO_TRANSPORT,
   PROCEDURES_WS_CLIENT,
   PROCEDURES_WS_SERVER,

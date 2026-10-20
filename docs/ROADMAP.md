@@ -439,12 +439,12 @@ Some entries start a service in a process that they do not own. Examples are a s
 
 ### SYS-28 · A keyed rate limiter in service
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:**
 - **Started:** 2026-10-19
-- **Shipped:**
-- **Links:** [#106](https://github.com/mark1russell7/systems/pull/106), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Shipped:** 2026-10-20
+- **Links:** [#106](https://github.com/mark1russell7/systems/pull/106), [#119](https://github.com/mark1russell7/systems/pull/119), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 No package of systems or of the client had a rate limit for each tenant or principal. Graph limits its writes for each tenant with a sliding window of its own. With SYS-28, `svc.limiter(name, { key, policy, store, evict })` declares a keyed limiter as data, with no defaults, and `describe()` shows it. `keyedLimiter` makes its runtime: a token bucket or a sliding window for each key, on the injected monotonic clock. A refusal gives `retryAfter` as a `Quantity`, and the HTTP edge gives 429 with `Retry-After` in whole seconds.
 
@@ -452,7 +452,19 @@ The store is an interface, and each store decides a take in one atomic step on i
 
 `lint()` applies two new rules to each limiter. O29 bounds the longest `Retry-After` by the retry window of the caller, at the cap of keys too. O30 bounds the retry delay of the caller from below. Their identifiers are provisional, because the corpus of the law does not have them yet.
 
-It comes in service 0.5.3, a PATCH: new exports. The store in Redis (`redisLimiterStore`, one script that reads `TIME`) comes in 0.5.4, also a PATCH. The machine document and the harness cell come next. The client item CLI-40 builds the admission step of the procedures server on it.
+It comes in service 0.5.3, a PATCH: new exports. The store in Redis (`redisLimiterStore`, one script that reads `TIME`) comes in 0.5.4, also a PATCH. The client item CLI-40 builds the admission step of the procedures server on it.
+
+The machine of one key is a document in service 0.5.7 (#119): `TOKEN_BUCKET_MACHINE` and `SLIDING_WINDOW_MACHINE`. A test replays each take of the runtime against it, and the algebra bounds each time of the runtime by its timers.
+
+Six cells put a real client against the 429 of the limiter of service 0.5.6 from npm. Each one holds in 11 of 11 runs:
+
+- The `RetryAgent` of undici 8.12.2 at its defaults waits the `Retry-After`, capped at 30 s. Each retry comes from 30.001 s to 30.009 s after the refusal before it.
+- O30.1: a `Retry-After` of 30 s, and one retry gets in. O30.2: 60 s, and the first retry comes 30 s early, the limiter refuses it with `Retry-After: 30`, and the second gets in.
+- O29.1: 150 s, five retries of 30 s, and the last gets in. O29.2: 151 s, and the agent gives up with `UND_ERR_REQ_RETRY` and the 429.
+- O29.3 and O29.4: a `Client` of undici and the `Transport` of Go give the 429 to the caller in 2 ms, and send nothing again.
+- The machine document of the agent is `UNDICI_RETRY` (machines 0.3.19), from its source. The harness counts each retry from the refusal before it (`last-reply`, harness 0.11.23), on a new connection too.
+
+The corpus of the law gets O29 and O30 with these pairs and the family `K-rate-limit`.
 
 ### SYS-29 · The drain of httpTransport waits for the answers of the cut calls
 
@@ -812,6 +824,11 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - T02.defaults.35 and .36: a stop of Toxiproxy (SIGTERM) and of docker-proxy (SIGINT, as Docker stops it at a restart). The exit of the proxy closes the idle connection.
   - T02.defaults.48: the FIN of the stopped server, which Toxiproxy passes as a close of the client.
   - 4 array cells are aliases. The cells over Traefik, Caddy and nginx wait for their documents. 4 cells of docker-proxy wait, because it counts no request.
+- Caddy 2.11.7 has its document (machines 0.3.18, #115). T02.defaults.41 is an idle gap through Caddy: Caddy sends GOAWAY 5 min after the last data, and grpc-js goes from READY to IDLE. It holds in 11 of 11 runs at 300.007 s (median), in run 39344223699. T02.array.41 is its alias.
+  - The first run of the cell found a bug in the judge, not in Caddy. The judge of a driver had no case for the reference `last-data`. Thus it counted from the close of the peer. Through Caddy, that close was the idle close of the upstream socket at 120 s. harness 0.11.22 fixes it.
+- The facts of nginx and Traefik come from their sources too, for the cells that wait.
+  - At a reload of its dynamic file, Traefik 3.7.15 only swaps the handler of each entrypoint. Thus a reload sends nothing to the client. The idle timeout of 180 s counts from the end of the last stream, not from the reload. The cell T02.array.77 needs a hop event that writes a file.
+  - nginx 1.29.6 has one worker at its defaults. During a call, the only timer of the call is `grpc_read_timeout` (60 s). After a stop of the worker of more than 60 s, its timers fire before it reads the reply of the server. Thus the client gets 504, and grpc-js reads UNAVAILABLE. The cell T02.defaults.34 needs a hop event that stops a proxy for a hold.
 
 ## Kubernetes
 
@@ -985,12 +1002,14 @@ Each week, one round makes the site and the tracker easier to read, with a visua
 - **Area:** decisions
 - **Depends on:** IMPORT
 - **Started:** 2026-10-17
-- **Shipped:** 2026-10-19
+- **Shipped:** 2026-10-20
 - **Links:**
 
 A catalog cell gives each knob, and a compiled cell gives only the knobs that it moves. With the defaults out of the identity, both cells of one scenario become one entity.
 
-Decided on 2026-10-19: the identity of a scenario holds only the settings that differ from the defaults of the documents. It is the more general choice: one scenario is one entity, in each form of a cell. The next landing in jarvis applies it. Each new landing supersedes the old one, thus the older runs land again.
+Decided on 2026-10-19: the identity of a scenario holds only the settings that differ from the defaults of the documents. It is the more general choice: one scenario is one entity, in each form of a cell.
+
+Built in jarvis and merged on 2026-10-20. A setting leaves the identity only when a document names its key and its value is the default of that document. These documents are linux-tcp for the sysctls, and each server document for its settings. The projection after the merge gave each landed run its new id, and no file named an old one.
 
 ### D-EXTEND · A verdict for a late propagation in kind
 
@@ -1007,16 +1026,16 @@ Decided on 2026-10-19: such a cell is `extend`. The run agrees with the law, and
 
 ### D-R2 · R2's choice of systems where the app runs
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** decisions
 - **Depends on:** S0
 - **Started:** 2026-10-08
-- **Shipped:**
+- **Shipped:** 2026-10-20
 - **Links:**
 
 The last step of S0. The options document of R2 lands where the app runs. A second landing does no harm.
 
-Mark's answer of 2026-10-19: yes. The jarvis session lands it: in the shared checkout of jarvis, after a sync and a restart, `pnpm --filter @jarvis/systems-pages build`, then `./jarvis options save --input @packages/systems-pages/R2/options.json`.
+Mark's answer of 2026-10-19: yes. The jarvis session landed it on 2026-10-20: the artifact "The systems the harness runs", from `@jarvis/systems-pages` built at the main of jarvis.
 
 ### D-REVIEW · The judgments of 2026-10-16 and 2026-10-17
 

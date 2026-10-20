@@ -2,7 +2,9 @@
 //               [--bytes N] [--go PATH] [--max-s N] [--linger-ms N]
 //               [--keepalive-timeout-ms N] [--keepalive-max-timeout-ms N] [--keepalive-threshold-ms N]
 //               [--headers-timeout-ms N] [--body-timeout-ms N] [--connect-timeout-ms N]
-//               [--keepalive-initial-delay-ms N]
+//               [--keepalive-initial-delay-ms N] [--limiter-key 1] [--retry 1]
+//               [--retry-max-retries N] [--retry-min-timeout-ms N] [--retry-max-timeout-ms N]
+//               [--retry-timeout-factor N]
 //
 // The client of the HTTP cells that uses an HTTP/1.1 Client of undici 8.12.2, at its defaults
 // with each flag over them. Each event is a JSON line, as the TCP client of the harness writes them.
@@ -11,9 +13,16 @@
 // follows each socket. The channel undici:client:sendHeaders tells which socket each request goes
 // on. The disconnect event of the client tells why a socket ended: an end of file (other side
 // closed), a reset, or the keep-alive timer of the client (socket idle timeout).
+//
+// The cells of a keyed limiter give two more flags. `--limiter-key 1` sends a key of this process
+// in the header x-limiter-key of each request: the key of the limiter of the server. `--retry 1`
+// sends each request through a RetryAgent of undici at its defaults (lib/handler/retry-handler.js
+// :125-133): 5 retries, from 500 ms, a factor of 2, at most 30 s, and Retry-After read. Each
+// retry flag sets one option over them. Each send of a request is an `attempt` line, thus each
+// retry has its own line and its own socket.
 
 import diagnostics from "node:diagnostics_channel";
-import { Client, buildConnector } from "undici";
+import { Client, RetryAgent, buildConnector } from "undici";
 import { bootId, commandLine, emit, now, pathOf, sleep, waitFor } from "./lines.mjs";
 
 const usage = "client-undici HOST PORT --mode idle|inflight|gap";
@@ -42,7 +51,20 @@ const connect = {};
 if (cli.has("--connect-timeout-ms")) connect.timeout = cli.number("--connect-timeout-ms");
 if (cli.has("--keepalive-initial-delay-ms")) connect.keepAliveInitialDelay = cli.number("--keepalive-initial-delay-ms");
 
-emit("start", { boot_id: bootId(), mode, client: "undici", node: process.version, options, connect });
+// the retries of a RetryAgent: undici's defaults, and each flag over them
+const retrying = cli.number("--retry", 0) === 1;
+const retry = {};
+const setRetry = (option, name) => {
+  if (cli.has(name)) retry[option] = cli.number(name);
+};
+setRetry("maxRetries", "--retry-max-retries");
+setRetry("minTimeout", "--retry-min-timeout-ms");
+setRetry("maxTimeout", "--retry-max-timeout-ms");
+setRetry("timeoutFactor", "--retry-timeout-factor");
+// the key of this process for the limiter of the server: each run has its own count
+const key = cli.number("--limiter-key", 0) === 1 ? `${process.pid}-${now()}` : null;
+
+emit("start", { boot_id: bootId(), mode, client: "undici", node: process.version, options, connect, ...(retrying ? { retry } : {}), ...(key === null ? {} : { key }) });
 
 setTimeout(() => {
   emit("deadline");
@@ -88,11 +110,20 @@ const client = new Client(`http://${cli.host}:${cli.port}`, {
     }),
 });
 
+// the sends of each request: a retry of a RetryAgent sends it again, on a socket of the pool
+const attempts = new Map();
 diagnostics.subscribe("undici:client:sendHeaders", ({ socket }) => {
   const entry = track(socket);
   emit("request", { i: requestIndex, local: entry.local, reused: entry.used });
   entry.used = true;
+  if (retrying || key !== null) {
+    const n = (attempts.get(requestIndex) ?? 0) + 1;
+    attempts.set(requestIndex, n);
+    emit("attempt", { i: requestIndex, n, local: entry.local, why: n === 1 ? "first" : "retry" });
+  }
 });
+// a RetryAgent over the client: each retry dispatches the request on the client again
+const dispatcher = retrying ? new RetryAgent(client, retry) : client;
 client.on("disconnect", (_origin, _targets, error) => {
   // UND_ERR_INFO is a close by the client: no reuse (reset), or its keep-alive timer (socket idle timeout)
   const by = OWN.has(error?.code) ? "client" : "peer";
@@ -103,7 +134,8 @@ client.on("disconnect", (_origin, _targets, error) => {
 const request = async (i, how, path) => {
   requestIndex = i;
   const at = now();
-  const pending = client.request({ path, method: how, body: how === "POST" ? "x" : undefined });
+  const headers = key === null ? undefined : { "x-limiter-key": key };
+  const pending = dispatcher.request({ path, method: how, headers, body: how === "POST" ? "x" : undefined });
   emit("sent", { i }, at);
   try {
     const { statusCode, body } = await pending;
@@ -117,7 +149,9 @@ const request = async (i, how, path) => {
     else emit("replied", { i, n: { value: n, unit: "B" } });
     return true;
   } catch (error) {
-    emit("error", { i, errno: error.code ?? "ERROR", cause: error.cause?.code ?? null, message: error.message });
+    // a RetryAgent that gives up gives RequestRetryError: the status of the last reply, and the count of its sends
+    const retried = error.code === "UND_ERR_REQ_RETRY" ? { status: error.statusCode ?? null, count: error.data?.count ?? null } : {};
+    emit("error", { i, errno: error.code ?? "ERROR", cause: error.cause?.code ?? null, message: error.message, ...retried });
     return false;
   }
 };

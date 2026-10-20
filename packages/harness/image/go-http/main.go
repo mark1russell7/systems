@@ -6,6 +6,10 @@
 //	          [--bytes N] [--go PATH] [--max-s N] [--linger-ms N]
 //	          [--idle-conn-timeout-ms N] [--max-idle-per-host N] [--dial-timeout-ms N]
 //	          [--keepalive-ms N] [--keepalive-interval-ms N] [--keepalive-count N] [--timeout-ms N]
+//	          [--limiter-key 1]
+//
+// The cells of a keyed limiter give --limiter-key 1: each request sends a key of this process in
+// x-limiter-key, the key of the limiter of the server. Go sends no request again for a status.
 //
 // The first request is GET /, and the end of its reply is the ready line. Then the client holds
 // the connection idle (idle), sends the second request when the file --go appears (inflight), or
@@ -36,6 +40,9 @@ import (
 )
 
 var out sync.Mutex
+
+// limiterKey is the key of this process for the limiter of the server, in x-limiter-key, or empty
+var limiterKey string
 
 // now gives the time on CLOCK_MONOTONIC in nanoseconds: the clock of the prober.
 func now() int64 {
@@ -185,6 +192,9 @@ func request(client *http.Client, base string, i int, method, path string) bool 
 		emit("fail", map[string]any{"why": err.Error()})
 		os.Exit(1)
 	}
+	if limiterKey != "" {
+		req.Header.Set("x-limiter-key", limiterKey)
+	}
 	// the stamp comes before the call: the transport writes the request after it
 	at := now()
 	emitAt("sent", at, map[string]any{"i": i})
@@ -234,7 +244,11 @@ func main() {
 	intervalMs := flags.Float64("keepalive-interval-ms", 0, "KeepAliveConfig.Interval")
 	probes := flags.Int("keepalive-count", 0, "KeepAliveConfig.Count")
 	timeoutMs := flags.Float64("timeout-ms", 0, "Client.Timeout")
+	keyed := flags.Int("limiter-key", 0, "1 sends a key of this process in x-limiter-key: the key of the limiter of the server")
 	flags.Parse(os.Args[3:])
+	if *keyed == 1 {
+		limiterKey = fmt.Sprintf("%d-%d", os.Getpid(), time.Now().UnixNano())
+	}
 	given := map[string]bool{}
 	flags.Visit(func(f *flag.Flag) { given[f.Name] = true })
 	if *mode != "idle" && *mode != "inflight" && *mode != "gap" {
