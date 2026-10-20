@@ -5,7 +5,7 @@
 // The gRPC cells put grpc-js 1.14.6 on Node against two servers: a server of grpc-go v1.84.0 (the
 // server of the harness) and etcd v3.6.15. T01 is the direct pair, at the defaults, in the array
 // stage and at the borders of O03, O17, O25 and O26. T03 puts a router of a cloud preset between
-// the client and grpc-go. Each folder is the output of one shard of the
+// the client and grpc-go, and T02 puts one proxy there. Each folder is the output of one shard of the
 // workflow Cells on a runner of GitHub: the raw record of each cell, summary.ndjson and runner.txt.
 // The script reads each record again with the code of the harness (`judge`), and it stops when that
 // verdict disagrees with summary.ndjson. It also stops when a prediction disagrees with the catalog
@@ -30,7 +30,8 @@ const runner = runnerOf(folders);
 process.env["CELLS_HZ"] = String(runner.hz);
 const { T01_GRPC, GRPC_DRIVER } = await import("../../cells/src/grpc/t01.ts");
 const { T03_GRPC } = await import("../../cells/src/grpc/t03.ts");
-const CATALOG = [...T01_GRPC, ...T03_GRPC];
+const { T02_GRPC } = await import("../../cells/src/grpc/t02.ts");
+const CATALOG = [...T01_GRPC, ...T03_GRPC, ...T02_GRPC];
 const { ALL } = await import("../../cells/src/all.ts");
 
 // a full run of the catalogs holds the cells of each catalog: this export takes its own
@@ -52,6 +53,13 @@ const TIMERS: Readonly<Record<string, string>> = {
   ping_timeout: "the keepalive of gRPC at the server gets no ACK for its PING, and the server closes the connection",
   too_many_pings: "the server counts three PINGs as strikes, and it sends GOAWAY too_many_pings and closes the connection",
   "the reset of the router at a retransmission": "the router resets the first retransmission of the client after the end of the CLOSE timeout of conntrack",
+  "the local reply of Envoy to the reset of its upstream": "Envoy answers the reset of its upstream with its own reply, on the open connection of the client",
+  "the stop of toxiproxy, whose exit closes the connection of the client": "the exit of the stopped Toxiproxy closes the idle connection",
+  "the stop of docker-proxy, whose exit closes the connection of the client": "the exit of the stopped docker-proxy closes the idle connection",
+  "the FIN of the killed server, which Toxiproxy passes as a close of the client": "Toxiproxy passes the FIN of the killed server as a close of the client",
+  "the idle timeout of Caddy, and its GOAWAY": "Caddy sends GOAWAY at its idle timeout",
+  "grpc_read_timeout of nginx: due in the stop of its worker, it fires at the resume, before nginx reads the reply in the socket":
+    "the read timer of nginx comes due in the stop of its worker, and at the resume it fires before nginx reads the reply in the socket",
 };
 const timerText = (p: { readonly timer: string; readonly errno: string }): string | undefined => TIMERS[`${p.timer} ${p.errno}`] ?? TIMERS[p.timer];
 /** These phrases name the reference of a band, in a sentence. */
@@ -62,6 +70,7 @@ const FROMS: Readonly<Record<string, string>> = {
   "first-retransmission": "the first retransmission of the RTO timer",
   "peer-closed": "the close of the socket of the server",
   "client-start": "the start of the client",
+  fault: "the start of the fault",
 };
 const from = (reference: Reference): string => {
   const text = FROMS[reference];
@@ -70,7 +79,15 @@ const from = (reference: Reference): string => {
 };
 /** This function gives the phrase of the error of a band: the close of the observer, which the kernel stamps by its FIN, an end of file, or an error. */
 const withError = (name: string): string =>
-  name === "CLOSED" ? ", and the kernel stamps its FIN" : name === "EOF" ? " with an end of file" : name === "too_many_pings" ? "" : ` with ${name}`;
+  name === "CLOSED"
+    ? ", and the kernel stamps its FIN"
+    : name === "EOF"
+      ? " with an end of file"
+      : name === "too_many_pings"
+        ? ""
+        : name === "IDLE"
+          ? ", and grpc-js drops the transport (READY to IDLE)"
+          : ` with ${name}`;
 
 /** This function names a line that a prediction does not let come after the fault. */
 const quietOf = (match: LineMatch): string => {
@@ -174,7 +191,7 @@ const copy = {
   runs: Number(only("the count of runs", records.map((record) => String(record.cell.runs)))),
   kernel: runner.kernel,
   hz: runner.hz,
-  target: "a server of grpc-go v1.84.0, and etcd v3.6.15",
+  target: "a server of grpc-go v1.84.0 and etcd v3.6.15, direct, through the router of a cloud, or through one proxy",
   clients: { "grpc-js": GRPC_DRIVER },
   cells,
 };
