@@ -12,7 +12,7 @@ import type { BuildImage, Client, ClientImage, ImageSource, Shipped, ShippedImag
  * This module resolves the source of each image (`ImageSource`) to an image that a lab can start.
  * A pinned image is its own name. A build context, or an image that the harness ships, becomes a
  * build with a tag from its content. Each image of the harness is a shipped source in one table.
- * Thus the procedures image of a subject is data, as the image of a caller is.
+ * Thus the image of a subject is data, as the image of a caller is.
  */
 
 /**
@@ -69,8 +69,6 @@ const SHIPPED: Readonly<Record<Shipped, ShippedContext>> = {
   "grpc-go": { name: "loom-harness-grpc-go", dockerfile: "harness/image/grpc-go/Dockerfile", from: ["harness/image/grpc-go"] },
   // etcd v3.6.15 from its image, on Alpine: a shell to hold it, and its binaries unchanged
   etcd: { name: "loom-harness-etcd", dockerfile: "harness/image/etcd/Dockerfile", from: ["harness/image/etcd"] },
-  // @procedures/client 0.7.0 on Node 24.21.0: its WebSocket client, and the script of its server
-  procedures: { name: "loom-harness-procedures", dockerfile: "harness/image/procedures/Dockerfile", from: ["harness/image/procedures"] },
   // the router of a middlebox chain: NAT and conntrack, with a form for a forgotten flow
   router: { name: "loom-harness-router", dockerfile: "harness/image/router/Dockerfile", from: ["harness/image/router"] },
   // PgBouncer 1.26.1, a pooler hop: built from its release tarball, by its SHA-256
@@ -83,26 +81,6 @@ const SHIPPED: Readonly<Record<Shipped, ShippedContext>> = {
 
 /** These are the names of the images that the harness ships. */
 export const SHIPPED_NAMES: readonly [Shipped, ...Shipped[]] = Object.keys(SHIPPED) as [Shipped, ...Shipped[]];
-
-/** This image is the stock base of the Node images of the harness: Node 24.21.0 on Alpine, pinned by digest. */
-const NODE_BASE = "node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1";
-
-/**
- * These are the subjects that the harness ships, by their names. `procedures` is
- * `@procedures/client` on Node: its WebSocket client (`client-ws.mjs`) and its server
- * (`server-ws.mjs`), from one image. Thus the client and the server use one release.
- */
-export const SUBJECTS: Readonly<Record<"procedures", Subject>> = {
-  procedures: {
-    name: "procedures",
-    image: { kind: "shipped", name: "procedures" },
-    base: NODE_BASE,
-    programs: {
-      client: ["node", "/opt/harness/procedures/client-ws.mjs"],
-      server: ["node", "/opt/harness/procedures/server-ws.mjs"],
-    },
-  },
-};
 
 /** This function gives the source of a shipped image. */
 const shipped = (name: Shipped): ImageSource => ({ kind: "shipped", name });
@@ -125,7 +103,6 @@ export const SHIPPED_CLIENTS: Readonly<Record<Client, ClientImage>> = {
   },
   amqp: { image: shipped("amqp"), command: ["node", "/opt/harness/amqp/client-amqp.mjs"] },
   grpc: { image: shipped("grpc"), command: ["node", "/opt/harness/grpc/client-grpc.mjs"] },
-  "procedures-ws": { image: SUBJECTS.procedures.image, command: SUBJECTS.procedures.programs["client"]! },
 };
 
 /** These are the names of the clients that the harness ships. */
@@ -461,15 +438,12 @@ export const amqpClientImage = (): Promise<string> => imageOf(shipped("amqp"));
 
 /** This function gives the image of the gRPC client of the harness: grpc-js 1.14.6 on Node 24.21.0, with its client. */
 export const grpcClientImage = (): Promise<string> => imageOf(shipped("grpc"));
-/** This function gives the image of the procedures subject: the WebSocket client of `@procedures/client`, and its server. */
-export const proceduresImage = (): Promise<string> => imageOf(SUBJECTS.procedures.image);
 
 /**
  * This function gives the source of the image that a target operates. It is the image of its
- * subject (`Target.subject`), a shipped image by its short form (`Target.harness`), or its stock image.
+ * subject (`Target.subject`), or its stock image.
  */
-export const targetSourceOf = (target: Target): string | ImageSource =>
-  target.subject ?? (target.harness === undefined ? target.image : shipped(target.harness));
+export const targetSourceOf = (target: Target): string | ImageSource => target.subject ?? target.image;
 
 /** This function gives the image that a target operates: the image of its subject, or its stock image. */
 export const targetImageOf = (target: Target): Promise<string> => imageOf(targetSourceOf(target));

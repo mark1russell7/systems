@@ -120,7 +120,7 @@ export const QUIET_SERVER: WsServerSettings = { heartbeat: null };
 export const QUIET = { tcp_retries2: count(8) };
 
 /**
- * The WS catalog. Each cell stands for a claim of the heartbeat or the reconnect of 0.3.0.
+ * The WS catalog. Each cell stands for a claim of the heartbeat or the reconnect of the transport.
  * - A black hole, idle or with a call in flight, and a frozen server. The heartbeat drops the
  *   connection one pong timeout after the ping without an answer. The kernel waits longer.
  * - The drop of each class of sockets. The global WebSocket writes a close frame and its socket

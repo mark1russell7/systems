@@ -1,9 +1,0 @@
-{
-  "name": "loom-harness-procedures",
-  "private": true,
-  "type": "module",
-  "dependencies": {
-    "@procedures/client": "0.7.0",
-    "ws": "8.22.0"
-  }
-}

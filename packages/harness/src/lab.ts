@@ -129,8 +129,6 @@ export interface Manifest {
     readonly image: string;
     /** This source is the image of the subject that the target operates (`Target.subject`), with its stock base. */
     readonly subject?: ImageSource;
-    /** This name is the image of the harness that the target operates, with its stock base (`Target.harness`). */
-    readonly harness?: string;
     readonly base?: string;
     readonly id: string;
     readonly settings: Readonly<Record<string, string>>;
@@ -1113,11 +1111,7 @@ export const openLab = async (
           docker: `${runtime.info.containerRuntime.serverVersion} on ${runtime.info.containerRuntime.operatingSystem}`,
           target: {
             image: targetImage,
-            ...(target.subject !== undefined
-              ? { subject: target.subject, base: target.image }
-              : target.harness === undefined
-                ? {}
-                : { harness: target.harness, base: target.image }),
+            ...(target.subject === undefined ? {} : { subject: target.subject, base: target.image }),
             id: (await inspect(server)).Image,
             settings,
             sysctls: targetSysctls,

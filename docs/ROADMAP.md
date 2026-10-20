@@ -384,14 +384,19 @@ The source of an image is an image pinned by digest, a build context, or an imag
 
 ### SYS-18 · The procedures image leaves the harness
 
-- **Status:** blocked
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** SYS-17
-- **Started:**
-- **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Started:** 2026-10-20
+- **Shipped:** 2026-10-20
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb), [The WS run on the client subject](https://github.com/mark1russell7/systems/actions/runs/39390678218)
 
 After CLI-33, the client owns the image of its procedures subject. Then the harness removes `image/procedures`, and the README of the harness no longer describes that image.
+
+- CLI-33 is client #122 (2408cea): `harness/procedures-subject` of the client repository builds `@procedures/client` 0.22.0 from its checkout, with the programs of the subject that the harness shipped.
+- cells.yml checks out the client repository at `CLIENT_REF` (2408cea) and gives the subject of its checkout to the WS and WST cells. The input `subject` still replaces it. The catalogs take a copy of that subject (`PROCEDURES`), and a test holds the commit to the workflow.
+- harness 0.12.0 (MINOR: a breaking change before 1.0.0) removes `image/procedures`, `SUBJECTS`, `proceduresImage`, the shipped name `procedures`, the client name `procedures-ws` and `Target.harness`. The lab test of the WebSocket client builds the subject of a checkout of the client repository (`HARNESS_PROCEDURES`).
+- machines 0.3.23: the documents `procedures-ws-client` and `procedures-ws-server` cite the source of 2408cea, with `@mark1russell7/service` 0.5.8. Each fact and each default is the same as in 0.3.0.
 
 ### SYS-24 · The progress check names the loops that mark it
 

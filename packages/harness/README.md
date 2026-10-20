@@ -130,14 +130,13 @@ A step-down (`step-down`) moves the leadership to the first follower (`rabbitmq-
   - The client of undici then writes an `attempt` line for each send of a request, with its number `n` and its socket. A `RetryAgent` that gives up gives `UND_ERR_REQ_RETRY` on the `error` line, with the status of the last reply and the count of sends.
 - **The lines of an HTTP client.** It writes the lines of the TCP client, with the number `i` of the request on each line of a request. It also writes the connection of each try of a request (`request`, then `retry`), with its local address and a flag for a reused connection. Each connection gets a `conn` line, and each end of a connection a line (`eof`, `conn-error`, `closed`). The end of the second request is a `done` line.
 - **A target with a script.** A target can take files before it starts (`Target.files`), for example the script of a Node server on the stock Node image. A target that writes JSON lines (`Target.lines`) gives them to each run (`Run.server`). The manifest holds the sha256 of each file and the first line of the target.
-- **The WebSocket client** (`Cell.client` is `procedures-ws`) is the `WebSocketTransport` of `@procedures/client` 0.7.0: the `client` program of the `procedures` subject. The cell gives each of its settings (`probe.ws`): the class of its sockets, the heartbeat, the reconnect, and the times of a call.
+- **The WebSocket client** is the `WebSocketTransport` of `@procedures/client`: the `client` program of a `procedures` subject (`Cell.client` is its client image). The client repository builds that subject (CLI-33). The cell gives each of its settings (`probe.ws`): the class of its sockets, the heartbeat, the reconnect, and the times of a call.
   - Its first request is `harness.echo`. In flight, its request into the fault is `harness.echo`, or `harness.hold` for a held reply.
   - It writes the lines of the TCP client. It also writes a line for each act of the program: `ping`, `drop`, `reconnecting` and `dial`.
   - The class of its sockets is the global `WebSocket` of Node, with the transport of the root entry. Or it is the `WebSocket` of the `ws` package, with the transport of the Node entry `@procedures/client/node`.
   - The transport gets a subclass of that class. The subclass writes a line, then gives the work to its class. Thus the transport, undici and ws operate as they do without it.
   - The subclass has `terminate()` only when its class has it, because the transport drops a socket with `terminate()` when it exists.
-- **A target from the image of a subject** (`Target.subject`). The target operates the image of a subject in place of its stock image. `Target.image` is then the stock base of that image, and the manifest names both. The procedures server is a script in the image of the WebSocket client (`server-ws.mjs`). Thus the client and the server use one release of the package.
-- **A target from an image of the harness** (`Target.harness`) is a short form. `harness: "procedures"` is `subject: { kind: "shipped", name: "procedures" }`.
+- **A target from the image of a subject** (`Target.subject`). The target operates the image of a subject in place of its stock image. `Target.image` is then the stock base of that image, and the manifest names both. The procedures server is a program in the image of the WebSocket client (`server-ws.mjs`). Thus the client and the server use one release of the package.
 - **An agent** (`lab.agent(image, command, { pid })`) is a container in the network namespace of the target. With `pid`, it also shares the process namespace of the target, thus it can signal the server process. Its JSON lines and its `exec` stay available to the caller.
 
 ## The subjects
@@ -151,8 +150,8 @@ A subject (`Subject`, `image.ts`) is the program under test, as data. The harnes
 - **A relative folder** of a build starts at the working folder of the process. A record holds the source of each image as the cell gives it. Thus give a relative folder, and the record names no path of the machine.
 - **A subject** gives the source of its image and its stock base, pinned by digest. It also gives the command of each of its programs by their roles, for example `client` and `server`.
 - **A subject in a cell.** `subjectClient(subject)` gives the client of a cell, and `programOf(subject, role)` gives the command of a program. A target operates the image of the subject (`Target.subject`), and its stock image is the base of the subject.
-- **A client that the harness ships keeps its name.** `subjectClient` gives `procedures-ws` for the `procedures` subject. Thus the records of a cell on that subject stay the same.
-- **The subjects of the harness** (`SUBJECTS`). `procedures` is `@procedures/client` 0.7.0 on Node: its WebSocket client and its server, from one image.
+- **A client that the harness ships keeps its name.** When the client of a subject is a client that the harness ships, `subjectClient` gives its name. Thus the records of a cell on that subject stay the same.
+- **The procedures subject** is a subject of the client repository: `harness/procedures-subject/subject.json` of github.com/mark1russell7/client. From 0.12.0, the harness ships no procedures subject. The cells check out the client repository and give that subject.
 
 These rules keep a build the same in each run:
 
@@ -210,7 +209,6 @@ From 0.11.20, the harness builds each image with the CLI of Docker (`docker buil
   - The events of the driver are `sdam` lines (the heartbeats and the changes of each server), `cmap` lines (the pools) and `command` lines (each try of an operation).
   - Each operation is a `sent` line, then an `ack` line or a `fail` line. An `ack` line has the server that accepted it. A `fail` line has the name and the labels of its error.
   - The same image holds `stepdown-mongo.mjs`, the sender of `replSetStepDown`.
-- **The procedures image** (`image/procedures`) is the image of the `procedures` subject. It holds `@procedures/client` 0.7.0 and `ws` 8.22.0 on Node 24.21.0, whose WebSocket is undici 7.29.1. The digest of the image and an npm lockfile pin them. It holds the WebSocket client (`client-ws.mjs`) and the script of the procedures server (`server-ws.mjs`). Each takes each of its settings as a flag, and it has no default. The lockfile holds one copy of `ws`, and the client stops when `@procedures/client/node` resolves another one.
 - **The router image** (`image/router`) is a digest-pinned Alpine with conntrack-tools, nftables, iproute2 and Python. `mbx.sh` sets the form of the router in one nftables table, `ctwatch.py` writes the conntrack events, and `resetter.py` sends the resets of the `reset-both` form. Each run records its packages in the manifest.
 - **The PgBouncer image** (`image/pgbouncer`) is PgBouncer 1.26.1, a pooler hop, on a digest-pinned Alpine. The build gets the release tarball of pgbouncer.org and checks its SHA-256 before it builds. The C sources of that tarball are those of the tag that the machine documents cite.
   - A hop takes the image as a shipped source: `{ kind: "shipped", name: "pgbouncer" }`. A proxy hop also takes a stock image by its digest.
@@ -424,7 +422,7 @@ The tests of `application.ts` measure a heartbeat of a program from test lines a
 
 The cells themselves need Docker and privileged containers. CI does not start them. `HARNESS_LAB=1` starts the lab tests on Docker. They start a client image and an agent, and they put a reset and netem at a router. They also fail a group of Valkey 9.1 over with a planned failover.
 
-In the lab tests, each HTTP client sends two requests on one connection to a Node server, from a script in the stock Node image. The procedures WebSocket client drops a silent connection on its heartbeat, and it connects again to the procedures server. With the global `WebSocket`, the drop writes a close frame. With the `WebSocket` of ws, the socket leaves ESTABLISHED at once. The subject of that test is a build context that the test gives, as another repository gives its own subject.
+In the lab tests, each HTTP client sends two requests on one connection to a Node server, from a script in the stock Node image. The procedures WebSocket client drops a silent connection on its heartbeat, and it connects again to the procedures server. With the global `WebSocket`, the drop writes a close frame. With the `WebSocket` of ws, the socket leaves ESTABLISHED at once. The subject of that test is the procedures subject of a checkout of the client repository (`HARNESS_PROCEDURES`). Without the checkout, that test waits.
 
 The lab tests also step a replica set of three members of MongoDB 9.0.4 down, and they write the free memory of the machine. They also reset a write of the MongoDB driver in flight to a set of one member. They move the leadership of a quorum queue of a cluster of three nodes of RabbitMQ 4.3.6.
 

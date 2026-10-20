@@ -75,12 +75,20 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # the lab test of the procedures WebSocket client builds the subject of the client repository
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: mark1russell7/client
+          ref: ${{ env.CLIENT_REF }}
+          path: client
+          persist-credentials: false
       # the output of each lab test stays in the log: the memory of the runner with a replica set of three.
       # A lab test that fails runs once more, and the log keeps the first failure. In run 39178402327, one
       # run of the lab of Pgpool-II found no end of its idle client, and no cell of the run started
       - name: The harness's lab test
         env:
           HARNESS_LAB: "1"
+          HARNESS_PROCEDURES: ${{ github.workspace }}/client
         run: pnpm --filter @mark1russell7/harness exec vitest run --silent=false --retry=1
       # the error of a failed build holds its error lines and its last lines: this step gives the whole log
       - name: The images of the harness that do not build, after a failure

@@ -8,7 +8,6 @@ import {
   CLIENT_NAMES,
   SHIPPED_CLIENTS,
   SHIPPED_NAMES,
-  SUBJECTS,
   buildFailure,
   buildOnce,
   imageProblems,
@@ -65,29 +64,27 @@ describe("the image sources", () => {
     expect(() => planOf({ kind: "pinned", image: "subject@sha256:abc" })).toThrow(/not pinned by digest/);
   });
 
-  it("builds the procedures subject from the files of its folder in the package, with a tag from their content", () => {
-    const plan = builtOf(SUBJECTS.procedures.image);
-    expect(plan.tag).toMatch(/^loom-harness-procedures:[0-9a-f]{12}$/);
-    expect(plan.dockerfile).toBe("harness/image/procedures/Dockerfile");
-    expect(plan.files.map((each) => each.at)).toEqual(
-      ["Dockerfile", "client-ws.mjs", "lines.mjs", "npm-lock.json", "package.json", "server-ws.mjs"].map((file) => `harness/image/procedures/${file}`),
-    );
-    // the base of the subject is the stock image that its Dockerfile starts from
+  it("builds the gRPC client from the files of its folder in the package, with a tag from their content", () => {
+    const plan = builtOf({ kind: "shipped", name: "grpc" });
+    expect(plan.tag).toMatch(/^loom-harness-grpc:[0-9a-f]{12}$/);
+    expect(plan.dockerfile).toBe("harness/image/grpc/Dockerfile");
+    expect(plan.files.map((each) => each.at)).toEqual(["Dockerfile", "client-grpc.mjs", "npm-lock.json", "package.json"].map((file) => `harness/image/grpc/${file}`));
+    // the image starts from the stock Node image, pinned by digest
     const dockerfile = readFileSync(plan.files.find((each) => each.at === plan.dockerfile)!.file, "utf8");
-    expect(/^FROM (\S+)$/m.exec(dockerfile)?.[1]).toBe(SUBJECTS.procedures.base);
+    expect(/^FROM (\S+)$/m.exec(dockerfile)?.[1]).toBe(NODE);
   });
 
   it("gives a caller's build context of the same files the same content digits as the shipped image", () => {
-    const shipped = builtOf({ kind: "shipped", name: "procedures" });
+    const shipped = builtOf({ kind: "shipped", name: "grpc" });
     const caller = builtOf({
       kind: "build",
-      name: "caller-procedures",
+      name: "caller-grpc",
       context: ABOVE,
-      dockerfile: "harness/image/procedures/Dockerfile",
-      files: ["harness/image/procedures"],
+      dockerfile: "harness/image/grpc/Dockerfile",
+      files: ["harness/image/grpc"],
     });
     expect(caller.tag.split(":")[1]).toBe(shipped.tag.split(":")[1]);
-    expect(caller.tag.startsWith("caller-procedures:")).toBe(true);
+    expect(caller.tag.startsWith("caller-grpc:")).toBe(true);
     expect(caller.files.map((each) => each.at)).toEqual(shipped.files.map((each) => each.at));
   });
 
@@ -98,7 +95,9 @@ describe("the image sources", () => {
       expect(imageProblems(SHIPPED_CLIENTS[name].image as ImageSource), name).toEqual([]);
       expect(SHIPPED_CLIENTS[name].command.length, name).toBeGreaterThan(0);
     }
-    expect(SHIPPED_CLIENTS["procedures-ws"]).toEqual({ image: SUBJECTS.procedures.image, command: SUBJECTS.procedures.programs["client"] });
+    // the WebSocket client of @procedures/client is a program of its subject: the client repository builds it (CLI-33)
+    expect((CLIENT_NAMES as readonly string[]).includes("procedures-ws")).toBe(false);
+    expect((SHIPPED_NAMES as readonly string[]).includes("procedures")).toBe(false);
   });
 
   it("publishes each file of each image that the harness ships: a build from npm reads the same files", () => {
@@ -233,25 +232,24 @@ describe("the subjects", () => {
   };
 
   it("gives the client of a subject: a client that the harness ships by its name, another as an image and its command", () => {
-    expect(subjectClient(SUBJECTS.procedures)).toBe("procedures-ws");
+    const shipped: Subject = { name: "grpc", image: { kind: "shipped", name: "grpc" }, base: NODE, programs: { client: ["node", "/opt/harness/grpc/client-grpc.mjs"] } };
+    expect(subjectClient(shipped)).toBe("grpc");
     expect(subjectClient(caller)).toEqual({ image: caller.image, command: ["node", "/opt/subject/client-ws.mjs"] });
     expect(programOf(caller, "server")).toEqual(["node", "/opt/subject/server-ws.mjs"]);
     expect(() => programOf(caller, "observer")).toThrow(/has no program observer/);
   });
 
   it("gives the problems of a subject as data", () => {
-    expect(subjectProblems(SUBJECTS.procedures)).toEqual([]);
     expect(subjectProblems(caller)).toEqual([]);
     expect(subjectProblems({ ...caller, base: "node:24" })).toEqual(["the base node:24 is not pinned by digest"]);
     expect(subjectProblems({ ...caller, programs: {} })).toEqual(["the subject has no programs"]);
     expect(subjectProblems({ ...caller, programs: { client: [] } })).toEqual(["the program client is not a command"]);
   });
 
-  it("gives the image that a target operates: its subject, a shipped image by its short form, or its stock image", () => {
+  it("gives the image that a target operates: its subject, or its stock image", () => {
     const target: Target = { image: NODE, port: 8080, ready: "listening" };
     expect(targetSourceOf(target)).toBe(NODE);
-    expect(targetSourceOf({ ...target, harness: "procedures" })).toEqual(SUBJECTS.procedures.image);
-    expect(targetSourceOf({ ...target, harness: "procedures", subject: caller.image })).toEqual(caller.image);
+    expect(targetSourceOf({ ...target, subject: caller.image })).toEqual(caller.image);
   });
 
   it("gives the client of each run from its source, and names no client that the harness does not ship", async () => {
@@ -268,19 +266,26 @@ describe("the subjects", () => {
 
 describe("the schemas", () => {
   it("accepts a subject as JSON, and names each problem of one", () => {
-    const json = JSON.parse(JSON.stringify(SUBJECTS.procedures)) as unknown;
-    expect(subjectSchema.parse(json)).toEqual(SUBJECTS.procedures);
-    const pinned = { ...SUBJECTS.procedures, image: { kind: "pinned", image: "ghcr.io/owner/subject:0.8.0" } };
+    const subject: Subject = {
+      name: "procedures",
+      image: { kind: "build", name: "procedures-subject", context: "client", dockerfile: "harness/procedures-subject/Dockerfile", files: ["package.json", "packages/client"] },
+      base: NODE,
+      programs: { client: ["node", "/opt/subject/client-ws.mjs"], server: ["node", "/opt/subject/server-ws.mjs"] },
+    };
+    const json = JSON.parse(JSON.stringify(subject)) as unknown;
+    expect(subjectSchema.parse(json)).toEqual(subject);
+    const pinned = { ...subject, image: { kind: "pinned", image: "ghcr.io/owner/subject:0.8.0" } };
     expect(subjectSchema.safeParse(pinned).error?.issues.map((issue) => issue.message)).toEqual([
       "ghcr.io/owner/subject:0.8.0 is not pinned by digest: name@sha256:<64 hex digits>",
     ]);
     // a key that the shape does not know is a mistake, not a setting
-    expect(subjectSchema.safeParse({ ...SUBJECTS.procedures, tag: "latest" }).success).toBe(false);
+    expect(subjectSchema.safeParse({ ...subject, tag: "latest" }).success).toBe(false);
     expect(imageSourceSchema.safeParse({ kind: "shipped", name: "nope" }).success).toBe(false);
   });
 
   it("accepts a client by its name or as an image with its command", () => {
-    expect(clientSchema.parse("procedures-ws")).toBe("procedures-ws");
+    expect(clientSchema.parse("grpc")).toBe("grpc");
+    expect(clientSchema.safeParse("procedures-ws").success).toBe(false);
     const image = { image: { kind: "build", name: "caller", context: "subject", files: ["Dockerfile"] }, command: ["node", "client.mjs"] };
     expect(clientSchema.parse(image)).toEqual(image);
     expect(clientSchema.safeParse("nope").success).toBe(false);
