@@ -850,7 +850,7 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - T02.array.34 waits. DP08 sets a keepalive of the upstream, thus an `upstream {}` block, where nginx 1.29.6 and 1.29.7 differ. Its workload is busy, and the client of the harness holds one call in flight.
 - Traefik 3.7.15 has its document (machines 0.3.21). A hop event can write a file of a proxy, and the proxy confirms the change by a line of its output (harness 0.11.25).
   - T02.array.77: in an idle gap, the reload changes a spare router, and Traefik confirms it. Nothing reaches the client, and the GOAWAY of the idle timeout comes 180 s after the last stream. It holds in 11 of 11 runs at 180.010 s (median), in run 39379039853.
-  - The first run failed: the GOAWAY came up to 86 ms late. A control with no reload gave the same lateness, thus it is in the process of Traefik, not in the reload. The document now gives a slack of 0.1 s, as an observation. The band stays below the time of the reload plus 180 s, thus a reload that armed the timer again would fail the cell.
+  - The first run failed: the GOAWAY came up to 86 ms late. A control with no reload gave the same lateness, thus it is in the process of Traefik, not in the reload. The document gives a slack of 0.1 s, as an observation. The band stays below the time of the reload plus 180 s. Thus a reload that arms the timer again fails the cell.
 
 ## Kubernetes
 
