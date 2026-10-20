@@ -25,11 +25,11 @@ describe("the gRPC catalog of T07", () => {
     for (const each of T07_GRPC) expect(each, each.name).toMatchObject({ template: "T07", stack: "grpc", declaration: null, runs: 11 });
   });
 
-  it("waits the first backoff of grpc-js, 1 s ± 20 %, after a connect that the pod refused", () => {
-    expect(FIRST_BACKOFF.lo).toBeCloseTo(0.8, 9);
-    // the jitter and one step of Node
-    expect(FIRST_BACKOFF.hi).toBeGreaterThan(1.2);
-    expect(FIRST_BACKOFF.hi).toBeLessThan(1.25);
+  it("waits the first backoff of grpc-js, 1 s with no jitter, after a connect that the pod refused", () => {
+    expect(FIRST_BACKOFF.lo).toBeCloseTo(1, 9);
+    // one step of Node
+    expect(FIRST_BACKOFF.hi).toBeGreaterThan(1);
+    expect(FIRST_BACKOFF.hi).toBeLessThan(1.05);
     // the next connect comes after the propagation of each mode, thus it goes to another pod
     for (const propagation of Object.values(PROPAGATION)) expect(valueIn(propagation.hi, "s")).toBeLessThan(FIRST_BACKOFF.lo);
   });

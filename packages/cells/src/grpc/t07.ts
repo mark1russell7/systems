@@ -30,7 +30,8 @@ import { grpcValues } from "./t01.ts";
 
 /**
  * This band is the first backoff of grpc-js: from the start of a connect that fails to the start of
- * the next connect. It is the timer `reconnect` of the document of grpc-js, at its first wait.
+ * the next connect. It is the timer `reconnect` of the document of grpc-js, at its first wait. The
+ * first wait after a ready transport has no jitter, thus it is 1 s and the lateness of one step.
  */
 export const FIRST_BACKOFF = (() => {
   const bounds = timerOf(GRPC_JS, "reconnect", given(grpcValues()), 0);

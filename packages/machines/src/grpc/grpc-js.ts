@@ -86,6 +86,7 @@ export const GRPC_JS: Machine = machineSchema.parse({
     { ref: `${AT}/subchannel.ts:275-291 the end of the transport takes the subchannel from READY to IDLE. After too_many_pings the keepalive time doubles`, rung: "implemented" },
     { ref: `${AT}/subchannel.ts:298-304 a failed connect takes the subchannel to TRANSIENT_FAILURE`, rung: "implemented" },
     { ref: `${AT}/backoff-timeout.ts:23-26 the reconnect waits 1000 ms first, each next wait 1.6 times longer, up to 120000 ms, with a jitter of 0.2`, rung: "implemented" },
+    { ref: `${AT}/backoff-timeout.ts:124, :169-181, :197-201 the first wait after a reset is the initial delay, with no jitter. Each next wait is the last wait, jitter included, times 1.6 and capped, then ± 20 %: the jitter compounds`, rung: "implemented" },
     { ref: `${AT}/internal-channel.ts:74-77 and :324-325 a channel with no call for grpc.client_idle_timeout_ms goes IDLE: 30 min at the defaults, 1 s at least`, rung: "implemented" },
     { ref: "node v24.21.0 lib/net.js:589 (a socket has no timeout until setTimeout), :828-843 (setNoDelay)", rung: "implemented" },
     { ref: "node v24.21.0 lib/internal/http2/core.js: no PING of its own, and no timeout of the session at the defaults", rung: "implemented" },
@@ -181,13 +182,18 @@ export const GRPC_JS: Machine = machineSchema.parse({
     },
     reconnect: {
       duration: { expr: "min(initial_reconnect_backoff * pow(1.6, fired), max_reconnect_backoff)", unit: "ms" },
-      early: { expr: "0.2 * min(initial_reconnect_backoff * pow(1.6, fired), max_reconnect_backoff)", unit: "ms" },
-      lateness: { expr: "0.2 * min(initial_reconnect_backoff * pow(1.6, fired), max_reconnect_backoff) + 1000 * slack", unit: "ms" },
+      // the shortest wait n is min(I·(1.6·0.8)^n, 0.8·M) and the longest min(I·(1.6·1.2)^n, 1.2·M): each wait
+      // multiplies the last one, jitter included, and the first one has no jitter (backoff-timeout.ts:169-181)
+      early: { expr: "min(initial_reconnect_backoff * pow(1.6, fired), max_reconnect_backoff) - min(initial_reconnect_backoff * pow(1.28, fired), 0.8 * max_reconnect_backoff)", unit: "ms" },
+      lateness: {
+        expr: "min(initial_reconnect_backoff * pow(1.92, fired), 1.2 * max_reconnect_backoff) - min(initial_reconnect_backoff * pow(1.6, fired), max_reconnect_backoff) + 1000 * slack",
+        unit: "ms",
+      },
       arms: ["enter:connecting"],
       cancels: ["rx.settings"],
       fires: "timer.reconnect",
       backoff: { resets: ["rx.settings"] },
-      note: "backoff-timeout.ts:23-26, subchannel.ts:349-372: the backoff starts with each connect. A connect that fails before it ends waits for it. A ready transport stops it and starts it again from 1 s",
+      note: "backoff-timeout.ts:23-26, :169-181, subchannel.ts:349-372: the backoff starts with each connect. A connect that fails before it ends waits for it. A ready transport stops it and starts it again from 1 s, with no jitter. In kind run 39390098968, the calls of a client failed for 984 ms to 1021 ms after a refused connect",
     },
   },
   realizes: {
