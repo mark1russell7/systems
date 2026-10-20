@@ -1,29 +1,26 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", "schedule:weekly"],
-  "timezone": "America/New_York",
-  "automerge": false,
-  "prConcurrentLimit": 3,
-  "prHourlyLimit": 2,
-  "lockFileMaintenance": { "enabled": false },
-  "ignorePaths": ["**/node_modules/**", "packages/harness/image/**", "packages/kind/image/**"],
+  "description": "The shared settings of mark1russell7 with no automerge (template renovate/base), and the systems that the cells measure left as they are.",
+  "extends": ["github>mark1russell7/template//renovate/base"],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "**/vendor/**",
+    "**/examples/**",
+    "**/__tests__/**",
+    "**/test/**",
+    "**/tests/**",
+    "**/__fixtures__/**",
+    "packages/harness/image/**",
+    "packages/kind/image/**",
+    "packages/cells/targets/**"
+  ],
   "packageRules": [
     {
-      "description": "The images of the harness and of kind pin the systems that the cells measure, and each machine document cites their tags. They change only with their documents, thus Renovate leaves them (ignorePaths). The prober is the tool of each measurement: its updates come in one group.",
+      "description": "The images of the harness and of kind, and the targets of the cells, pin the systems that the cells measure. Each machine document cites their versions. They change only with their documents, thus Renovate leaves them (ignorePaths, after the defaults of config:recommended). The prober is the tool of each measurement: its updates come in one group.",
       "matchFileNames": ["packages/prober/image/**", "packages/prober/native/**", "packages/prober/go/**"],
       "groupName": "the prober",
       "matchUpdateTypes": ["minor", "patch", "pin", "digest"]
-    },
-    {
-      "description": "One pull request a week for the minor and patch updates of the workspace.",
-      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
-      "matchFileNames": ["package.json", "packages/*/package.json"],
-      "groupName": "minor and patch updates"
-    },
-    {
-      "description": "One pull request a week for the actions of the workflows.",
-      "matchManagers": ["github-actions"],
-      "groupName": "GitHub Actions"
     },
     {
       "description": "A major update waits for an approval on the dependency dashboard.",
