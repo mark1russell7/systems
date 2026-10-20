@@ -50,6 +50,14 @@ export const PUMP_SLACK: Quantity = { value: 5, unit: "ms" };
 /** This count is how many of the last lines of a proxy hop the lab keeps. The error of a hop that does not start gives them. */
 const TAIL_LINES = 60;
 
+/** This count is how many lines of the output of a proxy hop the lab keeps, for a write that the proxy confirms. */
+const OUTPUT_LINES = 2000;
+
+/** This time is how long a write of a hop waits for the line that confirms it, in milliseconds. */
+const CONFIRM_MS = 10_000;
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
 /**
  * A network fault is a fault that the injector applies as a filter rule. It is a black hole (both
  * directions, or one), or a reset on the next segment. It can also be an ICMP unreachable for each
@@ -589,6 +597,8 @@ export const openLab = async (
 
     // the hops, from the target to the client: each proxy gets the address of the endpoint after it
     const middlebox: MiddleboxEvent[] = [];
+    // the last lines of the output of each proxy, and their count, for a write that the proxy confirms
+    const hopOutput = new Map<string, { lines: string[]; total: number }>();
     const inChain: HopIn[] = [];
     const endpointOf = (element: number): string => {
       const at = endpointAfter(hops, element);
@@ -647,6 +657,8 @@ export const openLab = async (
       if (hop.ready !== undefined) proxy = proxy.withWaitStrategy(Wait.forLogMessage(hop.ready));
       // the last lines of the output of the hop: a hop that does not start tells why
       const tail: string[] = [];
+      const output = { lines: [] as string[], total: 0 };
+      hopOutput.set(hop.name, output);
       proxy = proxy.withLogConsumer((stream) => {
         let rest = "";
         stream.on("data", (chunk: Buffer | string) => {
@@ -655,6 +667,9 @@ export const openLab = async (
           for (const line of lines) {
             tail.push(line);
             if (tail.length > TAIL_LINES) tail.shift();
+            output.lines.push(line);
+            output.total += 1;
+            if (output.lines.length > OUTPUT_LINES) output.lines.shift();
           }
         });
       });
@@ -958,22 +973,50 @@ export const openLab = async (
       async event(event, undo = false, at) {
         const hop = hopNamed(event.hop);
         if (hop.hop.kind !== "proxy") throw new Error(`the hop ${event.hop} is a router: an event goes to a proxy`);
-        if ("signal" in event) {
-          if (undo) return null;
-          const program = hop.hop.program;
-          if (program === undefined) throw new Error(`the hop ${event.hop} names no program to signal`);
+        const program = hop.hop.program;
+        // only when a cell asks for it: otherwise no sidecar shares the process namespace of the hop.
+        // SYS_PTRACE lets a write reach the root of the program through /proc/PID/root
+        const sidecarOf = async (): Promise<StartedTestContainer> => {
           let sidecar = hopSignallers.get(event.hop);
           if (sidecar === undefined) {
-            // only when a cell asks for it: otherwise no sidecar shares the process namespace of the hop
             sidecar = await withPid(
-              new GenericContainer(image).withNetworkMode(`container:${hop.box.getId()}`).withAddedCapabilities("NET_ADMIN", "NET_RAW"),
+              new GenericContainer(image).withNetworkMode(`container:${hop.box.getId()}`).withAddedCapabilities("NET_ADMIN", "NET_RAW", "SYS_PTRACE"),
               `container:${hop.box.getId()}`,
             ).start();
             hopSignallers.set(event.hop, sidecar);
             opened.push(sidecar);
           }
+          return sidecar;
+        };
+        if ("signal" in event) {
+          if (undo) return null;
+          if (program === undefined) throw new Error(`the hop ${event.hop} names no program to signal`);
           const when = at === undefined ? [] : ["--at", String(Math.round(at))];
-          return stamped(sidecar, ["/opt/harness/inject", "signal", program, event.signal, ...when]);
+          return stamped(await sidecarOf(), ["/opt/harness/inject", "signal", program, event.signal, ...when]);
+        }
+        if ("write" in event) {
+          const content = undo ? event.write.undo : event.write.content;
+          if (content === undefined) return null;
+          if (program === undefined) throw new Error(`the hop ${event.hop} names no program whose root a write reaches`);
+          const output = hopOutput.get(event.hop);
+          const before = output?.total ?? 0;
+          const stamp = await stamped(await sidecarOf(), ["/opt/harness/inject", "write", program, event.write.path, content]);
+          const confirm = event.write.confirm;
+          if (confirm !== undefined) {
+            // the hop confirms the change by a new line of its output, for example the log line of its reload
+            const started = Date.now();
+            const confirmed = (): boolean => {
+              if (output === undefined) return false;
+              const fresh = Math.min(output.total - before, output.lines.length);
+              return output.lines.slice(output.lines.length - fresh).some((line) => line.includes(confirm));
+            };
+            while (!confirmed()) {
+              if (Date.now() - started > CONFIRM_MS)
+                throw new Error(`the hop ${event.hop} did not confirm the write of ${event.write.path}: no line "${confirm}" in ${CONFIRM_MS / 1000} s`);
+              await sleep(50);
+            }
+          }
+          return stamp;
         }
         const query = undo ? event.console.undo : event.console.query;
         if (query === undefined) return null;

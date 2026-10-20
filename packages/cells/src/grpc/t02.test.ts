@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ENVOY_IMAGE, T02_GRPC, T02_GRPC_ALIASES, T02_GRPC_SPECS, T02_GRPC_WAITING, proxyHop } from "./t02.ts";
+import { ENVOY_IMAGE, T02_GRPC, T02_GRPC_ALIASES, T02_GRPC_SPECS, T02_GRPC_WAITING, TRAEFIK_SPARE_PATH, proxyHop } from "./t02.ts";
 
 const cell = (plan: string) => {
   const found = T02_GRPC.find((each) => each.name.startsWith(`${plan} grpc-js-1.14 to `));
@@ -71,5 +71,29 @@ describe("the gRPC catalog of T02", () => {
     const conf = proxyHop("nginx").files?.["/etc/nginx/nginx.conf"] ?? "";
     expect(conf).toContain("http2 on;");
     expect(conf).not.toMatch(/keepalive_timeout|worker_processes|grpc_read_timeout/);
+  });
+
+  it("reloads Traefik in an idle gap: the reload sends nothing, and the GOAWAY of its idle timeout comes 180 s after the last stream", () => {
+    const reload = cell("T02.array.77");
+    expect(reload).toMatchObject({
+      fault: "hop-event",
+      event: { hop: "traefik", write: { path: TRAEFIK_SPARE_PATH, confirm: "Creating server" } },
+      probe: { mode: "idle" },
+      prediction: { detects: true, errno: "IDLE", from: "last-data", driver: { ends: { ev: "state", where: { to: "IDLE" } } } },
+    });
+    if (reload.prediction.detects !== true) throw new Error("a detection");
+    // the late bound holds the observed lateness of Traefik (0.1 s), and it stays below the time of the
+    // reload plus 180 s: a reload that armed the idle timer again would give a later IDLE
+    expect([reload.prediction.low.value, reload.prediction.high.value]).toEqual([179.998, 180.112]);
+    // the reload changes the spare router, and its undo writes it back: each run makes the same change
+    const write = (reload.event as { write: { content: string; undo: string } }).write;
+    expect(write.content).not.toBe(write.undo);
+    const hop = proxyHop("traefik");
+    expect(hop.files?.[TRAEFIK_SPARE_PATH]).toBe(write.undo);
+    // the router to the server is in a file of its own, which the reload does not write
+    expect(hop.files?.["/etc/traefik/dynamic/main.yml"]).toContain("h2c://{{next}}");
+    // the proxy serves the next run
+    expect(reload).not.toHaveProperty("fresh");
+    expect(reload.environments).toBe(2);
   });
 });

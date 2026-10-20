@@ -167,6 +167,8 @@ export type HopSignal = "HUP" | "TERM" | "INT" | "STOP" | "CONT";
  * that the console trusts. Its `undo` lifts it after the run. Without `inFlight`, the event
  * comes first, and the request of the client meets it. With `inFlight`, the request goes first,
  * and the event comes while it is in flight.
+ *
+ * A write changes a file of the hop, as an edit of its configuration does (`HopWrite`).
  */
 export type HopEvent =
   | { readonly hop: string; readonly signal: HopSignal; readonly inFlight?: true }
@@ -174,7 +176,25 @@ export type HopEvent =
       readonly hop: string;
       readonly console: { readonly port: number; readonly user: string; readonly database: string; readonly query: string; readonly undo?: string };
       readonly inFlight?: true;
-    };
+    }
+  | { readonly hop: string; readonly write: HopWrite; readonly inFlight?: true };
+
+/**
+ * A hop write puts `content` at `path` in the root of the program of the hop. The content goes to a
+ * file beside it first, and a rename puts it in place in one step. Thus a program that watches the
+ * folder reads the whole file, not half of it. Its `undo` writes the file of the start again
+ * after the run, thus each run makes the same change.
+ *
+ * `confirm` is a line of the output of the hop that the change gives, for example the log line of
+ * a reload. The event waits for a new such line, and a write that the hop does not confirm in 10 s
+ * fails the run. Thus a cell that predicts no effect knows that the change took effect.
+ */
+export interface HopWrite {
+  readonly path: string;
+  readonly content: string;
+  readonly undo?: string;
+  readonly confirm?: string;
+}
 
 /**
  * A hop is one box between the client and the target. Each hop is on two networks: the network
