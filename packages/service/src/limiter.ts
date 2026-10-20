@@ -24,3 +24,6 @@ export type {
 export { decide, freeAt, idleSpan, limitRule, limiterProblems, longestRetryAfter, retryAfterSeconds } from "./limiter/policy.ts";
 export type { KeyedLimiter, LimiterStore, MemoryStore, TakeRequest } from "./limiter/store.ts";
 export { keyedLimiter, memoryStore } from "./limiter/store.ts";
+// the machine of a key is a document: only its type comes from the algebra, thus the entry loads no more
+export type { LimiterState } from "./limiter/machine.ts";
+export { SLIDING_WINDOW_MACHINE, TOKEN_BUCKET_MACHINE, limiterMachine, limiterStateOf } from "./limiter/machine.ts";
