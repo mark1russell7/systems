@@ -1,6 +1,15 @@
 import { describe, expect, it } from "vitest";
 import type { Line } from "./observe.ts";
-import { intakeOf, signalOf, stoppingOf } from "./observe.ts";
+import { byClients, intakeOf, signalOf, stoppingOf } from "./observe.ts";
+
+describe("the target of a run of gRPC", () => {
+  it("is the replica that answers the most clients, then the first by name", () => {
+    const replicas = [{ pod: "lab-a" }, { pod: "lab-b" }, { pod: "lab-c" }];
+    const answers = new Map([["client-1", "lab-b"], ["client-2", "lab-b"], ["client-3", "lab-c"]]);
+    expect(byClients(replicas, answers).map((each) => each.pod)).toEqual(["lab-b", "lab-c", "lab-a"]);
+    expect(byClients(replicas, new Map()).map((each) => each.pod)).toEqual(["lab-a", "lab-b", "lab-c"]);
+  });
+});
 
 describe("the references of a server", () => {
   it("reads the intake and the SIGTERM of grpc-go from its line stopping", () => {

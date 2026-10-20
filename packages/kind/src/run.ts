@@ -15,6 +15,7 @@ import type { KindLab, Line, Stamp } from "./lab.ts";
 import { localPin, openKindLab } from "./lab.ts";
 import { CLIENT, REDIS, REDIS_IMAGE, SERVER, clientObjects, namespaceOf, redisObjects, serverObjects, stackOf } from "./manifests.ts";
 import type { PodLine, Request } from "./observe.ts";
+import { byClients } from "./observe.ts";
 import type { EnvironmentManifest, KindCellRecord, KindCellResult, LoadSample } from "./record.ts";
 import { FORMAT } from "./record.ts";
 import { scenario } from "./scenario.ts";
@@ -57,6 +58,8 @@ class Tracker {
   readonly slices = new Map<string, Line>();
   readonly backends = new Map<string, readonly string[]>();
   readonly clients = new Map<string, { node: string; ok: number; failed: number }>();
+  /** This map is the backend of the last answer of each client, by client. */
+  readonly answers = new Map<string, string>();
   last = 0;
   see = (line: Line): void => {
     if (typeof line.t === "number" && line.t > this.last && line.ev === "req") this.last = line.t;
@@ -75,6 +78,7 @@ class Tracker {
       if (request.o === "ok") client.ok = Math.max(client.ok, request.t);
       else client.failed = Math.max(client.failed, request.t);
       this.clients.set(request.p, client);
+      if (request.o === "ok" && request.b !== undefined) this.answers.set(request.p, request.b);
     }
   };
   servers(): PodLine[] {
@@ -211,9 +215,16 @@ const probeThePods = async (ctx: Context): Promise<void> => {
   ctx.probed = key;
 };
 
-/** This function gives the replicas of the service at this time, in the sequence of their names. */
-const replicasOf = (ctx: Context): Replica[] =>
-  ctx.tracker.servers().map((pod) => ({ pod: pod.name, node: pod.node ?? "", ip: pod.ip ?? "", version: pod.labels["pod-template-hash"] ?? "" }));
+/**
+ * This function gives the replicas of the server at this time, in the sequence of their names. The
+ * first one is the target of a run. A client of gRPC holds its connection to one replica, and the
+ * channels go to the replica that stays after a run. Thus for the stack `grpc`, the first replica
+ * is the one that answers the most clients (`byClients`).
+ */
+const replicasOf = (ctx: Context): Replica[] => {
+  const replicas = ctx.tracker.servers().map((pod) => ({ pod: pod.name, node: pod.node ?? "", ip: pod.ip ?? "", version: pod.labels["pod-template-hash"] ?? "" }));
+  return stackOf(ctx.cell) === "grpc" ? byClients(replicas, ctx.tracker.answers) : replicas;
+};
 
 /** This function does one step of a fault plan. It gives the stamp of its act, or null for an act without a stamp. */
 const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], background: Array<Promise<unknown>>): Promise<Stamp | null> => {

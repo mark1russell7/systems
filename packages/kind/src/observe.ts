@@ -108,6 +108,17 @@ export const outcomesOf = (requests: readonly Request[]): Record<string, number>
   return out;
 };
 
+/**
+ * This function orders the replicas by how many clients each one answered last, the most first,
+ * then by name. `answers` gives the backend of the last answer of each client, by client. A client
+ * of gRPC holds its connection to one replica, thus the first replica is the one whose stop the
+ * most clients see.
+ */
+export const byClients = <T extends { readonly pod: string }>(replicas: readonly T[], answers: ReadonlyMap<string, string>): T[] => {
+  const count = (pod: string): number => [...answers.values()].filter((backend) => backend === pod).length;
+  return [...replicas].sort((a, b) => count(b.pod) - count(a.pod) || a.pod.localeCompare(b.pod));
+};
+
 /** This function gives the requests of each node, by the name of the node. */
 export const byNode = (requests: readonly Request[]): Map<string, Request[]> => {
   const out = new Map<string, Request[]>();

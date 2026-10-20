@@ -98,6 +98,7 @@ From 0.2.0, a cell names its stack (`stack`): its server and its clients. A cell
   - The probes are the gRPC probes of the kubelet on the port of the server.
   - The lines of grpc-go name their pod and stamp in milliseconds (`--name`, `--clock ms`). Its line `stopping` gives the intake and the SIGTERM of a pod (`stoppingOf`): then GracefulStop closes the listener and sends GOAWAY.
   - The clients start after the server is ready. Each failed connect of a channel makes the backoff of grpc-js longer, up to 120 s.
+  - The target of a run is the replica that answers the most clients. A channel stays on its replica, and the channels go to the replica that stays after a run. Thus a target by name has no client in most runs.
   - The cell has no declaration (`declaration` is null), thus `describeCell` refuses it. The server grpc-go has no seam for `liveness-restart`, thus its manifest refuses that trigger.
 
 A declaration that can be null changes the type `KindCell`. That is a breaking change before 1.0.0, thus the version is 0.2.0.
@@ -125,7 +126,7 @@ The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`
 | `pod-deletion` | `kubectl delete pod` of the first replica |
 | `rolling-update` | a new value of an environment variable of the Deployment |
 | `node-drain` | `kubectl drain` of the node of the first replica, then `uncordon` |
-| `scale-in` | one replica less, then back |
+| `scale-in` | one replica less, then back. For the stack `grpc`, the first replica first gets a deletion cost of -1, thus its ReplicaSet removes it |
 | `crash` | SIGKILL of the process of the service, from the node |
 | `liveness-restart` | the flag file that fails the liveness check of the first replica |
 | `freeze-process` | SIGSTOP and SIGCONT: of kube-proxy on one node across a deletion (T07), or of Redis (T18) |

@@ -1,8 +1,9 @@
-import { clientObjects, judgeKind, serverObjects } from "@mark1russell7/kind";
+import { clientObjects, judgeKind, planOf, serverObjects } from "@mark1russell7/kind";
 import type { KindRun } from "@mark1russell7/kind";
 import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import { PROPAGATION } from "../kind.ts";
+import { T07_CELLS } from "../t07.ts";
 import { FIRST_BACKOFF, T07_GRPC, T07_GRPC_ALIASES, T07_GRPC_SPECS, T07_GRPC_WAITING } from "./t07.ts";
 
 /** These are the cells of R3's plan over grpc-go-server in T07 (plan.json): a client of gRPC in pods on each node. */
@@ -72,6 +73,14 @@ describe("the gRPC catalog of T07", () => {
     expect(hardened.spec.template!.spec.containers[0]).toMatchObject({ lifecycle: { preStop: { sleep: { seconds: 20 } } } });
     const [daemonSet] = clientObjects(deletion, "lab-ns", "systems-kind-lab:test", "10.96.0.10:80") as [{ spec: { template: { spec: { containers: Array<{ command: string[] }> } } } }];
     expect(daemonSet.spec.template.spec.containers[0]!.command).toEqual(["node", "client-grpc.mjs"]);
+  });
+
+  it("names the replica that a scale-in removes by its deletion cost, for gRPC only", () => {
+    const annotate = { do: "kubectl", args: ["-n", "{namespace}", "annotate", "pod", "{pod}", "controller.kubernetes.io/pod-deletion-cost=-1", "--overwrite"] };
+    for (const id of ["T07.defaults.4", "T07.array.4"]) expect(planOf(cell(id)).inject, id).toEqual([annotate, { do: "kubectl", args: ["-n", "{namespace}", "scale", "deployment/lab", "--replicas=2"] }]);
+    // the scale-in of the service keeps the choice of its controller
+    const service = T07_CELLS.find((each) => each.trigger.kind === "scale-in")!;
+    expect(planOf(service).inject).toHaveLength(1);
   });
 
   it("judges a run by the GOAWAY of grpc-go and the calls of its clients", () => {

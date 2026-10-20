@@ -854,6 +854,7 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
 - T07 over gRPC: the kind lab has a stack `grpc` (kind 0.2.0, harness 0.11.26). The server is grpc-go, with the gRPC probes of the kubelet. Each node has a client of grpc-js with one channel to the ClusterIP, and the channel holds one connection. 5 cells start: a deletion, a scale-in and two node drains with no preStop, and a scale-in with the preStop of DP28.
   - At SIGTERM, grpc-go sends GOAWAY, and a client on that pod connects again. Until the propagation, the rules can send that connect to the pod, which refuses it. Then each call fails at once until the next connect, after the first backoff of grpc-js (0.8 s to 1.2 s). Thus the window ends at most one backoff after the propagation.
   - With the preStop of 20 s of DP28, the GOAWAY comes after the propagation, thus no call fails.
+  - The channels go to the replica that stays after a run, and a new replica gets no client. In the first kind run (39388068896), the target by name had no client in 49 of 55 runs. Thus a run of gRPC stops the replica that answers the most clients. A scale-in first gives that replica a deletion cost of -1. Where the target had clients, each failed call came in its window. In a drain with nftables, one client got refusals from 9 ms to 1.025 s after the GOAWAY.
   - 2 array cells are aliases, and 9 cells wait. A rolling update needs a window for each old pod. The server grpc-go has no seam for a liveness restart. The lab has no Cilium.
 
 ## Kubernetes

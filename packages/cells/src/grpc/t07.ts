@@ -19,6 +19,10 @@ import { grpcValues } from "./t01.ts";
  * to TRANSIENT_FAILURE, and each call fails at once until its next connect, after the first backoff
  * of grpc-js. That connect comes after the propagation, thus it goes to another pod.
  *
+ * The channels go to the replica that stays after a run, and a new replica gets no client. Thus the
+ * target of a run is the replica that answers the most clients, and a scale-in gives it the lowest
+ * deletion cost. A target by name had no client in 49 of 55 runs of the first kind run (39388068896).
+ *
  * The client connects to the ClusterIP. CoreDNS stays in the cluster for a cell of the plan that names
  * it, but it is not on the path of a connect. The name of the Service resolves to its ClusterIP, which
  * does not change in a run.
