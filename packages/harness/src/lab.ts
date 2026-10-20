@@ -338,9 +338,10 @@ export interface Lab {
    * This method applies an event at a proxy hop (`HopEvent`), or its undo. A signal goes from a
    * sidecar in the network and process namespaces of the hop. The lab starts that sidecar at the
    * first signal of the hop. A query goes from the injector of the hop to its console on 127.0.0.1. The
-   * injector stamps each one. An event with no undo gives null for its undo.
+   * injector stamps each one. An event with no undo gives null for its undo. A signal can wait for an
+   * instant on CLOCK_MONOTONIC (`at`), as the thaw at the end of a hold does.
    */
-  event(event: HopEvent, undo?: boolean): Promise<{ t0: number; t1: number } | null>;
+  event(event: HopEvent, undo?: boolean, at?: number): Promise<{ t0: number; t1: number } | null>;
   probe(args: readonly string[]): Promise<Probe>;
   /**
    * This method waits for the next clock line of the prober, which gives the count of lost
@@ -954,7 +955,7 @@ export const openLab = async (
         const when = at === undefined ? [] : ["--at", String(Math.round(at))];
         return stamped(signaller, ["/opt/harness/inject", "signal", target.program, signal, ...when]);
       },
-      async event(event, undo = false) {
+      async event(event, undo = false, at) {
         const hop = hopNamed(event.hop);
         if (hop.hop.kind !== "proxy") throw new Error(`the hop ${event.hop} is a router: an event goes to a proxy`);
         if ("signal" in event) {
@@ -971,7 +972,8 @@ export const openLab = async (
             hopSignallers.set(event.hop, sidecar);
             opened.push(sidecar);
           }
-          return stamped(sidecar, ["/opt/harness/inject", "signal", program, event.signal]);
+          const when = at === undefined ? [] : ["--at", String(Math.round(at))];
+          return stamped(sidecar, ["/opt/harness/inject", "signal", program, event.signal, ...when]);
         }
         const query = undo ? event.console.undo : event.console.query;
         if (query === undefined) return null;

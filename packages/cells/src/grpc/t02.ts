@@ -1,5 +1,5 @@
 import type { Cell, HopSignal, Prediction, ProxyHop } from "@mark1russell7/harness";
-import { CADDY_HTTP2, DOCKER_PROXY_LINK, ENVOY_HTTP2, GRPC_JS, TOXIPROXY_LINK } from "@mark1russell7/machines";
+import { CADDY_HTTP2, DOCKER_PROXY_LINK, ENVOY_HTTP2, GRPC_JS, NGINX_GRPC, TOXIPROXY_LINK } from "@mark1russell7/machines";
 import { RUNS, s, sysctlsOf } from "../catalog.ts";
 import type { Alias, Waiting } from "../mongo/cells.ts";
 import { linuxValues } from "../mongo/model.ts";
@@ -13,10 +13,12 @@ import { GRPC_PORT, GRPC_RTT_MS, grpcTarget } from "./t01.ts";
  * - Toxiproxy 2.12.0 closes both sockets at an end of file of either side, and its stop closes them too.
  * - docker-proxy of Docker 29.1.5 ends each connection when Docker stops it, as at a restart.
  * - Caddy 2.11.7 sends GOAWAY on a connection with no stream for 5 min, and grpc-js drops that transport.
+ * - nginx 1.29.6 fires each timer that came due during a stop of its worker at the resume. It does so
+ *   before it reads the reply in the socket. Thus grpc_read_timeout gives 504, and grpc-js reads UNAVAILABLE.
  */
 
 /** These are the proxies of the catalog. */
-export type GrpcProxy = "envoy" | "toxiproxy" | "docker-proxy" | "caddy";
+export type GrpcProxy = "envoy" | "toxiproxy" | "docker-proxy" | "caddy" | "nginx";
 
 /** A spec of T02 is one cell of the plan through one proxy. */
 export interface T02Spec {
@@ -32,6 +34,10 @@ export interface T02Spec {
   readonly toward?: "target";
   /** This signal is the event of a `hop-event` at the proxy. */
   readonly signal?: HopSignal;
+  /** This time is the hold of a STOP, in seconds: the proxy thaws with CONT at its end. */
+  readonly hold?: number;
+  /** This time is how long the server of the harness holds the call in flight, in seconds. */
+  readonly held?: number;
 }
 
 /** This image is Envoy 1.39.4, pinned by digest. */
@@ -39,6 +45,27 @@ export const ENVOY_IMAGE = "envoyproxy/envoy:v1.39.4@sha256:74bd4eb5629708d3fadc
 
 /** This image is Caddy 2.11.7, pinned by digest. */
 export const CADDY_IMAGE = "caddy:2.11.7@sha256:685ae3d7c34d9b5f8caeddc5d14051db7bbd88ff1f5a2fa0c16bd8ca328fb7af";
+
+/** This image is nginx 1.29.6 on Alpine, pinned by digest: the system nginx-pre-1.29.7. */
+export const NGINX_IMAGE = "nginx:1.29.6-alpine@sha256:f46cb72c7df02710e693e863a983ac42f6a9579058a59a35f1ae36c9958e4ce0";
+
+/**
+ * This configuration is the nginx.conf of the document `nginx-grpc`, in place of the stock one. It has
+ * one server of h2c and grpc_pass to the next hop, with each timer at its built-in default. The stock file
+ * sets keepalive_timeout 65 and worker_processes auto. The error log at notice gives the ready line.
+ */
+const NGINX_CONF = `error_log stderr notice;
+events {}
+http {
+  server {
+    listen ${GRPC_PORT};
+    http2 on;
+    location / {
+      grpc_pass grpc://{{next}};
+    }
+  }
+}
+`;
 
 /** This configuration is the Caddyfile of the document `caddy-http2`: one server of h1 and h2c, and reverse_proxy to the next hop over h2c. */
 const CADDYFILE = `{
@@ -140,6 +167,17 @@ export const proxyHop = (proxy: GrpcProxy): ProxyHop => {
         ready: "serving initial configuration",
         program: "caddy",
       };
+    case "nginx":
+      return {
+        name: "nginx",
+        kind: "proxy",
+        image: NGINX_IMAGE,
+        port: GRPC_PORT,
+        command: ["nginx", "-g", "daemon off;"],
+        files: { "/etc/nginx/nginx.conf": NGINX_CONF },
+        ready: "start worker process",
+        program: "nginx",
+      };
     case "docker-proxy":
       return {
         name: "docker-proxy",
@@ -155,7 +193,7 @@ export const proxyHop = (proxy: GrpcProxy): ProxyHop => {
 };
 
 /** These are the documents of the proxies, by their names. */
-const DOCUMENTS = { envoy: ENVOY_HTTP2, toxiproxy: TOXIPROXY_LINK, "docker-proxy": DOCKER_PROXY_LINK, caddy: CADDY_HTTP2 } as const;
+const DOCUMENTS = { envoy: ENVOY_HTTP2, toxiproxy: TOXIPROXY_LINK, "docker-proxy": DOCKER_PROXY_LINK, caddy: CADDY_HTTP2, nginx: NGINX_GRPC } as const;
 
 /** This function gives the slack of one step of a program, from its document: the assumption that each document states. */
 const slackOf = (doc: (typeof DOCUMENTS)[GrpcProxy] | typeof GRPC_JS): number => {
@@ -206,6 +244,28 @@ export const t02Prediction = (spec: T02Spec): Prediction => {
     if (!close.emits?.includes("tx.client-fin")) throw new Error(`${spec.plan}: ${doc.id} does not close the client at an end of the upstream`);
     return { detects: true, timer: "the FIN of the killed server, which Toxiproxy passes as a close of the client", errno: "EOF", from: "peer-closed", low: s(0), high: s(hops + steps), rtt, driver: { socket: "connection" } };
   }
+  if (spec.fault === "hop-event" && spec.signal === "STOP") {
+    if (spec.proxy !== "nginx" || spec.mode !== "inflight" || spec.hold === undefined || spec.held === undefined)
+      throw new Error(`${spec.plan}: this catalog stops nginx for a hold, with a held call in flight, only`);
+    // the call reaches the server before the STOP, and the server holds it. Its read timer comes due in the
+    // stop, and its reply waits in the socket. At the CONT, epoll_wait gives EINTR and nginx fires the timer
+    // before it reads the reply: 504, one round trip after the end of the hold
+    const read = doc.knobs["grpc_read_timeout"]?.default;
+    if (typeof read !== "number") throw new Error(`${spec.plan}: ${doc.id} gives no grpc_read_timeout`);
+    if (spec.hold <= read + 1 || spec.held >= read) throw new Error(`${spec.plan}: the hold must pass grpc_read_timeout (${read} s), and the reply must come before it`);
+    const resume = transition("ng.resume-timeout");
+    const ends = { ev: "error", name: "errno" } as const;
+    return {
+      detects: true,
+      timer: "grpc_read_timeout of nginx: due in the stop of its worker, it fires at the resume, before nginx reads the reply in the socket",
+      errno: resume.errno!,
+      from: "fault",
+      low: s(spec.hold),
+      high: s(spec.hold + hops + steps),
+      rtt,
+      driver: { socket: "connection", ends },
+    };
+  }
   // a stop of the proxy: its process exits, and the kernel closes the socket of the client with a FIN
   const stop = transition(spec.proxy === "toxiproxy" ? "tl.stop" : spec.proxy === "docker-proxy" ? "dp.stop" : "env.stop");
   if (!stop.emits?.includes(spec.proxy === "envoy" ? "tx.fin" : "tx.client-fin")) throw new Error(`${spec.plan}: ${doc.id} does not close the client at its stop`);
@@ -219,6 +279,16 @@ export const T02_GRPC_SPECS: readonly T02Spec[] = [
   { plan: "T02.defaults.36", name: "through docker-proxy 29.1, idle: Docker stops docker-proxy with SIGINT, as at a restart of the container", proxy: "docker-proxy", fault: "hop-event", mode: "idle", signal: "INT" },
   { plan: "T02.defaults.48", name: "through Toxiproxy 2.12, fin, idle: the killed server ends the connection, and Toxiproxy closes both sockets", proxy: "toxiproxy", fault: "fin", mode: "idle" },
   { plan: "T02.defaults.41", name: "through Caddy 2.11, an idle gap of 5 min: Caddy sends GOAWAY, and grpc-js drops the transport", proxy: "caddy", fault: "none", mode: "idle" },
+  {
+    plan: "T02.defaults.34",
+    name: "through nginx 1.29.6, a call in flight: its worker stops 90 s, and at the resume nginx answers 504 before it reads the reply",
+    proxy: "nginx",
+    fault: "hop-event",
+    mode: "inflight",
+    signal: "STOP",
+    hold: 90,
+    held: 5,
+  },
 ];
 
 /** This function gives the name of a cell of T02. */
@@ -227,21 +297,24 @@ export const t02NameOf = (spec: T02Spec): string => `${spec.plan} grpc-js-1.14 t
 /** This function gives the harness cell of a spec of T02. */
 export const t02Cell = (spec: T02Spec): Cell => {
   const hop = proxyHop(spec.proxy);
+  // a STOP freezes the proxy, and its CONT thaws it: the proxy serves the next run
+  const exits = spec.fault === "hop-event" && spec.signal !== "STOP";
   return {
     name: t02NameOf(spec),
     target: grpcTarget("grpc-go"),
     sysctls: sysctlsOf(linuxValues()),
-    probe: { mode: spec.mode, keepalive: false, driver: { name: "grpc" } },
+    probe: { mode: spec.mode, keepalive: false, driver: { name: "grpc", ...(spec.held === undefined ? {} : { hold: s(spec.held) }) } },
     fault: spec.fault,
     prediction: t02Prediction(spec),
     topology: { name: "T02", hops: [hop] },
     ...(spec.toward === undefined ? {} : { faultAt: { hop: hop.name, toward: spec.toward } }),
-    ...(spec.signal === undefined ? {} : { event: { hop: hop.name, signal: spec.signal } }),
+    ...(spec.signal === undefined ? {} : { event: { hop: hop.name, signal: spec.signal, ...(spec.mode === "inflight" ? { inFlight: true as const } : {}) } }),
+    ...(spec.hold === undefined ? {} : { hold: s(spec.hold) }),
     // a stopped proxy ends its environment: the warm-up is a dry run, as for the kill of a server
-    ...(spec.fault === "hop-event" ? { fresh: true } : {}),
+    ...(exits ? { fresh: true } : {}),
     runs: RUNS,
-    // a killed server, and a stopped proxy, cannot serve the next run: each run has its own environment
-    environments: spec.fault === "rst" ? 2 : RUNS,
+    // a killed server, and a proxy that exits, cannot serve the next run: each run has its own environment
+    environments: spec.fault === "rst" || (spec.fault === "hop-event" && !exits) ? 2 : RUNS,
   };
 };
 
@@ -262,10 +335,13 @@ export const T02_GRPC_WAITING: readonly Waiting[] = [
     why: "keepAliveMaxRequests of Traefik 3.7 is 0 (off) at its defaults (pkg/config/static/entrypoints.go:203-217): no event comes",
   },
   { plan: "T02.defaults.33", trigger: "event:idle-gap", why: "the target of this tuple is Caddy 2.11, and Caddy serves no gRPC by itself: the health service of the client gets no reply" },
-  { plan: "T02.defaults.34", trigger: "in-process:event-loop", why: "the harness has no injector that blocks the event loop of a worker of nginx" },
   { plan: "T02.array.32", trigger: "event:maxRequestsPerSocket", why: "as T02.defaults.32, under DP05: DP05 sets the timers of GCLB, no knob of Traefik" },
   { plan: "T02.array.33", trigger: "event:idle-gap", why: "as T02.defaults.33, under DP19" },
-  { plan: "T02.array.34", trigger: "in-process:event-loop", why: "as T02.defaults.34, under DP08" },
+  {
+    plan: "T02.array.34",
+    trigger: "in-process:event-loop",
+    why: "DP08 sets a keepalive of the upstream, thus an upstream {} block, where nginx 1.29.6 and 1.29.7 differ, and worker_shutdown_timeout. Its workload is busy (λ·S ≫ 1), and the client of the harness holds one call in flight",
+  },
   {
     plan: "T02.array.77",
     trigger: "event:proxy-reload",

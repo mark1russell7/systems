@@ -154,8 +154,12 @@ export interface ProxyHop {
 /**
  * A signal of a hop event. HUP reloads the configuration of a pooler. TERM stops a proxy, as a stop of
  * its container does. INT stops docker-proxy, as Docker does when it removes a port binding.
+ *
+ * STOP blocks the event loop of a proxy: its processes stop, and its kernel keeps each socket. Thus
+ * ACKs go on, and the data of each peer waits in its receive queue. With the hold of the cell
+ * (`Cell.hold`), CONT thaws it at the end of the hold, from inside the VM.
  */
-export type HopSignal = "HUP" | "TERM" | "INT";
+export type HopSignal = "HUP" | "TERM" | "INT" | "STOP" | "CONT";
 
 /**
  * An event at a proxy hop (`hop-event`). A signal goes to each process of the program of the hop
