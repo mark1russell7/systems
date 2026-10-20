@@ -1413,6 +1413,66 @@
       ],
       "warmups": [300.005, 300.000991, 300.000938, 300.006038, 300.003232, 300.00563, 300.001668, 300.002825, 300.005414, 300.006416, 300.003422],
       "voids": null
+    },
+    {
+      "plan": "T02.defaults.34",
+      "catalog": "T02",
+      "name": "grpc-go: through nginx 1.29.6, a call in flight: its worker stops 90 s, and at the resume nginx answers 504 before it reads the reply",
+      "group": "T02",
+      "client": "grpc-js",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 90,
+        "high": 90.024,
+        "window": null,
+        "text": "The algebra predicts that the read timer of nginx comes due in the stop of its worker. At the resume, nginx answers 504 before it reads the reply in the socket, and grpc-js fails the call with UNAVAILABLE. The band is 90 s to 90.024 s after the start of the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 89.999,
+        "high": 90.025
+      },
+      "median": 90.002754,
+      "why": "11 of the 11 counted runs are in the band of 89.999 s to 90.025 s. The median is 90.003 s, and its interval is 90.002 s to 90.003 s.",
+      "runs": [
+        [90.00233, 90.002903, 90.002555, 90.002425, 90.002409, 90.002592],
+        [90.002985, 90.002754, 90.003198, 90.003005, 90.003626]
+      ],
+      "warmups": [90.003168, 90.002871],
+      "voids": null
+    },
+    {
+      "plan": "T02.array.77",
+      "catalog": "T02",
+      "name": "grpc-go: through Traefik 3.7, a reload in an idle gap: the reload sends nothing, and the GOAWAY of the idle timeout comes 180 s after the last stream",
+      "group": "T02",
+      "client": "grpc-js",
+      "stage": "array",
+      "prediction": {
+        "kind": "detects",
+        "low": 179.998,
+        "high": 180.112,
+        "window": null,
+        "text": "The algebra predicts that the reload sends nothing, and Traefik sends GOAWAY at its idle timeout, and grpc-js drops the transport (READY to IDLE). The band is 179.998 s to 180.112 s after the last segment with data from the server."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 179.997,
+        "high": 180.113
+      },
+      "median": 180.018162,
+      "why": "11 of the 11 counted runs are in the band of 179.997 s to 180.113 s. The median is 180.018 s, and its interval is 180.001 s to 180.085 s.",
+      "runs": [
+        [180.044984, 180.084726, 180.001047, 180.015655, 180.018162, 180.001243],
+        [180.064606, 180.090712, 180.001015, 180.001166, 180.084212]
+      ],
+      "warmups": [180.001002, 180.001027],
+      "voids": null
     }
   ]
 }
