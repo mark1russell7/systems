@@ -485,6 +485,21 @@ It comes in service 0.5.5, a PATCH: a bug fix, with no change to an export.
 
 The drain waits only for work that it owns and can cut (the second review). `life.request` of a lifecycle records that lifecycle as the owner of each stream that it makes. A stream of `writeOutcome` from another lifecycle, or from none, does not hold the drain and does not count at the cap. Thus the drain ends at its deadline for such a stream, as in 0.5.4. The record of the drain gives their count, for example `streams outside the lifecycle: 1`. With this change in service 0.5.6, a PATCH, each exit code is the exit code of 0.5.4.
 
+### SYS-30 · The probes of the runner can leave out the report
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** SYS-2
+- **Started:** 2026-10-19
+- **Shipped:**
+- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+The client item CLI-9 found it. `probeHandler()` and `probeServer()` of `@mark1russell7/service/http` always answer `/report` with the probes. Thus a probe server of its own also gives the whole report, and no option keeps it off the port.
+
+With SYS-30, the option `kinds` of both functions names the probes that answer. The default is all four of `PROBE_KINDS`, thus a caller without the option sees no change. The path of a kind that the list does not name is not a probe. `probeHandler` gives it to the next handler, and `probeServer` answers it with 404, as each other path. The call refuses an empty list, an unknown kind and a kind two times, and the error names the bad part.
+
+It comes in service 0.5.8, a PATCH: a new optional option and new exports, before 1.0.0.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue

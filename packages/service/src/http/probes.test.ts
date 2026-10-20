@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { service } from "../builder.ts";
 import { fakeClock, seeded } from "../fakes.ts";
-import type { Health } from "../health.ts";
-import { probeHandler, probeResponse, probeServer } from "../http.ts";
-import { scriptedCheck } from "../testing.ts";
+import type { Health, ProbeKind } from "../health.ts";
+import type { HttpKnobs } from "../http.ts";
+import { httpTransport, PROBE_KINDS, probeHandler, probeResponse, probeServer } from "../http.ts";
+import { detachedLifecycle, scriptedCheck } from "../testing.ts";
 import { FakeResponse, FakeServer, FakeSocket } from "./fake-server.ts";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
@@ -161,5 +162,101 @@ describe("probeServer: the probes on a port of their own", () => {
     taken.on("request", () => {});
     expect(() => probeServer({ server_retry_after: s(1), port: 1, server: taken.asServer })).toThrow(/a request listener of its own/);
     expect(() => probeServer({ server_retry_after: s(1), port: 1, prefix: "x" })).toThrow(/does not start with/);
+  });
+});
+
+describe("the option kinds: the probes that answer, and a path of a kind left out is not a probe (SYS-30)", () => {
+  const noReport: readonly ProbeKind[] = ["startup", "readiness", "liveness"];
+
+  it("gives the four kinds in PROBE_KINDS, as a frozen list", () => {
+    expect(PROBE_KINDS).toEqual(["startup", "readiness", "liveness", "report"]);
+    expect(Object.isFrozen(PROBE_KINDS)).toBe(true);
+  });
+
+  it("probeResponse gives null for the path of a kind that the list does not name, and answers the others", async () => {
+    const { health } = await runtime();
+    expect(probeResponse(health, "GET", "/health/report", "/health", noReport)).toBeNull();
+    // a left-out kind is not a probe for each method: no 405
+    expect(probeResponse(health, "POST", "/health/report", "/health", noReport)).toBeNull();
+    expect(probeResponse(health, "GET", "/health/readiness/orders", "/health", ["liveness"])).toBeNull();
+    expect(probeResponse(health, "GET", "/health/readiness/orders", "/health", noReport)!.status).toBe(200);
+    expect(probeResponse(health, "GET", "/health/report", "/health", ["report"])!.status).toBe(200);
+    expect(probeResponse(health, "GET", "/health/startup", "/health", ["report"])).toBeNull();
+  });
+
+  it("probeServer without report gives 404 at /report, and still answers /readiness/<controller> and the other probes", async () => {
+    const { health } = await runtime();
+    const server = new FakeServer();
+    const probes = probeServer({ server_retry_after: s(1), port: 0, server: server.asServer, kinds: noReport });
+    await probes.listen(health);
+    const report = await server.request("/report");
+    expect([report.status, report.body]).toEqual([404, "Not Found"]);
+    expect((await server.request("/report", "POST")).status).toBe(404);
+    const controller = await server.request("/readiness/orders");
+    expect(controller.status).toBe(200);
+    expect(JSON.parse(controller.body)).toMatchObject({ status: "pass", probe: "readiness", controller: "orders" });
+    for (const kind of noReport) expect((await server.request(`/${kind}`)).status, kind).toBe(200);
+    // the option goes to no listen of the port
+    expect(server.listens).toEqual([{ port: 0 }]);
+  });
+
+  it("probeHandler without report passes /report on to the next handler of the port", async () => {
+    const { health } = await runtime();
+    const handler = probeHandler(health, { prefix: "/health", kinds: noReport });
+    const res = new FakeResponse(new FakeSocket());
+    expect(handler(fakeReq("/health/report"), res as unknown as ServerResponse, undefined as never)).toBe(false);
+    expect(res.headersSent).toBe(false);
+    // on a transport, the next mount answers the path
+    const knobs: HttpKnobs = { server_idle_close: s(65), server_idle_sweep_interval: s(1), server_retry_after: s(2) };
+    const server = new FakeServer();
+    const transport = httpTransport(server.asServer, knobs, { listen: { port: 8080 }, clock: fakeClock() });
+    await transport.start(new AbortController().signal, detachedLifecycle());
+    transport.mount(handler);
+    transport.mount((req, next) => {
+      if (req.url !== "/health/report") return false;
+      next.writeHead(200, { "content-type": "text/plain" }).end("the report of the application");
+      return true;
+    });
+    const report = await server.request("/health/report");
+    expect([report.status, report.body]).toEqual([200, "the report of the application"]);
+    const readiness = await server.request("/health/readiness/orders");
+    expect(readiness.status).toBe(200);
+    expect(JSON.parse(readiness.body)).toMatchObject({ probe: "readiness", controller: "orders" });
+    await transport.close();
+  });
+
+  it("serves /report by default, on a probe server and in a probe handler", async () => {
+    const { health } = await runtime();
+    const server = new FakeServer();
+    await probeServer({ server_retry_after: s(1), port: 0, server: server.asServer }).listen(health);
+    const report = await server.request("/report");
+    expect(report.status).toBe(200);
+    expect(JSON.parse(report.body).verdict.ready).toBe(true);
+    const res = new FakeResponse(new FakeSocket());
+    expect(probeHandler(health, { prefix: "/health" })(fakeReq("/health/report"), res as unknown as ServerResponse, undefined as never)).toBe(true);
+    expect(res.statusCode).toBe(200);
+    // an undefined kinds is the default too
+    expect(probeResponse(health, "GET", "/report", "", undefined)!.status).toBe(200);
+  });
+
+  it("refuses an empty list, an unknown kind and a kind two times at the call, and names the bad part", () => {
+    const refusals: Array<[unknown, RegExp]> = [
+      [[], /the probe kinds are an empty list: name one or more of "startup", "readiness", "liveness", "report"/],
+      [["readiness", "health"], /the probe kind "health" is not one of "startup", "readiness", "liveness", "report"/],
+      [["report", "liveness", "report"], /the probe kind "report" is two times in the probe kinds/],
+      ["report", /the probe kinds "report" are not a list/],
+    ];
+    for (const [kinds, message] of refusals) {
+      expect(() => probeHandler(() => null, { prefix: "", kinds: kinds as never }), String(kinds)).toThrow(message);
+      expect(() => probeServer({ server_retry_after: s(1), port: 1, kinds: kinds as never }), String(kinds)).toThrow(message);
+    }
+  });
+
+  it("keeps its own copy of the list, thus a later change of the caller's list changes nothing", async () => {
+    const { health } = await runtime();
+    const kinds: ProbeKind[] = ["readiness"];
+    const handler = probeHandler(health, { prefix: "", kinds });
+    kinds.push("report");
+    expect(handler(fakeReq("/report"), new FakeResponse(new FakeSocket()) as unknown as ServerResponse, undefined as never)).toBe(false);
   });
 });

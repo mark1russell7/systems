@@ -17,7 +17,30 @@ export interface ProbeResponse {
 /** A health source is the health runtime, or a function that gives it when it exists. */
 export type HealthSource = Health | (() => Health | null | undefined);
 
-const KINDS: readonly ProbeKind[] = ["startup", "readiness", "liveness", "report"];
+/**
+ * These are the four probe kinds, in the sequence of their paths. A probe server and a probe handler
+ * answer all four, unless their option `kinds` names fewer.
+ */
+export const PROBE_KINDS: readonly ProbeKind[] = Object.freeze(["startup", "readiness", "liveness", "report"] as const);
+
+const named = PROBE_KINDS.map((kind) => `"${kind}"`).join(", ");
+
+/**
+ * This function gives the probe kinds of an option `kinds`: all four when it is undefined, or else a
+ * frozen copy. It refuses a value that is not a list, an empty list, an unknown kind and a kind two times.
+ */
+const kindsOf = (kinds: readonly ProbeKind[] | undefined): readonly ProbeKind[] => {
+  if (kinds === undefined) return PROBE_KINDS;
+  if (!Array.isArray(kinds)) throw new Error(`the probe kinds ${JSON.stringify(kinds)} are not a list of ${named}`);
+  if (kinds.length === 0) throw new Error(`the probe kinds are an empty list: name one or more of ${named}`);
+  const seen = new Set<ProbeKind>();
+  for (const kind of kinds) {
+    if (!PROBE_KINDS.includes(kind)) throw new Error(`the probe kind ${JSON.stringify(kind)} is not one of ${named}`);
+    if (seen.has(kind)) throw new Error(`the probe kind "${kind}" is two times in the probe kinds`);
+    seen.add(kind);
+  }
+  return Object.freeze([...kinds]);
+};
 
 const prefixProblem = (prefix: string): string | null =>
   prefix === "" || (prefix.startsWith("/") && !prefix.endsWith("/"))
@@ -34,16 +57,18 @@ const json = (status: number, body: unknown): ProbeResponse => ({
  * This function gives the response of a probe path from the cache of the health runtime. For a path
  * that is not a probe, it gives null. The paths are `/startup`, `/readiness`, `/liveness` and
  * `/report` after the prefix. `/readiness/<controller>` gives the readiness of one controller.
+ * `kinds` names the probes that answer. The path of a kind that it does not name is not a probe.
  */
 export const probeResponse = (
   health: Health | null | undefined,
   method: string | undefined,
   path: string,
   prefix = "",
+  kinds: readonly ProbeKind[] = PROBE_KINDS,
 ): ProbeResponse | null => {
   if (!path.startsWith(`${prefix}/`)) return null;
   const parts = path.slice(prefix.length + 1).split("/");
-  const kind = KINDS.find((each) => each === parts[0]);
+  const kind = PROBE_KINDS.find((each) => each === parts[0] && kinds.includes(each));
   if (kind === undefined) return null;
   const controller = parts[1];
   if (parts.length > 2 || (controller !== undefined && (kind !== "readiness" || controller === ""))) return null;
@@ -71,6 +96,11 @@ const write = (req: IncomingMessage, res: ServerResponse, response: ProbeRespons
 export interface ProbeHandlerOptions {
   /** This path goes before each probe path, for example `/health`. It starts with `/`, or it is empty. */
   readonly prefix: string;
+  /**
+   * These are the probes that the handler answers. The default is all four of `PROBE_KINDS`. The
+   * path of a kind that the list does not name goes to the next handler.
+   */
+  readonly kinds?: readonly ProbeKind[] | undefined;
 }
 
 /**
@@ -81,9 +111,10 @@ export interface ProbeHandlerOptions {
 export const probeHandler = (health: HealthSource, options: ProbeHandlerOptions): RequestHandler => {
   const problem = prefixProblem(options.prefix);
   if (problem !== null) throw new Error(problem);
+  const kinds = kindsOf(options.kinds);
   const handler = (req: IncomingMessage, res: ServerResponse, context?: MountContext): boolean => {
     const runtime = typeof health === "function" ? health() : health;
-    const response = probeResponse(runtime, req.method, pathOf(req.url), options.prefix);
+    const response = probeResponse(runtime, req.method, pathOf(req.url), options.prefix, kinds);
     if (response === null) return false;
     // the transport gives server_retry_after through the context, and it adds the header to each 503 too
     const retryAfter = context?.retryAfter === undefined ? undefined : retryAfterOf({ server_retry_after: context.retryAfter }, "probeHandler");
@@ -104,6 +135,11 @@ export interface ProbeServerOptions extends ListenOptions {
   readonly prefix?: string | undefined;
   /** This server answers the probes. Without it, the probe server makes a server of `node:http`. */
   readonly server?: Server | undefined;
+  /**
+   * These are the probes that the server answers. The default is all four of `PROBE_KINDS`. The path
+   * of a kind that the list does not name gets 404, as each other path.
+   */
+  readonly kinds?: readonly ProbeKind[] | undefined;
 }
 
 /** A probe server is a health server on its own port. Its server is visible for the address of the port. */
@@ -117,10 +153,11 @@ export interface ProbeServer extends HealthServer {
  * each 503 gets the `Retry-After` of `server_retry_after`.
  */
 export const probeServer = (options: ProbeServerOptions): ProbeServer => {
-  const { prefix = "", server = createServer(), server_retry_after, ...listen } = options;
+  const { prefix = "", server = createServer(), server_retry_after, kinds: chosen, ...listen } = options;
   const retryAfter = retryAfterOf({ server_retry_after }, "probeServer");
   const problem = prefixProblem(prefix);
   if (problem !== null) throw new Error(problem);
+  const kinds = kindsOf(chosen);
   if (server.listenerCount("request") > 0) throw new Error("the probe server has a request listener of its own");
   let health: Health | null = null;
   let closing: Promise<void> | null = null;
@@ -130,7 +167,7 @@ export const probeServer = (options: ProbeServerOptions): ProbeServer => {
     socket.once("close", () => sockets.delete(socket));
   });
   server.on("request", (req: IncomingMessage, res: ServerResponse) => {
-    const response = probeResponse(health, req.method, pathOf(req.url), prefix);
+    const response = probeResponse(health, req.method, pathOf(req.url), prefix, kinds);
     write(req, res, response ?? { status: 404, headers: { "content-type": "text/plain; charset=utf-8" }, body: "Not Found" }, retryAfter);
   });
   return {
