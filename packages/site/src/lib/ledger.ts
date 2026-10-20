@@ -6,7 +6,7 @@
  * The first harness cells are not in the ledger, because the S1 cells replace them.
  */
 import faults from "../data/faults-2026-10-17.json";
-import grpc from "../data/grpc-2026-10-19.json";
+import grpc from "../data/grpc-2026-10-20.json";
 import harness from "../data/harness-2026-10-13.json";
 import http from "../data/http-2026-10-17.json";
 import kind from "../data/kind-2026-10-18.json";

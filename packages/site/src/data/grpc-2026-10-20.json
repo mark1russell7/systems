@@ -1,12 +1,12 @@
 {
   "source": "the raw records of the runners of GitHub, judged again by the harness",
-  "ranAt": "2026-10-19",
+  "ranAt": "2026-10-20",
   "units": "s",
   "noise": null,
   "runs": 11,
   "kernel": "6.17.0 and 7.0.0",
   "hz": 1000,
-  "target": "a server of grpc-go v1.84.0, and etcd v3.6.15",
+  "target": "a server of grpc-go v1.84.0 and etcd v3.6.15, direct, through the router of a cloud, or through one proxy",
   "clients": {
     "grpc-js": "grpc-js 1.14.6 on Node 24.21.0"
   },
@@ -1226,6 +1226,192 @@
         [null, null, null, null, null]
       ],
       "warmups": [null, null],
+      "voids": null
+    },
+    {
+      "plan": "T02.defaults.31",
+      "catalog": "T02",
+      "name": "grpc-go: through Envoy 1.39, rst at the server, a call in flight: Envoy answers UNAVAILABLE",
+      "group": "T02",
+      "client": "grpc-js",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.024,
+        "window": null,
+        "text": "The algebra predicts that Envoy answers the reset of its upstream with its own reply, on the open connection of the client with UNAVAILABLE. The band is 0 s to 24 ms after the send of the call."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.001,
+        "high": 0.025
+      },
+      "median": 0.002982,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 25 ms. The median is 2.98 ms, and its interval is 2.79 ms to 3.25 ms.",
+      "runs": [
+        [0.003151, 0.002982, 0.002882, 0.003026, 0.002654, 0.003139],
+        [0.002891, 0.002919, 0.003707, 0.003249, 0.002788]
+      ],
+      "warmups": [0.003214, 0.00326],
+      "voids": null
+    },
+    {
+      "plan": "T02.defaults.35",
+      "catalog": "T02",
+      "name": "grpc-go: through Toxiproxy 2.12, idle: SIGTERM stops Toxiproxy, and its exit closes the connection",
+      "group": "T02",
+      "client": "grpc-js",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.034,
+        "window": null,
+        "text": "The algebra predicts that the exit of the stopped Toxiproxy closes the idle connection with an end of file. The band is 0 s to 34 ms after the start of the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 0.038
+      },
+      "median": 0.001374,
+      "why": "11 of the 11 counted runs are in the band of −4 ms to 38 ms. The median is 1.37 ms, and its interval is 1.25 ms to 1.98 ms.",
+      "runs": [
+        [0.00135],
+        [0.001611],
+        [0.001524],
+        [0.001209],
+        [0.001698],
+        [0.001247],
+        [0.001985],
+        [0.002182],
+        [0.001303],
+        [0.001374],
+        [0.001334]
+      ],
+      "warmups": [null, null, null, null, null, null, null, null, null, null, null],
+      "voids": null
+    },
+    {
+      "plan": "T02.defaults.36",
+      "catalog": "T02",
+      "name": "grpc-go: through docker-proxy 29.1, idle: Docker stops docker-proxy with SIGINT, as at a restart of the container",
+      "group": "T02",
+      "client": "grpc-js",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.034,
+        "window": null,
+        "text": "The algebra predicts that the exit of the stopped docker-proxy closes the idle connection with an end of file. The band is 0 s to 34 ms after the start of the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.001,
+        "high": 0.035
+      },
+      "median": 0.000755,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 35 ms. The median is 755 µs, and its interval is 605 µs to 1.14 ms.",
+      "runs": [
+        [0.000681],
+        [0.00075],
+        [0.000605],
+        [0.000589],
+        [0.000995],
+        [0.000782],
+        [0.000755],
+        [0.000959],
+        [0.001149],
+        [0.000699],
+        [0.001144]
+      ],
+      "warmups": [null, null, null, null, null, null, null, null, null, null, null],
+      "voids": null
+    },
+    {
+      "plan": "T02.defaults.48",
+      "catalog": "T02",
+      "name": "grpc-go: through Toxiproxy 2.12, fin, idle: the killed server ends the connection, and Toxiproxy closes both sockets",
+      "group": "T02",
+      "client": "grpc-js",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 0,
+        "high": 0.024,
+        "window": null,
+        "text": "The algebra predicts that Toxiproxy passes the FIN of the killed server as a close of the client with an end of file. The band is 0 s to 24 ms after the close of the socket of the server."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": -0.001,
+        "high": 0.025
+      },
+      "median": 0.000157,
+      "why": "11 of the 11 counted runs are in the band of −1 ms to 25 ms. The median is 157 µs, and its interval is 140 µs to 190 µs.",
+      "runs": [
+        [0.000156],
+        [0.000151],
+        [0.000157],
+        [0.000605],
+        [0.000156],
+        [0.00019],
+        [0.00014],
+        [0.000188],
+        [0.00014],
+        [0.000189],
+        [0.000167]
+      ],
+      "warmups": [null, null, null, null, null, null, null, null, null, null, null],
+      "voids": null
+    },
+    {
+      "plan": "T02.defaults.41",
+      "catalog": "T02",
+      "name": "grpc-go: through Caddy 2.11, an idle gap of 5 min: Caddy sends GOAWAY, and grpc-js drops the transport",
+      "group": "T02",
+      "client": "grpc-js",
+      "stage": "defaults",
+      "prediction": {
+        "kind": "detects",
+        "low": 299.998,
+        "high": 300.022,
+        "window": null,
+        "text": "The algebra predicts that Caddy sends GOAWAY at its idle timeout, and grpc-js drops the transport (READY to IDLE). The band is 299.998 s to 300.022 s after the last segment with data from the server."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "band": {
+        "low": 299.994,
+        "high": 300.026
+      },
+      "median": 300.005828,
+      "why": "11 of the 11 counted runs are in the band of 299.994 s to 300.026 s. The median is 300.006 s, and its interval is 300.002 s to 300.008 s.",
+      "runs": [
+        [300.002581],
+        [300.005828],
+        [300.00097],
+        [300.001929],
+        [300.002585],
+        [300.008023],
+        [300.007527],
+        [300.005251],
+        [300.009708],
+        [300.007022],
+        [300.006907]
+      ],
+      "warmups": [300.005, 300.000991, 300.000938, 300.006038, 300.003232, 300.00563, 300.001668, 300.002825, 300.005414, 300.006416, 300.003422],
       "voids": null
     }
   ]

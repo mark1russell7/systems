@@ -6,7 +6,7 @@
  * strip chart when its main value is a time.
  */
 import type { ReactElement } from "react";
-import grpc from "../data/grpc-2026-10-19.json";
+import grpc from "../data/grpc-2026-10-20.json";
 import http from "../data/http-2026-10-17.json";
 import kind from "../data/kind-2026-10-18.json";
 import mongodb from "../data/mongodb-2026-10-18.json";
