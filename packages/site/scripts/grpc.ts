@@ -59,7 +59,8 @@ const TIMERS: Readonly<Record<string, string>> = {
   "the FIN of the killed server, which Toxiproxy passes as a close of the client": "Toxiproxy passes the FIN of the killed server as a close of the client",
   "the idle timeout of Caddy, and its GOAWAY": "Caddy sends GOAWAY at its idle timeout",
   "grpc_read_timeout of nginx: due in the stop of its worker, it fires at the resume, before nginx reads the reply in the socket":
-    "the read timer of nginx comes due in the stop of its worker, and at the resume it fires before nginx reads the reply in the socket",
+    "the read timer of nginx comes due in the stop of its worker. At the resume, nginx answers 504 before it reads the reply in the socket, and grpc-js fails the call",
+  "the idle timeout of Traefik, and its GOAWAY: the reload sends nothing": "the reload sends nothing, and Traefik sends GOAWAY at its idle timeout",
 };
 const timerText = (p: { readonly timer: string; readonly errno: string }): string | undefined => TIMERS[`${p.timer} ${p.errno}`] ?? TIMERS[p.timer];
 /** These phrases name the reference of a band, in a sentence. */
