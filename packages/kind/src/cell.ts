@@ -7,6 +7,16 @@ import type { KubeProxyMode } from "./scenario.ts";
 export type Template = "T07" | "T18";
 
 /**
+ * A stack is the server and the clients of a cell:
+ * - `service`: the service of this repository with its declaration, and the HTTP client, which opens a
+ *   new connection for each request. Thus kube-proxy picks a backend for each request.
+ * - `grpc`: the server of grpc-go v1.84.0 of the harness, and a client of grpc-js 1.14.6 with one channel
+ *   at its defaults. The channel holds one connection. It connects again only when that connection
+ *   ends: at a GOAWAY of the server, or at the end of its socket.
+ */
+export type Stack = "service" | "grpc";
+
+/**
  * A trigger is the event or the fault of a cell, by the name of the plan:
  * - `pod-deletion`, `rolling-update`, `node-drain` and `scale-in` stop a pod with its grace.
  * - `crash` stops the process of the service with SIGKILL from the node.
@@ -97,11 +107,17 @@ export interface Declaration {
   readonly watchdog: { readonly tick: Quantity; readonly threshold: Quantity } | null;
 }
 
-/** A workload is the clients: one pod on each node, each with requests on new connections to the ClusterIP. */
+/**
+ * A workload is the clients: one pod on each node, each with requests to the ClusterIP. The HTTP client
+ * opens a new connection for each request. The gRPC client sends each call on its one channel.
+ */
 export interface Workload {
   /** This time is the interval between two requests of one client. The clients do not wait for an answer. */
   readonly every: Quantity;
-  /** This time is how long a client waits for an answer before the request is a timeout. */
+  /**
+   * This time is how long a client waits for an answer before the request is a timeout. A call of
+   * gRPC has no deadline at the defaults of grpc-js, thus the client cancels it at this time.
+   */
   readonly timeout: Quantity;
 }
 
@@ -215,13 +231,16 @@ export interface KindCell<A = Quantity> {
   readonly id: string;
   readonly name: string;
   readonly template: Template;
+  /** This stack is the server and the clients of the cell. Without it, the cell has the service (`service`). */
+  readonly stack?: Stack | undefined;
   /** This text names a system of the plan that the cell replaces with the service of this repository, or null. */
   readonly substitutes: string | null;
   readonly mode: KubeProxyMode;
   readonly workers: number;
   readonly trigger: Trigger<A>;
   readonly pod: PodSettings;
-  readonly declaration: Declaration;
+  /** This declaration is the settings of the service, or null for a server that is not the service (the stack `grpc`). */
+  readonly declaration: Declaration | null;
   readonly workload: Workload;
   readonly prediction: Prediction<A>;
   /** This flag marks a calibration: its runs measure the propagation of the endpoints, and nothing fails. */

@@ -851,6 +851,10 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
 - Traefik 3.7.15 has its document (machines 0.3.21). A hop event can write a file of a proxy, and the proxy confirms the change by a line of its output (harness 0.11.25).
   - T02.array.77: in an idle gap, the reload changes a spare router, and Traefik confirms it. Nothing reaches the client, and the GOAWAY of the idle timeout comes 180 s after the last stream. It holds in 11 of 11 runs at 180.010 s (median), in run 39379039853.
   - The first run failed: the GOAWAY came up to 86 ms late. A control with no reload gave the same lateness, thus it is in the process of Traefik, not in the reload. The document gives a slack of 0.1 s, as an observation. The band stays below the time of the reload plus 180 s. Thus a reload that arms the timer again fails the cell.
+- T07 over gRPC: the kind lab has a stack `grpc` (kind 0.2.0, harness 0.11.26). The server is grpc-go, with the gRPC probes of the kubelet. Each node has a client of grpc-js with one channel to the ClusterIP, and the channel holds one connection. 5 cells start: a deletion, a scale-in and two node drains with no preStop, and a scale-in with the preStop of DP28.
+  - At SIGTERM, grpc-go sends GOAWAY, and a client on that pod connects again. Until the propagation, the rules can send that connect to the pod, which refuses it. Then each call fails at once until the next connect, after the first backoff of grpc-js (0.8 s to 1.2 s). Thus the window ends at most one backoff after the propagation.
+  - With the preStop of 20 s of DP28, the GOAWAY comes after the propagation, thus no call fails.
+  - 2 array cells are aliases, and 9 cells wait. A rolling update needs a window for each old pod. The server grpc-go has no seam for a liveness restart. The lab has no Cilium.
 
 ## Kubernetes
 

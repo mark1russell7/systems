@@ -19,6 +19,7 @@ const FILES: ReadonlyArray<readonly [string, string]> = [
   ["npm-lock.json", "image/npm-lock.json"],
   ["app.mjs", "image/app.mjs"],
   ["client.mjs", "image/client.mjs"],
+  ["client-grpc.mjs", "image/client-grpc.mjs"],
   ["agent.mjs", "image/agent.mjs"],
   ["watch.mjs", "image/watch.mjs"],
   ["compose.ts", "src/compose.ts"],

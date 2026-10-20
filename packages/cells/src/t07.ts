@@ -1,4 +1,4 @@
-import type { KindCell, KubeProxyMode, Prediction, Propagation } from "@mark1russell7/kind";
+import type { Declaration, KindCell, KubeProxyMode, Prediction, Propagation } from "@mark1russell7/kind";
 import { KUBE_PROXY_MODES, deletionWindow, pausedWindow } from "@mark1russell7/kind";
 import { valueIn } from "@mark1russell7/quantity";
 import { CHART_READINESS, CLOSE, DESIGN, KUBE_PROBE, PROPAGATION, SYN_SENT, T07_WORKLOAD, WORKERS, afterSync, kubeDefaults, s, say, withHold } from "./kind.ts";
@@ -31,7 +31,10 @@ const PAUSE: Readonly<Record<KubeProxyMode, readonly [string, string | null]>> =
 const PAUSE_HOLD = s(5);
 const PAUSE_LEAD = s(0.5);
 
-const base = (mode: KubeProxyMode): Omit<KindCell, "id" | "name" | "trigger" | "prediction"> => ({
+/** A service cell is a part of a cell whose server is the service, thus it has a declaration. */
+type ServiceCell = Omit<KindCell, "id" | "name" | "trigger" | "prediction" | "declaration"> & { readonly declaration: Declaration };
+
+const base = (mode: KubeProxyMode): ServiceCell => ({
   template: "T07",
   substitutes: null,
   mode,
@@ -58,7 +61,7 @@ const CONNTRACK_NAT: ReadonlySet<KubeProxyMode> = new Set(["iptables", "nftables
  * that leaves a CLOSE entry to the pod for `CLOSE`. A later connection of the same client on the
  * same port goes to the deleted pod, and it times out.
  */
-const deletionPrediction = (cell: Pick<KindCell, "declaration" | "pod" | "mode">, propagation: Propagation = PROPAGATION[cell.mode]): Prediction => {
+const deletionPrediction = (cell: Pick<ServiceCell, "declaration" | "pod" | "mode">, propagation: Propagation = PROPAGATION[cell.mode]): Prediction => {
   const window = deletionWindow(cell.declaration, cell.pod.preStop, propagation);
   if (window.empty)
     return {
@@ -98,7 +101,7 @@ const staleLife = (cell: Pick<KindCell, "workload">): number => valueIn(SYN_SENT
  * next. Thus a timeout can also come before the intake, from the window of an earlier run. The
  * prediction still holds the failures to the paused node, at least one, and the last one after the sync.
  */
-const pausePrediction = (cell: Pick<KindCell, "declaration" | "pod" | "mode" | "workload">): Prediction => {
+const pausePrediction = (cell: Pick<ServiceCell, "declaration" | "pod" | "mode" | "workload">): Prediction => {
   const window = pausedWindow(cell.declaration, cell.pod.preStop, PAUSE_LEAD, PAUSE_HOLD, PROPAGATION[cell.mode]);
   if (window.empty)
     return {

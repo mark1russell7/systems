@@ -89,6 +89,19 @@ Each pod of a cluster shares the kernel of the Docker VM. Thus each stamp of the
 
 Before each run, the lab deletes the conntrack entries in SYN_SENT to the ClusterIP on each node (`forgetHandshakes`). A note of the run gives each count. Such an entry is a SYN with no answer, and it keeps its NAT for 120 s. A new SYN from the same port goes where the first one went, and it gets no answer either. The clients send requests between the runs too. Thus the restore of one run left such entries, and a client that took the port again in the next run timed out (T07, 2026-10-17).
 
+## The stacks
+
+From 0.2.0, a cell names its stack (`stack`): its server and its clients. A cell without a stack has the service.
+
+- **`service`** is the service of this repository with its declaration, and the HTTP clients. Each request opens a new connection, thus kube-proxy picks a backend for each request.
+- **`grpc`** is the server of grpc-go v1.84.0 from the image of the harness, and the gRPC clients of the lab image. A client holds one channel. Thus kube-proxy picks a backend only when grpc-js connects again: after a GOAWAY of the server, or after the end of the socket.
+  - The probes are the gRPC probes of the kubelet on the port of the server.
+  - The lines of grpc-go name their pod and stamp in milliseconds (`--name`, `--clock ms`). Its line `stopping` gives the intake and the SIGTERM of a pod (`stoppingOf`): then GracefulStop closes the listener and sends GOAWAY.
+  - The clients start after the server is ready. Each failed connect of a channel makes the backoff of grpc-js longer, up to 120 s.
+  - The cell has no declaration (`declaration` is null), thus `describeCell` refuses it. The server grpc-go has no seam for `liveness-restart`, thus its manifest refuses that trigger.
+
+A declaration that can be null changes the type `KindCell`. That is a breaking change before 1.0.0, thus the version is 0.2.0.
+
 ## The image
 
 The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`, its clients, the agent and the watcher, on Node 24.21.0. Its base is pinned by digest, and `npm-lock.json` pins the packages from npm. `stageLabImage()` stages its context, and `labImage()` tags the image by its content.
@@ -101,6 +114,7 @@ The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`
 - **The knobs of the listener.** `server_idle_close` is 6 s, the real idle close of Node 24.21: `keepAliveTimeout` of 5 s and its buffer of 1 s. The sweep of idle connections comes each second after the stop of the intake.
 - **The seams** of the service are a flag file that fails its liveness check, and SIGUSR2. SIGUSR2 blocks its event loop for the time in a file.
 - **The clients** (`client.mjs`) send requests on new connections to the ClusterIP. Each request gives one line with its outcome: ok, 503, refused, reset, timeout or unreachable. From 0.1.3, each line also gives the local port of its connection (`lp`), a refused one's too. A conntrack entry is per port. Thus the requests on the port of a failure show the connection before it, and the pod that it went to.
+- **The gRPC clients** (`client-grpc.mjs`) hold one channel of grpc-js 1.14.6 to the ClusterIP, and send a call of `grpc.health.v1.Health/Check` each interval on it. Each call gives the line of a request of `client.mjs`, with the pod that answered (the header `x-pod`). A call that fails at once names the errno of the last connect: refused, reset or unreachable. A call of grpc-js has no deadline at its defaults. Thus a call with no answer in the timeout is a timeout, and the client cancels it.
 
 ## The triggers
 

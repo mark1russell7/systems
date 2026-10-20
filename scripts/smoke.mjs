@@ -106,6 +106,7 @@ const NEEDS = {
     "image/npm-lock.json",
     "image/app.mjs",
     "image/client.mjs",
+    "image/client-grpc.mjs",
     "image/agent.mjs",
     "image/watch.mjs",
     "src/compose.ts",
