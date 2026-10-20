@@ -6,7 +6,7 @@
 
 /**
  * A line is one JSON line of a source of a run, with its stamp `t` in milliseconds on
- * CLOCK_MONOTONIC. It is a request of a client, a record of the service or a probe answer. It is
+ * CLOCK_MONOTONIC. It is a request of a client, a record of the service, a line of grpc-go or a probe answer. It is
  * also a pod, an EndpointSlice or an event of the API. Or it is the backends of the rules of a
  * node, a kernel record, or an act of the lab. A record keeps each line as its source wrote it.
  */
@@ -108,6 +108,17 @@ export const outcomesOf = (requests: readonly Request[]): Record<string, number>
   return out;
 };
 
+/**
+ * This function orders the replicas by how many clients each one answered last, the most first,
+ * then by name. `answers` gives the backend of the last answer of each client, by client. A client
+ * of gRPC holds its connection to one replica, thus the first replica is the one whose stop the
+ * most clients see.
+ */
+export const byClients = <T extends { readonly pod: string }>(replicas: readonly T[], answers: ReadonlyMap<string, string>): T[] => {
+  const count = (pod: string): number => [...answers.values()].filter((backend) => backend === pod).length;
+  return [...replicas].sort((a, b) => count(b.pod) - count(a.pod) || a.pod.localeCompare(b.pod));
+};
+
 /** This function gives the requests of each node, by the name of the node. */
 export const byNode = (requests: readonly Request[]): Map<string, Request[]> => {
   const out = new Map<string, Request[]>();
@@ -129,13 +140,23 @@ export const transitionOf = (
 ): number | null =>
   recordsOf(lines).find((record) => record.p === pod && record.m === machine && record.at >= after && match(record))?.at ?? null;
 
-/** This function gives when the service of a pod stopped its intake: the start of the phase `stop intake`. */
-export const intakeOf = (lines: readonly Line[], pod: string, after: number): number | null =>
-  transitionOf(lines, pod, "drain", (record) => record.to === "stop intake", after);
+/**
+ * This function gives the line `stopping` of grpc-go in a pod, after a time. The server writes it at
+ * SIGTERM. Then GracefulStop closes its listener and sends GOAWAY on each connection.
+ */
+export const stoppingOf = (lines: readonly Line[], pod: string, after: number): number | null =>
+  lines.find((line) => line.ev === "stopping" && line["p"] === pod && line.t >= after)?.t ?? null;
 
-/** This function gives when the service of a pod received its exit signal. */
+/**
+ * This function gives when the server of a pod stopped its intake. That is the start of the phase
+ * `stop intake` of the service, or the line `stopping` of grpc-go.
+ */
+export const intakeOf = (lines: readonly Line[], pod: string, after: number): number | null =>
+  transitionOf(lines, pod, "drain", (record) => record.to === "stop intake", after) ?? stoppingOf(lines, pod, after);
+
+/** This function gives when the server of a pod received its exit signal: a record of the service, or the line `stopping` of grpc-go. */
 export const signalOf = (lines: readonly Line[], pod: string, after: number): number | null =>
-  transitionOf(lines, pod, "exit", (record) => record.on === "exit.request", after);
+  transitionOf(lines, pod, "exit", (record) => record.on === "exit.request", after) ?? stoppingOf(lines, pod, after);
 
 /**
  * This function gives when the rules of a node stopped the selection of a backend: the first poll

@@ -7,6 +7,7 @@
 //	               [--permit-without-stream] [--max-connection-idle D] [--max-connection-age D]
 //	               [--max-connection-age-grace D] [--listener-keepalive D]
 //	               [--listener-keepalive-interval D] [--listener-keepalive-count N]
+//	               [--name S] [--clock ns|ms]
 //
 // Each D is a duration of Go, for example 20s. A setting at 0 is the default of grpc-go or of Go. A
 // negative --listener-keepalive turns the TCP keepalive of the accepted connections off.
@@ -16,7 +17,13 @@
 // NOT_FOUND. Watch sends SERVING and then holds the stream open until the client ends it.
 //
 // The lines: listening (the ready line of the target), accept (each connection, with its addresses),
-// hold, held and hold-ended (a held reply), watch and watch-ended, and stopping.
+// hold, held and hold-ended (a held reply), watch and watch-ended, and stopping. At SIGTERM or SIGINT,
+// the server writes stopping and then calls GracefulStop: it closes its listener, sends GOAWAY on each
+// connection and waits for each call in flight.
+//
+// A kind cell runs the server in a pod. --name gives the name of the pod: each line has it in the
+// field p, and each reply of Check has it in the header x-pod. --clock ms gives t in milliseconds, the
+// unit of the lines of a kind cell.
 package main
 
 import (
@@ -37,6 +44,7 @@ import (
 	"google.golang.org/grpc/codes"
 	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
@@ -47,11 +55,28 @@ func now() int64 {
 	return ts.Nano()
 }
 
+// name is the name of the server in its lines and its replies (--name), or "" for none.
+var name string
+
+// millis tells if t of each line is in milliseconds (--clock ms) and not in nanoseconds.
+var millis bool
+
+// stamp gives t of a line: the time on CLOCK_MONOTONIC in the unit of --clock.
+func stamp() any {
+	if millis {
+		return float64(now()) / 1e6
+	}
+	return now()
+}
+
 // emit writes one JSON line with its event and its time.
 func emit(ev string, fields map[string]any) {
-	line := map[string]any{"ev": ev, "t": now()}
-	for name, value := range fields {
-		line[name] = value
+	line := map[string]any{"ev": ev, "t": stamp()}
+	if name != "" {
+		line["p"] = name
+	}
+	for field, value := range fields {
+		line[field] = value
 	}
 	out, err := json.Marshal(line)
 	if err != nil {
@@ -67,6 +92,11 @@ type health struct {
 
 func (health) Check(ctx context.Context, request *healthpb.HealthCheckRequest) (*healthpb.HealthCheckResponse, error) {
 	service := request.GetService()
+	if name != "" {
+		if err := grpc.SetHeader(ctx, metadata.Pairs("x-pod", name)); err != nil {
+			return nil, err
+		}
+	}
 	if service == "" {
 		return &healthpb.HealthCheckResponse{Status: healthpb.HealthCheckResponse_SERVING}, nil
 	}
@@ -128,7 +158,14 @@ func main() {
 	keepIdle := flag.Duration("listener-keepalive", 0, "the TCP keepalive idle of each accepted connection (0: 15 s, negative: off)")
 	keepInterval := flag.Duration("listener-keepalive-interval", 0, "the TCP keepalive interval (0: 15 s)")
 	keepCount := flag.Int("listener-keepalive-count", 0, "the TCP keepalive count (0: 9)")
+	flag.StringVar(&name, "name", "", "the name of the server in each line (p) and each reply of Check (x-pod)")
+	clock := flag.String("clock", "ns", "the unit of t: ns or ms")
 	flag.Parse()
+	if *clock != "ns" && *clock != "ms" {
+		emit("fail", map[string]any{"why": "--clock ns|ms"})
+		os.Exit(1)
+	}
+	millis = *clock == "ms"
 
 	// at the defaults this is net.Listen: Go turns the keepalive on with its own defaults (15 s, 15 s, 9)
 	config := net.ListenConfig{KeepAlive: *keepIdle}

@@ -16,7 +16,7 @@ export { deletes, planOf } from "./faults.ts";
 export { labImage, stageLabImage } from "./image.ts";
 export type { KindLab, Stamp } from "./lab.ts";
 export { KEPT_KERNEL, localPin, openKindLab } from "./lab.ts";
-export { REDIS_IMAGE, clientObjects, namespaceOf, probeOf, redisObjects, serverObjects } from "./manifests.ts";
+export { REDIS_IMAGE, clientObjects, namespaceOf, probeOf, redisObjects, serverObjects, stackOf } from "./manifests.ts";
 export type { DeletionWindow, Propagation } from "./predict.ts";
 export {
   DOCUMENTED,

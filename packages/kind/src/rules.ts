@@ -132,6 +132,7 @@ export const verdictsOf = (findings: readonly Finding[]): Verdicts =>
 
 /** This function gives the description of the service of a cell, as the app of the image composes it. Nothing connects. */
 export const describeCell = (cell: KindCell): ServiceDescription => {
+  if (cell.declaration === null) throw new Error(`${cell.name}: the server is not the service, thus the cell has no declaration to describe`);
   const redis = cell.declaration.redis;
   const client =
     redis === null

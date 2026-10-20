@@ -16,6 +16,7 @@ export type {
   Reference,
   Replica,
   ResetReuse,
+  Stack,
   Template,
   Trigger,
   TriggerKind,

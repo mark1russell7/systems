@@ -33,12 +33,22 @@ describe("the gRPC documents", () => {
     // a PING waits 20 s for its ACK when the keepalive is on
     expect(seconds(timerOf(GRPC_JS, "ping_timeout", values).duration)).toBe(20);
     expect(GRPC_JS.over?.sets).toEqual({});
-    // the reconnect: 1 s, then 1.6 times longer, up to 120 s, with a jitter of 20 %
+    // the reconnect: 1 s, then 1.6 times longer, up to 120 s, with a jitter of 20 % that compounds
     const reconnect = (fired: number) => timerOf(GRPC_JS, "reconnect", values, fired);
     expect(seconds(reconnect(0).duration)).toBe(1);
     expect(seconds(reconnect(2).duration)).toBeCloseTo(2.56, 9);
     expect(seconds(reconnect(20).duration)).toBe(120);
-    expect(seconds(reconnect(0).early)).toBeCloseTo(0.2, 9);
+    // the first wait has no jitter: the lateness is one step of Node only
+    expect(seconds(reconnect(0).early)).toBe(0);
+    const slack = Number(GRPC_JS.knobs["slack"]!.default);
+    expect(seconds(reconnect(0).lateness)).toBeCloseTo(slack, 9);
+    // the second wait: 1.6 s ± 20 %. The third: from 1.28² to 1.92² s, the jitter of each wait in the next
+    expect(seconds(reconnect(1).early)).toBeCloseTo(0.32, 9);
+    expect(seconds(reconnect(2).early)).toBeCloseTo(2.56 - 1.6384, 9);
+    expect(seconds(reconnect(2).lateness)).toBeCloseTo(3.6864 - 2.56 + slack, 9);
+    // at the cap: 120 s ± 20 %
+    expect(seconds(reconnect(20).early)).toBeCloseTo(24, 9);
+    expect(seconds(reconnect(20).lateness)).toBeCloseTo(24 + slack, 9);
   });
 
   it("aborts an idle connection of a server of grpc-go 30 s after the last data: TCP_USER_TIMEOUT 20 s over the keepalive of Go", () => {

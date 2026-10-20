@@ -2,6 +2,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { StartedTestContainer } from "testcontainers";
+import { imageOf } from "@mark1russell7/harness";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { KindCell, KindRun, Replica } from "./cell.ts";
@@ -12,8 +13,9 @@ import { NODE, POD, VERSION, deletes as deletesAPod, planOf } from "./faults.ts"
 import { labImage } from "./image.ts";
 import type { KindLab, Line, Stamp } from "./lab.ts";
 import { localPin, openKindLab } from "./lab.ts";
-import { CLIENT, REDIS, REDIS_IMAGE, SERVER, clientObjects, namespaceOf, redisObjects, serverObjects } from "./manifests.ts";
+import { CLIENT, REDIS, REDIS_IMAGE, SERVER, clientObjects, namespaceOf, redisObjects, serverObjects, stackOf } from "./manifests.ts";
 import type { PodLine, Request } from "./observe.ts";
+import { byClients } from "./observe.ts";
 import type { EnvironmentManifest, KindCellRecord, KindCellResult, LoadSample } from "./record.ts";
 import { FORMAT } from "./record.ts";
 import { scenario } from "./scenario.ts";
@@ -40,6 +42,15 @@ export interface RunOptions {
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const slug = (name: string): string => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+/** This function tells if a cell has Redis: only a declaration of the service can have it. */
+const hasRedis = (cell: KindCell): boolean => cell.declaration !== null && cell.declaration.redis !== null;
+
+/** These are the images of a cluster: the lab, Redis, and grpc-go when a cell of the cluster has the stack `grpc`. */
+interface Images {
+  readonly lab: string;
+  readonly redis: string;
+  readonly grpc?: string | undefined;
+}
 
 /** This tracker keeps the latest state of the cell from the lines: each pod, each slice, the backends of each node and each client. */
 class Tracker {
@@ -47,6 +58,8 @@ class Tracker {
   readonly slices = new Map<string, Line>();
   readonly backends = new Map<string, readonly string[]>();
   readonly clients = new Map<string, { node: string; ok: number; failed: number }>();
+  /** This map is the backend of the last answer of each client, by client. */
+  readonly answers = new Map<string, string>();
   last = 0;
   see = (line: Line): void => {
     if (typeof line.t === "number" && line.t > this.last && line.ev === "req") this.last = line.t;
@@ -65,6 +78,7 @@ class Tracker {
       if (request.o === "ok") client.ok = Math.max(client.ok, request.t);
       else client.failed = Math.max(client.failed, request.t);
       this.clients.set(request.p, client);
+      if (request.o === "ok" && request.b !== undefined) this.answers.set(request.p, request.b);
     }
   };
   servers(): PodLine[] {
@@ -98,7 +112,7 @@ const unsteady = (ctx: Context): string | null => {
   const busy = servers.find((pod) => pod.del || !pod.ready);
   if (busy !== undefined) return `${busy.name} is not ready`;
   if (new Set(servers.map((pod) => pod.labels["pod-template-hash"])).size > 1) return "two versions of the replicas";
-  if (cell.declaration.redis !== null) {
+  if (hasRedis(cell)) {
     const redis = [...tracker.pods.values()].filter((pod) => pod.labels["app"] === REDIS);
     if (redis.length !== 1 || !redis[0]!.ready || redis[0]!.del) return "Redis is not ready";
   }
@@ -161,18 +175,26 @@ const quiet = async (ctx: Context, ours: ReadonlySet<string>): Promise<LoadSampl
   }
 };
 
-/** This function deploys a cell in its namespace, with the watcher, the poll of the rules and the clients. */
-const deploy = async (lab: KindLab, cluster: Cluster, cell: KindCell, namespace: string, redisImage: string): Promise<string> => {
+/**
+ * This function deploys a cell in its namespace, with the watcher, the poll of the rules and the
+ * clients. A client of gRPC starts after the server is ready: each failed connect of a channel makes
+ * the backoff of grpc-js longer, up to 120 s.
+ */
+const deploy = async (lab: KindLab, cluster: Cluster, cell: KindCell, namespace: string, images: Images): Promise<string> => {
   await cluster.apply([{ apiVersion: "v1", kind: "Namespace", metadata: { name: namespace } }]);
   await lab.watch([namespace]);
-  if (cell.declaration.redis !== null) {
-    await cluster.apply(redisObjects(namespace, redisImage));
+  if (hasRedis(cell)) {
+    await cluster.apply(redisObjects(namespace, images.redis));
     await cluster.kubectl(["-n", namespace, "rollout", "status", `deployment/${REDIS}`, "--timeout=180s"]);
   }
-  await cluster.apply(serverObjects(cell, namespace, lab.image));
+  const grpc = stackOf(cell) === "grpc";
+  if (grpc && images.grpc === undefined) throw new Error(`${cell.name}: the cluster has no image of grpc-go`);
+  await cluster.apply(serverObjects(cell, namespace, grpc ? images.grpc! : lab.image));
   const clusterIp = (await cluster.kubectl(["-n", namespace, "get", "service", SERVER, "-o", "jsonpath={.spec.clusterIP}"])).trim();
-  await cluster.apply(clientObjects(cell, namespace, lab.image, `${clusterIp}:80`));
+  const clients = clientObjects(cell, namespace, lab.image, `${clusterIp}:80`);
+  if (!grpc) await cluster.apply(clients);
   await cluster.kubectl(["-n", namespace, "rollout", "status", `deployment/${SERVER}`, "--timeout=300s"]);
+  if (grpc) await cluster.apply(clients);
   await cluster.kubectl(["-n", namespace, "rollout", "status", `daemonset/${CLIENT}`, "--timeout=300s"]);
   await lab.rules({ mode: cluster.scenario.kubeProxy.mode, ns: namespace, svc: SERVER, ip: clusterIp, port: 80, every: RULES_EVERY });
   return clusterIp;
@@ -193,9 +215,16 @@ const probeThePods = async (ctx: Context): Promise<void> => {
   ctx.probed = key;
 };
 
-/** This function gives the replicas of the service at this time, in the sequence of their names. */
-const replicasOf = (ctx: Context): Replica[] =>
-  ctx.tracker.servers().map((pod) => ({ pod: pod.name, node: pod.node ?? "", ip: pod.ip ?? "", version: pod.labels["pod-template-hash"] ?? "" }));
+/**
+ * This function gives the replicas of the server at this time, in the sequence of their names. The
+ * first one is the target of a run. A client of gRPC holds its connection to one replica, and the
+ * channels go to the replica that stays after a run. Thus for the stack `grpc`, the first replica
+ * is the one that answers the most clients (`byClients`).
+ */
+const replicasOf = (ctx: Context): Replica[] => {
+  const replicas = ctx.tracker.servers().map((pod) => ({ pod: pod.name, node: pod.node ?? "", ip: pod.ip ?? "", version: pod.labels["pod-template-hash"] ?? "" }));
+  return stackOf(ctx.cell) === "grpc" ? byClients(replicas, ctx.tracker.answers) : replicas;
+};
 
 /** This function does one step of a fault plan. It gives the stamp of its act, or null for an act without a stamp. */
 const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], background: Array<Promise<unknown>>): Promise<Stamp | null> => {
@@ -306,7 +335,7 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
   if ((await steady(ctx, 300_000)) !== null) return empty("the cell was not at rest after the wait for a quiet VM", await lab.now());
   const replicas = replicasOf(ctx);
   const restarts = new Map(ctx.tracker.servers().map((pod) => [pod.name, pod.cs.reduce((sum, status) => sum + status.rc, 0)]));
-  const target = cell.declaration.redis !== null && ["rst", "blackhole", "freeze-process", "peer-gone-without-close", "rollout"].includes(cell.trigger.kind) ? null : replicas[0]!;
+  const target = hasRedis(cell) && ["rst", "blackhole", "freeze-process", "peer-gone-without-close", "rollout"].includes(cell.trigger.kind) ? null : replicas[0]!;
   const paused = cell.template === "T07" && cell.trigger.kind === "freeze-process" ? (cluster.nodes[1] ?? cluster.nodes[0]!) : null;
   // A SYN with no answer before the run keeps its NAT for 120 s (SYN_SENT). A client that takes its
   // port again in the run meets it, and the restore of the last run leaves such SYNs. Each run starts with none
@@ -421,6 +450,9 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
   const environments = options.environments ?? 2;
   const image = await labImage();
   const redisImage = await localPin(REDIS_IMAGE);
+  // the server of the stack grpc: the image of grpc-go of the harness, built from its tag
+  const grpcImage = cells.some((cell) => stackOf(cell) === "grpc") ? await imageOf({ kind: "shipped", name: "grpc-go" }) : undefined;
+  const images: Images = { lab: image, redis: redisImage, grpc: grpcImage };
   const groups = new Map<string, KindCell[]>();
   for (const cell of cells) groups.set(`${cell.mode}-${cell.workers}`, [...(groups.get(`${cell.mode}-${cell.workers}`) ?? []), cell]);
   const results: KindCellResult[] = [];
@@ -436,6 +468,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
       try {
         await cluster.load(image);
         await cluster.load(redisImage);
+        if (grpcImage !== undefined && group.some((cell) => stackOf(cell) === "grpc")) await cluster.load(grpcImage);
         lab = await openKindLab(cluster, image);
         const { GenericContainer } = await import("testcontainers");
         const Shared = class extends GenericContainer {
@@ -454,7 +487,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
           const off = lab.listen(tracker.see);
           const loads: LoadSample[] = [];
           try {
-            const clusterIp = await deploy(lab, cluster, cell, namespace, redisImage);
+            const clusterIp = await deploy(lab, cluster, cell, namespace, images);
             for (const name of [...lab.own(), loader.getName().replace(/^\//, "")]) ours.add(name);
             const ctx: Context = { lab, cluster, cell, namespace, tracker, clusterIp, loads, loader, idle: options.idle ?? 0.6, log: options.log, version: 1, probed: "", expected: cell.pod.replicas };
             const share = Math.ceil(cell.runs / environments) - (env < cell.runs % environments || cell.runs % environments === 0 ? 0 : 1);
@@ -462,7 +495,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
             for (let index = 0; index < share; index += 1) runs.push(await runOnce(ctx, env, index, false, ours));
             const entry = partial.get(cell.name) ?? { runs: [], manifests: [], loads: [] };
             entry.runs.push(...runs);
-            entry.manifests.push({ env, scenario: s, cluster: manifest, images: { lab: image, redis: redisImage } });
+            entry.manifests.push({ env, scenario: s, cluster: manifest, images: { lab: image, redis: redisImage, ...(stackOf(cell) === "grpc" ? { grpc: grpcImage! } : {}) } });
             entry.loads.push(...loads);
             partial.set(cell.name, entry);
             mkdirSync(join(options.out, "partial"), { recursive: true });

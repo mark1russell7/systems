@@ -202,6 +202,8 @@ From 0.11.20, the harness builds each image with the CLI of Docker (`docker buil
   - `go mod tidy` gets the modules of grpc-go at its tag, and the go command checks each module against the checksum database of Go. The build log prints the go.sum. The build does `gofmt` and `go vet` first.
   - The server is at the defaults of grpc-go and of Go, and each flag sets one value over them. The flags set the keepalive, the policy for PINGs, the age of a connection and the TCP keepalive of the listener.
   - It serves `grpc.health.v1.Health`. A check of the service `hold:<ms>` holds its reply for that time, and Watch holds a stream open. It writes JSON lines on the monotonic clock (`Target.lines`).
+  - At SIGTERM, it writes `stopping`, and GracefulStop closes its listener and sends GOAWAY on each connection.
+  - From 0.11.26, `--name` gives a name to each line (`p`) and to each reply of Check (the header `x-pod`), and `--clock ms` gives `t` in milliseconds. A kind cell of `@mark1russell7/kind` uses both.
 - **The etcd image** (`image/etcd`) is etcd v3.6.15 on a digest-pinned Alpine. The binaries come unchanged from the image of etcd, pinned by digest. That image has no shell, and a cell holds the server as the child of a shell. A target takes it as the image of a subject: `{ kind: "shipped", name: "etcd" }`.
 - **The MongoDB client image** (`image/mongo`) is the driver mongodb 7.7.0 on Node 24.21.0. The digest of the image and an npm lockfile pin them. `client-mongo.mjs` prints the lines of the TCP client on the same clock:
   - Each socket of the driver is a `socket` line with its role: `monitor`, `rtt` or `pool`. The stack of the call that makes the socket gives the role.

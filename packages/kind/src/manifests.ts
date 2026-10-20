@@ -1,15 +1,18 @@
 import { createHash } from "node:crypto";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
-import type { KindCell, KubeletProbe } from "./cell.ts";
+import type { KindCell, KubeletProbe, Stack } from "./cell.ts";
 import { CLIENT, HEALTH_PORT, LOG_LABEL, PORT, REDIS, SERVER } from "./names.ts";
 
 /**
  * This module generates the Kubernetes objects of a cell. They are its namespace, its Redis, the
- * service as a Deployment behind a Service, and one client on each node. Each setting of
- * the pod comes from the cell. The rollout strategy and the probe fields state the defaults of
- * Kubernetes as values.
+ * server as a Deployment behind a Service, and one client on each node. The server is the service
+ * or grpc-go, by the stack of the cell. Each setting of the pod comes from the cell. The rollout
+ * strategy and the probe fields state the defaults of Kubernetes as values.
  */
+
+/** This function gives the stack of a cell: the service, when the cell names no stack. */
+export const stackOf = (cell: Pick<KindCell, "stack">): Stack => cell.stack ?? "service";
 
 export { CLIENT, HEALTH_PORT, LOG_LABEL, PORT, REDIS, SERVER } from "./names.ts";
 
@@ -26,21 +29,58 @@ const whole = (amount: Quantity, what: string): number => {
 export const namespaceOf = (cell: Pick<KindCell, "name">): string =>
   `lab-${createHash("sha256").update(cell.name).digest("hex").slice(0, 10)}`;
 
-/** This function gives a probe of the pod: an HTTP GET of the health server, with each field of the cell. */
-export const probeOf = (path: string, probe: KubeletProbe): Record<string, unknown> => ({
-  httpGet: { path, port: HEALTH_PORT },
+/**
+ * This function gives a probe of the pod, with each field of the cell. The probe of the service is an
+ * HTTP GET of its health server (`path`). The probe of grpc-go (`path` null) is the gRPC probe of the
+ * kubelet. It is a Check of the service "" on the port of the server, and the answer is SERVING until
+ * GracefulStop.
+ */
+export const probeOf = (path: string | null, probe: KubeletProbe): Record<string, unknown> => ({
+  ...(path === null ? { grpc: { port: PORT } } : { httpGet: { path, port: HEALTH_PORT } }),
   initialDelaySeconds: 0,
-  periodSeconds: whole(probe.period, `the period of ${path}`),
-  timeoutSeconds: whole(probe.timeout, `the timeout of ${path}`),
+  periodSeconds: whole(probe.period, `the period of ${path ?? "the gRPC probe"}`),
+  timeoutSeconds: whole(probe.timeout, `the timeout of ${path ?? "the gRPC probe"}`),
   failureThreshold: probe.threshold,
   successThreshold: 1,
 });
 
+/** This variable is the name of the pod, from the API: the service and grpc-go put it in their lines. */
+const POD_ENV = { name: "POD_NAME", valueFrom: { fieldRef: { fieldPath: "metadata.name" } } };
+
 /** This function gives the environment of the app: its config as JSON, and the name of its pod. */
 const appEnv = (cell: KindCell): Array<Record<string, unknown>> => [
   { name: "CONFIG", value: JSON.stringify({ name: SERVER, port: PORT, healthPort: HEALTH_PORT, declaration: cell.declaration }) },
-  { name: "POD_NAME", valueFrom: { fieldRef: { fieldPath: "metadata.name" } } },
+  POD_ENV,
 ];
+
+/**
+ * This function gives the container of the server of a cell. The service runs `app.mjs` of the lab
+ * image with its declaration. The server grpc-go runs from the image of the harness. Its lines name
+ * the pod and stamp in milliseconds. Its replies name the pod in the header `x-pod`. Kubernetes
+ * expands `$(POD_NAME)` in the command.
+ */
+const serverContainer = (cell: KindCell, version: number): Record<string, unknown> => {
+  const env = { name: "LAB_VERSION", value: String(version) };
+  if (stackOf(cell) === "service")
+    return {
+      command: ["node", "app.mjs"],
+      env: [...appEnv(cell), env],
+      ports: [{ containerPort: PORT }, { containerPort: HEALTH_PORT }],
+      ...(cell.pod.startup === null ? {} : { startupProbe: probeOf("/startup", cell.pod.startup) }),
+      readinessProbe: probeOf("/readiness", cell.pod.readiness),
+      livenessProbe: probeOf("/liveness", cell.pod.liveness),
+    };
+  // the seam of liveness-restart is a check of the service that a flag file fails: grpc-go has none
+  if (cell.trigger.kind === "liveness-restart") throw new Error(`${cell.name}: grpc-go has no seam for liveness-restart`);
+  return {
+    command: ["grpc-go-server", "--port", String(PORT), "--name", "$(POD_NAME)", "--clock", "ms"],
+    env: [POD_ENV, env],
+    ports: [{ containerPort: PORT }],
+    ...(cell.pod.startup === null ? {} : { startupProbe: probeOf(null, cell.pod.startup) }),
+    readinessProbe: probeOf(null, cell.pod.readiness),
+    livenessProbe: probeOf(null, cell.pod.liveness),
+  };
+};
 
 /** These are the objects of Redis: one replica behind a Service, with no persistence. */
 export const redisObjects = (namespace: string, image: string): unknown[] => [
@@ -77,7 +117,10 @@ export const redisObjects = (namespace: string, image: string): unknown[] => [
   },
 ];
 
-/** These are the objects of the service: a Service of type ClusterIP, and the Deployment with the settings of the cell. */
+/**
+ * These are the objects of the server: a Service of type ClusterIP, and the Deployment with the
+ * settings of the cell. The image is the lab image for the service, or the image of grpc-go.
+ */
 export const serverObjects = (cell: KindCell, namespace: string, image: string, version = 1): unknown[] => {
   const preStop = whole(cell.pod.preStop, "the preStop sleep");
   return [
@@ -85,7 +128,7 @@ export const serverObjects = (cell: KindCell, namespace: string, image: string, 
       apiVersion: "v1",
       kind: "Service",
       metadata: { name: SERVER, namespace },
-      spec: { selector: { app: SERVER }, ports: [{ name: "http", port: 80, targetPort: PORT }] },
+      spec: { selector: { app: SERVER }, ports: [{ name: stackOf(cell) === "grpc" ? "grpc" : "http", port: 80, targetPort: PORT }] },
     },
     {
       apiVersion: "apps/v1",
@@ -114,12 +157,7 @@ export const serverObjects = (cell: KindCell, namespace: string, image: string, 
                 name: "app",
                 image,
                 imagePullPolicy: "Never",
-                command: ["node", "app.mjs"],
-                env: [...appEnv(cell), { name: "LAB_VERSION", value: String(version) }],
-                ports: [{ containerPort: PORT }, { containerPort: HEALTH_PORT }],
-                ...(cell.pod.startup === null ? {} : { startupProbe: probeOf("/startup", cell.pod.startup) }),
-                readinessProbe: probeOf("/readiness", cell.pod.readiness),
-                livenessProbe: probeOf("/liveness", cell.pod.liveness),
+                ...serverContainer(cell, version),
                 ...(preStop === 0 ? {} : { lifecycle: { preStop: { sleep: { seconds: preStop } } } }),
               },
             ],
@@ -130,7 +168,11 @@ export const serverObjects = (cell: KindCell, namespace: string, image: string, 
   ];
 };
 
-/** These are the objects of the clients: a DaemonSet with one client on each node, the control plane too. */
+/**
+ * These are the objects of the clients: a DaemonSet with one client on each node, the control plane
+ * too. The client of the service is `client.mjs`, and the client of grpc-go is `client-grpc.mjs`.
+ * Each one is in the lab image, and each one writes the same lines.
+ */
 export const clientObjects = (cell: KindCell, namespace: string, image: string, target: string): unknown[] => [
   {
     apiVersion: "apps/v1",
@@ -148,7 +190,7 @@ export const clientObjects = (cell: KindCell, namespace: string, image: string, 
               name: CLIENT,
               image,
               imagePullPolicy: "Never",
-              command: ["node", "client.mjs"],
+              command: ["node", stackOf(cell) === "grpc" ? "client-grpc.mjs" : "client.mjs"],
               env: [
                 { name: "TARGET", value: target },
                 { name: "EVERY_MS", value: String(valueIn(cell.workload.every, "ms")) },

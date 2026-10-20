@@ -58,6 +58,8 @@ export const POD = "{pod}";
 export const NODE = "{node}";
 /** This value marks the next version of the Deployment, for a rollout. */
 export const VERSION = "{version}";
+/** This annotation of a pod is its deletion cost for its ReplicaSet: a lower cost goes first at a scale-in. */
+export const DELETION_COST = "controller.kubernetes.io/pod-deletion-cost";
 
 /** This function gives the fault plan of a cell. */
 export const planOf = (cell: KindCell): FaultPlan => {
@@ -89,7 +91,14 @@ export const planOf = (cell: KindCell): FaultPlan => {
       };
     case "scale-in":
       return {
-        inject: [{ do: "kubectl", args: [...ns, "scale", `deployment/${SERVER}`, `--replicas=${replicas - 1}`] }],
+        inject: [
+          // the ReplicaSet removes a pod of a lower deletion cost first. The rank by readiness comes before
+          // it, and the pods of a node come after it (pkg/controller/controller_utils.go at v1.37.0, lines
+          // 853–874). The gate PodDeletionCost is on from 1.22 (pkg/features/kube_features.go, line 1953).
+          // Thus the clients of gRPC on the first replica see its stop
+          ...(cell.stack === "grpc" ? [{ do: "kubectl" as const, args: [...ns, "annotate", "pod", POD, `${DELETION_COST}=-1`, "--overwrite"] }] : []),
+          { do: "kubectl", args: [...ns, "scale", `deployment/${SERVER}`, `--replicas=${replicas - 1}`] },
+        ],
         hold: null,
         heal: [],
         restore: [{ do: "kubectl", args: [...ns, "scale", `deployment/${SERVER}`, `--replicas=${replicas}`] }],
