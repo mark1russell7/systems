@@ -32,6 +32,9 @@
 //!   CONT freeze a server and thaw it while its kernel stays up; KILL stops it, and its kernel
 //!   closes its sockets; HUP asks a pooler to read its configuration again. The stamps bracket the
 //!   kill(2) calls.
+//! - `write NAME PATH CONTENT`: CONTENT to the file PATH in the root of the process NAME, through
+//!   /proc/PID/root, by a rename in one step. A proxy that watches its configuration file reloads
+//!   it, as after an edit. The stamps bracket the rename.
 //! - `resp ADDR:PORT ARG...`: one command to a Redis-protocol server, for example
 //!   `SENTINEL FAILOVER mymaster` to a Sentinel. The stamps bracket the write of the command and
 //!   the first line of its reply, so a planned failover starts at a known instant.
@@ -323,6 +326,41 @@ fn signal(args: &[String]) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+/// an absolute path of letters, digits, dots, dashes, underscores and slashes, with no `..`
+fn file_path(path: &str) -> Result<&str, Box<dyn Error>> {
+    if path.starts_with('/')
+        && path.len() <= 255
+        && !path.split('/').any(|part| part == "..")
+        && path.chars().all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_' | '/'))
+    {
+        Ok(path)
+    } else {
+        Err(format!("not a path that this injector writes: {path}").into())
+    }
+}
+
+/// `write NAME PATH CONTENT [--at NS]`: the file at PATH in the root of the oldest process whose name
+/// is NAME, through /proc/PID/root. The content goes to PATH.inject first, and a rename puts it at
+/// PATH in one step, as a program that watches the folder sees an edit. The stamps bracket the rename.
+fn write(args: &[String]) -> Result<(), Box<dyn Error>> {
+    let name = process_name(args.get(1).ok_or("write NAME PATH CONTENT [--at NS]")?)?;
+    let path = file_path(args.get(2).ok_or("and the path in its root")?)?;
+    let content = args.get(3).ok_or("and the content")?;
+    let opts = options(&args[4..])?;
+    let pid = *processes(name)?.first().ok_or_else(|| format!("no process {name} in this process namespace"))?;
+    let target = format!("/proc/{pid}/root{path}");
+    let staged = format!("{target}.inject");
+    std::fs::write(&staged, content)?;
+    if let Some(at) = opts.at {
+        until(at)?;
+    }
+    let t0 = monotonic_ns();
+    std::fs::rename(&staged, &target)?;
+    let t1 = monotonic_ns();
+    println!("{}", json!({ "action": "write", "name": name, "pid": pid, "path": path, "bytes": content.len(), "t0": t0, "t1": t1 }));
+    Ok(())
+}
+
 /// a command in the Redis protocol: an array of bulk strings
 fn resp_command(args: &[String]) -> Vec<u8> {
     let mut out = format!("*{}\r\n", args.len()).into_bytes();
@@ -472,6 +510,9 @@ fn run() -> Result<(), Box<dyn Error>> {
     }
     if action == "signal" {
         return signal(&args);
+    }
+    if action == "write" {
+        return write(&args);
     }
     if action == "resp" {
         return resp(&args);
@@ -636,6 +677,15 @@ mod tests {
         assert!(zombie("812 (valkey-server) Z 1 812 812 0 -1"));
         assert!(!zombie("813 (valkey-server) S 1 813 813 0 -1"));
         assert!(!zombie("814 (a) Z) S 1"));
+    }
+
+    #[test]
+    fn a_written_path_is_absolute_and_plain() {
+        assert!(file_path("/etc/traefik/dynamic.yml").is_ok());
+        assert!(file_path("/config/dynamic_1.yaml").is_ok());
+        for path in ["", "etc/x", "/etc/../root", "/a b", "/a;b", "/$(x)", "/a\nb"] {
+            assert!(file_path(path).is_err(), "{path:?}");
+        }
     }
 
     #[test]

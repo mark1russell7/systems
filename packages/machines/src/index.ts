@@ -29,6 +29,7 @@ import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "./procedures-ws.ts";
 import { CADDY_HTTP2 } from "./proxy/caddy.ts";
 import { ENVOY_HTTP2 } from "./proxy/envoy.ts";
 import { NGINX_GRPC } from "./proxy/nginx.ts";
+import { TRAEFIK_HTTP2 } from "./proxy/traefik.ts";
 import { DOCKER_PROXY_LINK, TOXIPROXY_LINK } from "./proxy/tcp-proxies.ts";
 import { AMQPLIB } from "./rabbit/amqplib.ts";
 import { ATEN_DETECTOR } from "./rabbit/aten.ts";
@@ -71,6 +72,7 @@ export {
   SUPAVISOR_CLIENT,
   SUPAVISOR_SERVER,
   TOXIPROXY_LINK,
+  TRAEFIK_HTTP2,
   UNDICI_CLIENT,
   UNDICI_RETRY,
 };
@@ -138,4 +140,5 @@ export const MACHINES: Readonly<Record<string, Machine>> = byId([
   ENVOY_HTTP2,
   CADDY_HTTP2,
   NGINX_GRPC,
+  TRAEFIK_HTTP2,
 ]);

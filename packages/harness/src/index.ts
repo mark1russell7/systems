@@ -27,6 +27,7 @@ export type {
   HopEvent,
   HopPlace,
   HopSignal,
+  HopWrite,
   HttpProbe,
   ImageSource,
   LineMatch,

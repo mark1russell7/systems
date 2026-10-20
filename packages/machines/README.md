@@ -61,8 +61,9 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `DOCKER_PROXY_LINK` | `docker-proxy-link` | docker-proxy of Docker Engine 29.1.5: one proxied TCP connection and its close | proxy | 9 implemented |
 | `CADDY_HTTP2` | `caddy-http2` | Caddy 2.11.7 as an HTTP/2 proxy of gRPC: one connection of a client, its idle close, its replies and its stop | proxy | 12 implemented |
 | `NGINX_GRPC` | `nginx-grpc` | nginx 1.29.6 as an HTTP/2 proxy of gRPC: one connection of a client, its idle close, the read timer of a call, and a stopped worker | proxy | 12 implemented, 1 documented |
+| `TRAEFIK_HTTP2` | `traefik-http2` | Traefik 3.7.15 as an HTTP/2 proxy of gRPC: one connection of a client, its idle close, a reload of its dynamic file and its stop | proxy | 10 implemented |
 
-Twenty-nine documents operate on Linux TCP (`over`). Seven documents operate on no other document: Linux TCP, conntrack, the Sentinel, the replication of mongod, aten, the member of Ra and the `RetryAgent` of undici. The `RetryAgent` is one request above the sockets of a `Client`. Its timer is the delay of a retry. Each retry can go on a new socket. The `conditions` of each document give the range where it holds, for example a range of kernels.
+Thirty documents operate on Linux TCP (`over`). Seven documents operate on no other document: Linux TCP, conntrack, the Sentinel, the replication of mongod, aten, the member of Ra and the `RetryAgent` of undici. The `RetryAgent` is one request above the sockets of a `Client`. Its timer is the delay of a retry. Each retry can go on a new socket. The `conditions` of each document give the range where it holds, for example a range of kernels.
 
 The package also gives these parts:
 

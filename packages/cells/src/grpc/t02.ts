@@ -1,5 +1,5 @@
-import type { Cell, HopSignal, Prediction, ProxyHop } from "@mark1russell7/harness";
-import { CADDY_HTTP2, DOCKER_PROXY_LINK, ENVOY_HTTP2, GRPC_JS, NGINX_GRPC, TOXIPROXY_LINK } from "@mark1russell7/machines";
+import type { Cell, HopSignal, HopWrite, Prediction, ProxyHop } from "@mark1russell7/harness";
+import { CADDY_HTTP2, DOCKER_PROXY_LINK, ENVOY_HTTP2, GRPC_JS, NGINX_GRPC, TOXIPROXY_LINK, TRAEFIK_HTTP2 } from "@mark1russell7/machines";
 import { RUNS, s, sysctlsOf } from "../catalog.ts";
 import type { Alias, Waiting } from "../mongo/cells.ts";
 import { linuxValues } from "../mongo/model.ts";
@@ -15,10 +15,12 @@ import { GRPC_PORT, GRPC_RTT_MS, grpcTarget } from "./t01.ts";
  * - Caddy 2.11.7 sends GOAWAY on a connection with no stream for 5 min, and grpc-js drops that transport.
  * - nginx 1.29.6 fires each timer that came due during a stop of its worker at the resume. It does so
  *   before it reads the reply in the socket. Thus grpc_read_timeout gives 504, and grpc-js reads UNAVAILABLE.
+ * - Traefik 3.7.15 swaps only its handlers at a reload, thus the client sees nothing. The GOAWAY of its
+ *   idle timeout comes 180 s after the last stream.
  */
 
 /** These are the proxies of the catalog. */
-export type GrpcProxy = "envoy" | "toxiproxy" | "docker-proxy" | "caddy" | "nginx";
+export type GrpcProxy = "envoy" | "toxiproxy" | "docker-proxy" | "caddy" | "nginx" | "traefik";
 
 /** A spec of T02 is one cell of the plan through one proxy. */
 export interface T02Spec {
@@ -38,6 +40,8 @@ export interface T02Spec {
   readonly hold?: number;
   /** This time is how long the server of the harness holds the call in flight, in seconds. */
   readonly held?: number;
+  /** This write is the event of a `hop-event` that changes a file of the proxy: a reload. */
+  readonly write?: HopWrite;
 }
 
 /** This image is Envoy 1.39.4, pinned by digest. */
@@ -66,6 +70,67 @@ http {
   }
 }
 `;
+
+/** This image is Traefik 3.7.15, pinned by digest. */
+export const TRAEFIK_IMAGE = "traefik:v3.7.15@sha256:0f6150202bc1fed72a7bd2107460eaa510e5b8a905f3fdb5b84f2c8619c33368";
+
+/**
+ * This configuration is the static configuration of Traefik for the document `traefik-http2`: one
+ * entrypoint, and the file provider over a folder. The log at DEBUG gives the line of each build of
+ * the routers (`Creating server`), thus the ready line and the confirm of a reload.
+ */
+const TRAEFIK_STATIC = `entryPoints:
+  grpc:
+    address: ":${GRPC_PORT}"
+providers:
+  file:
+    directory: /etc/traefik/dynamic
+log:
+  level: DEBUG
+`;
+
+/** This dynamic file is the router to the next hop over h2c, for each path. A reload does not change it. */
+const TRAEFIK_MAIN = `http:
+  routers:
+    grpc:
+      entryPoints: [grpc]
+      rule: "PathPrefix(\`/\`)"
+      service: grpc
+  services:
+    grpc:
+      loadBalancer:
+        servers:
+          - url: "h2c://{{next}}"
+`;
+
+/** This function gives a dynamic file with a spare router for another host: the part of the configuration that a reload changes. */
+const traefikSpare = (host: string): string => `http:
+  routers:
+    spare:
+      entryPoints: [grpc]
+      rule: "Host(\`${host}\`)"
+      service: spare
+  services:
+    spare:
+      loadBalancer:
+        servers:
+          - url: "h2c://127.0.0.1:9"
+`;
+
+/** This path is the dynamic file that a reload writes. */
+export const TRAEFIK_SPARE_PATH = "/etc/traefik/dynamic/spare.yml";
+
+/**
+ * This write is a reload of Traefik: a change of the spare router, which no call reads. It is a
+ * change of the configuration, thus Traefik builds its routers again and logs `Creating server`.
+ * The undo writes the first spare router back, thus each run makes the same change.
+ */
+export const TRAEFIK_RELOAD: HopWrite = {
+  path: TRAEFIK_SPARE_PATH,
+  content: traefikSpare("reloaded.example"),
+  undo: traefikSpare("spare.example"),
+  confirm: "Creating server",
+};
 
 /** This configuration is the Caddyfile of the document `caddy-http2`: one server of h1 and h2c, and reverse_proxy to the next hop over h2c. */
 const CADDYFILE = `{
@@ -178,6 +243,21 @@ export const proxyHop = (proxy: GrpcProxy): ProxyHop => {
         ready: "start worker process",
         program: "nginx",
       };
+    case "traefik":
+      return {
+        name: "traefik",
+        kind: "proxy",
+        image: TRAEFIK_IMAGE,
+        port: GRPC_PORT,
+        command: ["traefik", "--configFile=/etc/traefik/traefik.yml"],
+        files: {
+          "/etc/traefik/traefik.yml": TRAEFIK_STATIC,
+          "/etc/traefik/dynamic/main.yml": TRAEFIK_MAIN,
+          [TRAEFIK_SPARE_PATH]: traefikSpare("spare.example"),
+        },
+        ready: "Creating server",
+        program: "traefik",
+      };
     case "docker-proxy":
       return {
         name: "docker-proxy",
@@ -193,7 +273,7 @@ export const proxyHop = (proxy: GrpcProxy): ProxyHop => {
 };
 
 /** These are the documents of the proxies, by their names. */
-const DOCUMENTS = { envoy: ENVOY_HTTP2, toxiproxy: TOXIPROXY_LINK, "docker-proxy": DOCKER_PROXY_LINK, caddy: CADDY_HTTP2, nginx: NGINX_GRPC } as const;
+const DOCUMENTS = { envoy: ENVOY_HTTP2, toxiproxy: TOXIPROXY_LINK, "docker-proxy": DOCKER_PROXY_LINK, caddy: CADDY_HTTP2, nginx: NGINX_GRPC, traefik: TRAEFIK_HTTP2 } as const;
 
 /** This function gives the slack of one step of a program, from its document: the assumption that each document states. */
 const slackOf = (doc: (typeof DOCUMENTS)[GrpcProxy] | typeof GRPC_JS): number => {
@@ -244,6 +324,28 @@ export const t02Prediction = (spec: T02Spec): Prediction => {
     if (!close.emits?.includes("tx.client-fin")) throw new Error(`${spec.plan}: ${doc.id} does not close the client at an end of the upstream`);
     return { detects: true, timer: "the FIN of the killed server, which Toxiproxy passes as a close of the client", errno: "EOF", from: "peer-closed", low: s(0), high: s(hops + steps), rtt, driver: { socket: "connection" } };
   }
+  if (spec.fault === "hop-event" && spec.write !== undefined) {
+    if (spec.proxy !== "traefik" || spec.mode !== "idle") throw new Error(`${spec.plan}: this catalog reloads Traefik in an idle gap only`);
+    // the reload swaps the handlers and sends nothing: the idle timer of the connection goes on from the
+    // close of the last stream, and its GOAWAY makes grpc-js drop the transport
+    const reload = transition("tf.reload-idle");
+    if ((reload.emits ?? []).length > 0) throw new Error(`${spec.plan}: ${doc.id} sends a frame at a reload`);
+    const idle = transition("tf.idle");
+    if (!idle.emits?.includes("tx.goaway")) throw new Error(`${spec.plan}: ${doc.id} sends no GOAWAY at its idle timeout`);
+    const timeout = doc.knobs["idle_timeout"]?.default;
+    if (typeof timeout !== "number") throw new Error(`${spec.plan}: ${doc.id} gives no idle timeout`);
+    const ends = { ev: "state", where: { to: "IDLE" }, name: "to" } as const;
+    return {
+      detects: true,
+      timer: "the idle timeout of Traefik, and its GOAWAY: the reload sends nothing",
+      errno: "IDLE",
+      from: "last-data",
+      low: s(Math.round((timeout - hops / 2) * 1e6) / 1e6),
+      high: s(Math.round((timeout + hops / 2 + steps) * 1e6) / 1e6),
+      rtt,
+      driver: { socket: "connection", ends },
+    };
+  }
   if (spec.fault === "hop-event" && spec.signal === "STOP") {
     if (spec.proxy !== "nginx" || spec.mode !== "inflight" || spec.hold === undefined || spec.held === undefined)
       throw new Error(`${spec.plan}: this catalog stops nginx for a hold, with a held call in flight, only`);
@@ -289,6 +391,14 @@ export const T02_GRPC_SPECS: readonly T02Spec[] = [
     hold: 90,
     held: 5,
   },
+  {
+    plan: "T02.array.77",
+    name: "through Traefik 3.7, a reload in an idle gap: the reload sends nothing, and the GOAWAY of the idle timeout comes 180 s after the last stream",
+    proxy: "traefik",
+    fault: "hop-event",
+    mode: "idle",
+    write: TRAEFIK_RELOAD,
+  },
 ];
 
 /** This function gives the name of a cell of T02. */
@@ -297,8 +407,9 @@ export const t02NameOf = (spec: T02Spec): string => `${spec.plan} grpc-js-1.14 t
 /** This function gives the harness cell of a spec of T02. */
 export const t02Cell = (spec: T02Spec): Cell => {
   const hop = proxyHop(spec.proxy);
-  // a STOP freezes the proxy, and its CONT thaws it: the proxy serves the next run
-  const exits = spec.fault === "hop-event" && spec.signal !== "STOP";
+  // a TERM or an INT ends the proxy. A STOP freezes it and its CONT thaws it, and a write changes its
+  // configuration: the proxy serves the next run
+  const exits = spec.fault === "hop-event" && (spec.signal === "TERM" || spec.signal === "INT");
   return {
     name: t02NameOf(spec),
     target: grpcTarget("grpc-go"),
@@ -309,6 +420,7 @@ export const t02Cell = (spec: T02Spec): Cell => {
     topology: { name: "T02", hops: [hop] },
     ...(spec.toward === undefined ? {} : { faultAt: { hop: hop.name, toward: spec.toward } }),
     ...(spec.signal === undefined ? {} : { event: { hop: hop.name, signal: spec.signal, ...(spec.mode === "inflight" ? { inFlight: true as const } : {}) } }),
+    ...(spec.write === undefined ? {} : { event: { hop: hop.name, write: spec.write } }),
     ...(spec.hold === undefined ? {} : { hold: s(spec.hold) }),
     // a stopped proxy ends its environment: the warm-up is a dry run, as for the kill of a server
     ...(exits ? { fresh: true } : {}),
@@ -341,11 +453,6 @@ export const T02_GRPC_WAITING: readonly Waiting[] = [
     plan: "T02.array.34",
     trigger: "in-process:event-loop",
     why: "DP08 sets a keepalive of the upstream, thus an upstream {} block, where nginx 1.29.6 and 1.29.7 differ, and worker_shutdown_timeout. Its workload is busy (λ·S ≫ 1), and the client of the harness holds one call in flight",
-  },
-  {
-    plan: "T02.array.77",
-    trigger: "event:proxy-reload",
-    why: "a reload of Traefik is a change of its dynamic configuration file, and the harness has no hop event that writes a file. DP06 sets no knob of Traefik",
   },
   ...(["74", "75", "76", "78"] as const).map((n) => ({
     plan: `T02.array.${n}`,
