@@ -78,8 +78,15 @@ export const TRAEFIK_IMAGE = "traefik:v3.7.15@sha256:0f6150202bc1fed72a7bd210746
  * This configuration is the static configuration of Traefik for the document `traefik-http2`: one
  * entrypoint, and the file provider over a folder. The log at DEBUG gives the line of each build of
  * the routers (`Creating server`), thus the ready line and the confirm of a reload.
+ *
+ * The check for a new version and the anonymous usage are off. At their defaults, Traefik calls
+ * GitHub and its own collector over the internet during a run. That calls no hop of the cell, but a
+ * cell must not depend on the internet.
  */
-const TRAEFIK_STATIC = `entryPoints:
+const TRAEFIK_STATIC = `global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+entryPoints:
   grpc:
     address: ":${GRPC_PORT}"
 providers:

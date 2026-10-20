@@ -82,7 +82,9 @@ describe("the gRPC catalog of T02", () => {
       prediction: { detects: true, errno: "IDLE", from: "last-data", driver: { ends: { ev: "state", where: { to: "IDLE" } } } },
     });
     if (reload.prediction.detects !== true) throw new Error("a detection");
-    expect([reload.prediction.low.value, reload.prediction.high.value]).toEqual([179.998, 180.022]);
+    // the late bound holds the observed lateness of Traefik (0.1 s), and it stays below the time of the
+    // reload plus 180 s: a reload that armed the idle timer again would give a later IDLE
+    expect([reload.prediction.low.value, reload.prediction.high.value]).toEqual([179.998, 180.112]);
     // the reload changes the spare router, and its undo writes it back: each run makes the same change
     const write = (reload.event as { write: { content: string; undo: string } }).write;
     expect(write.content).not.toBe(write.undo);

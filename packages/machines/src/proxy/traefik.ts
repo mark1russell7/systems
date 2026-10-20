@@ -45,6 +45,11 @@ export const TRAEFIK_HTTP2: Machine = machineSchema.parse({
     { ref: `${AT} pkg/server/service/transport.go:54-109 a transport whose configuration is the same is kept with its connections. A changed one is new, and the old one is not closed`, rung: "implemented" },
     { ref: `${AT} pkg/server/service/service.go:484-485 the debug line "Creating server" when the routers are built for a configuration`, rung: "implemented" },
     { ref: `${AT} pkg/server/server_entrypoint_tcp.go:316-380, ${H2}:5545-5570 SIGTERM: Shutdown sends GOAWAY NO_ERROR, and Close comes after graceTimeOut (10 s, static_config.go:43-45)`, rung: "implemented" },
+    {
+      ref: "the runs 39364790926 (a reload in the gap) and 39370033339 (no reload) of T02.array.77: the GOAWAY of the idle timeout came 180.001 s to 180.086 s after the last write of the stream. Caddy, on the same code of Go, gave 300.006 s",
+      rung: "observed",
+      note: "Thus the lateness is in the process of Traefik, not in the reload. The source does not give its cause",
+    },
   ],
   states: {
     "[none]": { initial: true, pseudo: true, note: "Before the accept of the connection of the client" },
@@ -75,7 +80,13 @@ export const TRAEFIK_HTTP2: Machine = machineSchema.parse({
     grace_timeout: { key: "entryPoints.<name>.transport.lifeCycle.graceTimeOut", scope: "server", unit: "s", default: 10, note: "static_config.go:43-45" },
     throttle: { key: "providers.providersThrottleDuration", scope: "process", unit: "s", default: 2, note: "cmd/configuration.go:26-28" },
     upstream_idle_timeout: { key: "serversTransport.idleConnTimeout", scope: "server", unit: "s", default: 90, note: "transport.go:312" },
-    slack: { key: "the lateness of the scheduler of Go for one step", scope: "process", unit: "s", default: 0.01, note: "An assumption of this document, not a value of Traefik" },
+    slack: {
+      key: "the lateness of one step of the process of Traefik",
+      scope: "process",
+      unit: "s",
+      default: 0.1,
+      note: "An observation, not a value of Traefik: its GOAWAY came up to 86 ms after the idle timeout, from the last write of the stream, in 22 runs. The source gives no cause",
+    },
   },
   timers: {
     idle: {
