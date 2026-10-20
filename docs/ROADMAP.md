@@ -487,12 +487,12 @@ The drain waits only for work that it owns and can cut (the second review). `lif
 
 ### SYS-30 · The probes of the runner can leave out the report
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** SYS-2
 - **Started:** 2026-10-19
-- **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Shipped:** 2026-10-20
+- **Links:** [#122](https://github.com/mark1russell7/systems/pull/122), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 The client item CLI-9 found it. `probeHandler()` and `probeServer()` of `@mark1russell7/service/http` always answer `/report` with the probes. Thus a probe server of its own also gives the whole report, and no option keeps it off the port.
 
@@ -843,7 +843,10 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - The first run of the cell found a bug in the judge, not in Caddy. The judge of a driver had no case for the reference `last-data`. Thus it counted from the close of the peer. Through Caddy, that close was the idle close of the upstream socket at 120 s. harness 0.11.22 fixes it.
 - The facts of nginx and Traefik come from their sources too, for the cells that wait.
   - At a reload of its dynamic file, Traefik 3.7.15 only swaps the handler of each entrypoint. Thus a reload sends nothing to the client. The idle timeout of 180 s counts from the end of the last stream, not from the reload. The cell T02.array.77 needs a hop event that writes a file.
-  - nginx 1.29.6 has one worker at its defaults. During a call, the only timer of the call is `grpc_read_timeout` (60 s). After a stop of the worker of more than 60 s, its timers fire before it reads the reply of the server. Thus the client gets 504, and grpc-js reads UNAVAILABLE. The cell T02.defaults.34 needs a hop event that stops a proxy for a hold.
+  - nginx 1.29.6 has one worker at its defaults. During a call, the only timer of the call is `grpc_read_timeout` (60 s). After a stop of the worker of more than 60 s, its timers fire before it reads the reply of the server. Thus the client gets 504, and grpc-js reads UNAVAILABLE.
+- nginx 1.29.6 has its document (machines 0.3.20). A hop event can stop a proxy and continue it at the end of a hold (harness 0.11.24).
+  - T02.defaults.34: the server holds a call 5 s, and the worker of nginx stops for 90 s. The reply waits in the socket, and the read timer comes due. At the resume, nginx answers 504 before it reads the reply. It holds in 11 of 11 runs at 90.003 s (median), in run 39360323602. Each run gave `UNAVAILABLE: Received HTTP status code 504`.
+  - T02.array.34 waits. DP08 sets a keepalive of the upstream, thus an `upstream {}` block, where nginx 1.29.6 and 1.29.7 differ. Its workload is busy, and the client of the harness holds one call in flight.
 
 ## Kubernetes
 
