@@ -28,6 +28,7 @@ import { SUPAVISOR_SERVER } from "./pg/supavisor-server.ts";
 import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "./procedures-ws.ts";
 import { CADDY_HTTP2 } from "./proxy/caddy.ts";
 import { ENVOY_HTTP2 } from "./proxy/envoy.ts";
+import { NGINX_GRPC } from "./proxy/nginx.ts";
 import { DOCKER_PROXY_LINK, TOXIPROXY_LINK } from "./proxy/tcp-proxies.ts";
 import { AMQPLIB } from "./rabbit/amqplib.ts";
 import { ATEN_DETECTOR } from "./rabbit/aten.ts";
@@ -53,6 +54,7 @@ export {
   MONGOD_SESSION,
   MONGODB_NODE,
   NF_CONNTRACK_TCP,
+  NGINX_GRPC,
   NODE_HTTP_AGENT,
   NODE_HTTP_SERVER,
   NODE_POSTGRES,
@@ -135,4 +137,5 @@ export const MACHINES: Readonly<Record<string, Machine>> = byId([
   DOCKER_PROXY_LINK,
   ENVOY_HTTP2,
   CADDY_HTTP2,
+  NGINX_GRPC,
 ]);

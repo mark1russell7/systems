@@ -467,9 +467,21 @@ const once = async (
           case "server-close":
             await lab.serverClose();
             return null;
-          case "hop-event":
+          case "hop-event": {
             if (cell.event === undefined) throw new Error(`${cell.name} names no event`);
-            return lab.event(cell.event);
+            const stamp = await lab.event(cell.event);
+            // a stopped proxy thaws at the end of its hold, from inside the VM, as a frozen target does
+            if ("signal" in cell.event && cell.event.signal === "STOP" && cell.hold !== undefined && stamp !== null) {
+              const thaw = { hop: cell.event.hop, signal: "CONT" } as const;
+              thawing = lab.event(thaw, false, stamp.t0 + valueIn(cell.hold, "s") * 1e9).then((thawed) => {
+                if (thawed === null) throw new Error(`the hop ${thaw.hop} gave no stamp for CONT`);
+                heal = thawed;
+                return thawed;
+              });
+              thawing.catch(() => undefined);
+            }
+            return stamp;
+          }
           default:
             // a stall is a black hole that stops by itself
             return lab.fault("blackhole", faultAt);
@@ -492,6 +504,13 @@ const once = async (
           case "none":
             return undefined;
           case "hop-event":
+            // a stopped proxy thaws, at once if its hold did not thaw it
+            if (cell.event !== undefined && "signal" in cell.event && cell.event.signal === "STOP") {
+              const thaw = { hop: cell.event.hop, signal: "CONT" } as const;
+              if (thawing !== null) await thawing.catch(() => lab.event(thaw));
+              else await lab.event(thaw);
+              return undefined;
+            }
             // the undo of a query on the console, for example RESUME after PAUSE
             if (cell.event !== undefined) await lab.event(cell.event, true);
             return undefined;

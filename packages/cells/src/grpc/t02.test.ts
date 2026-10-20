@@ -51,4 +51,25 @@ describe("the gRPC catalog of T02", () => {
     // h2c on the plain port of Caddy, stated in its configuration
     expect(proxyHop("caddy").files?.["/etc/caddy/Caddyfile"]).toContain("protocols h1 h2c");
   });
+
+  it("stops the worker of nginx over grpc_read_timeout with a call in flight: 504 at the resume, thus UNAVAILABLE", () => {
+    const stop = cell("T02.defaults.34");
+    expect(stop).toMatchObject({
+      fault: "hop-event",
+      event: { hop: "nginx", signal: "STOP", inFlight: true },
+      hold: { value: 90, unit: "s" },
+      probe: { mode: "inflight", driver: { name: "grpc", hold: { value: 5, unit: "s" } } },
+      prediction: { detects: true, errno: "UNAVAILABLE", from: "fault", driver: { ends: { ev: "error" } } },
+    });
+    if (stop.prediction.detects !== true) throw new Error("a detection");
+    // the CONT at the end of the hold, then the 504: two hops of 2 ms, and one step of nginx and of Node
+    expect([stop.prediction.low.value, stop.prediction.high.value]).toEqual([90, 90.024]);
+    // the proxy thaws and serves the next run: no fresh environment
+    expect(stop).not.toHaveProperty("fresh");
+    expect(stop.environments).toBe(2);
+    // the configuration of the hop keeps each timer of nginx at its built-in default, with one worker
+    const conf = proxyHop("nginx").files?.["/etc/nginx/nginx.conf"] ?? "";
+    expect(conf).toContain("http2 on;");
+    expect(conf).not.toMatch(/keepalive_timeout|worker_processes|grpc_read_timeout/);
+  });
 });
