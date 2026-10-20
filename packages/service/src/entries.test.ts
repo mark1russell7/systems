@@ -153,12 +153,16 @@ describe("the limiter entry: a client in a browser can import it (SYS-28)", () =
 
   it("gives its functions, and the root gives them too", () => {
     expect(Object.keys(limiterEntry).sort()).toEqual([
+      "SLIDING_WINDOW_MACHINE",
+      "TOKEN_BUCKET_MACHINE",
       "decide",
       "freeAt",
       "idleSpan",
       "keyedLimiter",
       "limitRule",
+      "limiterMachine",
       "limiterProblems",
+      "limiterStateOf",
       "longestRetryAfter",
       "memoryStore",
       "retryAfterSeconds",
