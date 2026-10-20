@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Cell, DriverBand, KernelRecord, Prediction, Run } from "./cell.ts";
-import { fieldOf, matches, measureDriver, settled, socketAt } from "./driver.ts";
+import { fieldOf, longestOf, matches, measureDriver, settled, socketAt } from "./driver.ts";
 import { measure } from "./observe.ts";
 import { verdictOf } from "./verdict.ts";
 
@@ -269,5 +269,39 @@ describe("a band of a driver with more than one socket", () => {
     expect(measure(fromData("last-data"), run())).toMatchObject({ elapsed: s(70.03), void: null, finding: null });
     // through a proxy, an unknown reference was once the first close of a socket of the target: now it never comes
     expect(measure(fromData("ping-sent"), run()).finding).toBe("it ended without its reference event (ping-sent on the monitor socket)");
+  });
+
+  it("counts each retry from the refusal before it (last-reply), with no fault, on a new connection too", () => {
+    // a limiter refuses the second request two times with Retry-After 30, and the client retries after
+    // each. The keep-alive timer of the client closed the first connection, thus the second refusal
+    // comes on a new one
+    const retry = (n: number) => ({ ev: "attempt", where: { i: 2, n }, name: "why" });
+    const cell = cellOf({
+      detects: true,
+      timer: "the Retry-After of the limiter",
+      errno: "retry",
+      from: "last-reply",
+      low: s(29.999),
+      high: s(30.011),
+      driver: { socket: "pool", ends: retry(2), then: [{ what: "the second retry", name: "retry", from: "last-reply", ends: retry(3), low: s(29.999), high: s(30.011) }] },
+    });
+    const refused = run({
+      fault: null,
+      events: [
+        ...run().events.slice(0, 9),
+        { ev: "attempt", t: at(30.003), i: 2, n: 2, why: "retry" },
+        { ev: "attempt", t: at(60.006), i: 2, n: 3, why: "retry" },
+        { ev: "response", t: at(60.008), i: 2, status: 200 },
+      ],
+      kernel: [rx(-11.69, POOL, 3), rx(0.002, POOL, 3), rx(30.005, "10.0.0.8:41003", 4), { ev: "clock", mono: at(70), lost: 0 }],
+    });
+    const read = measure(cell, refused);
+    expect(read).toMatchObject({ outcome: { kind: "error", errno: "retry" }, elapsed: s(30.001), void: null, finding: null });
+    expect(read.driver?.steps).toEqual([{ what: "the second retry", name: "retry", elapsed: s(30.001) }]);
+    // the bands of the retries follow one another, thus the run waits for their sum
+    expect(longestOf(cell)).toBeCloseTo(60.022, 9);
+    expect(longestOf(CELL)).toBeCloseTo(70.041, 9);
+    // the last data before the outset is the first reply: a retry does not count from it
+    expect(measure({ ...cell, prediction: { ...cell.prediction, from: "last-data" } as Prediction }, refused).elapsed).toEqual(s(41.693));
   });
 });

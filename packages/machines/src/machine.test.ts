@@ -2,7 +2,7 @@ import type { Machine } from "@mark1russell7/algebra";
 import { algebraProblems, detection, machineProblems, machineSchema, timerOf } from "@mark1russell7/algebra";
 import { describe, expect, it } from "vitest";
 import * as root from "./index.ts";
-import { IOREDIS_STATUS, LINUX_TCP, MACHINES, MANIFESTATIONS, PGPOOL_SESSION, SUPAVISOR_CLIENT, SUPAVISOR_SERVER } from "./index.ts";
+import { IOREDIS_STATUS, LINUX_TCP, MACHINES, MANIFESTATIONS, PGPOOL_SESSION, SUPAVISOR_CLIENT, SUPAVISOR_SERVER, UNDICI_RETRY } from "./index.ts";
 
 /** This function gives the values of the knobs of a document at its defaults. A knob at its off value has no bound. */
 const defaults = (doc: Machine) => (name: string) => {
@@ -16,7 +16,7 @@ describe("the machine documents", () => {
     const documents = Object.values(root).filter(
       (value): value is Machine => typeof value === "object" && value !== null && "format" in value,
     );
-    expect(documents.length).toBe(34);
+    expect(documents.length).toBe(35);
     expect(Object.keys(MACHINES).sort()).toEqual(documents.map((doc) => doc.id).sort());
     for (const [id, doc] of Object.entries(MACHINES)) {
       expect(doc.id, id).toBe(id);
@@ -111,6 +111,26 @@ describe("the machine documents", () => {
     // the server socket has no keepalive: keepidle has no bound
     expect(values("keepalive_idle")).toEqual({ value: "infinite", unit: "s" });
     expect(server.over?.states["connecting"]).toBe("SYN_SENT");
+  });
+
+  it("gives the delay of a retry of the RetryAgent of undici: the Retry-After capped at 30 s, or the backoff", () => {
+    const retry = UNDICI_RETRY;
+    const at = (retryAfter: number) => (name: string) =>
+      name === "retry_after" ? { value: retryAfter, unit: "s" } : name === "hz" ? { value: 1000, unit: "Hz" } : defaults(retry)(name);
+    // a Retry-After of 5 s: 5 s, late by the slack of epoll (5 ms), 1 ms of the loop clock and one jiffy
+    expect(timerOf(retry, "retry_after", at(5))).toEqual({
+      duration: { value: 5000, unit: "ms" },
+      lateness: { value: 7, unit: "ms" },
+      early: { value: 2, unit: "ms" },
+    });
+    // a Retry-After of 60 s: the cap of 30 s, thus the retry comes 30 s early
+    expect(timerOf(retry, "retry_after", at(60)).duration).toEqual({ value: 30000, unit: "ms" });
+    expect(timerOf(retry, "retry_after", at(60)).lateness).toEqual({ value: 32, unit: "ms" });
+    // no Retry-After: 0.5, 1, 2, 4 and 8 s, and the cap after them
+    expect([0, 1, 2, 3, 4, 6].map((fired) => timerOf(retry, "backoff", at(0), fired).duration)).toEqual(
+      [500, 1000, 2000, 4000, 8000, 30000].map((value) => ({ value, unit: "ms" })),
+    );
+    expect(retry.transitions.find((t) => t.id === "ur.give-up")).toMatchObject({ to: "FAILED", errno: "UND_ERR_REQ_RETRY" });
   });
 
   it("lets only a timer with a backoff read how many times it has fired", () => {

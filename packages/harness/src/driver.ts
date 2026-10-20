@@ -156,14 +156,19 @@ const outsetOf = (run: Run): number => {
  * - `peer-closed`: the change of state of the socket of the target, when its process dies.
  * - `fault`: the start of the commit of the fault. `client-start`: the `connecting` line.
  * - `first-sent`: the first segment with data that the socket sends after the fault.
+ * - `last-reply`: the refusal that a retry follows. It is the last segment with data that a socket
+ *   of the client received before the end of the band (`end`). The retry can go on another socket.
  * A reference that this judge does not know (`ping-sent`) does not come: its band is a finding.
  */
-export const referenceOf = (run: Run, from: Reference, role: string, data: boolean): number | undefined => {
+export const referenceOf = (run: Run, from: Reference, role: string, data: boolean, end: number = Infinity): number | undefined => {
   const ready = run.events.find((event) => event.ev === "ready");
   const before = run.fault?.t1 ?? ready?.t ?? Infinity;
   if (from === "fault") return run.fault?.t0;
   if (from === "client-start") return (run.events.find((event) => event.ev === "connecting") ?? run.events[0])?.t;
   if (from === "request-sent") return run.events.filter((event) => event.ev === "sent")[1]?.t;
+  // a retry can go on a new connection: its refusal is the last data that a socket of the client got
+  if (from === "last-reply")
+    return run.kernel.filter((record) => record.netns === run.netns && record.mono < end && record.ev === "rx" && (record.seg?.len.value ?? 0) > 0).at(-1)?.mono;
   const { socket, place } = kernelOf(run, role, before);
   if (place === undefined) return undefined;
   if (from === "last-received" || from === "last-data") {
@@ -237,13 +242,19 @@ const reportOf = (place: KernelPlace, after: number): { at: number; outcome: Out
     : { at: report.mono, outcome: { kind: "eof" } };
 };
 
-/** This function gives the latest instant of the bands of a driver prediction, in seconds from their references. */
+/**
+ * This function gives the latest instant of the bands of a driver prediction, in seconds from their
+ * references. A band from the refusal before it (`last-reply`) follows the band before it. Thus the
+ * times of those bands add: five retries of 30 s end 150 s after the first refusal.
+ */
 export const longestOf = (cell: Cell): number => {
   const { prediction } = cell;
   if (prediction.detects === null) return valueIn(prediction.window, "s");
-  const steps = (prediction.driver?.then ?? []).map((step) => valueIn(step.high, "s"));
+  const then = prediction.driver?.then ?? [];
+  const steps = then.map((step) => valueIn(step.high, "s"));
   const own = prediction.detects ? valueIn(prediction.high, "s") : valueIn(prediction.window, "s");
-  return Math.max(own, ...steps);
+  const chained = [...(prediction.detects && prediction.from === "last-reply" ? [own] : []), ...then.filter((step) => step.from === "last-reply").map((step) => valueIn(step.high, "s"))];
+  return Math.max(own, ...steps, chained.reduce((total, high) => total + high, 0));
 };
 
 /**
@@ -389,7 +400,7 @@ export const measureDriver = (cell: Cell, run: Run): Measured => {
   }
   const stepTimes: DriverStepTime[] = (driver.then ?? []).map((step) => {
     const line = lineAfter(events, step.ends, after);
-    const from = referenceOf(run, step.from, step.socket ?? driver.socket, true);
+    const from = referenceOf(run, step.from, step.socket ?? driver.socket, true, line?.t);
     if (line === undefined || from === undefined) {
       findings.push(line === undefined ? `${step.what}: ${wordsOf(step.ends)} never came` : `${step.what}: its reference (${step.from}) never came`);
       return { what: step.what, name: line === undefined ? null : nameOf(line, step.ends), elapsed: null };
@@ -407,7 +418,7 @@ export const measureDriver = (cell: Cell, run: Run): Measured => {
     if (driver.reply === undefined || prediction.replies === undefined)
       return { ...base, ...nothing, ...stepped, void: voided, finding: findings[0] ?? null };
     const line = lineAfter(events, driver.reply.ends, after);
-    const from = referenceOf(run, driver.reply.from, driver.socket, true);
+    const from = referenceOf(run, driver.reply.from, driver.socket, true, line?.t);
     if (line === undefined || from === undefined)
       return { ...base, ...nothing, ...stepped, void: voided, finding: findings[0] ?? `the reply never came: ${wordsOf(driver.reply.ends)}` };
     return {
@@ -431,7 +442,7 @@ export const measureDriver = (cell: Cell, run: Run): Measured => {
     line !== undefined && driver.ends !== undefined ? { kind: "error", errno: nameOf(line, driver.ends) } : (report?.outcome ?? { kind: "silent" });
   if (ended === undefined)
     return { ...base, ...nothing, ...stepped, void: voided, finding: findings[0] ?? `nothing detected it: ${prediction.timer} never fired` };
-  const reference = referenceOf(run, prediction.from, driver.socket, driver.ends !== undefined);
+  const reference = referenceOf(run, prediction.from, driver.socket, driver.ends !== undefined, ended);
   if (reference === undefined)
     return { ...base, ...nothing, ...stepped, outcome, void: voided, finding: `it ended without its reference event (${prediction.from} on the ${driver.socket} socket)` };
   if (driver.ends === undefined && prediction.from === "last-received" && place !== undefined) voided ??= delayed(place, reference, ended, run.hz, noiseOf(cell));

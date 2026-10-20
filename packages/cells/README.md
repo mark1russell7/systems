@@ -149,6 +149,18 @@ Each prediction of a fault composes the document of the client, or of the server
 - **The server stays out of the way.** The fault cells set `keepAliveTimeout` to 60 s, thus the FIN of the server does not compete with the detection of the cell.
 - **A trigger that the harness cannot do waits.** Its reason is in the catalog (`HTTP_WAITING`). Apache HttpClient 5 and the AWS SDK are out of the scope of this step (`HTTP_OUT_OF_SCOPE`).
 
+## The cells of the keyed limiter
+
+These cells (`src/limiter.ts`, SYS-28) put a real client against the 429 of the keyed limiter of `@mark1russell7/service`. They give the pairs of the laws O29 and O30 at the defaults of each client. O29 bounds the longest Retry-After by the retry window of the caller. O30 bounds the delay of a retry from below by the longest Retry-After.
+
+- **The target.** The `http.Server` of Node 24.21.0 over the keyed limiter of service 0.5.6 from npm (`targets/service-limiter/`). The harness builds the folder, and an npm lockfile pins it. The limiter is a sliding window of one take in a window for each key.
+- **The key.** Each client sends a key of its process (`limiter-key`). Thus the first request of a run takes the one unit, and the second request meets the 429. Its Retry-After is the time until the first take leaves the window, in whole seconds, rounded up.
+- **The clients.** The `RetryAgent` of undici 8.12.2 at its defaults, a `Client` of undici, and the `Transport` of Go 1.27.2. The two last send nothing again: the caller gets the 429 at once (O29.3, O29.4).
+- **The documents.** The bands come from the timer `oldest` of `SLIDING_WINDOW_MACHINE` (service) and the timer `retry_after` of `UNDICI_RETRY` (machines). The agent waits the Retry-After, capped at 30 s, late by the slack of its Node timer and the handling of the refusal (`retryPlan`).
+- **The borders.** A Retry-After of 30 s holds O30 (O30.1), and one of 60 s sends each retry 30 s early (O30.2). Five retries of 30 s are the window of the agent. Thus 150 s holds O29 at its border (O29.1), and 151 s ends with `UND_ERR_REQ_RETRY` (O29.2).
+- **Each retry.** Each retry counts from the refusal before it (the reference `last-reply` of the harness). It can go on a new connection, because undici closes an idle socket 3 s after a reply of a Node server at its defaults.
+- **The names.** The plan of R3 does not have these laws yet, thus each cell takes the name of its law and a number. A cell of the plan for the same pair becomes an alias when the corpus of the law gets these pairs.
+
 ## The WS catalog
 
 The WS catalog has the WebSocket client and server of `@procedures/client` 0.7.0 on a direct pair (`src/ws.ts`). The client is the harness client `procedures-ws`, and the server is a script in its image. Each cell gives each setting of the client and of the server.

@@ -191,7 +191,7 @@ const socketVantage = (
   request: ProbeEvent,
 ): Quantity | null => {
   const { from } = cell.prediction.detects === true ? cell.prediction : { from: undefined };
-  if (from === undefined || from === "peer-closed" || from === "fault" || from === "ping-sent" || from === "first-sent" || from === "last-data") return null;
+  if (from === undefined || from === "peer-closed" || from === "fault" || from === "ping-sent" || from === "first-sent" || from === "last-data" || from === "last-reply") return null;
   const ended = events.find((event) => event.ev === "error" || event.ev === "eof");
   const reference =
     from === "last-received"
@@ -640,19 +640,25 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
         : from === "last-data"
           ? // the receive check of a heartbeat counts bytes, not an ACK: the last segment with data before the end
             socket.filter((each) => each.ev === "rx" && (each.seg?.len.value ?? 0) > 0 && each.mono <= (ended ?? before)).at(-1)
+        : from === "last-reply"
+          ? // a retry counts from the refusal before it: the last segment with data before the end
+            socket.filter((each) => each.ev === "rx" && (each.seg?.len.value ?? 0) > 0 && each.mono < (ended ?? Infinity)).at(-1)
         : from === "first-retransmission"
           ? retransmitted.find((each) => each.why === "rto" && each.mono > before)
           : from === "first-sent"
             ? socket.find((each) => each.ev === "tx" && each.mono > before && (each.seg?.len.value ?? 0) > 0)
             : from === "syn-sent"
               ? socket.find((each) => each.ev === "state" && newState(each) === 2)
-              : kernel.find(
-              (each) =>
-                each.netns === peerNetns &&
-                each.cookie === peerCookie &&
-                each.ev === "state" &&
-                oldState(each) === 1,
-            );
+              : from === "peer-closed"
+                ? kernel.find(
+                    (each) =>
+                      each.netns === peerNetns &&
+                      each.cookie === peerCookie &&
+                      each.ev === "state" &&
+                      oldState(each) === 1,
+                  )
+                : // a reference that this judge does not know does not come: its band is a finding
+                  undefined;
     // behind a proxy, a pooler keeps its connection to the target across its clients: the run can
     // reuse one that it did not open, and the close of the target closes each of them at once
     if (record === undefined && from === "peer-closed" && peerCookie === undefined) return proxiedClose(run);
