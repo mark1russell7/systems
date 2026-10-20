@@ -330,6 +330,8 @@ Each run starts from kernels that keep nothing from the run before it (`lab.forg
 - **A driver band** (`measureDriver`, `driver.ts`). A driver with more than one socket names the socket of its band (`DriverBand.socket`).
   - The band counts from its reference on that socket. It ends at a line of the client (`ends`), or at the report of the kernel on the socket.
   - A band that a line ends is a timer of the driver. It counts from the last segment with data that the socket received or sent. The idle timer of a Node socket starts again at each read and each write of data.
+  - A band can name that segment as its reference (`last-data`). For example, an idle gRPC client goes to IDLE at a GOAWAY of its proxy. The idle timer of the proxy counts from the last data of the stream.
+  - A reference that this judge does not know (for example `ping-sent`) does not come. Thus its band is a finding. Before 0.11.22, such a reference counted from the first close of a socket of the peer. Through a proxy, that close can be the idle close of a socket toward the target.
   - The MongoDB client is ready when its first write has its reply and its monitor streams. The monitor sends its first awaited hello `minHeartbeatFrequencyMS` (500 ms) after its first check. A fault before that hello meets the start of the stream, not the stream that a cell measures.
   - Each later band (`then`) has its own reference and line. A later band outside its band, or absent, is a finding. So is a line that the prediction names as quiet, after the fault.
   - For a silent prediction, a flow of an open socket of the driver that a router forgot is a finding.

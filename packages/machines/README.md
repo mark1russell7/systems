@@ -58,8 +58,9 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `ENVOY_HTTP2` | `envoy-http2` | Envoy 1.39.4 as an HTTP/2 proxy of gRPC: one connection of a client, its streams, the local replies and the close | proxy | 16 implemented |
 | `TOXIPROXY_LINK` | `toxiproxy-link` | Toxiproxy 2.12.0 with no toxic: one proxied TCP connection and its close | proxy | 9 implemented |
 | `DOCKER_PROXY_LINK` | `docker-proxy-link` | docker-proxy of Docker Engine 29.1.5: one proxied TCP connection and its close | proxy | 9 implemented |
+| `CADDY_HTTP2` | `caddy-http2` | Caddy 2.11.7 as an HTTP/2 proxy of gRPC: one connection of a client, its idle close, its replies and its stop | proxy | 12 implemented |
 
-Twenty-seven documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel, the replication of mongod, aten and the member of Ra operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
+Twenty-eight documents operate on Linux TCP (`over`). Linux TCP, conntrack, the Sentinel, the replication of mongod, aten and the member of Ra operate on no other document. The `conditions` of each document give the range where it holds, for example a range of kernels.
 
 The package also gives these parts:
 
@@ -104,6 +105,10 @@ A document changes only for one of two reasons:
 A change to the version of a system changes its sources too. Each fact of the document then cites the new version.
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
+
+### 0.3.18
+
+- **Caddy 2.11.7 as a proxy of gRPC** (`caddy-http2`), from the source at its tag and of golang.org/x/net v0.59.0. With no stream open for 5 min, Caddy sends GOAWAY NO_ERROR, and it closes the connection 1 s later. A PING of the client does not reset that timer. A failure of the upstream before the headers of a response gives 502, thus UNAVAILABLE. Caddy retries no call at the defaults, and at SIGTERM it waits for each stream.
 
 ### 0.3.17
 
