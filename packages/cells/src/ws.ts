@@ -1,7 +1,7 @@
 import type { KnobValues, Manifestation } from "@mark1russell7/algebra";
 import { errnoOf, overValues, stackedDetection, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
 import type { Cell, Fault, Prediction, Reconnects, Reference, Subject, Target, WsProbe } from "@mark1russell7/harness";
-import { NOISE, SUBJECTS, programOf, subjectClient } from "@mark1russell7/harness";
+import { NOISE, programOf, subjectClient } from "@mark1russell7/harness";
 import { LINUX_TCP, PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
@@ -10,10 +10,11 @@ import { HZ, LINUX_66, RTT_MS, RUNS, WINDOW, count, given, ms, predictAt, q, s, 
 import type { ManifestationName } from "./manifestations.ts";
 import { MANIFESTATIONS } from "./manifestations.ts";
 import { assuming } from "./rtt.ts";
+import { PROCEDURES } from "./subjects.ts";
 
 /**
  * This module is the WS catalog: the WebSocket client and server of a procedures subject on a
- * direct pair. The subject is data (`Subject`): the harness ships one, `SUBJECTS.procedures`, and
+ * direct pair. The subject is data (`Subject`): the client repository builds one, `PROCEDURES`, and
  * another repository can give its own. The client is the `client` program of the subject, and the
  * target starts its `server` program from the same image. Each cell gives each setting of the
  * client and of the server. It also gives each knob of Linux TCP at the observer, thus nothing
@@ -57,7 +58,7 @@ const PORT = 8080;
  * subject, and it starts the `server` program of the subject with the settings of a cell. A held
  * server is the child of a shell, thus a `fin` fault can stop it while the container stays up.
  */
-export const wsServer = (settings: WsServerSettings, held = false, subject: Subject = SUBJECTS.procedures): Target => {
+export const wsServer = (settings: WsServerSettings, held = false, subject: Subject = PROCEDURES): Target => {
   const heartbeat =
     settings.heartbeat === null
       ? ["--heartbeat", "off"]
@@ -452,7 +453,7 @@ export const probeOf = (spec: WsSpec): WsProbe => {
  * observer gets the knobs of Linux TCP as sysctls. A client `fin` holds the server under a shell,
  * and each run then has its own environment.
  */
-export const wsCellOf = (spec: WsSpec, subject: Subject = SUBJECTS.procedures): Cell => {
+export const wsCellOf = (spec: WsSpec, subject: Subject = PROCEDURES): Cell => {
   const server = spec.observer === "server";
   const namespace = sysctlsOf(linuxValues(spec, RTT_MS));
   const killsServer = spec.fault === "fin" && !server;
@@ -474,5 +475,5 @@ export const wsCellOf = (spec: WsSpec, subject: Subject = SUBJECTS.procedures): 
 /** This function gives the cells of the WS catalog on a subject, in the sequence of the specs. */
 export const wsCells = (subject: Subject): readonly Cell[] => WS_SPECS.map((spec) => wsCellOf(spec, subject));
 
-/** These are the cells of the WS catalog on the subject that the harness ships. */
-export const WS_CELLS: readonly Cell[] = wsCells(SUBJECTS.procedures);
+/** These are the cells of the WS catalog on the procedures subject of the client repository. */
+export const WS_CELLS: readonly Cell[] = wsCells(PROCEDURES);

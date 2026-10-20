@@ -1,10 +1,10 @@
 import { algebraProblems, machineProblems } from "@mark1russell7/algebra";
 import type { Subject } from "@mark1russell7/harness";
-import { SUBJECTS } from "@mark1russell7/harness";
 import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER, nodeEarlySeconds, nodeLateSeconds } from "@mark1russell7/machines";
 import { describe, expect, it } from "vitest";
 import { HZ } from "./catalog.ts";
 import { NODE_IMAGE } from "./http/cells.ts";
+import { PROCEDURES } from "./subjects.ts";
 import { WS_CELLS, WS_SPECS, wsCells } from "./ws.ts";
 
 const round = (value: number) => Math.round(value * 1e9) / 1e9;
@@ -40,8 +40,8 @@ describe("the WS catalog", () => {
     expect(new Set(WS_CELLS.map((each) => each.name)).size).toBe(WS_CELLS.length);
     for (const each of WS_CELLS) {
       expect(each.name.startsWith("WS ")).toBe(true);
-      expect(each.client).toBe("procedures-ws");
-      expect(each.target).toMatchObject({ image: NODE_IMAGE, subject: { kind: "shipped", name: "procedures" }, lines: true });
+      expect(each.client).toEqual({ image: PROCEDURES.image, command: ["node", "/opt/subject/client-ws.mjs"] });
+      expect(each.target).toMatchObject({ image: NODE_IMAGE, subject: PROCEDURES.image, lines: true });
       expect(each.target).not.toHaveProperty("harness");
       if (each.prediction.detects === true) expect(each.prediction.high.value, each.name).toBeGreaterThanOrEqual(each.prediction.low.value);
     }
@@ -124,7 +124,7 @@ describe("the WS catalog", () => {
     });
     expect(cell("server idle, blackhole, server heartbeat 1 s and 2 misses").target.command).toEqual([
       "node",
-      "/opt/harness/procedures/server-ws.mjs",
+      "/opt/subject/server-ws.mjs",
       "--port",
       "8080",
       "--tcp-keepalive",
@@ -169,9 +169,9 @@ describe("the subject of the WS catalog", () => {
     programs: { client: ["node", "/opt/subject/client-ws.mjs"], server: ["node", "/opt/subject/server-ws.mjs"] },
   };
 
-  it("runs on the subject that the harness ships, whose base is the Node image of the catalogs", () => {
-    expect(SUBJECTS.procedures.base).toBe(NODE_IMAGE);
-    expect(wsCells(SUBJECTS.procedures)).toEqual(WS_CELLS);
+  it("runs on the procedures subject of the client repository, whose base is the Node image of the catalogs", () => {
+    expect(PROCEDURES.base).toBe(NODE_IMAGE);
+    expect(wsCells(PROCEDURES)).toEqual(WS_CELLS);
   });
 
   it("runs each cell on a subject that a caller gives, with the same settings and the same predictions", () => {
@@ -182,9 +182,8 @@ describe("the subject of the WS catalog", () => {
       expect(each.client, each.name).toEqual({ image: caller.image, command: ["node", "/opt/subject/client-ws.mjs"] });
       expect(each.target.subject, each.name).toEqual(caller.image);
       expect(each.target.image, each.name).toBe(NODE_IMAGE);
-      // the server of the caller gets the settings of the cell, as the shipped server does
-      const command = (each.target.command ?? []).join(" ");
-      expect(command, each.name).toBe((shipped.target.command ?? []).join(" ").replaceAll("/opt/harness/procedures/", "/opt/subject/"));
+      // the server of the caller gets the settings of the cell, as the server of the client repository does
+      expect(each.target.command, each.name).toEqual(shipped.target.command);
       expect({ ...each, client: shipped.client, target: shipped.target }, each.name).toEqual(shipped);
     }
   });
