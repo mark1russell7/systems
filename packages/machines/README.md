@@ -36,8 +36,8 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `UNDICI_CLIENT` | `undici-client-h1` | The socket of an HTTP/1.1 `Client` of undici 8.12.2 | driver | 8 implemented |
 | `UNDICI_RETRY` | `undici-retry-agent` | One request through a `RetryAgent` of undici 8.12.2 | driver | 7 implemented, 1 normative |
 | `GO_TRANSPORT` | `go-nethttp-transport` | One connection of the `http.Transport` of Go 1.27.2 | driver | 7 implemented |
-| `PROCEDURES_WS_CLIENT` | `procedures-ws-client` | The WebSocket client of `@procedures/client` 0.3.0 | driver | 9 implemented, 1 documented |
-| `PROCEDURES_WS_SERVER` | `procedures-ws-server` | The WebSocket server of `@procedures/client` 0.3.0 | server | 4 implemented |
+| `PROCEDURES_WS_CLIENT` | `procedures-ws-client` | The WebSocket client of `@procedures/client` 0.22.0 (client 2408cea) | driver | 9 implemented, 1 documented |
+| `PROCEDURES_WS_SERVER` | `procedures-ws-server` | The WebSocket server of `@procedures/client` 0.22.0 (client 2408cea) | server | 4 implemented |
 | `MONGODB_NODE` | `mongodb-node` | The MongoDB Node driver 7.7.0, for one server of a replica set | driver | 19 implemented |
 | `MONGOD_REPL` | `mongod-replication` | The replication of mongod 9.0.4: one member of a replica set | server | 29 implemented |
 | `MONGOD_SESSION` | `mongod-session` | One client connection of mongod 9.0.4 | server | 6 implemented |

@@ -16,8 +16,8 @@ const NEW = 2747512;
 /** a cell of the WebSocket client: its heartbeat drops a silent connection 1 s after a ping, and it reconnects 0.5 s later */
 const HEARTBEAT: Cell = {
   name: "W1",
-  target: { image: "node:24.21.0-alpine", harness: "procedures", port: 8080, ready: '"ev":"listening"' },
-  client: "procedures-ws",
+  target: { image: "node:24.21.0-alpine", subject: { kind: "pinned", image: `ghcr.io/owner/procedures-subject:0.22.0@sha256:${"ab".repeat(32)}` }, port: 8080, ready: '"ev":"listening"' },
+  client: { image: { kind: "pinned", image: `ghcr.io/owner/procedures-subject:0.22.0@sha256:${"ab".repeat(32)}` }, command: ["node", "/opt/subject/client-ws.mjs"] },
   sysctls: {},
   probe: {
     mode: "idle",

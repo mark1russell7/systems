@@ -3,15 +3,25 @@ import { machineSchema } from "@mark1russell7/algebra";
 import { NODE_TIMER_EARLY, nodeTimerLateness } from "./http/timers.ts";
 
 /**
- * This module holds the machine documents of the WebSocket transport of `@procedures/client`
- * 0.3.0, the release on npm. Each fact comes from the files of that release, from
- * `@mark1russell7/service` 0.4.0, or from Node v24.21.0 and its undici 7.29.1. The comments and the
- * sources give the file and the line.
+ * This module holds the machine documents of the WebSocket transport of `@procedures/client` at
+ * commit 2408cea of the client repository: 0.22.0 and two PATCHes after it. The WS and WST cells
+ * run the subject that the client repository builds from that commit (CLI-33). Each fact comes
+ * from the source of that commit, from `@mark1russell7/service` 0.5.8, from ws 8.22.0, or from Node
+ * v24.21.0 and its undici 7.29.1. The comments and the sources give the file and the line.
  *
- * The client repository has a document of the connection at commit 1f50f47:
- * `WEBSOCKET_CONNECTION_MACHINE` in `packages/client/src/machines.ts`. This document takes its
- * states and its events, and the code of 0.3.0 gives the timers.
+ * The client repository has a document of the connection: `WEBSOCKET_CONNECTION_MACHINE` in
+ * `packages/client/src/machines.ts`. This document takes its states and its events, and the code
+ * of the transports gives the timers.
  */
+
+/** This text is the folder of the WebSocket transports at the commit of the subject. */
+const AT = "client 2408cea packages/client/src/adapters/websocket";
+/** This text is the client transport at that commit. */
+const CT = `${AT}/client/transport.ts`;
+/** This text is the server transport at that commit. */
+const ST = `${AT}/server/transport.ts`;
+/** This text is the source of the version of the service that the lock of the client gives (pnpm-lock.yaml:443-454). */
+const SERVICE = "@mark1russell7/service 0.5.8 (systems 571e9e5) packages/service/src";
 
 /** This function gives the arithmetic of a duration in ms. */
 const arithmetic = (duration: Expr): string => {
@@ -28,10 +38,11 @@ const late = (ms: string): string => arithmetic(nodeTimerLateness(ms));
 const EARLY = arithmetic(NODE_TIMER_EARLY);
 
 /**
- * This document is the connection of the WebSocket client of `@procedures/client` 0.3.0
- * (`WebSocketTransport`), over its socket class and its Linux TCP socket.
+ * This document is the connection of the WebSocket client of `@procedures/client` 0.22.0 at
+ * commit 2408cea (`WebSocketTransport`), over its socket class and its Linux TCP socket. The
+ * root entry uses the global `WebSocket` of Node, and `@procedures/client/node` uses the `ws` package.
  *
- * - The heartbeat is `heartbeat()` of `@mark1russell7/service` 0.4.0. A tick each interval sends a
+ * - The heartbeat is `heartbeat()` of `@mark1russell7/service` 0.5.8. A tick each interval sends a
  *   ping only when no pong is awaited. The timeout of the ping starts before its send. A
  *   ping without a pong at its timeout is a miss, and `misses` misses in sequence drop the
  *   connection. With a timeout below the interval, each tick after a miss sends the next ping.
@@ -47,33 +58,33 @@ const EARLY = arithmetic(NODE_TIMER_EARLY);
 export const PROCEDURES_WS_CLIENT: Machine = machineSchema.parse({
   format: "mark1russell7.machine/1",
   id: "procedures-ws-client",
-  title: "The connection of the WebSocket client of @procedures/client 0.3.0",
+  title: "The connection of the WebSocket client of @procedures/client 0.22.0 (client 2408cea)",
   layer: "driver",
-  version: "0.3.0",
-  conditions: { "@procedures/client": "0.3.0", "@mark1russell7/service": "0.4.0", node: "24.21.0", undici: "7.29.1", ws: "8.22.0", kernel: "Linux 6.6" },
+  version: "0.22.0",
+  conditions: { "@procedures/client": "0.22.0 (client 2408cea)", "@mark1russell7/service": "0.5.8", node: "24.21.0", undici: "7.29.1", ws: "8.22.0", kernel: "Linux 6.6" },
   sources: [
     {
-      ref: "@procedures/client 0.3.0 dist/adapters/websocket/client/transport.js:161-193 (the options: each time a duration; the misses of the heartbeat, the jitter of the reconnect, the class of the sockets)",
+      ref: `${CT}:260-290 (the options: each time a duration, its default from TIMER_DEFAULTS.webSocketClient; the misses of the heartbeat at least 1 (:278); the jitter of the reconnect from 0 to 1 (:269); the class of the sockets (:289), used at :324)`,
       rung: "implemented",
     },
     {
-      ref: "@procedures/client 0.3.0 dist/adapters/websocket/client/transport.js:379-399 startHeartbeat: heartbeat() of @mark1russell7/service with the interval, the timeout and the misses; a tick sends a ping only when CONNECTED",
+      ref: `${CT}:486-511 startHeartbeat: heartbeat() of @mark1russell7/service with the interval, the timeout and the misses; a tick sends a ping only when CONNECTED (:498); the open starts it (:357-360)`,
       rung: "implemented",
     },
     {
-      ref: "@mark1russell7/service 0.4.0 src/heartbeat.ts:129-135 (each tick starts the next one first), :96-125 (the timeout starts before the send of the ping; a send that throws is a miss), :81-94 (misses in sequence)",
+      ref: `${SERVICE}/heartbeat.ts:129-135 (each tick starts the next one first), :96-127 (the timeout starts before the send of the ping, :110-114 and :117; a send that throws is a miss, :118-121), :81-94 (misses in sequence)`,
       rung: "implemented",
     },
     {
-      ref: "@procedures/client 0.3.0 dist/adapters/websocket/client/transport.js:302-325 dropConnection: the handlers go, terminate() when the class has it, else close(), and handleClose at once",
+      ref: `${CT}:401-422 dropConnection: the handlers go (:128-134), terminate() when the class has it (:414-416), else close(), and handleClose at once (:421)`,
       rung: "implemented",
     },
     {
-      ref: "@procedures/client 0.3.0 dist/adapters/websocket/client/transport.js:120-127 and :357-377: reconnectDelay is backoffDelay of @mark1russell7/service, with a subtracted jitter; an open sets the attempts to 0",
+      ref: `${CT}:172-195 and :460-484: reconnectDelay is backoffDelay of @mark1russell7/service (${SERVICE}/backoff.ts:58-64), with a subtracted jitter; an open sets the attempts to 0 (:345)`,
       rung: "implemented",
     },
     {
-      ref: "@procedures/client 0.3.0 dist/adapters/websocket/client/transport.js:221-236 and :283-289: the time limit of the handshake, and a failed handshake drops at once",
+      ref: `${CT}:330-339 and :389-392: the time limit of the handshake, and a failed handshake drops at once`,
       rung: "implemented",
     },
     {
@@ -81,15 +92,15 @@ export const PROCEDURES_WS_CLIENT: Machine = machineSchema.parse({
       rung: "implemented",
     },
     {
-      ref: "ws 8.22.0 lib/websocket.js:505-517 terminate(): the socket is destroyed at once",
+      ref: "ws 8.22.0 lib/websocket.js:500-517 terminate(): the socket is destroyed at once (:513-516), and a handshake is aborted (:507-511)",
       rung: "implemented",
     },
     {
-      ref: "node v24.21.0 deps/undici/src/lib/core/connect.js:120-129 setKeepAlive(true, 60000); deps/uv/src/unix/tcp.c:591-593 uv_tcp_keepalive: 1 s and 10 probes. The ws package sets no keepalive on its socket.",
+      ref: `node v24.21.0 deps/undici/src/lib/core/connect.js:120-129 setKeepAlive(true, 60000); deps/uv/src/unix/tcp.c:591-593 uv_tcp_keepalive: 1 s and 10 probes. The ws package sets no keepalive on its socket (ws 8.22.0 lib/websocket.js:260-261), and the transport gives the class only the URL (${CT}:325, ${AT}/client/node.ts:30-34).`,
       rung: "implemented",
     },
     {
-      ref: "client main 1f50f47 packages/client/src/machines.ts WEBSOCKET_CONNECTION_MACHINE: the states and the events of this document",
+      ref: "client 2408cea packages/client/src/machines.ts:76-141 WEBSOCKET_CONNECTION_MACHINE: the states and the events of this document",
       rung: "documented",
     },
   ],
@@ -203,14 +214,14 @@ export const PROCEDURES_WS_CLIENT: Machine = machineSchema.parse({
   },
   transitions: [
     { id: "pw.connect",from: "DISCONNECTED", on: "connect", to: "CONNECTING" },
-    { id: "pw.open", from: "CONNECTING", on: "open", to: "CONNECTED", source: "transport.js:237-262" },
+    { id: "pw.open", from: "CONNECTING", on: "open", to: "CONNECTED", source: `${CT}:342-361` },
     {
       id: "pw.handshake-timeout",
       from: "CONNECTING",
       on: "handshake-timeout",
       to: "RECONNECTING",
       timer: "handshake",
-      source: "transport.js:229-236",
+      source: `${CT}:330-339`,
     },
     {
       id: "pw.ping",
@@ -219,7 +230,7 @@ export const PROCEDURES_WS_CLIENT: Machine = machineSchema.parse({
       to: "AWAITING_PONG",
       timer: "ping",
       emits: ["tx.ping"],
-      source: "transport.js:379-399",
+      source: `${CT}:491-511`,
     },
     {
       id: "pw.skip",
@@ -228,9 +239,9 @@ export const PROCEDURES_WS_CLIENT: Machine = machineSchema.parse({
       to: "AWAITING_PONG",
       timer: "ping",
       note: "one ping at a time: the tick sends nothing",
-      source: "service src/heartbeat.ts:129-133",
+      source: `${SERVICE}/heartbeat.ts:129-134`,
     },
-    { id: "pw.pong", from: "AWAITING_PONG", on: "pong", to: "CONNECTED", source: "transport.js:449-452" },
+    { id: "pw.pong", from: "AWAITING_PONG", on: "pong", to: "CONNECTED", source: `${CT}:566-570` },
     {
       id: "pw.pong-timeout",
       from: "AWAITING_PONG",
@@ -239,7 +250,7 @@ export const PROCEDURES_WS_CLIENT: Machine = machineSchema.parse({
       timer: "pong",
       emits: ["tx.close-frame"],
       note: "dropConnection: terminate() destroys the socket of ws at once; close() of the global WebSocket writes a close frame, and its socket stays open below",
-      source: "transport.js:302-325",
+      source: `${CT}:401-422, :506-509`,
     },
     {
       id: "pw.drop",
@@ -247,14 +258,14 @@ export const PROCEDURES_WS_CLIENT: Machine = machineSchema.parse({
       on: "drop",
       to: "RECONNECTING",
       guard: "the reconnect is on, and tries are left",
-      source: "transport.js:269-273, :336-355",
+      source: `${CT}:375-379, :436-458`,
     },
     {
       id: "pw.give-up",
       from: ["CONNECTING", "CONNECTED", "AWAITING_PONG"],
       on: "give-up",
       to: "DISCONNECTED",
-      source: "transport.js:341-343",
+      source: `${CT}:444-445`,
     },
     {
       id: "pw.reconnect",
@@ -262,7 +273,7 @@ export const PROCEDURES_WS_CLIENT: Machine = machineSchema.parse({
       on: "reconnect-due",
       to: "CONNECTING",
       timer: "reconnect",
-      source: "transport.js:357-377",
+      source: `${CT}:463-484`,
     },
     {
       id: "pw.request-timeout",
@@ -271,7 +282,7 @@ export const PROCEDURES_WS_CLIENT: Machine = machineSchema.parse({
       to: "CONNECTED",
       timer: "request",
       errno: "TIMEOUT",
-      source: "transport.js:598-607",
+      source: `${CT}:724-733`,
     },
     {
       id: "pw.request-timeout-pinged",
@@ -280,7 +291,7 @@ export const PROCEDURES_WS_CLIENT: Machine = machineSchema.parse({
       to: "AWAITING_PONG",
       timer: "request",
       errno: "TIMEOUT",
-      source: "transport.js:598-607",
+      source: `${CT}:724-733`,
     },
     {
       id: "pw.close",
@@ -304,8 +315,9 @@ export const PROCEDURES_WS_CLIENT: Machine = machineSchema.parse({
 } satisfies Machine);
 
 /**
- * This document is one connection as the WebSocket server of `@procedures/client` 0.3.0 holds it
- * (`WebSocketServerTransport` on the `ws` package), over its Linux TCP socket.
+ * This document is one connection as the WebSocket server of `@procedures/client` 0.22.0 at
+ * commit 2408cea holds it (`WebSocketServerTransport` of `@procedures/client/node`, on the `ws`
+ * package), over its Linux TCP socket.
  *
  * The heartbeat of the server (roadmap R3) is a `setInterval`. Each beat pings each connection,
  * and the server ends a connection after `misses` beats without a pong (`terminate()`). Thus the
@@ -315,25 +327,25 @@ export const PROCEDURES_WS_CLIENT: Machine = machineSchema.parse({
 export const PROCEDURES_WS_SERVER: Machine = machineSchema.parse({
   format: "mark1russell7.machine/1",
   id: "procedures-ws-server",
-  title: "One connection as the WebSocket server of @procedures/client 0.3.0 holds it",
+  title: "One connection as the WebSocket server of @procedures/client 0.22.0 (client 2408cea) holds it",
   layer: "server",
-  version: "0.3.0",
-  conditions: { "@procedures/client": "0.3.0", ws: "8.22.0", node: "24.21.0", kernel: "Linux 6.6" },
+  version: "0.22.0",
+  conditions: { "@procedures/client": "0.22.0 (client 2408cea)", ws: "8.22.0", node: "24.21.0", kernel: "Linux 6.6" },
   sources: [
     {
-      ref: "@procedures/client 0.3.0 dist/adapters/websocket/server/transport.js:81-87 (the heartbeat: interval and misses, or false), :93-111 beat(): terminate after misses, or count a miss and ping; :147-149 setInterval of the interval; :240 a pong sets the misses to 0",
+      ref: `${ST}:146-152 (the heartbeat: interval and misses, or false), :155-175 beat(): terminate after misses (:163-167), or count a miss and ping (:168-173); :232-236 setInterval of the interval; :429 a pong sets the misses to 0`,
       rung: "implemented",
     },
     {
-      ref: "@procedures/client 0.3.0 dist/timers.js:29 webSocketServer: heartbeatIntervalMs 15000, heartbeatMisses 2",
+      ref: "client 2408cea packages/client/src/timers.ts:86-88 webSocketServer: heartbeatIntervalMs 15000, heartbeatMisses 2",
       rung: "implemented",
     },
     {
-      ref: "@procedures/client 0.3.0 dist/adapters/websocket/server/transport.js:318-322: a ping of a client gets a pong",
+      ref: `${ST}:523-527: a ping of a client gets a pong`,
       rung: "implemented",
     },
     {
-      ref: "node v24.21.0 lib/_http_server.js:646-651 and lib/net.js:2753-2756: keepAlive of http.Server is off at the default, thus an accepted socket has no SO_KEEPALIVE",
+      ref: `node v24.21.0 lib/_http_server.js:646-651 and lib/net.js:2753-2756: keepAlive of http.Server is off at the default, thus an accepted socket has no SO_KEEPALIVE. The transport takes the upgrades of the server of its host (${ST}:187-230) and sets no option of a socket`,
       rung: "implemented",
     },
   ],
@@ -379,8 +391,8 @@ export const PROCEDURES_WS_SERVER: Machine = machineSchema.parse({
     { id: "ps.accept", from: "ABSENT", on: "accept", to: "OPEN" },
     { id: "ps.miss", from: "OPEN", on: "beat.unanswered", to: "MISSING" },
     { id: "ps.pong", from: "MISSING", on: "rx.pong", to: "OPEN" },
-    { id: "ps.ping", from: ["OPEN", "MISSING"], on: "rx.ping", to: "OPEN", emits: ["tx.pong"], source: "transport.js:318-322" },
-    { id: "ps.terminate", from: "MISSING", on: "misses-reached", to: "CLOSED", timer: "heartbeat", emits: ["tx.fin"], source: "transport.js:97-101" },
+    { id: "ps.ping", from: ["OPEN", "MISSING"], on: "rx.ping", to: "OPEN", emits: ["tx.pong"], source: `${ST}:523-527` },
+    { id: "ps.terminate", from: "MISSING", on: "misses-reached", to: "CLOSED", timer: "heartbeat", emits: ["tx.fin"], source: `${ST}:163-167` },
     { id: "ps.close", from: ["OPEN", "MISSING"], on: ["close", "socket.error"], to: "CLOSED" },
   ],
   over: {
