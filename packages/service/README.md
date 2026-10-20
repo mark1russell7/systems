@@ -380,8 +380,9 @@ if (!decision.allowed) return limitedResponse(decision); // 429, with Retry-Afte
 | Export | Function |
 | --- | --- |
 | `httpTransport(server, knobs, options)` | A server of `node:http` as a transport of the lifecycle, with a list of mounts |
-| `probeServer({ port, host, server_retry_after })` | A health server on a port of its own |
-| `probeHandler(health, { prefix })` | The probes as a request handler on the port of the application |
+| `probeServer({ port, host, server_retry_after, kinds })` | A health server on a port of its own |
+| `probeHandler(health, { prefix, kinds })` | The probes as a request handler on the port of the application |
+| `PROBE_KINDS` | The four probe kinds, the default of the option `kinds` |
 | `handle(controller, route, work, options)` | A request handler that does each request of a route through `life.request` |
 | `writeOutcome(res, stream, options)` | The stream of a request as a response of `node:http`, unary or a stream |
 | `ndjson`, `sse` | The formats of a stream: NDJSON, and server-sent events |
@@ -411,6 +412,9 @@ if (!decision.allowed) return limitedResponse(decision); // 429, with Retry-Afte
 - **The probes on their own port.** `probeServer({ port, host, server_retry_after })` is a health server. It starts first and closes last, thus its probes answer through the whole shutdown. It has no defaults, thus `server_retry_after` is necessary, and each 503 of a probe gets its `Retry-After`.
 - **The probes on the port of the application.** `probeHandler(health, { prefix })` answers the same probes. Its mount answers until `close transports`, thus it answers through the drain. After the close of the transports, only a probe server answers.
 - **The probe paths.** The paths are `/startup`, `/readiness`, `/readiness/<controller>`, `/liveness` and `/report`, after the prefix. Each answer comes from the cache, as `application/health+json` with 200 or 503.
+- **The probe kinds.** The option `kinds` names the probes that answer, for example `["startup", "readiness", "liveness"]`. The default is all four of `PROBE_KINDS`.
+- **A kind that the list does not name.** Its path is not a probe. `probeHandler` gives it to the next handler, and `probeServer` answers it with 404. Thus a probe server can keep the report off its port.
+- **A bad list of kinds.** `probeHandler` and `probeServer` refuse an empty list, an unknown kind and a kind two times. The error names the bad part.
 - **A route through the request tracking.** `handle(controller, route, work, options)` gives a request handler. Each request that it takes goes through `life.request`, thus the service admits it, counts it and can cut it.
 - **The route of a handler.** A route name takes a request whose method and path are that name, for example `POST /orders`. A function gives the name of a route or of a pattern (`controller.pattern`), or null for a request of another handler. `options.detail` gives the detail of a request for the function of a pattern.
 - **The work.** The work gets the request and a signal. The signal aborts when the shutdown cuts the request, at the cooperative abort, or when the client goes away.
