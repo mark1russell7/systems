@@ -843,11 +843,14 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
 - Caddy 2.11.7 has its document (machines 0.3.18, #115). T02.defaults.41 is an idle gap through Caddy: Caddy sends GOAWAY 5 min after the last data, and grpc-js goes from READY to IDLE. It holds in 11 of 11 runs at 300.007 s (median), in run 39344223699. T02.array.41 is its alias.
   - The first run of the cell found a bug in the judge, not in Caddy. The judge of a driver had no case for the reference `last-data`. Thus it counted from the close of the peer. Through Caddy, that close was the idle close of the upstream socket at 120 s. harness 0.11.22 fixes it.
 - The facts of nginx and Traefik come from their sources too, for the cells that wait.
-  - At a reload of its dynamic file, Traefik 3.7.15 only swaps the handler of each entrypoint. Thus a reload sends nothing to the client. The idle timeout of 180 s counts from the end of the last stream, not from the reload. The cell T02.array.77 needs a hop event that writes a file.
+  - At a reload of its dynamic file, Traefik 3.7.15 only swaps the handler of each entrypoint. Thus a reload sends nothing to the client. The idle timeout of 180 s counts from the end of the last stream, not from the reload.
   - nginx 1.29.6 has one worker at its defaults. During a call, the only timer of the call is `grpc_read_timeout` (60 s). After a stop of the worker of more than 60 s, its timers fire before it reads the reply of the server. Thus the client gets 504, and grpc-js reads UNAVAILABLE.
 - nginx 1.29.6 has its document (machines 0.3.20). A hop event can stop a proxy and continue it at the end of a hold (harness 0.11.24).
   - T02.defaults.34: the server holds a call 5 s, and the worker of nginx stops for 90 s. The reply waits in the socket, and the read timer comes due. At the resume, nginx answers 504 before it reads the reply. It holds in 11 of 11 runs at 90.003 s (median), in run 39360323602. Each run gave `UNAVAILABLE: Received HTTP status code 504`.
   - T02.array.34 waits. DP08 sets a keepalive of the upstream, thus an `upstream {}` block, where nginx 1.29.6 and 1.29.7 differ. Its workload is busy, and the client of the harness holds one call in flight.
+- Traefik 3.7.15 has its document (machines 0.3.21). A hop event can write a file of a proxy, and the proxy confirms the change by a line of its output (harness 0.11.25).
+  - T02.array.77: in an idle gap, the reload changes a spare router, and Traefik confirms it. Nothing reaches the client, and the GOAWAY of the idle timeout comes 180 s after the last stream. It holds in 11 of 11 runs at 180.010 s (median), in run 39379039853.
+  - The first run failed: the GOAWAY came up to 86 ms late. A control with no reload gave the same lateness, thus it is in the process of Traefik, not in the reload. The document now gives a slack of 0.1 s, as an observation. The band stays below the time of the reload plus 180 s, thus a reload that armed the timer again would fail the cell.
 
 ## Kubernetes
 
