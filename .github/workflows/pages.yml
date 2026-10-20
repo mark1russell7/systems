@@ -35,10 +35,10 @@ jobs:
       checks: read
       statuses: read
     steps:
-      # A scheduled build takes the newest commit of main that passed CI
+      # A scheduled build takes the newest commit of main, or the newest green one if CI failed on it
       - id: green
         if: github.event_name == 'schedule'
-        uses: mark1russell7/template/.github/actions/green-main@7370860a744e657cdfe13b2f57d47e70697d5c7d # main
+        uses: mark1russell7/template/.github/actions/green-main@e95097e2153264ebb994e2979281844a546e296c # main
       - uses: actions/checkout@v7
         with:
           ref: ${{ steps.green.outputs.sha || github.sha }}
@@ -57,7 +57,7 @@ jobs:
           SITE_BASE: /${{ github.event.repository.name }}
           ASTRO_TELEMETRY_DISABLED: "1"
       # The Releases page and the Status page (releases/, status/ and their data/*.json), at deploy time
-      - uses: mark1russell7/template/.github/actions/site-pages@7370860a744e657cdfe13b2f57d47e70697d5c7d # main
+      - uses: mark1russell7/template/.github/actions/site-pages@e95097e2153264ebb994e2979281844a546e296c # main
         with:
           out: packages/site/dist
           roadmap: docs/ROADMAP.md
