@@ -824,6 +824,11 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - T02.defaults.35 and .36: a stop of Toxiproxy (SIGTERM) and of docker-proxy (SIGINT, as Docker stops it at a restart). The exit of the proxy closes the idle connection.
   - T02.defaults.48: the FIN of the stopped server, which Toxiproxy passes as a close of the client.
   - 4 array cells are aliases. The cells over Traefik, Caddy and nginx wait for their documents. 4 cells of docker-proxy wait, because it counts no request.
+- Caddy 2.11.7 has its document (machines 0.3.18, #115). T02.defaults.41 is an idle gap through Caddy: Caddy sends GOAWAY 5 min after the last data, and grpc-js goes from READY to IDLE. It holds in 11 of 11 runs at 300.007 s (median), in run 39344223699. T02.array.41 is its alias.
+  - The first run of the cell found a bug in the judge, not in Caddy. The judge of a driver had no case for the reference `last-data`. Thus it counted from the close of the peer. Through Caddy, that close was the idle close of the upstream socket at 120 s. harness 0.11.22 fixes it.
+- The facts of nginx and Traefik come from their sources too, for the cells that wait.
+  - At a reload of its dynamic file, Traefik 3.7.15 only swaps the handler of each entrypoint. Thus a reload sends nothing to the client. The idle timeout of 180 s counts from the end of the last stream, not from the reload. The cell T02.array.77 needs a hop event that writes a file.
+  - nginx 1.29.6 has one worker at its defaults. During a call, the only timer of the call is `grpc_read_timeout` (60 s). After a stop of the worker of more than 60 s, its timers fire before it reads the reply of the server. Thus the client gets 504, and grpc-js reads UNAVAILABLE. The cell T02.defaults.34 needs a hop event that stops a proxy for a hold.
 
 ## Kubernetes
 
