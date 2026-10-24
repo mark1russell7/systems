@@ -4,7 +4,7 @@ import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import { PROPAGATION, afterSync, kubeDefaults, s } from "../kind.ts";
 import { T07_CELLS } from "../t07.ts";
-import { FIRST_BACKOFF, T07_GRPC, T07_GRPC_ALIASES, T07_GRPC_SPECS, T07_GRPC_WAITING, backoffOf, grpcDeletion, lastWait } from "./t07.ts";
+import { FIRST_BACKOFF, T07_GRPC, T07_GRPC_ALIASES, T07_GRPC_SPECS, T07_GRPC_WAITING, backoffOf, grpcDeletion, lastWait, stalledConnect, synWaitOf } from "./t07.ts";
 
 /** These are the cells of R3's plan over grpc-go-server in T07 (plan.json): a client of gRPC in pods on each node. */
 const DEFAULTS = [4, 10, 12, 17, 20, 35, 38] as const;
@@ -69,7 +69,7 @@ describe("the gRPC catalog of T07", () => {
     expect(prediction).not.toHaveProperty("each");
   });
 
-  it("predicts a window for each old pod of a rolling update, through two refused connects (IPVS)", () => {
+  it("predicts a window for each old pod of a rolling update, through two refused connects or a stalled SYN (IPVS)", () => {
     const rolling = cell("T07.defaults.12");
     expect(rolling).toMatchObject({ mode: "ipvs", trigger: { kind: "rolling-update" }, pod: { replicas: 2 } });
     expect(rolling.prediction).toMatchObject({ kind: "window", nodes: "all", each: true, start: { from: "intake" }, end: { from: "deletion" }, certain: false });
@@ -78,8 +78,28 @@ describe("the gRPC catalog of T07", () => {
     expect(propagation).toBeCloseTo(1.309, 9);
     expect(valueIn(rolling.prediction.start.band.hi, "s")).toBeCloseTo(propagation, 9);
     expect(valueIn(rolling.prediction.end!.band.lo, "s")).toBeCloseTo(FIRST_BACKOFF.lo, 9);
-    expect(valueIn(rolling.prediction.end!.band.hi, "s")).toBeCloseTo(propagation + backoffOf(1).hi, 6);
+    // the stalled SYN ends later than the second refused connect: 1.309 + 2 × 1.064 s, not 1.309 + 1.93 s
+    const end = valueIn(rolling.prediction.end!.band.hi, "s");
+    expect(end).toBeCloseTo(propagation + stalledConnect(propagation), 6);
+    expect(end).toBeCloseTo(3.437, 6);
+    expect(end).toBeGreaterThan(propagation + backoffOf(1).hi);
+    expect(rolling.prediction.why).toMatch(/A pod that is gone gives no answer/);
     expect(planOf(rolling).inject).toEqual([{ do: "kubectl", args: ["-n", "{namespace}", "set", "env", "deployment/lab", "LAB_VERSION={version}"] }]);
+  });
+
+  it("connects two SYNs after IPVS drops an old pod that is gone, each 1 s apart and up to 64 ms late at HZ 1000", () => {
+    // the waits 0 to 4 of the SYN timer keep the initial RTO of 1 s (tcp_syn_linear_timeouts), then double
+    for (const k of [0, 1, 2, 3, 4]) expect(synWaitOf(k), `wait ${k}`).toEqual({ lo: 0.999, hi: 1.064 });
+    expect(synWaitOf(5).lo).toBeCloseTo(1.999, 9);
+    // a stall up to 1.309 s: the first SYN after the drop comes one wait later at the most, and IPVS
+    // drops it. The next one, one wait later, gets a live pod
+    expect(stalledConnect(1.309)).toBeCloseTo(2.128, 9);
+    expect(stalledConnect(0.309)).toBeCloseTo(2.128, 9);
+    // kind run 40123580623: the second deletion came 0.499 s to 0.602 s after the first, IPVS dropped the
+    // first pod 1.118 s to 1.276 s after its deletion, and the connect came 2.055 s to 2.101 s after the second
+    expect(2.101).toBeLessThan(1.309 + stalledConnect(1.309));
+    // conntrack keeps the NAT of a SYN to an old pod that is gone: no model gives that window
+    expect(() => grpcDeletion({ pod: kubeDefaults(2), mode: "iptables" }, afterSync("iptables"), true)).toThrow(/no model/);
   });
 
   it("predicts no failure when the kubelet stops a preStop of 60 s at the grace of 30 s (DP29)", () => {
@@ -129,8 +149,11 @@ describe("the gRPC catalog of T07", () => {
     expect(judgeKind(rolling, [run(5100, 7500), run(12_100, 14_500)]).decision).toBe("holds");
     // a failure between the two windows
     expect(judgeKind(rolling, [run(5100, 9000)]).decision).toBe("fails");
+    // a call that waits for a stalled SYN: it starts 0.104 s after the second deletion and ends at its timeout
+    expect(judgeKind(rolling, [run(12_104)]).decision).toBe("holds");
     // a failure after the end of the window of the last pod
-    expect(judgeKind(rolling, [run(12_000 + 1000 * (valueIn(afterSync("ipvs").hi, "s") + backoffOf(1).hi) + 300)]).decision).toBe("fails");
+    if (rolling.prediction.kind !== "window") throw new Error("a window");
+    expect(judgeKind(rolling, [run(12_000 + 1000 * valueIn(rolling.prediction.end!.band.hi, "s") + 300)]).decision).toBe("fails");
   });
 
   it("runs grpc-go with the gRPC probes of the kubelet, and the client of grpc-js after it", () => {

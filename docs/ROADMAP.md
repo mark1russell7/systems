@@ -880,8 +880,22 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - Under DP29, grpc-go got SIGTERM 30.003 s to 30.021 s after each of the 22 deletions, and no call failed.
   - In the rolling update in IPVS, no connect was refused. The two old pods went 0.50 s to 0.60 s apart. One sync dropped both, 1.12 s to 1.28 s after the first deletion. The first old pod stopped 0.16 s to 0.22 s after its deletion.
   - Thus at the GOAWAY of the second pod, IPVS sent reconnects to the first pod, and their SYNs got no answer. 81 calls in 9 of 11 runs timed out. Each one started 8 ms to 104 ms after the second deletion, in its window.
-  - A SYN retransmission reached a new pod approximately 2.1 s after the second deletion. The window holds because the client stops a call after 2 s. The model does not yet give this stalled SYN.
+  - A SYN retransmission reached a new pod approximately 2.1 s after the second deletion. The window holds because the client stops a call after 2 s. The next item gives the model of this stalled SYN.
   - 6 cells wait: the 2 liveness restarts, because grpc-go has no seam for them, and the 4 cells of Cilium.
+- The stalled SYN of T07 over gRPC has its model (algebra 0.7.3, machines 0.3.24). In a rolling update, a reconnect can go to an old pod that is gone.
+  - The SYN timer of Linux TCP is a backoff timer of the document (`syn_retransmit`). Its waits 0 to `tcp_syn_linear_timeouts` are 1 s (`tcp_timer.c` at 6.6, lines 604 and 624–631). At HZ 1000, each wait is up to 64 ms late.
+  - A pod that still runs refuses a connect, because its listener is closed. A pod that is gone gives no answer, and the calls wait in the queue of the channel.
+  - The kube-proxy of v1.37.0 sets `expire_nodest_conn` (`proxier.go`, line 281). At the drop of a pod, it gives the real server the weight 0, or it deletes it.
+  - The first SYN after the drop expires its entry of IPVS. IPVS drops that SYN, because its conntrack entry is confirmed (`ip_vs_core.c` at 6.17, lines 1997–2048). The next SYN gets a live pod.
+  - The timer arms again at each firing, thus the connect comes two waits after the drop at the most. Thus the window of each old pod ends 3.437 s after its deletion, not 3.239 s.
+  - In 10 runs of 40123580623, the record has the first retransmission, 1.030 s to 1.077 s after the second deletion. Each came after the drop and got no answer.
+  - In 9 runs, the record has the second retransmission, 2.055 s to 2.101 s after the second deletion. A new pod accepted it in each of the 8 records with the accept.
+  - A run ends when its rollout is complete. In 2 of the 11 runs, that came 0.842 s and 2.049 s after the second deletion, before the calls in the queue ended. Thus no failure of these runs is in the record.
+  - Conntrack keeps the NAT of a SYN to a pod that is gone (`SYN_SENT`). Thus a rolling update in iptables or nftables with SIGTERM before the propagation has no model yet.
+  - The records of 40123580623, judged again, hold each of the 7 cells. T07.defaults.12 holds in 11 of 11 runs of kind run 40128267098 with the new band.
+  - In 40128267098, each run had a stalled SYN to the first old pod, and the first retransmission came after the drop. Only 1 run recorded the second one, 2.063 s after the second deletion, and its 2 failed calls.
+  - The other 10 runs ended 1.915 s to 2.028 s after the second deletion, before the calls in the queue ended. Thus the record of a rolling update needs a longer observation.
+  - In each of the 11 runs, a node dropped the first old pod 1.312 s to 1.391 s after its deletion. That is after the bound of `afterSync`, 1.309 s.
 
 ## Kubernetes
 

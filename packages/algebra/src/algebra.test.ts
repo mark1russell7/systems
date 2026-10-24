@@ -47,6 +47,7 @@ const SOCKET: Machine = {
     "tx.data": { kind: "tx" },
     "tx.retransmit.first": { kind: "tx" },
     "timer.syn.exhausted": { kind: "timer" },
+    "timer.syn": { kind: "timer" },
     "timer.rto": { kind: "timer" },
     "timer.rto.exhausted": { kind: "timer" },
     "timer.keepalive.exhausted": { kind: "timer" },
@@ -71,6 +72,15 @@ const SOCKET: Machine = {
       arms: ["enter:SYN_SENT"],
       cancels: ["rx.synack"],
       fires: "timer.syn.exhausted",
+    },
+    syn_retransmit: {
+      duration: model("linux.syn-wait", ["fired", "tcp_syn_linear_timeouts"]),
+      lateness: model("linux.syn-wait-lateness", ["fired", "tcp_syn_linear_timeouts", "hz"]),
+      early: JIFFY,
+      arms: ["enter:SYN_SENT"],
+      cancels: ["rx.synack"],
+      fires: "timer.syn",
+      backoff: { resets: ["enter:SYN_SENT"] },
     },
     retransmit: {
       duration: model("linux.rto-wait", WAIT),
@@ -376,6 +386,19 @@ describe("recovery after a stall (Q4)", () => {
       unit: "s",
     });
     expect(() => recovery(SOCKET, "keepalive", given(HERE), s(1))).toThrow(/has no backoff/);
+  });
+
+  it("sends the SYN again each 1 s for the linear timeouts, then doubles the wait", () => {
+    const wait = (fired: number, values: Readonly<Record<string, Extent | Unknown>> = HERE) => timerOf(SOCKET, "syn_retransmit", given(values), fired);
+    // the waits 0 to 4 keep the initial RTO, then 2, 4 and 8 s: the waits of the give-up of 131 s
+    expect([0, 4, 5, 6, 7].map((fired) => wait(fired).duration)).toEqual([s(1), s(1), s(2), s(4), s(8)]);
+    // the waits of 1 s are 250 jiffies at HZ 250, at the level of 8 jiffies, and 1000 jiffies at HZ 1000, at 64
+    expect(wait(0)).toEqual({ duration: s(1), lateness: s(0.032), early: s(0.004) });
+    expect(wait(0, { ...HERE, hz: { value: 1000, unit: "Hz" } })).toEqual({ duration: s(1), lateness: s(0.064), early: s(0.001) });
+    // with linear timeouts off, the classic doubling from the first firing
+    expect(wait(1, { ...HERE, tcp_syn_linear_timeouts: { value: 0, unit: "count" } }).duration).toEqual(s(2));
+    // a stall of 1.309 s from the first SYN: the second retransmission is the first after it
+    expect(recovery(SOCKET, "syn_retransmit", given(HERE), s(1.309))).toMatchObject({ first: [1], low: s(1.992), high: s(2.064) });
   });
 });
 
