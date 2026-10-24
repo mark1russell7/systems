@@ -863,6 +863,20 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - Each of the 5 cells holds in 11 of 11 runs, in kind run 39390098968, with clients on the target in each run. In the drains and the scale-in, calls failed in 19 of 33 runs. Each failing client lost 50 calls, for 984 ms to 1021 ms. The last failure came 1.009 s to 1.034 s after the deletion. In IPVS, no reconnect met the leaving pod in 33 GOAWAYs. With the preStop of DP28, no call failed.
   - The first backoff of grpc-js has no jitter, and the jitter of each later wait compounds (backoff-timeout.ts:169-181). The document of grpc-js gives both from machines 0.3.22.
   - 2 array cells are aliases, and 9 cells wait. A rolling update needs a window for each old pod. The server grpc-go has no seam for a liveness restart. The lab has no Cilium.
+- The rolling updates of T07 over gRPC (kind 0.2.1). A window can be one window for each deleted replica (`each`). Each window counts from the intake and the deletion of its own replica.
+  - A rolling update deletes each old pod immediately after a sync of kube-proxy, thus the propagation waits `minSyncPeriod` (`afterSync`). That is longer than 1 s, and a pod can refuse more than one connect.
+  - The connect k of a client starts at the earliest after the lower bounds of the waits 0 to k − 1 of grpc-js. K is the largest k whose sum is at most the propagation. The window ends at most the wait K after the propagation.
+  - A propagation shorter than 1 s gives K = 0, thus the 5 cells keep their bands. In IPVS after a sync, K = 1, and the window ends 3.239 s after the deletion.
+  - T07.defaults.12 is a rolling update in IPVS. T07.array.12 is its alias: DP53 sets no knob on the path to the ClusterIP, and T07 has no cloud load balancer.
+  - T07.array.46 is a rolling update in iptables under DP29: a preStop sleep of 60 s in a grace of 30 s. The kubelet waits for the hook for the grace at the most. Then it sends SIGTERM with a grace of 2 s (`kuberuntime_container.go` at v1.37.0, lines 801–808 and 895–915).
+  - The API server refuses a sleep action that is longer than the grace (`validation.go`, line 3483). Thus the lab gives such a sleep as a command of the container.
+- Each of the 7 cells of T07 over gRPC holds in 11 of 11 runs, in kind run 40123580623. Each run had 2 or 3 of the 3 clients on its target.
+  - In the drains and the scale-in, calls failed in 17 of 33 runs. Each failed call was refused. The last failure came 0.994 s to 1.024 s after the deletion. With the preStop of DP28, and in the deletion in IPVS, no call failed.
+  - Under DP29, grpc-go got SIGTERM 30.003 s to 30.021 s after each of the 22 deletions, and no call failed.
+  - In the rolling update in IPVS, no connect was refused. The two old pods went 0.50 s to 0.60 s apart. One sync dropped both, 1.12 s to 1.28 s after the first deletion. The first old pod stopped 0.16 s to 0.22 s after its deletion.
+  - Thus at the GOAWAY of the second pod, IPVS sent reconnects to the first pod, and their SYNs got no answer. 81 calls in 9 of 11 runs timed out. Each one started 8 ms to 104 ms after the second deletion, in its window.
+  - A SYN retransmission reached a new pod approximately 2.1 s after the second deletion. The window holds because the client stops a call after 2 s. The model does not yet give this stalled SYN.
+  - 6 cells wait: the 2 liveness restarts, because grpc-go has no seam for them, and the 4 cells of Cilium.
 
 ## Kubernetes
 
