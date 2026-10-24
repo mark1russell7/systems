@@ -162,6 +162,20 @@ From 0.2.1, a window can be one window for each deleted replica (`each`). A roll
 - The facts of each run give these replicas, with the stamps of their intake and their deletion (`deletions`).
 - `predictionText` adds `of each deleted replica`. A window without `each` stays the window of the target.
 
+From 0.2.3, a run observes until each predicted window can close, and until each request that started in it ended (`observationEnd`).
+
+- The judge closes a window `end.band.hi` + δ after its end reference. A request that starts by then ends at most one timeout of the workload later.
+- Thus a run observes to its latest end reference, plus that band, the timeout and δ (`observationAfter`). With `each`, the end reference of each deleted replica counts.
+- A prediction that is not a window, or a window with no end, keeps the observation of 0.2.2. Such a run observes until the trigger is done and the cell is at rest again.
+- In kind run 40128267098, 10 of 11 runs of a rolling update over gRPC ended too early. The calls in the queue of a channel had not timed out yet, thus only 1 run recorded its failures.
+- The estimate of a cell for the shards adds this observation. The window of a pause of kube-proxy ends up to 122 s after the resume, because of a stale SYN_SENT entry. Thus each run of such a cell observes approximately 2 min more.
+
+From 0.2.3, a window can also give the propagation that it assumes (`propagation`). The judge holds the drop of the replica of each window from the rules of each node to the end of that band ± δ.
+
+- A later drop agrees with the law, but the band is short. The check of the run tells it (`tail`), and the cell is `extend` (D-EXTEND). A node that keeps the replica past the band to the end of the run is such a drop too.
+- An earlier drop only closes the window earlier, thus the judge does not test the start of the band.
+- `predictionText` adds `the rules drop the replica in` and the band.
+
 A preStop sleep that is longer than the grace is a command in the container (`sh -c "sleep 60"`). The API server refuses a sleep action that is longer than the grace.
 
 ## Tests

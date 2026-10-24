@@ -1,3 +1,4 @@
+import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import type { Declaration } from "./cell.ts";
 import { DESIGN, KUBE_PROBE, cellOf } from "./cells.fixture.ts";
@@ -75,6 +76,16 @@ describe("the shards of a catalog", () => {
     expect(shardOf(cells, 0, 1)).toHaveLength(21);
     expect(() => shardOf(cells, 4, 4)).toThrow(/not a shard/);
     expect(estimatedTime(cells[0]!)).toEqual(s(120 + 13 * 40));
+  });
+
+  it("estimates a run with its observation: a window that closes 122 s after the resume of a pause of 5 s", () => {
+    const window = { kind: "window", nodes: "paused", start: { from: "intake", band: b(-122, 4.6) }, end: { from: "resume", band: b(0, 122) }, certain: true, why: "a test" } as const;
+    const pause = { ...cellOf("freeze-process"), prediction: window };
+    // the hold of 5 s, then the window, the timeout of 1 s of the workload and δ
+    expect(valueIn(estimatedTime(pause), "s")).toBeCloseTo(120 + 13 * (25 + 5 + 122 + 1 + 0.1), 6);
+    // a short window keeps the estimate of its trigger
+    const short = { ...cellOf("pod-deletion"), prediction: { ...window, nodes: "all", end: { from: "deletion", band: b(0, 0.3) } } } as const;
+    expect(estimatedTime(short)).toEqual(s(120 + 13 * 40));
   });
 });
 

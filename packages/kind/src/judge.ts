@@ -46,4 +46,17 @@ export type { KubeProxyMode } from "./scenario.ts";
 export { STAGES, kindCellRecordSchema, kindCellRecordV1Schema, readRecord } from "./schema.ts";
 export { RELATIVE, medianInterval, middle, quantileOf } from "./stats.ts";
 export type { Deleted, KindDecision, KindVerdict, Propagated, RunCheck, RunFacts } from "./verdict.ts";
-export { KIND_NOISE, LAST_SLACK, checkRun, deletionsOf, factsOf, judgeKind, propagationOf, referenceOf, reusesReset, unitOf } from "./verdict.ts";
+export {
+  KIND_NOISE,
+  LAST_SLACK,
+  checkRun,
+  deletionsOf,
+  factsOf,
+  judgeKind,
+  observationAfter,
+  observationEnd,
+  propagationOf,
+  referenceOf,
+  reusesReset,
+  unitOf,
+} from "./verdict.ts";

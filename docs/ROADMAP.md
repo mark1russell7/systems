@@ -910,6 +910,25 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - The next sync of the kubelet made the pod not ready 0.125 s to 0.176 s after the stop. Its readiness probe passed 16 ms to 41 ms later, and in 2 runs 0.994 s and 10.007 s later.
   - The rules of each node dropped the pod 0.150 s to 0.238 s after the stop. Thus the next connect of each failing client, after the first backoff, went to the other pod.
   - 4 cells of T07 over gRPC wait, because the lab has no Cilium.
+- The fix of both findings (kind 0.2.3). A run observes until each predicted window can close, and until each request that started in it ended (`observationEnd`).
+  - For a window, that is its latest end reference, plus the end of its band, the timeout of the workload and δ. With `each`, it is the latest deletion. Each other prediction keeps its observation.
+  - Thus a run of the rolling update in IPVS observes 5.846 s after the second deletion. Before, it ended approximately 2 s after it.
+  - The cause of the late drop: the runner of kube-proxy waits `minSyncPeriod` from the end of a sync, not from the change (`bounded_frequency_runner.go` at v1.37.0, lines 48–51 and 132–141).
+  - In each run, the new pod came into the EndpointSlice 41 ms to 93 ms before the first deletion, not ready yet. That change started a sync at once.
+  - The deletion came during that sync. Then one sync of each node added both new pods and dropped both old pods, 1.232 s to 1.391 s after the first deletion.
+  - Thus `afterSync` has one more sync: the sync at the change, `minSyncPeriod` after its end, then the idle propagation. The bound of one sync is the idle propagation of the mode.
+  - iptables and nftables apply all rules at the end of a sync, with one iptables-restore or one transaction (`iptables/proxier.go`, line 1384, and `nftables/proxier.go`, line 1872). Thus an idle propagation holds each step of a sync.
+  - IPVS changes the real servers in its loop over the Services, and then it syncs its ipsets and restores iptables (`ipvs/proxier.go`, lines 771–859 and 1168–1188). For IPVS, the bound of one sync is an assumption.
+  - The new bounds are 1.618 s for IPVS, 1.21 s for iptables and 1.158 s for nftables. The window of each old pod in IPVS ends 3.746 s after its deletion, not 3.437 s.
+  - A window can give the propagation that it assumes (`propagation`). A drop after that band makes the cell `extend`. Only the rolling update gives it, because its band comes from the source of kube-proxy.
+  - The idle cells do not give it yet. In run 39090689204, nftables dropped a pod 0.301 s after its deletion, after its calibration of 0.079 s and δ. In run 40131899989, T07.defaults.30 (nftables) had a drop at 0.208 s.
+  - Also, IPVS syncs 30 s after each sync with no change (`ipvs/proxier.go`, line 387). A deletion soon after such a sync waits `minSyncPeriod`, and the idle calibration does not bound it.
+- Each of the 28 cells of T07 holds, is a calibration or is a measurement in kind run 40131899989 (kind 0.2.3). 24 cells hold, 3 are calibrations and 1 is a measurement, and no run was void.
+  - T07.defaults.12 holds in 11 of 11 runs. 10 of 11 runs recorded failed calls, 127 timeouts in all. Before the fix, only 1 of 11 runs did.
+  - Each run observed 5.98 s to 6.03 s after the second deletion. Each failed call started 0.009 s to 0.123 s after the second deletion and ended at its timeout of 2 s.
+  - The rules dropped each old pod 1.365 s after its deletion at the most, in the new bound of 1.618 s.
+  - In CAL.T07.ipvs, a change in the wait after a sync reached the rules 0.293 s to 0.368 s after `minSyncPeriod`. That count starts at the change that started the sync. It is less than two idle propagations, 0.618 s.
+  - In the drains and the scale-in, calls failed in 16 of 33 runs, and each failed call was refused. Under DP29 (T07.array.46), the rules dropped each old pod 1.056 s after its deletion at the most.
 
 ## Kubernetes
 
@@ -923,6 +942,12 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
 - **Links:** [The results](https://mark1russell7.github.io/systems/results/kind/), [#34](https://github.com/mark1russell7/systems/pull/34), [The run at main](https://github.com/mark1russell7/systems/actions/runs/39090689204), [#59](https://github.com/mark1russell7/systems/pull/59)
 
 T07 is the lifecycle of the endpoints of a Service, and T18 is a fleet whose readiness needs Redis. In the run at main of 2026-10-18, 26 of the 31 cells hold, 3 are calibrations and 2 are measurements, and no cell fails. KIND-LONE gave the cause of each lone failure of 2026-10-17.
+
+From kind 0.2.3, a run observes until each predicted window can close (H2). The window of a pause of kube-proxy ends up to 122 s after the resume, because of a stale SYN_SENT entry. Thus each run of such a cell observes approximately 2 min more. `afterSync` has one more sync, thus the bound of the rolling update in iptables (T07.defaults.23) is 1.21 s, not 1.105 s. Its prediction stays no failure, because the intake stops 2 s after the deletion.
+
+In kind run 40131899989, each of the 21 HTTP cells of T07 holds, is a calibration or is a measurement. The rules dropped each old pod of T07.defaults.23 1.050 s after its deletion at the most. Each run of a pause observed 124.4 s after the resume, and the longest shard took 60 min.
+
+In iptables and nftables, stale SYN_SENT entries failed requests of the paused node up to 116.2 s after the resume. That is in the window of 122.1 s. In IPVS, no request failed later than 0.07 s after the resume. No request failed on another node.
 
 ### KIND-LONE · The cause of the lone failures in kind
 

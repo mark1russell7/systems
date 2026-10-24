@@ -19,7 +19,7 @@ import { byClients } from "./observe.ts";
 import type { EnvironmentManifest, KindCellRecord, KindCellResult, LoadSample } from "./record.ts";
 import { FORMAT } from "./record.ts";
 import { scenario } from "./scenario.ts";
-import { judgeKind } from "./verdict.ts";
+import { judgeKind, observationAfter, observationEnd } from "./verdict.ts";
 
 /** This time is the interval of the poll of the rules on each node. */
 export const RULES_EVERY: Quantity = { value: 50, unit: "ms" };
@@ -321,7 +321,15 @@ const over = (
   return true;
 };
 
-/** This function does one run of a cell: at rest, the trigger, the heal, then the observation until the cell is at rest again. */
+/** This function gives the replica that the trigger stopped. For a scale-in or a drain, the controller chooses it. */
+const stoppedOf = (cell: KindCell, replicas: readonly Replica[], target: Replica | null, lines: readonly Line[]): Replica | null =>
+  deletesAPod(cell) ? (replicas.find((replica) => lines.some((line) => line.ev === "pod" && line["name"] === replica.pod && line["del"] === true)) ?? target) : target;
+
+/**
+ * This function does one run of a cell: at rest, the trigger, the heal, then the observation. The
+ * observation lasts until the cell is at rest again, and until each predicted window can close
+ * (`observationEnd`).
+ */
 const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean, ours: Set<string>): Promise<KindRun> => {
   const { lab, cell, cluster, namespace } = ctx;
   const plan = planOf(cell);
@@ -375,6 +383,12 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
   const limit = Date.now() + 240_000 + valueIn(cell.pod.grace, "ms") + valueIn(cell.pod.preStop, "ms");
   await sleep(3000);
   while (Date.now() < limit && !over(ctx, { target, replicas, restarts }, lab.lines)) await sleep(250);
+  // then until each predicted window can close and each request that started in it ended (`observationEnd`)
+  const until = observationEnd(cell, { start, acts: { fault, heal, resume }, target: stoppedOf(cell, replicas, target, lab.lines), replicas, lines: lab.lines });
+  if (until !== null) {
+    const wait = Math.min(until - (await lab.now()), limit - Date.now());
+    if (wait > 0) await sleep(wait);
+  }
   const end = await lab.now();
   const timedOut = Date.now() >= limit;
   for (const step of plan.restore) {
@@ -387,8 +401,7 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
   ctx.expected = cell.pod.replicas;
   for (const note of notes) ctx.log(`  ${note}`);
   const lines = lab.take();
-  // the replica that the trigger stopped: for a scale-in or a drain, the controller chooses it
-  const stopped = deletesAPod(cell) ? (replicas.find((replica) => lines.some((line) => line.ev === "pod" && line["name"] === replica.pod && line["del"] === true)) ?? target) : target;
+  const stopped = stoppedOf(cell, replicas, target, lines);
   const restarted = lines.some((line) => line.ev === "pod" && (line["cs"] as Array<{ rc: number }>).some((status) => status.rc > 0));
   if (restarted) {
     // a container that restarted gets a back-off on its next restart: new pods start without one
@@ -538,7 +551,10 @@ const estimate = (cell: KindCell, environments = 2): number => {
     "cpu-throttle": hold + 40,
     rollout: hold + 50,
   };
-  const each = 25 + (trigger[cell.trigger.kind] ?? (cell.template === "T18" ? hold + 35 : 15 + valueIn(cell.pod.preStop, "s")));
+  // a window can need a longer observation: from the end of the hold, until each request that started in it ended
+  const after = observationAfter(cell);
+  const observed = after === null ? 0 : hold + valueIn(after, "s");
+  const each = 25 + Math.max(observed, trigger[cell.trigger.kind] ?? (cell.template === "T18" ? hold + 35 : 15 + valueIn(cell.pod.preStop, "s")));
   return 60 * environments + (cell.runs + environments) * each;
 };
 

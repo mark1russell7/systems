@@ -67,11 +67,17 @@ describe("the kind catalogs", () => {
     }
   });
 
-  it("waits minSyncPeriod after a sync before the rules drop the old pod of a rolling update", () => {
-    expect(afterSync("iptables")).toMatchObject({ lo: s(0), hi: s(1.105) });
+  it("waits for the end of a sync and minSyncPeriod before the rules drop the old pod of a rolling update", () => {
+    // a sync of up to one idle propagation at the deletion, minSyncPeriod (1 s) after its end, then the idle propagation
+    for (const mode of ["iptables", "ipvs", "nftables"] as const)
+      expect(valueIn(afterSync(mode).hi, "s"), mode).toBeCloseTo(1 + 2 * valueIn(PROPAGATION[mode].hi, "s"), 9);
+    expect(afterSync("iptables")).toMatchObject({ lo: s(0), hi: s(1.21) });
+    // the latest drop of an old pod: 1.391 s in IPVS (kind run 40128267098), 1.065 s in iptables (39090689204)
+    expect(valueIn(afterSync("ipvs").hi, "s")).toBeGreaterThan(1.391);
+    expect(valueIn(afterSync("iptables").hi, "s")).toBeGreaterThan(1.065);
     const update = T07_CELLS.find((cell) => cell.trigger.kind === "rolling-update")!;
     expect(update.prediction.kind).toBe("none");
-    expect(update.prediction.why).toMatch(/1\.105 s at the most, minSyncPeriod/);
+    expect(update.prediction.why).toMatch(/1\.21 s at the most, a sync of up to 0\.105 s at the change, minSyncPeriod/);
   });
 
   it("fits the drain of each declaration in its grace: O10 and O16 hold", () => {
