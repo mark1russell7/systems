@@ -1,7 +1,8 @@
 import { realizationOf, timerOf } from "@mark1russell7/algebra";
 import type { Subject } from "@mark1russell7/harness";
-import { latestEndOf } from "@mark1russell7/harness";
+import { DROP_HANDLING, latestEndOf } from "@mark1russell7/harness";
 import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER, nodeEarlySeconds, nodeLateSeconds } from "@mark1russell7/machines";
+import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import { HZ } from "./catalog.ts";
 import { PROCEDURES } from "./subjects.ts";
@@ -26,6 +27,13 @@ const waits = (name: string) => {
 };
 /** the band of a Node timer of `seconds`, at the HZ of the cells */
 const nodeBand = (seconds: number) => [round(seconds - nodeEarlySeconds(HZ)), round(seconds + nodeLateSeconds(seconds, HZ))];
+/** the handling time of the program, from the firing of its timer to the kernel's stamp of its drop */
+const HANDLED = valueIn(DROP_HANDLING, "s");
+/** the band of a drop on a Node timer of `seconds`: the band of the timer, and the handling on its high bound */
+const dropBand = (seconds: number) => {
+  const [low, high] = nodeBand(seconds);
+  return [low!, round(high! + HANDLED)];
+};
 const heartbeat = (interval: number) => ({ ...CLIENT, heartbeat: { interval, timeout: 1000, misses: 1 } });
 
 describe("the WST catalog", () => {
@@ -82,7 +90,7 @@ describe("the WST catalog", () => {
     // the ping meets a reset from the router, one round trip at most
     expect(band("client idle, router reset-next at 5 s, heartbeat 6 s and 1 s")).toEqual({ timer: "rx.rst", errno: "ECONNRESET", from: "ping-sent", low: 0, high: 0.001 });
     // the ping goes into nothing: the pong timeout drops the connection, with a close frame of the global WebSocket
-    const [low, high] = nodeBand(1);
+    const [low, high] = dropBand(1);
     expect(band("client idle, router silent-drop at 5 s, heartbeat 6 s and 1 s")).toEqual({ timer: "pong", errno: "DROPPED", from: "ping-sent", low, high, drop: "frame" });
     for (const form of ["reset-both", "reset-next", "silent-drop"]) {
       const name = `client idle, router ${form} at 5 s, heartbeat 6 s and 1 s`;
@@ -113,7 +121,7 @@ describe("the WST catalog", () => {
   });
 
   it("predicts a black hole on each leg of HAProxy by the heartbeat: the kernel of HAProxy acknowledges the ping on the client leg", () => {
-    const [low, high] = nodeBand(1);
+    const [low, high] = dropBand(1);
     for (const toward of ["client", "target"]) {
       const name = `client idle, blackhole at HAProxy toward the ${toward}, heartbeat 2 s and 1 s`;
       expect(band(name), name).toEqual({ timer: "pong", errno: "DROPPED", from: "ping-sent", low, high, drop: "frame" });
@@ -137,7 +145,7 @@ describe("the WST catalog", () => {
       const p = each.prediction;
       expect(twin.prediction, twin.name).toEqual(p.detects === true && p.drop !== undefined ? { ...p, drop: "close" } : p);
     }
-    const [low, high] = nodeBand(1);
+    const [low, high] = dropBand(1);
     for (const name of [
       "client idle, router silent-drop at 5 s, heartbeat 6 s and 1 s, the ws class",
       "client idle, blackhole at HAProxy toward the client, heartbeat 2 s and 1 s, the ws class",
@@ -174,7 +182,7 @@ describe("the WST catalog", () => {
       errno: "DROPPED",
       from: "ping-sent",
       low: round(12 - 2 * nodeEarlySeconds(HZ)),
-      high: round(12 + 2 * nodeLateSeconds(6, HZ)),
+      high: round(12 + 2 * nodeLateSeconds(6, HZ) + HANDLED),
       drop: "close",
     });
     // none answers the ping with a reset from the stack of the router, in one round trip

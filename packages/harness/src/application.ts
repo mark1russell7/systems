@@ -15,6 +15,35 @@ import { NOISE } from "./verdict.ts";
  * a line of a server names it by its peer (`peer`).
  */
 
+/**
+ * This time bounds the handling of a drop by the program of the observer. It starts when the timer
+ * of the program fires. It ends at the kernel's stamp of the act: the write of a close frame, or
+ * the close of the socket. The `drop` line comes in that time, before the act.
+ *
+ * This bound is not δ_abs. δ_abs is the noise of the pipeline, and stage 0 calibrates it from a
+ * reset. The handling is the time of the code of the program, and it is longer:
+ * - No source and no machine document bounds it (`http/timers.ts` of `@mark1russell7/machines`).
+ * - The handling time of the HTTP cells (`HANDLING` in `packages/cells/src/http/race.ts`) is
+ *   another act. It is the first reply of a new process, up to 11.182 ms.
+ * - A drop comes from a timer, long after the start of the process.
+ *
+ * The bound comes from the CI records of the WS and WST cells, from the `drop` line to the act:
+ * - 585 drops with a close frame had a median of 0.652 ms, a 99th percentile of 0.87 ms and a
+ *   maximum of 1.017 ms.
+ * - 559 drops with a close of the socket had a maximum of 0.914 ms.
+ * - Two drops took more than the δ_abs of 1 ms. Each failed its cell, and its time was in the band.
+ *   These are the runs 39390222333 and 39903020657 of the client repository.
+ *
+ * The bound is 1.5 ms: the maximum and a margin of 0.48 ms. The pairing of a drop with its act
+ * uses it, or δ_abs when δ_abs is longer. The band of a drop adds it to its high bound (the WS
+ * catalog of the cells). Read the records again after a change to the subject, to Node or to
+ * the runners.
+ */
+export const DROP_HANDLING: Quantity = quantity(1.5, "ms");
+
+/** This function gives the window of the act of a drop after its line, in seconds: `DROP_HANDLING`, or δ_abs when δ_abs is longer. */
+const dropWindow = (delta: Quantity): number => Math.max(valueIn(DROP_HANDLING, "s"), valueIn(delta, "s"));
+
 /** This function gives the interval between two instants on the one clock, in seconds to the microsecond. */
 const between = (from: number, to: number): Quantity => quantity(Math.round((to - from) / 1e3) / 1e6, "s");
 
@@ -24,8 +53,9 @@ const oldState = (record: KernelRecord): number | undefined => (record as { read
 
 /**
  * A program event is a line of the program of the observer, with the kernel's stamp of its act.
- * The act is a write, or a change of state of the socket. Without a record of the kernel in δ_abs
- * after the line, the instant is the stamp of the line.
+ * The act is a write, or a change of state of the socket. Without a record of the kernel in its
+ * window after the line, the instant is the stamp of the line. The window is δ_abs, and for a drop
+ * it is `DROP_HANDLING` when that is longer.
  */
 export interface ProgramEvent {
   readonly line: ProbeEvent;
@@ -55,7 +85,7 @@ const onConnection = (line: ProbeEvent, local: unknown): boolean => {
   return (line["local"] ?? line["peer"]) === local;
 };
 
-/** This function gives the first record of a socket that matches, at the stamp of a line or in δ_abs after it. */
+/** This function gives the first record of a socket that matches, at the stamp of a line or in a window (`delta`) after it. */
 const kernelAt = (
   socket: readonly KernelRecord[],
   line: ProbeEvent,
@@ -134,7 +164,8 @@ export const closeOrExit = (
 
 /**
  * This function tells how a drop differs from the way that its prediction gives, or gives null.
- * A close closes the socket in δ_abs. A close frame is a write, and the program does not close
+ * A close closes the socket at once: in the handling time of the program (`DROP_HANDLING`), or in
+ * δ_abs (`delta`) when δ_abs is longer. A close frame is a write, and the program does not close
  * the socket at the drop. A peer that answers the close frame can close it, and that is no finding.
  */
 export const dropFinding = (
@@ -144,7 +175,7 @@ export const dropFinding = (
   delta: Quantity = NOISE,
   exited?: Quantity,
 ): string | null => {
-  const noise = valueIn(delta, "s");
+  const noise = dropWindow(delta);
   const soon = left !== null && valueIn(left, "s") <= noise;
   if (expected === "close") {
     if (left === null)
@@ -185,7 +216,8 @@ export const firstUnanswered = (
 /**
  * This function gives the first drop of the connection by its program. The kernel stamps it as the
  * write of a close frame. Or it stamps the change of the socket out of ESTABLISHED: a close or an
- * abort.
+ * abort. That stamp comes in the handling time of the program after the drop line
+ * (`DROP_HANDLING`), or in δ_abs (`delta`) when δ_abs is longer.
  */
 export const dropOf = (
   lines: readonly ProbeEvent[],
@@ -196,7 +228,7 @@ export const dropOf = (
   const line = lines.find((each) => each.ev === "drop" && onConnection(each, local));
   return line === undefined
     ? undefined
-    : eventOf(socket, line, (record) => isWrite(record) || (record.ev === "state" && oldState(record) === 1), delta);
+    : eventOf(socket, line, (record) => isWrite(record) || (record.ev === "state" && oldState(record) === 1), quantity(dropWindow(delta), "s"));
 };
 
 /** A reconnect reading is what the client did after the detection, from its lines and from the records of the kernel. */

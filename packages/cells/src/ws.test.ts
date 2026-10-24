@@ -1,6 +1,8 @@
 import { algebraProblems, machineProblems } from "@mark1russell7/algebra";
 import type { Subject } from "@mark1russell7/harness";
+import { DROP_HANDLING } from "@mark1russell7/harness";
 import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER, nodeEarlySeconds, nodeLateSeconds } from "@mark1russell7/machines";
+import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import { HZ } from "./catalog.ts";
 import { NODE_IMAGE } from "./http/cells.ts";
@@ -26,6 +28,13 @@ const waits = (name: string) => {
 };
 /** the band of a Node timer of `seconds`, at the HZ of the cells */
 const nodeBand = (seconds: number) => [round(seconds - nodeEarlySeconds(HZ)), round(seconds + nodeLateSeconds(seconds, HZ))];
+/** the handling time of the program, from the firing of its timer to the kernel's stamp of its drop */
+const HANDLED = valueIn(DROP_HANDLING, "s");
+/** the band of a drop on a Node timer of `seconds`: the band of the timer, and the handling on its high bound */
+const dropBand = (seconds: number) => {
+  const [low, high] = nodeBand(seconds);
+  return [low!, round(high! + HANDLED)];
+};
 
 describe("the WS catalog", () => {
   it("reads two documents that the algebra accepts", () => {
@@ -48,7 +57,7 @@ describe("the WS catalog", () => {
   });
 
   it("predicts the drop by the heartbeat one pong timeout after the ping that got no answer, where the kernel waits", () => {
-    const [low, high] = nodeBand(1);
+    const [low, high] = dropBand(1);
     for (const name of [
       "client idle, blackhole, heartbeat 2 s and 1 s",
       "client, a call in flight, blackhole, heartbeat 2 s and 1 s",
@@ -58,6 +67,23 @@ describe("the WS catalog", () => {
       expect(band(name), name).toEqual({ timer: "pong", errno: "DROPPED", from: "ping-sent", low, high, drop: "frame" });
     // the band does not read the round trip
     expect(cell("client idle, blackhole, heartbeat 2 s and 1 s").prediction).not.toHaveProperty("rtt");
+  });
+
+  it("adds the handling of the firing to the high bound of a drop, from the pong timeout to its close frame", () => {
+    expect(HANDLED).toBe(0.0015);
+    const p = cell("client idle, blackhole, heartbeat 2 s and 1 s").prediction;
+    if (p.detects !== true) throw new Error("the cell detects");
+    // the pong timeout of 1 s, less its early bound: 1 ms for the loop clock, and one step of the coarse clock
+    expect(p.low.value).toBe(round(1 - 0.001 - (HZ >= 1000 ? 1000 / HZ / 1000 : 0)));
+    // the timeout, its lateness (the slack of 1 ms, 1 ms for the loop clock, the coarse step), then 1.5 ms of handling
+    expect(p.high.value).toBe(round(1 + 0.001 + 0.001 + (HZ >= 1000 ? 1000 / HZ / 1000 : 0) + 0.0015));
+    if (HZ === 250) expect([p.low.value, p.high.value]).toEqual([0.999, 1.0035]);
+    // the containment with the δ_abs of 1 ms of the runners: the slowest of 495 runs in CI, 1.003761 s, is inside it
+    const delta = 0.001;
+    expect(1.003761).toBeLessThanOrEqual(p.high.value + delta);
+    expect(round(p.high.value + delta - 1.003761)).toBeGreaterThanOrEqual(0.0007);
+    // a band of the kernel gets no handling: a reset answers the ping in one round trip
+    expect(band("client idle, rst, heartbeat 2 s and 1 s")).toMatchObject({ low: 0, high: 0.001 });
   });
 
   it("tells the harness that the client process ends with the run, thus its end is not a close by the program", () => {
@@ -71,7 +97,7 @@ describe("the WS catalog", () => {
   });
 
   it("predicts the drop of the ws class at the same time, as a close of its socket at once", () => {
-    const [low, high] = nodeBand(1);
+    const [low, high] = dropBand(1);
     expect(band("client idle, blackhole, heartbeat 2 s and 1 s, the ws class: terminate()")).toEqual({
       timer: "pong",
       errno: "DROPPED",
@@ -119,7 +145,8 @@ describe("the WS catalog", () => {
       errno: "DROPPED",
       from: "ping-sent",
       low: round(2 - 2 * nodeEarlySeconds(HZ)),
-      high: round(2 + 2 * nodeLateSeconds(1, HZ)),
+      // two beats, then the handling of the second firing to the close of the socket
+      high: round(2 + 2 * nodeLateSeconds(1, HZ) + HANDLED),
       drop: "close",
     });
     expect(cell("server idle, blackhole, server heartbeat 1 s and 2 misses").target.command).toEqual([

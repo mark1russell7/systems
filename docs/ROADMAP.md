@@ -562,6 +562,10 @@ T01, T03 and T11 put the Node driver against a replica set of three. The documen
 
 The client of `@procedures/client` drops a silent connection on its own heartbeat. The harness times the drop and the reconnect, behind routers and HAProxy too.
 
+- harness 0.12.1 (PATCH: a bug fix before 1.0.0) pairs a `drop` line with its act in the handling time of the program. That bound is `DROP_HANDLING` (1.5 ms), not δ_abs (1 ms).
+- In CI, a close frame came up to 1.017 ms after its `drop` line. Two such drops failed their cells, with their times in the band. These are the runs 39390222333 and 39903020657 of the client repository.
+- The high bound of each drop by a heartbeat in WS and WST adds the same 1.5 ms. The other bands do not change.
+
 ### WS-070 · The WebSocket cells on @procedures/client 0.7.0
 
 - **Status:** done

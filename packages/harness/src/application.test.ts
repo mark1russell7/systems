@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { callOf, exitOf, reconnectFinding } from "./application.ts";
+import { DROP_HANDLING, callOf, dropFinding, dropOf, exitOf, reconnectFinding } from "./application.ts";
 import type { Cell, KernelRecord, ProbeEvent, Run } from "./cell.ts";
 import { latestEndOf } from "./cell.ts";
 import { measure } from "./observe.ts";
@@ -188,6 +188,38 @@ describe("a detection by the program of the observer, from its lines and the ker
     // a socket that left ESTABLISHED later than the noise did not leave at once
     const late = [...kernel.filter((record) => record.mono !== D + 30_000), state(D + 520_000_000, 1, 4)];
     expect(measure(close, run(client, late)).finding).toBe("the program closed its socket 0.52 s after the drop, not at once");
+  });
+
+  it("pairs a drop line with its act in the handling time of the program, not in δ_abs", () => {
+    expect(DROP_HANDLING).toEqual(ms(1.5));
+    // a runner whose δ_abs is 1 ms: the act of the drop can come later than δ_abs after its line
+    const frame: Cell = { ...HEARTBEAT, noise: ms(1), prediction: { ...HEARTBEAT.prediction, drop: "frame" } as Cell["prediction"] };
+    const close: Cell = { ...HEARTBEAT, noise: ms(1), prediction: { ...HEARTBEAT.prediction, drop: "close" } as Cell["prediction"] };
+    const without = kernel.filter((record) => record.mono !== D + 30_000);
+    const framed = (after: number) => [...without, k("tx", D + after, data(6))];
+    const lines = client.filter((line) => line.ev === "drop");
+    const socket = (records: KernelRecord[]) => records.filter((record) => record.cookie === OLD);
+    // the close frame 1.2 ms after the drop line: the pairing holds, and the drop ends at the write
+    const paired = dropOf(lines, socket(framed(1_200_000)), LOCAL, ms(1));
+    expect(paired).toMatchObject({ at: D + 1_200_000, kernel: true, record: "write" });
+    expect(dropFinding("frame", paired!, null, ms(1))).toBeNull();
+    expect(measure(frame, run(client, framed(1_200_000)))).toMatchObject({ outcome: { kind: "dropped" }, elapsed: s(1.002675), finding: null });
+    // the run of CI that failed its cell: its close frame came 1.017 ms after the line
+    expect(measure(frame, run(client, framed(1_017_000))).finding).toBeNull();
+    // the window ends at the bound itself
+    expect(dropOf(lines, socket(framed(1_500_000)), LOCAL, ms(1))).toMatchObject({ kernel: true, record: "write" });
+    // a close frame beyond the bound is not the act of the drop: the drop wrote no close frame
+    const unpaired = dropOf(lines, socket(framed(1_600_000)), LOCAL, ms(1));
+    expect(unpaired).toMatchObject({ at: D, kernel: false, record: null });
+    expect(dropFinding("frame", unpaired!, null, ms(1))).toBe("the drop wrote no close frame on its socket");
+    expect(measure(frame, run(client, framed(1_600_000))).finding).toBe("the drop wrote no close frame on its socket");
+    // a δ_abs longer than the bound keeps its window: 4 ms where stage 0 did not calibrate the runner
+    expect(dropOf(lines, socket(framed(3_000_000)), LOCAL)).toMatchObject({ at: D + 3_000_000, kernel: true });
+    // terminate() of ws: a close 1.2 ms after the line is at once, and a close 1.6 ms after it is not
+    expect(measure(close, run(client, [...without, state(D + 1_200_000, 1, 4)]))).toMatchObject({ left: s(0.0012), finding: null });
+    expect(measure(close, run(client, [...without, state(D + 1_600_000, 1, 4)])).finding).toBe(
+      "the program closed its socket 0.0016 s after the drop, not at once",
+    );
   });
 
   it("tells a close by the program from the end of the client process, for a prediction that says the client exits", () => {

@@ -1,7 +1,7 @@
 import type { KnobValues, Manifestation } from "@mark1russell7/algebra";
 import { errnoOf, overValues, stackedDetection, timerOf, timerUnder, transitionOn } from "@mark1russell7/algebra";
 import type { Cell, Fault, Prediction, Reconnects, Reference, Subject, Target, WsProbe } from "@mark1russell7/harness";
-import { NOISE, programOf, subjectClient } from "@mark1russell7/harness";
+import { DROP_HANDLING, NOISE, programOf, subjectClient } from "@mark1russell7/harness";
 import { LINUX_TCP, PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "@mark1russell7/machines";
 import type { Extent } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
@@ -371,6 +371,8 @@ const stallAt = (spec: WsSpec, rttMs: number): Prediction => {
  * - Otherwise the first live timer detects it. A timer of the kernel gives its errno. A heartbeat
  *   drops the connection (`DROPPED`), from the first ping without an answer. The global WebSocket
  *   drops with a close frame, and the WebSocket of ws and the server with a close of the socket.
+ * - The kernel stamps a drop at that act, after the program handled the firing of its timer. Thus
+ *   the high bound of a drop adds the handling time of the program (`DROP_HANDLING` of the harness).
  */
 export const predictWsAt = (spec: WsSpec, rttMs: number): Prediction => {
   const rtt = rttMs / 1000;
@@ -420,7 +422,9 @@ export const predictWsAt = (spec: WsSpec, rttMs: number): Prediction => {
   // a timer of the program itself: the heartbeat drops the connection by itself. The client process
   // ends at the end of the run, and the kernel closes its sockets then: that close is not the drop
   const drop = !server && spec.client.socket === "global" ? "frame" : "close";
-  return { detects: true, timer, errno: "DROPPED", from: "ping-sent", ...band, ...reconnects, drop, ...(server ? {} : { exits: true as const }) };
+  // the kernel stamps the drop at its act, a close frame or a close, after the handling of the firing
+  const high = q(valueIn(band.high, "s") + valueIn(DROP_HANDLING, "s"));
+  return { detects: true, timer, errno: "DROPPED", from: "ping-sent", ...band, high, ...reconnects, drop, ...(server ? {} : { exits: true as const }) };
 };
 
 /** This function gives the prediction of a cell, with the range of first round trips that its band assumes. */
