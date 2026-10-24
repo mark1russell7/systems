@@ -7,8 +7,10 @@
 #   cells   Runs the cells whose names match `only`, a shard on each runner, and uploads each raw
 #           record and summary.ndjson as an artifact, for jarvis to land. With `file`, the cells
 #           come from that JSON file at the ref (cells that jarvis compiles), not the catalogs.
-#           With `subject`, a subject as JSON (the harness's Subject) replaces the subject of its
-#           name in the catalogs: the WS and WST cells then run on another repository's release.
+#           The WS and WST cells run on the procedures subject of mark1russell7/client (CLI-33):
+#           the job checks that repository out at CLIENT_REF and builds the subject of the checkout.
+#           With `subject`, a subject as JSON (the harness's Subject) replaces it, for example a
+#           pinned image of another release.
 #
 # Start it with: gh workflow run cells.yml -R mark1russell7/systems -f only='^T12' -f shards=4
 # A pull request that changes this file runs the probe only. Each night, the schedule runs the WS
@@ -28,7 +30,7 @@ on:
         description: A JSON file of compiled cells at the ref, in place of the catalogs (empty for the catalogs)
         default: ""
       subject:
-        description: A subject as JSON, in place of the subject of its name in the catalogs (empty for the subjects of the harness)
+        description: A subject as JSON, in place of the subject of its name in the catalogs (empty for the procedures subject of mark1russell7/client at CLIENT_REF)
         default: ""
   schedule:
     - cron: "40 3 * * *"
@@ -37,6 +39,11 @@ on:
 
 permissions:
   contents: read
+
+env:
+  # the commit of mark1russell7/client whose procedures subject the WS and WST cells run:
+  # @procedures/client 0.22.0 and two PATCHes after it (packages/cells/src/subjects.ts holds the same)
+  CLIENT_REF: 2408cea460d84dc7577b69c4ae68a559f2dc2bdd
 
 jobs:
   probe:
@@ -68,12 +75,20 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # the lab test of the procedures WebSocket client builds the subject of the client repository
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: mark1russell7/client
+          ref: ${{ env.CLIENT_REF }}
+          path: client
+          persist-credentials: false
       # the output of each lab test stays in the log: the memory of the runner with a replica set of three.
       # A lab test that fails runs once more, and the log keeps the first failure. In run 39178402327, one
       # run of the lab of Pgpool-II found no end of its idle client, and no cell of the run started
       - name: The harness's lab test
         env:
           HARNESS_LAB: "1"
+          HARNESS_PROCEDURES: ${{ github.workspace }}/client
         run: pnpm --filter @mark1russell7/harness exec vitest run --silent=false --retry=1
       # the error of a failed build holds its error lines and its last lines: this step gives the whole log
       - name: The images of the harness that do not build, after a failure
@@ -178,6 +193,23 @@ jobs:
             echo "conntrack listing at $before buckets: $slow"
             echo "conntrack listing at 16384 buckets: $(listing)"
           } | tee -a "$RUNNER_TEMP/cells/runner.txt"
+      # the procedures subject of the client repository, at CLIENT_REF, or the subject of the input
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: mark1russell7/client
+          ref: ${{ env.CLIENT_REF }}
+          path: client
+          persist-credentials: false
+      - name: The procedures subject
+        env:
+          GIVEN: ${{ inputs.subject }}
+        run: |
+          if [ -n "$GIVEN" ]; then
+            printf '%s' "$GIVEN" | jq . > "$RUNNER_TEMP/subject.json"
+          else
+            jq --arg context "$GITHUB_WORKSPACE/client" '.image.context = $context' client/harness/procedures-subject/subject.json > "$RUNNER_TEMP/subject.json"
+          fi
+          echo "subject: $(jq -c . "$RUNNER_TEMP/subject.json")" | tee -a "$RUNNER_TEMP/cells/runner.txt"
       - name: The cells
         env:
           CELLS: "1"
@@ -186,9 +218,10 @@ jobs:
           CELLS_SHARD: ${{ matrix.shard }}/${{ inputs.shards || '4' }}
           CELLS_OUT: ${{ runner.temp }}/cells
           CELLS_FILE_AT: ${{ inputs.file }}
-          CELLS_SUBJECT: ${{ inputs.subject }}
         run: |
           if [ -n "$CELLS_FILE_AT" ]; then export CELLS_FILE="$GITHUB_WORKSPACE/$CELLS_FILE_AT"; fi
+          CELLS_SUBJECT="$(cat "$RUNNER_TEMP/subject.json")"
+          export CELLS_SUBJECT
           # the catalogs' bands read the runner kernel's own HZ
           CELLS_HZ="$(sed -n 's/^CONFIG_HZ=//p' "/boot/config-$(uname -r)")"
           if [ -z "$CELLS_HZ" ]; then echo "::error::the runner's kernel config gives no CONFIG_HZ"; exit 1; fi

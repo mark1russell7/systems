@@ -728,19 +728,7 @@ export interface Target {
    * and the script of its server.
    */
   readonly subject?: ImageSource;
-  /**
-   * This name is an image of the harness that the target operates in place of `image`. It is a
-   * short form: `harness: "procedures"` is `subject: { kind: "shipped", name: "procedures" }`.
-   * `subject` replaces it.
-   */
-  readonly harness?: HarnessImage;
 }
-
-/**
- * A harness image is an image of the harness that a target can operate by its name (`Target.harness`).
- * `procedures` is the image of `@procedures/client` on Node: its WebSocket client and its server script.
- */
-export type HarnessImage = "procedures";
 
 /**
  * A shipped image is an image that the harness ships, by its name. Its build context is in the
@@ -760,7 +748,6 @@ export type Shipped =
   | "grpc"
   | "grpc-go"
   | "etcd"
-  | "procedures"
   | "router"
   | "pgbouncer"
   | "pgpool"
@@ -807,7 +794,8 @@ export interface ShippedImage {
 /**
  * A subject is a program under test, as data: the image that holds its programs, and the command
  * of each program. A catalog of cells takes a subject. Thus another repository can give its own
- * subject, with its own release in it. The harness ships some (`SUBJECTS`).
+ * subject, with its own release in it. The procedures subject of the WS cells is a subject of the
+ * client repository (CLI-33).
  */
 export interface Subject {
   /** This name is the name of the subject in a catalog and in the records: `procedures`. */
@@ -827,13 +815,13 @@ export interface Subject {
  * A client is what the runs of a cell use: the TCP client of the harness, or a driver on its
  * socket. The HTTP clients are the `http.Transport` of Go (`go-http`), the `http.Agent` of Node
  * (`http-agent`) and an HTTP/1.1 `Client` of undici (`undici`). The MongoDB driver is `mongodb`, node-postgres is `pg`, and HikariCP over pgjdbc is `hikari`.
- * The client of amqplib is `amqp`, the client of grpc-js is `grpc`, and the WebSocket client of `@procedures/client` is `procedures-ws`.
+ * The client of amqplib is `amqp`, and the client of grpc-js is `grpc`. The WebSocket client of `@procedures/client` is a program of its subject (`ClientImage`).
  */
-export type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici" | "mongodb" | "pg" | "hikari" | "amqp" | "grpc" | "procedures-ws";
+export type Client = "tcp" | "ioredis" | "go-http" | "http-agent" | "undici" | "mongodb" | "pg" | "hikari" | "amqp" | "grpc";
 
 /**
  * A WebSocket probe is the workload and the settings of the WebSocket client of
- * `@procedures/client` (`procedures-ws`). The cell gives each setting, thus the client takes
+ * `@procedures/client`, the `client` program of its subject. The cell gives each setting, thus the client takes
  * nothing from a default.
  */
 export interface WsProbe {
@@ -969,7 +957,7 @@ export interface Cell {
       | { readonly name: "grpc"; readonly hold?: Quantity; readonly op?: "check" | "watch" };
     /** This workload is the workload of an HTTP client (`Cell.client` is an HTTP client). The client then ignores `keepalive` and `userTimeout`. */
     readonly http?: HttpProbe;
-    /** These are the settings of the WebSocket client (`Cell.client` is `procedures-ws`). The client then ignores `keepalive` and `userTimeout`. */
+    /** These are the settings of the WebSocket client (`Cell.client` is the client of a procedures subject). The client then ignores `keepalive` and `userTimeout`. */
     readonly ws?: WsProbe;
   };
   readonly fault: Fault;

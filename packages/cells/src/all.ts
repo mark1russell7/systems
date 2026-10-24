@@ -1,5 +1,4 @@
 import type { Cell, Subject } from "@mark1russell7/harness";
-import { SUBJECTS } from "@mark1russell7/harness";
 import { CAL_CELLS } from "./calibration.ts";
 import { CELLS } from "./catalog.ts";
 import { T01_GRPC } from "./grpc/t01.ts";
@@ -16,6 +15,7 @@ import { T01_AMQP } from "./rabbit/t01.ts";
 import { T11_RABBIT } from "./rabbit/t11.ts";
 import { T02_CELLS } from "./t02.ts";
 import { T03_CELLS } from "./t03.ts";
+import { PROCEDURES } from "./subjects.ts";
 import { T12_CAL, T12_CELLS } from "./t12.ts";
 import { TOX_CELLS } from "./toxiproxy.ts";
 import { wstCells } from "./ws-topologies.ts";
@@ -23,8 +23,8 @@ import { wsCells } from "./ws.ts";
 
 /**
  * These are the subjects of the catalogs that take one, by their names. `procedures` is the
- * subject of the WS and WST catalogs. Each one that a caller does not give is the subject that the
- * harness ships.
+ * subject of the WS and WST catalogs. Each one that a caller does not give is the procedures
+ * subject of the client repository (`PROCEDURES`).
  */
 export interface Subjects {
   readonly procedures: Subject;
@@ -40,7 +40,7 @@ export interface Subjects {
  * next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter (O29 and O30) are last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
-  const subjects: Subjects = { procedures: SUBJECTS.procedures, ...given };
+  const subjects: Subjects = { procedures: PROCEDURES, ...given };
   return [
     ...CELLS,
     ...T03_CELLS,

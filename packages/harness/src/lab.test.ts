@@ -1,11 +1,11 @@
+import { readFileSync } from "node:fs";
 import { freemem, totalmem } from "node:os";
-import { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Cell, Cluster, Group, ImageSource, ProxyHop, ReplicaSet, Subject, Target } from "./cell.ts";
 import { clusterOnce, openClusterLab } from "./cluster.ts";
 import { groupOnce, openGroupLab } from "./group.ts";
-import { SUBJECTS, nodeClientImage, programOf } from "./image.ts";
+import { nodeClientImage, programOf } from "./image.ts";
 import { openLab } from "./lab.ts";
 import { measure } from "./observe.ts";
 import { openReplicaSetLab, replicaSetOnce } from "./replset.ts";
@@ -17,10 +17,13 @@ import { runCell } from "./run.ts";
  * also puts a reset and netem at a router of a topology, and it fails a group of Valkey over. It moves
  * the leadership of a quorum queue of RabbitMQ to another node. Each
  * HTTP client sends two requests to a Node server on one connection. The procedures WebSocket client
- * drops a silent connection on its heartbeat, and it connects again. Its subject is a build context
- * that the test gives, as another repository gives its own subject.
+ * drops a silent connection on its heartbeat, and it connects again. Its subject is the procedures
+ * subject of a checkout of the client repository (`HARNESS_PROCEDURES`), as that repository gives it:
+ * a build context of the caller. Without the checkout, that test waits.
  */
 const RUN = process.env["HARNESS_LAB"] === "1";
+/** This folder is a checkout of github.com/mark1russell7/client, with its procedures subject (CLI-33). */
+const PROCEDURES = process.env["HARNESS_PROCEDURES"] || undefined;
 const REDIS: Target = {
   image: "redis:7.4@sha256:c6eabf748fc7a61dbb5a705c78bcf3d6377b1127a97d0ce965c11c44ba46896f",
   port: 6379,
@@ -653,16 +656,12 @@ describe.skipIf(!RUN)("a lab on Docker (HARNESS_LAB=1)", () => {
     }
   }, 900_000);
 
-  it("runs the procedures WebSocket client against the procedures server of a subject that the caller builds, and reads its pings, its drop and its new try", async () => {
-    // the caller gives a build context of its own: the files of the procedures folder, from the folder above this package
-    const image: ImageSource = {
-      kind: "build",
-      name: "caller-procedures",
-      context: dirname(fileURLToPath(new URL("..", import.meta.url))),
-      dockerfile: "harness/image/procedures/Dockerfile",
-      files: ["harness/image/procedures"],
-    };
-    const subject: Subject = { ...SUBJECTS.procedures, image };
+  it.skipIf(PROCEDURES === undefined)("runs the procedures WebSocket client against the procedures server of a subject that the caller builds, and reads its pings, its drop and its new try", async () => {
+    // the subject of the client repository, with the context of its build at the checkout
+    const given = JSON.parse(readFileSync(join(PROCEDURES!, "harness/procedures-subject/subject.json"), "utf8")) as Subject;
+    if (given.image.kind !== "build") throw new Error("the procedures subject of the client repository is not a build");
+    const image: ImageSource = { ...given.image, name: "caller-procedures", context: PROCEDURES! };
+    const subject: Subject = { ...given, image };
     // the server script is in the image of the subject, as the client is: one release of the package
     const target: Target = {
       image: subject.base,
