@@ -1,8 +1,8 @@
-import { timerOf } from "@mark1russell7/algebra";
+import { recovery, timerOf } from "@mark1russell7/algebra";
 import type { KindCell, KubeProxyMode, Prediction, Propagation, TriggerKind } from "@mark1russell7/kind";
-import { GRPC_JS } from "@mark1russell7/machines";
+import { GRPC_JS, LINUX_TCP } from "@mark1russell7/machines";
 import { valueIn } from "@mark1russell7/quantity";
-import { given, seconds } from "../catalog.ts";
+import { LINUX_66, given, seconds } from "../catalog.ts";
 import { PROPAGATION, T07_WORKLOAD, WORKERS, afterSync, kubeDefaults, s, say } from "../kind.ts";
 import type { Alias, Waiting } from "../mongo/cells.ts";
 import { grpcValues } from "./t01.ts";
@@ -22,6 +22,11 @@ import { grpcValues } from "./t01.ts";
  * A rolling update deletes each old pod some milliseconds after a sync of kube-proxy, thus the
  * propagation waits `minSyncPeriod` (`afterSync`). That is longer than the first backoff, and the pod
  * can refuse more than one connect (`lastWait`). Each old pod has a window of its own (`each`).
+ *
+ * The propagation of a rolling update is also longer than the stop of an old pod. Thus the connect
+ * after a GOAWAY can go to an old pod that is gone, while IPVS still has it. That SYN gets no answer,
+ * and the calls wait in the queue of the channel. The connect comes two SYNs after the drop of that
+ * pod (`stalledConnect`). In kind run 40123580623, 81 calls waited so and ended at their timeout of 2 s.
  *
  * The channels go to the replica that stays after a run, and a new replica gets no client. Thus the
  * target of a run is the replica that answers the most clients, and a scale-in gives it the lowest
@@ -77,6 +82,43 @@ export const lastWait = (hi: number): number => {
 const us = (value: number): number => Math.round(value * 1e6) / 1e6;
 
 /**
+ * These are the values of the knobs of Linux TCP in a client pod of the kind lab: the defaults of a
+ * network namespace. The runners have Linux 6.17 with `CONFIG_HZ=1000`, and each kind run records them (`runner.txt`).
+ */
+const KIND_LINUX = given({ ...LINUX_66, hz: { value: 1000, unit: "Hz" } });
+
+/** This function gives the bounds of the wait `k` of the SYN timer of Linux TCP (`syn_retransmit`) in a client pod. */
+export const synWaitOf = (k: number): Wait => {
+  const bounds = timerOf(LINUX_TCP, "syn_retransmit", KIND_LINUX, k);
+  const wait = seconds(bounds.duration, `the wait ${k} of the SYN`);
+  return { lo: wait - seconds(bounds.early, "how early the SYN timer fires"), hi: wait + seconds(bounds.lateness, "how late the SYN timer fires") };
+};
+
+/**
+ * This function gives the latest connect after a SYN to an old pod that is gone, in seconds after
+ * the drop of that pod. Until the drop, IPVS sends each SYN to the pod, and no SYN gets an answer.
+ * The kube-proxy of v1.37.0 sets `expire_nodest_conn` (`pkg/proxy/ipvs/proxier.go`, line 281). At the
+ * drop, it gives the real server the weight 0, or it deletes it (`graceful_termination.go`, lines 147–167).
+ *
+ * The first SYN after the drop finds the entry of its connection. IPVS expires the entry and drops
+ * the SYN, because the conntrack entry of the first SYN is confirmed. The source is
+ * `net/netfilter/ipvs/ip_vs_core.c` at 6.17, lines 1997–2048, and `include/net/ip_vs.h`, lines 1812–1824.
+ * The expiry also deletes that conntrack entry (`ip_vs_conn.c`, lines 881–890). Thus IPVS sends the next SYN to a live pod (line 2054).
+ *
+ * The SYN timer arms again at each firing. Thus its first firing after the drop comes one wait later
+ * at the most, and the next SYN comes one more wait later. The stall lasts from the first SYN to the drop,
+ * up to `hi`. `recovery` gives the firings through that stall, and the longest of their waits bounds each of the two.
+ */
+export const stalledConnect = (hi: number): number => {
+  const through = recovery(LINUX_TCP, "syn_retransmit", KIND_LINUX, s(hi));
+  if ("unknown" in through) throw new Error(`the SYN timer through a stall of ${hi} s: ${through.unknown}`);
+  // the firing that gets a live pod comes after the last firing that can be the first after the drop
+  const connect = Math.max(...through.first) + 1;
+  const longest = Math.max(...Array.from({ length: connect + 1 }, (_, k) => synWaitOf(k).hi));
+  return us(2 * longest);
+};
+
+/**
  * This function gives the time from the deletion to the SIGTERM of grpc-go, from the source of the
  * kubelet of v1.37.0 (`pkg/kubelet/kuberuntime/kuberuntime_container.go`):
  * - `killContainer` starts the preStop hook only when the grace is more than zero (lines 895–898).
@@ -99,6 +141,10 @@ const sigtermOf = (pod: KindCell["pod"]): number => {
  * pod (its line `stopping`). A connect that the pod refused waits the backoff of grpc-js. Thus the
  * window closes at most the wait K (`lastWait`) after the propagation, and the next connect goes to
  * another pod. With `each`, the prediction is a window for each deleted replica: a rolling update.
+ *
+ * In a rolling update, the connect can also go to an old pod that is gone (`stalledConnect`). Then
+ * the window closes at the later of the two ends. Only IPVS expires the entry of a SYN to a pod that
+ * it dropped. Conntrack keeps the NAT of such a SYN (`SYN_SENT`), thus a rolling update of the other modes has no model here.
  */
 export const grpcDeletion = (cell: Pick<KindCell, "pod" | "mode">, propagation: Propagation = PROPAGATION[cell.mode], each = false): Prediction => {
   const preStop = valueIn(cell.pod.preStop, "s");
@@ -115,20 +161,33 @@ export const grpcDeletion = (cell: Pick<KindCell, "pod" | "mode">, propagation: 
     };
   const last = lastWait(hi);
   const wait = backoffOf(last);
-  const rolling = each ? ". A rolling update deletes each old pod in turn, thus each old pod has a window of its own" : "";
+  const refused = us(hi + wait.hi);
   const connects =
     last === 0
       ? `Each call then fails at once until the next connect, ${say(s(us(FIRST_BACKOFF.lo)))} to ${say(s(us(FIRST_BACKOFF.hi)))} later (the first backoff of grpc-js), and that connect goes to another pod`
       : `Each call then fails at once until the next connect, after the backoff of grpc-js. The waits before the connect ${last} add up to ${say(s(us(sumOf(last))))} at the least, thus the pod can refuse ${last + 1} connects. The last one starts by ${say(propagation.hi)}, and the next connect comes ${say(s(us(wait.hi)))} later at the most (the wait ${last}) and goes to another pod`;
-  return {
+  const why = `grpc-go gets SIGTERM at the deletion (no preStop), closes its listener and sends GOAWAY. A client on that pod connects again, and until the propagation (${say(propagation.hi)} at the most, ${propagation.from}) its connect can go to the pod, which refuses it. ${connects}`;
+  const window = (end: number, text: string): Prediction => ({
     kind: "window",
     nodes: "all",
     start: { from: "intake", band: { lo: s(0), hi: propagation.hi } },
-    end: { from: "deletion", band: { lo: s(us(FIRST_BACKOFF.lo)), hi: s(us(hi + wait.hi)) } },
+    end: { from: "deletion", band: { lo: s(us(FIRST_BACKOFF.lo)), hi: s(end) } },
     certain: false,
     ...(each ? { each: true } : {}),
-    why: `grpc-go gets SIGTERM at the deletion (no preStop), closes its listener and sends GOAWAY. A client on that pod connects again, and until the propagation (${say(propagation.hi)} at the most, ${propagation.from}) its connect can go to the pod, which refuses it. ${connects}${rolling}`,
-  };
+    why: text,
+  });
+  if (!each) return window(refused, why);
+  if (cell.mode !== "ipvs")
+    throw new Error(`a rolling update of ${cell.mode} with SIGTERM before the propagation: conntrack keeps the NAT of a SYN to an old pod that is gone, and no model gives that window`);
+  const stall = stalledConnect(hi);
+  const end = Math.max(refused, us(hi + stall));
+  const first = timerOf(LINUX_TCP, "syn_retransmit", KIND_LINUX, 0);
+  const nominal = seconds(first.duration, "the first wait of the SYN");
+  const late = seconds(first.lateness, "how late the SYN timer fires");
+  return window(
+    end,
+    `${why}. A rolling update deletes each old pod in turn, thus each old pod has a window of its own. The connect can also go to an old pod of an earlier deletion while the rules still have it. A pod that still runs refuses it, because its listener is closed. A pod that is gone gives no answer, and the calls wait in the queue of the channel until the connect or their timeout. kube-proxy sets expire_nodest_conn (proxier.go at v1.37.0, line 281). The first SYN after the drop of that pod expires its entry of IPVS, and IPVS drops it, because its conntrack entry is confirmed (ip_vs_core.c at 6.17, lines 1997–2048). The next SYN gets a live pod. Each SYN comes ${say(s(nominal))} after the last (tcp_syn_linear_timeouts), ${say(s(late))} late at the most at HZ 1000. Thus the connect comes ${say(s(stall))} after the propagation at the most, ${say(s(end))} after the deletion, and each call that fails starts before it`,
+  );
 };
 
 /** A spec is one cell: its cell of the plan, its mode, its trigger, its pod and its name. */

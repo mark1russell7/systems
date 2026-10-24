@@ -34,8 +34,8 @@ export interface Timer {
   readonly cancels?: readonly string[] | undefined;
   readonly fires: string;
   /**
-   * A backoff timer starts again after it fires, and each wait is longer than the last. Examples
-   * are the retransmission timer of the kernel and the reconnect of a driver. Its duration, lateness and
+   * A backoff timer starts again after it fires, and no wait is shorter than the wait before it.
+   * Examples are the retransmission timer of the kernel, its SYN timer and the reconnect of a driver. Its duration, lateness and
    * early bound are those of one wait. They can read `fired`: the number of times that it fired
    * after the last of its `resets`.
    */

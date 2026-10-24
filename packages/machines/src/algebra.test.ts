@@ -108,6 +108,18 @@ describe("the algebra's first closed forms", () => {
     expect(timerOf(tcp, "syn_giveup", given({ ...HERE, hz: { value: 1000, unit: "Hz" } })).lateness).toEqual({ value: 6.08, unit: "s" });
   });
 
+  it("sends the SYN again each 1 s for the linear timeouts, the waits of the give-up", async () => {
+    const tcp = await machine("systems.machine.linux-tcp");
+    const KIND = given({ ...HERE, hz: { value: 1000, unit: "Hz" } });
+    const waits = Array.from({ length: 11 }, (_, fired) => timerOf(tcp, "syn_retransmit", KIND, fired).duration);
+    // five waits of 1 s, then 2, 4, 8, 16, 32 and 64 s: the give-up of 131 s
+    expect(waits.map((wait) => (wait as { value: number }).value)).toEqual([1, 1, 1, 1, 1, 2, 4, 8, 16, 32, 64]);
+    // each wait of 1 s is 1000 jiffies at HZ 1000, up to 64 jiffies late (the kind runners)
+    expect(timerOf(tcp, "syn_retransmit", KIND, 0)).toEqual({ duration: { value: 1, unit: "s" }, lateness: { value: 0.064, unit: "s" }, early: { value: 0.001, unit: "s" } });
+    // through a stall of 1.309 s from the first SYN, the second retransmission is the first after it
+    expect(recovery(tcp, "syn_retransmit", KIND, { value: 1.309, unit: "s" })).toMatchObject({ first: [1], low: { value: 1.998, unit: "s" }, high: { value: 2.128, unit: "s" } });
+  });
+
   it("predicts the harness's scaled cells, where the RTO is the round trip plus 200 ms, in jiffies", async () => {
     const tcp = await machine("systems.machine.linux-tcp");
     const scaled = {

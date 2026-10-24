@@ -52,6 +52,10 @@
     {
       "ref": "net/ipv4/tcp_input.c:791-834 tcp_event_data_recv(): the first data starts quick-ACK mode; :326-333 tcp_in_quickack_mode(); :5552-5576 __tcp_ack_snd_check(): an ACK at once or delayed; net/ipv4/tcp_output.c:161-176 tcp_event_data_sent(): ping-pong mode",
       "rung": "implemented"
+    },
+    {
+      "ref": "net/ipv4/tcp_timer.c:604 and :624-631 tcp_retransmit_timer(): each firing sends the SYN again, and in SYN_SENT the RTO doubles only after tcp_syn_linear_timeouts firings; the same at 6.17 (:448 total_rto, :671-678)",
+      "rung": "implemented"
     }
   ],
   "states": {
@@ -132,6 +136,10 @@
     },
     "timer.syn.exhausted": {
       "kind": "timer"
+    },
+    "timer.syn": {
+      "kind": "timer",
+      "note": "the SYN timer fires and the SYN goes out again"
     },
     "timer.synack.exhausted": {
       "kind": "timer"
@@ -274,6 +282,46 @@
       ],
       "fires": "timer.syn.exhausted",
       "note": "6.6: linear 1 s waits for the first tcp_syn_linear_timeouts retransmissions, then doubling; 131 s at the defaults. Each wait is a timer of the wheel, rounded up at its level: up to 6.08 s late in all at HZ 1000, because the wait of 64 s can be 4.096 s late"
+    },
+    "syn_retransmit": {
+      "duration": {
+        "model": "linux.syn-wait",
+        "knobs": [
+          "fired",
+          "tcp_syn_linear_timeouts"
+        ],
+        "unit": "s"
+      },
+      "lateness": {
+        "model": "linux.syn-wait-lateness",
+        "knobs": [
+          "fired",
+          "tcp_syn_linear_timeouts",
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "early": {
+        "model": "linux.jiffy",
+        "knobs": [
+          "hz"
+        ],
+        "unit": "s"
+      },
+      "arms": [
+        "enter:SYN_SENT"
+      ],
+      "cancels": [
+        "rx.synack",
+        "rx.rst"
+      ],
+      "fires": "timer.syn",
+      "backoff": {
+        "resets": [
+          "enter:SYN_SENT"
+        ]
+      },
+      "note": "each firing sends the SYN again: the waits 0 to tcp_syn_linear_timeouts keep the initial RTO of 1 s (TCP_TIMEOUT_INIT), then each firing doubles the wait, up to TCP_RTO_MAX. Each wait is a timer of the wheel: a wait of 1 s is up to 64 ms late at HZ 1000. syn_giveup is what gives up on it. Through a stall of the path, the first SYN after its end gets through (recovery)"
     },
     "retransmit": {
       "duration": {

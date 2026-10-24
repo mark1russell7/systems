@@ -25,7 +25,7 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 
 | Export | Identifier | System and version | Layer | Sources, by rung |
 | --- | --- | --- | --- | --- |
-| `LINUX_TCP` | `linux-tcp` | TCP of Linux 6.6, for kernels from 6.6 to 6.9 | kernel | 4 normative, 7 implemented |
+| `LINUX_TCP` | `linux-tcp` | TCP of Linux 6.6, for kernels from 6.6 to 6.9 | kernel | 4 normative, 8 implemented |
 | `NF_CONNTRACK_TCP` | `nf-conntrack-tcp` | The TCP state machine of conntrack on Linux 6.6.87.2 | middlebox | 4 implemented |
 | `REDIS_CLIENT` | `redis-client` | One client connection of the Redis 8.10.2 server | server | 3 implemented, 1 documented |
 | `IOREDIS_STATUS` | `ioredis-status` | The connection status of ioredis 6.0.0, standalone | driver | 5 implemented |
@@ -108,6 +108,12 @@ A document changes only for one of two reasons:
 A change to the version of a system changes its sources too. Each fact of the document then cites the new version.
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
+
+### 0.3.24
+
+- **The SYN timer of Linux TCP** (`syn_retransmit`). It is a backoff timer: each firing sends the SYN again. The waits 0 to `tcp_syn_linear_timeouts` are 1 s, and then each wait doubles up to `TCP_RTO_MAX`. The source is `tcp_retransmit_timer` in `net/ipv4/tcp_timer.c` of 6.6, and 6.17 has the same waits. At HZ 1000 a wait of 1 s is up to 64 ms late. The models are `linux.syn-wait` and `linux.syn-wait-lateness` of the algebra 0.7.3.
+  - `recovery` over this timer gives the first SYN after a stall. Kind run 40123580623 measured it: a SYN to a pod that was gone stalled until IPVS dropped the pod.
+  - One prediction of the snapshot moves, the kind cell T07.defaults.12.
 
 ### 0.3.18
 

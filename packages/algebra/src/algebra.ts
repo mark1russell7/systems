@@ -251,14 +251,20 @@ const TCP_TIMEOUT_INIT = whole(1n);
 const TCP_RTO_MAX = whole(120n);
 
 /**
- * This function gives each wait of the SYN of a connect, from 6.5. The first tcp_syn_linear_timeouts
- * retransmissions wait the initial RTO, and the wait after the last of them too. Then each wait
- * doubles, up to TCP_RTO_MAX. The connect gives up at the end of the last wait.
+ * This function gives the wait of the SYN of a connect after `fired` firings, from 6.5
+ * (tcp_retransmit_timer in net/ipv4/tcp_timer.c). Each firing sends the SYN again. The first
+ * tcp_syn_linear_timeouts firings keep the initial RTO, thus the waits 0 to tcp_syn_linear_timeouts
+ * are 1 s each. Then each firing doubles the wait, up to TCP_RTO_MAX.
  */
-const synWaits = (retries: bigint, linear: bigint): Rational[] => [
-  ...Array.from({ length: Number(linear + 1n) }, () => TCP_TIMEOUT_INIT),
-  ...Array.from({ length: Number(retries) }, (_, at) => capped(TCP_TIMEOUT_INIT, BigInt(at + 1), TCP_RTO_MAX)),
-];
+const synWait = (fired: bigint, linear: bigint): Rational =>
+  fired <= linear ? TCP_TIMEOUT_INIT : capped(TCP_TIMEOUT_INIT, fired - linear, TCP_RTO_MAX);
+
+/**
+ * This function gives each wait of the SYN of a connect, from 6.5: the waits 0 to
+ * tcp_syn_retries + tcp_syn_linear_timeouts (`synWait`). The connect gives up at the end of the last wait.
+ */
+const synWaits = (retries: bigint, linear: bigint): Rational[] =>
+  Array.from({ length: Number(linear + 1n + retries) }, (_, fired) => synWait(BigInt(fired), linear));
 
 /** This function gives the whole jiffies of a time at HZ, rounded up, as msecs_to_jiffies and usecs_to_jiffies round. */
 const jiffiesOf = (seconds: Rational, hz: Rational): bigint => r.ceil(r.mul(seconds, hz)).n;
@@ -483,6 +489,24 @@ const MODELS: Readonly<Record<string, Model>> = {
             0n,
           ),
         ),
+        hz!,
+      ),
+    source: "net/ipv4/tcp_timer.c tcp_retransmit_timer and kernel/time/timer.c calc_wheel_index at v6.6",
+  },
+  // one wait of the SYN of a connect, after `fired` firings: 1 s for the waits 0 to
+  // tcp_syn_linear_timeouts, then doubled at each firing, up to TCP_RTO_MAX
+  "linux.syn-wait": {
+    knobs: [null, null],
+    seconds: ([fired, linear]) => synWait(integer(fired!, FIRED), integer(linear!, "tcp_syn_linear_timeouts")),
+    source:
+      "net/ipv4/tcp_timer.c tcp_retransmit_timer at v6.6 (lines 604 and 624-631) and at v6.17 (lines 448 and 671-678)",
+  },
+  // the rounding of that wait on the timer wheel: 64 jiffies for a wait of 1 s at HZ 1000, 8 at HZ 250
+  "linux.syn-wait-lateness": {
+    knobs: [null, null, "Hz"],
+    seconds: ([fired, linear, hz]) =>
+      r.div(
+        whole(granularity(jiffiesOf(synWait(integer(fired!, FIRED), integer(linear!, "tcp_syn_linear_timeouts")), hz!))),
         hz!,
       ),
     source: "net/ipv4/tcp_timer.c tcp_retransmit_timer and kernel/time/timer.c calc_wheel_index at v6.6",
