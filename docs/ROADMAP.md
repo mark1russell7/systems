@@ -388,12 +388,12 @@ The source of an image is an image pinned by digest, a build context, or an imag
 - **Area:** server stack
 - **Depends on:** SYS-17
 - **Started:** 2026-10-20
-- **Shipped:** 2026-10-20
+- **Shipped:** 2026-10-24
 - **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb), [The WS run on the client subject](https://github.com/mark1russell7/systems/actions/runs/39390678218)
 
 After CLI-33, the client owns the image of its procedures subject. Then the harness removes `image/procedures`, and the README of the harness no longer describes that image.
 
-- CLI-33 is client #122 (2408cea): `harness/procedures-subject` of the client repository builds `@procedures/client` 0.22.0 from its checkout, with the programs of the subject that the harness shipped.
+- CLI-33 is client #122 (2408cea). In the client repository, `harness/procedures-subject` builds `@procedures/client` 0.22.0 from its checkout. Its image has the programs of the subject that the harness shipped.
 - cells.yml checks out the client repository at `CLIENT_REF` (2408cea) and gives the subject of its checkout to the WS and WST cells. The input `subject` still replaces it. The catalogs take a copy of that subject (`PROCEDURES`), and a test holds the commit to the workflow.
 - harness 0.12.0 (MINOR: a breaking change before 1.0.0) removes `image/procedures`, `SUBJECTS`, `proceduresImage`, the shipped name `procedures`, the client name `procedures-ws` and `Target.harness`. The lab test of the WebSocket client builds the subject of a checkout of the client repository (`HARNESS_PROCEDURES`).
 - machines 0.3.23: the documents `procedures-ws-client` and `procedures-ws-server` cite the source of 2408cea, with `@mark1russell7/service` 0.5.8. Each fact and each default is the same as in 0.3.0.
@@ -1027,6 +1027,19 @@ Each week, one round makes the site and the tracker easier to read, with a visua
   - The tracker shows the count of the done items first, and the items that can start. The record of each item shows as steps. The map lights the chain of the item under the pointer, and a chart shows the items shipped each day.
   - CI takes a screenshot of each page of the site at 390 px and at 1280 px, in light and in dark (#88). Its report names each page that is wider than its screen, and each error of a page. No page is wider than a phone, and no page has an error. The pages of results are long: 33,241 px for PostgreSQL on a phone, and 74,767 px for R3.
   - Each page of results has a map of its cells under its summary, and each tile links to the frame of its cell. The PostgreSQL page has a chart for each of its 8 borders (#89).
+
+<!-- ste-disable-next latin-abbreviation -- VIZ is the ID of the item, not the Latin abbreviation -->
+
+### VIZ · Interactive visuals and docs: from processes and the kernel to the NIC
+
+- **Status:** later
+- **Area:** site
+- **Depends on:**
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+After the coding work, this item makes interactive visuals and documents that show how the systems operate, from end to end. Examples are the network calls, the processes that hold memory, the kernel and the NIC. Mark gives many ideas and examples (Mark, 2026-10-20). Before the work starts, Mark and the program agree on its scope.
 
 ## Decisions for Mark
 
