@@ -923,7 +923,7 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - A window can give the propagation that it assumes (`propagation`). A drop after that band makes the cell `extend`. Only the rolling update gives it, because its band comes from the source of kube-proxy.
   - The idle cells do not give it yet. In run 39090689204, nftables dropped a pod 0.301 s after its deletion, after its calibration of 0.079 s and δ. In run 40131899989, T07.defaults.30 (nftables) had a drop at 0.208 s.
   - Also, IPVS syncs 30 s after each sync with no change (`ipvs/proxier.go`, line 387). A deletion soon after such a sync waits `minSyncPeriod`, and the idle calibration does not bound it.
-- Each of the 28 cells of T07 holds, is a calibration or is a measurement in kind run 40131899989 (kind 0.2.2). 24 cells hold, 3 are calibrations and 1 is a measurement, and no run was void.
+- Each of the 28 cells of T07 holds, is a calibration or is a measurement in kind run 40131899989 (kind 0.2.3). 24 cells hold, 3 are calibrations and 1 is a measurement, and no run was void.
   - T07.defaults.12 holds in 11 of 11 runs. 10 of 11 runs recorded failed calls, 127 timeouts in all. Before the fix, only 1 of 11 runs did.
   - Each run observed 5.98 s to 6.03 s after the second deletion. Each failed call started 0.009 s to 0.123 s after the second deletion and ended at its timeout of 2 s.
   - The rules dropped each old pod 1.365 s after its deletion at the most, in the new bound of 1.618 s.
