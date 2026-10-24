@@ -20,9 +20,10 @@ import { grpcValues } from "./t01.ts";
  * to TRANSIENT_FAILURE, and each call fails at once until its next connect, after the first backoff
  * of grpc-js. That connect comes after the propagation, thus it goes to another pod.
  *
- * A rolling update deletes each old pod some milliseconds after a sync of kube-proxy, thus the
- * propagation waits `minSyncPeriod` (`afterSync`). That is longer than the first backoff, and the pod
- * can refuse more than one connect (`lastWait`). Each old pod has a window of its own (`each`).
+ * A rolling update deletes each old pod while a sync of kube-proxy operates, or in the
+ * `minSyncPeriod` after it. Thus the propagation waits for the end of that sync and `minSyncPeriod`
+ * (`afterSync`). That is longer than the first backoff, and the pod can refuse more than one connect
+ * (`lastWait`). Each old pod has a window of its own (`each`).
  *
  * The propagation of a rolling update is also longer than the stop of an old pod. Thus the connect
  * after a GOAWAY can go to an old pod that is gone, while IPVS still has it. That SYN gets no answer,
@@ -174,7 +175,8 @@ export const grpcDeletion = (cell: Pick<KindCell, "pod" | "mode">, propagation: 
     start: { from: "intake", band: { lo: s(0), hi: propagation.hi } },
     end: { from: "deletion", band: { lo: s(us(FIRST_BACKOFF.lo)), hi: s(end) } },
     certain: false,
-    ...(each ? { each: true } : {}),
+    // the band of a rolling update comes from the source of kube-proxy (`afterSync`), thus the judge tests it in each run
+    ...(each ? { each: true, propagation: { lo: propagation.lo, hi: propagation.hi } } : {}),
     why: text,
   });
   if (!each) return window(refused, why);
@@ -289,8 +291,8 @@ const cellOf = (spec: Spec): KindCell => {
     calibrates: false,
     runs: 11,
   } as const;
-  // a rolling update deletes each old pod in turn, each one some milliseconds after the sync for a new
-  // ready pod: its removal waits minSyncPeriod (`afterSync`), and each old pod has a window of its own
+  // a rolling update deletes each old pod in turn, while the sync for a new pod runs or in the wait after
+  // it: its removal waits for that sync and minSyncPeriod (`afterSync`), and each old pod has a window of its own
   const rolling = spec.trigger === "rolling-update";
   if (rolling) return { ...cell, prediction: grpcDeletion(cell, afterSync(spec.mode), true) };
   // the kubelet stops the container and starts it again: no deletion, and the endpoint stays ready

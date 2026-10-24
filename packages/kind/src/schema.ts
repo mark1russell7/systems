@@ -138,6 +138,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
       certain: z.boolean(),
       afterReset: z.object({ life: a, outcome: z.string() }).optional(),
       each: z.boolean().optional(),
+      propagation: band.optional(),
       why: z.string(),
     }),
     z.object({ kind: z.literal("removal"), band, why: z.string() }),

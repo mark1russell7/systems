@@ -144,15 +144,40 @@ export const UNCALIBRATED: Propagation = DOCUMENTED;
 export const WORKERS = 2;
 
 /**
- * This function gives the propagation of a change that comes immediately after a sync of kube-proxy. The
- * runner of kube-proxy waits `minSyncPeriod` from the end of one sync to the start of the next
- * (`pkg/proxy/runner/bounded_frequency_runner.go` at v1.37.0, lines 48–50 and 132–142). In a
- * rolling update, the deletion of an old pod comes some milliseconds after the sync for a new ready
- * pod. Thus the rules drop the old pod up to `minSyncPeriod` later, and then in the time of an idle
- * sync. In CI, the rules dropped each old pod of 13 rolling updates 0.215 s to 1.077 s after its deletion.
+ * This function gives the propagation of a change that comes while kube-proxy syncs, or in the
+ * `minSyncPeriod` after a sync. The source is kube-proxy v1.37.0:
+ * - The runner starts the sync, and then it waits `minSyncPeriod` from the end of that sync. A change in
+ *   that time waits for the next sync (`pkg/proxy/runner/bounded_frequency_runner.go`, lines 48–51,
+ *   117–120 and 132–141).
+ * - Thus a change that comes while a sync runs waits for the end of that sync, then `minSyncPeriod`.
+ *   The next sync then applies it, as in an idle cluster (`PROPAGATION`).
+ *
+ * In a rolling update, the new pod comes into the EndpointSlice before it is ready, and that change
+ * starts a sync at once. The old pod gets its deletion while that sync runs, or in the wait after it.
+ * In kind run 40128267098, the new pod came into the EndpointSlice 41 ms to 93 ms before each first
+ * deletion. Thus the bound has one more sync than an idle change.
+ *
+ * The bound of one sync is the idle propagation of the mode:
+ * - iptables applies the rules with one iptables-restore (`pkg/proxy/iptables/proxier.go`, line 1384).
+ *   nftables applies them with one transaction (`pkg/proxy/nftables/proxier.go`, line 1872). After it,
+ *   a sync only updates its metrics, its health servers and the conntrack entries of UDP. Thus an idle
+ *   propagation holds each step of a sync.
+ * - IPVS changes the real servers in its loop over the Services (`pkg/proxy/ipvs/proxier.go`, lines
+ *   771–859 and 1574–1717). After that loop, it syncs its ipsets and restores iptables (lines 1168–1188).
+ *   For IPVS, that bound is an assumption. The prediction gives the band (`propagation`), thus the
+ *   judge tests it in each run.
+ *
+ * In run 40128267098 (IPVS), the rules of the nodes dropped each first old pod 1.232 s to 1.391 s after
+ * its deletion. The old bound, `minSyncPeriod` and one idle propagation, was 1.309 s. In run
+ * 39090689204 (iptables), the rules dropped each old pod 0.233 s to 1.065 s after its deletion.
  */
 export const afterSync = (mode: KubeProxyMode): Propagation => {
   const wait = scenario("lab", mode, WORKERS).kubeProxy.minSyncPeriod;
   const idle = PROPAGATION[mode];
-  return { lo: idle.lo, hi: s(valueIn(wait, "s") + valueIn(idle.hi, "s")), from: `minSyncPeriod (${say(wait)}) after a sync, then ${idle.from}` };
+  const sync = valueIn(idle.hi, "s");
+  return {
+    lo: idle.lo,
+    hi: s(Math.round((valueIn(wait, "s") + 2 * sync) * 1e6) / 1e6),
+    from: `a sync of up to ${say(idle.hi)} at the change, minSyncPeriod (${say(wait)}) after it, then ${idle.from}`,
+  };
 };

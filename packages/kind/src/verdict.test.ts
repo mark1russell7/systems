@@ -3,7 +3,7 @@ import type { KindCell, KindRun, Prediction } from "./cell.ts";
 import type { Line } from "./lab.ts";
 import { cellOf } from "./cells.fixture.ts";
 import { predictionText } from "./report.ts";
-import { checkRun, judgeKind, propagationOf } from "./verdict.ts";
+import { checkRun, judgeKind, observationAfter, observationEnd, propagationOf } from "./verdict.ts";
 
 const TARGET = { pod: "lab-a", node: "w1", ip: "10.244.1.3", version: "h1" };
 const OTHER = { pod: "lab-b", node: "w2", ip: "10.244.2.4", version: "h1" };
@@ -238,6 +238,90 @@ describe("the judgement of a kind run", () => {
     it("writes the window of each deleted replica in the short form of a prediction", () => {
       expect(predictionText(each.prediction)).toBe("failures only from the intake + [0, 0.3] s to the deletion + [1, 1.5] s, of each deleted replica");
       expect(predictionText(window)).toBe("failures only from the intake + [0, 0.3] s to the deletion + [1, 1.5] s");
+      expect(predictionText({ ...window, each: true, propagation: b(0, 0.5) })).toBe(
+        "failures only from the intake + [0, 0.3] s to the deletion + [1, 1.5] s, of each deleted replica, the rules drop the replica in [0, 0.5] s",
+      );
     });
+
+    it("extends a cell whose rules dropped the replica of a window after the propagation of its prediction", () => {
+      const bounded = cell({ ...window, each: true, propagation: b(0, 0.5) });
+      // w2 drops lab-a 80 ms after its deletion, and w1 drops lab-b 0.1 s after its deletion, or 0.9 s
+      const w2 = { ev: "rules", t: 1080, prev: 1030, node: "w2", b: [`${OTHER.ip}:8080`, NEW] };
+      const fast = checkRun(bounded, rolling([w2, request(1500, "refused")]));
+      expect(fast.ok).toBe(true);
+      expect(fast).not.toHaveProperty("tail");
+      const slow = rolling([w2, request(1500, "refused")], 8900);
+      expect(checkRun(bounded, slow)).toMatchObject({
+        ok: true,
+        tail: "1 drops after the propagation of 0.5 s at the most, the latest: the rules of w1 dropped lab-b 0.9 s after its deletion",
+      });
+      expect(judgeKind(bounded, [rolling([w2]), slow])).toMatchObject({ decision: "extend", failed: 0 });
+      // without the band, the judge does not test the propagation
+      expect(checkRun(each, slow)).not.toHaveProperty("tail");
+      // a node that keeps the replica past the band, to the end of the run
+      const kept = { ...slow, lines: slow.lines.filter((line) => !(line.ev === "rules" && line["node"] === "w1" && line.t === 8900)) };
+      expect(checkRun(bounded, kept).tail).toBe("1 drops after the propagation of 0.5 s at the most, the latest: the rules of w1 kept lab-b to the end of the run");
+      // a run that ends in the band says nothing of the node
+      expect(checkRun(bounded, { ...kept, end: 8550 })).not.toHaveProperty("tail");
+      // a request outside each window still fails the run
+      expect(checkRun(bounded, rolling([w2, request(5000, "refused")], 8900)).ok).toBe(false);
+    });
+  });
+
+  it("tells both a late request and a late drop of the target", () => {
+    const window = cell({
+      kind: "window",
+      nodes: "all",
+      start: { from: "intake", band: b(0, 1) },
+      end: { from: "deletion", band: b(0, 2.5) },
+      certain: false,
+      propagation: b(0, 1),
+      why: "a test",
+    });
+    // the rules of w1 keep the target until 4000 ms: 3 s after its deletion, and after the end of the window
+    const run = runWith([request(3700, "refused"), { ev: "rules", t: 4000, prev: 3900, node: "w1", b: ["10.244.2.4:8080"] }]);
+    const lines = run.lines.filter((line) => !(line.ev === "rules" && line["node"] === "w1" && line.t === 1100));
+    expect(checkRun(window, { ...run, lines: [...lines, { ev: "rules", t: 1100, prev: 1050, node: "w1", b: [`${TARGET.ip}:8080`, "10.244.2.4:8080"] }] }).tail).toBe(
+      "1 failed requests after the window, the last 0.2 s after it on w1, before the rules of w1 dropped the target; 1 drops after the propagation of 1 s at the most, the latest: the rules of w1 dropped the target 3 s after its deletion",
+    );
+  });
+});
+
+describe("the observation of a kind run", () => {
+  const window = {
+    kind: "window",
+    nodes: "all",
+    start: { from: "intake", band: b(0, 1) },
+    end: { from: "deletion", band: b(0, 2.5) },
+    certain: false,
+    why: "a test",
+  } as const;
+  const deleted = (t: number, replica: typeof TARGET): Line => ({
+    ev: "pod", t, type: "MODIFIED", name: replica.pod, node: replica.node, ip: replica.ip, del: true, ready: false, phase: "Running", cs: [], labels: {},
+  });
+
+  it("lasts until a request that starts at the end of the window ends: the end of its band, the timeout and δ", () => {
+    // the deletion at 1000 ms, the window to 2.5 s after it, and the timeout of 1 s of the workload
+    expect(observationAfter(cell(window))).toEqual(s(3.6));
+    expect(observationEnd(cell(window), runWith([]))).toBe(1000 + 2500 + 1000 + 100);
+    // a timeout of 2 s, as in T07
+    expect(observationEnd({ ...cell(window), workload: { every: { value: 20, unit: "ms" }, timeout: s(2) } }, runWith([]))).toBe(5600);
+  });
+
+  it("counts from the end reference of each deleted replica with `each`, and from the latest one", () => {
+    const run = { ...runWith([]), lines: [deleted(1000, TARGET), deleted(8000, OTHER)] };
+    expect(observationEnd(cell({ ...window, each: true }), run)).toBe(8000 + 3600);
+    // without `each`, only the target counts
+    expect(observationEnd(cell(window), run)).toBe(1000 + 3600);
+    // a pause counts from its resume
+    expect(observationEnd(cell({ ...window, end: { from: "resume", band: b(0, 120) } }), runWith([], { resume: 9000 }))).toBeCloseTo(9000 + 120_000 + 1100, 6);
+  });
+
+  it("sets no time for another prediction, a window with no end, or a run that has no end reference yet", () => {
+    expect(observationAfter(cell({ kind: "none", why: "a test" }))).toBeNull();
+    expect(observationEnd(cell({ kind: "none", why: "a test" }), runWith([]))).toBeNull();
+    expect(observationEnd(cell({ ...window, end: null }), runWith([]))).toBeNull();
+    expect(observationEnd(cell(window), { ...runWith([]), lines: [] })).toBeNull();
+    expect(observationEnd(cell({ ...window, end: { from: "resume", band: b(0, 1) } }), runWith([]))).toBeNull();
   });
 });

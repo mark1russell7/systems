@@ -186,6 +186,14 @@ export type Prediction<A = Quantity> =
        * rolling update deletes each old replica in turn. Without the flag, the window is that of the target.
        */
       readonly each?: boolean | undefined;
+      /**
+       * This band is the propagation that the window assumes. It starts at the deletion of the replica
+       * of a window. It ends at the first poll of the rules of each node without that replica. The
+       * judge holds each such poll to `hi` ± δ, and it does not test a window without the band. A
+       * later poll agrees with the law, but the band is short, thus its cell is `extend` (D-EXTEND).
+       * An earlier drop only closes the window earlier.
+       */
+      readonly propagation?: Band<A> | undefined;
       readonly why: string;
     }
   | { readonly kind: "removal"; readonly band: Band<A>; readonly why: string }

@@ -74,14 +74,17 @@ describe("the gRPC catalog of T07", () => {
     expect(rolling).toMatchObject({ mode: "ipvs", trigger: { kind: "rolling-update" }, pod: { replicas: 2 } });
     expect(rolling.prediction).toMatchObject({ kind: "window", nodes: "all", each: true, start: { from: "intake" }, end: { from: "deletion" }, certain: false });
     if (rolling.prediction.kind !== "window") throw new Error("a window");
+    // a sync of up to 0.309 s at the deletion, minSyncPeriod of 1 s after it, then the idle propagation of 0.309 s
     const propagation = valueIn(afterSync("ipvs").hi, "s");
-    expect(propagation).toBeCloseTo(1.309, 9);
+    expect(propagation).toBeCloseTo(1.618, 9);
     expect(valueIn(rolling.prediction.start.band.hi, "s")).toBeCloseTo(propagation, 9);
     expect(valueIn(rolling.prediction.end!.band.lo, "s")).toBeCloseTo(FIRST_BACKOFF.lo, 9);
-    // the stalled SYN ends later than the second refused connect: 1.309 + 2 × 1.064 s, not 1.309 + 1.93 s
+    // the judge tests that band in each run
+    expect(rolling.prediction.propagation).toEqual({ lo: afterSync("ipvs").lo, hi: afterSync("ipvs").hi });
+    // the stalled SYN ends later than the second refused connect: 1.618 + 2 × 1.064 s, not 1.618 + 1.93 s
     const end = valueIn(rolling.prediction.end!.band.hi, "s");
     expect(end).toBeCloseTo(propagation + stalledConnect(propagation), 6);
-    expect(end).toBeCloseTo(3.437, 6);
+    expect(end).toBeCloseTo(3.746, 6);
     expect(end).toBeGreaterThan(propagation + backoffOf(1).hi);
     expect(rolling.prediction.why).toMatch(/A pod that is gone gives no answer/);
     expect(planOf(rolling).inject).toEqual([{ do: "kubectl", args: ["-n", "{namespace}", "set", "env", "deployment/lab", "LAB_VERSION={version}"] }]);
@@ -93,11 +96,13 @@ describe("the gRPC catalog of T07", () => {
     expect(synWaitOf(5).lo).toBeCloseTo(1.999, 9);
     // a stall up to 1.309 s: the first SYN after the drop comes one wait later at the most, and IPVS
     // drops it. The next one, one wait later, gets a live pod
+    expect(stalledConnect(1.618)).toBeCloseTo(2.128, 9);
     expect(stalledConnect(1.309)).toBeCloseTo(2.128, 9);
     expect(stalledConnect(0.309)).toBeCloseTo(2.128, 9);
     // kind run 40123580623: the second deletion came 0.499 s to 0.602 s after the first, IPVS dropped the
     // first pod 1.118 s to 1.276 s after its deletion, and the connect came 2.055 s to 2.101 s after the second
-    expect(2.101).toBeLessThan(1.309 + stalledConnect(1.309));
+    const propagation = valueIn(afterSync("ipvs").hi, "s");
+    expect(2.101).toBeLessThan(propagation + stalledConnect(propagation));
     // conntrack keeps the NAT of a SYN to an old pod that is gone: no model gives that window
     expect(() => grpcDeletion({ pod: kubeDefaults(2), mode: "iptables" }, afterSync("iptables"), true)).toThrow(/no model/);
   });

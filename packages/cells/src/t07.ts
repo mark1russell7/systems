@@ -54,8 +54,8 @@ const CONNTRACK_NAT: ReadonlySet<KubeProxyMode> = new Set(["iptables", "nftables
 
 /**
  * This function gives the prediction of a deletion from O04 with the hold: no failure, or a window
- * of refused connections. The propagation is the calibration of the mode, or another bound for a
- * deletion that comes immediately after a sync (`afterSync`).
+ * of refused connections. The propagation is the calibration of the mode, or another bound
+ * (`afterSync`). That bound is for a deletion in a sync, or in the `minSyncPeriod` after a sync.
  *
  * In the window, the pod can reset a connection in flight. In a mode with the NAT in conntrack,
  * that leaves a CLOSE entry to the pod for `CLOSE`. A later connection of the same client on the
@@ -181,7 +181,7 @@ export const T07_CELLS: readonly KindCell[] = [
     id: "T07.defaults.23",
     name: "T07 iptables, rolling update, the design's hold of 2 s",
     trigger: { kind: "rolling-update" },
-    // each old pod goes some milliseconds after the sync for a new ready pod: its removal waits minSyncPeriod
+    // each old pod goes while the sync for a new pod runs or in the wait after it: its removal waits for that sync and minSyncPeriod
     prediction: deletionPrediction(iptables, afterSync("iptables")),
   },
   {
