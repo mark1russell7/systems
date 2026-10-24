@@ -7,7 +7,7 @@
 //	               [--permit-without-stream] [--max-connection-idle D] [--max-connection-age D]
 //	               [--max-connection-age-grace D] [--listener-keepalive D]
 //	               [--listener-keepalive-interval D] [--listener-keepalive-count N]
-//	               [--name S] [--clock ns|ms]
+//	               [--name S] [--clock ns|ms] [--fail-file PATH]
 //
 // Each D is a duration of Go, for example 20s. A setting at 0 is the default of grpc-go or of Go. A
 // negative --listener-keepalive turns the TCP keepalive of the accepted connections off.
@@ -16,10 +16,15 @@
 // "hold:<ms>" holds its reply for that time, or until the client ends the call. Any other service is
 // NOT_FOUND. Watch sends SERVING and then holds the stream open until the client ends it.
 //
+// With --fail-file, the server also serves the service "liveness", the seam of a liveness restart.
+// Check of "liveness" answers NOT_SERVING while the file at PATH exists, and SERVING when it does not.
+// Check of "" still answers SERVING. Without the flag, "liveness" is NOT_FOUND, as each other service.
+//
 // The lines: listening (the ready line of the target), accept (each connection, with its addresses),
-// hold, held and hold-ended (a held reply), watch and watch-ended, and stopping. At SIGTERM or SIGINT,
-// the server writes stopping and then calls GracefulStop: it closes its listener, sends GOAWAY on each
-// connection and waits for each call in flight.
+// hold, held and hold-ended (a held reply), watch and watch-ended, not-serving (each NOT_SERVING
+// reply of "liveness"), and stopping. At SIGTERM or SIGINT, the server writes stopping and then calls
+// GracefulStop: it closes its listener, sends GOAWAY on each connection and waits for each call in
+// flight.
 //
 // A kind cell runs the server in a pod. --name gives the name of the pod: each line has it in the
 // field p, and each reply of Check has it in the header x-pod. --clock ms gives t in milliseconds, the
@@ -61,6 +66,16 @@ var name string
 // millis tells if t of each line is in milliseconds (--clock ms) and not in nanoseconds.
 var millis bool
 
+// failFile is the path of the flag file that fails the service "liveness" (--fail-file), or "" for no
+// such service.
+var failFile string
+
+// failing tells if the flag file exists. Then Check of "liveness" answers NOT_SERVING.
+func failing() bool {
+	_, err := os.Stat(failFile)
+	return err == nil
+}
+
 // stamp gives t of a line: the time on CLOCK_MONOTONIC in the unit of --clock.
 func stamp() any {
 	if millis {
@@ -98,6 +113,13 @@ func (health) Check(ctx context.Context, request *healthpb.HealthCheckRequest) (
 		}
 	}
 	if service == "" {
+		return &healthpb.HealthCheckResponse{Status: healthpb.HealthCheckResponse_SERVING}, nil
+	}
+	if service == "liveness" && failFile != "" {
+		if failing() {
+			emit("not-serving", map[string]any{"service": service})
+			return &healthpb.HealthCheckResponse{Status: healthpb.HealthCheckResponse_NOT_SERVING}, nil
+		}
 		return &healthpb.HealthCheckResponse{Status: healthpb.HealthCheckResponse_SERVING}, nil
 	}
 	text, ok := strings.CutPrefix(service, "hold:")
@@ -160,6 +182,7 @@ func main() {
 	keepCount := flag.Int("listener-keepalive-count", 0, "the TCP keepalive count (0: 9)")
 	flag.StringVar(&name, "name", "", "the name of the server in each line (p) and each reply of Check (x-pod)")
 	clock := flag.String("clock", "ns", "the unit of t: ns or ms")
+	flag.StringVar(&failFile, "fail-file", "", "the flag file that fails Check of the service liveness (\"\": no service liveness)")
 	flag.Parse()
 	if *clock != "ns" && *clock != "ms" {
 		emit("fail", map[string]any{"why": "--clock ns|ms"})
@@ -202,6 +225,7 @@ func main() {
 		"keepalive_time": keepaliveTime.String(), "keepalive_timeout": keepaliveTimeout.String(), "min_time": minTime.String(),
 		"permit_without_stream": *permitWithoutStream, "listener_keepalive": keepIdle.String(),
 		"listener_keepalive_interval": keepInterval.String(), "listener_keepalive_count": *keepCount,
+		"fail_file": failFile,
 	})
 	if err := server.Serve(listener{inner}); err != nil {
 		emit("fail", map[string]any{"why": err.Error()})

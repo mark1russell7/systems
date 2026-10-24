@@ -898,6 +898,18 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - In 40128267098, each run had a stalled SYN to the first old pod, and the first retransmission came after the drop. Only 1 run recorded the second one, 2.063 s after the second deletion, and its 2 failed calls.
   - The other 10 runs ended 1.915 s to 2.028 s after the second deletion, before the calls in the queue ended. Thus the record of a rolling update needs a longer observation.
   - In each of the 11 runs, a node dropped the first old pod 1.312 s to 1.391 s after its deletion. That is after the bound of `afterSync`, 1.309 s.
+- The liveness restart of T07 over gRPC has a seam (harness 0.12.2, kind 0.2.2). With `--fail-file`, grpc-go serves the service `liveness`, and the flag file fails its check.
+  - For the trigger `liveness-restart`, the liveness probe is the gRPC probe of `liveness`. The readiness probe stays the check of `""`.
+  - T07.defaults.35 is a liveness restart in nftables at the defaults of Kubernetes. T07.array.35 is its alias, because DP26 sets each value at its default.
+  - The kubelet of v1.37.0 stops the container after 3 failed probes (`worker.go`, lines 366–390). The same sync starts the new container with no back-off (`kuberuntime_manager.go`, lines 1447–1470 and 1954–1961).
+  - A sync sets the status of the pod before its stop and its start (`kubelet.go`, lines 2108, 2135 and 2267). Thus the endpoint stays ready through the stop.
+  - A client on the pod connects again after the GOAWAY. Until the new container listens, the pod refuses that connect. No document bounds the start of a container, thus the window has no end.
+  - T07.defaults.35 holds in 11 of 11 runs, in kind run 40131135561. Each run had 2 or 3 of the 3 clients on its target.
+  - The kubelet stopped the container 20.362 s to 29.792 s after the flag, 8 ms to 13 ms after the third failed probe. The new container listened 0.114 s to 0.147 s after the stop.
+  - Calls failed in 9 of 11 runs, and each failed call was refused. Each failing client lost 50 or 51 calls, from 2 ms to 1.008 s after the stop.
+  - The next sync of the kubelet made the pod not ready 0.125 s to 0.176 s after the stop. Its readiness probe passed 16 ms to 41 ms later, and in 2 runs 0.994 s and 10.007 s later.
+  - The rules of each node dropped the pod 0.150 s to 0.238 s after the stop. Thus the next connect of each failing client, after the first backoff, went to the other pod.
+  - 4 cells of T07 over gRPC wait, because the lab has no Cilium.
 
 ## Kubernetes
 
