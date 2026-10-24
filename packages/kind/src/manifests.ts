@@ -33,10 +33,11 @@ export const namespaceOf = (cell: Pick<KindCell, "name">): string =>
  * This function gives a probe of the pod, with each field of the cell. The probe of the service is an
  * HTTP GET of its health server (`path`). The probe of grpc-go (`path` null) is the gRPC probe of the
  * kubelet. It is a Check of the service "" on the port of the server, and the answer is SERVING until
- * GracefulStop.
+ * GracefulStop. A gRPC probe can name another service (`service`): the field `service` of `GRPCAction`
+ * (`staging/src/k8s.io/api/core/v1/types.go` at v1.37.0, line 2892).
  */
-export const probeOf = (path: string | null, probe: KubeletProbe): Record<string, unknown> => ({
-  ...(path === null ? { grpc: { port: PORT } } : { httpGet: { path, port: HEALTH_PORT } }),
+export const probeOf = (path: string | null, probe: KubeletProbe, service?: string): Record<string, unknown> => ({
+  ...(path === null ? { grpc: service === undefined ? { port: PORT } : { port: PORT, service } } : { httpGet: { path, port: HEALTH_PORT } }),
   initialDelaySeconds: 0,
   periodSeconds: whole(probe.period, `the period of ${path ?? "the gRPC probe"}`),
   timeoutSeconds: whole(probe.timeout, `the timeout of ${path ?? "the gRPC probe"}`),
@@ -53,11 +54,18 @@ const appEnv = (cell: KindCell): Array<Record<string, unknown>> => [
   POD_ENV,
 ];
 
+/** This file is the flag of the trigger `liveness-restart`, in the root of the server process (`run.ts`, the step `flag`). */
+const FLAG_FILE = "/tmp/lab-fail";
+
 /**
  * This function gives the container of the server of a cell. The service runs `app.mjs` of the lab
  * image with its declaration. The server grpc-go runs from the image of the harness. Its lines name
  * the pod and stamp in milliseconds. Its replies name the pod in the header `x-pod`. Kubernetes
  * expands `$(POD_NAME)` in the command.
+ *
+ * The seam of `liveness-restart` in grpc-go is its service `liveness`, which the flag file fails
+ * (`--fail-file`). Thus for that trigger the liveness probe is a Check of `liveness`. The readiness
+ * probe stays a Check of "", which the flag file does not fail.
  */
 const serverContainer = (cell: KindCell, version: number): Record<string, unknown> => {
   const env = { name: "LAB_VERSION", value: String(version) };
@@ -70,15 +78,14 @@ const serverContainer = (cell: KindCell, version: number): Record<string, unknow
       readinessProbe: probeOf("/readiness", cell.pod.readiness),
       livenessProbe: probeOf("/liveness", cell.pod.liveness),
     };
-  // the seam of liveness-restart is a check of the service that a flag file fails: grpc-go has none
-  if (cell.trigger.kind === "liveness-restart") throw new Error(`${cell.name}: grpc-go has no seam for liveness-restart`);
+  const seam = cell.trigger.kind === "liveness-restart";
   return {
-    command: ["grpc-go-server", "--port", String(PORT), "--name", "$(POD_NAME)", "--clock", "ms"],
+    command: ["grpc-go-server", "--port", String(PORT), "--name", "$(POD_NAME)", "--clock", "ms", ...(seam ? ["--fail-file", FLAG_FILE] : [])],
     env: [POD_ENV, env],
     ports: [{ containerPort: PORT }],
     ...(cell.pod.startup === null ? {} : { startupProbe: probeOf(null, cell.pod.startup) }),
     readinessProbe: probeOf(null, cell.pod.readiness),
-    livenessProbe: probeOf(null, cell.pod.liveness),
+    livenessProbe: seam ? probeOf(null, cell.pod.liveness, "liveness") : probeOf(null, cell.pod.liveness),
   };
 };
 

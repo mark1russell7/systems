@@ -172,11 +172,73 @@ describe("the gRPC catalog of T07", () => {
       livenessProbe: { grpc: { port: 8080 } },
     });
     expect(container).not.toHaveProperty("lifecycle");
+    // only a liveness restart gives grpc-go its flag file
+    expect(container["command"]).not.toContain("--fail-file");
+    expect((container["livenessProbe"] as { grpc: Record<string, unknown> }).grpc).not.toHaveProperty("service");
     // the preStop of DP28 is the native sleep action
     const hardened = (serverObjects(cell("T07.array.4"), "lab-ns", "x") as Array<{ spec: { template?: { spec: { containers: Array<Record<string, unknown>> } } } }>)[1]!;
     expect(hardened.spec.template!.spec.containers[0]).toMatchObject({ lifecycle: { preStop: { sleep: { seconds: 20 } } } });
     const [daemonSet] = clientObjects(deletion, "lab-ns", "systems-kind-lab:test", "10.96.0.10:80") as [{ spec: { template: { spec: { containers: Array<{ command: string[] }> } } } }];
     expect(daemonSet.spec.template.spec.containers[0]!.command).toEqual(["node", "client-grpc.mjs"]);
+  });
+
+  it("fails the service liveness of grpc-go with the flag file, and keeps the readiness probe on the service \"\"", () => {
+    const restart = cell("T07.defaults.35");
+    expect(restart).toMatchObject({ mode: "nftables", trigger: { kind: "liveness-restart" }, pod: { replicas: 2 } });
+    const [, deployment] = serverObjects(restart, "lab-ns", "loom-harness-grpc-go:test") as [unknown, { spec: { template: { spec: { containers: Array<Record<string, unknown>> } } } }];
+    const container = deployment.spec.template.spec.containers[0]!;
+    expect(container["command"]).toEqual(["grpc-go-server", "--port", "8080", "--name", "$(POD_NAME)", "--clock", "ms", "--fail-file", "/tmp/lab-fail"]);
+    expect(container["livenessProbe"]).toEqual({ grpc: { port: 8080, service: "liveness" }, initialDelaySeconds: 0, periodSeconds: 10, timeoutSeconds: 1, failureThreshold: 3, successThreshold: 1 });
+    expect(container["readinessProbe"]).toEqual({ grpc: { port: 8080 }, initialDelaySeconds: 0, periodSeconds: 10, timeoutSeconds: 1, failureThreshold: 3, successThreshold: 1 });
+    // the lab writes the flag file in the root of the server process of the target
+    expect(planOf(restart).inject).toEqual([{ do: "flag", target: "server", on: true }]);
+  });
+
+  it("predicts a window from the GOAWAY of a liveness restart with no end, because no document bounds the start of the new container", () => {
+    const restart = cell("T07.defaults.35");
+    expect(restart.prediction).toEqual({
+      kind: "window",
+      nodes: "all",
+      start: { from: "intake", band: { lo: s(0), hi: s(0) } },
+      end: null,
+      certain: false,
+      why: expect.stringMatching(/After 3 failed probes, 20 s to 30 s after the flag/),
+    });
+    expect(restart.prediction.why).toMatch(/the window has no end$/);
+    // DP26 sets the defaults of Kubernetes: the array cell is the same cell
+    expect(T07_GRPC_ALIASES.find((each) => each.plan === "T07.array.35")).toMatchObject({ is: "T07.defaults.35" });
+    expect(T07_GRPC_WAITING.map((each) => each.plan)).not.toContain("T07.defaults.35");
+  });
+
+  it("judges a liveness restart from the line stopping of the old container", () => {
+    const restart = cell("T07.defaults.35");
+    const target = { pod: "lab-a", node: "w1", ip: "10.244.1.5", version: "1" };
+    const failure = (t: number) => ({ ev: "req", t, d: 0.4, o: "refused", p: "client-x", n: "w1", lp: 40312 });
+    const run = (stopping: boolean, ...failedAt: number[]): KindRun => ({
+      env: 0,
+      index: 0,
+      warmup: false,
+      start: 0,
+      end: 40_000,
+      acts: { fault: 1000, heal: null, resume: null },
+      target,
+      paused: null,
+      replicas: [target],
+      void: null,
+      lines: [
+        { ev: "rules", t: 900, prev: 850, node: "w1", b: ["10.244.1.5:8080", "10.244.2.7:8080"] },
+        ...(stopping ? [{ ev: "stopping", t: 25_000, p: "lab-a" }, { ev: "listening", t: 25_600, p: "lab-a" }] : []),
+        ...failedAt.map(failure),
+      ],
+      dropped: {},
+    });
+    // no failure, or refused connects until after the new container listens and one backoff
+    expect(judgeKind(restart, [run(true)]).decision).toBe("holds");
+    expect(judgeKind(restart, [run(true, 25_020, 26_100, 27_900)]).decision).toBe("holds");
+    // a failure before the GOAWAY, less δ
+    expect(judgeKind(restart, [run(true, 24_800)]).decision).toBe("fails");
+    // no restart: the run has no intake
+    expect(judgeKind(restart, [run(false)]).decision).toBe("fails");
   });
 
   it("names the replica that a scale-in removes by its deletion cost, for gRPC only", () => {

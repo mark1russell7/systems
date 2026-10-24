@@ -99,7 +99,8 @@ From 0.2.0, a cell names its stack (`stack`): its server and its clients. A cell
   - The lines of grpc-go name their pod and stamp in milliseconds (`--name`, `--clock ms`). Its line `stopping` gives the intake and the SIGTERM of a pod (`stoppingOf`): then GracefulStop closes the listener and sends GOAWAY.
   - The clients start after the server is ready. Each failed connect of a channel makes the backoff of grpc-js longer, up to 120 s.
   - The target of a run is the replica that answers the most clients. A channel stays on its replica, and the channels go to the replica that stays after a run. Thus a target by name has no client in most runs.
-  - The cell has no declaration (`declaration` is null), thus `describeCell` refuses it. The server grpc-go has no seam for `liveness-restart`, thus its manifest refuses that trigger.
+  - The cell has no declaration (`declaration` is null), thus `describeCell` refuses it.
+  - From 0.2.2, the trigger `liveness-restart` has a seam in grpc-go. The server gets `--fail-file /tmp/lab-fail`, and the liveness probe is the gRPC probe of the service `liveness` (`probeOf` with a `service`). While the flag file exists, that check answers NOT_SERVING. The readiness probe stays the check of `""`, thus the endpoint stays ready until the kubelet stops the container.
 
 A declaration that can be null changes the type `KindCell`. That is a breaking change before 1.0.0, thus the version is 0.2.0.
 

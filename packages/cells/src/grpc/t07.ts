@@ -1,5 +1,6 @@
 import { recovery, timerOf } from "@mark1russell7/algebra";
 import type { KindCell, KubeProxyMode, Prediction, Propagation, TriggerKind } from "@mark1russell7/kind";
+import { kubeletBand } from "@mark1russell7/kind";
 import { GRPC_JS, LINUX_TCP } from "@mark1russell7/machines";
 import { valueIn } from "@mark1russell7/quantity";
 import { LINUX_66, given, seconds } from "../catalog.ts";
@@ -190,6 +191,46 @@ export const grpcDeletion = (cell: Pick<KindCell, "pod" | "mode">, propagation: 
   );
 };
 
+/**
+ * This function gives the prediction of a liveness restart of grpc-go. The kind lab writes the flag
+ * file, and the check of `liveness` answers NOT_SERVING. The source of the kubelet of v1.37.0 gives each step:
+ * - The worker of the liveness probe sets a failure only after the threshold of failed probes in
+ *   sequence (`pkg/kubelet/prober/worker.go`, lines 366–379). That is 20 s to 30 s at the defaults (`kubeletBand`).
+ * - Then the worker stops until it sees a new container (lines 381–390). The failure syncs the pod
+ *   (`pkg/kubelet/kubelet.go`, lines 2809–2811).
+ * - The sync stops the container and puts it in the containers to start (`kuberuntime_manager.go`, lines
+ *   1447–1470). The stop is SIGTERM with the grace of the pod, 30 s (`kuberuntime_container.go`, lines 882–915 and 1423–1439).
+ * - The server grpc-go writes `stopping`, and GracefulStop closes its listener and sends GOAWAY. The
+ *   container exits when the calls in flight end.
+ * - The same sync then starts the new container (`kuberuntime_manager.go`, lines 1620–1629 and
+ *   1954–1961). The first restart has no back-off, because the status of the sync has no exited container (lines 2077–2090).
+ * - The endpoint stays ready through the stop. A sync sets the status of the pod before its stop and
+ *   its start (`kubelet.go`, lines 2108, 2135 and 2267).
+ * - The next sync waits for a relist of the PLEG after this one (`pod_workers.go`, line 1288). The PLEG
+ *   relists each 1 s (`kubelet.go`, line 215).
+ * - In that sync, the new container is not ready until its readiness probe passes, and the kubelet
+ *   starts that probe at once (`prober_manager.go`, lines 354–370). The probe checks "".
+ * - While the pod is not ready, its endpoint is not ready in the EndpointSlice
+ *   (`staging/src/k8s.io/endpointslice/utils.go`, lines 38–43), and the rules drop it after the propagation.
+ *
+ * A client on the pod connects again at its next call after the GOAWAY. The rules still select the
+ * pod, thus that connect can go to it. Until the new container listens, the pod refuses it. Each call
+ * of that client then fails at once until its next connect, after the backoff of grpc-js. No document
+ * bounds the time from the stop to the listener of the new container. Thus the window opens at the
+ * GOAWAY, and it has no end.
+ */
+export const grpcRestart = (cell: Pick<KindCell, "pod">): Prediction => {
+  const kill = kubeletBand(cell.pod.liveness, false);
+  return {
+    kind: "window",
+    nodes: "all",
+    start: { from: "intake", band: { lo: s(0), hi: s(0) } },
+    end: null,
+    certain: false,
+    why: `The flag file fails the check of the service liveness. After ${cell.pod.liveness.threshold} failed probes, ${say(kill.lo)} to ${say(kill.hi)} after the flag, the kubelet stops the container with SIGTERM (worker.go at v1.37.0, lines 366–390, and kuberuntime_container.go, lines 882–915). Then grpc-go closes its listener and sends GOAWAY. The same sync starts the new container, with no back-off (kuberuntime_manager.go, lines 1447–1470, 1954–1961 and 2077–2090). The readiness probe checks the service "", thus the endpoint stays ready through the stop. A client on the pod connects again at its next call, and that connect can go to the pod. Until the new container listens, the pod refuses it, and each call of that client fails at once until its next connect, after the backoff of grpc-js. No document bounds the time from the stop to the listener of the new container, thus the window has no end`,
+  };
+};
+
 /** A spec is one cell: its cell of the plan, its mode, its trigger, its pod and its name. */
 interface Spec {
   readonly id: string;
@@ -228,6 +269,7 @@ export const T07_GRPC_SPECS: readonly Spec[] = [
     pod: PRESTOP_PAST_GRACE,
     name: "T07 iptables, gRPC, rolling update: a preStop of 60 s in a grace of 30 s (DP29)",
   },
+  { id: "T07.defaults.35", mode: "nftables", trigger: "liveness-restart", pod: kubeDefaults(2), name: "T07 nftables, gRPC, liveness restart: GOAWAY at SIGTERM, the endpoint stays ready" },
 ];
 
 /** This function gives the cell of a spec. */
@@ -250,7 +292,9 @@ const cellOf = (spec: Spec): KindCell => {
   // a rolling update deletes each old pod in turn, each one some milliseconds after the sync for a new
   // ready pod: its removal waits minSyncPeriod (`afterSync`), and each old pod has a window of its own
   const rolling = spec.trigger === "rolling-update";
-  return { ...cell, prediction: rolling ? grpcDeletion(cell, afterSync(spec.mode), true) : grpcDeletion(cell) };
+  if (rolling) return { ...cell, prediction: grpcDeletion(cell, afterSync(spec.mode), true) };
+  // the kubelet stops the container and starts it again: no deletion, and the endpoint stays ready
+  return { ...cell, prediction: spec.trigger === "liveness-restart" ? grpcRestart(cell) : grpcDeletion(cell) };
 };
 
 /** These are the gRPC cells of T07 for the kind lab. */
@@ -265,15 +309,17 @@ export const T07_GRPC_ALIASES: readonly Alias[] = [
     is: "T07.defaults.12",
     why: "DP53 sets externalTrafficPolicy Local behind a cloud load balancer: no knob of grpc-go, grpc-js or kube-proxy on the path to the ClusterIP, and T07 has no cloud load balancer",
   },
+  {
+    plan: "T07.array.35",
+    is: "T07.defaults.35",
+    why: "DP26 is the defaults of a rollout: a grace of 30 s, no preStop, and probes of 10 s with a timeout of 1 s and a threshold of 3. Each one is the default of Kubernetes, as in T07.defaults.35",
+  },
 ];
 
 const CILIUM = "the kind lab has the dataplane of kube-proxy only: no Cilium";
-const LIVENESS = "the liveness probe of grpc-go is the gRPC probe of the kubelet, and nothing fails it while the process serves: grpc-go has no seam for a liveness restart";
 
 /** These are the cells of the plan over grpc-go in T07 that this catalog does not start, each with its reason. */
 export const T07_GRPC_WAITING: readonly Waiting[] = [
-  { plan: "T07.defaults.35", trigger: "event:liveness-restart", why: LIVENESS },
-  { plan: "T07.array.35", trigger: "event:liveness-restart", why: "as T07.defaults.35. DP26 is the defaults of a rollout" },
   { plan: "T07.defaults.17", trigger: "event:crash", why: CILIUM },
   { plan: "T07.array.17", trigger: "event:crash", why: CILIUM },
   { plan: "T07.defaults.20", trigger: "freeze-process", why: CILIUM },
