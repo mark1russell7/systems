@@ -127,4 +127,18 @@ describe("the fault mapping", () => {
     expect(daemonset!.spec.template.spec.containers[0]!.env.find((each) => each.name === "EVERY_MS")?.value).toBe("20");
     expect(() => serverObjects({ ...cell, pod: { ...cell.pod, grace: s(2.5) } }, namespace, "image")).toThrow(/whole number/);
   });
+
+  it("gives a preStop sleep longer than the grace as a command, because the API server refuses such a sleep action", () => {
+    const base = cellOf("rolling-update");
+    const lifecycleOf = (preStop: number): unknown => {
+      const [, deployment] = serverObjects({ ...base, pod: { ...base.pod, preStop: s(preStop) } }, "lab-ns", "image") as Array<{
+        spec: { template: { spec: { containers: Array<Record<string, unknown>> } } };
+      }>;
+      return deployment!.spec.template.spec.containers[0]!["lifecycle"];
+    };
+    // the grace of the fixture is 30 s
+    expect(lifecycleOf(30)).toEqual({ preStop: { sleep: { seconds: 30 } } });
+    expect(lifecycleOf(60)).toEqual({ preStop: { exec: { command: ["/bin/sh", "-c", "sleep 60"] } } });
+    expect(lifecycleOf(0)).toBeUndefined();
+  });
 });

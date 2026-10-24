@@ -68,6 +68,18 @@ export interface RunFacts<A = Quantity> {
   readonly left?: A | undefined;
   /** These times are the SIGTERM of each replica, after the fault (`restarts`). */
   readonly signals?: ReadonlyArray<A | null> | undefined;
+  /**
+   * These are the replicas of a window for each deleted replica (`each`). Each one is a replica of the
+   * run with a deletion after its start, with the stamps of its intake and of its deletion.
+   */
+  readonly deletions?: readonly Deleted[] | undefined;
+}
+
+/** A deleted replica is a replica of a run that got a deletion. It gives its pod, and the stamps of its intake (or null) and of its deletion. */
+export interface Deleted {
+  readonly pod: string;
+  readonly intake: number | null;
+  readonly deletion: number;
 }
 
 /**
@@ -144,32 +156,62 @@ export const reusesReset = (request: Request, requests: readonly Request[], reus
   );
 };
 
-/** This function gives a reference event of a run, as a stamp, or null when the run does not have it. */
-export const referenceOf = (run: KindRun, from: Reference): number | null => {
+/**
+ * This function gives a reference event of a run, as a stamp, or null when the run does not have it.
+ * The references `deletion` and `intake` are those of the target, or of the replica `pod`.
+ */
+export const referenceOf = (run: KindRun, from: Reference, pod: string | undefined = run.target?.pod): number | null => {
   const lines = run.lines as readonly Line[];
   if (from === "fault") return run.acts.fault;
   if (from === "resume") return run.acts.resume;
-  if (run.target === null) return null;
-  const deletion = deletionOf(lines, [run.target.pod], run.start);
-  if (from === "deletion") return deletion;
-  return intakeOf(lines, run.target.pod, run.start);
+  if (pod === undefined) return null;
+  if (from === "deletion") return deletionOf(lines, [pod], run.start);
+  return intakeOf(lines, pod, run.start);
 };
 
 /**
- * This function gives the propagation of each node for the target of a run. It is the time from
- * its deletion (or its crash) to the first poll of the rules of the node without it. The change
- * came between the poll before (`after`) and that poll (`by`).
+ * This function gives the propagation of each node for the target of a run, or for the replica of
+ * the address `ip`. It is the time from its deletion (or its crash) to the first poll of the rules
+ * of the node without it. The change came between the poll before (`after`) and that poll (`by`).
  */
-export const propagationOf = (run: KindRun, from: number | null): Record<string, Propagated | null> => {
+export const propagationOf = (run: KindRun, from: number | null, ip: string | undefined = run.target?.ip): Record<string, Propagated | null> => {
   const out: Record<string, Propagated | null> = {};
-  if (run.target === null || from === null) return out;
+  if (ip === undefined || from === null) return out;
   const nodes = [...new Set((run.lines as readonly Line[]).filter((line) => line.ev === "rules").map((line) => String(line["node"])))].sort();
   for (const node of nodes) {
-    const drop = dropOf(run.lines as readonly Line[], node, `${run.target.ip}:${PORT}`, from);
+    const drop = dropOf(run.lines as readonly Line[], node, `${ip}:${PORT}`, from);
     out[node] = drop === null ? null : { after: drop.prev === null ? null : seconds(sec(Math.max(0, drop.prev - from))), by: seconds(sec(drop.t - from)) };
   }
   return out;
 };
+
+/**
+ * This function gives each replica of a run that got a deletion after the start of the run, in the
+ * sequence of the deletions. A rolling update deletes each old replica in turn.
+ */
+export const deletionsOf = (run: KindRun): Deleted[] =>
+  run.replicas
+    .flatMap((replica) => {
+      const deletion = referenceOf(run, "deletion", replica.pod);
+      return deletion === null ? [] : [{ pod: replica.pod, intake: referenceOf(run, "intake", replica.pod), deletion }];
+    })
+    .sort((a, b) => a.deletion - b.deletion);
+
+/** This function tells if a prediction is a window for each deleted replica. */
+const eachOf = (prediction: Prediction): boolean => prediction.kind === "window" && prediction.each === true;
+
+/**
+ * A span is one window of a run, as stamps. It gives the replica of its references (or none), and its
+ * two references. It also gives its ends with δ, and when the rules of a node dropped its replica.
+ */
+interface Span {
+  readonly pod: string | undefined;
+  readonly start: number;
+  readonly end: number | null;
+  readonly lo: number;
+  readonly hi: number;
+  readonly dropped: (node: string) => number | null;
+}
 
 /** This function gives the facts of a run that each table reads: its failures by outcome and node, and the times of its target. */
 export const factsOf = (cell: KindCell, run: KindRun): RunFacts => {
@@ -192,6 +234,7 @@ export const factsOf = (cell: KindCell, run: KindRun): RunFacts => {
       return at === null ? null : sec(at - from);
     })()),
     propagation: propagationOf(run, from),
+    ...(eachOf(cell.prediction) ? { deletions: deletionsOf(run) } : {}),
   };
 };
 
@@ -216,51 +259,84 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
       return done(counted.length === 0, counted.length === 0 ? `no ${excluded === undefined ? "request failed" : `request ended ${excluded.join(", ")}`}` : `${counted.length} ${what}: ${JSON.stringify(facts.outcomes)}`, counted.length);
     }
     case "window": {
-      const start = referenceOf(run, prediction.start.from);
-      const end = prediction.end === null ? null : referenceOf(run, prediction.end.from);
-      if (start === null || (prediction.end !== null && end === null))
-        return done(false, `the run has no ${start === null ? prediction.start.from : prediction.end!.from} reference`, null);
+      const each = prediction.each === true;
       const opens = secondsOf(prediction.start.band);
       const closes = prediction.end === null ? null : secondsOf(prediction.end.band);
-      const lo = start + opens.lo * 1000 - NOISE;
-      const hi = end === null ? Number.POSITIVE_INFINITY : end + closes!.hi * 1000 + NOISE;
+      // a request after a window that started before the rules of its node dropped the replica of that
+      // window agrees with the law: only the calibrated band is short (D-EXTEND). A request after the drop is still late
+      const droppedAfter = (origin: number | null, propagation: RunFacts["propagation"]) => (node: string): number | null => {
+        const propagated = propagation[node];
+        return origin === null || propagated === undefined || propagated === null ? null : origin + valueIn(propagated.by, "ms");
+      };
+      // the window of the target, or with `each` the window of each replica that got a deletion
+      const pods: ReadonlyArray<string | undefined> = each ? (facts.deletions ?? []).map((deleted) => deleted.pod) : [run.target?.pod];
+      if (pods.length === 0) return done(false, "no replica of the run got a deletion", null);
+      const windows: Span[] = [];
+      for (const pod of pods) {
+        const start = referenceOf(run, prediction.start.from, pod);
+        const end = prediction.end === null ? null : referenceOf(run, prediction.end.from, pod);
+        if (start === null || (prediction.end !== null && end === null))
+          return done(false, `the run has no ${start === null ? prediction.start.from : prediction.end!.from} reference${each ? ` for ${pod}` : ""}`, null);
+        const origin = each ? referenceOf(run, "deletion", pod) : (facts.deletion ?? (cell.trigger.kind === "crash" ? run.acts.fault : null));
+        const ip = run.replicas.find((replica) => replica.pod === pod)?.ip;
+        windows.push({
+          pod,
+          start,
+          end,
+          lo: start + opens.lo * 1000 - NOISE,
+          hi: end === null ? Number.POSITIVE_INFINITY : end + closes!.hi * 1000 + NOISE,
+          dropped: droppedAfter(origin, each ? propagationOf(run, origin, ip) : facts.propagation),
+        });
+      }
       const relevant: Request[] = prediction.nodes === "paused" ? failures.filter((request) => request.n === run.paused) : failures;
       const others = prediction.nodes === "paused" ? failures.filter((request) => request.n !== run.paused) : [];
       const reuse = prediction.afterReset;
-      const late = relevant.filter((request) => request.t < lo || request.t > hi);
+      const late = relevant.filter((request) => windows.every((window) => request.t < window.lo || request.t > window.hi));
       // a request outside the window that reuses the port of a reset is the CLOSE entry of that reset
       const reused = reuse === undefined ? [] : late.filter((request) => reusesReset(request, failures, reuse));
-      // a request after the window that started before the rules of its node dropped the target agrees
-      // with the law: only the calibrated band is short (D-EXTEND). A request after the drop is still late
-      const origin = facts.deletion ?? (cell.trigger.kind === "crash" ? run.acts.fault : null);
-      const dropped = (node: string): number | null => {
-        const propagated = facts.propagation[node];
-        return origin === null || propagated === undefined || propagated === null ? null : origin + valueIn(propagated.by, "ms");
-      };
-      const tail = late.filter((request) => {
-        const drop = request.t > hi && !reused.includes(request) ? dropped(request.n) : null;
-        return drop !== null && request.t <= drop + NOISE;
-      });
+      const tailOf = (request: Request): Span | undefined =>
+        reused.includes(request)
+          ? undefined
+          : windows.find((window) => {
+              const drop = request.t > window.hi ? window.dropped(request.n) : null;
+              return drop !== null && request.t <= drop + NOISE;
+            });
+      const tail = late.filter((request) => tailOf(request) !== undefined);
       const outside = late.filter((request) => !reused.includes(request) && !tail.includes(request));
+      const bounds = (window: Span): string => `[${sec(window.lo - window.start)}, ${sec(window.hi - window.start)}] s`;
       const problems: string[] = [];
-      if (outside.length > 0) problems.push(`${outside.length} failed requests outside [${sec(lo - start)}, ${sec(hi - start)}] s after ${prediction.start.from}`);
+      if (outside.length > 0)
+        problems.push(
+          each
+            ? `${outside.length} failed requests outside the window of each deleted replica: ${windows.map((window) => `${window.pod} ${bounds(window)}`).join(", ")} after its ${prediction.start.from}`
+            : `${outside.length} failed requests outside ${bounds(windows[0]!)} after ${prediction.start.from}`,
+        );
       if (others.length > 0) problems.push(`${others.length} failed requests on nodes whose kube-proxy did not pause`);
       if (prediction.certain && relevant.length === 0) problems.push("no request failed in a window that the law opens");
-      if (prediction.certain && end !== null && relevant.length > 0) {
+      // the window that ends last: the last failed request comes near its end
+      const final = windows.reduce((a, b) => ((b.end ?? Number.NEGATIVE_INFINITY) > (a.end ?? Number.NEGATIVE_INFINITY) ? b : a));
+      if (prediction.certain && final.end !== null && relevant.length > 0) {
         const last = relevant.at(-1)!.t;
-        const earliest = end + closes!.lo * 1000 - NOISE - SLACK;
+        const earliest = final.end + closes!.lo * 1000 - NOISE - SLACK;
         if (last < earliest) problems.push(`the last failed request started ${sec(earliest - last)} s before the window can end`);
       }
       const inside = relevant.filter((request) => !late.includes(request));
       const span = inside.length === 0 ? 0 : sec(inside.at(-1)!.t - inside[0]!.t);
+      const where = each ? `the windows of ${windows.length} deleted replicas` : "the window";
       const agrees =
         reused.length === 0
-          ? `${relevant.length} failed requests, all in the window (span ${span} s)`
-          : `${inside.length} failed requests in the window (span ${span} s), and ${reused.length} on a port that a reset closed`;
+          ? `${relevant.length} failed requests, all in ${where} (span ${span} s)`
+          : `${inside.length} failed requests in ${where} (span ${span} s), and ${reused.length} on a port that a reset closed`;
       const checked = done(problems.length === 0, problems.length === 0 ? agrees : problems.join("; "), relevant.length);
       if (problems.length > 0 || tail.length === 0) return checked;
       const last = tail.at(-1)!;
-      return { ...checked, tail: `${tail.length} failed requests after the window, the last ${sec(last.t - hi + NOISE)} s after it on ${last.n}, before the rules of ${last.n} dropped the target` };
+      const after = tailOf(last)!;
+      return {
+        ...checked,
+        tail: each
+          ? `${tail.length} failed requests after a window, the last ${sec(last.t - after.hi + NOISE)} s after the window of ${after.pod} on ${last.n}, before the rules of ${last.n} dropped ${after.pod}`
+          : `${tail.length} failed requests after the window, the last ${sec(last.t - after.hi + NOISE)} s after it on ${last.n}, before the rules of ${last.n} dropped the target`,
+      };
     }
     case "removal": {
       const fault = run.acts.fault;

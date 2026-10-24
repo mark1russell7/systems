@@ -118,11 +118,25 @@ export const redisObjects = (namespace: string, image: string): unknown[] => [
 ];
 
 /**
+ * This function gives the preStop hook of a sleep, or nothing for no sleep. The hook is the native
+ * sleep action of the kubelet. The API server refuses a sleep action that is longer than the grace
+ * (`validateSleepAction`, `pkg/apis/core/validation/validation.go` at v1.37.0, line 3483). Thus a
+ * longer sleep is a command in the container, `sleep` from `/bin/sh`, as public manifests write it.
+ * The kubelet starts that command with no timeout (`pkg/kubelet/lifecycle/handlers.go`, line 81).
+ */
+const preStopOf = (preStop: number, grace: number): Record<string, unknown> => {
+  if (preStop === 0) return {};
+  if (preStop <= grace) return { lifecycle: { preStop: { sleep: { seconds: preStop } } } };
+  return { lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", `sleep ${preStop}`] } } } };
+};
+
+/**
  * These are the objects of the server: a Service of type ClusterIP, and the Deployment with the
  * settings of the cell. The image is the lab image for the service, or the image of grpc-go.
  */
 export const serverObjects = (cell: KindCell, namespace: string, image: string, version = 1): unknown[] => {
   const preStop = whole(cell.pod.preStop, "the preStop sleep");
+  const grace = whole(cell.pod.grace, "the grace period");
   return [
     {
       apiVersion: "v1",
@@ -142,7 +156,7 @@ export const serverObjects = (cell: KindCell, namespace: string, image: string, 
         template: {
           metadata: { labels: { app: SERVER, [LOG_LABEL]: "1", "lab.systems/version": String(version) } },
           spec: {
-            terminationGracePeriodSeconds: whole(cell.pod.grace, "the grace period"),
+            terminationGracePeriodSeconds: grace,
             enableServiceLinks: true,
             topologySpreadConstraints: [
               {
@@ -158,7 +172,7 @@ export const serverObjects = (cell: KindCell, namespace: string, image: string, 
                 image,
                 imagePullPolicy: "Never",
                 ...serverContainer(cell, version),
-                ...(preStop === 0 ? {} : { lifecycle: { preStop: { sleep: { seconds: preStop } } } }),
+                ...preStopOf(preStop, grace),
               },
             ],
           },

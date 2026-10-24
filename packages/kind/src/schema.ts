@@ -137,6 +137,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
       end: z.object({ from: reference, band }).nullable(),
       certain: z.boolean(),
       afterReset: z.object({ life: a, outcome: z.string() }).optional(),
+      each: z.boolean().optional(),
       why: z.string(),
     }),
     z.object({ kind: z.literal("removal"), band, why: z.string() }),
@@ -181,6 +182,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     rules: z.record(z.string(), a.nullable()).optional(),
     left: a.optional(),
     signals: z.array(a.nullable()).optional(),
+    windows: z.array(z.object({ pod: z.string(), intake: z.number().nullable(), deletion: z.number() })).optional(),
   });
   const verdict = z.object({
     decision: z.enum(["holds", "fails", "extend", "measured", "calibration", "void"]),

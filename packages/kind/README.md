@@ -54,7 +54,7 @@ The unit of the main value of a run comes from the prediction of its cell:
 
 These values stay numbers in the two formats:
 
-- **A stamp** is a reading of CLOCK_MONOTONIC in milliseconds, a point on a clock, not an amount. The stamps are `start`, `end` and `acts` of a run, `t` of each line, and `first`, `last` and `deletion` of the facts.
+- **A stamp** is a reading of CLOCK_MONOTONIC in milliseconds, a point on a clock, not an amount. The stamps are `start`, `end` and `acts` of a run, `t` of each line, and `first`, `last`, `deletion` and `deletions` of the facts.
 - **A line** stays as its source wrote it. The image writes it, and the record keeps it.
 - **A count** or **a share**: the replicas, the thresholds, the runs and the counts of a verdict. The jitter of a poll and the idle share of a load sample are shares.
 
@@ -153,6 +153,15 @@ The plan's `event:clock-jump` has no trigger. A step of CLOCK_REALTIME in the VM
 `verdict.ts` judges each run, and each cell on its counted runs. Each time lands in its band ± 100 ms: the poll of the rules and the delay of the watcher. A median in a band gets the test of the harness: its order-statistic interval in the band, made 5 % wider.
 
 From 0.1.8, a run can agree with the law but be past its calibrated band (D-EXTEND). A request failed after the window, but before the rules of its node dropped the target. The check of that run tells it (`tail`), and its cell is `extend`. Such a cell does not hold. A request after the drop is still late, thus its run fails the cell.
+
+From 0.2.1, a window can be one window for each deleted replica (`each`). A rolling update deletes each old replica in turn, and a client of gRPC can see each of these deletions.
+
+- The judge makes one window for each replica of the run (`replicas`) with a deletion after the start of the run. Each window counts from the intake and the deletion of its own replica.
+- A request is late only when it is outside each of these windows. A request after a window and before the rules of its node dropped the replica of that window is a `tail`.
+- The facts of each run give these replicas, with the stamps of their intake and their deletion (`deletions`).
+- `predictionText` adds `of each deleted replica`. A window without `each` stays the window of the target.
+
+A preStop sleep that is longer than the grace is a command in the container (`sh -c "sleep 60"`). The API server refuses a sleep action that is longer than the grace.
 
 ## Tests
 

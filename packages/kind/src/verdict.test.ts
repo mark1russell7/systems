@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { KindCell, KindRun, Prediction } from "./cell.ts";
 import type { Line } from "./lab.ts";
 import { cellOf } from "./cells.fixture.ts";
+import { predictionText } from "./report.ts";
 import { checkRun, judgeKind, propagationOf } from "./verdict.ts";
 
 const TARGET = { pod: "lab-a", node: "w1", ip: "10.244.1.3", version: "h1" };
@@ -162,5 +163,81 @@ describe("the judgement of a kind run", () => {
     expect(checkRun(window, slow([request(3700, "refused", "w2")])).ok).toBe(false);
     // a run that disagrees still fails the cell
     expect(judgeKind(window, [slow([request(3700, "refused")]), slow([request(4200, "refused")])]).decision).toBe("fails");
+  });
+
+  describe("a window for each deleted replica", () => {
+    const window = {
+      kind: "window",
+      nodes: "all",
+      start: { from: "intake", band: b(0, 0.3) },
+      end: { from: "deletion", band: b(1, 1.5) },
+      certain: false,
+      why: "a test",
+    } as const;
+    const each = cell({ ...window, each: true });
+    const NEW = "10.244.3.5:8080";
+    const deleted = (t: number, replica: typeof TARGET): Line => ({
+      ev: "pod", t, type: "MODIFIED", name: replica.pod, node: replica.node, ip: replica.ip, del: true, ready: false, phase: "Running", cs: [], labels: {},
+    });
+    /** a rolling update: lab-a goes at 1000 ms and stops at 1050 ms, lab-b goes at 8000 ms and stops at 8040 ms */
+    const rolling = (extra: Line[], w1 = 8100): KindRun => ({
+      ...runWith([]),
+      lines: [
+        { ev: "rules", t: 900, prev: 850, node: "w1", b: [`${TARGET.ip}:8080`, `${OTHER.ip}:8080`, NEW] },
+        deleted(1000, TARGET),
+        { ev: "stopping", t: 1050, p: "lab-a" },
+        { ev: "rules", t: 1100, prev: 1050, node: "w1", b: [`${OTHER.ip}:8080`, NEW] },
+        deleted(8000, OTHER),
+        { ev: "stopping", t: 8040, p: "lab-b" },
+        { ev: "rules", t: 8100, prev: 8050, node: "w2", b: [NEW] },
+        { ev: "rules", t: w1, prev: w1 - 50, node: "w1", b: [NEW] },
+        ...extra,
+      ],
+    });
+
+    it("holds a failure in the window of each replica, from its own intake to its own deletion", () => {
+      const check = checkRun(each, rolling([request(1500, "refused"), request(8500, "refused")]));
+      expect([check.ok, check.why]).toEqual([true, "2 failed requests, all in the windows of 2 deleted replicas (span 7 s)"]);
+      expect(check.facts.deletions).toEqual([
+        { pod: "lab-a", intake: 1050, deletion: 1000 },
+        { pod: "lab-b", intake: 8040, deletion: 8000 },
+      ]);
+      expect(judgeKind(each, [rolling([request(1500, "refused")]), rolling([request(8500, "refused")])]).decision).toBe("holds");
+      // the window of the target alone does not hold the failure of the second replica, and its facts have no deletions
+      const target = checkRun(cell(window), rolling([request(1500, "refused"), request(8500, "refused")]));
+      expect(target.ok).toBe(false);
+      expect(target.facts).not.toHaveProperty("deletions");
+    });
+
+    it("fails a failure between the windows, and a run with no deletion", () => {
+      const between = checkRun(each, rolling([request(5000, "refused")]));
+      expect([between.ok, between.why]).toEqual([
+        false,
+        "1 failed requests outside the window of each deleted replica: lab-a [-0.1, 1.55] s, lab-b [-0.1, 1.56] s after its intake",
+      ]);
+      expect(judgeKind(each, [rolling([request(1500, "refused")]), rolling([request(5000, "refused")])]).decision).toBe("fails");
+      const none = { ...rolling([]), lines: rolling([]).lines.filter((line) => line.ev !== "pod") };
+      expect(checkRun(each, none)).toMatchObject({ ok: false, why: "no replica of the run got a deletion" });
+      // a deleted replica with no intake has no window
+      const silent = { ...rolling([]), lines: rolling([]).lines.filter((line) => !(line.ev === "stopping" && line["p"] === "lab-b")) };
+      expect(checkRun(each, silent)).toMatchObject({ ok: false, why: "the run has no intake reference for lab-b" });
+    });
+
+    it("extends a cell whose request failed after a window, before the rules of its node dropped the replica of that window", () => {
+      // the rules of w1 keep lab-b until 10 000 ms, after the end of its window at 9600 ms
+      const slow = rolling([request(9800, "refused")], 10_000);
+      expect(checkRun(each, slow)).toMatchObject({
+        ok: true,
+        tail: "1 failed requests after a window, the last 0.3 s after the window of lab-b on w1, before the rules of w1 dropped lab-b",
+      });
+      expect(judgeKind(each, [slow]).decision).toBe("extend");
+      // after the drop, the request is late
+      expect(checkRun(each, rolling([request(9800, "refused")])).ok).toBe(false);
+    });
+
+    it("writes the window of each deleted replica in the short form of a prediction", () => {
+      expect(predictionText(each.prediction)).toBe("failures only from the intake + [0, 0.3] s to the deletion + [1, 1.5] s, of each deleted replica");
+      expect(predictionText(window)).toBe("failures only from the intake + [0, 0.3] s to the deletion + [1, 1.5] s");
+    });
   });
 });

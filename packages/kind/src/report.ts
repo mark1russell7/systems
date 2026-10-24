@@ -49,8 +49,9 @@ export const predictionText = (prediction: Prediction): string => {
     case "none":
       return prediction.outcomes === undefined ? "no failure" : `no ${prediction.outcomes.join(", ")}`;
     case "window":
-      // a window can open before its reference: a stale SYN_SENT entry fails the paused node up to its life before the intake
-      return `failures only from ${atBand(prediction.start.from, prediction.start.band)}${prediction.end === null ? "" : ` to ${atBand(prediction.end.from, prediction.end.band)}`}${prediction.nodes === "paused" ? ", on the paused node" : ""}${prediction.certain ? ", at least one" : ""}${prediction.afterReset === undefined ? "" : `, or a ${prediction.afterReset.outcome} up to ${format(prediction.afterReset.life)} after a reset on its port`}`;
+      // a window with `each` is a window for each replica that got a deletion, from the references of that replica.
+      // A window can open before its reference: a stale SYN_SENT entry fails the paused node up to its life before the intake
+      return `failures only from ${atBand(prediction.start.from, prediction.start.band)}${prediction.end === null ? "" : ` to ${atBand(prediction.end.from, prediction.end.band)}`}${prediction.each === true ? ", of each deleted replica" : ""}${prediction.nodes === "paused" ? ", on the paused node" : ""}${prediction.certain ? ", at least one" : ""}${prediction.afterReset === undefined ? "" : `, or a ${prediction.afterReset.outcome} up to ${format(prediction.afterReset.life)} after a reset on its port`}`;
     case "removal":
       return `Service empty in ${showBand(prediction.band)}`;
     case "leaves":

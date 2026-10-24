@@ -157,6 +157,8 @@ export interface ResetReuse<A = Quantity> {
  * - `window`: the requests that fail start in a window. The window starts at `start` and ends in
  *   `end`. With `certain`, at least one request fails. With `afterReset`, a request outside the
  *   window can also fail, on a port that a reset closed up to `life` before it (`ResetReuse`).
+ *   With `each`, each replica of the run that gets a deletion has a window of its own, from its own
+ *   references. A request is late only when it is outside each of these windows.
  * - `removal`: the Service has no ready endpoint, and the rules of each node have no backend, in the band.
  * - `leaves`: the target replica leaves the EndpointSlice and the rules of each node in the band.
  * - `restarts`: each replica receives SIGTERM in the band, or no replica does.
@@ -178,6 +180,12 @@ export type Prediction<A = Quantity> =
       readonly end: { readonly from: Reference; readonly band: Band<A> } | null;
       readonly certain: boolean;
       readonly afterReset?: ResetReuse<A> | undefined;
+      /**
+       * This flag gives a window to each replica of the run (`replicas`) that gets a deletion after the
+       * start of the run. The references `deletion` and `intake` are then those of that replica. A
+       * rolling update deletes each old replica in turn. Without the flag, the window is that of the target.
+       */
+      readonly each?: boolean | undefined;
       readonly why: string;
     }
   | { readonly kind: "removal"; readonly band: Band<A>; readonly why: string }
