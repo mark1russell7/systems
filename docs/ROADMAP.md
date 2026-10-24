@@ -420,6 +420,8 @@ A check of the kind `progress` fires when no loop marks progress in its stall ti
 
 A run pairs each event of a program with its record of the kernel in δ_abs, 1 ms. On a runner of GitHub the jitter of a program is 1.06 to 1.74 ms, thus a single run can fail on it. The harness measures that jitter in each run and records it, and δ_abs is the larger of 1 ms and the measured bound. A verdict that fails a cell only when its miss repeats changes how a verdict counts. Mark ruled the void threshold on 2026-10-16, thus that part is the decision D19 of the server stack, for Mark.
 
+- Stage 0 calibrated the runner image `ubuntu24 20261023.334.3` on 2026-10-24 (runs 40128274924 and 40129876394). The worst of 90 resets took 0.316 ms, thus δ_abs stays 1 ms and the cap stays 4.
+
 ### SYS-26 · The image of the kind lab goes through the resolver of images
 
 - **Status:** later
