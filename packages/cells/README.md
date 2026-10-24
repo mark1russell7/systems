@@ -180,6 +180,10 @@ The WS catalog has the WebSocket client and server of `@procedures/client` 0.7.0
   - undici turns keepalive on with 60 s, and libuv adds 1 s and 10 probes. The ws package turns no keepalive on. Thus the keepalive sysctls of the namespace do not reach the socket of the client.
   - The heartbeat of the server pings each connection at each beat of a `setInterval`. It ends a connection after `misses` beats without a pong: `misses` beats after its first ping without an answer.
 - **The lateness of a timer of the program.** Each timer of the program is a Node timer, with the lateness of `nodeTimerLateness`. That is the slack of `epoll_wait`, the truncation of the loop clock to 1 ms, and the step of the coarse clock. The early bound is the truncation and the step. The time of the loop in other callbacks is the time of the application, and δ_abs holds a small part of it.
+- **The handling of a drop.** The kernel stamps a drop at its act: the write of a close frame, or the close of the socket. That act comes after the program handled the firing of its timer. Thus the high bound of each drop by a heartbeat adds `DROP_HANDLING` of the harness (1.5 ms).
+  - In 585 drops with a close frame in CI, the write came up to 1.017 ms after the `drop` line. Before, only δ_abs (1 ms) held that time.
+  - The band of a drop after a pong timeout of 1 s is 0.999 s to 1.0035 s at HZ 250, and 0.998 s to 1.0045 s at HZ 1000. The slowest of 495 timed runs took 1.003761 s.
+  - The bands of the kernel, of a reset and of a FIN do not change.
 - **The claims.** Each cell gives each knob of Linux TCP at the observer too.
   - A black hole, idle or with a call in flight, and a frozen server: the heartbeat drops the connection one pong timeout after its ping. The kernel of a frozen server acknowledges the ping, thus only the heartbeat finds it.
   - The drop of each class. The global `WebSocket` writes a close frame, and its socket stays ESTABLISHED. With the `WebSocket` of ws, the socket leaves ESTABLISHED at once.

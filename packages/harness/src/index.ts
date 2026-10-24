@@ -69,6 +69,7 @@ export type {
 export { isHopPlace, latestEndOf } from "./cell.ts";
 export type { CallReading, ProgramEvent, ReconnectReading } from "./application.ts";
 export {
+  DROP_HANDLING,
   callOf,
   closeOrExit,
   dropFinding,
