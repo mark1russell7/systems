@@ -6,7 +6,7 @@ import type { ServiceDescription } from "./description.ts";
 import { boundedMillisecondsOf, countOf, millisecondsOf } from "./knobs.ts";
 import type { Lifecycle, TransportImpl } from "./lifecycle.ts";
 import type { UnitEnd, UnitRequest } from "./units.ts";
-import { boundProblems, flights, retryOf, runUnit, settleWithin, sleeper } from "./units.ts";
+import { boundProblems, flights, retryOf, runUnit, settleWithin, sleeper, untilAbort } from "./units.ts";
 
 /**
  * These are the knobs of a queue drain, by the names of the ordering law where the law has them.
@@ -180,9 +180,6 @@ export const queueDrain = <J>(knobs: QueueKnobs, options: QueueDrainOptions<J>):
   const running = flights(clock);
   const rests = sleeper(clock);
   const intake = new AbortController();
-  const stopped = new Promise<typeof STOPPED>((resolve) =>
-    intake.signal.addEventListener("abort", () => resolve(STOPPED), { once: true }),
-  );
   // each job until its settle ends, and each job that goes back: the close waits for them
   const pending = new Set<Promise<unknown>>();
   const active = new Set<Active<J>>();
@@ -338,7 +335,8 @@ export const queueDrain = <J>(knobs: QueueKnobs, options: QueueDrainOptions<J>):
       }
       const since = rests.wakes;
       const taking = take().catch((error: unknown): Taken<J> => ({ kind: "error", error }));
-      const first = await Promise.race([taking, stopped]);
+      // Each take waits for the stop with a listener of its own, thus a long drain keeps no job that it took.
+      const first = await untilAbort(taking, intake.signal, STOPPED);
       if (first === STOPPED || intake.signal.aborted) {
         // a take that ends after the stop gives a job that the drain does not start: it goes back
         if (first === STOPPED)

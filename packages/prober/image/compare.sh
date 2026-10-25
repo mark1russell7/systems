@@ -4,8 +4,8 @@
 # The prober's three collectors (Rust, Go, C) against one record contract. Run in the comparison
 # image, privileged. It prints one JSON line, the summary:
 #   - identity: each decodes the fixture of raw records to the Rust collector's bytes;
-#   - throughput: each decodes and writes 639,000 raw records from a file, to /dev/null: the cost
-#     of the user side alone, with no kernel and no workload in the way;
+#   - throughput: each decodes and writes the whole records of the fixture, doubled 14 times, from a
+#     file to /dev/null: the cost of the user side alone, with no kernel and no workload in the way;
 #   - together: all three watch one storm of LIGHT connections at once, each with its own copy of
 #     the kernel program, and must print the same records, setting aside the instant each copy
 #     stamped (mono, tai);
@@ -18,6 +18,8 @@ LIGHT=${1:-2000}
 HEAVY=${2:-20000}
 THREADS=${3:-8}
 ROUNDS=${4:-3}
+# The size of one raw record: struct ev of bpf/prober.h, as RECORD_SIZE of src/fixture.ts gives it.
+SIZE=216
 COLLECTORS="rust go c"
 NS=$(stat -L -c %i /proc/self/ns/net)
 work=/tmp/compare
@@ -57,9 +59,10 @@ identity=$(jq -n --argjson lines "$(wc -l <"$work/decode-rust.jsonl")" \
 	'{lines: $lines, go: $go, c: $c}')
 
 # 2. throughput: the fixture's whole records, doubled 14 times, decoded and written by each
-head -c $((39 * 184)) records.bin >"$work/big.bin"
+# The record cut short at the end of the fixture is not a whole record, thus each copy starts at a record.
+head -c $(($(stat -c %s records.bin) / SIZE * SIZE)) records.bin >"$work/big.bin"
 for _ in $(seq 14); do cat "$work/big.bin" "$work/big.bin" >"$work/twice.bin" && mv "$work/twice.bin" "$work/big.bin"; done
-big=$(($(stat -c %s "$work/big.bin") / 184))
+big=$(($(stat -c %s "$work/big.bin") / SIZE))
 throughput="{}"
 for c in $COLLECTORS; do
 	t0=$(date +%s%N)

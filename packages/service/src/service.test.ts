@@ -215,6 +215,31 @@ describe("the ordering law's evaluator", () => {
     expect(verdict({ "ready@pod": 30 })).toBe("depends");
   });
 
+  it("is unbounded, not violated, when absent timers leave the two sides no order", () => {
+    const side = (knob: string, at: string, coef = 1) => ({ knob, coef, at });
+    const O01: Rule = {
+      id: "O01",
+      rule: "a client pool's idle expiry is shorter than the server's idle close",
+      expr: { lhs: { terms: [side("expiry", "client")] }, op: "<", rhs: { terms: [side("close", "server")] } },
+    };
+    const O16: Rule = {
+      id: "O16",
+      rule: "the drain ends before the grace that the preStop sleep leaves",
+      expr: { lhs: { terms: [side("drain", "process")] }, op: "<", rhs: { terms: [side("grace", "pod"), side("prestop", "pod", -1)] } },
+    };
+    const of = (rule: Rule, bind: Record<string, number | "inf" | "off">) => verdictOf(rule, bind, evaluate(rule, bind));
+    // no idle timer on either side: inf < inf, as inf <= inf already did
+    expect(of(O01, { "expiry@client": "inf", "close@server": "inf" })).toBe("unbounded");
+    expect(of({ ...O01, expr: { ...O01.expr, op: "<=" } }, { "expiry@client": "inf", "close@server": "off" })).toBe("unbounded");
+    // both signs of infinity on one side give it no value
+    expect(of(O16, { "drain@process": 10, "grace@pod": "inf", "prestop@pod": "inf" })).toBe("unbounded");
+    // a number against an infinity still has an order
+    expect(of(O16, { "drain@process": 10, "grace@pod": 30, "prestop@pod": "inf" })).toBe("violated");
+    expect(of(O01, { "expiry@client": "inf", "close@server": 60 })).toBe("violated");
+    // a binding that is not a number is not an absent timer
+    expect(of(O01, { "expiry@client": Number.NaN, "close@server": 60 })).toBe("violated");
+  });
+
   // O04 with the service's own hold: the preStop sleep and the hold of "fail readiness" both keep the
   // listener open while the endpoints update
   const O04: Rule = {

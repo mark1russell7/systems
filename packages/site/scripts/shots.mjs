@@ -46,7 +46,10 @@ const pagesOf = async (dir, prefix = "") => {
 const server = createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", "http://localhost");
   if (!url.pathname.startsWith(BASE)) return res.writeHead(404).end();
-  let file = path.join(dist, decodeURIComponent(url.pathname.slice(BASE.length)));
+  // The URL keeps %2F, thus "..%2F" becomes "../" only here: a file outside dist gets 404.
+  const root = path.resolve(dist);
+  let file = path.resolve(root, decodeURIComponent(url.pathname.slice(BASE.length)));
+  if (file !== root && !file.startsWith(root + path.sep)) return res.writeHead(404).end();
   try {
     if ((await stat(file)).isDirectory()) file = path.join(file, "index.html");
     await stat(file);

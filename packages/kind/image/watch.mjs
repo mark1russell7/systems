@@ -37,10 +37,26 @@ const flush = () => {
 setInterval(flush, 50);
 const say = (line) => pending.push(`${JSON.stringify(line)}\n`);
 
+/**
+ * A handler gives this value for an ERROR event of 410 Gone: the API has no history from the last
+ * resource version. The status of the response is 200, thus only the event tells. The watch then
+ * opens again with no resource version, and the API gives each object again as ADDED.
+ */
+const GONE = Symbol("gone");
+/** the result of a handler for an ERROR event: GONE for an expired resource version, else null */
+const errorOf = (status) => (status?.code === 410 ? GONE : null);
+
 /** a stream of lines from the API, again after each end, from the last resource version it saw */
 const stream = (path, query, onLine, again = true) => {
   let version = null;
   const open = () => {
+    // An error and a close can both end one request: only the first opens the next one.
+    let ended = false;
+    const reopen = (delay) => {
+      if (!again || ended) return;
+      ended = true;
+      setTimeout(open, delay);
+    };
     const search = new URLSearchParams(query);
     if (version !== null) search.set("resourceVersion", version);
     const req = https.request(
@@ -50,7 +66,7 @@ const stream = (path, query, onLine, again = true) => {
           say({ ev: "watch-fail", t: now(), path, status: res.statusCode });
           res.resume();
           if (res.statusCode === 410) version = null;
-          if (again) setTimeout(open, 500);
+          reopen(500);
           return;
         }
         let partial = "";
@@ -63,18 +79,18 @@ const stream = (path, query, onLine, again = true) => {
           for (const text of split) {
             if (text.trim() === "") continue;
             const next = onLine(text, t);
-            if (typeof next === "string") version = next;
+            if (next === GONE) version = null;
+            else if (typeof next === "string") version = next;
           }
         });
-        res.on("end", () => {
-          if (again) setTimeout(open, 100);
-        });
-        res.on("error", () => undefined);
+        // A response that the connection cuts has no end, only its error and its close.
+        res.on("error", (error) => say({ ev: "watch-fail", t: now(), path, why: String(error.message) }));
+        res.on("close", () => reopen(100));
       },
     );
     req.on("error", (error) => {
       say({ ev: "watch-fail", t: now(), path, why: String(error.message) });
-      if (again) setTimeout(open, 500);
+      reopen(500);
     });
     req.end();
   };
@@ -149,7 +165,7 @@ for (const ns of namespaces) {
     if (event.type === "BOOKMARK") return pod?.metadata?.resourceVersion;
     if (event.type === "ERROR") {
       say({ ev: "watch-fail", t, path: "pods", status: pod?.code });
-      return null;
+      return errorOf(pod);
     }
     const ready = (pod.status?.conditions ?? []).find((condition) => condition.type === "Ready")?.status === "True";
     const containers = (pod.status?.containerStatuses ?? []).map((status) => ({
@@ -189,7 +205,7 @@ for (const ns of namespaces) {
     const event = JSON.parse(text);
     const slice = event.object;
     if (event.type === "BOOKMARK") return slice?.metadata?.resourceVersion;
-    if (event.type === "ERROR") return null;
+    if (event.type === "ERROR") return errorOf(slice);
     say({
       ev: "slice",
       t,
@@ -212,7 +228,7 @@ for (const ns of namespaces) {
     const event = JSON.parse(text);
     const object = event.object;
     if (event.type === "BOOKMARK") return object?.metadata?.resourceVersion;
-    if (event.type === "ERROR") return null;
+    if (event.type === "ERROR") return errorOf(object);
     say({
       ev: "event",
       t,
@@ -236,7 +252,7 @@ if (ztunnel) {
     if (event.type === "BOOKMARK") return pod?.metadata?.resourceVersion;
     if (event.type === "ERROR") {
       say({ ev: "watch-fail", t, path: "ztunnel pods", status: pod?.code });
-      return null;
+      return errorOf(pod);
     }
     const containers = (pod.status?.containerStatuses ?? []).map((status) => ({ n: status.name, r: status.ready, rc: status.restartCount, st: stateOf(status.state), id: status.containerID ?? null }));
     say({ ev: "ztunnel-pod", t, type: event.type, name: pod.metadata.name, node: pod.spec?.nodeName ?? null, ip: pod.status?.podIP ?? null, del: pod.metadata.deletionTimestamp !== undefined, cs: containers });

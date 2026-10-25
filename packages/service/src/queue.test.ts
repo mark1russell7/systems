@@ -1,5 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { setFlagsFromString } from "node:v8";
+import { runInNewContext } from "node:vm";
 import { afterAll, describe, expect, it } from "vitest";
 import type { Clock } from "./clock.ts";
 import type { JobSettle, Lifecycle, QueueKnobs, ServiceBuilder } from "./index.ts";
@@ -31,6 +33,13 @@ const gate = (): { promise: Promise<void>; open: () => void } => {
     open = resolve;
   });
   return { promise, open };
+};
+/** This function collects the garbage after the current job ends: until then, each WeakRef keeps its target. */
+const collect = async (): Promise<void> => {
+  setFlagsFromString("--expose-gc");
+  const gc = runInNewContext("gc") as () => void;
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  gc();
 };
 const aborted = (given: AbortSignal): Promise<void> =>
   new Promise((resolve) => (given.aborted ? resolve() : given.addEventListener("abort", () => resolve(), { once: true })));
@@ -478,6 +487,31 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
     expect(drain.inFlight()).toBe(12);
     await drain.close();
     expect(drain.inFlight()).toBe(0);
+  });
+
+  it("keeps no job that it took while its intake stays open", async () => {
+    const clock = fakeClock();
+    const taken: Array<WeakRef<object>> = [];
+    const drain = queueDrain<object>(KNOBS, {
+      clock,
+      source: () => {
+        if (taken.length === 50) return null;
+        const job = { pad: new Array(256).fill(taken.length) };
+        taken.push(new WeakRef(job));
+        return job;
+      },
+      settle: { ack: () => {}, requeue: () => {}, reject: () => {}, delivery: () => 1 },
+      redelivery: redeliverOnce("reject"),
+      handle: () => {},
+    });
+    await drain.start(signal(), detachedLifecycle());
+    for (let step = 0; step < 200 && taken.length < 50; step += 1) await clock.advance(0);
+    for (let step = 0; step < 5; step += 1) await clock.advance(0);
+    expect(taken).toHaveLength(50);
+    await collect();
+    // a race against the stop of the intake kept each job until the stop
+    expect(taken.filter((job) => job.deref() !== undefined).length).toBeLessThanOrEqual(1);
+    await drain.close();
   });
 
   it("refuses knobs that it cannot use: the drain has no defaults", () => {

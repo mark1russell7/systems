@@ -109,6 +109,9 @@ const open = async () => {
     channel = await connection.createConfirmChannel();
   } catch (error) {
     emit("channel", { event: "open-failed", at: node, failure: failure(error) });
+    // The next open replaces the connection, thus this one ends here and stays out of the next records.
+    connection.close().catch(() => undefined);
+    connection = null;
     return false;
   }
   channel.on("error", (error) => emit("channel", { event: "error", at: node, failure: failure(error) }));

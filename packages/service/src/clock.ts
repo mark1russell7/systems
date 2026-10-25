@@ -31,18 +31,28 @@ const monotonic = (): number => {
   return performance === undefined ? Date.now() : performance.now();
 };
 
+/** This delay is the longest that `setTimeout` takes, in milliseconds. A longer delay starts the function after 1 ms. */
+const LONGEST_DELAY = 0x7fffffff;
+
 /**
  * This function makes a clock of the platform: `performance.now()` and `setTimeout`. Each cancel
- * that it gives also has `unref`.
+ * that it gives also has `unref`. A delay longer than `setTimeout` takes waits in steps.
  */
 export const platformClock = (options: PlatformClockOptions = {}): Clock => ({
   now: monotonic,
   after(ms, run) {
-    const timer = setTimeout(run, Math.max(0, ms));
+    let unrefed = options.unref === true;
+    const arm = (left: number): ReturnType<typeof setTimeout> => {
+      const step =
+        left > LONGEST_DELAY ? setTimeout(() => (timer = arm(left - LONGEST_DELAY)), LONGEST_DELAY) : setTimeout(run, Math.max(0, left));
+      if (unrefed) (step as { unref?: () => void }).unref?.();
+      return step;
+    };
+    let timer = arm(ms);
     const unref = (): void => {
+      unrefed = true;
       (timer as { unref?: () => void }).unref?.();
     };
-    if (options.unref === true) unref();
     return Object.assign(() => clearTimeout(timer), { unref });
   },
 });

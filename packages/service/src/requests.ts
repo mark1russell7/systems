@@ -5,6 +5,7 @@ import type { Operation } from "./operation.ts";
 import { mayReissue } from "./operation.ts";
 import type { CompiledPattern, OperationOf } from "./routes.ts";
 import { compilePattern } from "./routes.ts";
+import { untilAbort } from "./units.ts";
 
 /**
  * A request end is the one final result of the stream of a request. Its count `delivered` is the
@@ -187,10 +188,9 @@ export const tracker = (
     let source: AsyncIterator<T> | null = null;
     // a unary work keeps its value until the reader asks for it
     let unary: { readonly value: T } | null = null;
-    let interrupt: () => void = () => {};
-    const interrupted = new Promise<"interrupted">((resolve) => {
-      interrupt = () => resolve("interrupted");
-    });
+    // Each wait of the reader listens for the end with a listener of its own, thus a long stream keeps no item that went.
+    const interruption = new AbortController();
+    const interrupt = (): void => interruption.abort();
 
     const cutEnd = (cause: string): RequestEnd => {
       const since = quantity(Math.max(0, clock.now() - started) / 1000, "s");
@@ -257,7 +257,7 @@ export const tracker = (
 
     const next = async (): Promise<RequestEvent<T> | null> => {
       if (ended) return null;
-      if (end === null) await Promise.race([ready, interrupted]);
+      if (end === null) await untilAbort(ready, interruption.signal, "interrupted");
       if (end === null && unary !== null) {
         const { value } = unary;
         unary = null;
@@ -269,7 +269,7 @@ export const tracker = (
         const pending = source.next();
         let step: IteratorResult<T> | "interrupted";
         try {
-          step = await Promise.race([pending, interrupted]);
+          step = await untilAbort(Promise.resolve(pending), interruption.signal, "interrupted" as const);
         } catch (error) {
           failed(error);
           step = "interrupted";
