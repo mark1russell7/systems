@@ -579,11 +579,11 @@ It comes in service 0.5.10, a PATCH: a bug fix, with no change to an export.
 
 ### SYS-35 · The findings of the second audit
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
 - **Started:** 2026-10-25
-- **Shipped:**
+- **Shipped:** 2026-10-25
 - **Links:** [#151](https://github.com/mark1russell7/systems/pull/151)
 
 A second review read the files that the first review did not read. It gave 14 findings. 13 are real, and each one has a fix. The last one is not a defect: the store of the limiter target cannot throw.
@@ -603,6 +603,23 @@ A second review read the files that the first review did not read. It gave 14 fi
 - **The resetter of the router.** A flow on a reused 4-tuple got the closed flag of the last flow, thus the resetter sent no reset.
 
 It comes in service 0.5.11, kind 0.8.2, harness 0.12.4 and algebra 0.7.4, each a PATCH: bug fixes, with no change to an export. The law fix makes a wrong verdict right, because `<=` already gave `unbounded` for the same case.
+
+The watcher fixes changed `packages/kind/image/watch.mjs`. Thus a kind run on the last head of #151 ran the 29 cells of T07 before the merge. 25 hold, 3 are calibrations and 1 is measured, each with 11 counted runs and no void.
+
+### SYS-36 · The service hosts a user service on Windows and Linux
+
+- **Status:** later
+- **Area:** server stack
+- **Depends on:**
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A review of duplicate code found the code that runs a program as a user service in four places. Two copies have approximately 200 lines that are almost the same. There are also four task files for Windows and five checks that a process runs.
+
+A new entry `@mark1russell7/service/host` gives this code one source. It installs a Windows task or a systemd user unit, and it keeps a discovery file. It also holds a lock for one instance and checks that a process runs. The service already has the runner, the backoff and the drain.
+
+It comes as a PATCH before 1.0.0: a new entry and new exports.
 
 ## The systems of S1
 
