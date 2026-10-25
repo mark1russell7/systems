@@ -58,7 +58,7 @@ export type Stack = "service" | "grpc";
  * - `cpu-throttle` sets `cpu.max` in the cgroup of one replica.
  * - `authorization-policy` applies an AuthorizationPolicy of Istio that denies the clients, for the hold (T15).
  * - `idle` stops the calls of each client with SIGUSR1, and starts them again with SIGUSR2 after the hold: a gap (T15).
- *   The gap can have a conntrack middlebox in each replica (`middlebox`), or a new channel that each
+ *   The gap can have a stateful middlebox in each replica (`middlebox`), or a new channel that each
  *   client closes before the gap (`close`).
  * - `ztunnel-restart` deletes the ztunnel pod of each node with its grace. The DaemonSet makes a new pod on each node (T15).
  * - `none` injects nothing: a calibration measures the path itself.
@@ -100,11 +100,11 @@ export interface Trigger<A = Quantity> {
    */
   readonly account?: string | undefined;
   /**
-   * This time is the idle timeout of a conntrack middlebox in the network namespace of each replica
-   * (T15). The middlebox is there from before the fault to the end of the run. Conntrack forgets an
-   * established flow after this time with no segment. It does not take up a flow that it does not
-   * know. The lab drops each segment of such a flow on the mesh leg: the silent-drop form of a
-   * router. Each segment of the flow refreshes the timeout, thus the PING of ztunnel can keep an idle flow.
+   * This time is the idle timeout of a stateful middlebox in the network namespace of each replica
+   * (T15). The middlebox is there from before the fault to the end of the run. It forgets a flow of
+   * the mesh leg after this time with no segment. Then it drops each later segment of the flow: the
+   * silent-drop form of a router. Each segment of the flow refreshes the timeout, thus the PING of
+   * ztunnel can keep an idle flow. Conntrack of the namespace stays as it is (`middleboxCommands`).
    */
   readonly middlebox?: Quantity | undefined;
   /** This count is `net.ipv4.tcp_retries2` in the network namespace of each client pod for the run (T15): the HBONE socket of its ztunnel is there. */
@@ -236,6 +236,7 @@ export interface ResetReuse<A = Quantity> {
  *   socket of a client ends in the run. Then the first request of each client after the heal goes on
  *   the socket of its last request before the fault. With `window`, the failed requests also start in that window.
  *   With `of: "tunnel"`, the HBONE connection of the ztunnel of each client ends in the band instead.
+ *   With `answer`, the close of the peer in that band is an answer to the close of the client.
  * - `measured`: no document bounds the outcome. The run keeps the measurement.
  */
 export type Prediction<A = Quantity> =
@@ -266,6 +267,13 @@ export type Prediction<A = Quantity> =
        * first. Then the first request of each client after the heal must succeed, on a new tunnel.
        */
       readonly of?: "socket" | "tunnel" | undefined;
+      /**
+       * This band is where the peer can answer the close of the side of the client with its own
+       * close, after `from` (only with `of: "tunnel"`). A change of a tunnel from ESTABLISHED to
+       * CLOSE_WAIT in it agrees: the FIN of the peer came first, but as an answer. Before it, the
+       * peer closed first. Without it, only FIN_WAIT1 agrees.
+       */
+      readonly answer?: Band<A> | undefined;
       readonly why: string;
     }
   | { readonly kind: "measured"; readonly why: string };

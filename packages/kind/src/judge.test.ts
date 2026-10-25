@@ -225,6 +225,11 @@ describe("the judgement of a record again", () => {
       { ...hole.cell, trigger: { kind: "idle", hold: s(60), middlebox: s(9) } },
       { ...hole.cell, trigger: { kind: "blackhole", hold: s(45), quiet: true, retries: 4 } },
       { ...hole.cell, trigger: { kind: "idle", hold: s(330), close: true }, prediction: { kind: "ends", from: "fault", of: "tunnel", band: { lo: s(300), hi: s(300.62) }, why: "a test" } },
+      {
+        ...hole.cell,
+        trigger: { kind: "idle", hold: s(330), close: true },
+        prediction: { kind: "ends", from: "fault", of: "tunnel", band: { lo: s(300), hi: s(300.62) }, answer: { lo: s(300), hi: s(300.623) }, why: "a test" },
+      },
     ];
     for (const cell of borders) expect(readRecord(json({ ...hole, cell })).cell).toEqual(cell);
     expect(kindCellRecordSchema.safeParse(json({ ...hole, cell: { ...hole.cell, prediction: { ...hole.cell.prediction, of: "stream" } } })).success).toBe(false);

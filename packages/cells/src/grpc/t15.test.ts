@@ -343,7 +343,10 @@ describe("the borders of O03, O17 and O02 of T15, step 6", () => {
     const outside = cell("T15.border-off.80");
     for (const each of [inside, outside]) {
       expect(each.substitutes, each.id).toBe(MIDDLEBOX_HOP);
-      expect(each.prediction.why, each.id).toContain("nf_conntrack_proto_tcp.c");
+      expect(each.prediction.why, each.id).toContain("xt_recent.c of Linux v6.17");
+      // the middlebox leaves conntrack as it is: istio-cni needs it on the local leg to the app
+      expect(each.prediction.why, each.id).not.toContain("nf_conntrack_tcp_loose");
+      expect(each.name, each.id).toContain("a stateful middlebox");
       expect(planOf(each).prepare, each.id).toEqual([{ do: "middlebox", target: "servers", idle: each.trigger.middlebox, port: 15008 }]);
       expect(planOf(each).restore.at(-1), each.id).toEqual({ do: "middlebox", target: "servers", idle: null, port: 15008 });
     }
@@ -404,6 +407,9 @@ describe("the borders of O03, O17 and O02 of T15, step 6", () => {
     expect(RELEASE).toEqual({ lo: 300, hi: 300.01 });
     expect(release.prediction).toMatchObject({ kind: "ends", from: "fault", of: "tunnel", band: { lo: s(300), hi: s(300.62) } });
     expect(release.prediction.why).toContain("pool.rs of ztunnel 1.31.3, lines 150–176 and 338–341");
+    // the server answers the GOAWAY of the client at once: its FIN can come first, one round trip and one step after the band
+    expect(release.prediction).toMatchObject({ answer: { lo: s(300), hi: s(300.631) } });
+    expect(release.prediction.why).toContain("proto/connection.rs of h2 0.4.19, lines 309–316, 325–329 and 563–570");
     // a release from the end of the stream, 5 s later, is out of the band and its noise
     expect(300 + valueIn(CHANNEL_USE, "s")).toBeGreaterThan(300.62 + 0.1);
     expect(() => releaseEnds(s(300), "a test")).toThrow(/ends before the release/);

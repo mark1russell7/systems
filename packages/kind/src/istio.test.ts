@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { KindCell } from "./cell.ts";
 import { cellOf } from "./cells.fixture.ts";
 import { clusterFilter, hostsOf, outboundCluster } from "./eds.ts";
-import { CHANNEL_USE, CLIENT_ACCOUNT, CLOSE_LEAD, NETNS_DEFAULTS, POLICY, QUIET_LEAD, SYSCTL, deletes, middleboxCommands, planOf, policyObject, sysctlCommand } from "./faults.ts";
+import { CHANNEL_USE, CLIENT_ACCOUNT, CLOSE_LEAD, MIDDLEBOX, NETNS_DEFAULTS, POLICY, QUIET_LEAD, SYSCTL, deletes, middleboxCommands, planOf, policyObject, sysctlCommand } from "./faults.ts";
 import {
   ACCESS_LOG_FORMAT,
   ISTIO_IMAGES,
@@ -211,27 +211,94 @@ describe("the install of Istio", () => {
 });
 
 describe("the commands of the injector in a namespace", () => {
-  it("sets the conntrack middlebox with the sysctls first, and removes it with the defaults first", () => {
+  /**
+   * This model runs the chains of the middlebox on one segment. It reads the rules of the commands
+   * and follows the match recent of Linux v6.17 for one table (xt_recent.c, lines 283–321).
+   */
+  const modelOf = (commands: readonly string[][]) => {
+    const chains = new Map<string, string[][]>();
+    const jumps: string[][] = [];
+    for (const argv of commands) {
+      if (argv[1] === "-N") chains.set(argv[2]!, []);
+      else if (argv[1] === "-A") chains.get(argv[2]!)!.push(argv.slice(3));
+      else if (argv[1] === "-I") jumps.push(argv.slice(2));
+    }
+    const seen = new Map<string, number>();
+    const option = (rule: readonly string[], name: string): string | undefined => rule[rule.indexOf(name) + 1];
+    /** This function gives true when the middlebox drops a segment from the peer (`in`) or to it, at `t` seconds. */
+    return (t: number, way: "in" | "out", peer: string, syn = false): boolean => {
+      const jump = jumps.find((rule) => rule[0] === (way === "in" ? "INPUT" : "OUTPUT") && rule[2] === `${peer}/32`);
+      if (jump === undefined) return false;
+      for (const rule of chains.get(option(jump, "-j")!)!) {
+        if (rule.includes("--syn") && !syn) continue;
+        const known = seen.get(peer);
+        let match: boolean;
+        if (rule.includes("--set")) {
+          seen.set(peer, t);
+          match = true;
+        } else if (rule.includes("--update")) {
+          match = known !== undefined && known >= t - Number(option(rule, "--seconds"));
+          if (match) seen.set(peer, t);
+        } else match = known !== undefined;
+        if (match) return option(rule, "-j") === "DROP";
+      }
+      return false;
+    };
+  };
+
+  it("puts a stateful middlebox in chains of its own, and leaves conntrack as it is", () => {
     const set = middleboxCommands(["10.244.1.9", "10.244.2.9"], { value: 9, unit: "s" }, 15008);
+    expect(set.some((argv) => argv[0] === "sysctl")).toBe(false);
     expect(set.slice(0, 2)).toEqual([
-      ["sysctl", "-w", "net.netfilter.nf_conntrack_tcp_timeout_established=9"],
-      ["sysctl", "-w", "net.netfilter.nf_conntrack_tcp_loose=0"],
+      ["iptables", "-N", MIDDLEBOX.input],
+      ["iptables", "-N", MIDDLEBOX.output],
     ]);
-    expect(set[2]).toEqual(["iptables", "-I", "INPUT", "-s", "10.244.1.9/32", "-p", "tcp", "--dport", "15008", "-m", "conntrack", "--ctstate", "INVALID", "-j", "DROP"]);
-    expect(set[3]).toEqual(["iptables", "-I", "OUTPUT", "-d", "10.244.1.9/32", "-p", "tcp", "--sport", "15008", "-m", "conntrack", "--ctstate", "INVALID", "-j", "DROP"]);
-    expect(set).toHaveLength(6);
+    expect(set).toContainEqual(["iptables", "-A", MIDDLEBOX.input, "-m", "recent", "--name", MIDDLEBOX.table, "--rsource", "--update", "--seconds", "9", "-j", "RETURN"]);
+    expect(set).toContainEqual(["iptables", "-A", MIDDLEBOX.output, "-m", "recent", "--name", MIDDLEBOX.table, "--rdest", "--rcheck", "-j", "DROP"]);
+    expect(set.at(-4)).toEqual(["iptables", "-I", "INPUT", "-s", "10.244.1.9/32", "-p", "tcp", "--dport", "15008", "-j", MIDDLEBOX.input]);
+    expect(set.at(-3)).toEqual(["iptables", "-I", "OUTPUT", "-d", "10.244.1.9/32", "-p", "tcp", "--sport", "15008", "-j", MIDDLEBOX.output]);
+    // two chains, 4 rules in and 3 out, and two jumps for each peer
+    expect(set).toHaveLength(13);
+    // each word is plain: the lab refuses a word such as "!"
+    for (const word of set.flat()) expect(word).toMatch(/^[A-Za-z0-9_.,:=/+-]+$/);
     const clear = middleboxCommands(["10.244.1.9"], null, 15008);
-    expect(clear.slice(0, 2)).toEqual([
-      ["sysctl", "-w", `net.netfilter.nf_conntrack_tcp_timeout_established=${NETNS_DEFAULTS.established}`],
-      ["sysctl", "-w", `net.netfilter.nf_conntrack_tcp_loose=${NETNS_DEFAULTS.loose}`],
+    expect(clear).toEqual([
+      ["iptables", "-F", MIDDLEBOX.input],
+      ["iptables", "-F", MIDDLEBOX.output],
+      ["iptables", "-D", "INPUT", "-s", "10.244.1.9/32", "-p", "tcp", "--dport", "15008", "-j", MIDDLEBOX.input],
+      ["iptables", "-D", "OUTPUT", "-d", "10.244.1.9/32", "-p", "tcp", "--sport", "15008", "-j", MIDDLEBOX.output],
+      ["iptables", "-X", MIDDLEBOX.input],
+      ["iptables", "-X", MIDDLEBOX.output],
     ]);
-    expect(clear.slice(2).map((argv) => argv[1])).toEqual(["-D", "-D"]);
+  });
+
+  it("keeps a flow that a segment refreshes in each idle time, and forgets it for good after one idle time", () => {
+    const peer = "10.244.1.9";
+    const drops = modelOf(middleboxCommands([peer, "10.244.2.9"], { value: 11, unit: "s" }, 15008));
+    // the flow is open before the set: its first segment puts its peer in the table
+    expect(drops(0, "in", peer)).toBe(false);
+    // a PING and its PONG each 10 s, in either direction, refresh the flow (T15.border-off.79)
+    for (let t = 10; t <= 120; t += 10) {
+      expect(drops(t, "out", peer)).toBe(false);
+      expect(drops(t + 0.001, "in", peer)).toBe(false);
+    }
+    // a segment on another port, or of another peer, does not reach the chains
+    expect(drops(500, "in", "10.244.3.9")).toBe(false);
+    // 11.5 s with no segment: the middlebox forgot the flow, and each later segment is dropped (T15.border-off.80)
+    expect(drops(131.501, "out", peer)).toBe(true);
+    expect(drops(131.6, "in", peer)).toBe(true);
+    expect(drops(140, "in", peer)).toBe(true);
+    // the other peer has its own time
+    expect(drops(131.7, "in", "10.244.2.9")).toBe(false);
+    // a new SYN of the peer is a new flow
+    expect(drops(150, "in", peer, true)).toBe(false);
+    expect(drops(150.001, "out", peer)).toBe(false);
   });
 
   it("refuses a word that is not plain: an address, a port, a time or a sysctl", () => {
     expect(() => middleboxCommands(["10.244.1.9; reboot"], { value: 9, unit: "s" }, 15008)).toThrow(/not an address/);
     expect(() => middleboxCommands([], { value: 9, unit: "s" }, 15008)).toThrow(/needs a peer/);
-    expect(() => middleboxCommands(["10.244.1.9"], { value: 9.5, unit: "s" }, 15008)).toThrow(/a whole number of seconds/);
+    expect(() => middleboxCommands(["10.244.1.9"], { value: 9.5, unit: "s" }, 15008)).toThrow(/the idle timeout of the middlebox is a whole number of seconds/);
     expect(() => middleboxCommands(["10.244.1.9"], { value: 9, unit: "s" }, 0)).toThrow(/not a port/);
     expect(sysctlCommand("net.ipv4.tcp_retries2", "6")).toEqual(["sysctl", "-w", "net.ipv4.tcp_retries2=6"]);
     expect(() => sysctlCommand("kernel.panic", "1")).toThrow(/not a sysctl of a network namespace/);

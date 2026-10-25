@@ -370,11 +370,10 @@ const namespacesOf = async (ctx: Context, target: Target, replicas: readonly Rep
 };
 
 /**
- * This function puts a conntrack middlebox in the network namespace of each replica, or removes it.
+ * This function puts a stateful middlebox in the network namespace of each replica, or removes it.
  * Each client pod is a peer (`middleboxCommands`), and the nodes go at the same time. After the set,
- * the lab reads the raw table. A rule of istio-cni there that takes a flow out of conntrack keeps the
- * flow from the middlebox. Before the removal, the lab reads the filter table: the counters show
- * which segments the middlebox dropped.
+ * the lab reads the filter table: it shows the chains of the middlebox. Before the removal, the lab
+ * reads the filter table again: the counters show which segments the middlebox dropped.
  */
 const middleboxServers = async (ctx: Context, idle: Quantity | null, port: number, replicas: readonly Replica[]): Promise<Stamp> => {
   const peers = [...ctx.tracker.pods.values()]
@@ -388,7 +387,7 @@ const middleboxServers = async (ctx: Context, idle: Quantity | null, port: numbe
     each.map(async ({ node, pid }) => {
       if (idle === null) await ctx.lab.tables(node, pid, "filter");
       await ctx.lab.netns(node, pid, commands);
-      if (idle !== null) await ctx.lab.tables(node, pid, "raw");
+      if (idle !== null) await ctx.lab.tables(node, pid, "filter");
     }),
   );
   return { t0, t1: await ctx.lab.now() };

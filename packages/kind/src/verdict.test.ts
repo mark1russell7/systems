@@ -591,6 +591,22 @@ describe("the judgement of the end of the sockets of the clients", () => {
       expect(other.facts.closes).toEqual({ "client-w1": null, "client-w2": s(300.2) });
     });
 
+    it("holds a close of the peer in the band of its answer, and fails one before it", () => {
+      const answering: KindCell = { ...release, prediction: { ...release.prediction, answer: b(300, 300.623) } as KindCell["prediction"] };
+      // the peer answers the GOAWAY of the client with its own FIN, and that FIN comes first
+      const answer = checkRun(answering, runOfTunnels([state(FAULT + 300_100, LA1, TARGET.ip, 1, 8), state(FAULT + 300_200, LA2, OTHER.ip, 1, 4)]));
+      expect(answer.ok, answer.why).toBe(true);
+      expect(answer.facts.closes).toEqual({ "client-w1": s(300.1), "client-w2": s(300.2) });
+      expect(predictionText(answering.prediction)).toMatch(/, or the peer answers in the fault \+ /);
+      // a close of the peer before the release is no answer: the peer closed first
+      const early = checkRun(answering, runOfTunnels([state(FAULT + 290_000, LA1, TARGET.ip, 1, 8), state(FAULT + 300_200, LA2, OTHER.ip, 1, 4)]));
+      expect(early.ok).toBe(false);
+      expect(early.why).toMatch(/the peer closed the tunnel of client-w1 at 290 s, outside the band of its answer/);
+      // the band of the answer does not let another state agree
+      const other = checkRun(answering, runOfTunnels([state(FAULT + 300_100, LA1, TARGET.ip, 1, 7), state(FAULT + 300_200, LA2, OTHER.ip, 1, 4)]));
+      expect(other.why).toMatch(/the tunnel of client-w1 went from ESTABLISHED to the state 7, not FIN_WAIT1/);
+    });
+
     it("fails a run with no address of a client pod, or a failed call after the heal", () => {
       const ends = [state(FAULT + 300_100, LA1, TARGET.ip, 1, 4), state(FAULT + 300_200, LA2, OTHER.ip, 1, 4)];
       const noAddress = { ...runOfTunnels(ends), lines: [...before, ...lines.filter((line) => line.ev !== "sock"), ...ends] };

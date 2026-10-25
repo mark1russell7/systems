@@ -41,7 +41,7 @@ import { backoffOf, lastWait, synWaitOf } from "./t07.ts";
  * sidecar pods, and two cells are the two sides of the line of O10. The drain of ztunnel ends at its
  * deadline or at the SIGKILL at the end of the grace, whichever comes first.
  *
- * Step 6 adds the borders of O03, O17 and O02. A conntrack middlebox in the namespace of each replica
+ * Step 6 adds the borders of O03, O17 and O02. A stateful middlebox in the namespace of each replica
  * forgets an idle flow on one side of the PING of ztunnel or the other (O03). A sysctl of the
  * namespace of each client pod moves the give-up of TCP to each side of the PING timeout (O17). A
  * new channel at the start of a gap shows the release of the pool of ztunnel (O02).
@@ -361,7 +361,7 @@ export const SIGNAL_LATE: Quantity = s(0.5);
  */
 const DELACK: Quantity = s(0.2);
 
-/** This name is the hop of the research that a conntrack middlebox in the namespace of each replica stands in for (O03). */
+/** This name is the hop of the research that a stateful middlebox in the namespace of each replica stands in for (O03). */
 export const MIDDLEBOX_HOP = "router-netns:azure-lb-240";
 
 /** This idle timeout of the middlebox of T15.border-off.79 is longer than the PING of ztunnel: O03 holds. */
@@ -377,7 +377,7 @@ const MIDDLEBOX_HOLD = s(120);
 const FORGET_HOLD = s(60);
 
 /**
- * This function decides O03 for the PING of ztunnel on a conntrack middlebox that forgets an idle flow
+ * This function decides O03 for the PING of ztunnel on a stateful middlebox that forgets an idle flow
  * after `idle` (`o03From`). The refresh is the timer `ping` at its latest.
  */
 export const pingOnMiddlebox = (idle: Quantity): O03Verdict => o03From(timerOf(ZTUNNEL_HBONE, "ping", ZTUNNEL), conntrackValues(valueIn(idle, "s")), KIND_RTT_MS / 1000);
@@ -408,10 +408,10 @@ export const forgetEnds = (idle: Quantity, why: string): Prediction => {
 
 /** This text is the start of why a middlebox of T15.border-off.79 or T15.border-off.80 changes the tunnel of each client, or not. */
 const MIDDLEBOX_START = [
-  `The lab puts a conntrack middlebox in the network namespace of each replica, before the gap: a stand-in for ${MIDDLEBOX_HOP}, because kind has no router between its nodes.`,
-  "It sets nf_conntrack_tcp_timeout_established and nf_conntrack_tcp_loose 0 in that namespace, and it drops each INVALID segment from each client pod to the port 15008 and back: the silent-drop form.",
-  "The sysctls are of each namespace, and conntrack reads the timeout of its namespace at each segment of a flow (nf_conntrack_standalone.c of Linux v6.17, lines 739, 795 and 1039, and nf_conntrack_proto_tcp.c, lines 1276–1278 and 1334).",
-  "With nf_conntrack_tcp_loose 0, conntrack does not take up a flow that it forgot. Each later segment of the flow is INVALID (nf_conntrack_proto_tcp.c, line 869).",
+  `The lab puts a stateful middlebox in the network namespace of each replica, before the gap: a stand-in for ${MIDDLEBOX_HOP}, because kind has no router between its nodes.`,
+  "The middlebox keeps the time of the last segment of each client pod on the port 15008, in a table of the match recent, in each direction (xt_recent.c of Linux v6.17, lines 251–257 and 298–321).",
+  "A segment after the idle timeout with no segment is dropped, and the time stays old. Thus the middlebox forgets the flow for good: the silent-drop form.",
+  "Conntrack of the namespace stays as it is, because istio-cni sends each answer of the app back to ztunnel through the connmark of its conntrack entry (cni/pkg/iptables/iptables.go of Istio 1.31.3, lines 172–178, 278–284 and 336–347).",
   "The clients send no call in the gap. Each ztunnel of the tunnel sends a PING each 10 s after its PONG, and data does not put a PING off (h2.rs of ztunnel 1.31.3, lines 36–56 and 222–225, and server.rs, lines 126–135).",
   "Both loops start at the connect of the tunnel, thus their PINGs come at almost the same times.",
 ];
@@ -514,12 +514,19 @@ const NEW_CHANNEL: Quantity = s(0.1);
  * is its last use, thus the pool releases it one release later. The side of the client closes it: the
  * peer has no idle close. The release counts from the checkout, not from the end of the stream. Thus
  * the band ends before the end of the stream and a release.
+ *
+ * The peer can answer the close, and its FIN can come first (`answer`). The client sends GOAWAY when
+ * its connection has no reference and no stream (proto/connection.rs of h2 0.4.19, lines 261–265).
+ * The server records that GOAWAY (lines 563–570). With no stream, it sends its own GOAWAY and shuts
+ * down the socket at once (lines 309–316 and 325–329). Thus the answer starts at the release. It ends
+ * one round trip and one step of ztunnel after the band.
  */
 export const releaseEnds = (hold: Quantity, why: string): Prediction => {
   const band = { lo: s(RELEASE.lo), hi: sum(s(RELEASE.hi), SIGNAL_LATE, NEW_CHANNEL, ZTUNNEL_STEP) };
   if (valueIn(band.hi, "s") >= valueIn(hold, "s")) throw new Error(`a gap of ${valueIn(hold, "s")} s ends before the release of the pool`);
   if (valueIn(band.hi, "s") >= RELEASE.lo + valueIn(CHANNEL_USE, "s")) throw new Error("the band does not tell the checkout from the end of the stream");
-  return { kind: "ends", from: "fault", of: "tunnel", band, why };
+  const answer = { lo: s(RELEASE.lo), hi: sum(band.hi, s(KIND_RTT_MS / 1000), ZTUNNEL_STEP) };
+  return { kind: "ends", from: "fault", of: "tunnel", band, answer, why };
 };
 
 /** This text is why the pool of ztunnel releases the tunnel of each client of T15.border-off.77 at its band. */
@@ -528,7 +535,9 @@ const RELEASE_WHY = [
   "grpc-js shuts down the transport of a channel that it closes (internal-channel.ts of grpc-js 1.14.6, lines 839–861, and subchannel.ts, lines 396–410).",
   `The pool of ztunnel puts the tunnel back at each checkout, with a new release timer of ${say(s(RELEASE.lo))} (pool.rs of ztunnel 1.31.3, lines 150–176 and 338–341). Thus the release counts from the checkout at the fault, not from the end of the stream.`,
   "The release drops the reference of the pool, and HTTP/2 closes a connection with no reference and no stream (pool.rs, lines 142–146). The side of the client sends the FIN: ESTABLISHED to FIN_WAIT1 in the records of the prober.",
-  "The ztunnel of the server has no idle close, thus the peer does not close first. The law O02 holds.",
+  "The ztunnel of the server has no idle close, thus the peer does not close on its own. The law O02 holds.",
+  "The server answers the GOAWAY of the client at once, and its FIN can come first (proto/connection.rs of h2 0.4.19, lines 309–316, 325–329 and 563–570).",
+  `Thus a change from ESTABLISHED to CLOSE_WAIT also agrees, from the release to the end of the band, one round trip of ${say(s(KIND_RTT_MS / 1000))} and one step of ztunnel.`,
   `The first call of the new channel comes at most ${say(sum(SIGNAL_LATE, NEW_CHANNEL))} after the fault, an assumption. After the heal, a new channel gets a new tunnel, and its first call succeeds.`,
 ].join(" ");
 
@@ -738,7 +747,7 @@ export const T15_GRPC: readonly KindCell[] = [
     mesh: AMBIENT,
     substitutes: MIDDLEBOX_HOP,
     id: "T15.border-off.79",
-    name: "T15 ambient, gRPC, a gap of 120 s through a conntrack middlebox that forgets an idle flow at 11 s: the PING of ztunnel keeps the tunnel",
+    name: "T15 ambient, gRPC, a gap of 120 s through a stateful middlebox that forgets an idle flow at 11 s: the PING of ztunnel keeps the tunnel",
     trigger: { kind: "idle", hold: MIDDLEBOX_HOLD, middlebox: MIDDLEBOX_INSIDE },
     pod: kubeDefaults(2),
     prediction: { kind: "ends", from: "fault", band: null, why: MIDDLEBOX_INSIDE_WHY },
@@ -749,7 +758,7 @@ export const T15_GRPC: readonly KindCell[] = [
     mesh: AMBIENT,
     substitutes: MIDDLEBOX_HOP,
     id: "T15.border-off.80",
-    name: "T15 ambient, gRPC, a gap of 60 s through a conntrack middlebox that forgets an idle flow at 9 s: the PING timeout ends the tunnel",
+    name: "T15 ambient, gRPC, a gap of 60 s through a stateful middlebox that forgets an idle flow at 9 s: the PING timeout ends the tunnel",
     trigger: { kind: "idle", hold: FORGET_HOLD, middlebox: MIDDLEBOX_OUTSIDE },
     pod: kubeDefaults(2),
     prediction: forgetEnds(MIDDLEBOX_OUTSIDE, MIDDLEBOX_OUTSIDE_WHY),

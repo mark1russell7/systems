@@ -691,6 +691,8 @@ const checkEnds = (
  * in the run (`la`).
  * - The first change of the tunnel out of ESTABLISHED after the reference must be in the band ± δ.
  *   It must be to FIN_WAIT1: the side of the client closes the tunnel, and the peer does not close first.
+ * - With `answer`, a change to CLOSE_WAIT in that band ± δ also agrees. The peer closed first, but as
+ *   an answer to the close of the client.
  * - The first request of each client after the heal must succeed. The main value is the middle of the ends.
  */
 const checkTunnels = (
@@ -709,6 +711,7 @@ const checkTunnels = (
   const clients = [...new Set(calls.filter((request) => request.t < from && request.o === "ok").map((request) => request.p))].sort();
   if (clients.length === 0) return done(false, `no client had an answer before the ${prediction.from}`, null);
   const band = secondsOf(prediction.band);
+  const reply = prediction.answer === undefined ? null : secondsOf(prediction.answer);
   const tunnels = tunnelsOf(lines).filter((line) => line.t >= from && line.t <= run.end);
   const sockets = socketsOf(lines);
   const closes: Record<string, Quantity | null> = {};
@@ -735,7 +738,9 @@ const checkTunnels = (
     const at = sec(end.t - from);
     closes[client] = seconds(at);
     times.push(at);
-    if (end.new !== TCP_STATE.finWait1) problems.push(`the tunnel of ${client} went from ESTABLISHED to the state ${end.new}, not FIN_WAIT1: the peer closed first`);
+    if (end.new === TCP_STATE.closeWait && reply !== null) {
+      if (!inBand(at, reply)) problems.push(`the peer closed the tunnel of ${client} at ${at} s, outside the band of its answer`);
+    } else if (end.new !== TCP_STATE.finWait1) problems.push(`the tunnel of ${client} went from ESTABLISHED to the state ${end.new}, not FIN_WAIT1: the peer closed first`);
     else if (!inBand(at, band)) problems.push(`the tunnel of ${client} ended at ${at} s`);
     const next = calls.find((request) => request.p === client && request.t >= heal);
     if (next === undefined) problems.push(`${client} sent no call after the heal`);

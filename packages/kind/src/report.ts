@@ -67,7 +67,7 @@ export const predictionText = (prediction: Prediction): string => {
         prediction.band === null
           ? "no socket of a client ends, and each one calls again on its socket"
           : prediction.of === "tunnel"
-            ? `the side of the client ends the tunnel of each client in ${atBand(prediction.from, prediction.band)}, and each one calls again`
+            ? `the side of the client ends the tunnel of each client in ${atBand(prediction.from, prediction.band)}${prediction.answer === undefined ? "" : `, or the peer answers in ${atBand(prediction.from, prediction.answer)}`}, and each one calls again`
             : `the socket of each client ends in ${atBand(prediction.from, prediction.band)}`;
       return prediction.window === undefined ? closes : `${closes}; ${predictionText(prediction.window)}`;
     }

@@ -54,9 +54,9 @@ export type Step =
    */
   | { readonly do: "sysctl"; readonly target: Target; readonly key: string; readonly value: string }
   /**
-   * This step puts a conntrack middlebox in the network namespace of each replica (`servers`). Each
+   * This step puts a stateful middlebox in the network namespace of each replica (`servers`). Each
    * client pod is a peer, on the local port `port` (`middleboxCommands`). With `idle` null, the step
-   * removes the middlebox, and the namespace gets the defaults of Linux again.
+   * removes the middlebox and its chains.
    */
   | { readonly do: "middlebox"; readonly target: Target; readonly idle: Quantity | null; readonly port: number };
 
@@ -119,17 +119,21 @@ export const policyObject = (account: string): Readonly<Record<string, unknown>>
 /** These are the names of the sysctls that the steps of a plan set. Each one is a sysctl of a network namespace. */
 export const SYSCTL = {
   retries: "net.ipv4.tcp_retries2",
-  established: "net.netfilter.nf_conntrack_tcp_timeout_established",
-  loose: "net.netfilter.nf_conntrack_tcp_loose",
 } as const;
 
 /**
  * These are the values of those sysctls in a new network namespace of Linux v6.17. A restore puts
  * them back. `tcp_retries2` is TCP_RETR2 (include/net/tcp.h, line 105, and net/ipv4/tcp_ipv4.c,
- * line 3604). The timeout of an established flow is 5 days, and conntrack takes up a flow that it
- * does not know (net/netfilter/nf_conntrack_proto_tcp.c, lines 64 and 1597).
+ * line 3604).
  */
-export const NETNS_DEFAULTS = { retries: "15", established: "432000", loose: "1" } as const;
+export const NETNS_DEFAULTS = { retries: "15" } as const;
+
+/**
+ * These are the names of the middlebox in the filter table of a replica. One chain takes the
+ * segments from the peers, and one chain takes the segments to them. The table of xt_recent holds
+ * the time of the last segment of each peer.
+ */
+export const MIDDLEBOX = { input: "LAB-MBX-IN", output: "LAB-MBX-OUT", table: "LAB-MBX" } as const;
 
 /** This time is between the stop of the calls and the fault of a quiet black hole. The last answers and their ACKs, at most 200 ms late, come in it. */
 export const QUIET_LEAD: Quantity = { value: 1, unit: "s" };
@@ -153,18 +157,28 @@ export const sysctlCommand = (key: string, value: string): string[] => {
 };
 
 /**
- * This function gives the commands of the injector that put a conntrack middlebox in its network
+ * This function gives the commands of the injector that put a stateful middlebox in its network
  * namespace, with each peer, on the local port `port`. With `idle` null, they remove it.
  *
- * The sysctls of conntrack are of each namespace (nf_conntrack_standalone.c of Linux v6.17, lines
- * 739, 795 and 1039). TCP of conntrack reads the timeout of its namespace at each segment of a flow.
- * Thus a new timeout acts on an open flow at its next segment (nf_conntrack_proto_tcp.c, lines
- * 1276–1278 and 1334). With `nf_conntrack_tcp_loose` 0, conntrack does not take up a flow that it
- * does not know (line 869). Each segment of such a flow is then INVALID. The rules drop it in each
- * direction: the silent-drop form of the router of the harness.
+ * The middlebox forgets a flow of the port after `idle` with no segment. Then it drops each later
+ * segment of it: the silent-drop form of the router of the harness. Conntrack stays as it is. The
+ * local leg from ztunnel to the app has no PING, and istio-cni needs its conntrack entry. The
+ * connmark of that entry sends each answer of the app back to ztunnel (cni/pkg/iptables/iptables.go
+ * of Istio 1.31.3, lines 172–178, 278–284 and 336–347).
  *
- * A timeout object of nftables (`ct timeout`) is not used. It acts only on a flow that conntrack has
- * not confirmed yet (nft_ct.c, line 915), and the HBONE connection is open before the fault.
+ * The match recent keeps a table in each network namespace (xt_recent.c of Linux v6.17). Its key is
+ * the address of the peer: the source of a segment from it, or the destination of a segment to it
+ * (lines 251–257). The chain of each direction has these rules, in sequence:
+ * - In the input chain only, a SYN sets the time of its peer and passes: a new flow.
+ * - A segment of a peer with a time in the last `idle` seconds passes, and it sets the time again
+ *   (lines 298–321).
+ * - A segment of a peer with an older time is dropped, and the time stays old. Thus the flow stays forgotten.
+ * - A segment of a peer that the table does not hold sets its time and passes (lines 283–290). That
+ *   is the flow that was open before the set.
+ *
+ * Each rule that passes a segment goes back to INPUT or OUTPUT (RETURN), thus the other rules of the
+ * namespace still act on it. The key is an address, not a flow. Thus a new SYN of a peer also refreshes an
+ * old flow of the peer. A cell of the middlebox opens no new flow in its gap.
  */
 export const middleboxCommands = (peers: readonly string[], idle: Quantity | null, port: number): string[][] => {
   if (peers.length === 0) throw new Error("a middlebox needs a peer");
@@ -172,16 +186,25 @@ export const middleboxCommands = (peers: readonly string[], idle: Quantity | nul
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error(`not a port: ${port}`);
   const op = idle === null ? "-D" : "-I";
   // the option of a port follows the protocol that loads its match
-  const drop = ["-m", "conntrack", "--ctstate", "INVALID", "-j", "DROP"];
-  const rules = peers.flatMap((peer) => [
-    ["iptables", op, "INPUT", "-s", `${peer}/32`, "-p", "tcp", "--dport", String(port), ...drop],
-    ["iptables", op, "OUTPUT", "-d", `${peer}/32`, "-p", "tcp", "--sport", String(port), ...drop],
+  const jumps = peers.flatMap((peer) => [
+    ["iptables", op, "INPUT", "-s", `${peer}/32`, "-p", "tcp", "--dport", String(port), "-j", MIDDLEBOX.input],
+    ["iptables", op, "OUTPUT", "-d", `${peer}/32`, "-p", "tcp", "--sport", String(port), "-j", MIDDLEBOX.output],
   ]);
-  // the defaults come back first: a rule that a failed fault did not add does not stop them
-  if (idle === null) return [sysctlCommand(SYSCTL.established, NETNS_DEFAULTS.established), sysctlCommand(SYSCTL.loose, NETNS_DEFAULTS.loose), ...rules];
+  const chains = [MIDDLEBOX.input, MIDDLEBOX.output];
+  // the chains are empty first: a jump that a failed fault did not add does not keep the drops
+  if (idle === null) return [...chains.map((chain) => ["iptables", "-F", chain]), ...jumps, ...chains.map((chain) => ["iptables", "-X", chain])];
   const time = valueIn(idle, "s");
-  if (!Number.isInteger(time) || time < 1) throw new Error(`the idle timeout of conntrack is a whole number of seconds, not ${time}`);
-  return [sysctlCommand(SYSCTL.established, String(time)), sysctlCommand(SYSCTL.loose, "0"), ...rules];
+  if (!Number.isInteger(time) || time < 1) throw new Error(`the idle timeout of the middlebox is a whole number of seconds, not ${time}`);
+  const rules = (chain: string, side: "--rsource" | "--rdest"): string[][] => {
+    const recent = ["-m", "recent", "--name", MIDDLEBOX.table, side];
+    return [
+      ...(chain === MIDDLEBOX.input ? [["iptables", "-A", chain, "-p", "tcp", "--syn", ...recent, "--set", "-j", "RETURN"]] : []),
+      ["iptables", "-A", chain, ...recent, "--update", "--seconds", String(time), "-j", "RETURN"],
+      ["iptables", "-A", chain, ...recent, "--rcheck", "-j", "DROP"],
+      ["iptables", "-A", chain, ...recent, "--set", "-j", "RETURN"],
+    ];
+  };
+  return [...chains.map((chain) => ["iptables", "-N", chain]), ...rules(MIDDLEBOX.input, "--rsource"), ...rules(MIDDLEBOX.output, "--rdest"), ...jumps];
 };
 
 /**
