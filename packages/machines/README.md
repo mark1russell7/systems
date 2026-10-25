@@ -65,8 +65,9 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `ISTIO_SIDECAR_OUTBOUND` | `istio-sidecar-outbound` | The client sidecar of Istio 1.31.3: Envoy 1.39.4 between the app and the mesh, its retries, an update of LDS and the SIGKILL | proxy | 31 implemented |
 | `ISTIO_SIDECAR_INBOUND` | `istio-sidecar-inbound` | The server sidecar of Istio 1.31.3: Envoy 1.39.4 between the mesh and the app, the policy, an update of LDS and the SIGKILL | proxy | 31 implemented |
 | `PILOT_AGENT` | `pilot-agent` | pilot-agent of Istio 1.31.3: the drain and the SIGKILL of the Envoy of a sidecar at the stop of its pod | proxy | 12 implemented |
+| `ZTUNNEL_HBONE` | `ztunnel-hbone` | ztunnel 1.31.3 in in-pod mode: one HBONE connection from a client pod to a server pod, its PING, its drain and the close of each flow of the app | proxy | 14 implemented, 3 derived |
 
-Thirty-two documents operate on Linux TCP (`over`). Eight documents operate on no other document. They are Linux TCP, conntrack, the Sentinel, the replication of mongod, aten, the member of Ra, the `RetryAgent` of undici and pilot-agent.
+Thirty-three documents operate on Linux TCP (`over`). Eight documents operate on no other document. They are Linux TCP, conntrack, the Sentinel, the replication of mongod, aten, the member of Ra, the `RetryAgent` of undici and pilot-agent.
 
 The `RetryAgent` is one request above the sockets of a `Client`. Its timer is the delay of a retry. Each retry can go on a new socket. The `conditions` of each document give the range where it holds, for example a range of kernels.
 
@@ -113,6 +114,15 @@ A document changes only for one of two reasons:
 A change to the version of a system changes its sources too. Each fact of the document then cites the new version.
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
+
+### 0.3.26
+
+- **ztunnel 1.31.3 for T15** (`ztunnel-hbone`). This new document is one HBONE connection of the ambient mesh, from the source at its tag.
+  - The PING has a fixed cadence: a PING 10 s after the last PONG, then at most 20 s for its PONG. Both are constants, and data does not put a PING off. Thus a black hole is found 20 s to 30 s later.
+  - At the end of a stream or of its connection, ztunnel shuts down the socket of each app: a FIN. A connect to 15008 that fails closes the socket of the app before any byte of an answer.
+  - The connect times out at 10 s. At SIGTERM, ztunnel sends GOAWAY and ends what is left at its deadline of 25 s. It has no idle timeout and no maximum age of a connection.
+  - The HBONE socket is Linux TCP with a keepalive of 180 s, 180 s and 9 probes, and no TCP_USER_TIMEOUT.
+  - The cell T15.defaults.12 cites it. It reads no timer of the document, thus it moves no prediction of the snapshot.
 
 ### 0.3.25
 

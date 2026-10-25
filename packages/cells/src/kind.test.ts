@@ -20,6 +20,8 @@ import { T18_CELLS } from "./t18.ts";
  * - KIND_RUNS replaces the run count of each cell, for a smoke run.
  * - KIND_MODES names the kube-proxy modes that the runner can do. Each cell of another mode waits,
  *   with the reason in KIND_WAITING, as a line of summary.ndjson.
+ * - KIND_AMBIENT_WAITING, when it is not empty, is why the runner cannot do the ambient flavor of
+ *   Istio: a module of istio-cni that does not load. Each ambient cell then waits with that reason.
  * - KIND_IDLE is the idle share of the CPUs that a run waits for (the default is 0.6).
  *
  * KIND_JUDGE=<folder> judges the raw records under a folder again with the cells as they are now,
@@ -42,14 +44,21 @@ const chosen: KindCell[] = shardOf(
   shard,
   of,
 ).map((cell) => (RUNS === null ? cell : { ...cell, runs: RUNS }));
-const selected = chosen.filter((cell) => MODES.includes(cell.mode));
-const waiting = chosen.filter((cell) => !MODES.includes(cell.mode));
+const AMBIENT_WAITING = process.env["KIND_AMBIENT_WAITING"] ?? "";
+/** This function gives why the runner cannot do a cell, or null when it can. */
+const whyWaiting = (cell: KindCell): string | null => {
+  if (!MODES.includes(cell.mode)) return process.env["KIND_WAITING"] ?? `the runner has no ${cell.mode} mode`;
+  if (cell.mesh?.flavor === "ambient" && AMBIENT_WAITING !== "") return AMBIENT_WAITING;
+  return null;
+};
+const selected = chosen.filter((cell) => whyWaiting(cell) === null);
+const waiting = chosen.filter((cell) => whyWaiting(cell) !== null);
 
 describe.skipIf(!RUN)("the kind catalogs, in kind", () => {
   it(`runs ${selected.length} cells`, async () => {
     mkdirSync(OUT, { recursive: true });
     for (const cell of waiting) {
-      const why = process.env["KIND_WAITING"] ?? `the runner has no ${cell.mode} mode`;
+      const why = whyWaiting(cell)!;
       const line = { id: cell.id, name: cell.name, mode: cell.mode, trigger: cell.trigger.kind, prediction: cell.prediction.kind, decision: "waiting", why };
       appendFileSync(join(OUT, "summary.ndjson"), `${JSON.stringify(line)}\n`);
       console.log(`${cell.name}: waiting, ${why}`);

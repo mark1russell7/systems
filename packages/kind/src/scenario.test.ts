@@ -1,9 +1,9 @@
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { KUBE_PROXY_MODES, NODE_IMAGES, cidrOverlap, goDuration, kindConfig, kubeProxyPatch, nodeNames, scenario, scenarioProblems } from "./scenario.ts";
-import { KIND, KUBECTL, ensureTool, platformKey, sha256, toolPath } from "./tools.ts";
+import { KIND, KUBECTL, download, ensureTool, platformKey, sha256, toolPath } from "./tools.ts";
 import type { Tool } from "./tools.ts";
 
 describe("the configuration of kind, from a scenario", () => {
@@ -84,5 +84,28 @@ describe("the pinned tools", () => {
     writeFileSync(path, "another binary");
     await expect(ensureTool(tool, "linux-x64", cache)).rejects.toThrow(/not the pinned/);
     await expect(ensureTool(tool, "darwin-x64", cache)).rejects.toThrow(/no pinned asset/);
+  });
+
+  it("tries a download again after a failed connection or a 5xx, and not after a 404", async () => {
+    const answers: (Response | Error)[] = [new TypeError("fetch failed"), new Response("", { status: 503 }), new Response("a binary")];
+    const urls: string[] = [];
+    vi.stubGlobal("fetch", async (url: string) => {
+      urls.push(url);
+      const answer = answers.shift();
+      if (answer instanceof Error) throw answer;
+      return answer;
+    });
+    try {
+      await expect(download("https://example.invalid/kind", [0, 0])).resolves.toEqual(new TextEncoder().encode("a binary"));
+      expect(urls).toHaveLength(3);
+      answers.push(new TypeError("fetch failed"), new TypeError("fetch failed"));
+      await expect(download("https://example.invalid/kind", [0])).rejects.toThrow(/fetch failed/);
+      answers.push(new Response("", { status: 404 }));
+      urls.length = 0;
+      await expect(download("https://example.invalid/kind", [0, 0])).rejects.toThrow(/answered 404/);
+      expect(urls).toHaveLength(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

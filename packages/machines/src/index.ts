@@ -32,6 +32,7 @@ import { ISTIO_SIDECAR_INBOUND, ISTIO_SIDECAR_OUTBOUND, PILOT_AGENT, istioSideca
 import { NGINX_GRPC } from "./proxy/nginx.ts";
 import { TRAEFIK_HTTP2 } from "./proxy/traefik.ts";
 import { DOCKER_PROXY_LINK, TOXIPROXY_LINK } from "./proxy/tcp-proxies.ts";
+import { ZTUNNEL_HBONE } from "./proxy/ztunnel.ts";
 import { AMQPLIB } from "./rabbit/amqplib.ts";
 import { ATEN_DETECTOR } from "./rabbit/aten.ts";
 import { RA_MEMBER } from "./rabbit/ra-member.ts";
@@ -79,6 +80,7 @@ export {
   TRAEFIK_HTTP2,
   UNDICI_CLIENT,
   UNDICI_RETRY,
+  ZTUNNEL_HBONE,
 };
 export type { SidecarSide } from "./proxy/istio.ts";
 export { istioSidecar };
@@ -150,4 +152,5 @@ export const MACHINES: Readonly<Record<string, Machine>> = byId([
   ISTIO_SIDECAR_OUTBOUND,
   ISTIO_SIDECAR_INBOUND,
   PILOT_AGENT,
+  ZTUNNEL_HBONE,
 ]);

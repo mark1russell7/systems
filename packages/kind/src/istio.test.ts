@@ -7,7 +7,7 @@ import type { KindCell } from "./cell.ts";
 import { cellOf } from "./cells.fixture.ts";
 import { clusterFilter, hostsOf, outboundCluster } from "./eds.ts";
 import { CLIENT_ACCOUNT, POLICY, deletes, planOf, policyObject } from "./faults.ts";
-import { ACCESS_LOG_FORMAT, ISTIO_IMAGES, ISTIO_VERSION, LDS_EVERY, istioOperator, meshKey, pollsListeners, serverCluster } from "./istio.ts";
+import { ACCESS_LOG_FORMAT, ISTIO_IMAGES, ISTIO_VERSION, LDS_EVERY, MESH_IMAGES, MESH_WORKLOADS, followsZtunnel, istioOperator, meshKey, pollsListeners, serverCluster } from "./istio.ts";
 import { LDS_FILTER, listenerCountsOf } from "./lds.ts";
 import { clientObjects, namespaceObject } from "./manifests.ts";
 import type { Tool } from "./tools.ts";
@@ -29,11 +29,16 @@ const tarOf = (entries: ReadonlyArray<readonly [string, string, string?]>): Uint
 };
 
 const IMAGES = { pilot: "systems-lab/pilot:1.31.3-6ad1e816c4d4", proxy: "systems-lab/proxyv2:1.31.3-eb74eacea98d" };
+const AMBIENT_IMAGES = { ...IMAGES, cni: "systems-lab/install-cni:1.31.3-e98782038634", ztunnel: "systems-lab/ztunnel:1.31.3-2c27371b3139" };
 const SIDECAR = { flavor: "sidecar", mode: "sidecar" } as const;
+const AMBIENT = { flavor: "ambient", mode: "ambient" } as const;
 
 describe("the install of Istio", () => {
-  it("pins each image of the sidecar flavor by digest, at the version of istioctl", () => {
-    for (const image of Object.values(ISTIO_IMAGES)) expect(image).toMatch(new RegExp(`^istio/[a-z0-9]+:${ISTIO_VERSION.replaceAll(".", "\\.")}@sha256:[0-9a-f]{64}$`));
+  it("pins each image of each flavor by digest, at the version of istioctl", () => {
+    for (const image of Object.values(ISTIO_IMAGES)) expect(image).toMatch(new RegExp(`^istio/[a-z0-9-]+:${ISTIO_VERSION.replaceAll(".", "\\.")}@sha256:[0-9a-f]{64}$`));
+    expect(MESH_IMAGES.sidecar).toEqual(["pilot", "proxy"]);
+    expect(MESH_IMAGES.ambient).toEqual(["pilot", "proxy", "cni", "ztunnel"]);
+    expect(Object.keys(ISTIO_IMAGES).sort()).toEqual([...MESH_IMAGES.ambient].sort());
     expect(ISTIOCTL.version).toBe(ISTIO_VERSION);
     for (const key of ["linux-x64", "linux-arm64", "darwin-arm64"]) {
       expect(ISTIOCTL.assets[key]?.sha256, key).toMatch(/^[0-9a-f]{64}$/);
@@ -52,15 +57,53 @@ describe("the install of Istio", () => {
     // the watcher reads these fields of each access line
     expect(JSON.parse(operator.spec.meshConfig["accessLogFormat"]!)).toMatchObject({ code: "%RESPONSE_CODE%", flags: "%RESPONSE_FLAGS%", grpc: "%GRPC_STATUS_NUMBER%", attempts: "%UPSTREAM_REQUEST_ATTEMPT_COUNT%" });
     expect(Object.keys(ACCESS_LOG_FORMAT)).toContain("host");
-    expect(() => istioOperator("ambient", IMAGES)).toThrow(/sidecar only/);
+    expect(operator.spec.values["cni"]).toBeUndefined();
+    expect(operator.spec.values["ztunnel"]).toBeUndefined();
+    expect(MESH_WORKLOADS.sidecar).toEqual(["deployment/istiod"]);
+  });
+
+  it("installs istiod, istio-cni and ztunnel for the flavor ambient, each image a full reference that no node pulls", () => {
+    const operator = istioOperator("ambient", AMBIENT_IMAGES) as { spec: { profile: string; values: Record<string, Record<string, unknown>> } };
+    expect(operator.spec.profile).toBe("ambient");
+    expect(operator.spec.values["global"]).toEqual({ imagePullPolicy: "Never", proxy: { image: IMAGES.proxy }, proxy_init: { image: IMAGES.proxy } });
+    expect(operator.spec.values["pilot"]).toMatchObject({ image: IMAGES.pilot, replicaCount: 1, resources: { requests: { cpu: "500m", memory: "256Mi" } } });
+    // istio-cni takes the pull policy of global; the chart of ztunnel reads only its own
+    expect(operator.spec.values["cni"]).toEqual({ image: AMBIENT_IMAGES.cni });
+    expect(operator.spec.values["ztunnel"]).toEqual({ image: AMBIENT_IMAGES.ztunnel, imagePullPolicy: "Never" });
+    for (const image of Object.values(AMBIENT_IMAGES)) expect(image).toContain("/");
+    // the install waits for istio-cni and ztunnel on each node too
+    expect(MESH_WORKLOADS.ambient).toEqual(["deployment/istiod", "daemonset/istio-cni-node", "daemonset/ztunnel"]);
+    expect(() => istioOperator("ambient", IMAGES)).toThrow(/istio-cni and ztunnel/);
   });
 
   it("gives a cell with a mesh its flavor as the key of its cluster, and a labeled namespace", () => {
     expect(meshKey(cellOf("pod-deletion"))).toBe("none");
     expect(meshKey({ mesh: SIDECAR })).toBe("sidecar");
+    expect(meshKey({ mesh: AMBIENT })).toBe("ambient");
     expect(namespaceObject({ mesh: SIDECAR }, "lab-a")).toMatchObject({ metadata: { name: "lab-a", labels: { "istio-injection": "enabled" } } });
     expect(namespaceObject({ mesh: { flavor: "ambient", mode: "sidecar" } }, "lab-a")).toMatchObject({ metadata: { labels: { "istio-injection": "enabled" } } });
+    expect(namespaceObject({ mesh: AMBIENT }, "lab-a")).toEqual({ apiVersion: "v1", kind: "Namespace", metadata: { name: "lab-a", labels: { "istio.io/dataplane-mode": "ambient" } } });
     expect(namespaceObject({}, "lab-a")).toEqual({ apiVersion: "v1", kind: "Namespace", metadata: { name: "lab-a" } });
+    // the watcher follows ztunnel only for the pods of the ambient mode
+    expect(followsZtunnel({ mesh: AMBIENT })).toBe(true);
+    expect(followsZtunnel({ mesh: SIDECAR })).toBe(false);
+    expect(followsZtunnel({ mesh: { flavor: "ambient", mode: "sidecar" } })).toBe(false);
+    expect(followsZtunnel({})).toBe(false);
+  });
+
+  it("resets the mesh leg in T15: the injector in each replica, with the client pods as peers, and Redis elsewhere", () => {
+    const ambient: KindCell = { ...cellOf("rst"), template: "T15", stack: "grpc", mesh: AMBIENT, declaration: null, trigger: { kind: "rst", hold: { value: 10, unit: "s" } } };
+    expect(planOf(ambient)).toEqual({
+      inject: [{ do: "inject", target: "servers", action: "rst" }],
+      hold: { value: 10, unit: "s" },
+      heal: [{ do: "inject", target: "servers", action: "clear-rst" }],
+      restore: [],
+    });
+    const hole = planOf({ ...ambient, trigger: { kind: "blackhole", hold: { value: 45, unit: "s" } } });
+    expect([hole.inject, hole.heal]).toEqual([[{ do: "inject", target: "servers", action: "blackhole" }], [{ do: "inject", target: "servers", action: "clear" }]]);
+    // T18 keeps Redis as the target, with the replicas as peers
+    expect(planOf(cellOf("rst", undefined, "T18")).inject).toEqual([{ do: "inject", target: "redis", action: "rst" }]);
+    expect(() => planOf({ ...ambient, trigger: { kind: "rst" } })).toThrow(/a hold/);
   });
 });
 

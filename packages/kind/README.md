@@ -90,6 +90,9 @@ The tests read three real records of `/1` (`test/records/`): a cell that holds, 
   - `listener_modified` counts each update of a listener, and `listener_in_place_updated` counts each update of its filter chains only.
   - Each change of the counters gives an `lds` line with the start of the poll before it. The first line of a poller has no poll before it, thus it is no update (`updatesOf`).
 - **The injector of each node** is the image of the harness, in the PID namespace of the node. `crictl` on the node gives the PID of a container, and `nsenter -n` enters the network namespace of its pod. The injector of the harness then applies its rules there.
+  - From 0.5.0, the target `servers` puts a rule in the namespace of each replica, with each client pod as a peer. A REJECT resets only the sender of the segment that it matches, thus the rule goes where the segments of the clients arrive.
+  - The rules of all replicas commit at one instant on CLOCK_MONOTONIC (`--at`, 700 ms after the start). Thus no client meets one replica with the rule and another without it. The clear uses the PIDs of the fault again, thus the heal comes soon after its hold.
+  - The lab reads the tables of each replica with their counters (`tables`): the nat table after the fault, and the filter table before the clear. A `tables` line in the record shows if the rule matched the clients beside the rules of istio-cni.
 - **The watcher** is a container on the network of the cluster. It watches the pods, the EndpointSlices and the events through the API, and it follows the log of each pod of the cell.
   - From 0.3.0, it also follows the sidecar of Istio (`istio-proxy`), and a pod line gives the state of the sidecar (`sc`). Each line of the sidecar becomes a `proxy` line, stamped at its arrival. Its own stamps are of the wall clock, thus no band reads them.
   - The access line of a call that succeeded at its first try is only counted, in a `proxy-ok` line each second. The record keeps each failure, each retry and each local reply, with its response flags and its upstream host.
@@ -118,14 +121,21 @@ A declaration that can be null changes the type `KindCell`. That is a breaking c
 
 From 0.3.0, a cell can name a mesh (`mesh`): Istio 1.31.3 in its cluster. This is the template `T15`, the lifecycle of T07 through two mesh hops.
 
-- **The field.** `mesh.flavor` is the install: `sidecar` is istiod only. `mesh.mode` is the data plane of the pods of the cell. The flavor `ambient` comes in step 3 of the plan, and the lab refuses it until then.
+- **The field.** `mesh.flavor` is the install: `sidecar` is istiod only, and `ambient` is istiod, istio-cni and ztunnel. `mesh.mode` is the data plane of the pods of the cell.
 - **The cluster.** The cells of one kube-proxy mode, one node count and one mesh flavor share a cluster. `shardOf` keeps them together, and in each mode the cells with no mesh come first.
-- **The install.** `installMesh` writes the IstioOperator of the flavor (`istioOperator`), and `istioctl install` applies it with the kubeconfig of the cluster. Then the lab waits for istiod.
+- **The install.** `installMesh` writes the IstioOperator of the flavor (`istioOperator`), and `istioctl install` applies it with the kubeconfig of the cluster. Then the lab waits for each workload of the flavor (`MESH_WORKLOADS`). A failed install gives the pods of istio-system and the log of istio-cni in its error.
 - **The values.** The profile is `minimal`, because the profile `default` also has an ingress gateway. The pod of istiod requests 256 MiB, with one replica and no autoscaler. The access log of each sidecar goes to its output as JSON (`ACCESS_LOG_FORMAT`).
 - **The images.** `ISTIO_IMAGES` pins istiod and the proxy by the digest of their index on Docker Hub. The lab pulls each one by its digest and tags it with that digest (`localPin`). Then `kind load` puts it on each node.
 - **No pull.** Each image is a full reference, thus the charts use it as it is. The init container of the injector gets the image of the proxy too. `imagePullPolicy` is `Never`, thus an image that the lab did not load fails the install.
 - **The namespace.** In the sidecar mode, the namespace of the cell has the label `istio-injection=enabled` (`namespaceObject`). The injector then puts a native sidecar in each pod: an init container that runs beside the app, because each kubelet is at least 1.33.
 - **The probes.** The injector changes the gRPC probe of grpc-go into an HTTP probe of pilot-agent. Then pilot-agent sends the gRPC check to the app, with the service of the probe.
+
+From 0.5.0, the lab installs the flavor `ambient` too:
+
+- **The values.** The profile is `ambient`: istiod, istio-cni and ztunnel on each node, and no gateway. `ISTIO_IMAGES` also pins istio-cni and ztunnel, and `MESH_IMAGES` gives the images of each flavor. The chart of ztunnel reads only its own `imagePullPolicy`, thus the operator sets it to `Never` there too.
+- **The namespace.** In the ambient mode, the namespace of the cell has the label `istio.io/dataplane-mode=ambient`. Then istio-cni redirects the traffic of each pod to ztunnel in the network namespace of the pod. A pod has no sidecar.
+- **The kernel.** istio-cni writes iptables rules in each pod and on each node. Thus `kind.yml` loads their modules first, and an ambient cell waits when one does not load.
+- **The log of ztunnel.** For a cell in the ambient mode, the watcher follows each ztunnel pod in istio-system (`followsZtunnel`). Each line of its log becomes a `ztunnel` line, stamped at its arrival, and each ztunnel pod is a `ztunnel-pod` line. No band reads them.
 
 A new member of the union `Template` breaks a reader that switches on it. That is a breaking change before 1.0.0, thus the version is 0.3.0. The record format stays `/2`, with the optional field `mesh`. A judge before 0.3.0 cannot read a record of T15.
 
@@ -156,7 +166,7 @@ The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`
 | `crash` | SIGKILL of the process of the service, from the node |
 | `liveness-restart` | the flag file that fails the liveness check of the first replica |
 | `freeze-process` | SIGSTOP and SIGCONT: of kube-proxy on one node across a deletion (T07), or of Redis (T18) |
-| `rst`, `blackhole` | the injector of the harness in the namespace of Redis, with each replica as a peer |
+| `rst`, `blackhole` | the injector of the harness in the namespace of Redis, with each replica as a peer. In T15, the injector in the namespace of each replica, with each client pod as a peer (the target `servers`) |
 | `peer-gone-without-close` | a black hole on Redis, then no Redis pod: its namespace goes away with its rules |
 | `app-stall` | the event loop of the first replica blocked |
 | `rollout` | no Redis pod, then a rolling update |
@@ -208,6 +218,8 @@ From 0.4.0, a window can count from the heal (`heal`), the first act that ends t
 - For a policy, the propagation of a window is the LDS update of each server sidecar, after the apply and after the delete (`updatesOf`). An update after the band agrees with the law, and the cell is `extend`.
 - A denial after the window, before the last update after the delete and one more call, is a `tail`. A denied call has no pod, because the sidecar answers it. Thus the judge reads the last update of each server sidecar.
 - `calibrationOf` gives the updates after the apply by node, and the updates after the delete (`heal`).
+
+A new member of the union `Target`, `servers`, breaks a reader that switches on it. `KindLab` also has a new method, `tables`, which each implementation must have. Each is a breaking change before 1.0.0, thus the version is 0.5.0. The record format stays `/2`: the lines `tables`, `ztunnel` and `ztunnel-pod` are new lines of a run.
 
 A new member of the union `TriggerKind` breaks a reader that switches on it. That is a breaking change before 1.0.0, thus the version is 0.4.0. The record format stays `/2`, with the optional fields `account`, `outcomes`, `updates` and `healUpdates`, and the reference `heal`.
 

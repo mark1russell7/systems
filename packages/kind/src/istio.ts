@@ -18,14 +18,23 @@ import { ISTIOCTL, ensureTool } from "./tools.ts";
 export const ISTIO_VERSION = "1.31.3";
 
 /**
- * These are the images of the flavor `sidecar`, pinned by the digest of their index on Docker Hub
- * (read on 2026-10-24). `gcr.io/istio-release` has no final tag of 1.31. The lab pulls each one by
- * its digest, tags it with that digest (`localPin`), and loads it into each node. Thus no node pulls
- * from a registry.
+ * These are the images of Istio, pinned by the digest of their index on Docker Hub (read on
+ * 2026-10-24). `gcr.io/istio-release` has no final tag of 1.31. The lab pulls each one by its digest,
+ * tags it with that digest (`localPin`), and loads it into each node. Thus no node pulls from a
+ * registry. The flavor `sidecar` needs istiod and the proxy. The flavor `ambient` also needs
+ * istio-cni and ztunnel (`MESH_IMAGES`).
  */
-export const ISTIO_IMAGES: { readonly pilot: string; readonly proxy: string } = {
+export const ISTIO_IMAGES: { readonly pilot: string; readonly proxy: string; readonly cni: string; readonly ztunnel: string } = {
   pilot: "istio/pilot:1.31.3@sha256:6ad1e816c4d4767ba3f30a6286a96d121851ddb23d33e20736758acb5f3f4ea9",
   proxy: "istio/proxyv2:1.31.3@sha256:eb74eacea98d3fb1e239ea84016085155478586a554158676b9b67d960151084",
+  cni: "istio/install-cni:1.31.3@sha256:e98782038634ef4fadaf78b53dd8fa4134fda3d65838ead5fc1edef245451c0f",
+  ztunnel: "istio/ztunnel:1.31.3@sha256:2c27371b3139ecbf4f5a017354bd540889482441712e88cd8e654ead5a3eb5b2",
+};
+
+/** These are the images that each flavor installs, by their names in `ISTIO_IMAGES`. */
+export const MESH_IMAGES: Readonly<Record<MeshFlavor, ReadonlyArray<keyof typeof ISTIO_IMAGES>>> = {
+  sidecar: ["pilot", "proxy"],
+  ambient: ["pilot", "proxy", "cni", "ztunnel"],
 };
 
 /**
@@ -51,10 +60,12 @@ export const ACCESS_LOG_FORMAT: Readonly<Record<string, string>> = {
   termination: "%CONNECTION_TERMINATION_DETAILS%",
 };
 
-/** These are the local tags of the images, after the pull by digest. */
+/** These are the local tags of the images, after the pull by digest. The flavor `ambient` needs `cni` and `ztunnel`. */
 export interface MeshImages {
   readonly pilot: string;
   readonly proxy: string;
+  readonly cni?: string | undefined;
+  readonly ztunnel?: string | undefined;
 }
 
 /**
@@ -67,16 +78,21 @@ export interface MeshImages {
  *   reports the whole runner, and no cell scales istiod.
  * - The access log of each sidecar goes to its output as JSON (`ACCESS_LOG_FORMAT`).
  *
- * The flavor `ambient` comes in a later step, thus it is refused.
+ * The flavor `ambient` has the profile `ambient`: istiod, istio-cni and ztunnel, and no gateway
+ * (manifests/profiles/ambient.yaml of Istio 1.31.3). Its two other images are full references too
+ * (templates/daemonset.yaml of the chart of istio-cni, lines 93–96, and of ztunnel, lines 65–68).
+ * The chart of istio-cni takes the pull policy of `global`. The template of ztunnel reads only its own
+ * `imagePullPolicy`, thus the operator sets it there too.
  */
 export const istioOperator = (flavor: MeshFlavor, images: MeshImages): Record<string, unknown> => {
-  if (flavor !== "sidecar") throw new Error(`the lab installs the mesh flavor sidecar only, not ${flavor}`);
+  const ambient = flavor === "ambient";
+  if (ambient && (images.cni === undefined || images.ztunnel === undefined)) throw new Error("the flavor ambient needs the images of istio-cni and ztunnel");
   return {
     apiVersion: "install.istio.io/v1alpha1",
     kind: "IstioOperator",
     metadata: { name: "lab", namespace: "istio-system" },
     spec: {
-      profile: "minimal",
+      profile: ambient ? "ambient" : "minimal",
       hub: "docker.io/istio",
       tag: ISTIO_VERSION,
       meshConfig: {
@@ -87,21 +103,39 @@ export const istioOperator = (flavor: MeshFlavor, images: MeshImages): Record<st
       values: {
         global: { imagePullPolicy: "Never", proxy: { image: images.proxy }, proxy_init: { image: images.proxy } },
         pilot: { image: images.pilot, autoscaleEnabled: false, replicaCount: 1, resources: { requests: { cpu: "500m", memory: "256Mi" } } },
+        ...(ambient ? { cni: { image: images.cni }, ztunnel: { image: images.ztunnel, imagePullPolicy: "Never" } } : {}),
       },
     },
   };
 };
 
+/** These are the workloads of each flavor in istio-system that the install waits for. */
+export const MESH_WORKLOADS: Readonly<Record<MeshFlavor, readonly string[]>> = {
+  sidecar: ["deployment/istiod"],
+  ambient: ["deployment/istiod", "daemonset/istio-cni-node", "daemonset/ztunnel"],
+};
+
 /**
  * This function installs the mesh of a flavor in a cluster with `istioctl install` and the operator
- * of the flavor. Then it waits for istiod. The kubeconfig of the cluster goes to istioctl.
+ * of the flavor. Then it waits for each workload of the flavor. The kubeconfig of the cluster goes to
+ * istioctl. When the install fails, the error has the pods of istio-system and the last lines of the
+ * log of istio-cni. Thus the log of the job shows the cause, for example a module that the kernel of
+ * the runner does not have.
  */
 export const installMesh = async (cluster: Cluster, flavor: MeshFlavor, images: MeshImages): Promise<void> => {
   const istioctl = await ensureTool(ISTIOCTL);
   const file = join(cluster.dir, `istio-${flavor}.json`);
   writeFileSync(file, `${JSON.stringify(istioOperator(flavor, images), null, 2)}\n`);
-  await command(istioctl, ["install", "--kubeconfig", cluster.kubeconfig, "-y", "-f", file, "--readiness-timeout", "10m0s"], { timeout: 900_000 });
-  await cluster.kubectl(["-n", "istio-system", "rollout", "status", "deployment/istiod", "--timeout=300s"]);
+  try {
+    await command(istioctl, ["install", "--kubeconfig", cluster.kubeconfig, "-y", "-f", file, "--readiness-timeout", "10m0s"], { timeout: 900_000 });
+    for (const workload of MESH_WORKLOADS[flavor]) await cluster.kubectl(["-n", "istio-system", "rollout", "status", workload, "--timeout=300s"]);
+  } catch (error) {
+    const state = async (args: readonly string[]): Promise<string> =>
+      (await cluster.kubectl(["-n", "istio-system", ...args]).catch((why: unknown) => String(why))).slice(-4000);
+    const pods = await state(["get", "pods", "-o", "wide"]);
+    const cni = flavor === "ambient" ? `\nthe log of istio-cni:\n${await state(["logs", "daemonset/istio-cni-node", "--tail=60", "--all-containers"])}` : "";
+    throw new Error(`the install of Istio ${flavor} failed: ${String(error)}\nthe pods of istio-system:\n${pods}${cni}`);
+  }
 };
 
 /** This function gives the key of the mesh of a cell for its cluster: its flavor, or `none`. */
@@ -115,6 +149,9 @@ export const EDS_EVERY: Quantity = { value: 50, unit: "ms" };
 
 /** This time is the interval of the LDS poll of each server sidecar, the same as the poll of EDS. */
 export const LDS_EVERY: Quantity = { value: 50, unit: "ms" };
+
+/** This function tells if the watcher follows the log of each ztunnel for a cell: a cell in ambient mode. */
+export const followsZtunnel = (cell: Pick<KindCell, "mesh">): boolean => cell.mesh?.mode === "ambient";
 
 /** This function tells if the lab polls the LDS updates of the server sidecars of a cell: a policy in a sidecar mesh. */
 export const pollsListeners = (cell: Pick<KindCell, "mesh" | "trigger">): boolean => cell.mesh?.mode === "sidecar" && cell.trigger.kind === "authorization-policy";
