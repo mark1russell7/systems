@@ -14,8 +14,11 @@ import { CLIENT, REDIS, SERVER } from "./names.ts";
  * - `server` is the first replica of the service, in the sequence of its name.
  * - `redis` is the Redis pod.
  * - `kube-proxy` is kube-proxy on the first worker.
+ * - `servers` is each replica of the service. Only the injector takes it: a rule in the network
+ *   namespace of each replica, with each client pod as a peer. A REJECT resets only the sender of
+ *   the segment that it matches, thus the rule goes where the segments of the clients arrive.
  */
-export type Target = "server" | "redis" | "kube-proxy";
+export type Target = "server" | "redis" | "kube-proxy" | "servers";
 
 /** A step is one act of a fault, in the sequence of the plan. */
 export type Step =
@@ -23,7 +26,11 @@ export type Step =
   | { readonly do: "signal"; readonly target: Target; readonly signal: "SIGKILL" | "SIGSTOP" | "SIGCONT" }
   /** This step sends SIGSTOP, then SIGCONT `time` later, as the VM times it. The next step starts at once. */
   | { readonly do: "pause"; readonly target: Target; readonly time: Quantity }
-  /** This step starts the injector of the harness in the namespace of the target, with each replica of the service as a peer. */
+  /**
+   * This step starts the injector of the harness in the namespace of the target, with each replica of
+   * the service as a peer. For the target `servers`, it starts it in the namespace of each replica,
+   * with each client pod as a peer, and the rules of all replicas commit at one instant.
+   */
   | { readonly do: "inject"; readonly target: Target; readonly action: "blackhole" | "clear" | "rst" | "clear-rst" }
   | { readonly do: "flag"; readonly target: Target; readonly on: boolean }
   | { readonly do: "cpu"; readonly target: Target; readonly max: string }
@@ -83,6 +90,13 @@ export const policyObject = (account: string): Readonly<Record<string, unknown>>
     rules: [{ from: [{ source: { principals: [`cluster.local/ns/{namespace}/sa/${account}`] } }] }],
   },
 });
+
+/**
+ * This function gives the target of a reset or a black hole of a cell. In T07 and T18 it is Redis,
+ * with the replicas as peers. In T15 the fault is on the leg of the mesh between the client pods and
+ * the replicas: a rule in each replica, with the client pods as peers.
+ */
+const linkOf = (cell: KindCell): Target => (cell.template === "T15" ? "servers" : "redis");
 
 /** This function gives the fault plan of a cell. */
 export const planOf = (cell: KindCell): FaultPlan => {
@@ -152,16 +166,16 @@ export const planOf = (cell: KindCell): FaultPlan => {
       };
     case "rst":
       return {
-        inject: [{ do: "inject", target: "redis", action: "rst" }],
+        inject: [{ do: "inject", target: linkOf(cell), action: "rst" }],
         hold: needs(trigger.hold, "a hold"),
-        heal: [{ do: "inject", target: "redis", action: "clear-rst" }],
+        heal: [{ do: "inject", target: linkOf(cell), action: "clear-rst" }],
         restore: [],
       };
     case "blackhole":
       return {
-        inject: [{ do: "inject", target: "redis", action: "blackhole" }],
+        inject: [{ do: "inject", target: linkOf(cell), action: "blackhole" }],
         hold: needs(trigger.hold, "a hold"),
-        heal: [{ do: "inject", target: "redis", action: "clear" }],
+        heal: [{ do: "inject", target: linkOf(cell), action: "clear" }],
         restore: [],
       };
     case "peer-gone-without-close":

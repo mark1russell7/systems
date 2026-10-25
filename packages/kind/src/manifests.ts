@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
-import type { KindCell, KubeletProbe, Stack } from "./cell.ts";
+import type { KindCell, KubeletProbe, MeshMode, Stack } from "./cell.ts";
 import { CLIENT, HEALTH_PORT, LOG_LABEL, PORT, REDIS, SERVER } from "./names.ts";
 
 /**
@@ -29,14 +29,22 @@ const whole = (amount: Quantity, what: string): number => {
 export const namespaceOf = (cell: Pick<KindCell, "name">): string =>
   `lab-${createHash("sha256").update(cell.name).digest("hex").slice(0, 10)}`;
 
+/** These are the labels of the namespace of each mode of a mesh. */
+const MESH_LABELS: Readonly<Record<MeshMode, Readonly<Record<string, string>>>> = {
+  sidecar: { "istio-injection": "enabled" },
+  ambient: { "istio.io/dataplane-mode": "ambient" },
+};
+
 /**
  * This function gives the Namespace object of a cell. In the sidecar mode of a mesh, the label
  * `istio-injection=enabled` makes the injector of Istio put a sidecar in each pod of the namespace.
+ * In the ambient mode, the label `istio.io/dataplane-mode=ambient` makes istio-cni redirect the
+ * traffic of each pod of the namespace to ztunnel, in the network namespace of the pod.
  */
 export const namespaceObject = (cell: Pick<KindCell, "mesh">, namespace: string): Record<string, unknown> => ({
   apiVersion: "v1",
   kind: "Namespace",
-  metadata: { name: namespace, ...(cell.mesh?.mode === "sidecar" ? { labels: { "istio-injection": "enabled" } } : {}) },
+  metadata: { name: namespace, ...(cell.mesh === undefined ? {} : { labels: { ...MESH_LABELS[cell.mesh.mode] } }) },
 });
 
 /**

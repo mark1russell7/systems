@@ -52,7 +52,12 @@ export interface KindLab {
   take(): Line[];
   /** This method adds a listener of each line, and gives the function that removes it. */
   listen(listener: (line: Line) => void): () => void;
-  watch(namespaces: readonly string[]): Promise<void>;
+  /**
+   * This method starts the watcher of the API on the namespaces. With `ztunnel`, it also follows the
+   * log of each ztunnel in istio-system: lines `ztunnel-pod` and `ztunnel`, which no tracker of the
+   * cell reads.
+   */
+  watch(namespaces: readonly string[], options?: { readonly ztunnel?: boolean | undefined }): Promise<void>;
   probe(netns: readonly number[]): Promise<void>;
   stopProbe(): Promise<void>;
   /** This method asks each agent to poll the backends of a Service in the rules of its node, `every` apart, or to stop with null. */
@@ -70,6 +75,12 @@ export interface KindLab {
   lds(spec: LdsSpec | null): Promise<void>;
   act(node: string, spec: Readonly<Record<string, unknown>>): Promise<Stamp>;
   inject(node: string, pid: number, args: readonly string[]): Promise<Stamp>;
+  /**
+   * This method gives the rules of one table of iptables in the network namespace of a PID, with
+   * their counters (`iptables-save -c`), as the injector sees them. It also adds them to the lines as
+   * a line `tables`: evidence of which rules matched.
+   */
+  tables(node: string, pid: number, table: string): Promise<string>;
   now(): Promise<number>;
   pidOf(node: string, namespace: string, pod: string, container: string): Promise<number>;
   netnsOf(node: string, pid: number): Promise<number>;
@@ -213,12 +224,12 @@ export const openKindLab = async (cluster: Cluster, image: string): Promise<Kind
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
-    async watch(namespaces) {
+    async watch(namespaces, options) {
       if (watcher !== null) await watcher.stop({ timeout: 0 }).catch(() => undefined);
       const kube = await cluster.credentials();
       watcher = await new GenericContainer(image)
         .withNetworkMode(cluster.network)
-        .withEnvironment({ KUBE: JSON.stringify(kube), NAMESPACES: namespaces.join(",") })
+        .withEnvironment({ KUBE: JSON.stringify(kube), NAMESPACES: namespaces.join(","), ZTUNNEL: options?.ztunnel === true ? "1" : "0" })
         .withCommand(["node", "watch.mjs"])
         .withLogConsumer(consume((line) => push(line as unknown as Line)))
         .start();
@@ -293,6 +304,12 @@ export const openKindLab = async (cluster: Cluster, image: string): Promise<Kind
       const stamp = injectorStamp(stdout);
       push({ ev: "act", t: stamp.t0, t1: stamp.t1, node, spec: { op: "inject", pid, args } });
       return stamp;
+    },
+    async tables(node, pid, table) {
+      const t = await lab.now();
+      const text = await output(sidecarOf(node).injector, ["nsenter", "-t", String(pid), "-n", "iptables-save", "-c", "-t", table]);
+      push({ ev: "tables", t, node, pid, table, text: text.slice(0, 8000) });
+      return text;
     },
     async now() {
       return (await lab.act(firstNode, { op: "now" })).t0;

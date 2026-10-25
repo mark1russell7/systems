@@ -6,7 +6,8 @@
 #   kind    Writes what the runner is, and which kube-proxy modes its kernel can do. Then it runs
 #           the cells whose names match `only` (KIND_LAB=1), a shard on each runner, and uploads each
 #           raw record and summary.ndjson as an artifact. A cell of a mode that the kernel cannot do
-#           waits, with its reason in summary.ndjson.
+#           waits, with its reason in summary.ndjson. An ambient cell waits the same way when a
+#           module of istio-cni does not load.
 #
 # Start it with: gh workflow run kind.yml -R mark1russell7/systems --ref <branch> -f only='^T07' -f shards=10
 # The shards keep the cells of one kube-proxy mode and one mesh flavor together (shardOf).
@@ -116,6 +117,30 @@ jobs:
           } | tee "$RUNNER_TEMP/kindcells/modes.txt"
           echo "KIND_MODES=$modes" >> "$GITHUB_ENV"
           echo "KIND_WAITING=$waiting" >> "$GITHUB_ENV"
+      # The ambient flavor of Istio: istio-cni writes iptables rules in the network namespace of each
+      # ambient pod and of each node (cni/pkg/iptables/iptables.go of Istio 1.31.3). A node container
+      # uses the modules of the kernel of the runner: load each one here, and print each result. When
+      # one does not load, each ambient cell waits, with the names in summary.ndjson.
+      - name: The modules of istio-cni
+        run: |
+          missing=""
+          for module in nf_tables nft_compat nf_conntrack ip_tables ip6_tables iptable_filter iptable_mangle iptable_nat iptable_raw \
+              ip6table_filter ip6table_mangle ip6table_nat ip6table_raw xt_REDIRECT xt_connmark xt_conntrack xt_mark xt_owner \
+              xt_tcpudp xt_multiport xt_comment xt_set ip_set ip_set_hash_ip ip_set_hash_net; do
+            if sudo modprobe "$module" 2>/dev/null; then
+              echo "$module: loaded" >> "$RUNNER_TEMP/kindcells/ambient.txt"
+            else
+              echo "$module: missing" >> "$RUNNER_TEMP/kindcells/ambient.txt"
+              missing="${missing:+$missing }$module"
+            fi
+          done
+          cat "$RUNNER_TEMP/kindcells/ambient.txt"
+          waiting=""
+          if [ -n "$missing" ]; then
+            waiting="the kernel $(uname -r) of the runner has no module $missing for istio-cni"
+          fi
+          echo "ambient waiting: ${waiting:-none}" | tee -a "$RUNNER_TEMP/kindcells/ambient.txt"
+          echo "KIND_AMBIENT_WAITING=$waiting" >> "$GITHUB_ENV"
       # Each kind node is a container on the kernel of the runner, thus the pods of all nodes share its
       # inotify limits. The default of 128 instances for each user is too few for a cluster with the
       # DaemonSets and the sidecars of a mesh, and a kubelet or a log stream then fails with "too many

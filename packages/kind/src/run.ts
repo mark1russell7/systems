@@ -8,11 +8,11 @@ import { valueIn } from "@mark1russell7/quantity";
 import type { KindCell, KindRun, Replica } from "./cell.ts";
 import type { Cluster } from "./cluster.ts";
 import { command, createCluster } from "./cluster.ts";
-import type { Step } from "./faults.ts";
+import type { Step, Target } from "./faults.ts";
 import { NODE, POD, VERSION, deletes as deletesAPod, planOf } from "./faults.ts";
 import { labImage } from "./image.ts";
 import type { MeshImages } from "./istio.ts";
-import { EDS_EVERY, ISTIO_IMAGES, LDS_EVERY, installMesh, meshKey, pollsListeners, serverCluster } from "./istio.ts";
+import { EDS_EVERY, ISTIO_IMAGES, LDS_EVERY, MESH_IMAGES, followsZtunnel, installMesh, meshKey, pollsListeners, serverCluster } from "./istio.ts";
 import type { KindLab, Line, Stamp } from "./lab.ts";
 import { localPin, openKindLab } from "./lab.ts";
 import { CLIENT, REDIS, REDIS_IMAGE, SERVER, clientObjects, namespaceObject, namespaceOf, redisObjects, serverObjects, stackOf } from "./manifests.ts";
@@ -116,6 +116,8 @@ interface Context {
   listened: string;
   /** This count is the replicas of the service at rest: one less while a scale-in holds. */
   expected: number;
+  /** This map is the PID of the app of each replica, by its pod, from the last fault of the target `servers`. */
+  readonly pids: Map<string, number>;
 }
 
 /** This function tells why the cell is not at rest, or gives null when it is. */
@@ -200,7 +202,7 @@ const quiet = async (ctx: Context, ours: ReadonlySet<string>): Promise<LoadSampl
  */
 const deploy = async (lab: KindLab, cluster: Cluster, cell: KindCell, namespace: string, images: Images): Promise<string> => {
   await cluster.apply([namespaceObject(cell, namespace)]);
-  await lab.watch([namespace]);
+  await lab.watch([namespace], { ztunnel: followsZtunnel(cell) });
   if (hasRedis(cell)) {
     await cluster.apply(redisObjects(namespace, images.redis));
     await cluster.kubectl(["-n", namespace, "rollout", "status", `deployment/${REDIS}`, "--timeout=180s"]);
@@ -278,6 +280,55 @@ const replicasOf = (ctx: Context): Replica[] => {
   return stackOf(ctx.cell) === "grpc" ? byClients(replicas, ctx.tracker.answers) : replicas;
 };
 
+/**
+ * This time is how long before the commit of its rules the lab starts the injector in each replica.
+ * It is more than the execs of one node before its commit: a read of its tables and the injector.
+ */
+const INJECT_LEAD_MS = 700;
+
+/**
+ * This function puts the rules of an action in the network namespace of each replica, with each
+ * client pod as a peer: the target `servers`. The rules of all replicas commit at one instant on
+ * CLOCK_MONOTONIC (`--at`). Thus no client meets one replica with the rule and one without it. The
+ * replicas of one node go one after the other, and the nodes at the same time.
+ *
+ * The fault finds the PID of each replica, and the clear uses it again: thus the heal comes soon
+ * after its hold. Before the commit of a clear, the lab reads the filter table of each replica. Its
+ * counters show if the rule matched the clients beside the rules of istio-cni. After the commit of a
+ * fault, the lab reads the nat table, with the redirect of istio-cni. The stamp is the first commit
+ * and the last end.
+ */
+const injectServers = async (ctx: Context, action: string, replicas: readonly Replica[]): Promise<Stamp> => {
+  const clients = [...ctx.tracker.pods.values()]
+    .filter((pod) => pod.labels["app"] === CLIENT && !pod.del && pod.ip !== null)
+    .map((pod) => pod.ip!)
+    .sort();
+  if (clients.length === 0 || replicas.length === 0) throw new Error(`the injector needs clients and replicas: ${clients.length} clients, ${replicas.length} replicas`);
+  const clear = action.startsWith("clear");
+  const byNode = new Map<string, number[]>();
+  for (const replica of replicas) {
+    const known = clear ? ctx.pids.get(replica.pod) : undefined;
+    const pid = known ?? (await ctx.lab.pidOf(replica.node, ctx.namespace, replica.pod, "app"));
+    ctx.pids.set(replica.pod, pid);
+    byNode.set(replica.node, [...(byNode.get(replica.node) ?? []), pid]);
+  }
+  const at = (await ctx.lab.now()) + INJECT_LEAD_MS;
+  const args = [action, clients.join(","), "--at", String(Math.round(at * 1e6))];
+  const stamps = await Promise.all(
+    [...byNode].map(async ([node, pids]) => {
+      const out: Stamp[] = [];
+      for (const pid of pids) {
+        if (clear) await ctx.lab.tables(node, pid, "filter");
+        out.push(await ctx.lab.inject(node, pid, args));
+      }
+      return out;
+    }),
+  );
+  if (!clear) for (const [node, pids] of byNode) for (const pid of pids) await ctx.lab.tables(node, pid, "nat");
+  const all = stamps.flat();
+  return { t0: Math.min(...all.map((stamp) => stamp.t0)), t1: Math.max(...all.map((stamp) => stamp.t1)) };
+};
+
 /** This function does one step of a fault plan. It gives the stamp of its act, or null for an act without a stamp. */
 const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], background: Array<Promise<unknown>>): Promise<Stamp | null> => {
   const { lab, cluster, namespace } = ctx;
@@ -286,7 +337,8 @@ const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], ba
     args.map((arg) =>
       arg.replaceAll("{namespace}", namespace).replaceAll(POD, target.pod).replaceAll(NODE, target.node).replaceAll(VERSION, String(ctx.version)),
     );
-  const where = async (which: "server" | "redis" | "kube-proxy"): Promise<{ node: string; pid: number; pod: PodLine | null }> => {
+  const where = async (which: Target): Promise<{ node: string; pid: number; pod: PodLine | null }> => {
+    if (which === "servers") throw new Error("the target servers is a target of the injector only");
     if (which === "server") return { node: target.node, pid: await lab.pidOf(target.node, namespace, target.pod, "app"), pod: null };
     if (which === "redis") {
       const redis = [...ctx.tracker.pods.values()].find((pod) => pod.labels["app"] === REDIS && !pod.del)!;
@@ -322,6 +374,7 @@ const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], ba
       return { t0: now, t1: now };
     }
     case "inject": {
+      if (step.target === "servers") return injectServers(ctx, step.action, replicas);
       const at = await where(step.target);
       let first: Stamp | null = null;
       for (const replica of replicas) {
@@ -525,10 +578,12 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
   const redisImage = await localPin(REDIS_IMAGE);
   // the server of the stack grpc: the image of grpc-go of the harness, built from its tag
   const grpcImage = cells.some((cell) => stackOf(cell) === "grpc") ? await imageOf({ kind: "shipped", name: "grpc-go" }) : undefined;
-  // Istio: each image pulled once by its digest, and tagged with it, for `kind load`
-  const meshImages: MeshImages | undefined = cells.some((cell) => cell.mesh !== undefined)
-    ? { pilot: await localPin(ISTIO_IMAGES.pilot), proxy: await localPin(ISTIO_IMAGES.proxy) }
-    : undefined;
+  // Istio: each image of each flavor of the cells pulled once by its digest, and tagged with it, for `kind load`
+  const flavors = new Set(cells.flatMap((cell) => (cell.mesh === undefined ? [] : [cell.mesh.flavor])));
+  const pinned = new Map<keyof typeof ISTIO_IMAGES, string>();
+  for (const name of new Set([...flavors].flatMap((flavor) => MESH_IMAGES[flavor]))) pinned.set(name, await localPin(ISTIO_IMAGES[name]));
+  const meshImages: MeshImages | undefined =
+    flavors.size === 0 ? undefined : { pilot: pinned.get("pilot")!, proxy: pinned.get("proxy")!, cni: pinned.get("cni"), ztunnel: pinned.get("ztunnel") };
   const images: Images = { lab: image, redis: redisImage, grpc: grpcImage, mesh: meshImages };
   // the cells of one kube-proxy mode, node count and mesh flavor share a cluster
   const groups = new Map<string, KindCell[]>();
@@ -550,7 +605,11 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
         if (grpcImage !== undefined && group.some((cell) => stackOf(cell) === "grpc")) await cluster.load(grpcImage);
         if (mesh !== undefined) {
           if (images.mesh === undefined) throw new Error(`${group[0]!.name}: the run has no images of Istio`);
-          for (const each of [images.mesh.pilot, images.mesh.proxy]) await cluster.load(each);
+          for (const name of MESH_IMAGES[mesh.flavor]) {
+            const each = images.mesh[name];
+            if (each === undefined) throw new Error(`${group[0]!.name}: the run has no image ${name} of Istio`);
+            await cluster.load(each);
+          }
           const began = Date.now();
           await installMesh(cluster, mesh.flavor, images.mesh);
           options.log(`  Istio ${mesh.flavor} installed in ${Math.round((Date.now() - began) / 100) / 10} s`);
@@ -575,7 +634,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
           try {
             const clusterIp = await deploy(lab, cluster, cell, namespace, images);
             for (const name of [...lab.own(), loader.getName().replace(/^\//, "")]) ours.add(name);
-            const ctx: Context = { lab, cluster, cell, namespace, tracker, clusterIp, loads, loader, idle: options.idle ?? 0.6, log: options.log, version: 1, probed: "", listened: "", expected: cell.pod.replicas };
+            const ctx: Context = { lab, cluster, cell, namespace, tracker, clusterIp, loads, loader, idle: options.idle ?? 0.6, log: options.log, version: 1, probed: "", listened: "", expected: cell.pod.replicas, pids: new Map() };
             const share = Math.ceil(cell.runs / environments) - (env < cell.runs % environments || cell.runs % environments === 0 ? 0 : 1);
             const runs: KindRun[] = [await runOnce(ctx, env, -1, true, ours)];
             for (let index = 0; index < share; index += 1) runs.push(await runOnce(ctx, env, index, false, ours));
@@ -589,7 +648,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
                 lab: image,
                 redis: redisImage,
                 ...(stackOf(cell) === "grpc" ? { grpc: grpcImage! } : {}),
-                ...(cell.mesh === undefined ? {} : { "istio-pilot": ISTIO_IMAGES.pilot, "istio-proxy": ISTIO_IMAGES.proxy }),
+                ...(cell.mesh === undefined ? {} : Object.fromEntries(MESH_IMAGES[cell.mesh.flavor].map((name) => [`istio-${name}`, ISTIO_IMAGES[name]]))),
               },
             });
             entry.loads.push(...loads);

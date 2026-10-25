@@ -10,10 +10,16 @@
 // stamp of its arrival: evidence, not a time that a band reads. An access line of a call that
 // succeeded at its first attempt is only counted (`proxy-ok`, each second), thus the record keeps
 // the failures, the retries and the local replies.
+//
+// With ZTUNNEL=1, for a cell in the ambient mesh, the watcher also follows each ztunnel pod in
+// istio-system. Each such pod is a line `ztunnel-pod`, not `pod`: the tracker of the cell counts only
+// the pods of the cell. Each line of the log of ztunnel becomes a line `ztunnel` with the stamp of
+// its arrival. Its own stamp is of the wall clock, thus it is evidence, not a time that a band reads.
 import https from "node:https";
 
 const kube = JSON.parse(process.env.KUBE ?? "{}");
 const namespaces = (process.env.NAMESPACES ?? "default").split(",");
+const ztunnel = process.env.ZTUNNEL === "1";
 const now = () => Number(process.hrtime.bigint()) / 1e6;
 const server = new URL(kube.server);
 const agent = new https.Agent({
@@ -114,6 +120,9 @@ const proxyLine = (pod, text) => {
   say({ ev: "proxy", t: now(), p: pod, text: text.slice(0, 500) });
 };
 
+/** the namespace of the mesh, with the ztunnel pods */
+const MESH_NS = "istio-system";
+
 const following = new Set();
 const follow = (ns, pod, container, id) => {
   const key = `${ns}/${pod}/${container}/${id}`;
@@ -121,9 +130,11 @@ const follow = (ns, pod, container, id) => {
   following.add(key);
   stream(
     `/api/v1/namespaces/${ns}/pods/${pod}/log`,
-    { container, follow: "true" },
+    // a ztunnel ran before the cell: only its lines from the start of the watcher
+    ns === MESH_NS ? { container, follow: "true", sinceSeconds: "5" } : { container, follow: "true" },
     (text) => {
-      if (container === PROXY) proxyLine(pod, text);
+      if (ns === MESH_NS) say({ ev: "ztunnel", t: now(), p: pod, text: text.slice(0, 500) });
+      else if (container === PROXY) proxyLine(pod, text);
       else if (text.startsWith("{")) pending.push(`${text}\n`);
       else say({ ev: "text", t: now(), p: pod, text: text.slice(0, 500) });
     },
@@ -218,4 +229,20 @@ for (const ns of namespaces) {
     return object.metadata.resourceVersion;
   });
 }
-say({ ev: "watcher", what: "start", t: now(), namespaces });
+if (ztunnel) {
+  stream(`/api/v1/namespaces/${MESH_NS}/pods`, { watch: "1", allowWatchBookmarks: "true", labelSelector: "app=ztunnel" }, (text, t) => {
+    const event = JSON.parse(text);
+    const pod = event.object;
+    if (event.type === "BOOKMARK") return pod?.metadata?.resourceVersion;
+    if (event.type === "ERROR") {
+      say({ ev: "watch-fail", t, path: "ztunnel pods", status: pod?.code });
+      return null;
+    }
+    const containers = (pod.status?.containerStatuses ?? []).map((status) => ({ n: status.name, r: status.ready, rc: status.restartCount, st: stateOf(status.state), id: status.containerID ?? null }));
+    say({ ev: "ztunnel-pod", t, type: event.type, name: pod.metadata.name, node: pod.spec?.nodeName ?? null, ip: pod.status?.podIP ?? null, del: pod.metadata.deletionTimestamp !== undefined, cs: containers });
+    if (event.type !== "DELETED")
+      for (const status of pod.status?.containerStatuses ?? []) if (status.state?.running && status.containerID) follow(MESH_NS, pod.metadata.name, status.name, status.containerID);
+    return pod.metadata.resourceVersion;
+  });
+}
+say({ ev: "watcher", what: "start", t: now(), namespaces, ztunnel });

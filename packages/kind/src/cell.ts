@@ -14,7 +14,7 @@ export type Template = "T07" | "T15" | "T18";
 /**
  * A mesh flavor is the install of Istio 1.31.3 in the cluster:
  * - `sidecar`: the profile `minimal`, istiod only. The injector puts an Envoy sidecar in each pod of a labeled namespace.
- * - `ambient`: the profile `ambient`, with istio-cni and ztunnel. The lab does not install it yet.
+ * - `ambient`: the profile `ambient`, with istio-cni and ztunnel on each node. A labeled namespace is in the ambient mesh.
  */
 export type MeshFlavor = "sidecar" | "ambient";
 
