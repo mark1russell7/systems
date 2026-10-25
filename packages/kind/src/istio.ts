@@ -5,6 +5,7 @@ import type { KindCell, MeshFlavor } from "./cell.ts";
 import type { Cluster } from "./cluster.ts";
 import { command } from "./cluster.ts";
 import { outboundCluster } from "./eds.ts";
+import { ZTUNNEL_PODS } from "./faults.ts";
 import { SERVER } from "./names.ts";
 import { ISTIOCTL, ensureTool } from "./tools.ts";
 
@@ -150,8 +151,46 @@ export const EDS_EVERY: Quantity = { value: 50, unit: "ms" };
 /** This time is the interval of the LDS poll of each server sidecar, the same as the poll of EDS. */
 export const LDS_EVERY: Quantity = { value: 50, unit: "ms" };
 
-/** This function tells if the watcher follows the log of each ztunnel for a cell: a cell in ambient mode. */
-export const followsZtunnel = (cell: Pick<KindCell, "mesh">): boolean => cell.mesh?.mode === "ambient";
+/**
+ * This function tells if the watcher follows each ztunnel pod and its log for a cell: a cell in the
+ * flavor `ambient`. A cell of sidecar pods in that flavor needs the lines of the ztunnel pods too.
+ * They show the restart of ztunnel, which its pods do not see.
+ */
+export const followsZtunnel = (cell: Pick<KindCell, "mesh">): boolean => cell.mesh?.flavor === "ambient";
+
+/**
+ * This function gives the arguments of kubectl that set the environment of ztunnel for a cell, or
+ * remove it (`undo`). The variables go in the sequence of their names.
+ */
+export const ztunnelEnvArgs = (env: Readonly<Record<string, string>>, undo: boolean): string[] => [
+  "-n",
+  "istio-system",
+  "set",
+  "env",
+  "daemonset/ztunnel",
+  ...Object.keys(env)
+    .sort()
+    .map((key) => (undo ? `${key}-` : `${key}=${env[key]!}`)),
+];
+
+/**
+ * This function sets the environment of ztunnel for a cell, or removes it (`undo`). Then it waits for
+ * the rollout of the DaemonSet, and until no old ztunnel pod is left. An old pod drains for its
+ * deadline after the rollout replaces it. Thus no run starts beside a ztunnel pod that is going.
+ */
+export const setZtunnelEnv = async (cluster: Cluster, env: Readonly<Record<string, string>>, undo: boolean): Promise<void> => {
+  await cluster.kubectl(ztunnelEnvArgs(env, undo));
+  await cluster.kubectl(["-n", "istio-system", "rollout", "status", "daemonset/ztunnel", "--timeout=300s"]);
+  const until = Date.now() + 120_000;
+  for (;;) {
+    const listed = JSON.parse(await cluster.kubectl(["-n", "istio-system", "get", "pods", "-l", ZTUNNEL_PODS, "-o", "json"])) as {
+      items: Array<{ metadata: { deletionTimestamp?: string } }>;
+    };
+    if (listed.items.every((item) => item.metadata.deletionTimestamp === undefined)) return;
+    if (Date.now() > until) throw new Error("an old ztunnel pod is still going 120 s after the rollout");
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+  }
+};
 
 /** This function tells if the lab polls the LDS updates of the server sidecars of a cell: a policy in a sidecar mesh. */
 export const pollsListeners = (cell: Pick<KindCell, "mesh" | "trigger">): boolean => cell.mesh?.mode === "sidecar" && cell.trigger.kind === "authorization-policy";

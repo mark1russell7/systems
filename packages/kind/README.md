@@ -137,6 +137,13 @@ From 0.5.0, the lab installs the flavor `ambient` too:
 - **The kernel.** istio-cni writes iptables rules in each pod and on each node. Thus `kind.yml` loads their modules first, and an ambient cell waits when one does not load.
 - **The log of ztunnel.** For a cell in the ambient mode, the watcher follows each ztunnel pod in istio-system (`followsZtunnel`). Each line of its log becomes a `ztunnel` line, stamped at its arrival, and each ztunnel pod is a `ztunnel-pod` line. No band reads them.
 
+From 0.7.0, a cell can restart ztunnel, and it can set the environment of ztunnel:
+
+- **The watcher.** It follows the ztunnel pods for each cell in the flavor `ambient`, also for a cell of sidecar pods there. The lines of the ztunnel pods are the evidence of a restart that no pod of the cell sees.
+- **The environment.** `mesh.ztunnel` gives variables of the DaemonSet of ztunnel for one cell, for example `CONNECTION_TERMINATION_DEADLINE`. Before the cell, `setZtunnelEnv` sets them with `kubectl set env` (`ztunnelEnvArgs`). Then it waits for the rollout, and until no old ztunnel pod is left. After the cell, it removes them in the same way.
+- **The reference `restart`.** It is the first deletion timestamp of a ztunnel pod in the run, as the watcher receives it (`restartOf`). A run of the trigger `ztunnel-restart` ends when each deleted ztunnel pod is gone, and each node has a ready new one (`ztunnelReplaced`).
+- **The DaemonSet.** The chart of ztunnel sets `maxSurge` 1. Then the controller of the DaemonSet of Kubernetes v1.37.0 skips a pod with a deletion timestamp. It makes a new pod on that node at once (`daemon_controller.go`, lines 863–924). Thus the new ztunnel runs beside the old one while the old one drains.
+
 A new member of the union `Template` breaks a reader that switches on it. That is a breaking change before 1.0.0, thus the version is 0.3.0. The record format stays `/2`, with the optional field `mesh`. A judge before 0.3.0 cannot read a record of T15.
 
 ## The image
@@ -175,6 +182,7 @@ The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`
 | `cpu-throttle` | `cpu.max` in the cgroup of the container of the first replica |
 | `authorization-policy` | `kubectl apply` of a DENY AuthorizationPolicy on the server pods for the principal of an account (`account`, the account `default` of the clients when not given), then `kubectl delete` after the hold |
 | `idle` | SIGUSR1 to the gRPC client of each client pod, and SIGUSR2 after the hold: a gap of the calls (the target `clients`). The restore sends SIGUSR2 again |
+| `ztunnel-restart` | `kubectl delete pod` of the ztunnel pod of each node, with its grace (`ZTUNNEL_PODS`). The flow of each client crosses the ztunnel of its own node. The restore waits for the rollout of the DaemonSet |
 
 A cgroup path that is not the scope of one container is refused. A write to the root of the node throttles or freezes each pod of the node.
 
@@ -228,6 +236,8 @@ From 0.6.0, the prediction `ends` is the end of the socket of each client, from 
 - With no band, no socket of a client can close after the reference. The first request of each client after the heal must be `ok` on the socket of its last answer. The main value is the count of the closes, in `{socket}`.
 - With a window (`window`), the failed requests must also agree with that window. The observation lasts until each socket can end, and until each request of the window ended.
 - The facts of a run give the first close of each client after the reference (`closes`).
+
+A new member of the union `TriggerKind`, `ztunnel-restart`, and a new member of the union `Reference`, `restart`, break a reader that switches on them. Each is a breaking change before 1.0.0, thus the version is 0.7.0. The record format stays `/2`, with the optional field `mesh.ztunnel`.
 
 A new member of the union `Prediction`, `ends`, and a new member of the union `TriggerKind`, `idle`, break a reader that switches on them. The union `Target` has the new member `clients` too. Each is a breaking change before 1.0.0, thus the version is 0.6.0. The record format stays `/2`, with the optional field `closes`: the lines `sock` and `gap` are new lines of a run.
 

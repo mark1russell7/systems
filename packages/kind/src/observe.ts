@@ -158,6 +158,40 @@ export const byNode = (requests: readonly Request[]): Map<string, Request[]> => 
 export const deletionOf = (lines: readonly Line[], pods: readonly string[], after: number): number | null =>
   podsOf(lines).find((pod) => pods.includes(pod.name) && pod.del && pod.t >= after)?.t ?? null;
 
+/**
+ * A ztunnel pod line is an event of a ztunnel pod in istio-system, from the watcher (`image/watch.mjs`).
+ * Its `type` is the type of the event of the API, and `cs` gives the readiness of each container (`r`).
+ */
+export interface ZtunnelPodLine {
+  readonly t: number;
+  readonly type: string;
+  readonly name: string;
+  readonly node: string | null;
+  readonly del: boolean;
+  readonly cs: ReadonlyArray<{ readonly r: boolean }>;
+}
+
+export const ztunnelPodsOf = (lines: readonly Line[]): ZtunnelPodLine[] => of<ZtunnelPodLine>(lines, "ztunnel-pod").sort((a, b) => a.t - b.t);
+
+/** This function gives the time that the watcher first received a deletion timestamp of a ztunnel pod, after a time: the reference `restart`. */
+export const restartOf = (lines: readonly Line[], after: number): number | null => ztunnelPodsOf(lines).find((pod) => pod.del && pod.t >= after)?.t ?? null;
+
+/**
+ * This function tells if a restart of ztunnel is over. Each ztunnel pod that got a deletion in the
+ * lines is gone. Each node has a ready ztunnel pod with no deletion. It is false when no ztunnel pod
+ * got a deletion.
+ */
+export const ztunnelReplaced = (lines: readonly Line[], nodes: readonly string[]): boolean => {
+  const last = new Map<string, ZtunnelPodLine>();
+  for (const pod of ztunnelPodsOf(lines)) last.set(pod.name, pod);
+  const deleted = [...last.values()].filter((pod) => pod.del || pod.type === "DELETED");
+  if (deleted.length === 0 || deleted.some((pod) => pod.type !== "DELETED")) return false;
+  const ready = new Set(
+    [...last.values()].filter((pod) => !pod.del && pod.type !== "DELETED" && pod.cs.length > 0 && pod.cs.every((status) => status.r)).map((pod) => pod.node),
+  );
+  return nodes.every((node) => ready.has(node));
+};
+
 /** This function gives the stamp of a transition of the service in a pod: the first matching record of a machine, after a time. */
 export const transitionOf = (
   lines: readonly Line[],

@@ -32,6 +32,10 @@ import { backoffOf, lastWait, synWaitOf } from "./t07.ts";
  *
  * Step 4 adds the end of the socket of each client (the prediction `ends`). In a black hole, the PING
  * of ztunnel ends the connection. In a gap of the calls (the trigger `idle`), nothing ends it.
+ *
+ * Step 5 adds the restarts of ztunnel: the trigger `ztunnel-restart`. One cell is a control with
+ * sidecar pods, and two cells are the two sides of the line of O10. The drain of ztunnel ends at its
+ * deadline or at the SIGKILL at the end of the grace, whichever comes first.
  */
 
 /** This mesh is the sidecar flavor of Istio 1.31.3 with each pod of the cell in sidecar mode. */
@@ -200,14 +204,15 @@ const RESET_WHY = [
   `After the heal, the next connect comes at the end of the wait in progress. The heal comes at most ${say(sum(RESET_HOLD, HEAL_LATE))} after the fault, thus that wait is at most the wait ${RESET_WAIT}: ${say(us(backoffOf(RESET_WAIT).hi))}.`,
 ].join(" ");
 
-/** These are the values of the knobs of ztunnel 1.31.3 at its defaults (`ztunnel-hbone`). */
-const ZTUNNEL = given(
-  Object.fromEntries(
-    Object.entries(ZTUNNEL_HBONE.knobs).flatMap(([name, knob]): Array<[string, Quantity]> =>
-      knob.unit === null || knob.default === null || knob.default === undefined ? [] : [[name, { value: knob.default, unit: knob.unit }]],
-    ),
+/** These are the knobs of ztunnel 1.31.3 at its defaults, as quantities (`ztunnel-hbone`). */
+const ZTUNNEL_DEFAULTS: Readonly<Record<string, Quantity>> = Object.fromEntries(
+  Object.entries(ZTUNNEL_HBONE.knobs).flatMap(([name, knob]): Array<[string, Quantity]> =>
+    knob.unit === null || knob.default === null || knob.default === undefined ? [] : [[name, { value: knob.default, unit: knob.unit }]],
   ),
 );
+
+/** These are the values of the knobs of ztunnel 1.31.3 at its defaults. */
+const ZTUNNEL = given(ZTUNNEL_DEFAULTS);
 
 /** A span is the bounds of a time in seconds: the duration of a timer less how early it fires, and plus how late. */
 export interface Span {
@@ -215,9 +220,9 @@ export interface Span {
   readonly hi: number;
 }
 
-/** This function gives the span of a timer of ztunnel at its defaults. */
-const ztunnelTimer = (timer: string): Span => {
-  const bounds = timerOf(ZTUNNEL_HBONE, timer, ZTUNNEL);
+/** This function gives the span of a timer of ztunnel, at its defaults or at other values. */
+const ztunnelTimer = (timer: string, values: ReturnType<typeof given> = ZTUNNEL): Span => {
+  const bounds = timerOf(ZTUNNEL_HBONE, timer, values);
   const duration = seconds(bounds.duration, `the timer ${timer} of ztunnel`);
   return { lo: duration - seconds(bounds.early, "how early it fires"), hi: duration + seconds(bounds.lateness, "how late it fires") };
 };
@@ -324,7 +329,133 @@ const IDLE_WHY = [
   "Thus the first call of each client after the gap goes on the socket of its last call before it.",
 ].join(" ");
 
-/** These are the gRPC cells of T15 for the kind lab: two calibrations, the deletion, the policy, the reset, the black hole and the gap. */
+/**
+ * This mesh is the ambient flavor of Istio 1.31.3 with each pod of the cell in sidecar mode. Thus
+ * ztunnel is on each node, but it is on no path of the cell.
+ */
+export const SIDECAR_IN_AMBIENT: Mesh = { flavor: "ambient", mode: "sidecar" };
+
+/**
+ * This time is the most that the SIGTERM of each ztunnel comes after the reference `restart`. One
+ * kubectl deletes the pods one after the other. The kubelet of each node gets the deletion from its
+ * watch, and its pod worker stops the container through the runtime. It is an assumption of this
+ * catalog, not a value of the kubelet. No calibration measures it yet.
+ */
+export const TERM_LATE: Quantity = s(0.5);
+
+/** An end of a drain is the timer of `ztunnel-hbone` that ends the drain of ztunnel first, and its span after SIGTERM. */
+export interface DrainEnd {
+  readonly by: "deadline" | "grace";
+  readonly span: Span;
+}
+
+/**
+ * This function gives the end of the drain of ztunnel with the deadline `deadline`. Both timers start
+ * at SIGTERM. Then ztunnel ends each open flow at its deadline, or the kubelet sends SIGKILL at the
+ * end of the grace of the pod. The first of the two ends the drain.
+ */
+export const drainEnd = (deadline: Quantity): DrainEnd => {
+  const values = given({ ...ZTUNNEL_DEFAULTS, deadline });
+  const own = ztunnelTimer("deadline", values);
+  const kill = ztunnelTimer("grace", values);
+  return own.lo < kill.lo ? { by: "deadline", span: own } : { by: "grace", span: kill };
+};
+
+/**
+ * This function gives the prediction of a restart of ztunnel on each node, with the deadline
+ * `deadline`. The drain of each ztunnel ends at the first of its two timers (`drainEnd`). Then the copy
+ * loop or the kernel shuts down the socket of grpc-js, one step of ztunnel later. The SIGTERM comes
+ * `TERM_LATE` after the reference at the most. That is the band of the close.
+ *
+ * The DaemonSet makes each new pod at the deletion, thus a new ztunnel takes each new connection.
+ * Only a call in flight at the close fails. A call started one interval before the close can be in flight.
+ */
+export const restartEnds = (deadline: Quantity, why: string, windowWhy: string): Prediction => {
+  const { span } = drainEnd(deadline);
+  const band = { lo: s(span.lo), hi: sum(s(span.hi), TERM_LATE, ZTUNNEL_STEP) };
+  const failures = { lo: us(span.lo - valueIn(T07_WORKLOAD.every, "s")), hi: band.hi };
+  return {
+    kind: "ends",
+    from: "restart",
+    band,
+    window: {
+      kind: "window",
+      nodes: "all",
+      start: { from: "restart", band: failures },
+      end: { from: "restart", band: failures },
+      certain: false,
+      outcomes: ["error", "reset"],
+      why: windowWhy,
+    },
+    why,
+  };
+};
+
+/** This deadline is inside the grace of 30 s: ztunnel ends the open flows itself (T15.border-off.85). */
+const DEADLINE_INSIDE = s(29);
+
+/** This deadline is past the grace of 30 s: the SIGKILL at the end of the grace ends the open flows (T15.border-off.86). */
+const DEADLINE_OUTSIDE = s(31);
+
+/**
+ * This function gives the ambient mesh with the deadline `deadline` of ztunnel: the variable
+ * CONNECTION_TERMINATION_DEADLINE of its DaemonSet, a duration in seconds (`deadline` of `ztunnel-hbone`).
+ */
+export const deadlineMesh = (deadline: Quantity): Mesh => ({
+  ...AMBIENT,
+  ztunnel: { [ZTUNNEL_HBONE.knobs["deadline"]!.key]: `${valueIn(deadline, "s")}s` },
+});
+
+/** This text is the start of why each restart of ztunnel ends the socket of each client. */
+const RESTART_START = [
+  "One kubectl deletes the ztunnel pod of each node. The flow of each client crosses the ztunnel of its own node and the ztunnel of the node of its replica.",
+  "At SIGTERM each ztunnel stops its accept loops and sends GOAWAY, and the open flows go on (server.rs of ztunnel 1.31.3, lines 170–172, and outbound.rs, line 121).",
+];
+
+/** This text is the end of why each restart of ztunnel ends the socket of each client. */
+const RESTART_END = `The kubelet sends SIGTERM at most ${say(TERM_LATE)} after the deletion. That is an assumption, and no calibration measures it yet.`;
+
+/** This text is why ztunnel ends the socket of each client of T15.border-off.85 at its own deadline. */
+const INSIDE_WHY = [
+  ...RESTART_START,
+  `The cell sets CONNECTION_TERMINATION_DEADLINE to ${say(DEADLINE_INSIDE)}, inside the grace of ${say(s(ZTUNNEL_HBONE.knobs["grace"]!.default!))} of the chart (config.rs, lines 810–827, and values.yaml of Istio 1.31.3, line 102).`,
+  "Thus ztunnel ends each flow itself at its deadline after SIGTERM, and the copy loop shuts down the socket of grpc-js with a FIN (app.rs, lines 391–399, and copy.rs, lines 176–183).",
+  RESTART_END,
+  "The law O10 holds: the drain ends inside the grace.",
+].join(" ");
+
+/** This text is why the SIGKILL at the end of the grace ends the socket of each client of T15.border-off.86. */
+const OUTSIDE_WHY = [
+  ...RESTART_START,
+  `The cell sets CONNECTION_TERMINATION_DEADLINE to ${say(DEADLINE_OUTSIDE)}, past the grace of ${say(s(ZTUNNEL_HBONE.knobs["grace"]!.default!))} of the chart.`,
+  "The kubelet stops the container with the grace of the pod (kuberuntime_container.go of Kubernetes v1.37.0, lines 864–915).",
+  "The runtime kills it at the end of the grace (api.proto of the CRI, lines 69–72).",
+  "Then the kernel closes each socket of ztunnel: a FIN, or a reset when bytes are unread (tcp.c of Linux v6.6, lines 2781–2807).",
+  "Thus the socket of grpc-js ends at the end of the grace, 1 s after the band of T15.border-off.85.",
+  RESTART_END,
+  "The law O10 is violated: the drain does not end inside the grace.",
+].join(" ");
+
+/** This text is why only the calls in flight at the close fail in a restart of ztunnel. */
+const RESTART_WINDOW_WHY = [
+  "The DaemonSet of ztunnel surges, with maxSurge 1 and maxUnavailable 0 (values.yaml of Istio 1.31.3, lines 143–147).",
+  "Thus its controller lets the DaemonSet surge (daemonset_util.go of Kubernetes v1.37.0, lines 126–128).",
+  "It skips a pod with a deletion timestamp, and it makes a new pod on that node at once (daemon_controller.go, lines 863–924).",
+  "The new ztunnel shares the ports in the namespace of each pod (config.rs of ztunnel 1.31.3, line 892). It is ready long before the end of the drain.",
+  "Thus grpc-js connects again at once through the new ztunnel, and only a call in flight at the close fails.",
+].join(" ");
+
+/** This text is why a restart of ztunnel fails no call of T15.defaults.14, a control. */
+const CONTROL_WHY = [
+  "The pods of the cell have sidecars, in a namespace with the label istio-injection. The node agent of istio-cni enrolls only the pods of the ambient mesh (informers.go of Istio 1.31.3, line 132).",
+  "The traffic of each pod goes to its own Envoy, thus no ztunnel is on the path of a call. A restart of ztunnel on each node fails no call.",
+  "The lines of the ztunnel pods show the restart.",
+].join(" ");
+
+/**
+ * These are the gRPC cells of T15 for the kind lab. They are two calibrations, the deletion, the
+ * policy, the reset, the black hole, the gap and the restarts of ztunnel.
+ */
 export const T15_GRPC: readonly KindCell[] = [
   {
     ...BASE,
@@ -398,6 +529,36 @@ export const T15_GRPC: readonly KindCell[] = [
     prediction: { kind: "ends", from: "fault", band: null, why: IDLE_WHY },
     calibrates: false,
   },
+  {
+    ...BASE,
+    mesh: SIDECAR_IN_AMBIENT,
+    id: "T15.defaults.14",
+    name: "T15 sidecar in the ambient flavor, gRPC, a restart of ztunnel on each node: a control, ztunnel is on no path",
+    trigger: { kind: "ztunnel-restart" },
+    pod: kubeDefaults(2),
+    prediction: { kind: "none", why: CONTROL_WHY },
+    calibrates: false,
+  },
+  {
+    ...BASE,
+    mesh: deadlineMesh(DEADLINE_INSIDE),
+    id: "T15.border-off.85",
+    name: "T15 ambient, gRPC, a restart of ztunnel with a deadline of 29 s in a grace of 30 s: ztunnel ends the connection",
+    trigger: { kind: "ztunnel-restart" },
+    pod: kubeDefaults(2),
+    prediction: restartEnds(DEADLINE_INSIDE, INSIDE_WHY, RESTART_WINDOW_WHY),
+    calibrates: false,
+  },
+  {
+    ...BASE,
+    mesh: deadlineMesh(DEADLINE_OUTSIDE),
+    id: "T15.border-off.86",
+    name: "T15 ambient, gRPC, a restart of ztunnel with a deadline of 31 s in a grace of 30 s: the kill at the grace ends the connection",
+    trigger: { kind: "ztunnel-restart" },
+    pod: kubeDefaults(2),
+    prediction: restartEnds(DEADLINE_OUTSIDE, OUTSIDE_WHY, RESTART_WINDOW_WHY),
+    calibrates: false,
+  },
 ];
 
 /** These are the cells of the plan over grpc-go in T15 that are cells of this catalog under other names. */
@@ -426,5 +587,10 @@ export const T15_GRPC_ALIASES: readonly Alias[] = [
     plan: "T15.array.10",
     is: "T15.defaults.10",
     why: "DP52 sets lifecycle knobs of the sidecar and a DestinationRule. A pod of the ambient mesh has no sidecar, and ztunnel reads no field of a DestinationRule on an L4 path (workload.proto of ztunnel 1.31.3, lines 148–198). Thus the gap is the one of T15.defaults.10",
+  },
+  {
+    plan: "T15.array.14",
+    is: "T15.defaults.14",
+    why: "DP51 is the sidecar at the defaults of Istio 1.31, and it sets no knob of ztunnel. The pods have sidecars, thus ztunnel is on no path, as in T15.defaults.14",
   },
 ];

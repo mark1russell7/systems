@@ -3,9 +3,11 @@ import { machineSchema } from "@mark1russell7/algebra";
 
 // The source of each fact below is github.com/istio/ztunnel at the tag 1.31.3, and
 // github.com/istio/istio at the tag 1.31.3 for the node agent of istio-cni and the chart. Each line
-// number is a line of that file at the tag. A fact of Linux is from v6.6.
+// number is a line of that file at the tag. A fact of Linux is from v6.6. The SIGKILL at the end of
+// the grace is from github.com/kubernetes/kubernetes at the tag v1.37.0.
 const Z = "ztunnel 1.31.3";
 const I = "istio 1.31.3";
+const K = "kubernetes v1.37.0";
 
 /**
  * This document is ztunnel 1.31.3 in the ambient mesh of Istio, in in-pod mode. It is one HBONE
@@ -19,7 +21,8 @@ const I = "istio 1.31.3";
  *
  * At the end of a stream or of its connection, ztunnel shuts down the socket of the app. The app then
  * gets a FIN. No timer closes an idle connection or an old one. At SIGTERM, ztunnel sends GOAWAY, and
- * it ends what is left at its deadline of 25 s.
+ * it ends what is left at its deadline of 25 s. A deadline longer than the grace of 30 s does not
+ * come. The kubelet sends SIGKILL to ztunnel at the end of the grace, and the kernel closes each socket.
  */
 export const ZTUNNEL_HBONE: Machine = machineSchema.parse({
   format: "mark1russell7.machine/1",
@@ -71,6 +74,10 @@ export const ZTUNNEL_HBONE: Machine = machineSchema.parse({
     },
     { ref: `${Z} src/proxy/h2/server.rs:170-172 and src/proxy/outbound.rs:121 at SIGTERM the accept loops stop, and the HBONE server sends GOAWAY`, rung: "implemented" },
     {
+      ref: `${I} manifests/charts/ztunnel/values.yaml:102 and templates/daemonset.yaml:215 the grace of the ztunnel pod is 30 s. ${K} pkg/kubelet/kuberuntime/kuberuntime_container.go:864-915, :1424-1427 the kubelet stops the container with that grace, and staging/src/k8s.io/cri-api/pkg/apis/runtime/v1/api.proto:69-72 the runtime kills it at the end of the grace`,
+      rung: "implemented",
+    },
+    {
       ref: `${Z} src/proxy/connection_manager.rs:133, :364-376 and src/proxy/inbound.rs:273-280 a CONNECT that a policy denies gets 401. At a change of a policy, ztunnel checks each open inbound connection again and closes each one that it now denies`,
       rung: "implemented",
     },
@@ -102,6 +109,7 @@ export const ZTUNNEL_HBONE: Machine = machineSchema.parse({
     "timer.pong": { kind: "timer", note: "No PONG for 20 s after a PING" },
     "timer.release": { kind: "timer", note: "No stream on the connection for the unused release timeout" },
     "timer.deadline": { kind: "timer", note: "The deadline of the drain after SIGTERM" },
+    "timer.grace": { kind: "timer", note: "The end of the grace of the pod after SIGTERM: the kubelet kills ztunnel" },
     "tx.ping": { kind: "tx", note: "A PING of HTTP/2" },
     "tx.goaway": { kind: "tx", note: "A GOAWAY of the HBONE server" },
     "tx.close": { kind: "tx", note: "The close of the HBONE connection" },
@@ -114,6 +122,7 @@ export const ZTUNNEL_HBONE: Machine = machineSchema.parse({
     ping_timeout: { key: "PING_TIMEOUT", scope: "build", unit: "s", default: 20, note: "h2.rs:37: a constant" },
     pool_release: { key: "POOL_UNUSED_RELEASE_TIMEOUT", scope: "process", unit: "s", default: 300, note: "config.rs:75: 5 min, an environment variable" },
     deadline: { key: "CONNECTION_TERMINATION_DEADLINE", scope: "process", unit: "s", default: 25, note: "config.rs:810-827: unset, thus the grace of 30 s of the chart less 5 s" },
+    grace: { key: "terminationGracePeriodSeconds", scope: "pod", unit: "s", default: 30, note: "values.yaml:102 of the chart of ztunnel" },
     keepidle: { key: "the TCP keepalive idle of ztunnel", scope: "process", unit: "s", default: 180, note: "config.rs:44-48" },
     keepintvl: { key: "the TCP keepalive interval of ztunnel", scope: "process", unit: "s", default: 180, note: "config.rs:44-48" },
     keepcnt: { key: "the TCP keepalive count of ztunnel", scope: "process", unit: "count", default: 9, note: "config.rs:44-48" },
@@ -159,6 +168,13 @@ export const ZTUNNEL_HBONE: Machine = machineSchema.parse({
       arms: ["app.stop"],
       fires: "timer.deadline",
       note: "app.rs:391-399: from SIGTERM",
+    },
+    grace: {
+      duration: { knob: "grace", unit: "s" },
+      lateness: { knob: "slack", unit: "s" },
+      arms: ["app.stop"],
+      fires: "timer.grace",
+      note: "kuberuntime_container.go:864-915 and api.proto:69-72: the grace of the pod from SIGTERM, then the kill",
     },
   },
   realizes: {
@@ -230,9 +246,21 @@ export const ZTUNNEL_HBONE: Machine = machineSchema.parse({
       to: "ended",
       on: "timer.deadline",
       timer: "deadline",
+      guard: "deadline < grace",
       emits: ["tx.close", "tx.app-fin"],
       note: "ztunnel ends what is left itself, before the SIGKILL of the kubelet",
       source: "app.rs:391-399, pool.rs:345-347",
+    },
+    {
+      id: "zt.killed",
+      from: "draining",
+      to: "ended",
+      on: "timer.grace",
+      timer: "grace",
+      guard: "grace <= deadline",
+      emits: ["tx.app-fin"],
+      note: "The kubelet kills ztunnel at the end of the grace, before its deadline. The kernel closes each socket: a FIN, or a reset when bytes are unread",
+      source: "kuberuntime_container.go:864-915, api.proto:69-72, tcp.c:2781-2807",
     },
     {
       id: "zt.del-workload",

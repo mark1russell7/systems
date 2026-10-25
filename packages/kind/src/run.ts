@@ -12,12 +12,12 @@ import type { Step, Target } from "./faults.ts";
 import { NODE, POD, VERSION, deletes as deletesAPod, planOf } from "./faults.ts";
 import { labImage } from "./image.ts";
 import type { MeshImages } from "./istio.ts";
-import { EDS_EVERY, ISTIO_IMAGES, LDS_EVERY, MESH_IMAGES, followsZtunnel, installMesh, meshKey, pollsListeners, serverCluster } from "./istio.ts";
+import { EDS_EVERY, ISTIO_IMAGES, LDS_EVERY, MESH_IMAGES, followsZtunnel, installMesh, meshKey, pollsListeners, serverCluster, setZtunnelEnv } from "./istio.ts";
 import type { KindLab, Line, Stamp } from "./lab.ts";
 import { localPin, openKindLab } from "./lab.ts";
 import { CLIENT, REDIS, REDIS_IMAGE, SERVER, clientObjects, namespaceObject, namespaceOf, redisObjects, serverObjects, stackOf } from "./manifests.ts";
 import type { PodLine, Request } from "./observe.ts";
-import { byClients } from "./observe.ts";
+import { byClients, ztunnelReplaced } from "./observe.ts";
 import type { EnvironmentManifest, KindCellRecord, KindCellResult, LoadSample } from "./record.ts";
 import { FORMAT } from "./record.ts";
 import { scenario } from "./scenario.ts";
@@ -460,6 +460,7 @@ const over = (
       : !ctx.tracker.pods.has(run.target.pod);
   if (kind === "rolling-update" || kind === "rollout") return run.replicas.every((replica) => !ctx.tracker.pods.has(replica.pod));
   if (kind === "app-stall") return lines.some((line) => line.ev === "stall" && line["phase"] === "end");
+  if (kind === "ztunnel-restart") return ztunnelReplaced(lines, ctx.cluster.nodes);
   return true;
 };
 
@@ -661,7 +662,10 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
           const tracker = new Tracker();
           const off = lab.listen(tracker.see);
           const loads: LoadSample[] = [];
+          // the environment of ztunnel for the cell, before its pods: thus its rollout ends no flow of the cell
+          const ztunnelEnv = cell.mesh?.ztunnel;
           try {
+            if (ztunnelEnv !== undefined) await setZtunnelEnv(cluster, ztunnelEnv, false);
             const clusterIp = await deploy(lab, cluster, cell, namespace, images);
             for (const name of [...lab.own(), loader.getName().replace(/^\//, "")]) ours.add(name);
             const ctx: Context = { lab, cluster, cell, namespace, tracker, clusterIp, loads, loader, idle: options.idle ?? 0.6, log: options.log, version: 1, probed: "", listened: "", expected: cell.pod.replicas, pids: new Map() };
@@ -692,6 +696,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
             await lab.lds(null).catch(() => undefined);
             await lab.stopProbe();
             await cluster.kubectl(["delete", "namespace", namespace, "--wait=true", "--timeout=300s"]).catch((error: unknown) => options.log(`  ${String(error)}`));
+            if (ztunnelEnv !== undefined) await setZtunnelEnv(cluster, ztunnelEnv, true).catch((error: unknown) => options.log(`  the undo of the environment of ztunnel failed: ${String(error)}`));
           }
         }
       } finally {
@@ -726,6 +731,8 @@ const estimate = (cell: KindCell, environments = 2): number => {
     rollout: hold + 50,
     "authorization-policy": hold + 20,
     idle: hold + 5,
+    // the grace of 30 s of the chart of ztunnel, then the removal of the old pods
+    "ztunnel-restart": 40,
   };
   // a window can need a longer observation: from the end of the hold, until each request that started in it ended
   const after = observationAfter(cell);

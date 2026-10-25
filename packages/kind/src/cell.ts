@@ -25,6 +25,12 @@ export type MeshMode = "sidecar" | "ambient";
 export interface Mesh {
   readonly flavor: MeshFlavor;
   readonly mode: MeshMode;
+  /**
+   * These variables are the environment of the DaemonSet of ztunnel for the cell, in the flavor
+   * `ambient`. The lab sets them before the cell and removes them after it. Each change is a rollout
+   * of the DaemonSet. Without them, ztunnel has the environment of its chart.
+   */
+  readonly ztunnel?: Readonly<Record<string, string>> | undefined;
 }
 
 /**
@@ -50,6 +56,7 @@ export type Stack = "service" | "grpc";
  * - `cpu-throttle` sets `cpu.max` in the cgroup of one replica.
  * - `authorization-policy` applies an AuthorizationPolicy of Istio that denies the clients, for the hold (T15).
  * - `idle` stops the calls of each client with SIGUSR1, and starts them again with SIGUSR2 after the hold: a gap (T15).
+ * - `ztunnel-restart` deletes the ztunnel pod of each node with its grace. The DaemonSet makes a new pod on each node (T15).
  * - `none` injects nothing: a calibration measures the path itself.
  */
 export type TriggerKind =
@@ -67,7 +74,8 @@ export type TriggerKind =
   | "rollout"
   | "cpu-throttle"
   | "authorization-policy"
-  | "idle";
+  | "idle"
+  | "ztunnel-restart";
 
 /**
  * A trigger is its kind and the settings of its fault. The parameter `A` is the form of an amount:
@@ -168,8 +176,9 @@ export interface Band<A = Quantity> {
  * - `fault`: the commit of the fault, as the injector or the agent stamps it.
  * - `resume`: the end of a pause of kube-proxy, as the agent stamps it.
  * - `heal`: the start of the first act that ends the fault, for example the delete of a policy.
+ * - `restart`: the first deletion timestamp of a ztunnel pod in the run, as the watcher receives it.
  */
-export type Reference = "deletion" | "intake" | "fault" | "resume" | "heal";
+export type Reference = "deletion" | "intake" | "fault" | "resume" | "heal" | "restart";
 
 /**
  * A reset reuse is how a reset fails a later connection on the same port. A reset from the server

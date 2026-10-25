@@ -42,6 +42,7 @@ const TRIGGERS = [
   "cpu-throttle",
   "authorization-policy",
   "idle",
+  "ztunnel-restart",
 ] as const satisfies readonly TriggerKind[];
 const MODES = ["iptables", "ipvs", "nftables"] as const satisfies readonly KubeProxyMode[];
 
@@ -49,7 +50,7 @@ const time = quantitySchema("time");
 const extent = extentSchema("time");
 const count = z.number().int().nonnegative();
 const gate = z.enum(["readiness", "liveness"]);
-const reference = z.enum(["deletion", "intake", "fault", "resume", "heal"]);
+const reference = z.enum(["deletion", "intake", "fault", "resume", "heal", "restart"]);
 
 const probe = z.object({ period: time, threshold: count, timeout: time });
 const timing = z.discriminatedUnion("type", [
@@ -158,7 +159,9 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     name: z.string(),
     template: z.enum(["T07", "T15", "T18"]),
     stack: z.enum(["service", "grpc"]).optional(),
-    mesh: z.object({ flavor: z.enum(["sidecar", "ambient"]), mode: z.enum(["sidecar", "ambient"]) }).optional(),
+    mesh: z
+      .object({ flavor: z.enum(["sidecar", "ambient"]), mode: z.enum(["sidecar", "ambient"]), ztunnel: z.record(z.string(), z.string()).optional() })
+      .optional(),
     substitutes: z.string().nullable(),
     mode: z.enum(MODES),
     workers: count,

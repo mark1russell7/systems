@@ -58,6 +58,7 @@ const REFERENCES: Readonly<Record<Reference, string>> = {
   fault: "the fault",
   resume: "the resume of kube-proxy",
   heal: "the end of the fault",
+  restart: "the deletion of the ztunnel pods",
 };
 /** These phrases name the outcomes of a failed request, in a sentence. */
 const OUTCOMES: Readonly<Record<string, string>> = {

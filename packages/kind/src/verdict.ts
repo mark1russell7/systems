@@ -14,6 +14,7 @@ import {
   outcomesOf,
   podsOf,
   requestsOf,
+  restartOf,
   signalsOf,
   sliceDropOf,
   sliceEmptyOf,
@@ -176,6 +177,7 @@ export const referenceOf = (run: Pick<KindRun, "start" | "acts" | "target" | "li
   if (from === "fault") return run.acts.fault;
   if (from === "resume") return run.acts.resume;
   if (from === "heal") return run.acts.heal;
+  if (from === "restart") return restartOf(lines, run.start);
   if (pod === undefined) return null;
   if (from === "deletion") return deletionOf(lines, [pod], run.start);
   return intakeOf(lines, pod, run.start);
