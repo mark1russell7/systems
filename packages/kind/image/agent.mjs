@@ -11,10 +11,14 @@
 //                              second it reads the counters of dropped packets of the node and
 //                              of each client pod, and prints each one that grew (`drops`).
 //                              As /tmp/eds.json asks, it starts the EDS poller of each client pod
-//                              of the node, and stops it when the file goes
+//                              of the node, and stops it when the file goes. /tmp/lds.json does the
+//                              same for the LDS poller of each server pod
 //   node agent.mjs eds JSON    the EDS poller: in the network namespace of a client pod (nsenter -n),
 //                              it reads /clusters of the Envoy of the sidecar each `every` ms, and
 //                              prints the hosts of the server cluster at each change (`eds`)
+//   node agent.mjs lds JSON    the LDS poller: in the network namespace of a server pod, it reads
+//                              the counters of the listener manager of the sidecar each `every` ms,
+//                              and prints them at each change (`lds`)
 //   node agent.mjs act JSON    does one act and prints its stamps on CLOCK_MONOTONIC
 //
 // The acts: signal (a signal to a PID), pause (SIGSTOP, then SIGCONT after ms), write (a file, for
@@ -26,6 +30,7 @@ import { backendsOf } from "./backends.ts";
 import { entriesOf, flowsOf, staleOf, stalledOf } from "./conntrack.ts";
 import { devOf, grownOf, snmpOf, softnetOf, unresolvedOf } from "./drops.ts";
 import { clusterFilter, hostsOf } from "./eds.ts";
+import { LDS_FILTER, listenerCountsOf } from "./lds.ts";
 
 const now = () => Number(process.hrtime.bigint()) / 1e6;
 const node = process.env.NODE_NAME ?? "";
@@ -261,12 +266,15 @@ const serve = async () => {
 };
 
 /**
- * the EDS pollers of the node: /tmp/eds.json gives the server cluster, the interval and each client
- * pod of the node with a PID in it. The agent starts one poller for each pod in the network
- * namespace of that PID, and stops each one when the file changes or goes. nsenter -n keeps the
- * mount namespace of the agent, thus the poller is this file, and its clock is the one of the VM
+ * the pollers of the sidecars of the node, of one kind: `eds` or `lds`. /tmp/<kind>.json gives the
+ * interval and each pod of the node with a PID in it, and for `eds` the server cluster. The agent
+ * starts one poller for each pod in the network namespace of that PID, and stops each one when the
+ * file changes or goes. nsenter -n keeps the mount namespace of the agent, thus the poller is this
+ * file, and its clock is the one of the VM. The EDS pollers read the client pods, and the LDS
+ * pollers read the server pods
  */
-const pollers = async () => {
+const pollers = async (kind) => {
+  const file = `/tmp/${kind}.json`;
   let config = null;
   let children = [];
   const stop = () => {
@@ -277,10 +285,10 @@ const pollers = async () => {
     let text = null;
     let spec = null;
     try {
-      text = existsSync("/tmp/eds.json") ? readFileSync("/tmp/eds.json", "utf8") : null;
+      text = existsSync(file) ? readFileSync(file, "utf8") : null;
       spec = text === null ? null : JSON.parse(text);
     } catch (error) {
-      say({ ev: "eds-fail", t: now(), why: String(error?.message ?? error).slice(0, 300) });
+      say({ ev: `${kind}-fail`, t: now(), why: String(error?.message ?? error).slice(0, 300) });
       text = config;
     }
     if (text !== config) {
@@ -288,15 +296,15 @@ const pollers = async () => {
       config = text;
       if (spec !== null) {
         for (const { pod, pid } of spec.pods) {
-          const argv = ["-t", String(pid), "-n", "--", process.execPath, process.argv[1], "eds", JSON.stringify({ cluster: spec.cluster, every: spec.every, pod })];
+          const argv = ["-t", String(pid), "-n", "--", process.execPath, process.argv[1], kind, JSON.stringify({ cluster: spec.cluster, every: spec.every, pod })];
           const child = spawn("nsenter", argv, { stdio: ["ignore", "inherit", "inherit"] });
           child.on("exit", (code, signal) => {
-            if (signal !== "SIGKILL") say({ ev: "eds-exit", t: now(), pod, code, signal });
+            if (signal !== "SIGKILL") say({ ev: `${kind}-exit`, t: now(), pod, code, signal });
           });
-          child.on("error", (error) => say({ ev: "eds-fail", t: now(), pod, why: String(error?.message ?? error).slice(0, 300) }));
+          child.on("error", (error) => say({ ev: `${kind}-fail`, t: now(), pod, why: String(error?.message ?? error).slice(0, 300) }));
           children.push(child);
         }
-        say({ ev: "eds-start", t: now(), cluster: spec.cluster, every: spec.every, pods: spec.pods.map((each) => each.pod) });
+        say({ ev: `${kind}-start`, t: now(), ...(spec.cluster === undefined ? {} : { cluster: spec.cluster }), every: spec.every, pods: spec.pods.map((each) => each.pod) });
       }
     }
     await sleep(250);
@@ -304,13 +312,12 @@ const pollers = async () => {
 };
 
 /**
- * one EDS poller. The admin endpoint of the sidecar is 127.0.0.1:15000 in the namespace of the pod
- * (envoy_bootstrap.json of Istio 1.31.3). The filter of /clusters keeps the server cluster only
- * (clusters_handler.cc of Envoy v1.39.4). A line comes at each change of its hosts, with the start of
- * the poll before it (`prev`), as a rules line. Each second, a line `eds-alive` counts the polls
+ * one poll loop of the admin endpoint of a sidecar, 127.0.0.1:15000 in the namespace of the pod
+ * (envoy_bootstrap.json of Istio 1.31.3), each `every` ms. `read` gives the state of one answer, and
+ * a line comes at each change of that state, with the start of the poll before it (`prev`), as a rules
+ * line. Each second, a line `<kind>-alive` counts the polls
  */
-const eds = async ({ cluster, every, pod }) => {
-  const url = `http://127.0.0.1:15000/clusters?filter=${encodeURIComponent(clusterFilter(cluster))}`;
+const poll = async (kind, url, every, pod, read) => {
   let last = null;
   let previous = null;
   let failure = null;
@@ -326,22 +333,22 @@ const eds = async ({ cluster, every, pod }) => {
       polls += 1;
       spent += took;
       if (!response.ok) throw new Error(`the admin endpoint answered ${response.status}: ${text.slice(0, 200)}`);
-      const { b, u } = hostsOf(text, cluster);
-      const key = JSON.stringify([b, u]);
+      const state = read(text);
+      const key = JSON.stringify(state);
       if (key !== last) {
-        say({ ev: "eds", t, prev: previous, pod, took: Math.round(took * 1000) / 1000, b, ...(Object.keys(u).length === 0 ? {} : { u }) });
+        say({ ev: kind, t, prev: previous, pod, took: Math.round(took * 1000) / 1000, ...state });
         last = key;
       }
       failure = null;
     } catch (error) {
       // each failure once, until a poll succeeds
       const why = String(error?.message ?? error).slice(0, 300);
-      if (why !== failure) say({ ev: "eds-fail", t, pod, why });
+      if (why !== failure) say({ ev: `${kind}-fail`, t, pod, why });
       failure = why;
     }
     previous = t;
     if (t - beat >= 1000) {
-      say({ ev: "eds-alive", t, pod, polls, ms: polls === 0 ? 0 : Math.round((spent / polls) * 100) / 100 });
+      say({ ev: `${kind}-alive`, t, pod, polls, ms: polls === 0 ? 0 : Math.round((spent / polls) * 100) / 100 });
       beat = t;
       polls = 0;
       spent = 0;
@@ -350,6 +357,27 @@ const eds = async ({ cluster, every, pod }) => {
     if (wait > 0) await sleep(wait);
   }
 };
+
+/**
+ * one EDS poller. The filter of /clusters keeps the server cluster only (clusters_handler.cc of Envoy
+ * v1.39.4). A line `eds` gives the healthy hosts (`b`), and each other host with its flags (`u`)
+ */
+const eds = ({ cluster, every, pod }) =>
+  poll("eds", `http://127.0.0.1:15000/clusters?filter=${encodeURIComponent(clusterFilter(cluster))}`, every, pod, (text) => {
+    const { b, u } = hostsOf(text, cluster);
+    return { b, ...(Object.keys(u).length === 0 ? {} : { u }) };
+  });
+
+/**
+ * one LDS poller, in a server pod. The filter of /stats keeps the two counters of the listener
+ * manager. A line `lds` gives each update of a listener (`mod`) and each update in place (`inPlace`)
+ */
+const lds = ({ every, pod }) =>
+  poll("lds", `http://127.0.0.1:15000/stats?filter=${encodeURIComponent(LDS_FILTER)}`, every, pod, (text) => {
+    const counts = listenerCountsOf(text);
+    if (counts === null) throw new Error(`the stats have no listener_modified: ${text.slice(0, 200)}`);
+    return counts;
+  });
 
 const act = async (spec) => {
   const t0 = now();
@@ -389,10 +417,13 @@ const act = async (spec) => {
 const [mode, arg] = process.argv.slice(2);
 if (mode === "serve") {
   say({ ev: "agent", what: "start", t: now() });
-  void pollers();
+  void pollers("eds");
+  void pollers("lds");
   await serve();
 } else if (mode === "eds") {
   await eds(JSON.parse(arg));
+} else if (mode === "lds") {
+  await lds(JSON.parse(arg));
 } else if (mode === "act") {
   const spec = JSON.parse(arg);
   try {

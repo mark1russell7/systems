@@ -28,6 +28,7 @@ import { SUPAVISOR_SERVER } from "./pg/supavisor-server.ts";
 import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "./procedures-ws.ts";
 import { CADDY_HTTP2 } from "./proxy/caddy.ts";
 import { ENVOY_HTTP2 } from "./proxy/envoy.ts";
+import { ISTIO_SIDECAR_INBOUND, ISTIO_SIDECAR_OUTBOUND, PILOT_AGENT, istioSidecar } from "./proxy/istio.ts";
 import { NGINX_GRPC } from "./proxy/nginx.ts";
 import { TRAEFIK_HTTP2 } from "./proxy/traefik.ts";
 import { DOCKER_PROXY_LINK, TOXIPROXY_LINK } from "./proxy/tcp-proxies.ts";
@@ -50,6 +51,8 @@ export {
   HIKARICP_PGJDBC,
   IOREDIS_SENTINEL,
   IOREDIS_STATUS,
+  ISTIO_SIDECAR_INBOUND,
+  ISTIO_SIDECAR_OUTBOUND,
   LINUX_TCP,
   MONGOD_REPL,
   MONGOD_SESSION,
@@ -62,6 +65,7 @@ export {
   PGBOUNCER_CLIENT,
   PGBOUNCER_SERVER,
   PGPOOL_SESSION,
+  PILOT_AGENT,
   POSTGRES_SESSION,
   PROCEDURES_WS_CLIENT,
   PROCEDURES_WS_SERVER,
@@ -76,6 +80,8 @@ export {
   UNDICI_CLIENT,
   UNDICI_RETRY,
 };
+export type { SidecarSide } from "./proxy/istio.ts";
+export { istioSidecar };
 export { MANIFESTATIONS } from "./json.ts";
 export {
   NODE_TIMER_EARLY,
@@ -141,4 +147,7 @@ export const MACHINES: Readonly<Record<string, Machine>> = byId([
   CADDY_HTTP2,
   NGINX_GRPC,
   TRAEFIK_HTTP2,
+  ISTIO_SIDECAR_OUTBOUND,
+  ISTIO_SIDECAR_INBOUND,
+  PILOT_AGENT,
 ]);

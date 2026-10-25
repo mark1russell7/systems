@@ -138,6 +138,39 @@ describe("the judgement of a record again", () => {
     expect(kindCellRecordSchema.safeParse(json(unknown)).success).toBe(false);
   });
 
+  it("reads a record of /2 of a policy: its trigger and account, a window from the heal with its outcomes, and the LDS updates", () => {
+    const fromV1 = readRecord(json(fixture(FIXTURES.fails)));
+    const s = (value: number) => ({ value, unit: "s" });
+    const policy: KindCellRecord = {
+      ...fromV1,
+      cell: {
+        ...fromV1.cell,
+        template: "T15",
+        stack: "grpc",
+        mesh: { flavor: "sidecar", mode: "sidecar" },
+        trigger: { kind: "authorization-policy", hold: s(15), account: "lab-absent" },
+        prediction: {
+          kind: "window",
+          nodes: "all",
+          start: { from: "fault", band: { lo: s(0.1), hi: s(10.5) } },
+          end: { from: "heal", band: { lo: s(0.1), hi: s(10.3) } },
+          certain: true,
+          outcomes: ["denied"],
+          why: "a test",
+        },
+      },
+      verdict: {
+        ...fromV1.verdict,
+        checks: fromV1.verdict.checks.map((check) => ({ ...check, facts: { ...check.facts, updates: { "lab-a": { after: s(0.25), by: s(0.3) } }, healUpdates: { "lab-a": null } } })),
+      },
+    };
+    const read = readRecord(json(policy));
+    expect(read.cell.trigger).toEqual({ kind: "authorization-policy", hold: s(15), account: "lab-absent" });
+    expect(read.cell.prediction).toMatchObject({ end: { from: "heal" }, outcomes: ["denied"] });
+    expect(read.verdict.checks[0]?.facts.updates).toEqual({ "lab-a": { after: s(0.25), by: s(0.3) } });
+    expect(kindCellRecordSchema.safeParse(json({ ...policy, cell: { ...policy.cell, trigger: { kind: "authorization-policies" } } })).success).toBe(false);
+  });
+
   it("gives the unit of the main value from the prediction", () => {
     expect(unitOf({ kind: "none" })).toBe("{request}");
     expect(unitOf({ kind: "window" })).toBe("{request}");

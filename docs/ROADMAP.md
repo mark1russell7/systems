@@ -946,8 +946,11 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - In the drains and the scale-in, calls failed in 16 of 33 runs, and each failed call was refused. Under DP29 (T07.array.46), the rules dropped each old pod 1.056 s after its deletion at the most.
 - The plan of T15 over gRPC: grpc-js through two hops of an Istio 1.31.3 mesh in the kind lab, to grpc-go. R3 gives 22 cells. 14 start, 6 are aliases and 2 wait.
   - Each step is a pull request that `kind.yml` starts with `only='^T15'` and 11 runs of each cell. Each step merges on green and on the verdicts in `summary.ndjson`.
-  - Step 1: the sidecar flavor in kind, with istioctl and the images pinned. The calibration of the propagation to each client sidecar, and T15.defaults.13 as a measurement.
-  - Step 2: the documents of the sidecar and of pilot-agent, and the trigger `authorization-policy`. T15.defaults.13 gets its band, and T15.defaults.5 starts.
+  - Step 1 (done, kind run 40147396211): the sidecar flavor in kind, with istioctl and the images pinned. The calibration of the propagation to each client sidecar, and T15.defaults.13 as a measurement.
+    - Each cell had 11 counted runs, and no run was void.
+    - In CAL.T15.sidecar, each client sidecar dropped the pod 0.128 s to 0.205 s after the deletion, with a median of 0.168 s in 33 drops.
+    - T15.defaults.13 had no failed call in each of its 11 runs.
+  - Step 2 (in progress): the documents of the sidecar and of pilot-agent, and the trigger `authorization-policy`. T15.defaults.13 gets its band, and T15.defaults.5 starts.
   - Step 3: the ambient flavor, with istio-cni, ztunnel and the document `ztunnel-hbone`. T15.defaults.12 is a reset on the HBONE leg.
   - Step 4: a line at each close of the socket of a client, and the trigger `idle`. T15.defaults.2 is a black hole, and T15.defaults.10 is an idle gap.
   - Step 5: the restarts of ztunnel. T15.defaults.14 is a control, and T15.border-off.85 and .86 are the borders of O10.
@@ -968,6 +971,13 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - 1.31.2 makes the push of EDS cheaper, and 1.31.3 sends some unhealthy endpoints of a ServiceEntry. Neither changes the drop of an endpoint with the condition `terminating`, and the calibration measures the push at 1.31.3.
   - The injector of 1.31.3 changes a gRPC probe into an HTTP probe of pilot-agent (`app_probe.go`, lines 143–155). Then pilot-agent sends the gRPC check, with the service of the probe (`status/server.go`, lines 1194–1253).
   - The job raises the inotify limits of the runner to 512 instances and 524288 watches, the values of the known issues of kind.
+- Step 2 of T15 (kind 0.4.0, machines 0.3.25). The documents `istio-sidecar-outbound`, `istio-sidecar-inbound` and `pilot-agent` hold the facts of the sidecar.
+  - The window of T15.defaults.13 ends one push of EDS after the deletion: 0.205 s, from the calibration of step 1.
+  - Each failure of that cell starts before the client sidecar of its node drops the pod. The timeout of 2 s ends such a call later.
+  - The trigger `authorization-policy` applies a DENY policy for the account of the clients, and deletes it after 15 s.
+  - The agent polls the counters of LDS of each server sidecar each 50 ms. CAL.T15.policy calibrates that update with an account that no pod has.
+  - Each failure in the window of T15.defaults.5 must be PERMISSION_DENIED. Its band is the debounce of istiod until its calibration.
+  - The inbound route of a port of gRPC has no retry policy (`route.go`, lines 1321–1341). A port of another protocol gets 2 retries on reset-before-request.
 
 ## Kubernetes
 

@@ -112,3 +112,9 @@ export const serverCluster = (namespace: string): string => outboundCluster(SERV
 
 /** This time is the interval of the EDS poll of each client sidecar, the same as the poll of the rules. */
 export const EDS_EVERY: Quantity = { value: 50, unit: "ms" };
+
+/** This time is the interval of the LDS poll of each server sidecar, the same as the poll of EDS. */
+export const LDS_EVERY: Quantity = { value: 50, unit: "ms" };
+
+/** This function tells if the lab polls the LDS updates of the server sidecars of a cell: a policy in a sidecar mesh. */
+export const pollsListeners = (cell: Pick<KindCell, "mesh" | "trigger">): boolean => cell.mesh?.mode === "sidecar" && cell.trigger.kind === "authorization-policy";

@@ -62,8 +62,13 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `CADDY_HTTP2` | `caddy-http2` | Caddy 2.11.7 as an HTTP/2 proxy of gRPC: one connection of a client, its idle close, its replies and its stop | proxy | 12 implemented |
 | `NGINX_GRPC` | `nginx-grpc` | nginx 1.29.6 as an HTTP/2 proxy of gRPC: one connection of a client, its idle close, the read timer of a call, and a stopped worker | proxy | 12 implemented, 1 documented |
 | `TRAEFIK_HTTP2` | `traefik-http2` | Traefik 3.7.15 as an HTTP/2 proxy of gRPC: one connection of a client, its idle close, a reload of its dynamic file and its stop | proxy | 10 implemented, 1 observed |
+| `ISTIO_SIDECAR_OUTBOUND` | `istio-sidecar-outbound` | The client sidecar of Istio 1.31.3: Envoy 1.39.4 between the app and the mesh, its retries, an update of LDS and the SIGKILL | proxy | 31 implemented |
+| `ISTIO_SIDECAR_INBOUND` | `istio-sidecar-inbound` | The server sidecar of Istio 1.31.3: Envoy 1.39.4 between the mesh and the app, the policy, an update of LDS and the SIGKILL | proxy | 31 implemented |
+| `PILOT_AGENT` | `pilot-agent` | pilot-agent of Istio 1.31.3: the drain and the SIGKILL of the Envoy of a sidecar at the stop of its pod | proxy | 12 implemented |
 
-Thirty documents operate on Linux TCP (`over`). Seven documents operate on no other document: Linux TCP, conntrack, the Sentinel, the replication of mongod, aten, the member of Ra and the `RetryAgent` of undici. The `RetryAgent` is one request above the sockets of a `Client`. Its timer is the delay of a retry. Each retry can go on a new socket. The `conditions` of each document give the range where it holds, for example a range of kernels.
+Thirty-two documents operate on Linux TCP (`over`). Eight documents operate on no other document. They are Linux TCP, conntrack, the Sentinel, the replication of mongod, aten, the member of Ra, the `RetryAgent` of undici and pilot-agent.
+
+The `RetryAgent` is one request above the sockets of a `Client`. Its timer is the delay of a retry. Each retry can go on a new socket. The `conditions` of each document give the range where it holds, for example a range of kernels.
 
 The package also gives these parts:
 
@@ -108,6 +113,15 @@ A document changes only for one of two reasons:
 A change to the version of a system changes its sources too. Each fact of the document then cites the new version.
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
+
+### 0.3.25
+
+- **The sidecar of Istio 1.31.3 for T15.** Three new documents, each from the source at its tag. `istioSidecar(side)` builds the two sidecars from `envoy-http2`, because the proxy of Istio 1.31.3 has the code of Envoy 1.39.4.
+  - Both sides: the route and the stream have no timeout, and the connect timeout is 10 s. An update of LDS drains the changed filter chain. The next response of the chain sends the GOAWAY notice. At the stop, pilot-agent stops Envoy with SIGKILL, thus Envoy sends no GOAWAY then.
+  - `istio-sidecar-outbound`: Envoy retries a failed connect, a refused stream, and UNAVAILABLE or CANCELLED 2 times, each on another host. The reset of an open connection and PERMISSION_DENIED get no retry.
+  - `istio-sidecar-inbound`: the inbound route of a port of gRPC has no retry policy. A refused connect to the app gives UNAVAILABLE. A DENY policy gives the local reply 403, thus PERMISSION_DENIED.
+  - `pilot-agent`: the preStop hook of a native sidecar drains the inbound listeners at the deletion. SIGTERM comes after the app exited, and pilot-agent then stops Envoy with SIGKILL at once.
+  - No cell reads these documents yet, thus they move no prediction of the snapshot.
 
 ### 0.3.24
 

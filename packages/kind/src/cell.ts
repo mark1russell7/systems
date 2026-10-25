@@ -48,6 +48,7 @@ export type Stack = "service" | "grpc";
  * - `app-stall` blocks the event loop of one replica.
  * - `rollout` is a rolling update while Redis is down.
  * - `cpu-throttle` sets `cpu.max` in the cgroup of one replica.
+ * - `authorization-policy` applies an AuthorizationPolicy of Istio that denies the clients, for the hold (T15).
  * - `none` injects nothing: a calibration measures the path itself.
  */
 export type TriggerKind =
@@ -63,7 +64,8 @@ export type TriggerKind =
   | "peer-gone-without-close"
   | "app-stall"
   | "rollout"
-  | "cpu-throttle";
+  | "cpu-throttle"
+  | "authorization-policy";
 
 /**
  * A trigger is its kind and the settings of its fault. The parameter `A` is the form of an amount:
@@ -77,6 +79,12 @@ export interface Trigger<A = Quantity> {
   readonly lead?: Quantity | undefined;
   /** This value is the `cpu.max` of a throttle: the quota and the period. The format `/1` gives each one in microseconds. */
   readonly cpuMax?: { readonly quota: A; readonly period: A } | undefined;
+  /**
+   * This name is the service account that an AuthorizationPolicy denies (`authorization-policy`). The
+   * default is `default`, the account of the clients. An account that no pod has changes the policy,
+   * and denies no call.
+   */
+  readonly account?: string | undefined;
 }
 
 /** A kubelet probe is the period, the failure threshold and the timeout of one probe of the pod. */
@@ -157,8 +165,9 @@ export interface Band<A = Quantity> {
  * - `intake`: the stop of the intake of the target pod, as its service records it.
  * - `fault`: the commit of the fault, as the injector or the agent stamps it.
  * - `resume`: the end of a pause of kube-proxy, as the agent stamps it.
+ * - `heal`: the start of the first act that ends the fault, for example the delete of a policy.
  */
-export type Reference = "deletion" | "intake" | "fault" | "resume";
+export type Reference = "deletion" | "intake" | "fault" | "resume" | "heal";
 
 /**
  * A reset reuse is how a reset fails a later connection on the same port. A reset from the server
@@ -217,6 +226,8 @@ export type Prediction<A = Quantity> =
        * earlier drop only closes the window earlier.
        */
       readonly propagation?: Band<A> | undefined;
+      /** These outcomes are the only failures that the window permits. A failure with another outcome fails the run. Without them, each outcome but `ok` can fail. */
+      readonly outcomes?: readonly string[] | undefined;
       readonly why: string;
     }
   | { readonly kind: "removal"; readonly band: Band<A>; readonly why: string }

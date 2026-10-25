@@ -29,7 +29,9 @@ export type Step =
   | { readonly do: "cpu"; readonly target: Target; readonly max: string }
   /** This step blocks the event loop of the target for `time`. */
   | { readonly do: "stall"; readonly target: Target; readonly time: Quantity }
-  | { readonly do: "wait"; readonly time: Quantity };
+  | { readonly do: "wait"; readonly time: Quantity }
+  /** This step applies one object with `kubectl apply`. The runner fills the marks of its strings, for example `{namespace}`. */
+  | { readonly do: "apply"; readonly object: Readonly<Record<string, unknown>> };
 
 /**
  * A fault plan is the steps of a run:
@@ -60,6 +62,27 @@ export const NODE = "{node}";
 export const VERSION = "{version}";
 /** This annotation of a pod is its deletion cost for its ReplicaSet: a lower cost goes first at a scale-in. */
 export const DELETION_COST = "controller.kubernetes.io/pod-deletion-cost";
+/** This name is the name of the AuthorizationPolicy of the trigger `authorization-policy`. */
+export const POLICY = "lab-deny";
+/** This service account is the account of the clients: their pods name no other account. */
+export const CLIENT_ACCOUNT = "default";
+
+/**
+ * This function gives the AuthorizationPolicy of the trigger `authorization-policy`. It denies each
+ * request to the server pods from the principal of the service account `account`. Istio gives a
+ * pod of the mesh the principal `cluster.local/ns/<namespace>/sa/<account>` of its account. The
+ * RBAC filter of the server sidecar reads the principal of the peer from its mTLS certificate.
+ */
+export const policyObject = (account: string): Readonly<Record<string, unknown>> => ({
+  apiVersion: "security.istio.io/v1",
+  kind: "AuthorizationPolicy",
+  metadata: { name: POLICY, namespace: "{namespace}" },
+  spec: {
+    selector: { matchLabels: { app: SERVER } },
+    action: "DENY",
+    rules: [{ from: [{ source: { principals: [`cluster.local/ns/{namespace}/sa/${account}`] } }] }],
+  },
+});
 
 /** This function gives the fault plan of a cell. */
 export const planOf = (cell: KindCell): FaultPlan => {
@@ -176,6 +199,14 @@ export const planOf = (cell: KindCell): FaultPlan => {
         restore: [],
       };
     }
+    case "authorization-policy":
+      // the restore deletes a policy that a failed heal left
+      return {
+        inject: [{ do: "apply", object: policyObject(trigger.account ?? CLIENT_ACCOUNT) }],
+        hold: needs(trigger.hold, "a hold"),
+        heal: [{ do: "kubectl", args: [...ns, "delete", "authorizationpolicy", POLICY] }],
+        restore: [{ do: "kubectl", args: [...ns, "delete", "authorizationpolicy", POLICY, "--ignore-not-found"] }],
+      };
   }
 };
 

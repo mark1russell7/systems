@@ -140,6 +140,34 @@ export const PROPAGATION: Readonly<Record<KubeProxyMode, Propagation>> = {
 /** This propagation is the bound of the documents, for a cell that a calibration does not cover. */
 export const UNCALIBRATED: Propagation = DOCUMENTED;
 
+/**
+ * A calibration is what a CAL cell measured: the cell, the kind run, and its polls without the pod.
+ * It gives their count, the shortest, the median and the longest, and the interval of the poll.
+ */
+export interface Calibration {
+  readonly cell: string;
+  readonly run: number;
+  readonly count: number;
+  readonly min: Quantity;
+  readonly median: Quantity;
+  readonly max: Quantity;
+  readonly poll: Quantity;
+}
+
+/**
+ * This function gives the propagation of a calibration by the rule of `PROPAGATION`. The upper
+ * bound is the longest poll without the pod. The lower bound is the shortest such poll less one
+ * poll, and not below zero.
+ */
+export const calibrated = (calibration: Calibration): Propagation => {
+  const lo = valueIn(calibration.min, "s") - valueIn(calibration.poll, "s");
+  return {
+    lo: s(Math.max(0, Math.round(lo * 1000) / 1000)),
+    hi: s(valueIn(calibration.max, "s")),
+    from: `${calibration.cell}: median ${say(calibration.median)}, ${calibration.count} times`,
+  };
+};
+
 /** This count is the workers of each kind cell: two, the fewest for a propagation across nodes and a drain to another node. */
 export const WORKERS = 2;
 

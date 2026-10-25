@@ -12,7 +12,7 @@ import type { Step } from "./faults.ts";
 import { NODE, POD, VERSION, deletes as deletesAPod, planOf } from "./faults.ts";
 import { labImage } from "./image.ts";
 import type { MeshImages } from "./istio.ts";
-import { EDS_EVERY, ISTIO_IMAGES, installMesh, meshKey, serverCluster } from "./istio.ts";
+import { EDS_EVERY, ISTIO_IMAGES, LDS_EVERY, installMesh, meshKey, pollsListeners, serverCluster } from "./istio.ts";
 import type { KindLab, Line, Stamp } from "./lab.ts";
 import { localPin, openKindLab } from "./lab.ts";
 import { CLIENT, REDIS, REDIS_IMAGE, SERVER, clientObjects, namespaceObject, namespaceOf, redisObjects, serverObjects, stackOf } from "./manifests.ts";
@@ -112,6 +112,8 @@ interface Context {
   readonly log: (line: string) => void;
   version: number;
   probed: string;
+  /** This key is the server pods whose sidecars the LDS pollers read, or "" for none. */
+  listened: string;
   /** This count is the replicas of the service at rest: one less while a scale-in holds. */
   expected: number;
 }
@@ -234,6 +236,22 @@ const pollEndpoints = async (lab: KindLab, cluster: Cluster, namespace: string):
   await lab.eds({ cluster: serverCluster(namespace), every: EDS_EVERY, pods });
 };
 
+/**
+ * This function starts the LDS poll of the sidecar of each server pod, each 50 ms, for a cell that
+ * polls them (`pollsListeners`). It starts the pollers again only when the server pods changed. The
+ * agent enters the network namespace of the pod through the PID of its app.
+ */
+const pollListeners = async (ctx: Context): Promise<void> => {
+  if (!pollsListeners(ctx.cell)) return;
+  const servers = ctx.tracker.servers().filter((pod) => !pod.del && pod.node !== null);
+  const key = servers.map((pod) => `${pod.name}/${pod.cs.map((status) => status.id).join("+")}`).sort().join();
+  if (key === ctx.listened) return;
+  const pods: Array<{ node: string; pod: string; pid: number }> = [];
+  for (const pod of servers) pods.push({ node: pod.node!, pod: pod.name, pid: await ctx.lab.pidOf(pod.node!, ctx.namespace, pod.name, "app") });
+  await ctx.lab.lds({ every: LDS_EVERY, pods });
+  ctx.listened = key;
+};
+
 /** This function starts the prober again when the pods of the cell changed: it watches the namespace of each pod. */
 const probeThePods = async (ctx: Context): Promise<void> => {
   const pods = [...ctx.tracker.pods.values()].filter((pod) => !pod.del && pod.node !== null && pod.cs.every((status) => status.st === "running"));
@@ -330,6 +348,13 @@ const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], ba
     case "wait":
       await sleep(valueIn(step.time, "ms"));
       return null;
+    case "apply": {
+      // the marks are in the strings of the object: its JSON keeps them as they are
+      const object = JSON.parse(fill([JSON.stringify(step.object)])[0]!) as Record<string, unknown>;
+      const t0 = await lab.now();
+      await cluster.apply([object]);
+      return { t0, t1: await lab.now() };
+    }
   }
 };
 
@@ -373,6 +398,7 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
   });
   if (atRest !== null) return empty(`the cell was not at rest: ${atRest}`, await lab.now());
   await probeThePods(ctx);
+  await pollListeners(ctx);
   await quiet(ctx, ours);
   if ((await steady(ctx, 300_000)) !== null) return empty("the cell was not at rest after the wait for a quiet VM", await lab.now());
   const replicas = replicasOf(ctx);
@@ -549,7 +575,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
           try {
             const clusterIp = await deploy(lab, cluster, cell, namespace, images);
             for (const name of [...lab.own(), loader.getName().replace(/^\//, "")]) ours.add(name);
-            const ctx: Context = { lab, cluster, cell, namespace, tracker, clusterIp, loads, loader, idle: options.idle ?? 0.6, log: options.log, version: 1, probed: "", expected: cell.pod.replicas };
+            const ctx: Context = { lab, cluster, cell, namespace, tracker, clusterIp, loads, loader, idle: options.idle ?? 0.6, log: options.log, version: 1, probed: "", listened: "", expected: cell.pod.replicas };
             const share = Math.ceil(cell.runs / environments) - (env < cell.runs % environments || cell.runs % environments === 0 ? 0 : 1);
             const runs: KindRun[] = [await runOnce(ctx, env, -1, true, ours)];
             for (let index = 0; index < share; index += 1) runs.push(await runOnce(ctx, env, index, false, ours));
@@ -574,6 +600,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
             off();
             await lab.rules(null).catch(() => undefined);
             await lab.eds(null).catch(() => undefined);
+            await lab.lds(null).catch(() => undefined);
             await lab.stopProbe();
             await cluster.kubectl(["delete", "namespace", namespace, "--wait=true", "--timeout=300s"]).catch((error: unknown) => options.log(`  ${String(error)}`));
           }
@@ -608,6 +635,7 @@ const estimate = (cell: KindCell, environments = 2): number => {
     "app-stall": hold + 40,
     "cpu-throttle": hold + 40,
     rollout: hold + 50,
+    "authorization-policy": hold + 20,
   };
   // a window can need a longer observation: from the end of the hold, until each request that started in it ended
   const after = observationAfter(cell);

@@ -4,7 +4,7 @@ import { seconds, secondsOf, showBand } from "./bands.ts";
 import type { Band, KindCell, KindRun, Prediction } from "./cell.ts";
 import { quantileOf } from "./stats.ts";
 import type { KindVerdict } from "./verdict.ts";
-import { factsOf, propagationOf, propagationSource, referenceOf } from "./verdict.ts";
+import { factsOf, propagationOf, propagationSource, referenceOf, updatesOf } from "./verdict.ts";
 
 /** A judged cell is a cell, its runs and its verdict: the part of a result that a report reads. */
 export interface Judged {
@@ -51,7 +51,7 @@ export const predictionText = (prediction: Prediction): string => {
     case "window":
       // a window with `each` is a window for each replica that got a deletion, from the references of that replica.
       // A window can open before its reference: a stale SYN_SENT entry fails the paused node up to its life before the intake
-      return `failures only from ${atBand(prediction.start.from, prediction.start.band)}${prediction.end === null ? "" : ` to ${atBand(prediction.end.from, prediction.end.band)}`}${prediction.each === true ? ", of each deleted replica" : ""}${prediction.nodes === "paused" ? ", on the paused node" : ""}${prediction.certain ? ", at least one" : ""}${prediction.afterReset === undefined ? "" : `, or a ${prediction.afterReset.outcome} up to ${format(prediction.afterReset.life)} after a reset on its port`}${prediction.propagation === undefined ? "" : `, the rules drop the replica in ${showBand(prediction.propagation)}`}`;
+      return `failures only from ${atBand(prediction.start.from, prediction.start.band)}${prediction.end === null ? "" : ` to ${atBand(prediction.end.from, prediction.end.band)}`}${prediction.each === true ? ", of each deleted replica" : ""}${prediction.nodes === "paused" ? ", on the paused node" : ""}${prediction.certain ? ", at least one" : ""}${prediction.outcomes === undefined ? "" : `, each one ${prediction.outcomes.join(" or ")}`}${prediction.afterReset === undefined ? "" : `, or a ${prediction.afterReset.outcome} up to ${format(prediction.afterReset.life)} after a reset on its port`}${prediction.propagation === undefined ? "" : `, the rules drop the replica in ${showBand(prediction.propagation)}`}`;
     case "removal":
       return `Service empty in ${showBand(prediction.band)}`;
     case "leaves":
@@ -98,17 +98,33 @@ export const cellsTable = (judged: readonly Judged[]): string =>
  * This function gives the propagation of each calibration, by node. It is the time from the
  * deletion to the poll of the rules of each node without the pod. It also gives the time to the
  * EndpointSlice and to the stop of the intake.
+ *
+ * For a policy of Istio, the propagation is the LDS update of each server sidecar after the apply,
+ * by node (`updatesOf`). Then `heal` is the update after the delete of the policy. `slice` and
+ * `intake` are null.
  */
 export const calibrationOf = (judged: Judged): {
   readonly nodes: Readonly<Record<string, TimeSpread | null>>;
   readonly all: TimeSpread | null;
   readonly slice: TimeSpread | null;
   readonly intake: TimeSpread | null;
+  readonly heal?: TimeSpread | null | undefined;
 } => {
   const byNode: Record<string, Quantity[]> = {};
   const slice: Quantity[] = [];
   const intake: Quantity[] = [];
-  for (const run of judged.runs.filter((each) => !each.warmup && each.void === null)) {
+  const counted = judged.runs.filter((each) => !each.warmup && each.void === null);
+  if (judged.cell.trigger.kind === "authorization-policy") {
+    const heal: Quantity[] = [];
+    for (const run of counted) {
+      const nodeOf = (pod: string): string => run.replicas.find((replica) => replica.pod === pod)?.node ?? pod;
+      for (const [pod, update] of Object.entries(updatesOf(run, run.acts.fault))) if (update !== null) (byNode[nodeOf(pod)] ??= []).push(update.by);
+      for (const update of Object.values(updatesOf(run, run.acts.heal))) if (update !== null) heal.push(update.by);
+    }
+    const nodes = Object.fromEntries(Object.entries(byNode).map(([node, values]) => [node, timeSpread(values)]));
+    return { nodes, all: timeSpread(Object.values(byNode).flat()), slice: null, intake: null, heal: timeSpread(heal) };
+  }
+  for (const run of counted) {
     const deletion = referenceOf(run, "deletion");
     for (const [node, drop] of Object.entries(propagationOf(run, deletion, undefined, propagationSource(judged.cell)))) if (drop !== null) (byNode[node] ??= []).push(drop.by);
     const facts = factsOf(judged.cell, run);

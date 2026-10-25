@@ -3,7 +3,7 @@ import type { KindCell, KindRun, Prediction } from "./cell.ts";
 import type { Line } from "./lab.ts";
 import { cellOf } from "./cells.fixture.ts";
 import { predictionText } from "./report.ts";
-import { checkRun, judgeKind, observationAfter, observationEnd, propagationOf, propagationSource } from "./verdict.ts";
+import { checkRun, judgeKind, observationAfter, observationEnd, propagationOf, propagationSource, updatesOf } from "./verdict.ts";
 
 const TARGET = { pod: "lab-a", node: "w1", ip: "10.244.1.3", version: "h1" };
 const OTHER = { pod: "lab-b", node: "w2", ip: "10.244.2.4", version: "h1" };
@@ -337,5 +337,82 @@ describe("the observation of a kind run", () => {
     expect(observationEnd(cell({ ...window, end: null }), runWith([]))).toBeNull();
     expect(observationEnd(cell(window), { ...runWith([]), lines: [] })).toBeNull();
     expect(observationEnd(cell({ ...window, end: { from: "resume", band: b(0, 1) } }), runWith([]))).toBeNull();
+  });
+
+  it("counts a window of a policy from its heal", () => {
+    const policy = cell({ ...window, start: { from: "fault", band: b(0.1, 2) }, end: { from: "heal", band: b(0.1, 2) } });
+    expect(observationEnd(policy, runWith([], { fault: 5000, heal: 20_000 }))).toBe(20_000 + 2000 + 1000 + 100);
+    expect(observationEnd(policy, runWith([], { fault: 5000 }))).toBeNull();
+  });
+});
+
+describe("the judgement of a policy of Istio", () => {
+  const FAULT = 5000;
+  const HEAL = 20_000;
+  // the LDS lines of a server sidecar: the first line of its poller, an update after the policy, and one after its delete
+  const lds = (pod: string, apply: number, remove: number): Line[] => [
+    { ev: "lds", t: 4000, prev: null, node: pod === "lab-a" ? "w1" : "w2", pod, mod: 3, inPlace: 1 },
+    { ev: "lds", t: apply, prev: apply - 50, node: pod === "lab-a" ? "w1" : "w2", pod, mod: 4, inPlace: 2 },
+    { ev: "lds", t: remove, prev: remove - 50, node: pod === "lab-a" ? "w1" : "w2", pod, mod: 5, inPlace: 3 },
+  ];
+  const policyRun = (extra: Line[], remove = 20_600): KindRun => ({
+    ...runWith([], { fault: FAULT, heal: HEAL }),
+    lines: [...lds("lab-a", 5300, 20_400), ...lds("lab-b", 5500, remove), ...extra],
+  });
+  const policy: KindCell = {
+    ...cellOf("authorization-policy"),
+    template: "T15",
+    stack: "grpc",
+    mesh: { flavor: "sidecar", mode: "sidecar" },
+    trigger: { kind: "authorization-policy", hold: s(15) },
+    prediction: {
+      kind: "window",
+      nodes: "all",
+      start: { from: "fault", band: b(0.1, 2) },
+      end: { from: "heal", band: b(0.1, 1.9) },
+      certain: true,
+      outcomes: ["denied"],
+      propagation: b(0.1, 1.5),
+      why: "a test",
+    },
+  };
+
+  it("gives the first LDS update of each server sidecar after the policy and after its delete, and not the first line of a poller", () => {
+    const run = policyRun([]);
+    expect(updatesOf(run, FAULT)).toEqual({ "lab-a": { after: s(0.25), by: s(0.3) }, "lab-b": { after: s(0.45), by: s(0.5) } });
+    expect(updatesOf(run, HEAL)).toEqual({ "lab-a": { after: s(0.35), by: s(0.4) }, "lab-b": { after: s(0.55), by: s(0.6) } });
+    // a poller that starts again gives a first line with no poll before it: no update
+    const restarted = { ...run, lines: [...run.lines.filter((line) => line["pod"] !== "lab-b" || line.t === 4000), { ev: "lds", t: 6000, prev: null, node: "w2", pod: "lab-b", mod: 4, inPlace: 2 }] };
+    expect(updatesOf(restarted, FAULT)["lab-b"]).toBeNull();
+    expect(updatesOf(run, null)).toEqual({});
+    expect(checkRun(policy, run).facts).toMatchObject({ updates: updatesOf(run, FAULT), healUpdates: updatesOf(run, HEAL) });
+  });
+
+  it("holds the denials from the update after the policy to the update after its delete, and only denials", () => {
+    const denials = [request(5310, "denied"), request(5400, "denied", "w2"), request(20_500, "denied")];
+    const held = checkRun(policy, policyRun(denials));
+    expect(held.ok, held.why).toBe(true);
+    expect(held.tail).toBeUndefined();
+    // a timeout in the window is not a denial
+    const timeout = checkRun(policy, policyRun([...denials, request(9000, "timeout")]));
+    expect(timeout.ok).toBe(false);
+    expect(timeout.why).toMatch(/1 failed requests in the window ended \{"timeout":1\}, not denied/);
+    // no denial at all: the policy did not reach the sidecars in the hold
+    expect(checkRun(policy, policyRun([])).why).toMatch(/no request failed/);
+    // a denial before the policy can reach a sidecar
+    expect(checkRun(policy, policyRun([request(4800, "denied"), ...denials])).ok).toBe(false);
+    expect(predictionText(policy.prediction)).toContain("each one denied");
+  });
+
+  it("extends a policy whose LDS update after the delete is past the band, and keeps its later denials in the tail", () => {
+    // the sidecar of lab-b takes the delete 2 s after it: past 1.5 s, and its denials go on until then
+    const run = policyRun([request(5310, "denied"), request(21_990, "denied"), request(22_100, "denied", "w2")], 22_000);
+    const check = checkRun(policy, run);
+    expect(check.ok, check.why).toBe(true);
+    expect(check.tail).toMatch(/1 failed requests after the window/);
+    expect(check.tail).toMatch(/1 LDS updates after the propagation of 1\.5 s at the most, the latest: the sidecar of lab-b had its LDS update 2 s after the delete of the policy/);
+    expect(judgeKind(policy, [run]).decision).toBe("extend");
+    // a denial after that update and the next call is late
+    expect(checkRun(policy, policyRun([request(5310, "denied"), request(22_500, "denied")], 22_000)).ok).toBe(false);
   });
 });
