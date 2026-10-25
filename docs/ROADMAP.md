@@ -507,6 +507,21 @@ With SYS-30, the option `kinds` of both functions names the probes that answer. 
 
 It comes in service 0.5.8, a PATCH: a new optional option and new exports, before 1.0.0.
 
+### SYS-31 · A machine document for HAProxy
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** WS
+- **Started:**
+- **Shipped:**
+- **Links:** [The WST cells](https://github.com/mark1russell7/systems/blob/main/packages/cells/src/ws-topologies.ts)
+
+The client item O17 found it. HAProxy has no machine document. Thus three WST cells of an idle timeout of HAProxy have no band, and each one is a measurement.
+
+With SYS-31, the machines package has a document of HAProxy at a pinned version. It gives the inactivity timeouts of each side and the events that reset each one, with citations to the source. Then the algebra gives a band to each of the three cells.
+
+It comes in machines as a PATCH: a new export before 1.0.0.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue
