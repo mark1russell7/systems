@@ -1,32 +1,11 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
+import type { Detector, Meeting, Situation } from "../client/meets.ts";
 import type { RedisKnobs } from "./client.ts";
 
-/** A situation is what the connection did when the failure started: a command in flight, or idle. */
-export type Situation = "in flight" | "idle";
-
-/** A detector is a mechanism that finds a failure, and the most time that it takes. */
-export interface Detector {
-  /** This name identifies the mechanism: a knob of the declaration, or the kernel. */
-  readonly by: string;
-  /** This time is the most that the detector takes, after the failure starts. "infinite" tells that it does not find the failure. */
-  readonly within: Extent;
-  readonly situation: Situation;
-  /** This text tells what the detector does, for example that it fails a command without a change of state. */
-  readonly effect: string;
-}
-
-/**
- * A meeting is a manifestation that the client can meet, and its detectors (E9). The names of the
- * manifestations are the names of the vocabulary of the harness and the corpus. `app-stall` is a
- * server whose process is alive and does not answer, a proposal of the vocabulary.
- */
-export interface Meeting {
-  readonly manifestation: string;
-  /** This text tells the failure in words. */
-  readonly what: string;
-  readonly detectors: readonly Detector[];
-}
+// the shapes and the queries moved to the core of the clients: this entry keeps them for the users of 0.5
+export type { Detector, Meeting, Situation } from "../client/meets.ts";
+export { firstDetector, unwatched } from "../client/meets.ts";
 
 const never: Extent = { value: "infinite", unit: "s" };
 const s = (value: number): Quantity => quantity(Math.round(value * 1e6) / 1e6, "s");
@@ -116,19 +95,3 @@ export const meetings = (name: string, knobs: RedisKnobs, heartbeat: Extent): Me
     acknowledged("app-stall", "the server stops its replies for a time, for example a long command, and its kernel stays up"),
   ];
 };
-
-/** This function gives the first detector of a manifestation in a situation, or null when no detector has an end (C3). */
-export const firstDetector = (meeting: Meeting, situation: Situation): Detector | null => {
-  const ranked = meeting.detectors
-    .filter((detector) => detector.situation === situation && detector.within.value !== "infinite")
-    .sort((a, b) => seconds(a.within) - seconds(b.within));
-  return ranked[0] ?? null;
-};
-
-/** This function gives each manifestation and situation that no detector of the client finds: the standing rule, as a query (C3, E9). */
-export const unwatched = (meets: readonly Meeting[]): Array<{ readonly manifestation: string; readonly situation: Situation }> =>
-  meets.flatMap((meeting) =>
-    (["in flight", "idle"] as const).flatMap((situation) =>
-      firstDetector(meeting, situation) === null ? [{ manifestation: meeting.manifestation, situation }] : [],
-    ),
-  );

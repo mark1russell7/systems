@@ -75,7 +75,7 @@ const reachAll = (entry: string, from = here): string[] => {
 
 describe("zod is an optional peer: no entry of the service loads it (SYS-12)", () => {
   it("reaches no zod from any entry, through quantity and the replay of the algebra too", () => {
-    for (const entry of ["index.ts", "testing.ts", "redis.ts", "clock.ts", "heartbeat.ts", "backoff.ts", "limiter.ts"])
+    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "clock.ts", "heartbeat.ts", "backoff.ts", "limiter.ts"])
       expect(reachAll(entry), entry).not.toContain("zod");
     // the root loads no other package and no node: module at run time
     expect(reachAll("index.ts")).toEqual([]);
@@ -84,13 +84,13 @@ describe("zod is an optional peer: no entry of the service loads it (SYS-12)", (
     expect(reachAll(schema.slice(dirname(schema).length + 1), dirname(schema))).toContain("zod");
   });
 
-  it("marks zod optional in the manifest, beside ioredis", () => {
+  it("marks zod optional in the manifest, beside ioredis and pg", () => {
     const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
       peerDependencies: Record<string, string>;
       peerDependenciesMeta: Record<string, { optional?: boolean }>;
     };
-    expect(Object.keys(manifest.peerDependencies).sort()).toEqual(["ioredis", "zod"]);
-    expect(manifest.peerDependenciesMeta).toEqual({ ioredis: { optional: true }, zod: { optional: true } });
+    expect(Object.keys(manifest.peerDependencies).sort()).toEqual(["ioredis", "pg", "zod"]);
+    expect(manifest.peerDependenciesMeta).toEqual({ ioredis: { optional: true }, pg: { optional: true }, zod: { optional: true } });
   });
 });
 
@@ -112,6 +112,14 @@ describe("the timer entries: a client in a browser can import them", () => {
   it("keep the exports of 0.3 that moved: heartbeatDetection in the Redis entry, and replay in the root", () => {
     expect(redisEntry.heartbeatDetection).toBe(root.heartbeatDetection);
     expect(typeof root.replay).toBe("function");
+  });
+});
+
+describe("the pg entry: pg is an optional peer, loaded only at the connect", () => {
+  it("loads no pg at its import, and no node: module other than node:net", () => {
+    const { packages } = reach("pg.ts");
+    expect(packages).not.toContain("pg");
+    expect(packages.filter((name) => name.startsWith("node:"))).toEqual(["node:net"]);
   });
 });
 

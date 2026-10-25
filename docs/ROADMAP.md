@@ -89,7 +89,7 @@ From the layout of a CMOS cell to the routing fabric of an FPGA, with the real g
 
 ### S6 · The service abstraction
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** program
 - **Depends on:** S1
 - **Started:** 2026-10-08

@@ -510,13 +510,27 @@ const life = await app.run(); // the process exits after SIGTERM, with 0 or 1
 - **Redis Cluster.** The names of the keys put the limiter in braces, a hash tag. Thus the state and the index of a limiter are in one slot. The prefix has no braces.
 - **The test clock.** With `{ clock }`, the script uses the time of that clock in place of `TIME`. The tests use it to compare each decision of Redis with `decide`.
 
+## The PostgreSQL client
+
+`@mark1russell7/service/pg` is the PostgreSQL client of the service, over a pool of node-postgres 8. This entry is a prototype of S6. pg is an optional peer dependency. The client loads it only when it connects.
+
+- **The declaration.** `pgClient(name, spec)` declares `connect_bound`, `request_timeout`, `statement_timeout`, `pool_idle_expiry`, `keepalive_idle`, `max_connection_age`, `close_bound` and `retrans_giveup_time`. Each knob is necessary, and a bound that nobody gives is "infinite". `specProblems` refuses a knob that pg cannot use, for example a zero, which pg reads as no timer.
+- **The starting knobs.** `PG_STARTING_KNOBS` and `PG_STARTING_POLL` are a declaration from the cells of S1. Each value has its measured reason in its doc comment.
+- **Three outcomes.** `query(operation, text, values)` gives `ok`, `error` or `indeterminate`. An ERROR of the server is certain. A FATAL, a reset or a query timeout is not certain. The client then gives the connection back with an error, thus the pool ends the orphaned query.
+- **Idempotency for each operation.** SQL text does not tell if a statement changes a state. Thus the client sends again only an idempotent operation that its table names, one time at most, in the bound of the request.
+- **The join.** At each connect, the client records the process id of the backend and the socket (`joins`).
+- **No unheard error.** The client listens to the errors of the pool and of each client that it holds. In Node, an error with no listener ends the process.
+- **The checks.** `checks({ poll, steps })` gives `local-state`, `checkout`, `round-trip` (a `SELECT 1` through the pool) and `dial` (an SSLRequest on a new connection).
+- **The close.** At the shutdown, the client ends the pool, and it destroys each socket that stays at its `close_bound`.
+- **The manifestations and the machine.** `meets` lists the manifestations and their detectors. `PG_CLIENT_MACHINE` is the client as a `mark1russell7.machine/1` document, and the tests replay the client against it.
+
 ## Installation
 
 ```sh
 pnpm add @mark1russell7/service
 ```
 
-For the Redis client, the application also installs `ioredis@6`.
+For the Redis client, the application also installs `ioredis@6`. For the PostgreSQL client, it installs `pg@8`.
 
 The package uses [`@mark1russell7/quantity`](https://www.npmjs.com/package/@mark1russell7/quantity) for each amount. No entry of the service loads `zod` at run time, thus `zod` is an optional peer dependency. An application that validates amounts with the schemas of `quantity` installs `zod`.
 

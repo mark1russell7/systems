@@ -6,7 +6,8 @@ import { backoffDelay } from "../backoff.ts";
 import type { ServiceBuilder } from "../builder.ts";
 import type { Cancel, Clock } from "../clock.ts";
 import { realClock } from "../clock.ts";
-import type { Check, Dependency, Gate, ServiceDescription, Step } from "../description.ts";
+import type { CheckOptions, ClientStep, DialFn, SendOptions, Sent } from "../client/core.ts";
+import type { Check, Dependency, ServiceDescription } from "../description.ts";
 import type { Recorder } from "../events.ts";
 import type { Heartbeat } from "../heartbeat.ts";
 import { heartbeat } from "../heartbeat.ts";
@@ -15,13 +16,15 @@ import type { DependencyHandle } from "../lifecycle.ts";
 import type { Operation } from "../operation.ts";
 import { mayReissue } from "../operation.ts";
 import type { CheckFn } from "../poller.ts";
-import type { Poll } from "../timing.ts";
 import { heartbeatDetection } from "../timing.ts";
 import type { ConnectionFactory, RedisConnection, RedisConnectionOptions } from "./connection.ts";
 import { ioredis } from "./connection.ts";
 import type { Meeting } from "./meets.ts";
 import { meetings } from "./meets.ts";
 import { REDIS_OPERATIONS, commandName } from "./operations.ts";
+
+// the three outcomes, the send options and the checks moved to the core of the clients: this entry keeps them for the users of 0.5
+export type { CheckOptions, ClientStep, DialFn, SendOptions, Sent } from "../client/core.ts";
 
 /**
  * These are the knobs of the client, each a time, by the names of the ordering law where the law
@@ -74,9 +77,6 @@ export interface RedisClientSpec {
   readonly operations?: Readonly<Record<string, Operation>> | undefined;
 }
 
-/** A dial function opens a new TCP connection, sends one PING, and reads the reply. The `dial` check uses it. */
-export type DialFn = (host: string, port: number, signal: AbortSignal) => Promise<void>;
-
 /** These options make a client. Without them, it uses ioredis, the real clock and `Math.random`. */
 export interface RedisClientOptions {
   readonly create?: ConnectionFactory | undefined;
@@ -109,40 +109,10 @@ export interface Join {
   readonly remotePort: number | null;
 }
 
-/**
- * A sent result is the outcome of a command, in three values (C8):
- * - `ok`: the server answered.
- * - `error`: the command did not apply. The server answered with an error (`reply`), or the command
- *   did not leave the client.
- * - `indeterminate`: the command can have reached the server, and nothing tells if it applied.
- */
-export type Sent<T> =
-  | { readonly outcome: "ok"; readonly value: T; readonly attempts: number }
-  | { readonly outcome: "error"; readonly error: string; readonly reply: boolean; readonly attempts: number }
-  | { readonly outcome: "indeterminate"; readonly error: string; readonly attempts: number };
-
-/** Send options tell how the client sends one command. */
-export interface SendOptions {
-  /** This signal abandons the command. A command that left the client is then indeterminate. */
-  readonly signal?: AbortSignal | undefined;
-  /** False stops the client: it does not send the command again. A check that must fail at once uses it. */
-  readonly reissue?: boolean | undefined;
-}
-
 type Attempt =
   | { readonly outcome: "ok"; readonly value: unknown }
   | { readonly outcome: "error"; readonly error: string; readonly reply: boolean }
   | { readonly outcome: "indeterminate"; readonly error: string };
-
-/** The steps of a connection that the client gives a check for (B14). */
-export type ClientStep = Extract<Step, "dial" | "round-trip" | "local-state">;
-
-/** Check options tell which checks the client gives the health runtime, and which policy each one controls. */
-export interface CheckOptions {
-  readonly poll: Poll;
-  /** For each step, the policy that its check controls, or null for a check that only reports. A step that is absent has no check. */
-  readonly steps: Partial<Record<ClientStep, Gate | null>>;
-}
 
 /** A Redis client is a dependency of a service: its declaration, its handle, its checks and its commands. */
 export interface RedisClient {
