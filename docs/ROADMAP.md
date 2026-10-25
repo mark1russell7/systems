@@ -577,6 +577,33 @@ The cells ask for a hold of 60 s and a body of 2 MB at most, and a test keeps ea
 
 It comes in service 0.5.10, a PATCH: a bug fix, with no change to an export.
 
+### SYS-35 · The findings of the second audit
+
+- **Status:** in progress
+- **Area:** engines
+- **Depends on:**
+- **Started:** 2026-10-25
+- **Shipped:**
+- **Links:** [#151](https://github.com/mark1russell7/systems/pull/151)
+
+A second review read the files that the first review did not read. It gave 14 findings. 13 are real, and each one has a fix. The last one is not a defect: the store of the limiter target cannot throw.
+
+- **The throughput of the prober.** `compare.sh` cut the fixture at the old record size of 184 bytes, thus each copy started inside a record of 216 bytes.
+- **The takes of the queue drain.** Each take raced one pending promise, thus the drain kept each job that it took until its intake stopped.
+- **The ERROR event of 410 in the watcher of kind.** The watch opened again with its expired resource version, and it got the same error each time.
+- **A response that the connection cuts, in the watcher of kind.** The watch opened again only at the end of a response, thus a cut stopped it.
+- **The law with absent timers on each side.** `inf < inf` and NaN gave `violated`, but the inequality holds only because a timer is absent: `unbounded`.
+- **The cuts `one` and `one-way` of the group lab.** The lab cut each peer in both directions, not one member.
+- **The deletions in a kind record.** The schema named the field `windows`, thus each read of a record dropped the deletions that the judge wrote.
+- **The screenshot server of the site.** A path with `..%2F` got a file outside `dist`.
+- **The items of a request stream.** Each item raced one pending promise, thus a long stream kept each item until its end.
+- **The AMQP cluster client of the harness.** A connection whose channel did not open stayed open after the next connect.
+- **The platform clock of the service.** A delay above the limit of `setTimeout`, approximately 24.8 days, started its function after 1 ms.
+- **The tables of the algebra.** A key of `Object.prototype`, for example `toString`, was a function or a model.
+- **The resetter of the router.** A flow on a reused 4-tuple got the closed flag of the last flow, thus the resetter sent no reset.
+
+It comes in service 0.5.11, kind 0.7.1, harness 0.12.4 and algebra 0.7.4, each a PATCH: bug fixes, with no change to an export. The law fix makes a wrong verdict right, because `<=` already gave `unbounded` for the same case.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue
