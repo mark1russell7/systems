@@ -522,6 +522,23 @@ With SYS-31, the machines package has a document of HAProxy at a pinned version.
 
 It comes in machines as a PATCH: a new export before 1.0.0.
 
+### SYS-33 · The idle close keeps an answer that still goes
+
+- **Status:** done
+- **Area:** server stack
+- **Depends on:**
+- **Started:** 2026-10-25
+- **Shipped:** 2026-10-25
+- **Links:** [#141](https://github.com/mark1russell7/systems/pull/141), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+The server-stack session found it in a review. `stopIntake()` and each sweep of `httpTransport` use `closeIdleConnections()` of Node. `server.close()` uses it too. Node counts a connection idle at the `end()` of its response, also while the bytes of the body still go. Thus the call destroyed the socket of a slow client, and the client lost the end of a large answer.
+
+A test on the loopback ends a body of 64 MB to a client that does not read. Before the fix, the client got 2.6 MB of it on Node 22.19, 24 and 26, at the stop and at a sweep.
+
+With the fix, the transport replaces `closeIdleConnections` on its server. For the time of the call, each answer whose bytes did not go shows as not ended. Thus Node keeps its socket, and a later sweep closes the connection when it is idle. The fake server counts a connection idle as Node does. Without the fix, three unit tests on the fake server fail.
+
+It comes in service 0.5.9, a PATCH: a bug fix, with no change to an export.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue
