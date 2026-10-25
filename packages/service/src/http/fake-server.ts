@@ -51,6 +51,8 @@ export class FakeResponse extends EventEmitter {
   headersSent = false;
   writableEnded = false;
   writableFinished = false;
+  /** This flag is the flag of Node that `closeIdleConnections` reads: true from the `end()` of the response. */
+  finished = false;
   shouldKeepAlive = true;
   readonly headers: Map<string, string> = new Map();
   readonly chunks: string[] = [];
@@ -96,6 +98,7 @@ export class FakeResponse extends EventEmitter {
     if (chunk !== undefined) this.write(chunk);
     else if (!this.headersSent) this.writeHead(this.statusCode);
     this.writableEnded = true;
+    this.finished = true;
     this.socket.whenRead(() => {
       if (this.socket.destroyed) return;
       this.writableFinished = true;
@@ -198,8 +201,13 @@ export class FakeServer extends EventEmitter {
     this.closeIfDrained();
     return this;
   }
+  /**
+   * This method destroys each idle connection, as Node does. A connection is idle before its first
+   * request, and from the `end()` of its response, also while the bytes of the response still go.
+   */
   closeIdleConnections(): void {
-    for (const connection of this.connections) if (connection.idle && !connection.upgraded) connection.socket.destroy();
+    for (const connection of this.connections)
+      if (!connection.upgraded && (connection.idle || connection.response?.finished === true)) connection.socket.destroy();
   }
   /** This method destroys each connection of HTTP. As in Node, an upgraded connection is not in the list. */
   closeAllConnections(): void {

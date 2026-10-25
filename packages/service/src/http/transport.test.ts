@@ -367,6 +367,33 @@ describe("the stop of the intake (S6 A8)", () => {
     expect(stream.socket.destroyed).toBe(true);
   });
 
+  it("keeps each connection whose answer still goes, at the stop and at each sweep, and the client gets each answer (SYS-33)", async () => {
+    const { server, clock, transport } = await started();
+    let later: () => void = () => {};
+    transport.mount((req, res) => {
+      if (req.url === "/now") res.end("now");
+      else later = () => res.end("later");
+      return true;
+    });
+    // the clients do not read: the bytes of /now do not go before the stop, and the bytes of /later not before the sweep
+    const first = server.connect();
+    first.socket.pause();
+    const now = first.request("/now");
+    const second = server.connect();
+    second.socket.pause();
+    const after = second.request("/later");
+    await turns();
+    transport.stopIntake();
+    later();
+    await clock.advance(1000);
+    await turns();
+    expect([first.socket.destroyed, second.socket.destroyed]).toEqual([false, false]);
+    first.socket.resume();
+    second.socket.resume();
+    expect((await now).body).toBe("now");
+    expect((await after).body).toBe("later");
+  });
+
   it("answers a request on an open connection after the stop with a retryable 503", async () => {
     const { server, transport } = await started();
     const handler = vi.fn(() => true);
