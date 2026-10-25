@@ -386,6 +386,28 @@
       "values": [300.06, 300.058, 300.059, 300.04, 300.039, 300.051, 300.062, 300.046, 300.031, 300.038, 300.02],
       "why": "Each of the 11 counted runs agrees with the prediction. The median is 300.046 s. The counted runs measured 300.02 s to 300.062 s.",
       "first": "fails"
+    },
+    {
+      "id": "T15.border-off.92",
+      "template": "T15",
+      "name": "ambient, gRPC, busy clients for 630 s with certificates of 600 s: the tunnel outlives its certificate",
+      "mode": "iptables",
+      "trigger": "certificate-expiry",
+      "group": "borders",
+      "prediction": {
+        "kind": "ends",
+        "band": null,
+        "text": "The algebra predicts that no socket of a client ends, and that each client calls again on its socket."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "sockets",
+      "median": 0,
+      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "Each of the 11 counted runs agrees with the prediction. No socket of a client ended.",
+      "first": null
     }
   ]
 }
