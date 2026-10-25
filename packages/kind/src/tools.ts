@@ -151,7 +151,7 @@ export const DOWNLOAD_WAITS: readonly number[] = [2_000, 8_000];
 
 /**
  * This function gives the bytes of a URL. It tries again after each wait when the connection fails or
- * the answer is a 5xx, and it refuses each other answer that is not ok at once.
+ * the answer is a 5xx. It refuses each other answer that is not ok at once.
  */
 export const download = async (url: string, waits: readonly number[] = DOWNLOAD_WAITS): Promise<Uint8Array> => {
   for (let attempt = 0; ; attempt++) {
