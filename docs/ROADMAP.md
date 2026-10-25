@@ -30,14 +30,16 @@ The ontology, the quantity package, the register of sources and the corpus. A qu
 
 ### S1 · Detection and divergence in Docker
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** program
 - **Depends on:** S0
 - **Started:** 2026-10-08
-- **Shipped:**
+- **Shipped:** 2026-10-25
 - **Links:** [The results](https://mark1russell7.github.io/systems/results/cells/)
 
 Each system of the S1 set gets a matrix of cells, and the algebra predicts each cell. A prediction must match the harness in its tolerance.
+
+H2 was the last system of the set, and its last cell held on 2026-10-25. Thus each system of S1 has its matrix, and each counted cell holds.
 
 ### S2 · Intermediaries and Kubernetes
 
@@ -910,11 +912,11 @@ The heartbeats of AMQP and the timers of the broker. R3 puts 54 cells on amqplib
 
 ### H2 · HTTP/2 and gRPC
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** HTTP
 - **Started:** 2026-10-19
-- **Shipped:**
+- **Shipped:** 2026-10-25
 - **Links:** [The results](https://mark1russell7.github.io/systems/results/grpc/), [The results of T15](https://mark1russell7.github.io/systems/results/mesh/), [#105](https://github.com/mark1russell7/systems/pull/105), [The run at main](https://github.com/mark1russell7/systems/actions/runs/39288251967)
 
 The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a gRPC server. R3 puts 148 cells on grpc-js 1.14 and on a server of grpc-go. 66 are in T01: 27 at the defaults, 12 borders of O03, O17, O25 and O26, and 27 in the array stage. The other cells are 22 in T02 (proxies), 22 in T03 (the routers of the clouds), 16 in T07 (kind) and 22 in T15 (Istio).
@@ -1071,12 +1073,13 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
     - The prediction of .77 was too strict. The server answers the GOAWAY of the client at once, and its FIN can come first. The band `answer` accepts CLOSE_WAIT from the release to one round trip and one step after the band.
     - Kind run 40202010754 started .79, .80 and .77 again, on 3 shards. Each cell had 11 counted runs, no run was void, and each cell holds.
     - In .79, no socket of a client ended. The median of .80 was 38.852 s in [28.98, 39.73] s, and the median of .77 was 300.046 s in [300, 300.62] s.
-  - Step 7 (in progress): the border of O22, the 2 cells that wait, and the page of the results.
+  - Step 7 (done, #155): the border of O22, the 2 cells that wait, and the page of the results.
     - T15.border-off.92 is the border of O22. It sets the lifetime of each workload certificate of ztunnel to 600 s, and its clients stay busy for 630 s.
     - The prediction is that no socket of a client ends: an open tunnel outlives its certificate. Thus the law O22 is violated.
     - T15.border-off.78 and .91 wait with their reasons, in `T15_GRPC_WAITING`. Thus the plan has 14 cells that start, 6 aliases and 2 cells that wait.
-    - The page [gRPC through Istio](https://mark1russell7.github.io/systems/results/mesh/) gives the 15 cells of the runs 40181243549 and 40202010754. 13 cells hold and 2 are calibrations, with 165 counted runs and no void run.
-    - Left: the kind run of .92. H2 is done when its verdict holds.
+    - Kind run 40220699919: T15.border-off.92 holds in 11 of 11 runs. The raw record gives each leaf certificate a validity of 720 s: the TTL of 600 s and a backdate of 120 s.
+    - The page [gRPC through Istio](https://mark1russell7.github.io/systems/results/mesh/) gives the 16 cells of the three kind runs. 14 cells hold and 2 are calibrations, with 176 counted runs and no void run.
+    - The judge does not read the certificates of the record yet. A later check can compare each validity with the TTL of the cell.
 - The decisions of the plan of T15. None needs Mark, because no money, account or key is in them.
   - The plan has pairs with no constraint by mesh mode. T15.defaults.14 and T15.array.14 run as a control, because the borders of O10 already restart ztunnel under ambient.
   - O17 moves through `tcp_retries2` of the client pod. The PING of ztunnel is a constant, and the middlebox half of O17 is the line of O03.

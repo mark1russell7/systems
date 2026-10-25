@@ -2,7 +2,7 @@
 title: gRPC through Istio in kind
 sidebar:
   label: gRPC through Istio
-description: The T15 cells in kind on the runners of GitHub, with grpc-js through two hops of an Istio 1.31.3 mesh to grpc-go. Of 15 cells, 13 hold and 2 are calibrations.
+description: The T15 cells in kind on the runners of GitHub, with grpc-js through two hops of an Istio 1.31.3 mesh to grpc-go. Of 16 cells, 14 hold and 2 are calibrations.
 ---
 
 import { KindResults } from "../../../components/RunResults.tsx";
@@ -14,9 +14,9 @@ These are the results of the T15 cells over gRPC, from 2026-10-25. Each cell ope
 
 The mesh has two flavors. In the sidecar flavor, each pod has an Envoy sidecar. In the ambient flavor, the ztunnel of each node carries the calls over HBONE: HTTP/2 tunnels between the nodes.
 
-CI started the cells in two kind runs, on hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000. The run [40181243549](https://github.com/mark1russell7/systems/actions/runs/40181243549) started each of the 15 cells, on 7 shards. The run [40202010754](https://github.com/mark1russell7/systems/actions/runs/40202010754) started 3 cells again, after two fixes.
+CI started the cells in three kind runs, on hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000. The run [40181243549](https://github.com/mark1russell7/systems/actions/runs/40181243549) started each of the 15 cells, on 7 shards. The run [40202010754](https://github.com/mark1russell7/systems/actions/runs/40202010754) started 3 cells again, after two fixes. The run [40220699919](https://github.com/mark1russell7/systems/actions/runs/40220699919) started T15.border-off.92, on 1 shard.
 
-Of the 15 cells, 13 hold against the prediction, and 2 are the calibrations of the propagation. No run of the 165 is void. The script judges each record again with the catalog, and each verdict agrees with the summary of its run.
+Of the 16 cells, 14 hold against the prediction, and 2 are the calibrations of the propagation. No run of the 176 is void. The script judges each record again with the catalog, and each verdict agrees with the summary of its run.
 
 Two cells failed in the first run, and each one holds in the next run:
 
@@ -34,6 +34,7 @@ Two cells failed in the first run, and each one holds in the next run:
 - **O17: tcp_retries2 of the client pod decides who gives up first.** With 6, the PING timeout ends the tunnel, at 28.164 s to 28.517 s. With 4, TCP gives up first, at 15.079 s to 15.621 s.
 - **O10: the deadline of the drain of ztunnel.** With a deadline of 29 s in a grace of 30 s, ztunnel ends each flow at 29.018 s to 29.093 s. With 31 s, the SIGKILL at the end of the grace ends it, at 30.016 s to 30.089 s.
 - **O02: the pool of ztunnel releases an unused tunnel 300 s after its last checkout.** The tunnel closed 300.02 s to 300.062 s after the fault, in each run.
+- **O22: an open tunnel outlives its certificate.** Each workload certificate was valid for 600 s, after a backdate of 120 s. The clients stayed busy for 630 s, and no socket ended in any run. A renewal changes no open connection.
 - **A restart of ztunnel fails no call in the sidecar flavor.** No ztunnel is on the path of a pod with a sidecar.
 
 ## The sidecar flavor
@@ -44,7 +45,7 @@ Two cells failed in the first run, and each one holds in the next run:
 
 <KindResults template="T15" group="hbone" client:visible />
 
-## The borders of O03, O17 and O02
+## The borders of O03, O17, O02 and O22
 
 <KindResults template="T15" group="borders" client:visible />
 
@@ -54,9 +55,8 @@ Two cells failed in the first run, and each one holds in the next run:
 
 ## The cells that are not on this page
 
-The plan of T15 over gRPC has 22 cells. This page has 13 of them, and the two calibrations. 6 cells of the plan are aliases of these cells. 1 cell waits for its run, and 2 cells wait with their reasons:
+The plan of T15 over gRPC has 22 cells. This page has 14 of them, and the two calibrations. 6 cells of the plan are aliases of these cells. 2 cells wait with their reasons:
 
-- **T15.border-off.92, the border of O22, waits for its kind run.** The cell sets the lifetime of each workload certificate of ztunnel to 600 s, and its clients stay busy for 630 s. The prediction is that no socket ends: an open tunnel outlives its certificate. The lab reads the certificates of each ztunnel at the fault and at the heal.
 - **T15.border-off.78 waits.** The outside of O02 needs a release at or after an idle close of the peer. The ztunnel of the server has no idle close.
 - **T15.border-off.91 waits.** The inside of O22 needs a maximum age of a connection. The pool of ztunnel has no such setting. Thus no setting of ztunnel ends a busy tunnel before its certificate expires.
 
