@@ -151,8 +151,9 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
   const cell = z.object({
     id: z.string(),
     name: z.string(),
-    template: z.enum(["T07", "T18"]),
+    template: z.enum(["T07", "T15", "T18"]),
     stack: z.enum(["service", "grpc"]).optional(),
+    mesh: z.object({ flavor: z.enum(["sidecar", "ambient"]), mode: z.enum(["sidecar", "ambient"]) }).optional(),
     substitutes: z.string().nullable(),
     mode: z.enum(MODES),
     workers: count,

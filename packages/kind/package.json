@@ -1,12 +1,13 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/kind",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "Kubernetes in Docker as a lab for connection timers: a kind cluster from a scenario, faults in the namespaces of its pods, observations on the one monotonic clock of the VM, and predictions from the ordering law. Its judge entry reads and judges a raw record without Docker.",
   "keywords": [
     "kubernetes",
     "kind",
     "kube-proxy",
+    "istio",
     "endpoints",
     "readiness",
     "graceful-shutdown",
@@ -48,6 +49,7 @@
     "src/backends.ts",
     "src/conntrack.ts",
     "src/drops.ts",
+    "src/eds.ts",
     "README.md",
     "LICENSE"
   ],

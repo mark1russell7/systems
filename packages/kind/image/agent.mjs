@@ -9,17 +9,23 @@
 //                              handshake that stopped for a second (`stalled`). Each line
 //                              `rules-alive` also counts the reads of the table (`ct`). Each
 //                              second it reads the counters of dropped packets of the node and
-//                              of each client pod, and prints each one that grew (`drops`)
+//                              of each client pod, and prints each one that grew (`drops`).
+//                              As /tmp/eds.json asks, it starts the EDS poller of each client pod
+//                              of the node, and stops it when the file goes
+//   node agent.mjs eds JSON    the EDS poller: in the network namespace of a client pod (nsenter -n),
+//                              it reads /clusters of the Envoy of the sidecar each `every` ms, and
+//                              prints the hosts of the server cluster at each change (`eds`)
 //   node agent.mjs act JSON    does one act and prints its stamps on CLOCK_MONOTONIC
 //
 // The acts: signal (a signal to a PID), pause (SIGSTOP, then SIGCONT after ms), write (a file, for
 // example cpu.max or a flag file in the root of a container), remove (a file), stall (the stall
 // seam of the app: the ms in /tmp/lab-stall, then SIGUSR2), and now.
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { backendsOf } from "./backends.ts";
 import { entriesOf, flowsOf, staleOf, stalledOf } from "./conntrack.ts";
 import { devOf, grownOf, snmpOf, softnetOf, unresolvedOf } from "./drops.ts";
+import { clusterFilter, hostsOf } from "./eds.ts";
 
 const now = () => Number(process.hrtime.bigint()) / 1e6;
 const node = process.env.NODE_NAME ?? "";
@@ -254,6 +260,97 @@ const serve = async () => {
   }
 };
 
+/**
+ * the EDS pollers of the node: /tmp/eds.json gives the server cluster, the interval and each client
+ * pod of the node with a PID in it. The agent starts one poller for each pod in the network
+ * namespace of that PID, and stops each one when the file changes or goes. nsenter -n keeps the
+ * mount namespace of the agent, thus the poller is this file, and its clock is the one of the VM
+ */
+const pollers = async () => {
+  let config = null;
+  let children = [];
+  const stop = () => {
+    for (const child of children) child.kill("SIGKILL");
+    children = [];
+  };
+  for (;;) {
+    let text = null;
+    let spec = null;
+    try {
+      text = existsSync("/tmp/eds.json") ? readFileSync("/tmp/eds.json", "utf8") : null;
+      spec = text === null ? null : JSON.parse(text);
+    } catch (error) {
+      say({ ev: "eds-fail", t: now(), why: String(error?.message ?? error).slice(0, 300) });
+      text = config;
+    }
+    if (text !== config) {
+      stop();
+      config = text;
+      if (spec !== null) {
+        for (const { pod, pid } of spec.pods) {
+          const argv = ["-t", String(pid), "-n", "--", process.execPath, process.argv[1], "eds", JSON.stringify({ cluster: spec.cluster, every: spec.every, pod })];
+          const child = spawn("nsenter", argv, { stdio: ["ignore", "inherit", "inherit"] });
+          child.on("exit", (code, signal) => {
+            if (signal !== "SIGKILL") say({ ev: "eds-exit", t: now(), pod, code, signal });
+          });
+          child.on("error", (error) => say({ ev: "eds-fail", t: now(), pod, why: String(error?.message ?? error).slice(0, 300) }));
+          children.push(child);
+        }
+        say({ ev: "eds-start", t: now(), cluster: spec.cluster, every: spec.every, pods: spec.pods.map((each) => each.pod) });
+      }
+    }
+    await sleep(250);
+  }
+};
+
+/**
+ * one EDS poller. The admin endpoint of the sidecar is 127.0.0.1:15000 in the namespace of the pod
+ * (envoy_bootstrap.json of Istio 1.31.3). The filter of /clusters keeps the server cluster only
+ * (clusters_handler.cc of Envoy v1.39.4). A line comes at each change of its hosts, with the start of
+ * the poll before it (`prev`), as a rules line. Each second, a line `eds-alive` counts the polls
+ */
+const eds = async ({ cluster, every, pod }) => {
+  const url = `http://127.0.0.1:15000/clusters?filter=${encodeURIComponent(clusterFilter(cluster))}`;
+  let last = null;
+  let previous = null;
+  let failure = null;
+  let polls = 0;
+  let spent = 0;
+  let beat = now();
+  for (;;) {
+    const t = now();
+    try {
+      const response = await fetch(url, { signal: AbortSignal.timeout(1000) });
+      const text = await response.text();
+      const took = now() - t;
+      polls += 1;
+      spent += took;
+      if (!response.ok) throw new Error(`the admin endpoint answered ${response.status}: ${text.slice(0, 200)}`);
+      const { b, u } = hostsOf(text, cluster);
+      const key = JSON.stringify([b, u]);
+      if (key !== last) {
+        say({ ev: "eds", t, prev: previous, pod, took: Math.round(took * 1000) / 1000, b, ...(Object.keys(u).length === 0 ? {} : { u }) });
+        last = key;
+      }
+      failure = null;
+    } catch (error) {
+      // each failure once, until a poll succeeds
+      const why = String(error?.message ?? error).slice(0, 300);
+      if (why !== failure) say({ ev: "eds-fail", t, pod, why });
+      failure = why;
+    }
+    previous = t;
+    if (t - beat >= 1000) {
+      say({ ev: "eds-alive", t, pod, polls, ms: polls === 0 ? 0 : Math.round((spent / polls) * 100) / 100 });
+      beat = t;
+      polls = 0;
+      spent = 0;
+    }
+    const wait = every - (now() - t);
+    if (wait > 0) await sleep(wait);
+  }
+};
+
 const act = async (spec) => {
   const t0 = now();
   if (spec.op === "now") return { t0, t1: t0 };
@@ -292,7 +389,10 @@ const act = async (spec) => {
 const [mode, arg] = process.argv.slice(2);
 if (mode === "serve") {
   say({ ev: "agent", what: "start", t: now() });
+  void pollers();
   await serve();
+} else if (mode === "eds") {
+  await eds(JSON.parse(arg));
 } else if (mode === "act") {
   const spec = JSON.parse(arg);
   try {

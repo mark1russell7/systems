@@ -11,9 +11,11 @@ import { command, createCluster } from "./cluster.ts";
 import type { Step } from "./faults.ts";
 import { NODE, POD, VERSION, deletes as deletesAPod, planOf } from "./faults.ts";
 import { labImage } from "./image.ts";
+import type { MeshImages } from "./istio.ts";
+import { EDS_EVERY, ISTIO_IMAGES, installMesh, meshKey, serverCluster } from "./istio.ts";
 import type { KindLab, Line, Stamp } from "./lab.ts";
 import { localPin, openKindLab } from "./lab.ts";
-import { CLIENT, REDIS, REDIS_IMAGE, SERVER, clientObjects, namespaceOf, redisObjects, serverObjects, stackOf } from "./manifests.ts";
+import { CLIENT, REDIS, REDIS_IMAGE, SERVER, clientObjects, namespaceObject, namespaceOf, redisObjects, serverObjects, stackOf } from "./manifests.ts";
 import type { PodLine, Request } from "./observe.ts";
 import { byClients } from "./observe.ts";
 import type { EnvironmentManifest, KindCellRecord, KindCellResult, LoadSample } from "./record.ts";
@@ -45,18 +47,26 @@ const slug = (name: string): string => name.toLowerCase().replace(/[^a-z0-9]+/g,
 /** This function tells if a cell has Redis: only a declaration of the service can have it. */
 const hasRedis = (cell: KindCell): boolean => cell.declaration !== null && cell.declaration.redis !== null;
 
-/** These are the images of a cluster: the lab, Redis, and grpc-go when a cell of the cluster has the stack `grpc`. */
+/** These are the images of a cluster: the lab, Redis, grpc-go for the stack `grpc`, and Istio for a mesh. */
 interface Images {
   readonly lab: string;
   readonly redis: string;
   readonly grpc?: string | undefined;
+  readonly mesh?: MeshImages | undefined;
 }
 
-/** This tracker keeps the latest state of the cell from the lines: each pod, each slice, the backends of each node and each client. */
+/** This function gives the key of the cluster of a cell: its kube-proxy mode, its node count, and the flavor of its mesh. */
+const clusterKey = (cell: KindCell): string => (cell.mesh === undefined ? `${cell.mode}-${cell.workers}` : `${cell.mode}-${cell.workers}-${cell.mesh.flavor}`);
+
+/**
+ * This tracker keeps the latest state of the cell from the lines: each pod, each slice and each
+ * client. It also has, for each node, the backends of its rules and the hosts of its client sidecar.
+ */
 class Tracker {
   readonly pods = new Map<string, PodLine>();
   readonly slices = new Map<string, Line>();
   readonly backends = new Map<string, readonly string[]>();
+  readonly hosts = new Map<string, readonly string[]>();
   readonly clients = new Map<string, { node: string; ok: number; failed: number }>();
   /** This map is the backend of the last answer of each client, by client. */
   readonly answers = new Map<string, string>();
@@ -72,6 +82,8 @@ class Tracker {
       else this.slices.set(String(line["name"]), line);
     } else if (line.ev === "rules") {
       this.backends.set(String(line["node"]), line["b"] as readonly string[]);
+    } else if (line.ev === "eds") {
+      this.hosts.set(String(line["node"]), line["b"] as readonly string[]);
     } else if (line.ev === "req") {
       const request = line as unknown as Request;
       const client = this.clients.get(request.p) ?? { node: request.n, ok: 0, failed: 0 };
@@ -125,6 +137,10 @@ const unsteady = (ctx: Context): string | null => {
   const expected = ips.map((ip) => `${ip}:8080`).sort().join();
   for (const node of ctx.cluster.nodes)
     if ((tracker.backends.get(node) ?? []).join() !== expected) return `the rules of ${node} have ${(tracker.backends.get(node) ?? []).join(" ")}`;
+  // in a sidecar mesh, the client sidecar of each node picks the backend of each call from its endpoints
+  if (cell.mesh?.mode === "sidecar")
+    for (const node of ctx.cluster.nodes)
+      if ((tracker.hosts.get(node) ?? []).join() !== expected) return `the client sidecar of ${node} has ${(tracker.hosts.get(node) ?? []).join(" ") || "no host"}`;
   const nodes = new Set([...tracker.clients.values()].map((client) => client.node));
   if (nodes.size !== ctx.cluster.nodes.length) return `clients answer on ${nodes.size} nodes`;
   for (const [pod, client] of tracker.clients) {
@@ -181,7 +197,7 @@ const quiet = async (ctx: Context, ours: ReadonlySet<string>): Promise<LoadSampl
  * the backoff of grpc-js longer, up to 120 s.
  */
 const deploy = async (lab: KindLab, cluster: Cluster, cell: KindCell, namespace: string, images: Images): Promise<string> => {
-  await cluster.apply([{ apiVersion: "v1", kind: "Namespace", metadata: { name: namespace } }]);
+  await cluster.apply([namespaceObject(cell, namespace)]);
   await lab.watch([namespace]);
   if (hasRedis(cell)) {
     await cluster.apply(redisObjects(namespace, images.redis));
@@ -197,7 +213,25 @@ const deploy = async (lab: KindLab, cluster: Cluster, cell: KindCell, namespace:
   if (grpc) await cluster.apply(clients);
   await cluster.kubectl(["-n", namespace, "rollout", "status", `daemonset/${CLIENT}`, "--timeout=300s"]);
   await lab.rules({ mode: cluster.scenario.kubeProxy.mode, ns: namespace, svc: SERVER, ip: clusterIp, port: 80, every: RULES_EVERY });
+  if (cell.mesh?.mode === "sidecar") await pollEndpoints(lab, cluster, namespace);
   return clusterIp;
+};
+
+/**
+ * This function starts the EDS poll of the client sidecar on each node: the hosts of the server
+ * cluster, each 50 ms. The agent enters the network namespace of the client pod through the PID of
+ * its client process. The sidecar shares that namespace.
+ */
+const pollEndpoints = async (lab: KindLab, cluster: Cluster, namespace: string): Promise<void> => {
+  const listed = JSON.parse(await cluster.kubectl(["-n", namespace, "get", "pods", "-l", `app=${CLIENT}`, "-o", "json"])) as {
+    items: Array<{ metadata: { name: string; deletionTimestamp?: string }; spec: { nodeName?: string } }>;
+  };
+  const pods: Array<{ node: string; pod: string; pid: number }> = [];
+  for (const item of listed.items.filter((each) => each.metadata.deletionTimestamp === undefined)) {
+    const node = item.spec.nodeName ?? "";
+    pods.push({ node, pod: item.metadata.name, pid: await lab.pidOf(node, namespace, item.metadata.name, CLIENT) });
+  }
+  await lab.eds({ cluster: serverCluster(namespace), every: EDS_EVERY, pods });
 };
 
 /** This function starts the prober again when the pods of the cell changed: it watches the namespace of each pod. */
@@ -312,7 +346,7 @@ const over = (
     const now = pod === undefined ? 0 : pod.cs.reduce((sum, status) => sum + status.rc, 0);
     return now > (run.restarts.get(run.target.pod) ?? 0);
   }
-  if (run.target !== null && ["pod-deletion", "node-drain", "scale-in", "freeze-process"].includes(kind) && ctx.cell.template === "T07")
+  if (run.target !== null && ["pod-deletion", "node-drain", "scale-in", "freeze-process"].includes(kind) && (ctx.cell.template === "T07" || ctx.cell.template === "T15"))
     return kind === "scale-in" || kind === "node-drain"
       ? run.replicas.some((replica) => !ctx.tracker.pods.has(replica.pod))
       : !ctx.tracker.pods.has(run.target.pod);
@@ -465,16 +499,22 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
   const redisImage = await localPin(REDIS_IMAGE);
   // the server of the stack grpc: the image of grpc-go of the harness, built from its tag
   const grpcImage = cells.some((cell) => stackOf(cell) === "grpc") ? await imageOf({ kind: "shipped", name: "grpc-go" }) : undefined;
-  const images: Images = { lab: image, redis: redisImage, grpc: grpcImage };
+  // Istio: each image pulled once by its digest, and tagged with it, for `kind load`
+  const meshImages: MeshImages | undefined = cells.some((cell) => cell.mesh !== undefined)
+    ? { pilot: await localPin(ISTIO_IMAGES.pilot), proxy: await localPin(ISTIO_IMAGES.proxy) }
+    : undefined;
+  const images: Images = { lab: image, redis: redisImage, grpc: grpcImage, mesh: meshImages };
+  // the cells of one kube-proxy mode, node count and mesh flavor share a cluster
   const groups = new Map<string, KindCell[]>();
-  for (const cell of cells) groups.set(`${cell.mode}-${cell.workers}`, [...(groups.get(`${cell.mode}-${cell.workers}`) ?? []), cell]);
+  for (const cell of cells) groups.set(clusterKey(cell), [...(groups.get(clusterKey(cell)) ?? []), cell]);
   const results: KindCellResult[] = [];
   for (const [key, group] of groups) {
     const partial = new Map<string, { runs: KindRun[]; manifests: EnvironmentManifest[]; loads: LoadSample[] }>();
     for (let env = 0; env < environments; env += 1) {
       const s = scenario(`lab-${key}-${env}`, group[0]!.mode, group[0]!.workers);
       const dir = join(options.work ?? join(tmpdir(), "systems-kind-work"), s.name);
-      options.log(`cluster ${s.name}: ${s.kubeProxy.mode}, ${s.workers} workers`);
+      const mesh = group[0]!.mesh;
+      options.log(`cluster ${s.name}: ${s.kubeProxy.mode}, ${s.workers} workers${mesh === undefined ? "" : `, Istio ${mesh.flavor}`}`);
       const cluster = await createCluster(s, dir);
       let lab: KindLab | null = null;
       let loader: StartedTestContainer | null = null;
@@ -482,6 +522,13 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
         await cluster.load(image);
         await cluster.load(redisImage);
         if (grpcImage !== undefined && group.some((cell) => stackOf(cell) === "grpc")) await cluster.load(grpcImage);
+        if (mesh !== undefined) {
+          if (images.mesh === undefined) throw new Error(`${group[0]!.name}: the run has no images of Istio`);
+          for (const each of [images.mesh.pilot, images.mesh.proxy]) await cluster.load(each);
+          const began = Date.now();
+          await installMesh(cluster, mesh.flavor, images.mesh);
+          options.log(`  Istio ${mesh.flavor} installed in ${Math.round((Date.now() - began) / 100) / 10} s`);
+        }
         lab = await openKindLab(cluster, image);
         const { GenericContainer } = await import("testcontainers");
         const Shared = class extends GenericContainer {
@@ -508,7 +555,17 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
             for (let index = 0; index < share; index += 1) runs.push(await runOnce(ctx, env, index, false, ours));
             const entry = partial.get(cell.name) ?? { runs: [], manifests: [], loads: [] };
             entry.runs.push(...runs);
-            entry.manifests.push({ env, scenario: s, cluster: manifest, images: { lab: image, redis: redisImage, ...(stackOf(cell) === "grpc" ? { grpc: grpcImage! } : {}) } });
+            entry.manifests.push({
+              env,
+              scenario: s,
+              cluster: manifest,
+              images: {
+                lab: image,
+                redis: redisImage,
+                ...(stackOf(cell) === "grpc" ? { grpc: grpcImage! } : {}),
+                ...(cell.mesh === undefined ? {} : { "istio-pilot": ISTIO_IMAGES.pilot, "istio-proxy": ISTIO_IMAGES.proxy }),
+              },
+            });
             entry.loads.push(...loads);
             partial.set(cell.name, entry);
             mkdirSync(join(options.out, "partial"), { recursive: true });
@@ -516,6 +573,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
           } finally {
             off();
             await lab.rules(null).catch(() => undefined);
+            await lab.eds(null).catch(() => undefined);
             await lab.stopProbe();
             await cluster.kubectl(["delete", "namespace", namespace, "--wait=true", "--timeout=300s"]).catch((error: unknown) => options.log(`  ${String(error)}`));
           }
@@ -555,7 +613,9 @@ const estimate = (cell: KindCell, environments = 2): number => {
   const after = observationAfter(cell);
   const observed = after === null ? 0 : hold + valueIn(after, "s");
   const each = 25 + Math.max(observed, trigger[cell.trigger.kind] ?? (cell.template === "T18" ? hold + 35 : 15 + valueIn(cell.pod.preStop, "s")));
-  return 60 * environments + (cell.runs + environments) * each;
+  // the install of Istio in each cluster takes 1 to 2 min
+  const setup = cell.mesh === undefined ? 60 : 180;
+  return setup * environments + (cell.runs + environments) * each;
 };
 
 /**
@@ -567,12 +627,14 @@ export const estimatedTime = (cell: KindCell, environments = 2): Quantity => ({ 
 
 /**
  * This function gives the share of a shard of a catalog: cells in sequence. Thus the cells of one
- * mode stay together and share clusters. Each shard gets an equal share of the estimated time.
+ * mode and one mesh flavor stay together and share clusters. Each shard gets an equal share of the
+ * estimated time. In one mode, the cells with no mesh come first, in the sequence of the catalog.
  */
 export const shardOf = <T extends KindCell>(cells: readonly T[], index: number, count: number): T[] => {
   if (!(Number.isInteger(index) && Number.isInteger(count) && count >= 1 && index >= 0 && index < count))
     throw new RangeError(`shard ${index} of ${count} is not a shard`);
-  const ordered = [...cells].sort((a, b) => (a.mode === b.mode ? 0 : a.mode < b.mode ? -1 : 1));
+  const rank = (cell: KindCell): string => `${cell.mode}/${meshKey(cell) === "none" ? "" : meshKey(cell)}`;
+  const ordered = [...cells].sort((a, b) => (rank(a) === rank(b) ? 0 : rank(a) < rank(b) ? -1 : 1));
   const total = ordered.reduce((sum, cell) => sum + estimate(cell), 0);
   const out: T[] = [];
   let before = 0;

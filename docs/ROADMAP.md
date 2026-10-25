@@ -944,6 +944,30 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - The rules dropped each old pod 1.365 s after its deletion at the most, in the new bound of 1.618 s.
   - In CAL.T07.ipvs, a change in the wait after a sync reached the rules 0.293 s to 0.368 s after `minSyncPeriod`. That count starts at the change that started the sync. It is less than two idle propagations, 0.618 s.
   - In the drains and the scale-in, calls failed in 16 of 33 runs, and each failed call was refused. Under DP29 (T07.array.46), the rules dropped each old pod 1.056 s after its deletion at the most.
+- The plan of T15 over gRPC: grpc-js through two hops of an Istio 1.31.3 mesh in the kind lab, to grpc-go. R3 gives 22 cells. 14 start, 6 are aliases and 2 wait.
+  - Each step is a pull request that `kind.yml` starts with `only='^T15'` and 11 runs of each cell. Each step merges on green and on the verdicts in `summary.ndjson`.
+  - Step 1: the sidecar flavor in kind, with istioctl and the images pinned. The calibration of the propagation to each client sidecar, and T15.defaults.13 as a measurement.
+  - Step 2: the documents of the sidecar and of pilot-agent, and the trigger `authorization-policy`. T15.defaults.13 gets its band, and T15.defaults.5 starts.
+  - Step 3: the ambient flavor, with istio-cni, ztunnel and the document `ztunnel-hbone`. T15.defaults.12 is a reset on the HBONE leg.
+  - Step 4: a line at each close of the socket of a client, and the trigger `idle`. T15.defaults.2 is a black hole, and T15.defaults.10 is an idle gap.
+  - Step 5: the restarts of ztunnel. T15.defaults.14 is a control, and T15.border-off.85 and .86 are the borders of O10.
+  - Step 6: the borders of O03, O17 and O02, with a conntrack middlebox and a sysctl of a pod.
+  - Step 7: O22, the 2 cells that wait with their reasons, and the page of the results.
+- The decisions of the plan of T15. None needs Mark, because no money, account or key is in them.
+  - The plan has pairs with no constraint by mesh mode. T15.defaults.14 and T15.array.14 run as a control, because the borders of O10 already restart ztunnel under ambient.
+  - O17 moves through `tcp_retries2` of the client pod. The PING of ztunnel is a constant, and the middlebox half of O17 is the line of O03.
+  - The middlebox of O03 is a conntrack timeout in the namespace of the server pod, because kind has no router between its nodes. The cell names the substitution.
+  - The lab uses Istio 1.31.3, not the 1.31.1 of R3, because it is the newest patch. Its release notes change no default that a cell reads.
+  - Each image loads with `kind load` under a tag that holds its digest, as the images of Redis and grpc-go do. A pull-through registry on the kind network is the fallback.
+- Step 1 of T15 (kind 0.3.0). A cell can name a mesh (`mesh`), and the template `T15` is new. The cells of one mesh flavor share a cluster.
+  - The install is `istioctl install` of 1.31.3, pinned by the sha256 of its tar file. The digests of their index on Docker Hub pin istiod and the proxy.
+  - The profile is `minimal`, not `default`: the profile `default` also has an ingress gateway, which no cell uses. The init container of the injector gets the image of the proxy too.
+  - The agent polls `/clusters` of each client sidecar each 50 ms, with a filter that selects the server cluster. The propagation of a sidecar cell comes from these polls, not from the rules.
+  - The watcher follows each sidecar. It keeps each access line of a failure, a retry or a local reply, and it only counts the other lines.
+  - The release notes of 1.31.2 and 1.31.3 change no default of the retries, the timeouts, the drain or the native sidecars.
+  - 1.31.2 makes the push of EDS cheaper, and 1.31.3 sends some unhealthy endpoints of a ServiceEntry. Neither changes the drop of an endpoint with the condition `terminating`, and the calibration measures the push at 1.31.3.
+  - The injector of 1.31.3 changes a gRPC probe into an HTTP probe of pilot-agent (`app_probe.go`, lines 143–155). Then pilot-agent sends the gRPC check, with the service of the probe (`status/server.go`, lines 1194–1253).
+  - The job raises the inotify limits of the runner to 512 instances and 524288 watches, the values of the known issues of kind.
 
 ## Kubernetes
 

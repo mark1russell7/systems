@@ -65,6 +65,7 @@ The tests read three real records of `/1` (`test/records/`): a cell that holds, 
 - **The scenario** (`scenario.ts`) is the cluster as data: its nodes, its version, the mode and the sync periods of kube-proxy, its CNI and its subnets. `kindConfig(scenario)` generates the configuration of kind from it.
 - **The node image** is `kindest/node:v1.37.0`, pinned by digest, the default of kind v0.33.0. The research names v1.37.1 for some defaults. The patch release is the mismatch.
 - **The tools** (`tools.ts`) are kind v0.33.0 and kubectl v1.37.0. The lab downloads each one into `.cache/` in this package, and it compares the sha256 with the pinned value at each use. `KIND_CACHE` names another folder. The lab installs nothing on the system, and the same code works on Linux, macOS and Windows.
+- **istioctl 1.31.3** (`ISTIOCTL`) comes in a gzipped tar file. The pinned sha256 is that of the tar file. The cache keeps the tar file, and each use examines it and takes the tool from it again (`tarEntry`). The release has a zip file for Windows, thus Windows has no asset of istioctl.
 - **The isolation.** Each cluster gets its own Docker network, its own kubeconfig and its own cache for kubectl, in its run folder. The lab refuses a pod or service subnet that overlaps a Docker network.
 
 ## The lab
@@ -81,8 +82,13 @@ The tests read three real records of `/1` (`test/records/`): a cell that holds, 
   - Each second, the agent reads the counters of dropped packets (`drops.ts`), and it writes a `drops` line with each counter that grew. For the node, these are the drops of the backlogs, the squeezes of the softirqs, and the drops of each veth.
   - For each client pod, the agent reads `/proc/<pid>/net`. These counters are the IP discards, the sends with no route, the failed connects, the drops of its interfaces, and its neighbors with no address. From 0.1.5, they also count the ICMP errors of an unreachable destination. A refusal by a reject rule is such an error, not a reset. A SYN that does not get to the conntrack of the node leaves its trace in one of them.
 - **The rules of each node.** The agent reads the rules of kube-proxy in the namespaces of the node each 50 ms: `iptables-save`, `nft list table ip kube-proxy`, or `/proc/net/ip_vs`. It writes a line when the backends of the Service change (`backends.ts`). A backend of IPVS with the weight zero takes no new connection, thus it is not a backend.
+- **The endpoints of each client sidecar.** From 0.3.0, in a sidecar mesh, the agent also polls the Envoy of the client sidecar on its node each 50 ms (`eds`). The client sidecar picks the backend of each call, thus these endpoints and not the rules are the propagation of the cell (`propagationSource`).
+  - A poller enters the network namespace of the client pod (`nsenter -n`). It reads `/clusters` on `127.0.0.1:15000` with a filter that selects the server cluster (`eds.ts`).
+  - Each change of the healthy hosts gives an `eds` line with the start of the poll before it. That line has the form of a rules line. Each second, an `eds-alive` line counts the polls and gives their mean time.
 - **The injector of each node** is the image of the harness, in the PID namespace of the node. `crictl` on the node gives the PID of a container, and `nsenter -n` enters the network namespace of its pod. The injector of the harness then applies its rules there.
 - **The watcher** is a container on the network of the cluster. It watches the pods, the EndpointSlices and the events through the API, and it follows the log of each pod of the cell.
+  - From 0.3.0, it also follows the sidecar of Istio (`istio-proxy`), and a pod line gives the state of the sidecar (`sc`). Each line of the sidecar becomes a `proxy` line, stamped at its arrival. Its own stamps are of the wall clock, thus no band reads them.
+  - The access line of a call that succeeded at its first try is only counted, in a `proxy-ok` line each second. The record keeps each failure, each retry and each local reply, with its response flags and its upstream host.
 - **The prober** of the harness watches the network namespace of each pod, by its inode. The lab keeps its resets, errors and retransmissions, and it counts the other records.
 
 Each pod of a cluster shares the kernel of the Docker VM. Thus each stamp of the agent, the injector, the watcher, the clients, the service and the prober is on the same CLOCK_MONOTONIC.
@@ -103,6 +109,21 @@ From 0.2.0, a cell names its stack (`stack`): its server and its clients. A cell
   - From 0.2.2, the trigger `liveness-restart` has a seam in grpc-go. The server gets `--fail-file /tmp/lab-fail`, and the liveness probe is the gRPC probe of the service `liveness` (`probeOf` with a `service`). While the flag file exists, that check answers NOT_SERVING. The readiness probe stays the check of `""`, thus the endpoint stays ready until the kubelet stops the container.
 
 A declaration that can be null changes the type `KindCell`. That is a breaking change before 1.0.0, thus the version is 0.2.0.
+
+## The mesh
+
+From 0.3.0, a cell can name a mesh (`mesh`): Istio 1.31.3 in its cluster. This is the template `T15`, the lifecycle of T07 through two mesh hops.
+
+- **The field.** `mesh.flavor` is the install: `sidecar` is istiod only. `mesh.mode` is the data plane of the pods of the cell. The flavor `ambient` comes in step 3 of the plan, and the lab refuses it until then.
+- **The cluster.** The cells of one kube-proxy mode, one node count and one mesh flavor share a cluster. `shardOf` keeps them together, and in each mode the cells with no mesh come first.
+- **The install.** `installMesh` writes the IstioOperator of the flavor (`istioOperator`), and `istioctl install` applies it with the kubeconfig of the cluster. Then the lab waits for istiod.
+- **The values.** The profile is `minimal`, because the profile `default` also has an ingress gateway. The pod of istiod requests 256 MiB, with one replica and no autoscaler. The access log of each sidecar goes to its output as JSON (`ACCESS_LOG_FORMAT`).
+- **The images.** `ISTIO_IMAGES` pins istiod and the proxy by the digest of their index on Docker Hub. The lab pulls each one by its digest and tags it with that digest (`localPin`). Then `kind load` puts it on each node.
+- **No pull.** Each image is a full reference, thus the charts use it as it is. The init container of the injector gets the image of the proxy too. `imagePullPolicy` is `Never`, thus an image that the lab did not load fails the install.
+- **The namespace.** In the sidecar mode, the namespace of the cell has the label `istio-injection=enabled` (`namespaceObject`). The injector then puts a native sidecar in each pod: an init container that runs beside the app, because each kubelet is at least 1.33.
+- **The probes.** The injector changes the gRPC probe of grpc-go into an HTTP probe of pilot-agent. Then pilot-agent sends the gRPC check to the app, with the service of the probe.
+
+A new member of the union `Template` breaks a reader that switches on it. That is a breaking change before 1.0.0, thus the version is 0.3.0. The record format stays `/2`, with the optional field `mesh`. A judge before 0.3.0 cannot read a record of T15.
 
 ## The image
 
@@ -182,13 +203,14 @@ A preStop sleep that is longer than the grace is a command in the container (`sh
 
 `pnpm --filter @mark1russell7/kind test` starts the tests of the configuration, the tools, the parser of the rules and the fault mapping. It also starts the tests of the predictions, the verdict and the judge of the real records. They do not need Docker.
 
-The catalogs are in `@systems/cells` (`t07.ts`, `t18.ts`). `KIND_LAB=1` starts them in kind.
+The catalogs are in `@systems/cells` (`t07.ts`, `t18.ts`, `grpc/t07.ts` and `grpc/t15.ts`). `KIND_LAB=1` starts them in kind.
 
 ## CI
 
 The cells operate on the runners of GitHub, and not on a machine that does other work (`.github/workflows/kind.yml`). Each shard gets a runner, and each job makes its own clusters and deletes them.
 
 - **The modes of the kernel.** kube-proxy in a node container uses the modules of the host kernel. Thus the job loads `ip_vs` and `nf_tables` first. A cell of a mode that the kernel cannot do waits, and `summary.ndjson` tells why.
+- **The inotify limits.** The pods of each node share the inotify limits of the kernel of the runner. Thus the job raises them to 512 instances and 524288 watches, the values of the known issues of kind.
 - **The shards.** `shardOf` gives each shard an equal share of the estimated time, and the cells of one mode stay together. Thus a shard makes few clusters.
 - **The output.** Each job uploads its raw records, `summary.ndjson`, and what the runner is. The run folder of each cluster stays out of the output, because a kubeconfig holds credentials.
 - **A pull request** that changes the workflow starts a smoke run: the calibration of each mode, with 2 runs on one cluster.

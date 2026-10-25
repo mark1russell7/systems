@@ -1,8 +1,8 @@
 // @mark1russell7/kind: Kubernetes in Docker as an environment of the systems program. A scenario
 // gives the configuration of kind. The lab finds the namespace of a pod through its node, and the
 // injector and the prober of the harness work there. Each observation is on the one monotonic clock
-// of the VM, and the ordering law gives the predictions. This entry holds each part: the lab, and
-// all of the entry `@mark1russell7/kind/judge`.
+// of the VM, and the ordering law gives the predictions. This entry holds each part: the lab, the
+// install of Istio, and all of the entry `@mark1russell7/kind/judge`.
 
 export * from "./judge.ts";
 export type { ServiceRule } from "./backends.ts";
@@ -11,12 +11,16 @@ export type { Cluster, Credentials } from "./cluster.ts";
 export { createCluster } from "./cluster.ts";
 export type { Parts } from "./compose.ts";
 export { CONTROLLER, FLAG_CHECK, ROUTE, WATCHDOG, compose } from "./compose.ts";
+export type { ClusterHosts } from "./eds.ts";
+export { clusterFilter, hostsOf, outboundCluster } from "./eds.ts";
 export type { FaultPlan, Step, Target } from "./faults.ts";
 export { deletes, planOf } from "./faults.ts";
 export { labImage, stageLabImage } from "./image.ts";
-export type { KindLab, Stamp } from "./lab.ts";
+export type { MeshImages } from "./istio.ts";
+export { ACCESS_LOG_FORMAT, EDS_EVERY, ISTIO_IMAGES, ISTIO_VERSION, installMesh, istioOperator, meshKey, serverCluster } from "./istio.ts";
+export type { EdsSpec, KindLab, Stamp } from "./lab.ts";
 export { KEPT_KERNEL, localPin, openKindLab } from "./lab.ts";
-export { REDIS_IMAGE, clientObjects, namespaceOf, probeOf, redisObjects, serverObjects, stackOf } from "./manifests.ts";
+export { REDIS_IMAGE, clientObjects, namespaceObject, namespaceOf, probeOf, redisObjects, serverObjects, stackOf } from "./manifests.ts";
 export type { DeletionWindow, Propagation } from "./predict.ts";
 export {
   DOCUMENTED,
@@ -48,4 +52,4 @@ export {
   scenarioProblems,
 } from "./scenario.ts";
 export type { Tool } from "./tools.ts";
-export { KIND, KUBECTL, cacheFolder, ensureTool, platformKey, sha256, toolPath } from "./tools.ts";
+export { ISTIOCTL, KIND, KUBECTL, cacheFolder, ensureTool, platformKey, sha256, tarEntry, toolPath } from "./tools.ts";

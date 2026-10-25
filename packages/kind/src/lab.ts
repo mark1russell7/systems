@@ -19,6 +19,13 @@ export interface Stamp {
 /** These kinds of kernel record stay in the raw record of a run. The lab counts the other kinds and drops them. */
 export const KEPT_KERNEL: ReadonlySet<string> = new Set(["rst_tx", "rst_rx", "rst_v4", "error", "retrans", "begin", "fail"]);
 
+/** An EDS spec is the cluster that the EDS pollers read, their interval, and each client pod with its node and a PID in it. */
+export interface EdsSpec {
+  readonly cluster: string;
+  readonly every: Quantity;
+  readonly pods: ReadonlyArray<{ readonly node: string; readonly pod: string; readonly pid: number }>;
+}
+
 /** These are the sidecars of one node: the agent of the lab and the injector of the harness, in the PID namespace of the node. */
 interface Sidecars {
   readonly agent: StartedTestContainer;
@@ -44,6 +51,12 @@ export interface KindLab {
   stopProbe(): Promise<void>;
   /** This method asks each agent to poll the backends of a Service in the rules of its node, `every` apart, or to stop with null. */
   rules(rule: (ServiceRule & { readonly every: Quantity }) | null): Promise<void>;
+  /**
+   * This method asks each agent to poll the sidecar of each client pod of its node, `every` apart.
+   * Each poll gives the hosts of one cluster. With null, the polls stop. A pod gives the PID of one
+   * of its processes, and the agent enters the network namespace of that PID.
+   */
+  eds(spec: EdsSpec | null): Promise<void>;
   act(node: string, spec: Readonly<Record<string, unknown>>): Promise<Stamp>;
   inject(node: string, pid: number, args: readonly string[]): Promise<Stamp>;
   now(): Promise<number>;
@@ -220,6 +233,16 @@ export const openKindLab = async (cluster: Cluster, image: string): Promise<Kind
       for (const { agent } of sidecars.values()) {
         if (file === null) await output(agent, ["rm", "-f", "/tmp/rules.json"]);
         else await output(agent, ["sh", "-c", `printf '%s' '${file}' > /tmp/rules.json`]);
+      }
+    },
+    async eds(spec) {
+      for (const [node, { agent }] of sidecars) {
+        const pods = spec === null ? [] : spec.pods.filter((pod) => pod.node === node).map(({ pod, pid }) => ({ pod, pid }));
+        // the agent reads the interval of its poll in milliseconds
+        const file = spec === null || pods.length === 0 ? null : JSON.stringify({ cluster: spec.cluster, every: valueIn(spec.every, "ms"), pods });
+        if (file === null) await output(agent, ["rm", "-f", "/tmp/eds.json"]);
+        // a rename is atomic, thus the agent never reads a part of the file
+        else await output(agent, ["sh", "-c", `printf '%s' '${file}' > /tmp/eds.json.partial && mv /tmp/eds.json.partial /tmp/eds.json`]);
       }
     },
     async forgetHandshakes(ip, port) {
