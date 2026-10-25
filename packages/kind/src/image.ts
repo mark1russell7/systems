@@ -97,9 +97,14 @@ export const stageLabImage = (): string => {
 
 let built: Promise<string> | null = null;
 
-/** This function builds the lab image one time for each process, and gives its tag. Docker keeps its layers between builds. */
+/**
+ * This function builds the lab image one time for each process, and gives its tag. Docker keeps its
+ * layers between builds. A build that fails leaves the cache. Thus a later call builds again after a
+ * fault of Docker or of the network.
+ */
 export const labImage = (): Promise<string> => {
-  built ??= (async () => {
+  if (built !== null) return built;
+  const building = (async () => {
     const context = stageLabImage();
     try {
       const tag = contentTag("systems-kind-lab", context);
@@ -110,5 +115,10 @@ export const labImage = (): Promise<string> => {
       rmSync(context, { recursive: true, force: true });
     }
   })();
-  return built;
+  // a failed build does not stay: the next caller tries again
+  building.catch(() => {
+    if (built === building) built = null;
+  });
+  built = building;
+  return building;
 };

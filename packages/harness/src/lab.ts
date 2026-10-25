@@ -184,7 +184,14 @@ export const lines = <T extends { readonly ev: string }>(also?: (line: T) => voi
       if (text.length > 0) other.push(text);
       return;
     }
-    const line = JSON.parse(text) as T;
+    let line: T;
+    try {
+      line = JSON.parse(text) as T;
+    } catch {
+      // not whole JSON, for example an object that the program printed: a throw here stops the lines of the stream
+      other.push(text);
+      return;
+    }
     seen.push(line);
     also?.(line);
     for (const wait of waiting.splice(0)) {
