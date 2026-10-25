@@ -133,7 +133,7 @@ From 0.3.0, a cell can name a mesh (`mesh`): Istio 1.31.3 in its cluster. This i
 From 0.5.0, the lab installs the flavor `ambient` too:
 
 - **The values.** The profile is `ambient`: istiod, istio-cni and ztunnel on each node, and no gateway. `ISTIO_IMAGES` also pins istio-cni and ztunnel, and `MESH_IMAGES` gives the images of each flavor. The chart of ztunnel reads only its own `imagePullPolicy`, thus the operator sets it to `Never` there too.
-- **The namespace.** In the ambient mode, the namespace of the cell has the label `istio.io/dataplane-mode=ambient`. istio-cni then redirects the traffic of each pod to ztunnel in the network namespace of the pod. A pod has no sidecar.
+- **The namespace.** In the ambient mode, the namespace of the cell has the label `istio.io/dataplane-mode=ambient`. Then istio-cni redirects the traffic of each pod to ztunnel in the network namespace of the pod. A pod has no sidecar.
 - **The kernel.** istio-cni writes iptables rules in each pod and on each node. Thus `kind.yml` loads their modules first, and an ambient cell waits when one does not load.
 - **The log of ztunnel.** For a cell in the ambient mode, the watcher follows each ztunnel pod in istio-system (`followsZtunnel`). Each line of its log becomes a `ztunnel` line, stamped at its arrival, and each ztunnel pod is a `ztunnel-pod` line. No band reads them.
 

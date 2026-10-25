@@ -23,10 +23,10 @@ import { backoffOf, lastWait } from "./t07.ts";
  * Step 2 of the plan of T15 gave the deletion its band from the calibration of step 1. The policy
  * got a calibration of its LDS update, and a band from the documented debounce until then.
  *
- * Step 3 adds the ambient mesh: ztunnel on each node, and no sidecar. istio-cni redirects the traffic
- * of each pod to ztunnel in the network namespace of the pod. ztunnel balances each connection, not
- * each call, thus a channel stays on one replica, as in T07. The document `ztunnel-hbone` holds the
- * facts of ztunnel 1.31.3.
+ * Step 3 adds the ambient mesh: ztunnel on each node, and no sidecar. The agent istio-cni redirects
+ * the traffic of each pod to ztunnel in the network namespace of the pod. Each ztunnel balances each
+ * connection, not each call. Thus a channel stays on one replica, as in T07. The document
+ * `ztunnel-hbone` holds the facts of ztunnel 1.31.3.
  */
 
 /** This mesh is the sidecar flavor of Istio 1.31.3 with each pod of the cell in sidecar mode. */

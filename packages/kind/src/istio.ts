@@ -81,7 +81,7 @@ export interface MeshImages {
  * The flavor `ambient` has the profile `ambient`: istiod, istio-cni and ztunnel, and no gateway
  * (manifests/profiles/ambient.yaml of Istio 1.31.3). Its two other images are full references too
  * (templates/daemonset.yaml of the chart of istio-cni, lines 93–96, and of ztunnel, lines 65–68).
- * istio-cni takes the pull policy of `global`. The template of ztunnel reads only its own
+ * The chart of istio-cni takes the pull policy of `global`. The template of ztunnel reads only its own
  * `imagePullPolicy`, thus the operator sets it there too.
  */
 export const istioOperator = (flavor: MeshFlavor, images: MeshImages): Record<string, unknown> => {

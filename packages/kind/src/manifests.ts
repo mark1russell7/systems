@@ -39,7 +39,7 @@ const MESH_LABELS: Readonly<Record<MeshMode, Readonly<Record<string, string>>>> 
  * This function gives the Namespace object of a cell. In the sidecar mode of a mesh, the label
  * `istio-injection=enabled` makes the injector of Istio put a sidecar in each pod of the namespace.
  * In the ambient mode, the label `istio.io/dataplane-mode=ambient` makes istio-cni redirect the
- * traffic of each pod of the namespace to ztunnel, in the network namespace of the pod.
+ * traffic of each pod to ztunnel. The listeners of ztunnel are in the network namespace of the pod.
  */
 export const namespaceObject = (cell: Pick<KindCell, "mesh">, namespace: string): Record<string, unknown> => ({
   apiVersion: "v1",

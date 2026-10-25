@@ -8,16 +8,18 @@ const Z = "ztunnel 1.31.3";
 const I = "istio 1.31.3";
 
 /**
- * This document is ztunnel 1.31.3 in the ambient mesh of Istio, in in-pod mode, for one HBONE
- * connection: from the ztunnel of a client pod to the port 15008 of a server pod, with the flows of
- * the apps as its streams. istio-cni redirects each connection of the app to the listener 15001 of
- * ztunnel, in the network namespace of the pod. Thus the HBONE socket has the address of the pod.
+ * This document is ztunnel 1.31.3 in the ambient mesh of Istio, in in-pod mode. It is one HBONE
+ * connection from the ztunnel of a client pod to the port 15008 of a server pod. The flows of the
+ * apps are its streams. The agent istio-cni redirects each connection of an app to the listener
+ * 15001 of ztunnel, in the network namespace of the pod. Thus the HBONE socket has the address of the pod.
  *
  * The PING of the connection has a fixed cadence: 10 s of sleep, a PING, then at most 20 s for its
  * PONG. Both are constants, and data does not put a PING off. Thus a link that fails is found 20 s to
- * 30 s later. At the end of a stream or of its connection, ztunnel shuts down the socket of the app:
- * the app gets a FIN. ztunnel has no idle timeout and no maximum age of a connection. At SIGTERM it
- * sends GOAWAY, and it ends what is left at its deadline of 25 s.
+ * 30 s later.
+ *
+ * At the end of a stream or of its connection, ztunnel shuts down the socket of the app. The app then
+ * gets a FIN. No timer closes an idle connection or an old one. At SIGTERM, ztunnel sends GOAWAY, and
+ * it ends what is left at its deadline of 25 s.
  */
 export const ZTUNNEL_HBONE: Machine = machineSchema.parse({
   format: "mark1russell7.machine/1",

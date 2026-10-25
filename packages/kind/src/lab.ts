@@ -77,8 +77,8 @@ export interface KindLab {
   inject(node: string, pid: number, args: readonly string[]): Promise<Stamp>;
   /**
    * This method gives the rules of one table of iptables in the network namespace of a PID, with
-   * their counters (`iptables-save -c`), as the injector sees them. It also adds them to the lines as
-   * a line `tables`: evidence of which rules matched.
+   * their counters (`iptables-save -c`). The injector reads them. The method also adds them to the
+   * lines as a line `tables`: evidence of which rules matched.
    */
   tables(node: string, pid: number, table: string): Promise<string>;
   now(): Promise<number>;

@@ -29,7 +29,7 @@ export type Step =
   /**
    * This step starts the injector of the harness in the namespace of the target, with each replica of
    * the service as a peer. For the target `servers`, it starts it in the namespace of each replica,
-   * with each client pod as a peer, and the rules of all replicas commit at one instant.
+   * with each client pod as a peer. The rules of all replicas commit at one instant.
    */
   | { readonly do: "inject"; readonly target: Target; readonly action: "blackhole" | "clear" | "rst" | "clear-rst" }
   | { readonly do: "flag"; readonly target: Target; readonly on: boolean }
@@ -93,8 +93,8 @@ export const policyObject = (account: string): Readonly<Record<string, unknown>>
 
 /**
  * This function gives the target of a reset or a black hole of a cell. In T07 and T18 it is Redis,
- * with the replicas as peers. In T15 the fault is on the leg of the mesh between the client pods and
- * the replicas: a rule in each replica, with the client pods as peers.
+ * with the replicas as peers. In T15 the fault is on the mesh leg between the client pods and the
+ * replicas. It is a rule in each replica, with the client pods as peers.
  */
 const linkOf = (cell: KindCell): Target => (cell.template === "T15" ? "servers" : "redis");
 
