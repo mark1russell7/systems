@@ -1,6 +1,7 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { convertExact, convertible, rationals as r } from "@mark1russell7/quantity";
-import type { Dependency, ServiceDescription, Transport } from "./description.ts";
+import { backoffBand } from "./backoff.ts";
+import type { Check, Dependency, ServiceDescription, Transport } from "./description.ts";
 import type { Binding, Bound, Evaluated, Rule, Verdict } from "./law.ts";
 import { evaluate, symbolsOf, verdictOf } from "./law.ts";
 import type { Limiter } from "./limiter/policy.ts";
@@ -295,10 +296,136 @@ const declarationFindings = (svc: ServiceDescription): Finding[] =>
       ]
     : [];
 
+/** This identifier is the rule of the findings about the stall time of a progress check (`Check.marks`). */
+export const PROGRESS_RULE = "progress";
+
+/**
+ * This rule compares the stall time of a progress check with the longest gap between two marks of
+ * the slowest loop that it names. A shorter stall time trips the check while each loop turns on time.
+ */
+const PROGRESS_LAW: Rule = {
+  id: PROGRESS_RULE,
+  rule: "the stall time of a progress check is at least the longest gap between two marks of the slowest loop that it names",
+  window: "a loop that turns on time can trip the check",
+  expr: {
+    lhs: { terms: [{ knob: "stall", coef: 1, at: "check" }] },
+    op: ">=",
+    rhs: { terms: [{ knob: "mark_gap", coef: 1, at: "loop" }] },
+    margin: 0,
+  },
+};
+
+/** A gap is the longest time between two marks of one loop, in seconds, or the knobs that it needs. */
+interface Gap {
+  readonly loop: string;
+  readonly seconds: number | undefined;
+  readonly unbound: readonly string[];
+}
+
+/** These are the knobs of a worker that bound the gap between two of its marks. */
+const WORKER_GAP_KNOBS = ["worker_sleep", "unit_processing_time", "retry_base", "retry_cap"] as const;
+
+/**
+ * This function gives the longest gap between two marks of each loop with a name. The rule counts
+ * a mark at the end of each turn of the loop, also a turn that fails.
+ * - A check polls on a fixed delay from the start of each poll, and each poll ends at its timeout
+ *   at the latest. Thus the gap is `interval × (1 + jitter) + timeout`.
+ * - After an iteration, a lane of a worker waits its sleep, or its backoff after a failure. The
+ *   longest backoff is `retry_cap` plus its jitter of up to `retry_base`. The next iteration then
+ *   takes up to `unit_processing_time`. Thus the gap is the longer wait plus that bound.
+ *
+ * A sleep or a bound without a limit gives a gap without a limit. An iteration that does not end
+ * at its abort can take more time, and the rule does not bound it.
+ */
+const gapsOf = (svc: ServiceDescription, loop: string): Gap[] => {
+  const gaps: Gap[] = svc.checks
+    .filter((check) => check.name === loop)
+    .map((check) => ({
+      loop,
+      seconds: secondsOf(check.poll.interval) * (1 + check.poll.jitter) + secondsOf(check.poll.timeout),
+      unbound: [],
+    }));
+  for (const worker of svc.transports) {
+    if (worker.kind !== "worker" || worker.name !== loop) continue;
+    const knob = (name: string): number | undefined => {
+      const amount = worker.knobs[name];
+      if (amount === undefined || !isTime(amount.unit)) return undefined;
+      return amount.value === "infinite" ? Infinity : secondsOf(amount as Quantity);
+    };
+    const unbound = WORKER_GAP_KNOBS.filter((name) => knob(name) === undefined).map((name) => `${loop}.${name}`);
+    if (unbound.length > 0) {
+      gaps.push({ loop, seconds: undefined, unbound });
+      continue;
+    }
+    const [sleep, unit, base, cap] = WORKER_GAP_KNOBS.map((name) => knob(name)!) as [number, number, number, number];
+    const backoff = Number.isFinite(base) && Number.isFinite(cap)
+      ? backoffBand({ base, factor: 2, cap, jitter: { kind: "add", amount: base } }).high
+      : Infinity;
+    gaps.push({ loop, seconds: Math.max(sleep, backoff) + unit, unbound: [] });
+  }
+  return gaps;
+};
+
+/**
+ * This function gives the findings of each check that names the loops that mark it. A name that is
+ * not a check or a worker of the service gets a finding of its own, with the verdict `depends`.
+ * Without `marks`, a check gets no finding.
+ */
+const progressFindings = (svc: ServiceDescription): Finding[] => {
+  const findings: Finding[] = [];
+  const finding = (check: Check, fields: Pick<Finding, "verdict" | "evaluated" | "unbound"> & Partial<Finding>): Finding => ({
+    rule: PROGRESS_RULE,
+    scope: check.name,
+    statement: PROGRESS_LAW.rule,
+    window: PROGRESS_LAW.window,
+    ...fields,
+  });
+  for (const check of svc.checks) {
+    const marks = check.marks;
+    if (marks === undefined) continue;
+    const gaps: Gap[] = [];
+    for (const loop of marks.loops) {
+      const found = gapsOf(svc, loop);
+      if (found.length > 0) gaps.push(...found);
+      else
+        findings.push(
+          finding(check, {
+            verdict: "depends",
+            statement: "each loop that a progress check names is a check or a worker of the service",
+            window: `the check waits for the marks of ${loop}, and the service has no loop with that name`,
+            evaluated: [],
+            unbound: [loop],
+          }),
+        );
+    }
+    if (gaps.length === 0) continue;
+    const unbound = [
+      ...(isTime(marks.stall.unit) ? [] : [`${check.name}.marks.stall`]),
+      ...gaps.flatMap((gap) => gap.unbound),
+    ];
+    const slowest = gaps.reduce((worst, gap) => ((gap.seconds ?? -Infinity) > (worst.seconds ?? -Infinity) ? gap : worst));
+    const bind: Record<string, Bound> = {};
+    if (isTime(marks.stall.unit)) bind["stall@check"] = boundOf(marks.stall);
+    if (unbound.length === 0 && slowest.seconds !== undefined)
+      bind["mark_gap@loop"] = Number.isFinite(slowest.seconds) ? slowest.seconds : "inf";
+    const evaluated = evaluate(PROGRESS_LAW, bind);
+    findings.push(
+      finding(check, {
+        verdict: verdictOf(PROGRESS_LAW, bind, evaluated),
+        ...(unbound.length === 0 ? { statement: `${PROGRESS_LAW.rule} (${slowest.loop})` } : {}),
+        evaluated,
+        unbound,
+      }),
+    );
+  }
+  return findings;
+};
+
 /**
  * This function applies each service rule to a declaration and a scenario. A rule applies one time
  * for the service, for each client, for each consumer and worker, or for each limiter. The function
  * also gives a finding for each necessary field that the description does not give (`DECLARATION_RULE`).
+ * Each progress check that names its loops also gets its findings (`PROGRESS_RULE`).
  */
 export const lint = (
   svc: ServiceDescription,
@@ -306,7 +433,7 @@ export const lint = (
   rules: readonly Rule[],
 ): Finding[] => {
   const service = serviceBindings(svc, scenario).bind;
-  const findings: Finding[] = [...declarationFindings(svc)];
+  const findings: Finding[] = [...declarationFindings(svc), ...progressFindings(svc)];
   for (const rule of rules) {
     if (!SERVICE_RULES.includes(rule.id)) continue;
     const symbols = symbolsOf(rule);

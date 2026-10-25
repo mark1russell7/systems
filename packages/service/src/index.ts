@@ -20,6 +20,7 @@ export type {
   Gate,
   MessageTrigger,
   Phase,
+  ProgressMarks,
   RepeatSignal,
   ServiceDescription,
   Step,
@@ -33,7 +34,7 @@ export { service } from "./builder.ts";
 export type { Binding, Bound, Evaluated, Inequality, Rule, Side, Term, Verdict } from "./law.ts";
 export { evaluate, inequalities, symbolsOf, verdictOf } from "./law.ts";
 export type { Finding, Scenario } from "./lint.ts";
-export { DECLARATION_RULE, LIMITER_RULES, SERVICE_RULES, lint, serviceBindings } from "./lint.ts";
+export { DECLARATION_RULE, LIMITER_RULES, PROGRESS_RULE, SERVICE_RULES, lint, serviceBindings } from "./lint.ts";
 export type { Cancel, Clock, PlatformClockOptions } from "./clock.ts";
 export { platformClock, realClock } from "./clock.ts";
 export type { Heartbeat, HeartbeatOptions } from "./heartbeat.ts";

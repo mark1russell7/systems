@@ -152,6 +152,25 @@ const isTime = (amount: Extent): boolean => convertible(amount.unit, "s");
 const above = (amount: Extent): boolean =>
   amount.value === "infinite" || (isTime(amount) && valueIn(amount as Quantity, "s") > 0);
 const whole = (count: number): boolean => Number.isInteger(count) && count >= 1;
+/** This function copies a check, with its poll and the loops that mark it. */
+const copyCheck = (check: Check): Check => ({
+  ...check,
+  poll: { ...check.poll },
+  ...(check.marks === undefined ? {} : { marks: { loops: [...check.marks.loops], stall: { ...check.marks.stall } } }),
+});
+/** This function gives the problems of the loops that mark a check. `lint()` compares the stall time with the loops. */
+const marksProblems = (check: Check): string[] => {
+  const marks = check.marks;
+  if (marks === undefined) return [];
+  const problems: string[] = [];
+  if (check.step !== "progress")
+    problems.push(`check ${check.name} names the loops that mark it, but its step is ${check.step}, not progress`);
+  if (marks.loops.length === 0) problems.push(`check ${check.name} names no loop that marks it`);
+  // a description from JSON can give a stall time without a bound, which is not a stall time
+  if (typeof marks.stall.value !== "number" || !above(marks.stall))
+    problems.push(`check ${check.name} has a stall time that is not a time above zero`);
+  return problems;
+};
 
 /** This function gives the problems of a timing: a zero interval or count fails decoding. */
 const timingProblems = (policy: Gate, timing: Timing): string[] => {
@@ -370,11 +389,11 @@ export const service = (name: string): ServiceBuilder => {
       once(checks, check.name, "check");
       if (started && run === undefined)
         throw new Error(`check ${check.name} joins after the start, thus it needs its function`);
-      checks.push({ ...check });
+      checks.push(copyCheck(check));
       if (run !== undefined) runs.set(check.name, run);
       if (started) {
         partial = true;
-        live?.addCheck({ ...check, poll: { ...check.poll } }, run!);
+        live?.addCheck(copyCheck(check), run!);
       }
       return builder;
     },
@@ -523,6 +542,7 @@ export const service = (name: string): ServiceBuilder => {
         }
         if (!(check.poll.jitter >= 0 && check.poll.jitter < 1))
           problems.push(`check ${check.name} has a jitter of ${check.poll.jitter}, not a fraction below 1`);
+        problems.push(...marksProblems(check));
         // a debounce counts the polls of each check that it gates, thus they poll at its interval
         const timing = check.gates === null ? null : policies[check.gates];
         if (
@@ -586,7 +606,7 @@ export const service = (name: string): ServiceBuilder => {
           operations: { ...entry.operations },
         })),
         controllers: controllersOut,
-        checks: checks.map((entry) => ({ ...entry, poll: { ...entry.poll } })),
+        checks: checks.map(copyCheck),
         ...(limiters.length === 0
           ? {}
           : {
