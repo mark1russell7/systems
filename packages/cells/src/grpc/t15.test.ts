@@ -25,21 +25,26 @@ import { T07_GRPC } from "./t07.ts";
 import { backoffOf, lastWait, synWaitOf } from "./t07.ts";
 import {
   AMBIENT,
+  CERT_LIFETIME,
   EDS_CALIBRATION,
+  EXPIRY_HOLD,
   MIDDLEBOX_HOP,
   NEXT_CALL,
   PONG,
   P_EDS,
   P_LDS,
   RELEASE,
+  RENEWAL,
   SIDECAR,
   SIDECAR_IN_AMBIENT,
   SIGNAL_LATE,
   T15_GRPC,
   T15_GRPC_ALIASES,
+  T15_GRPC_WAITING,
   TERM_LATE,
   ZTUNNEL_CONNECT,
   blackholeWindow,
+  certificateMesh,
   deadlineMesh,
   drainEnd,
   forgetEnds,
@@ -82,6 +87,7 @@ describe("the gRPC catalog of T15, steps 2 to 6", () => {
       "T15.border-off.85",
       "T15.border-off.86",
       "T15.border-off.77",
+      "T15.border-off.92",
     ]);
     expect(T15_GRPC.filter((each) => each.mesh?.mode === "ambient").map((each) => each.id)).toEqual([
       "T15.defaults.12",
@@ -94,6 +100,7 @@ describe("the gRPC catalog of T15, steps 2 to 6", () => {
       "T15.border-off.85",
       "T15.border-off.86",
       "T15.border-off.77",
+      "T15.border-off.92",
     ]);
     expect(T15_GRPC.filter((each) => each.mesh?.flavor === "ambient" && each.mesh.mode === "sidecar").map((each) => each.id)).toEqual(["T15.defaults.14"]);
     expect(new Set(T15_GRPC.map((each) => each.name)).size).toBe(T15_GRPC.length);
@@ -324,16 +331,55 @@ describe("the gRPC catalog of T15, steps 2 to 6", () => {
     expect(valueIn(estimatedTime(cell("T15.border-off.79")), "s")).toBe(2 * 180 + 13 * (25 + 125));
     expect(valueIn(estimatedTime(cell("T15.border-off.80")), "s")).toBe(2 * 180 + 13 * (25 + 65));
     expect(valueIn(estimatedTime(cell("T15.border-off.77")), "s")).toBe(2 * 180 + 13 * (25 + 335));
-    // with 7 shards, each gap of 330 s is alone on a shard: the shards 1 and 5
-    expect([0, 1, 2, 3, 4, 5, 6].map((index) => shardOf(T15_GRPC, index, 7).map((each) => each.id))).toEqual([
+    // a run of a certificate expiry: the hold of 630 s and 20 s for the two reads of the certificates
+    expect(valueIn(estimatedTime(cell("T15.border-off.92")), "s")).toBe(2 * 180 + 13 * (25 + 650));
+    // With 8 shards, each gap of 330 s and the expiry of 630 s is alone on a shard. The middle of the
+    // expiry is past the share of the shard 5, thus that shard is empty.
+    expect([0, 1, 2, 3, 4, 5, 6, 7].map((index) => shardOf(T15_GRPC, index, 8).map((each) => each.id))).toEqual([
       ["T15.defaults.12", "T15.defaults.2"],
-      ["T15.defaults.10"],
-      ["T15.border-off.79", "T15.border-off.80"],
-      ["T15.border-off.87", "T15.border-off.88", "T15.defaults.14"],
-      ["T15.border-off.85", "T15.border-off.86"],
+      ["T15.defaults.10", "T15.border-off.79"],
+      ["T15.border-off.80", "T15.border-off.87", "T15.border-off.88"],
+      ["T15.defaults.14", "T15.border-off.85", "T15.border-off.86"],
       ["T15.border-off.77"],
+      [],
+      ["T15.border-off.92"],
       ["CAL.T15.sidecar", "T15.defaults.13", "CAL.T15.policy", "T15.defaults.5"],
     ]);
+  });
+});
+
+describe("the border of O22 of T15, and the cells that wait, step 7", () => {
+  it("gives each workload certificate of ztunnel a lifetime of 600 s, renewed 240 s after its issue", () => {
+    expect(certificateMesh(CERT_LIFETIME)).toEqual({ ...AMBIENT, ztunnel: { SECRET_TTL: "600s" } });
+    // The validity starts 120 s before the issue, thus its middle is (600 + 120) / 2 - 120 s after the issue.
+    expect(RENEWAL).toEqual(s(240));
+    expect(EXPIRY_HOLD).toEqual(s(630));
+    const expiry = cell("T15.border-off.92");
+    expect(expiry).toMatchObject({ mesh: { flavor: "ambient", mode: "ambient", ztunnel: { SECRET_TTL: "600s" } }, trigger: { kind: "certificate-expiry", hold: s(630) }, runs: 11 });
+    expect(followsZtunnel(expiry)).toBe(true);
+    expect(ztunnelEnvArgs(expiry.mesh!.ztunnel!, false)).toEqual(["-n", "istio-system", "set", "env", "daemonset/ztunnel", "SECRET_TTL=600s"]);
+    expect(ztunnelEnvArgs(expiry.mesh!.ztunnel!, true)).toEqual(["-n", "istio-system", "set", "env", "daemonset/ztunnel", "SECRET_TTL-"]);
+  });
+
+  it("predicts no end of a socket: the hold is past the lifetime of each certificate in use at the fault", () => {
+    const expiry = cell("T15.border-off.92");
+    expect(expiry.prediction).toMatchObject({ kind: "ends", from: "fault", band: null });
+    expect(valueIn(EXPIRY_HOLD, "s")).toBeGreaterThan(valueIn(CERT_LIFETIME, "s"));
+    // The read of the certificates is the fault and the heal: the evidence of their lifetime.
+    expect(planOf(expiry)).toEqual({ inject: [{ do: "certificates" }], hold: s(630), heal: [{ do: "certificates" }], restore: [] });
+    for (const cite of ["config.rs of ztunnel 1.31.3, lines 59, 104 and 868", "ca.go, lines 460–469", "certificate.rs, lines 402–408", "manager.rs, lines 408–431", "O22 is violated"])
+      expect(expiry.prediction.why, cite).toContain(cite);
+  });
+
+  it("covers each cell of the plan of T15 over gRPC once: a cell, an alias or a cell that waits with its reason", () => {
+    const counted = T15_GRPC.filter((each) => !each.calibrates).map((each) => each.id);
+    const plan = [...counted, ...T15_GRPC_ALIASES.map((alias) => alias.plan), ...T15_GRPC_WAITING.map((each) => each.plan)];
+    expect(counted.length).toBe(14);
+    expect(T15_GRPC_WAITING.map((each) => each.plan)).toEqual(["T15.border-off.78", "T15.border-off.91"]);
+    expect(plan.length).toBe(22);
+    expect(new Set(plan).size).toBe(22);
+    expect(T15_GRPC_WAITING.find((each) => each.plan === "T15.border-off.78")?.why).toContain("h2/server.rs, lines 140–186");
+    expect(T15_GRPC_WAITING.find((each) => each.plan === "T15.border-off.91")?.why).toContain("config.rs, lines 74–75 and 790–797");
   });
 });
 
@@ -452,8 +498,8 @@ describe("the restarts of ztunnel of T15, step 5", () => {
     expect(cell("T15.border-off.86").mesh).toEqual(deadlineMesh(s(31)));
     expect(ztunnelEnvArgs({ CONNECTION_TERMINATION_DEADLINE: "29s" }, false)).toEqual(["-n", "istio-system", "set", "env", "daemonset/ztunnel", "CONNECTION_TERMINATION_DEADLINE=29s"]);
     expect(ztunnelEnvArgs({ B: "2", A: "1" }, true)).toEqual(["-n", "istio-system", "set", "env", "daemonset/ztunnel", "A-", "B-"]);
-    // no other cell of T15 sets the environment of ztunnel
-    expect(T15_GRPC.filter((each) => each.mesh?.ztunnel !== undefined).map((each) => each.id)).toEqual(["T15.border-off.85", "T15.border-off.86"]);
+    // The only other cell of T15 that sets the environment of ztunnel is the border of O22.
+    expect(T15_GRPC.filter((each) => each.mesh?.ztunnel !== undefined).map((each) => each.id)).toEqual(["T15.border-off.85", "T15.border-off.86", "T15.border-off.92"]);
   });
 
   it("ends the drain at the first of the deadline and the grace of 30 s: the two sides of the line of O10", () => {

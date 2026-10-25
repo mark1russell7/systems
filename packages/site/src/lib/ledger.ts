@@ -15,6 +15,7 @@ import pg from "../data/pg-2026-10-19.json";
 import r3 from "../data/r3-2026-10-17.json";
 import rabbitmq from "../data/rabbitmq-2026-10-19.json";
 import sentinel from "../data/sentinel-2026-10-17.json";
+import t15 from "../data/t15-2026-10-25.json";
 import topologies from "../data/topologies-2026-10-17.json";
 
 /** The count of the cells of each decision. */
@@ -174,6 +175,21 @@ export const LEDGER: readonly Entry[] = [
     heldOnRerun: 0,
     counted: sum(kind.cells, (cell) => cell.counted),
     voided: sum(kind.cells, (cell) => cell.voided),
+  },
+  {
+    key: "mesh",
+    href: "results/mesh/",
+    label: "gRPC through Istio",
+    tags: unique(t15.cells.map((cell) => cell.template)),
+    ranAt: t15.ranAt,
+    kernel: short(t15.kernel),
+    hz: t15.hz,
+    cells: t15.cells.length,
+    tally: tallyOf(t15.cells.map((cell) => cell.decision)),
+    // a re-run replaces its first run in the copy: the counts are of the re-run
+    heldOnRerun: t15.cells.filter((cell) => cell.first === "fails" && cell.decision === "holds").length,
+    counted: sum(t15.cells, (cell) => cell.counted),
+    voided: sum(t15.cells, (cell) => cell.voided),
   },
   {
     key: "r3",

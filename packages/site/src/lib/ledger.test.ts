@@ -27,6 +27,9 @@ describe("the ledger of the results", () => {
     // grpc: "Each of the 48 cells holds or is a measurement. 47 cells hold, and the race of two deadlines is a measurement"
     expect(tally("grpc")).toEqual([48, 47, 0, 1, 0]);
     expect(tally("kind")).toEqual([31, 26, 0, 2, 3]);
+    // mesh: "Of the 15 cells, 13 hold and 2 are calibrations", and the 2 that failed first held on their next run
+    expect(tally("mesh")).toEqual([15, 13, 0, 0, 2]);
+    expect(entryOf("mesh").heldOnRerun).toBe(2);
     // r3: "Of the 115 cells of the queue, 114 hold and 1 is a measurement only", the 9 that failed first
     // held on a re-run, and 6 canonical cells: 1 holds and 5 measure
     expect(tally("r3")).toEqual([121, 115, 0, 6, 0]);
@@ -49,11 +52,13 @@ describe("the ledger of the results", () => {
     expect([entryOf("topologies").counted, entryOf("topologies").voided]).toEqual([506, 0]);
     // kind: "No run of the 341 is void"
     expect([entryOf("kind").counted, entryOf("kind").voided]).toEqual([341, 0]);
+    // mesh: "The cells counted 165 runs, and no run was void"
+    expect([entryOf("mesh").counted, entryOf("mesh").voided]).toEqual([165, 0]);
   });
 
   it("gives the kernel, the clock and the catalogs of each page", () => {
     // the gRPC page: its T03 run met the rollout of Linux 7.0 on the runners
-    expect(LEDGER.map((entry) => `${entry.kernel} ${entry.hz}`)).toEqual(["6.6 250", "6.6 250", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 and 7.0 1000", "6.17 1000", "6.17 1000"]);
+    expect(LEDGER.map((entry) => `${entry.kernel} ${entry.hz}`)).toEqual(["6.6 250", "6.6 250", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 1000", "6.17 and 7.0 1000", "6.17 1000", "6.17 1000", "6.17 1000"]);
     expect(entryOf("pg").tags).toEqual(["T01", "T03", "T10"]);
     expect(entryOf("rabbitmq").tags).toEqual(["T01", "T11"]);
     expect(entryOf("grpc").tags).toEqual(["T01", "T03", "T02"]);
@@ -61,12 +66,13 @@ describe("the ledger of the results", () => {
     expect(entryOf("topologies").tags).toEqual(["T03", "T02", "TOX"]);
     expect(entryOf("sentinel").tags).toEqual(["T12"]);
     expect(entryOf("kind").tags).toEqual(["T07", "T18"]);
+    expect(entryOf("mesh").tags).toEqual(["T15"]);
   });
 
   it("adds the pages into one total", () => {
-    expect([TOTAL.pages, TOTAL.cells]).toEqual([12, 517]);
-    expect(TOTAL.tally).toEqual({ holds: 485, fails: 0, measured: 29, calibration: 3 });
+    expect([TOTAL.pages, TOTAL.cells]).toEqual([13, 532]);
+    expect(TOTAL.tally).toEqual({ holds: 498, fails: 0, measured: 29, calibration: 5 });
     expect(TOTAL.tally.holds + TOTAL.tally.fails + TOTAL.tally.measured + TOTAL.tally.calibration).toBe(TOTAL.cells);
-    expect([TOTAL.first, TOTAL.last]).toEqual(["2026-10-13", "2026-10-20"]);
+    expect([TOTAL.first, TOTAL.last]).toEqual(["2026-10-13", "2026-10-25"]);
   });
 });

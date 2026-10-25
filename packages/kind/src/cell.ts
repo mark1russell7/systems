@@ -61,6 +61,8 @@ export type Stack = "service" | "grpc";
  *   The gap can have a stateful middlebox in each replica (`middlebox`), or a new channel that each
  *   client closes before the gap (`close`).
  * - `ztunnel-restart` deletes the ztunnel pod of each node with its grace. The DaemonSet makes a new pod on each node (T15).
+ * - `certificate-expiry` keeps the calls of each client going for the hold. No act of the lab touches a
+ *   connection. The lab reads the workload certificates of ztunnel at the fault and at the heal (T15).
  * - `none` injects nothing: a calibration measures the path itself.
  */
 export type TriggerKind =
@@ -79,7 +81,8 @@ export type TriggerKind =
   | "cpu-throttle"
   | "authorization-policy"
   | "idle"
-  | "ztunnel-restart";
+  | "ztunnel-restart"
+  | "certificate-expiry";
 
 /**
  * A trigger is its kind and the settings of its fault. The parameter `A` is the form of an amount:

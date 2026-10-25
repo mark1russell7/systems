@@ -8,7 +8,7 @@ import { count, given, seconds } from "../catalog.ts";
 import type { Calibration } from "../kind.ts";
 import { T07_WORKLOAD, WORKERS, calibrated, kubeDefaults, s, say } from "../kind.ts";
 import { MANIFESTATIONS } from "../manifestations.ts";
-import type { Alias } from "../mongo/cells.ts";
+import type { Alias, Waiting } from "../mongo/cells.ts";
 import { linuxValues } from "../mongo/model.ts";
 import type { O03Verdict } from "../topologies.ts";
 import { conntrackValues, o03From } from "../topologies.ts";
@@ -664,10 +664,45 @@ const CONTROL_WHY = [
   "The lines of the ztunnel pods show the restart.",
 ].join(" ");
 
+/** This lifetime is the workload certificate of T15.border-off.92: SECRET_TTL of ztunnel, in place of its default of 24 h. */
+export const CERT_LIFETIME: Quantity = s(600);
+
+/** This time is how far the CA of istiod backdates a certificate: ClockSkewGracePeriod. */
+const CLOCK_SKEW: Quantity = s(120);
+
+/**
+ * This time is from the issue of a certificate to its renewal by ztunnel. The renewal comes at the
+ * middle of the validity, and the validity starts at the backdate.
+ */
+export const RENEWAL: Quantity = s((valueIn(CERT_LIFETIME, "s") + valueIn(CLOCK_SKEW, "s")) / 2 - valueIn(CLOCK_SKEW, "s"));
+
+/** This hold is past the lifetime of each certificate in use at the fault: 30 s more than the lifetime. */
+export const EXPIRY_HOLD: Quantity = sum(CERT_LIFETIME, s(30));
+
+/** This function gives the ambient mesh in which each workload certificate of ztunnel has the lifetime `lifetime`. */
+export const certificateMesh = (lifetime: Quantity): Mesh => ({ ...AMBIENT, ztunnel: { SECRET_TTL: `${valueIn(lifetime, "s")}s` } });
+
+/** This text is why no socket of a client of T15.border-off.92 ends when the certificates of its tunnel expire. */
+const EXPIRY_WHY = [
+  `The cell sets SECRET_TTL of ztunnel to ${say(CERT_LIFETIME)}. Each CSR of ztunnel asks for that lifetime (config.rs of ztunnel 1.31.3, lines 59, 104 and 868, and caclient.rs, line 148).`,
+  "The CA of istiod signs the lifetime of the request. Only a lifetime above 90 days fails, and no minimum exists (server.go of Istio 1.31.3, lines 113–118, and ca.go, lines 460–469).",
+  `The CA backdates each certificate by ${say(CLOCK_SKEW)} (generate_cert.go, lines 285 and 339–351).`,
+  `The renewal of ztunnel comes at the middle of the validity, ${say(RENEWAL)} after the issue (certificate.rs, lines 402–408).`,
+  `Thus the certificate of each tunnel expires at most ${say(CERT_LIFETIME)} after the start of the tunnel. Each tunnel starts before the fault.`,
+  "A new connection of the pool takes the current certificate, and the peer reads it only at the handshake (pool.rs, line 86, and inbound.rs, lines 768–774).",
+  "A renewal changes the certificate only for new connections, and it touches no open one (manager.rs, lines 408–431).",
+  "Only a revocation in the CRL ends an open tunnel for its certificate (pool.rs, lines 102–112, h2/client.rs, lines 238–250, and h2/server.rs, lines 175–185).",
+  "The release of the pool only drops its reference, and HTTP/2 keeps a connection with an open stream (pool.rs, lines 142–146).",
+  "The flow of each client is an open stream on its tunnel, thus no release closes the tunnel.",
+  `The hold is ${say(EXPIRY_HOLD)}, thus each certificate in use at the fault expires in the hold.`,
+  "Thus no socket of a client ends, and the first call after the heal goes on the socket of its last call before the fault.",
+  "The law O22 is violated: the tunnel outlives its certificate. The lines certificates show the validity of each leaf at the fault and at the heal.",
+].join(" ");
+
 /**
  * These are the gRPC cells of T15 for the kind lab. They are two calibrations, the deletion, the
- * policy, the reset, the black hole, the gap and the restarts of ztunnel. The borders of O03, O17 and
- * O02 are cells too.
+ * policy, the reset, the black hole, the gap and the restarts of ztunnel. The borders of O03, O17,
+ * O02 and O22 are cells too.
  */
 export const T15_GRPC: readonly KindCell[] = [
   {
@@ -823,6 +858,41 @@ export const T15_GRPC: readonly KindCell[] = [
     pod: kubeDefaults(2),
     prediction: releaseEnds(IDLE_HOLD, RELEASE_WHY),
     calibrates: false,
+  },
+  {
+    ...BASE,
+    mesh: certificateMesh(CERT_LIFETIME),
+    id: "T15.border-off.92",
+    name: "T15 ambient, gRPC, busy clients for 630 s with certificates of 600 s: the tunnel outlives its certificate",
+    trigger: { kind: "certificate-expiry", hold: EXPIRY_HOLD },
+    pod: kubeDefaults(2),
+    prediction: { kind: "ends", from: "fault", band: null, why: EXPIRY_WHY },
+    calibrates: false,
+  },
+];
+
+/** These are the cells of the plan over grpc-go in T15 that wait, each with the reason from the source of ztunnel 1.31.3. */
+export const T15_GRPC_WAITING: readonly Waiting[] = [
+  {
+    plan: "T15.border-off.78",
+    trigger: "border",
+    why: [
+      "outside O02 needs a release of the pool at or past an idle close of the peer, and the peer ztunnel has no idle close.",
+      "Its HBONE server ends a connection only at the close of the client, a failed PING, a drain or a revocation (h2/server.rs, lines 140–186).",
+      "Its builder sets no idle timeout (lines 110–124). The release only drops the reference of the pool, and it closes nothing (pool.rs, lines 142–146).",
+      "Thus no value of POOL_UNUSED_RELEASE_TIMEOUT puts the pair outside the boundary",
+    ].join(" "),
+  },
+  {
+    plan: "T15.border-off.91",
+    trigger: "border",
+    why: [
+      "inside O22 needs a maximum age of an HBONE connection below the lifetime of its certificate, and ztunnel has no maximum age.",
+      "Its pool has only POOL_MAX_STREAMS_PER_CONNECTION and POOL_UNUSED_RELEASE_TIMEOUT (config.rs, lines 74–75 and 790–797).",
+      "The count of streams is of open streams, and the end of each stream gives one back (h2/client.rs, lines 82–90 and 111–122).",
+      "Thus no knob of ztunnel ends a busy tunnel before its certificate expires.",
+      "A maximum age of grpc-go is a knob of the server, not of ztunnel: that is another pair",
+    ].join(" "),
   },
 ];
 

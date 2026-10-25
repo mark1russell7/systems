@@ -184,6 +184,7 @@ The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`
 | `authorization-policy` | `kubectl apply` of a DENY AuthorizationPolicy on the server pods for the principal of an account (`account`, the account `default` of the clients when not given), then `kubectl delete` after the hold |
 | `idle` | SIGUSR1 to the gRPC client of each client pod, and SIGUSR2 after the hold: a gap of the calls (the target `clients`). The restore sends SIGUSR2 again. With `middlebox`, a stateful middlebox in each replica from before the gap to the restore. With `close`, a new channel at the fault for 5 s: SIGHUP before the fault, then SIGUSR2, a wait and SIGHUP |
 | `ztunnel-restart` | `kubectl delete pod` of the ztunnel pod of each node, with its grace (`ZTUNNEL_PODS`). The flow of each client crosses the ztunnel of its own node. The restore waits for the rollout of the DaemonSet |
+| `certificate-expiry` | No act on a connection: the calls of each client go on for the hold. At the fault and at the heal, istioctl reads the leaf certificates of the ztunnel pod of each node (`ztunnelCertificates`). A line `certificates` keeps their validity, the evidence of their lifetime |
 
 A cgroup path that is not the scope of one container is refused. A write to the root of the node throttles or freezes each pod of the node.
 
@@ -251,6 +252,8 @@ From 0.8.0, a prediction `ends` can be the end of the tunnel of each client (`of
 - The tunnel of a client goes from the address of its pod (`la` of a `sock` line) to that replica at port 15008. Its first change out of ESTABLISHED after the reference must be in the band ± δ. It must be to FIN_WAIT1: the side of the client closes it, and the peer does not close first.
 - The first request of each client after the heal must be `ok`, on a new tunnel. The main value is the middle of the ends, in `s`.
 - From 0.8.1, `ends` has the optional band `answer`. A change to CLOSE_WAIT in that band ± δ also agrees: the peer answers the close of the client, and its FIN comes first. Before the band, the peer closed first.
+
+A new member of the union `TriggerKind`, `certificate-expiry`, and a new member of the union `Step`, `certificates`, break a reader that switches on them. `KindLab` also has a new method, `record`. Each is a breaking change before 1.0.0, thus the version is 0.9.0. The record format stays `/2`: the lines `certificates` are new lines of a run.
 
 In 0.8.1, the middlebox uses the match recent, not the sysctls of conntrack, and `ends` has the optional field `answer`. `SYSCTL` and `NETNS_DEFAULTS` keep only `tcp_retries2`. These fields came in 0.8.0, which was not published. The fix and the optional field are a patch, thus the version is 0.8.1.
 

@@ -58,7 +58,12 @@ export type Step =
    * client pod is a peer, on the local port `port` (`middleboxCommands`). With `idle` null, the step
    * removes the middlebox and its chains.
    */
-  | { readonly do: "middlebox"; readonly target: Target; readonly idle: Quantity | null; readonly port: number };
+  | { readonly do: "middlebox"; readonly target: Target; readonly idle: Quantity | null; readonly port: number }
+  /**
+   * This step reads the workload certificates of the ztunnel pod of each node with istioctl. It adds a
+   * line `certificates` with the validity of each leaf (`ztunnelCertificates`). It changes nothing.
+   */
+  | { readonly do: "certificates" };
 
 /**
  * A fault plan is the steps of a run:
@@ -378,6 +383,15 @@ export const planOf = (cell: KindCell): FaultPlan => {
         hold: null,
         heal: [],
         restore: [{ do: "kubectl", args: ["-n", "istio-system", "rollout", "status", "daemonset/ztunnel", "--timeout=300s"] }],
+      };
+    case "certificate-expiry":
+      // the calls go on through the hold. The reads of the certificates are the evidence of their
+      // lifetime, at the fault and at the heal. Thus a run shows each leaf that expired in the hold
+      return {
+        inject: [{ do: "certificates" }],
+        hold: needs(trigger.hold, "a hold, the time past the lifetime of the certificates"),
+        heal: [{ do: "certificates" }],
+        restore: [],
       };
   }
 };

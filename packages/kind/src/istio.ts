@@ -194,3 +194,58 @@ export const setZtunnelEnv = async (cluster: Cluster, env: Readonly<Record<strin
 
 /** This function tells if the lab polls the LDS updates of the server sidecars of a cell: a policy in a sidecar mesh. */
 export const pollsListeners = (cell: Pick<KindCell, "mesh" | "trigger">): boolean => cell.mesh?.mode === "sidecar" && cell.trigger.kind === "authorization-policy";
+
+/** This is the validity of one leaf certificate of ztunnel, as istioctl gives it: RFC 3339 times. */
+export interface LeafCertificate {
+  readonly pod: string;
+  readonly identity: string;
+  readonly state: string;
+  readonly from: string | null;
+  readonly to: string | null;
+}
+
+/** This function gives the arguments of istioctl that read the certificates of one ztunnel pod as JSON. */
+export const certificateArgs = (pod: string, kubeconfig: string): string[] => [
+  "ztunnel-config",
+  "certificate",
+  `${pod}.istio-system`,
+  "--kubeconfig",
+  kubeconfig,
+  "-o",
+  "json",
+];
+
+/**
+ * This function gives the leaf of each identity in the JSON of `istioctl ztunnel-config certificate`.
+ * The leaf is the first certificate of the chain (certificates.go of istioctl 1.31.3, lines 68–71).
+ * An identity with no chain yet has no times.
+ */
+export const leafCertificates = (pod: string, json: string): LeafCertificate[] => {
+  const dump = JSON.parse(json) as Array<{
+    identity?: string;
+    state?: string;
+    certChain?: Array<{ validFrom?: string; expirationTime?: string }> | null;
+  }>;
+  return dump.map((each) => {
+    const leaf = each.certChain?.[0];
+    return { pod, identity: each.identity ?? "", state: each.state ?? "", from: leaf?.validFrom || null, to: leaf?.expirationTime || null };
+  });
+};
+
+/**
+ * This function reads the leaf certificates of each ztunnel pod that is not going, with istioctl.
+ * The CLI reads the admin port of ztunnel through a port-forward. Each ztunnel binds that port to
+ * localhost only (config.rs of ztunnel 1.31.3, lines 831–835).
+ */
+export const ztunnelCertificates = async (cluster: Cluster): Promise<LeafCertificate[]> => {
+  const istioctl = await ensureTool(ISTIOCTL);
+  const listed = JSON.parse(await cluster.kubectl(["-n", "istio-system", "get", "pods", "-l", ZTUNNEL_PODS, "-o", "json"])) as {
+    items: Array<{ metadata: { name: string; deletionTimestamp?: string } }>;
+  };
+  const out: LeafCertificate[] = [];
+  for (const item of listed.items.filter((each) => each.metadata.deletionTimestamp === undefined)) {
+    const json = await command(istioctl, certificateArgs(item.metadata.name, cluster.kubeconfig), { timeout: 60_000 });
+    out.push(...leafCertificates(item.metadata.name, json));
+  }
+  return out;
+};

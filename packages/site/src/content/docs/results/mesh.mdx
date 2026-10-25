@@ -1,0 +1,67 @@
+---
+title: gRPC through Istio in kind
+sidebar:
+  label: gRPC through Istio
+description: The T15 cells in kind on the runners of GitHub, with grpc-js through two hops of an Istio 1.31.3 mesh to grpc-go. Of 15 cells, 13 hold and 2 are calibrations.
+---
+
+import { KindResults } from "../../../components/RunResults.tsx";
+import { Summary } from "../../../components/Ledger.tsx";
+
+<Summary of="mesh" />
+
+These are the results of the T15 cells over gRPC, from 2026-10-25. Each cell operates in kind: Kubernetes 1.37.0 in Docker, with one control plane and two workers. A client of grpc-js on each node calls the server of grpc-go through two hops of an Istio 1.31.3 mesh.
+
+The mesh has two flavors. In the sidecar flavor, each pod has an Envoy sidecar. In the ambient flavor, the ztunnel of each node carries the calls over HBONE: HTTP/2 tunnels between the nodes.
+
+CI started the cells in two kind runs, on hosted runners of GitHub. The kernel is Linux 6.17, with HZ 1000. The run [40181243549](https://github.com/mark1russell7/systems/actions/runs/40181243549) started each of the 15 cells, on 7 shards. The run [40202010754](https://github.com/mark1russell7/systems/actions/runs/40202010754) started 3 cells again, after two fixes.
+
+Of the 15 cells, 13 hold against the prediction, and 2 are the calibrations of the propagation. No run of the 165 is void. The script judges each record again with the catalog, and each verdict agrees with the summary of its run.
+
+Two cells failed in the first run, and each one holds in the next run:
+
+- **The lab of T15.border-off.79 was wrong.** Its middlebox used the sysctls of conntrack, and these also forgot the local leg from ztunnel to grpc-go. The CNI agent of Istio needs its conntrack entry, thus each of the 11 runs failed. Since kind 0.8.1, the middlebox is a table of the match recent, and conntrack stays as it is. T15.border-off.80 runs again with the same middlebox.
+- **The prediction of T15.border-off.77 was too strict.** The server answers the GOAWAY of the client at once, and its FIN can come first. In 2 of the 11 runs, it did. The band `answer` accepts that close as an answer, up to one round trip and one step of ztunnel after the band.
+
+## What the cells found
+
+- **The sidecar flavor propagates in a quarter of a second.** Each client sidecar dropped a deleted pod 121 ms to 193 ms after the deletion. A policy reached each server sidecar 227 ms to 455 ms after its apply. With no preStop, the retries of the client sidecar kept each deletion to 1 failed call at the most.
+- **A policy that denies the clients fails each call in its window.** The median run had 2,247 denied calls in 15 s, and each one started in the window of the prediction.
+- **A reset on the HBONE leg fails the calls until the backoff of grpc-js connects again.** The median run had 2,248 failed calls, each in the window of the prediction.
+- **The PING of ztunnel ends a tunnel behind a black hole.** The socket of grpc-js ended 20.029 s to 29.826 s after the fault: one PING after a sleep of 10 s, then its timeout of 20 s.
+- **Nothing in the mesh ends an idle connection.** After 330 s with no call, no socket of a client ended, and each client called again on its socket.
+- **O03: the PING of ztunnel keeps a flow through a middlebox that forgets it at 11 s.** A middlebox at 9 s forgets the flow before the PING. Then the PING timeout ends the tunnel, and the socket ended 38.693 s to 38.904 s after the fault.
+- **O17: tcp_retries2 of the client pod decides who gives up first.** With 6, the PING timeout ends the tunnel, at 28.164 s to 28.517 s. With 4, TCP gives up first, at 15.079 s to 15.621 s.
+- **O10: the deadline of the drain of ztunnel.** With a deadline of 29 s in a grace of 30 s, ztunnel ends each flow at 29.018 s to 29.093 s. With 31 s, the SIGKILL at the end of the grace ends it, at 30.016 s to 30.089 s.
+- **O02: the pool of ztunnel releases an unused tunnel 300 s after its last checkout.** The tunnel closed 300.02 s to 300.062 s after the fault, in each run.
+- **A restart of ztunnel fails no call in the sidecar flavor.** No ztunnel is on the path of a pod with a sidecar.
+
+## The sidecar flavor
+
+<KindResults template="T15" group="sidecar" client:visible />
+
+## The ambient flavor at the defaults
+
+<KindResults template="T15" group="hbone" client:visible />
+
+## The borders of O03, O17 and O02
+
+<KindResults template="T15" group="borders" client:visible />
+
+## A restart of ztunnel
+
+<KindResults template="T15" group="restart" client:visible />
+
+## The cells that are not on this page
+
+The plan of T15 over gRPC has 22 cells. This page has 13 of them, and the two calibrations. 6 cells of the plan are aliases of these cells. 1 cell waits for its run, and 2 cells wait with their reasons:
+
+- **T15.border-off.92, the border of O22, waits for its kind run.** The cell sets the lifetime of each workload certificate of ztunnel to 600 s, and its clients stay busy for 630 s. The prediction is that no socket ends: an open tunnel outlives its certificate. The lab reads the certificates of each ztunnel at the fault and at the heal.
+- **T15.border-off.78 waits.** The outside of O02 needs a release at or after an idle close of the peer. The ztunnel of the server has no idle close.
+- **T15.border-off.91 waits.** The inside of O22 needs a maximum age of a connection. The pool of ztunnel has no such setting. Thus no setting of ztunnel ends a busy tunnel before its certificate expires.
+
+## Where the data comes from
+
+Each runner wrote a raw record of each of its cells. A record has the cell and the manifests of its clusters. It also has each run with the lines of the clients, of the watcher and of the agent of each node.
+
+The script `packages/site/scripts/kind.ts` judges each record with the cell of the same id in the catalog. A later run of a cell replaces its first run, also when the cell has a new name. The script stops when a verdict disagrees with the summary of the run. The cells and their predictions are in the [catalog of T15](https://github.com/mark1russell7/systems/tree/main/packages/cells/src/grpc).
