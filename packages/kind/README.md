@@ -152,6 +152,8 @@ The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`
 - **The seams** of the service are a flag file that fails its liveness check, and SIGUSR2. SIGUSR2 blocks its event loop for the time in a file.
 - **The clients** (`client.mjs`) send requests on new connections to the ClusterIP. Each request gives one line with its outcome: ok, 503, refused, reset, timeout or unreachable. From 0.1.3, each line also gives the local port of its connection (`lp`), a refused one's too. A conntrack entry is per port. Thus the requests on the port of a failure show the connection before it, and the pod that it went to.
 - **The gRPC clients** (`client-grpc.mjs`) hold one channel of grpc-js 1.14.6 to the ClusterIP, and send a call of `grpc.health.v1.Health/Check` each interval on it. Each call gives the line of a request of `client.mjs`, with the pod that answered (the header `x-pod`). A call that fails at once names the errno of the last connect: refused, reset or unreachable. A call of grpc-js has no deadline at its defaults. Thus a call with no answer in the timeout is a timeout, and the client cancels it.
+  - From 0.6.0, each socket of the channel also gives a `sock` line at its connect and at its close (`client-lines.ts`). Each line gives the local port of the socket (`lp`). The close line keeps the port of the connect, and it gives the code of the error of the socket (`err`), or null.
+  - From 0.6.0, SIGUSR1 stops the calls of the client, and SIGUSR2 starts them again. Each signal gives a `gap` line. The channel and its socket stay open in the gap. A listener of SIGUSR1 replaces the start of the inspector of Node at that signal.
 
 ## The triggers
 
@@ -172,6 +174,7 @@ The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`
 | `rollout` | no Redis pod, then a rolling update |
 | `cpu-throttle` | `cpu.max` in the cgroup of the container of the first replica |
 | `authorization-policy` | `kubectl apply` of a DENY AuthorizationPolicy on the server pods for the principal of an account (`account`, the account `default` of the clients when not given), then `kubectl delete` after the hold |
+| `idle` | SIGUSR1 to the gRPC client of each client pod, and SIGUSR2 after the hold: a gap of the calls (the target `clients`). The restore sends SIGUSR2 again |
 
 A cgroup path that is not the scope of one container is refused. A write to the root of the node throttles or freezes each pod of the node.
 
@@ -218,6 +221,15 @@ From 0.4.0, a window can count from the heal (`heal`), the first act that ends t
 - For a policy, the propagation of a window is the LDS update of each server sidecar, after the apply and after the delete (`updatesOf`). An update after the band agrees with the law, and the cell is `extend`.
 - A denial after the window, before the last update after the delete and one more call, is a `tail`. A denied call has no pod, because the sidecar answers it. Thus the judge reads the last update of each server sidecar.
 - `calibrationOf` gives the updates after the apply by node, and the updates after the delete (`heal`).
+
+From 0.6.0, the prediction `ends` is the end of the socket of each client, from the `sock` lines. A client of the run is a client with an answer before the reference.
+
+- With a band, the first close of a socket of each client after the reference must be in the band ± δ. It must be the socket of its last answer. The main value is the middle of these times, in `s`.
+- With no band, no socket of a client can close after the reference. The first request of each client after the heal must be `ok` on the socket of its last answer. The main value is the count of the closes, in `{socket}`.
+- With a window (`window`), the failed requests must also agree with that window. The observation lasts until each socket can end, and until each request of the window ended.
+- The facts of a run give the first close of each client after the reference (`closes`).
+
+A new member of the union `Prediction`, `ends`, and a new member of the union `TriggerKind`, `idle`, break a reader that switches on them. The union `Target` has the new member `clients` too. Each is a breaking change before 1.0.0, thus the version is 0.6.0. The record format stays `/2`, with the optional field `closes`: the lines `sock` and `gap` are new lines of a run.
 
 A new member of the union `Target`, `servers`, breaks a reader that switches on it. `KindLab` also has a new method, `tables`, which each implementation must have. Each is a breaking change before 1.0.0, thus the version is 0.5.0. The record format stays `/2`: the lines `tables`, `ztunnel` and `ztunnel-pod` are new lines of a run.
 

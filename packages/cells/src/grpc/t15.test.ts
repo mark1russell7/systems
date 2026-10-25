@@ -18,8 +18,24 @@ import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import { PROPAGATION, calibrated, ms, s } from "../kind.ts";
 import { T07_GRPC } from "./t07.ts";
-import { backoffOf, lastWait } from "./t07.ts";
-import { AMBIENT, EDS_CALIBRATION, NEXT_CALL, P_EDS, P_LDS, SIDECAR, T15_GRPC, T15_GRPC_ALIASES, policyWindow, resetWindow, sidecarDeletion } from "./t15.ts";
+import { backoffOf, lastWait, synWaitOf } from "./t07.ts";
+import {
+  AMBIENT,
+  EDS_CALIBRATION,
+  NEXT_CALL,
+  PONG,
+  P_EDS,
+  P_LDS,
+  SIDECAR,
+  T15_GRPC,
+  T15_GRPC_ALIASES,
+  ZTUNNEL_CONNECT,
+  blackholeWindow,
+  longestSynGap,
+  policyWindow,
+  resetWindow,
+  sidecarDeletion,
+} from "./t15.ts";
 
 const cell = (id: string): KindCell => {
   const found = T15_GRPC.find((each) => each.id === id);
@@ -30,10 +46,10 @@ const cell = (id: string): KindCell => {
 /** These are the cells of the sidecar mesh: steps 1 and 2. */
 const SIDECAR_CELLS = T15_GRPC.filter((each) => each.mesh === SIDECAR);
 
-describe("the gRPC catalog of T15, steps 2 and 3", () => {
-  it("has the calibrations, the deletion and the policy, each in the sidecar mesh, the reset in the ambient mesh, and each name once", () => {
-    expect(T15_GRPC.map((each) => each.id)).toEqual(["CAL.T15.sidecar", "T15.defaults.13", "CAL.T15.policy", "T15.defaults.5", "T15.defaults.12"]);
-    expect(T15_GRPC.filter((each) => each.mesh === AMBIENT).map((each) => each.id)).toEqual(["T15.defaults.12"]);
+describe("the gRPC catalog of T15, steps 2 to 4", () => {
+  it("has the calibrations, the deletion and the policy, each in the sidecar mesh, the reset, the black hole and the gap in the ambient mesh, and each name once", () => {
+    expect(T15_GRPC.map((each) => each.id)).toEqual(["CAL.T15.sidecar", "T15.defaults.13", "CAL.T15.policy", "T15.defaults.5", "T15.defaults.12", "T15.defaults.2", "T15.defaults.10"]);
+    expect(T15_GRPC.filter((each) => each.mesh === AMBIENT).map((each) => each.id)).toEqual(["T15.defaults.12", "T15.defaults.2", "T15.defaults.10"]);
     expect(new Set(T15_GRPC.map((each) => each.name)).size).toBe(T15_GRPC.length);
     expect(new Set(T15_GRPC.map(namespaceOf)).size).toBe(T15_GRPC.length);
     for (const each of SIDECAR_CELLS) {
@@ -144,12 +160,75 @@ describe("the gRPC catalog of T15, steps 2 and 3", () => {
     expect(propagationSource(reset)).toBe("rules");
   });
 
-  it("aliases the array cells of the deletion, the policy and the reset to the cells at the defaults", () => {
+  it("gives the black hole a close from the PING of ztunnel, and a window to the next SYN after the heal", () => {
+    const hole = cell("T15.defaults.2");
+    expect(hole.trigger).toEqual({ kind: "blackhole", hold: s(45) });
+    expect(hole.pod).toMatchObject({ replicas: 2, preStop: s(0), grace: s(30) });
+    // the timer pong: a PING 10 s after the last PONG, then 20 s for its PONG, late by two steps
+    expect(PONG).toEqual({ lo: 20, hi: 30.02 });
+    expect(ZTUNNEL_CONNECT).toEqual({ lo: 10, hi: 10.01 });
+    // the SYNs of a connect of 10.01 s: 5 waits of 1 s (the linear timeouts of Linux), then a wait of 2 s, thus the last SYN at 7 s.
+    // The longest time to the next try is the rest of the connect: at the timeout, a new connect sends its SYN at once
+    const gap = longestSynGap(ZTUNNEL_CONNECT.hi);
+    const last = [0, 1, 2, 3, 4, 5].reduce((at, k) => at + synWaitOf(k).lo, 0);
+    expect(last + synWaitOf(6).lo).toBeGreaterThan(ZTUNNEL_CONNECT.hi);
+    expect(gap).toBe(Math.round((ZTUNNEL_CONNECT.hi - last) * 1e6) / 1e6);
+    expect(gap).toBeCloseTo(3.016, 6);
+    expect(gap).toBeGreaterThan(synWaitOf(5).hi);
+    expect(hole.prediction).toMatchObject({
+      kind: "ends",
+      from: "fault",
+      band: { lo: s(20), hi: s(30.03) },
+      window: {
+        kind: "window",
+        nodes: "all",
+        start: { from: "fault", band: { lo: s(0), hi: s(0.03) } },
+        end: { from: "heal", band: { lo: s(-2), hi: s(Math.round((gap + 0.03) * 1e6) / 1e6) } },
+        certain: true,
+        outcomes: ["timeout", "error", "reset"],
+      },
+    });
+    const ends = hole.prediction as { readonly why: string; readonly window: { readonly why: string } };
+    expect(hole.prediction).toEqual(blackholeWindow(s(45), ends.why, ends.window.why));
+    expect(ends.why).toContain("h2.rs of ztunnel 1.31.3");
+    expect(ends.window.why).toContain("proxy.rs of ztunnel 1.31.3, line 645");
+    // the heal comes by 47 s: at most the connect 2 after the end of the connection, and the wait 2 is shorter than a connect
+    expect(backoffOf(2).hi).toBeLessThan(ZTUNNEL_CONNECT.lo);
+    expect(() => blackholeWindow(s(60), "a test", "a test")).toThrow(/the wait 4 of grpc-js/);
+    expect(() => blackholeWindow(s(30), "a test", "a test")).toThrow(/ends before the PING/);
+    const plan = planOf(hole);
+    expect([plan.inject, plan.heal]).toEqual([[{ do: "inject", target: "servers", action: "blackhole" }], [{ do: "inject", target: "servers", action: "clear" }]]);
+  });
+
+  it("gives the gap no end of a socket: longer than the release of the pool and the keepalive of ztunnel, shorter than each idle timer", () => {
+    const gap = cell("T15.defaults.10");
+    expect(gap.trigger).toEqual({ kind: "idle", hold: s(330) });
+    expect(gap.prediction).toMatchObject({ kind: "ends", from: "fault", band: null });
+    expect(gap.prediction.why).toContain("pool.rs");
+    expect(gap.prediction.why).toContain("internal-channel.ts of grpc-js 1.14.6");
+    expect(gap.prediction.why).toContain("defaults.go of grpc-go v1.84.0");
+    const hold = valueIn(gap.trigger.hold!, "s");
+    // the release of the pool at 300 s and the keepalive at 180 s come in the gap, and the IDLE of grpc-js at 30 min does not
+    expect(hold).toBeGreaterThan(300);
+    expect(hold).toBeGreaterThan(180);
+    expect(hold).toBeLessThan(1800);
+    expect(planOf(gap)).toEqual({
+      inject: [{ do: "signal", target: "clients", signal: "SIGUSR1" }],
+      hold: s(330),
+      heal: [{ do: "signal", target: "clients", signal: "SIGUSR2" }],
+      restore: [{ do: "signal", target: "clients", signal: "SIGUSR2" }],
+    });
+  });
+
+  it("aliases the array cells of the deletion, the policy, the reset, the black hole and the gap to the cells at the defaults", () => {
     expect(T15_GRPC_ALIASES.map((alias) => [alias.plan, alias.is])).toEqual([
       ["T15.array.13", "T15.defaults.13"],
       ["T15.array.5", "T15.defaults.5"],
       ["T15.array.12", "T15.defaults.12"],
+      ["T15.array.2", "T15.defaults.2"],
+      ["T15.array.10", "T15.defaults.10"],
     ]);
+    expect(T15_GRPC_ALIASES.find((alias) => alias.plan === "T15.array.10")?.why).toContain("workload.proto");
     expect(T15_GRPC_ALIASES.find((alias) => alias.plan === "T15.array.12")?.why).toContain("workload.proto");
     for (const alias of T15_GRPC_ALIASES) expect(() => cell(alias.is), alias.plan).not.toThrow();
   });
@@ -184,5 +263,14 @@ describe("the gRPC catalog of T15, steps 2 and 3", () => {
     const reset = cell("T15.defaults.12");
     const end = valueIn((reset.prediction as { end: { band: { hi: { value: number; unit: string } } } }).end.band.hi, "s");
     expect(valueIn(estimatedTime(reset), "s")).toBeCloseTo(2 * 180 + 13 * (25 + 10 + end + 2 + 0.1), 1);
+    // a run of the black hole: the hold, the end of the window after the heal, the timeout and the noise
+    const hole = cell("T15.defaults.2");
+    const after = valueIn((hole.prediction as { window: { end: { band: { hi: { value: number; unit: string } } } } }).window.end.band.hi, "s");
+    expect(valueIn(estimatedTime(hole), "s")).toBeCloseTo(2 * 180 + 13 * (25 + 45 + after + 2 + 0.1), 1);
+    // a run of the gap: 25 s at rest, the gap of 330 s and 5 s after it
+    expect(valueIn(estimatedTime(cell("T15.defaults.10")), "s")).toBe(2 * 180 + 13 * (25 + 335));
+    // with 3 shards, the gap is alone on the shard 1
+    expect(shardOf(T15_GRPC, 1, 3).map((each) => each.id)).toEqual(["T15.defaults.10"]);
+    expect(shardOf(T15_GRPC, 0, 3).map((each) => each.id)).toEqual(["T15.defaults.12", "T15.defaults.2"]);
   });
 });

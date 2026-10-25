@@ -105,6 +105,18 @@ describe("the install of Istio", () => {
     expect(planOf(cellOf("rst", undefined, "T18")).inject).toEqual([{ do: "inject", target: "redis", action: "rst" }]);
     expect(() => planOf({ ...ambient, trigger: { kind: "rst" } })).toThrow(/a hold/);
   });
+
+  it("stops the calls of each client for the hold of a gap, and starts them again at the heal and at the restore", () => {
+    const gap: KindCell = { ...cellOf("idle"), template: "T15", stack: "grpc", mesh: AMBIENT, declaration: null, trigger: { kind: "idle", hold: { value: 330, unit: "s" } } };
+    expect(planOf(gap)).toEqual({
+      inject: [{ do: "signal", target: "clients", signal: "SIGUSR1" }],
+      hold: { value: 330, unit: "s" },
+      heal: [{ do: "signal", target: "clients", signal: "SIGUSR2" }],
+      restore: [{ do: "signal", target: "clients", signal: "SIGUSR2" }],
+    });
+    expect(deletes(gap)).toBe(false);
+    expect(() => planOf({ ...gap, trigger: { kind: "idle" } })).toThrow(/a hold, the time of the gap/);
+  });
 });
 
 describe("the hosts of a cluster in a sidecar", () => {

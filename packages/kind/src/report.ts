@@ -43,7 +43,7 @@ const atBand = (from: string, band: Band): string => {
   return lo === 0 && hi === 0 ? `the ${from}` : `the ${from} + ${showBand(band)}`;
 };
 
-/** This function gives the prediction of a cell in a short form for a table. */
+/** This function gives the prediction of a cell in a short form for a table. A prediction `ends` gives its window after its band. */
 export const predictionText = (prediction: Prediction): string => {
   switch (prediction.kind) {
     case "none":
@@ -62,6 +62,10 @@ export const predictionText = (prediction: Prediction): string => {
       return "stays ready, no refusal";
     case "stalls":
       return "the rollout waits for Redis";
+    case "ends": {
+      const closes = prediction.band === null ? "no socket of a client ends, and each one calls again on its socket" : `the socket of each client ends in ${atBand(prediction.from, prediction.band)}`;
+      return prediction.window === undefined ? closes : `${closes}; ${predictionText(prediction.window)}`;
+    }
     case "measured":
       return "measured";
   }

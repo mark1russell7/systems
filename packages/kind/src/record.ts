@@ -1,6 +1,6 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { seconds } from "./bands.ts";
-import type { Band, KindCell, KindRun, Prediction, Trigger } from "./cell.ts";
+import type { Band, KindCell, KindRun, Prediction, Trigger, WindowPrediction } from "./cell.ts";
 import type { KindScenario } from "./scenario.ts";
 import type { KindVerdict, Propagated, RunCheck, RunFacts } from "./verdict.ts";
 import { judgeKind, unitOf } from "./verdict.ts";
@@ -91,17 +91,25 @@ const upgradeTrigger = (trigger: TriggerV1): Trigger => {
   return cpuMax === undefined ? rest : { ...rest, cpuMax: { quota: microseconds(cpuMax.quota), period: microseconds(cpuMax.period) } };
 };
 
+const upgradeWindow = (window: WindowPrediction<number>): WindowPrediction => {
+  const { afterReset, propagation, ...rest } = window;
+  return {
+    ...rest,
+    start: { from: window.start.from, band: band(window.start.band) },
+    end: window.end === null ? null : { from: window.end.from, band: band(window.end.band) },
+    ...(afterReset === undefined ? {} : { afterReset: { life: seconds(afterReset.life), outcome: afterReset.outcome } }),
+    ...(propagation === undefined ? {} : { propagation: band(propagation) }),
+  };
+};
+
 const upgradePrediction = (prediction: PredictionV1): Prediction => {
   switch (prediction.kind) {
-    case "window": {
-      const { afterReset, propagation, ...rest } = prediction;
-      return {
-        ...rest,
-        start: { from: prediction.start.from, band: band(prediction.start.band) },
-        end: prediction.end === null ? null : { from: prediction.end.from, band: band(prediction.end.band) },
-        ...(afterReset === undefined ? {} : { afterReset: { life: seconds(afterReset.life), outcome: afterReset.outcome } }),
-        ...(propagation === undefined ? {} : { propagation: band(propagation) }),
-      };
+    case "window":
+      return upgradeWindow(prediction);
+    // the format /1 has no prediction `ends`, but its type does
+    case "ends": {
+      const { window, ...rest } = prediction;
+      return { ...rest, band: prediction.band === null ? null : band(prediction.band), ...(window === undefined ? {} : { window: upgradeWindow(window) }) };
     }
     case "removal":
     case "leaves":
@@ -123,7 +131,7 @@ export const upgradeCell = (cell: KindCellV1): KindCell => ({
 const upgradeFacts = (facts: RunFactsV1): RunFacts => {
   const propagated = (old: Propagated<number> | null): Propagated | null => (old === null ? null : { after: time(old.after), by: seconds(old.by) });
   const byKey = (record: Readonly<Record<string, Propagated<number> | null>>) => Object.fromEntries(Object.entries(record).map(([key, old]) => [key, propagated(old)]));
-  const { sliceEmpty, rules, left, signals, updates, healUpdates, ...rest } = facts;
+  const { sliceEmpty, rules, left, signals, updates, healUpdates, closes, ...rest } = facts;
   return {
     ...rest,
     intakeAfterDeletion: time(facts.intakeAfterDeletion),
@@ -135,6 +143,7 @@ const upgradeFacts = (facts: RunFactsV1): RunFacts => {
     ...(rules === undefined ? {} : { rules: Object.fromEntries(Object.entries(rules).map(([node, old]) => [node, time(old)])) }),
     ...(left === undefined ? {} : { left: seconds(left) }),
     ...(signals === undefined ? {} : { signals: signals.map((old) => time(old)) }),
+    ...(closes === undefined ? {} : { closes: Object.fromEntries(Object.entries(closes).map(([client, old]) => [client, time(old)])) }),
   };
 };
 

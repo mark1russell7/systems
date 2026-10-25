@@ -1,12 +1,14 @@
+import { timerOf } from "@mark1russell7/algebra";
 import type { KindCell, Mesh, Prediction, Propagation } from "@mark1russell7/kind";
 import { EDS_EVERY, LAST_SLACK } from "@mark1russell7/kind";
-import { ENVOY_HTTP2, ZTUNNEL_HBONE } from "@mark1russell7/machines";
+import { ENVOY_HTTP2, GRPC_JS, GRPC_GO_SERVER, ZTUNNEL_HBONE } from "@mark1russell7/machines";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
+import { given, seconds } from "../catalog.ts";
 import type { Calibration } from "../kind.ts";
 import { T07_WORKLOAD, WORKERS, calibrated, kubeDefaults, s, say } from "../kind.ts";
 import type { Alias } from "../mongo/cells.ts";
-import { backoffOf, lastWait } from "./t07.ts";
+import { backoffOf, lastWait, synWaitOf } from "./t07.ts";
 
 /**
  * The gRPC cells of T15: the endpoint lifecycle of T07 through an Istio 1.31.3 mesh in the kind lab.
@@ -27,6 +29,9 @@ import { backoffOf, lastWait } from "./t07.ts";
  * the traffic of each pod to ztunnel in the network namespace of the pod. Each ztunnel balances each
  * connection, not each call. Thus a channel stays on one replica, as in T07. The document
  * `ztunnel-hbone` holds the facts of ztunnel 1.31.3.
+ *
+ * Step 4 adds the end of the socket of each client (the prediction `ends`). In a black hole, the PING
+ * of ztunnel ends the connection. In a gap of the calls (the trigger `idle`), nothing ends it.
  */
 
 /** This mesh is the sidecar flavor of Istio 1.31.3 with each pod of the cell in sidecar mode. */
@@ -195,7 +200,131 @@ const RESET_WHY = [
   `After the heal, the next connect comes at the end of the wait in progress. The heal comes at most ${say(sum(RESET_HOLD, HEAL_LATE))} after the fault, thus that wait is at most the wait ${RESET_WAIT}: ${say(us(backoffOf(RESET_WAIT).hi))}.`,
 ].join(" ");
 
-/** These are the gRPC cells of T15 for the kind lab: the calibrations of the propagation, the deletion, the policy and the reset. */
+/** These are the values of the knobs of ztunnel 1.31.3 at its defaults (`ztunnel-hbone`). */
+const ZTUNNEL = given(
+  Object.fromEntries(
+    Object.entries(ZTUNNEL_HBONE.knobs).flatMap(([name, knob]): Array<[string, Quantity]> =>
+      knob.unit === null || knob.default === null || knob.default === undefined ? [] : [[name, { value: knob.default, unit: knob.unit }]],
+    ),
+  ),
+);
+
+/** A span is the bounds of a time in seconds: the duration of a timer less how early it fires, and plus how late. */
+export interface Span {
+  readonly lo: number;
+  readonly hi: number;
+}
+
+/** This function gives the span of a timer of ztunnel at its defaults. */
+const ztunnelTimer = (timer: string): Span => {
+  const bounds = timerOf(ZTUNNEL_HBONE, timer, ZTUNNEL);
+  const duration = seconds(bounds.duration, `the timer ${timer} of ztunnel`);
+  return { lo: duration - seconds(bounds.early, "how early it fires"), hi: duration + seconds(bounds.lateness, "how late it fires") };
+};
+
+/**
+ * This span is the end of a connection of ztunnel after a black hole starts. The PING sleeps 10 s
+ * after each PONG, then it waits 20 s for the next PONG. Thus a black hole that starts at a time in
+ * that cycle ends the connection 20 s to 30 s later (the timer `pong`).
+ */
+export const PONG: Span = ztunnelTimer("pong");
+
+/** This span is a connect of ztunnel to the port 15008 with no answer: its timeout of 10 s (the timer `connect`). */
+export const ZTUNNEL_CONNECT: Span = ztunnelTimer("connect");
+
+/** This function rounds a time in seconds to the microsecond. */
+const round = (value: number): number => Math.round(value * 1e6) / 1e6;
+
+/**
+ * This function gives the longest time from a SYN to the next try of a connect that gets no answer.
+ * The connect times out after `connect` seconds. The SYN timer of Linux sends each SYN after its
+ * wait: 5 waits of 1 s (the linear timeouts), then waits that double. The last try is the timeout
+ * itself, because a new connect sends its SYN at once. The rest of the connect after the last SYN is
+ * the longest when each wait before it is the shortest. In a connect of 10.01 s, that rest is the longest time.
+ */
+export const longestSynGap = (connect: number): number => {
+  let at = 0;
+  let longest = 0;
+  for (let k = 0; ; k += 1) {
+    const wait = synWaitOf(k);
+    if (at + wait.lo >= connect) return round(Math.max(longest, connect - at));
+    longest = Math.max(longest, wait.hi);
+    at += wait.lo;
+  }
+};
+
+/**
+ * This function gives the prediction of a black hole of the mesh leg for `hold`, in the ambient mesh.
+ * The PING of the ztunnel of the client ends its connection in `PONG` after the fault. The copy loop
+ * then shuts down the socket of grpc-js, one step of ztunnel later. That is the band of the close.
+ *
+ * The window of the failed requests starts by one call and one step after the fault. Until the heal,
+ * each connect of ztunnel times out, and grpc-js connects again at once. After the heal, the next try
+ * of the connect in progress gets an answer, in `longestSynGap` at the most. A call waits in the
+ * queue of the channel until its timeout, thus the last failure starts by one timeout before then.
+ */
+export const blackholeWindow = (hold: Quantity, why: string, windowWhy: string): Prediction => {
+  const fault = valueIn(hold, "s");
+  if (PONG.hi + valueIn(ZTUNNEL_STEP, "s") >= fault) throw new Error(`a hold of ${fault} s ends before the PING of ztunnel ends its connection`);
+  // the connects of grpc-js from the end of the connection to the heal: each one lasts the connect of ztunnel
+  const connects = Math.floor((fault + valueIn(HEAL_LATE, "s") - PONG.lo) / ZTUNNEL_CONNECT.lo);
+  for (let k = 0; k <= connects; k += 1)
+    if (backoffOf(k).hi >= ZTUNNEL_CONNECT.lo) throw new Error(`the wait ${k} of grpc-js can end after a connect of ztunnel times out`);
+  const gap = longestSynGap(ZTUNNEL_CONNECT.hi);
+  return {
+    kind: "ends",
+    from: "fault",
+    band: { lo: s(PONG.lo), hi: sum(s(PONG.hi), ZTUNNEL_STEP) },
+    window: {
+      kind: "window",
+      nodes: "all",
+      start: { from: "fault", band: { lo: s(0), hi: sum(T07_WORKLOAD.every, ZTUNNEL_STEP) } },
+      end: { from: "heal", band: { lo: s(-valueIn(T07_WORKLOAD.timeout, "s")), hi: sum(s(gap), ZTUNNEL_STEP, ZTUNNEL_STEP, ZTUNNEL_STEP) } },
+      certain: true,
+      outcomes: ["timeout", "error", "reset"],
+      why: windowWhy,
+    },
+    why,
+  };
+};
+
+/** This hold is the time of the black hole of T15.defaults.2: longer than the PING of ztunnel, and than one connect of ztunnel after it. */
+const BLACKHOLE_HOLD = s(45);
+
+/** This text is why the socket of each client of T15.defaults.2 ends in its band. Each fact has its source in ztunnel 1.31.3 or Linux 6.17. */
+const BLACKHOLE_WHY = [
+  "The rule in each server pod drops each segment from each client pod, and each segment to it. That is the HBONE connection of the ztunnel of the client.",
+  "The PING of ztunnel sleeps 10 s after each PONG. Then it waits 20 s for the next PONG, and data does not put a PING off (h2.rs of ztunnel 1.31.3, lines 36–56 and 222–225).",
+  `Thus the ztunnel of the client drops the connection ${say(s(PONG.lo))} to ${say(s(PONG.hi))} after the fault (client.rs, lines 237–238).`,
+  "Then the copy loop shuts down the socket of grpc-js (copy.rs, lines 176–183). That is the end of the socket of the channel.",
+  "TCP does not end the connection before that. The connection has no TCP_USER_TIMEOUT, its retransmissions stop after about 924 s, and the keepalive of ztunnel needs 180 s idle.",
+].join(" ");
+
+/** This text is why the calls of T15.defaults.2 fail only in the window. */
+const BLACKHOLE_WINDOW_WHY = [
+  "From the fault, a call gets no answer, and the client ends it at its timeout of 2 s.",
+  `Each new connect of ztunnel to the port 15008 gets no answer, and it times out at ${say(s(ZTUNNEL_CONNECT.lo))} (proxy.rs of ztunnel 1.31.3, line 645).`,
+  "Then ztunnel closes the socket of grpc-js, and grpc-js connects again at once. Each wait of its backoff until the heal is shorter than a connect of ztunnel.",
+  "After the heal, the next try gets an answer: a SYN of the connect in progress, or a new connect after its timeout.",
+  `The SYN timer of Linux 6.17 waits 1 s five times, and then it doubles the wait (tcp_timer.c, lines 671–678). Thus the longest time to the next try is ${say(s(longestSynGap(ZTUNNEL_CONNECT.hi)))}.`,
+  "A call waits in the queue of the channel while grpc-js connects, and it fails only at its timeout. Thus the last failure starts at most 2 s before the transport is ready.",
+].join(" ");
+
+/** This hold is the gap of T15.defaults.10: longer than the release of the pool of ztunnel and than the idle time of its keepalive. */
+const IDLE_HOLD = s(330);
+
+/** This text is why no socket of a client of T15.defaults.10 ends in the gap. */
+const IDLE_WHY = [
+  `The client of grpc-js sends no call for ${say(IDLE_HOLD)}, and its channel and socket stay open.`,
+  `The channel goes IDLE only after ${say(s(GRPC_JS.knobs["client_idle_timeout"]!.default! / 1000))} with no call (internal-channel.ts of grpc-js 1.14.6, lines 74–77 and 324–325).`,
+  "The ztunnel of Istio 1.31.3 has no idle timeout of L4 and no maximum age of a connection, from a search of its tag.",
+  `The release of the pool of ztunnel comes ${say(s(ZTUNNEL_HBONE.knobs["pool_release"]!.default!))} after the last stream ends. The flow of the client is an open stream, thus no release closes its connection (pool.rs, lines 142–146).`,
+  `The PING of ztunnel keeps the HBONE connection live, and the keepalive of ztunnel sends a probe after ${say(s(ZTUNNEL_HBONE.knobs["keepidle"]!.default!))} idle. A live peer answers each one.`,
+  `The keepalive of grpc-go sends its first PING after ${say(s(GRPC_GO_SERVER.knobs["keepalive_time"]!.default!))} (defaults.go of grpc-go v1.84.0, lines 31–40).`,
+  "Thus the first call of each client after the gap goes on the socket of its last call before it.",
+].join(" ");
+
+/** These are the gRPC cells of T15 for the kind lab: two calibrations, the deletion, the policy, the reset, the black hole and the gap. */
 export const T15_GRPC: readonly KindCell[] = [
   {
     ...BASE,
@@ -249,6 +378,26 @@ export const T15_GRPC: readonly KindCell[] = [
     prediction: resetWindow(RESET_HOLD, RESET_WHY),
     calibrates: false,
   },
+  {
+    ...BASE,
+    mesh: AMBIENT,
+    id: "T15.defaults.2",
+    name: "T15 ambient, gRPC, a black hole on the HBONE leg for 45 s: the PING of ztunnel ends the connection",
+    trigger: { kind: "blackhole", hold: BLACKHOLE_HOLD },
+    pod: kubeDefaults(2),
+    prediction: blackholeWindow(BLACKHOLE_HOLD, BLACKHOLE_WHY, BLACKHOLE_WINDOW_WHY),
+    calibrates: false,
+  },
+  {
+    ...BASE,
+    mesh: AMBIENT,
+    id: "T15.defaults.10",
+    name: "T15 ambient, gRPC, the clients send no call for 330 s: nothing in the mesh ends the connection",
+    trigger: { kind: "idle", hold: IDLE_HOLD },
+    pod: kubeDefaults(2),
+    prediction: { kind: "ends", from: "fault", band: null, why: IDLE_WHY },
+    calibrates: false,
+  },
 ];
 
 /** These are the cells of the plan over grpc-go in T15 that are cells of this catalog under other names. */
@@ -267,5 +416,15 @@ export const T15_GRPC_ALIASES: readonly Alias[] = [
     plan: "T15.array.12",
     is: "T15.defaults.12",
     why: "DP36 sets the locality load balancing and the outlier detection of a DestinationRule. ztunnel reads neither of them on an L4 path: its workload API has only routing preferences and a health policy (workload.proto of ztunnel 1.31.3, lines 148–198). Thus the reset is the one of T15.defaults.12",
+  },
+  {
+    plan: "T15.array.2",
+    is: "T15.defaults.2",
+    why: "DP51 is the sidecar at the defaults of Istio 1.31, and it has no knob of ztunnel. The PING, the connect timeout and the keepalive of ztunnel are constants or variables of its process (h2.rs and proxy.rs of ztunnel 1.31.3). Thus the black hole is the one of T15.defaults.2",
+  },
+  {
+    plan: "T15.array.10",
+    is: "T15.defaults.10",
+    why: "DP52 sets lifecycle knobs of the sidecar and a DestinationRule. A pod of the ambient mesh has no sidecar, and ztunnel reads no field of a DestinationRule on an L4 path (workload.proto of ztunnel 1.31.3, lines 148–198). Thus the gap is the one of T15.defaults.10",
   },
 ];

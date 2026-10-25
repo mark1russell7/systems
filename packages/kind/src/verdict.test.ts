@@ -416,3 +416,101 @@ describe("the judgement of a policy of Istio", () => {
     expect(checkRun(policy, policyRun([request(5310, "denied"), request(22_500, "denied")], 22_000)).ok).toBe(false);
   });
 });
+
+describe("the judgement of the end of the sockets of the clients", () => {
+  const FAULT = 5000;
+  const HEAL = 50_000;
+  /** a call of the client of a node on the local port `lp` */
+  const call = (t: number, o: string, n: string, lp: number | null): Line => ({ ev: "req", t, d: 1, o, p: `client-${n}`, n, lp });
+  const close = (t: number, n: string, lp: number | null, err: string | null = null): Line => ({ ev: "sock", what: "close", t, p: `client-${n}`, n, lp, err });
+  const connect = (t: number, n: string, lp: number): Line => ({ ev: "sock", what: "connect", t, p: `client-${n}`, n, lp });
+  const before = [call(4900, "ok", "w1", 40_001), call(4910, "ok", "w2", 40_002)];
+  const runOf = (extra: Line[], acts: Partial<KindRun["acts"]> = { fault: FAULT, heal: HEAL }): KindRun => ({ ...runWith([], acts), lines: [...before, ...extra] });
+  const window = {
+    kind: "window",
+    nodes: "all",
+    start: { from: "fault", band: b(0, 0.03) },
+    end: { from: "heal", band: b(-2, 4.1) },
+    certain: true,
+    outcomes: ["timeout", "error", "reset"],
+    why: "a window",
+  } as const;
+  const T07 = { every: { value: 20, unit: "ms" }, timeout: s(2) };
+  const hole: KindCell = {
+    ...cellOf("blackhole"),
+    template: "T15",
+    stack: "grpc",
+    mesh: { flavor: "ambient", mode: "ambient" },
+    workload: T07,
+    trigger: { kind: "blackhole", hold: s(45) },
+    prediction: { kind: "ends", from: "fault", band: b(20, 30.03), window, why: "a test" },
+  };
+  const gap: KindCell = { ...hole, trigger: { kind: "idle", hold: s(30) }, prediction: { kind: "ends", from: "fault", band: null, why: "a test" } };
+  const failures = [call(5010, "timeout", "w1", 40_001), call(5020, "timeout", "w2", 40_002), call(30_500, "error", "w1", 40_001), call(48_100, "timeout", "w2", 40_010)];
+  const ends = [close(30_000, "w1", 40_001), close(31_000, "w2", 40_002, "ECONNRESET"), connect(30_010, "w1", 40_010), close(40_020, "w1", 40_010)];
+
+  it("holds a black hole whose sockets end in the band, on the ports of the last answers, with the failures in the window", () => {
+    const check = checkRun(hole, runOf([...failures, ...ends]));
+    expect(check.ok, check.why).toBe(true);
+    expect(check.value).toEqual({ value: 25.5, unit: "s" });
+    expect(check.facts.closes).toEqual({ "client-w1": s(25), "client-w2": s(26) });
+    expect(check.why).toMatch(/the socket of each of 2 clients ended, at 25, 26 s/);
+  });
+
+  it("fails a black hole whose socket ends out of the band, does not end, or is not the socket of the last answer", () => {
+    const early = checkRun(hole, runOf([...failures, close(12_000, "w1", 40_001), close(31_000, "w2", 40_002)]));
+    expect(early.ok).toBe(false);
+    expect(early.why).toMatch(/the socket of client-w1 ended at 7 s/);
+    const none = checkRun(hole, runOf([...failures, close(31_000, "w2", 40_002)]));
+    expect(none.why).toMatch(/the socket of client-w1 did not end/);
+    expect(none.facts.closes).toEqual({ "client-w1": null, "client-w2": s(26) });
+    const other = checkRun(hole, runOf([...failures, close(30_000, "w1", 40_077), close(31_000, "w2", 40_002)]));
+    expect(other.why).toMatch(/the first socket of client-w1 to end had the port 40077, not the port 40001 of its last answer/);
+  });
+
+  it("fails a black hole whose failures do not agree with its window", () => {
+    // a failure 3 s after the heal agrees, and one 5 s after it does not
+    expect(checkRun(hole, runOf([...failures, call(53_000, "timeout", "w1", 40_010), ...ends])).ok).toBe(true);
+    const late = checkRun(hole, runOf([...failures, call(55_000, "timeout", "w1", 40_010), ...ends]));
+    expect(late.ok).toBe(false);
+    // an outcome that the window does not permit
+    expect(checkRun(hole, runOf([...failures, call(20_000, "denied", "w1", 40_001), ...ends])).ok).toBe(false);
+    // no client had an answer before the fault
+    expect(checkRun(hole, { ...runOf([...failures, ...ends]), lines: [...failures, ...ends] }).why).toMatch(/no client had an answer before the fault/);
+  });
+
+  it("holds a gap in which no socket ends, and after which each client calls again on its socket", () => {
+    const resumed = [call(HEAL + 15, "ok", "w1", 40_001), call(HEAL + 18, "ok", "w2", 40_002)];
+    const check = checkRun(gap, runOf(resumed));
+    expect(check.ok, check.why).toBe(true);
+    expect(check.value).toEqual({ value: 0, unit: "{socket}" });
+    expect(check.facts.closes).toEqual({ "client-w1": null, "client-w2": null });
+  });
+
+  it("fails a gap in which a socket ends, or after which a client calls on another socket or fails", () => {
+    const resumed = [call(HEAL + 15, "ok", "w1", 40_001), call(HEAL + 18, "ok", "w2", 40_002)];
+    const closed = checkRun(gap, runOf([close(35_000, "w2", 40_002), ...resumed]));
+    expect(closed.ok).toBe(false);
+    expect(closed.why).toMatch(/the socket of client-w2 ended 30 s after the fault/);
+    expect(closed.value).toEqual({ value: 1, unit: "{socket}" });
+    const moved = checkRun(gap, runOf([call(HEAL + 15, "ok", "w1", 40_001), call(HEAL + 18, "ok", "w2", 40_099)]));
+    expect(moved.why).toMatch(/the first call of client-w2 after the heal went on the port 40099, not 40002/);
+    const failed = checkRun(gap, runOf([call(HEAL + 15, "ok", "w1", 40_001), call(HEAL + 18, "reset", "w2", 40_002)]));
+    expect(failed.why).toMatch(/the first call of client-w2 after the heal ended reset/);
+    expect(checkRun(gap, runOf([call(HEAL + 15, "ok", "w1", 40_001)])).why).toMatch(/client-w2 sent no call after the heal/);
+  });
+
+  it("observes until each socket can end and each request of the window ended", () => {
+    const only: KindCell = { ...hole, prediction: { kind: "ends", from: "fault", band: b(20, 30.03), why: "a test" } };
+    expect(observationEnd(only, runOf([]))).toBe(FAULT + 30_030 + 100);
+    expect(observationAfter(hole)).toEqual(s(6.2));
+    expect(observationEnd(hole, runOf([]))).toBe(HEAL + 4100 + 2000 + 100);
+    expect(observationEnd(gap, runOf([]))).toBeNull();
+  });
+
+  it("writes the prediction of a close and of a gap", () => {
+    expect(predictionText(hole.prediction)).toMatch(/^the socket of each client ends in /);
+    expect(predictionText(hole.prediction)).toContain("; ");
+    expect(predictionText(gap.prediction)).toBe("no socket of a client ends, and each one calls again on its socket");
+  });
+});

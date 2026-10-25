@@ -153,6 +153,14 @@ const predictionOf = (cell: KindCell) => {
         band: null,
         text: "The algebra predicts that the rollout stops while Redis is down, and that it continues after Redis is back. The harness measures the time from the return of Redis to the first new pod that is ready.",
       };
+    case "ends":
+      return p.band === null
+        ? { kind: p.kind, band: null, text: "The algebra predicts that no socket of a client ends, and that each client calls again on its socket." }
+        : {
+            kind: p.kind,
+            band: band(p.band.lo, p.band.hi),
+            text: `The algebra predicts that the socket of each client ends. The band is ${time(s(p.band.lo))} to ${time(s(p.band.hi))} after ${REFERENCES[p.from]}.`,
+          };
     case "measured": {
       const why = MEASURED.find(([form]) => form.test(p.why))?.[1];
       if (why === undefined) throw new Error(`${cell.name}: the reason "${p.why}" has no text for the page`);

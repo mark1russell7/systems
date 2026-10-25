@@ -987,8 +987,12 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
     - The deleted pod left each client sidecar 0.066 s to 0.147 s after the deletion.
     - A policy reached each server sidecar 0.154 s to 0.292 s after its apply.
     - T15.defaults.13 and T15.defaults.5 hold.
-  - Step 3 (in progress): the ambient flavor, with istio-cni, ztunnel and the document `ztunnel-hbone`. T15.defaults.12 is a reset on the HBONE leg.
-  - Step 4: a line at each close of the socket of a client, and the trigger `idle`. T15.defaults.2 is a black hole, and T15.defaults.10 is an idle gap.
+  - Step 3 (done, kind run 40157650738): the ambient flavor, with istio-cni, ztunnel and the document `ztunnel-hbone`. T15.defaults.12 is a reset on the HBONE leg.
+    - Each cell had 11 counted runs, no run was void, and no run failed.
+    - The deleted pod left each client sidecar 0.063 s to 0.133 s after the deletion.
+    - A policy reached each server sidecar 0.163 s to 0.225 s after its apply.
+    - T15.defaults.13, T15.defaults.5 and T15.defaults.12 hold.
+  - Step 4 (in progress): a line at each close of the socket of a client, and the trigger `idle`. T15.defaults.2 is a black hole, and T15.defaults.10 is an idle gap.
   - Step 5: the restarts of ztunnel. T15.defaults.14 is a control, and T15.border-off.85 and .86 are the borders of O10.
   - Step 6: the borders of O03, O17 and O02, with a conntrack middlebox and a sysctl of a pod.
   - Step 7: O22, the 2 cells that wait with their reasons, and the page of the results.
@@ -1026,6 +1030,14 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - It ends by the wait 5 of the backoff of grpc-js after the heal: 26.101926 s. The heal comes at most 12 s after the fault, thus no later wait can be in progress.
   - The jitter of grpc-js adds up over its waits, thus the wait 5 is long. The clear uses the PIDs of the fault again, thus the heal comes soon after the hold.
   - T15.array.12 is an alias of T15.defaults.12. ztunnel reads no field of the DestinationRule of DP36 on an L4 path.
+- Step 4 of T15 (kind 0.6.0). The gRPC client writes a line at the connect and at the close of each socket of its channel. SIGUSR1 stops its calls, and SIGUSR2 starts them again.
+  - The trigger `idle` sends SIGUSR1 to the client of each client pod, and SIGUSR2 after the hold. The restore sends SIGUSR2 again.
+  - The prediction `ends` is the close of the socket of each client in a band after a reference. With no band, no socket closes, and each client calls again on its socket.
+  - T15.defaults.2 is a black hole of 45 s on the HBONE leg. The PING of ztunnel ends the connection 20 s to 30.03 s after the fault.
+  - Its window ends 2 s before the heal to 3.046 s after it. The SYN timer of Linux 6.17 waits 1 s five times, thus the last SYN of a connect of 10 s is at 7 s.
+  - T15.defaults.10 is a gap of 330 s in the calls. The release of the pool at 300 s does not close a connection with an open stream, thus nothing ends the socket.
+  - T15.defaults.10 uses `ends` with no band, not `stays`. The judge of `stays` reads only the endpoints and the refusals, thus it holds when a socket closes and the client connects again.
+  - T15.array.2 and T15.array.10 are aliases of the cells at the defaults. DP51 and DP52 set no knob that ztunnel reads on an L4 path.
 
 ## Kubernetes
 

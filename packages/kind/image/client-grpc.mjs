@@ -13,7 +13,12 @@
 // - timeout: no answer in TIMEOUT_MS. A call of grpc-js has no deadline at the defaults, thus the client
 //   cancels it at that time.
 // - error: each other status, with its name and its details in `e`.
+//
+// Each socket of the channel also gives a line `sock` at its connect and at its close (client-lines.ts).
+// SIGUSR1 stops the calls, and SIGUSR2 starts them again: the gap of the trigger `idle`. A listener of
+// SIGUSR1 replaces the start of the inspector of Node at that signal. The channel stays open in the gap.
 import net from "node:net";
+import { followSocket, gapOf } from "./client-lines.ts";
 
 const [host, port] = (process.env.TARGET ?? "").split(":");
 const every = Number(process.env.EVERY_MS ?? 20);
@@ -49,8 +54,11 @@ net.connect = function (...args) {
   socket.once("connect", () => {
     lp = portOf(socket) ?? lp;
   });
+  followSocket(socket, () => portOf(socket), say, now);
   return socket;
 };
+
+const gap = gapOf((signal, listener) => process.on(signal, listener), say, now);
 
 const grpc = await import("@grpc/grpc-js");
 
@@ -72,6 +80,7 @@ const outcomeOf = (error) => {
 const client = new grpc.Client(`${host}:${port}`, grpc.credentials.createInsecure(), {});
 
 const fire = () => {
+  if (gap.stopped) return;
   const t = now();
   let done = false;
   let backend = null;

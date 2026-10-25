@@ -116,7 +116,7 @@ interface Context {
   listened: string;
   /** This count is the replicas of the service at rest: one less while a scale-in holds. */
   expected: number;
-  /** This map is the PID of the app of each replica, by its pod, from the last fault of the target `servers`. */
+  /** This map gives the PID of the app of each pod. A replica gets it from the last fault of the target `servers`, and a client from the last gap. */
   readonly pids: Map<string, number>;
 }
 
@@ -329,6 +329,34 @@ const injectServers = async (ctx: Context, action: string, replicas: readonly Re
   return { t0: Math.min(...all.map((stamp) => stamp.t0)), t1: Math.max(...all.map((stamp) => stamp.t1)) };
 };
 
+/**
+ * This function sends a signal to the process of each client pod: the target `clients`. The nodes go
+ * at the same time. SIGUSR1 finds the PID of each client, and SIGUSR2 uses it again, thus the heal of
+ * a gap comes soon after its hold. When that PID fails, the client started again, and the lab finds
+ * its PID. The stamp is the first act and the last end.
+ */
+const signalClients = async (ctx: Context, signal: string): Promise<Stamp> => {
+  const clients = [...ctx.tracker.pods.values()].filter((pod) => pod.labels["app"] === CLIENT && !pod.del && pod.node !== null);
+  if (clients.length === 0) throw new Error(`the signal ${signal} needs clients`);
+  const stamps = await Promise.all(
+    clients.map(async (pod) => {
+      const node = pod.node!;
+      const known = signal === "SIGUSR2" ? ctx.pids.get(pod.name) : undefined;
+      if (known !== undefined) {
+        try {
+          return await ctx.lab.act(node, { op: "signal", pid: known, signal });
+        } catch {
+          // the client started again: its PID is new
+        }
+      }
+      const pid = await ctx.lab.pidOf(node, ctx.namespace, pod.name, CLIENT);
+      ctx.pids.set(pod.name, pid);
+      return ctx.lab.act(node, { op: "signal", pid, signal });
+    }),
+  );
+  return { t0: Math.min(...stamps.map((stamp) => stamp.t0)), t1: Math.max(...stamps.map((stamp) => stamp.t1)) };
+};
+
 /** This function does one step of a fault plan. It gives the stamp of its act, or null for an act without a stamp. */
 const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], background: Array<Promise<unknown>>): Promise<Stamp | null> => {
   const { lab, cluster, namespace } = ctx;
@@ -339,6 +367,7 @@ const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], ba
     );
   const where = async (which: Target): Promise<{ node: string; pid: number; pod: PodLine | null }> => {
     if (which === "servers") throw new Error("the target servers is a target of the injector only");
+    if (which === "clients") throw new Error("the target clients is a target of a signal only");
     if (which === "server") return { node: target.node, pid: await lab.pidOf(target.node, namespace, target.pod, "app"), pod: null };
     if (which === "redis") {
       const redis = [...ctx.tracker.pods.values()].find((pod) => pod.labels["app"] === REDIS && !pod.del)!;
@@ -363,6 +392,7 @@ const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], ba
       return { t0, t1: await lab.now() };
     }
     case "signal": {
+      if (step.target === "clients") return signalClients(ctx, step.signal);
       const at = await where(step.target);
       return lab.act(at.node, { op: "signal", pid: at.pid, signal: step.signal });
     }
@@ -695,11 +725,14 @@ const estimate = (cell: KindCell, environments = 2): number => {
     "cpu-throttle": hold + 40,
     rollout: hold + 50,
     "authorization-policy": hold + 20,
+    idle: hold + 5,
   };
   // a window can need a longer observation: from the end of the hold, until each request that started in it ended
   const after = observationAfter(cell);
   const observed = after === null ? 0 : hold + valueIn(after, "s");
-  const each = 25 + Math.max(observed, trigger[cell.trigger.kind] ?? (cell.template === "T18" ? hold + 35 : 15 + valueIn(cell.pod.preStop, "s")));
+  // the band of `ends` too: until each socket can end
+  const closes = cell.prediction.kind === "ends" && cell.prediction.band !== null ? valueIn(cell.prediction.band.hi, "s") + 3 : 0;
+  const each = 25 + Math.max(observed, closes, trigger[cell.trigger.kind] ?? (cell.template === "T18" ? hold + 35 : 15 + valueIn(cell.pod.preStop, "s")));
   // the install of Istio in each cluster takes 1 to 2 min
   const setup = cell.mesh === undefined ? 60 : 180;
   return setup * environments + (cell.runs + environments) * each;
