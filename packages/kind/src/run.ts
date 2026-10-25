@@ -116,7 +116,7 @@ interface Context {
   listened: string;
   /** This count is the replicas of the service at rest: one less while a scale-in holds. */
   expected: number;
-  /** This map is the PID of the app of each pod, by its pod: of a replica from the last fault of the target `servers`, and of a client from the last gap. */
+  /** This map gives the PID of the app of each pod. A replica gets it from the last fault of the target `servers`, and a client from the last gap. */
   readonly pids: Map<string, number>;
 }
 
