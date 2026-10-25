@@ -57,6 +57,7 @@ const REFERENCES: Readonly<Record<Reference, string>> = {
   intake: "the stop of the intake",
   fault: "the fault",
   resume: "the resume of kube-proxy",
+  heal: "the end of the fault",
 };
 /** These phrases name the outcomes of a failed request, in a sentence. */
 const OUTCOMES: Readonly<Record<string, string>> = {
@@ -65,6 +66,7 @@ const OUTCOMES: Readonly<Record<string, string>> = {
   timeout: "a timeout",
   unreachable: "an unreachable error",
   error: "another error",
+  denied: "a denial of the policy",
   "503": "an answer of 503",
 };
 const listed = (items: readonly string[]): string =>

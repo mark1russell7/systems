@@ -63,4 +63,5 @@ export {
   referenceOf,
   reusesReset,
   unitOf,
+  updatesOf,
 } from "./verdict.ts";

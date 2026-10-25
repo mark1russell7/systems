@@ -40,6 +40,7 @@ const TRIGGERS = [
   "app-stall",
   "rollout",
   "cpu-throttle",
+  "authorization-policy",
 ] as const satisfies readonly TriggerKind[];
 const MODES = ["iptables", "ipvs", "nftables"] as const satisfies readonly KubeProxyMode[];
 
@@ -47,7 +48,7 @@ const time = quantitySchema("time");
 const extent = extentSchema("time");
 const count = z.number().int().nonnegative();
 const gate = z.enum(["readiness", "liveness"]);
-const reference = z.enum(["deletion", "intake", "fault", "resume"]);
+const reference = z.enum(["deletion", "intake", "fault", "resume", "heal"]);
 
 const probe = z.object({ period: time, threshold: count, timeout: time });
 const timing = z.discriminatedUnion("type", [
@@ -139,6 +140,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
       afterReset: z.object({ life: a, outcome: z.string() }).optional(),
       each: z.boolean().optional(),
       propagation: band.optional(),
+      outcomes: z.array(z.string()).optional(),
       why: z.string(),
     }),
     z.object({ kind: z.literal("removal"), band, why: z.string() }),
@@ -162,6 +164,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
       hold: time.optional(),
       lead: time.optional(),
       cpuMax: z.object({ quota: a, period: a }).optional(),
+      account: z.string().optional(),
     }),
     pod: z.object({ replicas: count, grace: time, preStop: time, readiness: probe, liveness: probe, startup: probe.nullable() }),
     declaration: declaration.nullable(),
@@ -185,6 +188,8 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     left: a.optional(),
     signals: z.array(a.nullable()).optional(),
     windows: z.array(z.object({ pod: z.string(), intake: z.number().nullable(), deletion: z.number() })).optional(),
+    updates: z.record(z.string(), z.object({ after: a.nullable(), by: a }).nullable()).optional(),
+    healUpdates: z.record(z.string(), z.object({ after: a.nullable(), by: a }).nullable()).optional(),
   });
   const verdict = z.object({
     decision: z.enum(["holds", "fails", "extend", "measured", "calibration", "void"]),

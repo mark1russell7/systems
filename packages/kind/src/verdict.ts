@@ -73,6 +73,10 @@ export interface RunFacts<A = Quantity> {
    * run with a deletion after its start, with the stamps of its intake and of its deletion.
    */
   readonly deletions?: readonly Deleted[] | undefined;
+  /** These are the first LDS updates of the sidecar of each server pod after the fault, by pod (`updatesOf`). */
+  readonly updates?: Readonly<Record<string, Propagated<A> | null>> | undefined;
+  /** These are the first LDS updates of the sidecar of each server pod after the heal, by pod. */
+  readonly healUpdates?: Readonly<Record<string, Propagated<A> | null>> | undefined;
 }
 
 /** A deleted replica is a replica of a run that got a deletion. It gives its pod, and the stamps of its intake (or null) and of its deletion. */
@@ -164,6 +168,7 @@ export const referenceOf = (run: Pick<KindRun, "start" | "acts" | "target" | "li
   const lines = run.lines as readonly Line[];
   if (from === "fault") return run.acts.fault;
   if (from === "resume") return run.acts.resume;
+  if (from === "heal") return run.acts.heal;
   if (pod === undefined) return null;
   if (from === "deletion") return deletionOf(lines, [pod], run.start);
   return intakeOf(lines, pod, run.start);
@@ -197,6 +202,31 @@ export const propagationOf = (
   }
   return out;
 };
+
+/**
+ * This function gives the first LDS update of the sidecar of each server pod after the stamp `from`.
+ * The update came between the poll before (`after`) and the poll that saw it (`by`), after `from`.
+ * A poller gives a line at each change of its counters. Thus a line after `from` with a poll before
+ * it is an update, when its count `mod` is above the count before `from`. The first line of a poller
+ * has no poll before it (`prev` is null), and it is no update.
+ */
+export const updatesOf = (run: Pick<KindRun, "lines">, from: number | null): Record<string, Propagated | null> => {
+  const out: Record<string, Propagated | null> = {};
+  if (from === null) return out;
+  const lines = (run.lines as readonly Line[]).filter((line) => line.ev === "lds");
+  for (const pod of [...new Set(lines.map((line) => String(line["pod"])))].sort()) {
+    const own = lines.filter((line) => String(line["pod"]) === pod);
+    const before = own.filter((line) => line.t <= from).at(-1);
+    const base = before === undefined ? null : Number(before["mod"]);
+    const update = own.find((line) => line.t > from && typeof line["prev"] === "number" && (base === null || Number(line["mod"]) > base));
+    const prev = update === undefined ? null : (update["prev"] as number);
+    out[pod] = update === undefined ? null : { after: seconds(sec(Math.max(0, prev! - from))), by: seconds(sec(update.t - from)) };
+  }
+  return out;
+};
+
+/** This function tells if the judge reads the LDS updates of a cell: the trigger is a policy of Istio. */
+const listens = (cell: Pick<KindCell, "trigger">): boolean => cell.trigger.kind === "authorization-policy";
 
 /**
  * This function gives each replica of a run that got a deletion after the start of the run, in the
@@ -284,6 +314,7 @@ export const factsOf = (cell: KindCell, run: KindRun): RunFacts => {
     })()),
     propagation: propagationOf(run, from, undefined, propagationSource(cell)),
     ...(eachOf(cell.prediction) ? { deletions: deletionsOf(run) } : {}),
+    ...(listens(cell) ? { updates: updatesOf(run, run.acts.fault), healUpdates: updatesOf(run, run.acts.heal) } : {}),
   };
 };
 
@@ -343,18 +374,39 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
       // a node that dropped the replica of a window after the propagation of the prediction, or kept it
       // past that bound to the end of the run: the run agrees with the law, but the band is short (D-EXTEND)
       const bound = prediction.propagation === undefined ? null : secondsOf(prediction.propagation).hi * 1000 + NOISE;
+      const lateOf = (origin: number, propagated: { readonly by: Quantity } | null) => {
+        const by = propagated === null ? null : valueIn(propagated.by, "ms");
+        return { by, late: bound !== null && (by === null ? run.end - origin > bound : by > bound) };
+      };
+      // for a policy, the propagation is the LDS update of each server sidecar after the fault and after the heal
+      const listened = listens(cell);
+      const updates = (facts.updates ?? {}) as Readonly<Record<string, Propagated | null>>;
+      const healUpdates = (facts.healUpdates ?? {}) as Readonly<Record<string, Propagated | null>>;
       const slow =
         bound === null
           ? []
-          : windows.flatMap(({ pod, origin, propagation }) =>
-              origin === null
-                ? []
-                : Object.entries(propagation).flatMap(([node, propagated]) => {
-                    const by = propagated === null ? null : valueIn(propagated.by, "ms");
-                    const late = by === null ? run.end - origin > bound : by > bound;
-                    return late ? [{ pod, node, by }] : [];
-                  }),
-            );
+          : listened
+            ? ([[run.acts.fault, updates, "the policy"], [run.acts.heal, healUpdates, "the delete of the policy"]] as const).flatMap(([origin, by, what]) =>
+                origin === null
+                  ? []
+                  : Object.entries(by).flatMap(([pod, propagated]) => {
+                      const late = lateOf(origin, propagated);
+                      return late.late ? [{ pod: what, node: pod, by: late.by }] : [];
+                    }),
+              )
+            : windows.flatMap(({ pod, origin, propagation }) =>
+                origin === null
+                  ? []
+                  : Object.entries(propagation).flatMap(([node, propagated]) => {
+                      const late = lateOf(origin, propagated);
+                      return late.late ? [{ pod, node, by: late.by }] : [];
+                    }),
+              );
+      // the last LDS update after the heal: a call to its replica can fail until the next call to it after the update
+      const lastHeal =
+        !listened || run.acts.heal === null
+          ? null
+          : Object.values(healUpdates).reduce<number | null>((max, propagated) => (propagated === null ? max : Math.max(max ?? 0, valueIn(propagated.by, "ms"))), null);
       const relevant: Request[] = prediction.nodes === "paused" ? failures.filter((request) => request.n === run.paused) : failures;
       const others = prediction.nodes === "paused" ? failures.filter((request) => request.n !== run.paused) : [];
       const reuse = prediction.afterReset;
@@ -368,8 +420,14 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
               const drop = request.t > window.hi ? window.dropped(request.n) : null;
               return drop !== null && request.t <= drop + NOISE;
             });
-      const tail = late.filter((request) => tailOf(request) !== undefined);
+      // a denial after the window, before the last LDS update after the heal and the next call to its replica
+      const healTail = (request: Request): boolean =>
+        lastHeal !== null && request.t > windows[0]!.hi && request.t <= run.acts.heal! + lastHeal + SLACK + NOISE;
+      const tail = late.filter((request) => tailOf(request) !== undefined || healTail(request));
       const outside = late.filter((request) => !reused.includes(request) && !tail.includes(request));
+      // a window that names its outcomes allows no other failure in it
+      const allowed = prediction.outcomes;
+      const wrong = allowed === undefined ? [] : relevant.filter((request) => !late.includes(request) && !allowed.includes(request.o));
       const bounds = (window: Span): string => `[${sec(window.lo - window.start)}, ${sec(window.hi - window.start)}] s`;
       const problems: string[] = [];
       if (outside.length > 0)
@@ -379,6 +437,7 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
             : `${outside.length} failed requests outside ${bounds(windows[0]!)} after ${prediction.start.from}`,
         );
       if (others.length > 0) problems.push(`${others.length} failed requests on nodes whose kube-proxy did not pause`);
+      if (wrong.length > 0) problems.push(`${wrong.length} failed requests in the window ended ${JSON.stringify(outcomesOf(wrong))}, not ${allowed!.join(", ")}`);
       if (prediction.certain && relevant.length === 0) problems.push("no request failed in a window that the law opens");
       // the window that ends last: the last failed request comes near its end
       const final = windows.reduce((a, b) => ((b.end ?? Number.NEGATIVE_INFINITY) > (a.end ?? Number.NEGATIVE_INFINITY) ? b : a));
@@ -399,19 +458,27 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
       const notes: string[] = [];
       if (tail.length > 0) {
         const last = tail.at(-1)!;
-        const after = tailOf(last)!;
+        const after = tailOf(last);
         notes.push(
-          each
-            ? `${tail.length} failed requests after a window, the last ${sec(last.t - after.hi + NOISE)} s after the window of ${after.pod} on ${last.n}, before the rules of ${last.n} dropped ${after.pod}`
-            : `${tail.length} failed requests after the window, the last ${sec(last.t - after.hi + NOISE)} s after it on ${last.n}, before the rules of ${last.n} dropped the target`,
+          after === undefined
+            ? `${tail.length} failed requests after the window, the last ${sec(last.t - windows[0]!.hi + NOISE)} s after it, before the last LDS update after the heal and the next call to its replica`
+            : each
+              ? `${tail.length} failed requests after a window, the last ${sec(last.t - after.hi + NOISE)} s after the window of ${after.pod} on ${last.n}, before the rules of ${last.n} dropped ${after.pod}`
+              : `${tail.length} failed requests after the window, the last ${sec(last.t - after.hi + NOISE)} s after it on ${last.n}, before the rules of ${last.n} dropped the target`,
         );
       }
       if (slow.length > 0) {
         // a node that kept its replica to the end of the run is the latest
         const latest = slow.find((late) => late.by === null) ?? slow.reduce((a, b) => (b.by! > a.by! ? b : a));
-        const what = each ? latest.pod : "the target";
-        const drop = latest.by === null ? `kept ${what} to the end of the run` : `dropped ${what} ${sec(latest.by)} s after its deletion`;
-        notes.push(`${slow.length} drops after the propagation of ${secondsOf(prediction.propagation!).hi} s at the most, the latest: the rules of ${latest.node} ${drop}`);
+        const bandHi = secondsOf(prediction.propagation!).hi;
+        if (listened) {
+          const update = latest.by === null ? `had no LDS update after ${latest.pod}` : `had its LDS update ${sec(latest.by)} s after ${latest.pod}`;
+          notes.push(`${slow.length} LDS updates after the propagation of ${bandHi} s at the most, the latest: the sidecar of ${latest.node} ${update}`);
+        } else {
+          const what = each ? latest.pod : "the target";
+          const drop = latest.by === null ? `kept ${what} to the end of the run` : `dropped ${what} ${sec(latest.by)} s after its deletion`;
+          notes.push(`${slow.length} drops after the propagation of ${bandHi} s at the most, the latest: the rules of ${latest.node} ${drop}`);
+        }
       }
       return notes.length === 0 ? checked : { ...checked, tail: notes.join("; ") };
     }

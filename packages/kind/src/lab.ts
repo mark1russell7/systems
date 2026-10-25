@@ -26,6 +26,12 @@ export interface EdsSpec {
   readonly pods: ReadonlyArray<{ readonly node: string; readonly pod: string; readonly pid: number }>;
 }
 
+/** An LDS spec is the interval of the LDS pollers, and each server pod with its node and a PID in it. */
+export interface LdsSpec {
+  readonly every: Quantity;
+  readonly pods: ReadonlyArray<{ readonly node: string; readonly pod: string; readonly pid: number }>;
+}
+
 /** These are the sidecars of one node: the agent of the lab and the injector of the harness, in the PID namespace of the node. */
 interface Sidecars {
   readonly agent: StartedTestContainer;
@@ -57,6 +63,11 @@ export interface KindLab {
    * of its processes, and the agent enters the network namespace of that PID.
    */
   eds(spec: EdsSpec | null): Promise<void>;
+  /**
+   * This method asks each agent to poll the sidecar of each server pod of its node, `every` apart.
+   * Each poll gives the counters of LDS updates of that sidecar (`lds.ts`). With null, the polls stop.
+   */
+  lds(spec: LdsSpec | null): Promise<void>;
   act(node: string, spec: Readonly<Record<string, unknown>>): Promise<Stamp>;
   inject(node: string, pid: number, args: readonly string[]): Promise<Stamp>;
   now(): Promise<number>;
@@ -165,6 +176,24 @@ export const openKindLab = async (cluster: Cluster, image: string): Promise<Kind
     return found;
   };
   const firstNode = cluster.nodes[0]!;
+  /**
+   * This function writes the file of the pollers of one kind on each agent: `fields`, the interval
+   * and the pods of its node. A node without a pod, or a spec of null, gets no file.
+   */
+  const pollersOf = async (
+    kind: "eds" | "lds",
+    fields: Readonly<Record<string, unknown>> | null,
+    spec: { readonly every: Quantity; readonly pods: LdsSpec["pods"] } | null,
+  ): Promise<void> => {
+    for (const [node, { agent }] of sidecars) {
+      const pods = spec === null ? [] : spec.pods.filter((pod) => pod.node === node).map(({ pod, pid }) => ({ pod, pid }));
+      // the agent reads the interval of its poll in milliseconds
+      const file = spec === null || pods.length === 0 ? null : JSON.stringify({ ...fields, every: valueIn(spec.every, "ms"), pods });
+      if (file === null) await output(agent, ["rm", "-f", `/tmp/${kind}.json`]);
+      // a rename is atomic, thus the agent never reads a part of the file
+      else await output(agent, ["sh", "-c", `printf '%s' '${file}' > /tmp/${kind}.json.partial && mv /tmp/${kind}.json.partial /tmp/${kind}.json`]);
+    }
+  };
   const lab: KindLab = {
     cluster,
     image,
@@ -236,14 +265,10 @@ export const openKindLab = async (cluster: Cluster, image: string): Promise<Kind
       }
     },
     async eds(spec) {
-      for (const [node, { agent }] of sidecars) {
-        const pods = spec === null ? [] : spec.pods.filter((pod) => pod.node === node).map(({ pod, pid }) => ({ pod, pid }));
-        // the agent reads the interval of its poll in milliseconds
-        const file = spec === null || pods.length === 0 ? null : JSON.stringify({ cluster: spec.cluster, every: valueIn(spec.every, "ms"), pods });
-        if (file === null) await output(agent, ["rm", "-f", "/tmp/eds.json"]);
-        // a rename is atomic, thus the agent never reads a part of the file
-        else await output(agent, ["sh", "-c", `printf '%s' '${file}' > /tmp/eds.json.partial && mv /tmp/eds.json.partial /tmp/eds.json`]);
-      }
+      await pollersOf("eds", spec === null ? null : { cluster: spec.cluster }, spec);
+    },
+    async lds(spec) {
+      await pollersOf("lds", {}, spec);
     },
     async forgetHandshakes(ip, port) {
       const out: Record<string, number> = {};

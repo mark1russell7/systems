@@ -85,6 +85,10 @@ The tests read three real records of `/1` (`test/records/`): a cell that holds, 
 - **The endpoints of each client sidecar.** From 0.3.0, in a sidecar mesh, the agent also polls the Envoy of the client sidecar on its node each 50 ms (`eds`). The client sidecar picks the backend of each call, thus these endpoints and not the rules are the propagation of the cell (`propagationSource`).
   - A poller enters the network namespace of the client pod (`nsenter -n`). It reads `/clusters` on `127.0.0.1:15000` with a filter that selects the server cluster (`eds.ts`).
   - Each change of the healthy hosts gives an `eds` line with the start of the poll before it. That line has the form of a rules line. Each second, an `eds-alive` line counts the polls and gives their mean time.
+- **The listeners of each server sidecar.** From 0.4.0, the agent also polls the Envoy of each server sidecar on its node each 50 ms (`lds`). It does this for a policy in a sidecar mesh (`pollsListeners`).
+  - A poller enters the network namespace of the server pod through the PID of its app. It reads `/stats` on `127.0.0.1:15000` with a filter that selects two counters of the listener manager (`lds.ts`).
+  - `listener_modified` counts each update of a listener, and `listener_in_place_updated` counts each update of its filter chains only.
+  - Each change of the counters gives an `lds` line with the start of the poll before it. The first line of a poller has no poll before it, thus it is no update (`updatesOf`).
 - **The injector of each node** is the image of the harness, in the PID namespace of the node. `crictl` on the node gives the PID of a container, and `nsenter -n` enters the network namespace of its pod. The injector of the harness then applies its rules there.
 - **The watcher** is a container on the network of the cluster. It watches the pods, the EndpointSlices and the events through the API, and it follows the log of each pod of the cell.
   - From 0.3.0, it also follows the sidecar of Istio (`istio-proxy`), and a pod line gives the state of the sidecar (`sc`). Each line of the sidecar becomes a `proxy` line, stamped at its arrival. Its own stamps are of the wall clock, thus no band reads them.
@@ -157,6 +161,7 @@ The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`
 | `app-stall` | the event loop of the first replica blocked |
 | `rollout` | no Redis pod, then a rolling update |
 | `cpu-throttle` | `cpu.max` in the cgroup of the container of the first replica |
+| `authorization-policy` | `kubectl apply` of a DENY AuthorizationPolicy on the server pods for the principal of an account (`account`, the account `default` of the clients when not given), then `kubectl delete` after the hold |
 
 A cgroup path that is not the scope of one container is refused. A write to the root of the node throttles or freezes each pod of the node.
 
@@ -196,6 +201,15 @@ From 0.2.3, a window can also give the propagation that it assumes (`propagation
 - A later drop agrees with the law, but the band is short. The check of the run tells it (`tail`), and the cell is `extend` (D-EXTEND). A node that keeps the replica past the band to the end of the run is such a drop too.
 - An earlier drop only closes the window earlier, thus the judge does not test the start of the band.
 - `predictionText` adds `the rules drop the replica in` and the band.
+
+From 0.4.0, a window can count from the heal (`heal`), the first act that ends the fault. A window can also name its outcomes (`outcomes`). A failure in the window with another outcome then fails the run.
+
+- The client of gRPC gives the outcome `denied` to PERMISSION_DENIED: the local reply 403 of an RBAC deny of a sidecar.
+- For a policy, the propagation of a window is the LDS update of each server sidecar, after the apply and after the delete (`updatesOf`). An update after the band agrees with the law, and the cell is `extend`.
+- A denial after the window, before the last update after the delete and one more call, is a `tail`. A denied call has no pod, because the sidecar answers it. Thus the judge reads the last update of each server sidecar.
+- `calibrationOf` gives the updates after the apply by node, and the updates after the delete (`heal`).
+
+A new member of the union `TriggerKind` breaks a reader that switches on it. That is a breaking change before 1.0.0, thus the version is 0.4.0. The record format stays `/2`, with the optional fields `account`, `outcomes`, `updates` and `healUpdates`, and the reference `heal`.
 
 A preStop sleep that is longer than the grace is a command in the container (`sh -c "sleep 60"`). The API server refuses a sleep action that is longer than the grace.
 

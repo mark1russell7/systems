@@ -64,6 +64,8 @@ const outcomeOf = (error) => {
   if (/ECONNRESET|EPIPE/.test(text)) return "reset";
   if (/EHOSTUNREACH|ENETUNREACH/.test(text)) return "unreachable";
   if (error.code === grpc.status.DEADLINE_EXCEEDED) return "timeout";
+  // the local reply 403 of an RBAC deny of a sidecar of Istio gives PERMISSION_DENIED (status.cc of Envoy v1.39.4, lines 14–15)
+  if (error.code === grpc.status.PERMISSION_DENIED) return "denied";
   return "error";
 };
 

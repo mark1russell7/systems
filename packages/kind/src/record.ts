@@ -122,12 +122,15 @@ export const upgradeCell = (cell: KindCellV1): KindCell => ({
 
 const upgradeFacts = (facts: RunFactsV1): RunFacts => {
   const propagated = (old: Propagated<number> | null): Propagated | null => (old === null ? null : { after: time(old.after), by: seconds(old.by) });
-  const { sliceEmpty, rules, left, signals, ...rest } = facts;
+  const byKey = (record: Readonly<Record<string, Propagated<number> | null>>) => Object.fromEntries(Object.entries(record).map(([key, old]) => [key, propagated(old)]));
+  const { sliceEmpty, rules, left, signals, updates, healUpdates, ...rest } = facts;
   return {
     ...rest,
     intakeAfterDeletion: time(facts.intakeAfterDeletion),
     sliceAfter: time(facts.sliceAfter),
-    propagation: Object.fromEntries(Object.entries(facts.propagation).map(([node, old]) => [node, propagated(old)])),
+    propagation: byKey(facts.propagation),
+    ...(updates === undefined ? {} : { updates: byKey(updates) }),
+    ...(healUpdates === undefined ? {} : { healUpdates: byKey(healUpdates) }),
     ...(sliceEmpty === undefined ? {} : { sliceEmpty: seconds(sliceEmpty) }),
     ...(rules === undefined ? {} : { rules: Object.fromEntries(Object.entries(rules).map(([node, old]) => [node, time(old)])) }),
     ...(left === undefined ? {} : { left: seconds(left) }),

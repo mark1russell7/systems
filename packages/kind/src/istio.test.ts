@@ -3,10 +3,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gzipSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
+import type { KindCell } from "./cell.ts";
 import { cellOf } from "./cells.fixture.ts";
 import { clusterFilter, hostsOf, outboundCluster } from "./eds.ts";
-import { ACCESS_LOG_FORMAT, ISTIO_IMAGES, ISTIO_VERSION, istioOperator, meshKey, serverCluster } from "./istio.ts";
-import { namespaceObject } from "./manifests.ts";
+import { CLIENT_ACCOUNT, POLICY, deletes, planOf, policyObject } from "./faults.ts";
+import { ACCESS_LOG_FORMAT, ISTIO_IMAGES, ISTIO_VERSION, LDS_EVERY, istioOperator, meshKey, pollsListeners, serverCluster } from "./istio.ts";
+import { LDS_FILTER, listenerCountsOf } from "./lds.ts";
+import { clientObjects, namespaceObject } from "./manifests.ts";
 import type { Tool } from "./tools.ts";
 import { ISTIOCTL, ensureTool, sha256, tarEntry, toolPath } from "./tools.ts";
 
@@ -86,6 +89,64 @@ describe("the hosts of a cluster in a sidecar", () => {
   it("gives the healthy hosts in sequence, and each other host with its flags", () => {
     expect(hostsOf(text, cluster)).toEqual({ b: ["10.244.1.3:8080", "10.244.2.4:8080"], u: { "10.244.3.9:8080": "/failed_eds_health" } });
     expect(hostsOf("", cluster)).toEqual({ b: [], u: {} });
+  });
+});
+
+describe("the trigger authorization-policy", () => {
+  const policyCell = (account?: string): KindCell => ({
+    ...cellOf("authorization-policy"),
+    template: "T15",
+    stack: "grpc",
+    mesh: SIDECAR,
+    trigger: { kind: "authorization-policy", hold: { value: 15, unit: "s" }, ...(account === undefined ? {} : { account }) },
+  });
+
+  it("applies a DENY policy on the server pods for the principal of the clients, and deletes it after the hold", () => {
+    const plan = planOf(policyCell());
+    expect(plan.inject).toEqual([{ do: "apply", object: policyObject(CLIENT_ACCOUNT) }]);
+    expect(plan.hold).toEqual({ value: 15, unit: "s" });
+    expect(plan.heal).toEqual([{ do: "kubectl", args: ["-n", "{namespace}", "delete", "authorizationpolicy", POLICY] }]);
+    expect(plan.restore).toEqual([{ do: "kubectl", args: ["-n", "{namespace}", "delete", "authorizationpolicy", POLICY, "--ignore-not-found"] }]);
+    expect(deletes(policyCell())).toBe(false);
+    // the clients run as the service account default: their pods name no other account
+    expect(CLIENT_ACCOUNT).toBe("default");
+    for (const pod of clientObjects(policyCell(), "lab-a", "systems-lab:test", "10.96.0.10:80").filter((object) => (object as { kind: string }).kind === "DaemonSet"))
+      expect(JSON.stringify(pod)).not.toContain("serviceAccountName");
+  });
+
+  it("names the policy of Istio 1.31.3: security.istio.io/v1, the selector of the server and the principal of an account", () => {
+    expect(policyObject("default")).toEqual({
+      apiVersion: "security.istio.io/v1",
+      kind: "AuthorizationPolicy",
+      metadata: { name: "lab-deny", namespace: "{namespace}" },
+      spec: {
+        selector: { matchLabels: { app: "lab" } },
+        action: "DENY",
+        rules: [{ from: [{ source: { principals: ["cluster.local/ns/{namespace}/sa/default"] } }] }],
+      },
+    });
+    // a calibration denies an account that no pod has: the policy changes, and no call fails
+    expect(JSON.stringify(planOf(policyCell("lab-absent")).inject)).toContain("cluster.local/ns/{namespace}/sa/lab-absent");
+    expect(() => planOf({ ...policyCell(), trigger: { kind: "authorization-policy" } })).toThrow(/a hold/);
+  });
+
+  it("polls the LDS updates of the server sidecars only for a policy in a sidecar mesh", () => {
+    expect(pollsListeners(policyCell())).toBe(true);
+    expect(pollsListeners({ trigger: policyCell().trigger })).toBe(false);
+    expect(pollsListeners({ mesh: SIDECAR, trigger: { kind: "pod-deletion" } })).toBe(false);
+    expect(LDS_EVERY).toEqual({ value: 50, unit: "ms" });
+  });
+
+  it("reads the two counters of the listener manager from the text of /stats, with a filter that selects them alone", () => {
+    const filter = new RegExp(LDS_FILTER);
+    expect(filter.test("listener_manager.listener_modified")).toBe(true);
+    expect(filter.test("listener_manager.listener_in_place_updated")).toBe(true);
+    expect(filter.test("listener_manager.listener_added")).toBe(false);
+    expect(filter.test("listener_manager.listener_modified.other")).toBe(false);
+    const text = "listener_manager.listener_in_place_updated: 2\nlistener_manager.listener_modified: 5\n";
+    expect(listenerCountsOf(text)).toEqual({ mod: 5, inPlace: 2 });
+    expect(listenerCountsOf("listener_manager.listener_modified: 1\n")).toEqual({ mod: 1, inPlace: 0 });
+    expect(listenerCountsOf("")).toBeNull();
   });
 });
 
