@@ -38,6 +38,14 @@ describe("the HBONE connection of ztunnel 1.31.3", () => {
     expect(timerOf(doc, "deadline", values).duration).toEqual({ value: 25, unit: "s" });
   });
 
+  it("starts the release of the pool at each checkout, not at the end of a stream", () => {
+    // pool.rs:338-341: each checkout puts the connection back with a new timer
+    expect(doc.timers["release"]?.arms).toEqual(["local.checkout"]);
+    expect(transition("zt.checkout")).toMatchObject({ from: "ready", to: "ready", on: "local.checkout", timer: "release" });
+    // the release only drops the reference of the pool: an open stream keeps the connection
+    expect(transition("zt.release")?.guard).toMatch(/no stream is open/);
+  });
+
   it("finds a black hole on a busy connection by its PONG, because data does not put a PING off", () => {
     const ready = detection(doc, { state: "ready", inFlight: true }, { name: "blackhole", passes: [] }, values);
     // the sleep before a PING starts again at each PONG: it is no detector

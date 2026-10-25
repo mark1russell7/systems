@@ -220,6 +220,19 @@ describe("the judgement of a record again", () => {
     // the main value of a close is a time, and with no band it is a count of the sockets
     expect(kindCellRecordSchema.safeParse(json({ ...hole, verdict: gap.verdict })).success).toBe(false);
     expect(kindCellRecordSchema.safeParse(json({ ...gap, verdict: hole.verdict })).success).toBe(false);
+    // the borders of step 6: a middlebox, a quiet black hole with tcp_retries2, and the end of a tunnel
+    const borders: ReadonlyArray<KindCellRecord["cell"]> = [
+      { ...hole.cell, trigger: { kind: "idle", hold: s(60), middlebox: s(9) } },
+      { ...hole.cell, trigger: { kind: "blackhole", hold: s(45), quiet: true, retries: 4 } },
+      { ...hole.cell, trigger: { kind: "idle", hold: s(330), close: true }, prediction: { kind: "ends", from: "fault", of: "tunnel", band: { lo: s(300), hi: s(300.62) }, why: "a test" } },
+      {
+        ...hole.cell,
+        trigger: { kind: "idle", hold: s(330), close: true },
+        prediction: { kind: "ends", from: "fault", of: "tunnel", band: { lo: s(300), hi: s(300.62) }, answer: { lo: s(300), hi: s(300.623) }, why: "a test" },
+      },
+    ];
+    for (const cell of borders) expect(readRecord(json({ ...hole, cell })).cell).toEqual(cell);
+    expect(kindCellRecordSchema.safeParse(json({ ...hole, cell: { ...hole.cell, prediction: { ...hole.cell.prediction, of: "stream" } } })).success).toBe(false);
   });
 
   it("writes the median of a report through its unit", () => {

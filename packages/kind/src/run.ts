@@ -9,7 +9,7 @@ import type { KindCell, KindRun, Replica } from "./cell.ts";
 import type { Cluster } from "./cluster.ts";
 import { command, createCluster } from "./cluster.ts";
 import type { Step, Target } from "./faults.ts";
-import { NODE, POD, VERSION, deletes as deletesAPod, planOf } from "./faults.ts";
+import { NODE, POD, VERSION, deletes as deletesAPod, middleboxCommands, planOf, sysctlCommand } from "./faults.ts";
 import { labImage } from "./image.ts";
 import type { MeshImages } from "./istio.ts";
 import { EDS_EVERY, ISTIO_IMAGES, LDS_EVERY, MESH_IMAGES, followsZtunnel, installMesh, meshKey, pollsListeners, serverCluster, setZtunnelEnv } from "./istio.ts";
@@ -357,6 +357,42 @@ const signalClients = async (ctx: Context, signal: string): Promise<Stamp> => {
   return { t0: Math.min(...stamps.map((stamp) => stamp.t0)), t1: Math.max(...stamps.map((stamp) => stamp.t1)) };
 };
 
+/**
+ * This function gives the network namespace of each pod of a target, as a node and a PID in it. The
+ * pods are each client pod (`clients`), or each replica (`servers`).
+ */
+const namespacesOf = async (ctx: Context, target: Target, replicas: readonly Replica[]): Promise<Array<{ node: string; pod: string; pid: number }>> => {
+  if (target === "servers") return Promise.all(replicas.map(async (replica) => ({ node: replica.node, pod: replica.pod, pid: await ctx.lab.pidOf(replica.node, ctx.namespace, replica.pod, "app") })));
+  if (target !== "clients") throw new Error(`a sysctl or a middlebox takes the target clients or servers, not ${target}`);
+  const clients = [...ctx.tracker.pods.values()].filter((pod) => pod.labels["app"] === CLIENT && !pod.del && pod.node !== null);
+  if (clients.length === 0) throw new Error("the step needs clients");
+  return Promise.all(clients.map(async (pod) => ({ node: pod.node!, pod: pod.name, pid: await ctx.lab.pidOf(pod.node!, ctx.namespace, pod.name, CLIENT) })));
+};
+
+/**
+ * This function puts a stateful middlebox in the network namespace of each replica, or removes it.
+ * Each client pod is a peer (`middleboxCommands`), and the nodes go at the same time. After the set,
+ * the lab reads the filter table: it shows the chains of the middlebox. Before the removal, the lab
+ * reads the filter table again: the counters show which segments the middlebox dropped.
+ */
+const middleboxServers = async (ctx: Context, idle: Quantity | null, port: number, replicas: readonly Replica[]): Promise<Stamp> => {
+  const peers = [...ctx.tracker.pods.values()]
+    .filter((pod) => pod.labels["app"] === CLIENT && !pod.del && pod.ip !== null)
+    .map((pod) => pod.ip!)
+    .sort();
+  const commands = middleboxCommands(peers, idle, port);
+  const t0 = await ctx.lab.now();
+  const each = await namespacesOf(ctx, "servers", replicas);
+  await Promise.all(
+    each.map(async ({ node, pid }) => {
+      if (idle === null) await ctx.lab.tables(node, pid, "filter");
+      await ctx.lab.netns(node, pid, commands);
+      if (idle !== null) await ctx.lab.tables(node, pid, "filter");
+    }),
+  );
+  return { t0, t1: await ctx.lab.now() };
+};
+
 /** This function does one step of a fault plan. It gives the stamp of its act, or null for an act without a stamp. */
 const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], background: Array<Promise<unknown>>): Promise<Stamp | null> => {
   const { lab, cluster, namespace } = ctx;
@@ -438,6 +474,15 @@ const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], ba
       await cluster.apply([object]);
       return { t0, t1: await lab.now() };
     }
+    case "sysctl": {
+      const command = sysctlCommand(step.key, step.value);
+      const t0 = await lab.now();
+      await Promise.all((await namespacesOf(ctx, step.target, replicas)).map(({ node, pid }) => lab.netns(node, pid, [command])));
+      return { t0, t1: await lab.now() };
+    }
+    case "middlebox":
+      if (step.target !== "servers") throw new Error(`a middlebox takes the target servers, not ${step.target}`);
+      return middleboxServers(ctx, step.idle, step.port, replicas);
   }
 };
 
@@ -502,6 +547,17 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
   const notes: string[] = [];
   const forgotten = Object.entries(cleared).filter(([, count]) => count > 0);
   if (forgotten.length > 0) notes.push(`before the run, the lab deleted SYN_SENT entries of the ClusterIP: ${forgotten.map(([node, count]) => `${count} on ${node}`).join(", ")}`);
+  // the steps before the fault. A failed one makes the run void with its reason, after the restore
+  for (const step of plan.prepare ?? []) {
+    try {
+      await doStep(ctx, step, replicas, background);
+    } catch (error) {
+      const why = `the step ${step.do} before the fault failed: ${String(error).slice(0, 400)}`;
+      ctx.log(`  ${why}`);
+      for (const each of plan.restore) await doStep(ctx, each, replicas, background).catch((failure: unknown) => ctx.log(`  the restore ${each.do} failed: ${String(failure)}`));
+      return empty(why, start);
+    }
+  }
   for (const step of plan.inject) {
     const stamp = await doStep(ctx, step, replicas, background);
     if (stamp !== null && fault === null) fault = stamp.t0;
@@ -739,7 +795,9 @@ const estimate = (cell: KindCell, environments = 2): number => {
   const observed = after === null ? 0 : hold + valueIn(after, "s");
   // the band of `ends` too: until each socket can end
   const closes = cell.prediction.kind === "ends" && cell.prediction.band !== null ? valueIn(cell.prediction.band.hi, "s") + 3 : 0;
-  const each = 25 + Math.max(observed, closes, trigger[cell.trigger.kind] ?? (cell.template === "T18" ? hold + 35 : 15 + valueIn(cell.pod.preStop, "s")));
+  // a quiet black hole: the stop of the calls before the fault, the hold, and the start of the calls after the clear
+  const quiet = cell.trigger.quiet === true ? hold + 10 : 0;
+  const each = 25 + Math.max(observed, closes, quiet, trigger[cell.trigger.kind] ?? (cell.template === "T18" ? hold + 35 : 15 + valueIn(cell.pod.preStop, "s")));
   // the install of Istio in each cluster takes 1 to 2 min
   const setup = cell.mesh === undefined ? 60 : 180;
   return setup * environments + (cell.runs + environments) * each;

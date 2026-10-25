@@ -108,8 +108,13 @@ const upgradePrediction = (prediction: PredictionV1): Prediction => {
       return upgradeWindow(prediction);
     // the format /1 has no prediction `ends`, but its type does
     case "ends": {
-      const { window, ...rest } = prediction;
-      return { ...rest, band: prediction.band === null ? null : band(prediction.band), ...(window === undefined ? {} : { window: upgradeWindow(window) }) };
+      const { window, answer, ...rest } = prediction;
+      return {
+        ...rest,
+        band: prediction.band === null ? null : band(prediction.band),
+        ...(window === undefined ? {} : { window: upgradeWindow(window) }),
+        ...(answer === undefined ? {} : { answer: band(answer) }),
+      };
     }
     case "removal":
     case "leaves":

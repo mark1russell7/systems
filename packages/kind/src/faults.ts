@@ -2,6 +2,7 @@ import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { KindCell } from "./cell.ts";
 import { CLIENT, REDIS, SERVER } from "./names.ts";
+import { HBONE_PORT } from "./observe.ts";
 
 /**
  * This module maps each trigger of a cell to the acts of the lab, as data. The runner finds each
@@ -14,10 +15,12 @@ import { CLIENT, REDIS, SERVER } from "./names.ts";
  * - `server` is the first replica of the service, in the sequence of its name.
  * - `redis` is the Redis pod.
  * - `kube-proxy` is kube-proxy on the first worker.
- * - `servers` is each replica of the service. Only the injector takes it: a rule in the network
- *   namespace of each replica, with each client pod as a peer. A REJECT resets only the sender of
- *   the segment that it matches, thus the rule goes where the segments of the clients arrive.
- * - `clients` is the process of each client pod. Only a signal takes it: the gap of the trigger `idle`.
+ * - `servers` is each replica of the service. Only the injector, a middlebox and a sysctl take it.
+ *   Each one acts in the network namespace of each replica, with each client pod as a peer. A REJECT
+ *   resets only the sender of the segment that it matches, thus the rule goes where the segments of
+ *   the clients arrive.
+ * - `clients` is the process of each client pod. Only a signal and a sysctl take it: the gap of the
+ *   trigger `idle`, and a sysctl of the namespace of each client pod.
  */
 export type Target = "server" | "redis" | "kube-proxy" | "servers" | "clients";
 
@@ -26,9 +29,10 @@ export type Step =
   | { readonly do: "kubectl"; readonly args: readonly string[]; readonly background?: boolean }
   /**
    * This step sends a signal to the target. For the target `clients`, it sends it to each client
-   * process, the nodes at the same time. SIGUSR1 stops the calls of a gRPC client, and SIGUSR2 starts them again.
+   * process, the nodes at the same time. SIGUSR1 stops the calls of a gRPC client, and SIGUSR2 starts
+   * them again. SIGHUP stops the calls and closes the channel, and the next SIGUSR2 opens a new channel.
    */
-  | { readonly do: "signal"; readonly target: Target; readonly signal: "SIGKILL" | "SIGSTOP" | "SIGCONT" | "SIGUSR1" | "SIGUSR2" }
+  | { readonly do: "signal"; readonly target: Target; readonly signal: "SIGKILL" | "SIGSTOP" | "SIGCONT" | "SIGUSR1" | "SIGUSR2" | "SIGHUP" }
   /** This step sends SIGSTOP, then SIGCONT `time` later, as the VM times it. The next step starts at once. */
   | { readonly do: "pause"; readonly target: Target; readonly time: Quantity }
   /**
@@ -43,15 +47,29 @@ export type Step =
   | { readonly do: "stall"; readonly target: Target; readonly time: Quantity }
   | { readonly do: "wait"; readonly time: Quantity }
   /** This step applies one object with `kubectl apply`. The runner fills the marks of its strings, for example `{namespace}`. */
-  | { readonly do: "apply"; readonly object: Readonly<Record<string, unknown>> };
+  | { readonly do: "apply"; readonly object: Readonly<Record<string, unknown>> }
+  /**
+   * This step sets a sysctl of the network namespace of the target: each client pod (`clients`) or
+   * each replica (`servers`). The injector of the harness enters each namespace in turn (`sysctlCommand`).
+   */
+  | { readonly do: "sysctl"; readonly target: Target; readonly key: string; readonly value: string }
+  /**
+   * This step puts a stateful middlebox in the network namespace of each replica (`servers`). Each
+   * client pod is a peer, on the local port `port` (`middleboxCommands`). With `idle` null, the step
+   * removes the middlebox and its chains.
+   */
+  | { readonly do: "middlebox"; readonly target: Target; readonly idle: Quantity | null; readonly port: number };
 
 /**
  * A fault plan is the steps of a run:
+ * - `prepare` comes before the fault, and no reference comes from it: a sysctl, a middlebox, or a
+ *   stop of the calls. A plan without it has no such steps.
  * - `inject` starts the trigger. The stamp of its first act is the `fault` reference.
  * - `heal` ends the fault, `hold` after the fault. A trigger that ends by itself has no heal.
  * - `restore` brings the cell back to its steady state after the run.
  */
 export interface FaultPlan {
+  readonly prepare?: readonly Step[] | undefined;
   readonly inject: readonly Step[];
   readonly hold: Quantity | null;
   readonly heal: readonly Step[];
@@ -97,6 +115,97 @@ export const policyObject = (account: string): Readonly<Record<string, unknown>>
     rules: [{ from: [{ source: { principals: [`cluster.local/ns/{namespace}/sa/${account}`] } }] }],
   },
 });
+
+/** These are the names of the sysctls that the steps of a plan set. Each one is a sysctl of a network namespace. */
+export const SYSCTL = {
+  retries: "net.ipv4.tcp_retries2",
+} as const;
+
+/**
+ * These are the values of those sysctls in a new network namespace of Linux v6.17. A restore puts
+ * them back. `tcp_retries2` is TCP_RETR2 (include/net/tcp.h, line 105, and net/ipv4/tcp_ipv4.c,
+ * line 3604).
+ */
+export const NETNS_DEFAULTS = { retries: "15" } as const;
+
+/**
+ * These are the names of the middlebox in the filter table of a replica. One chain takes the
+ * segments from the peers, and one chain takes the segments to them. The table of xt_recent holds
+ * the time of the last segment of each peer.
+ */
+export const MIDDLEBOX = { input: "LAB-MBX-IN", output: "LAB-MBX-OUT", table: "LAB-MBX" } as const;
+
+/** This time is between the stop of the calls and the fault of a quiet black hole. The last answers and their ACKs, at most 200 ms late, come in it. */
+export const QUIET_LEAD: Quantity = { value: 1, unit: "s" };
+
+/** This time is between the close of the old channel of each client and the fault of a gap with `close`. The stream of the old channel ends in it. */
+export const CLOSE_LEAD: Quantity = { value: 2, unit: "s" };
+
+/** This time is how long each client calls on its new channel at the fault of a gap with `close`, before it closes it. */
+export const CHANNEL_USE: Quantity = { value: 5, unit: "s" };
+
+const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
+
+/**
+ * This function gives the command of the injector that sets one sysctl of its network namespace.
+ * Only a sysctl of the namespace (`net.`) and a whole number reach it.
+ */
+export const sysctlCommand = (key: string, value: string): string[] => {
+  if (!/^net\.[a-z0-9_.]+$/.test(key)) throw new Error(`not a sysctl of a network namespace: ${key}`);
+  if (!/^\d+$/.test(value)) throw new Error(`not a whole number: ${value}`);
+  return ["sysctl", "-w", `${key}=${value}`];
+};
+
+/**
+ * This function gives the commands of the injector that put a stateful middlebox in its network
+ * namespace, with each peer, on the local port `port`. With `idle` null, they remove it.
+ *
+ * The middlebox forgets a flow of the port after `idle` with no segment. Then it drops each later
+ * segment of it: the silent-drop form of the router of the harness. Conntrack stays as it is. The
+ * local leg from ztunnel to the app has no PING, and istio-cni needs its conntrack entry. The
+ * connmark of that entry sends each answer of the app back to ztunnel (cni/pkg/iptables/iptables.go
+ * of Istio 1.31.3, lines 172–178, 278–284 and 336–347).
+ *
+ * The match recent keeps a table in each network namespace (xt_recent.c of Linux v6.17). Its key is
+ * the address of the peer: the source of a segment from it, or the destination of a segment to it
+ * (lines 251–257). The chain of each direction has these rules, in sequence:
+ * - In the input chain only, a SYN sets the time of its peer and passes: a new flow.
+ * - A segment of a peer with a time in the last `idle` seconds passes, and it sets the time again
+ *   (lines 298–321).
+ * - A segment of a peer with an older time is dropped, and the time stays old. Thus the flow stays forgotten.
+ * - A segment of a peer that the table does not hold sets its time and passes (lines 283–290). That
+ *   is the flow that was open before the set.
+ *
+ * Each rule that passes a segment goes back to INPUT or OUTPUT (RETURN), thus the other rules of the
+ * namespace still act on it. The key is an address, not a flow. Thus a new SYN of a peer also refreshes an
+ * old flow of the peer. A cell of the middlebox opens no new flow in its gap.
+ */
+export const middleboxCommands = (peers: readonly string[], idle: Quantity | null, port: number): string[][] => {
+  if (peers.length === 0) throw new Error("a middlebox needs a peer");
+  for (const peer of peers) if (!IPV4.test(peer)) throw new Error(`not an address: ${peer}`);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error(`not a port: ${port}`);
+  const op = idle === null ? "-D" : "-I";
+  // the option of a port follows the protocol that loads its match
+  const jumps = peers.flatMap((peer) => [
+    ["iptables", op, "INPUT", "-s", `${peer}/32`, "-p", "tcp", "--dport", String(port), "-j", MIDDLEBOX.input],
+    ["iptables", op, "OUTPUT", "-d", `${peer}/32`, "-p", "tcp", "--sport", String(port), "-j", MIDDLEBOX.output],
+  ]);
+  const chains = [MIDDLEBOX.input, MIDDLEBOX.output];
+  // the chains are empty first: a jump that a failed fault did not add does not keep the drops
+  if (idle === null) return [...chains.map((chain) => ["iptables", "-F", chain]), ...jumps, ...chains.map((chain) => ["iptables", "-X", chain])];
+  const time = valueIn(idle, "s");
+  if (!Number.isInteger(time) || time < 1) throw new Error(`the idle timeout of the middlebox is a whole number of seconds, not ${time}`);
+  const rules = (chain: string, side: "--rsource" | "--rdest"): string[][] => {
+    const recent = ["-m", "recent", "--name", MIDDLEBOX.table, side];
+    return [
+      ...(chain === MIDDLEBOX.input ? [["iptables", "-A", chain, "-p", "tcp", "--syn", ...recent, "--set", "-j", "RETURN"]] : []),
+      ["iptables", "-A", chain, ...recent, "--update", "--seconds", String(time), "-j", "RETURN"],
+      ["iptables", "-A", chain, ...recent, "--rcheck", "-j", "DROP"],
+      ["iptables", "-A", chain, ...recent, "--set", "-j", "RETURN"],
+    ];
+  };
+  return [...chains.map((chain) => ["iptables", "-N", chain]), ...rules(MIDDLEBOX.input, "--rsource"), ...rules(MIDDLEBOX.output, "--rdest"), ...jumps];
+};
 
 /**
  * This function gives the target of a reset or a black hole of a cell. In T07 and T18 it is Redis,
@@ -178,13 +287,26 @@ export const planOf = (cell: KindCell): FaultPlan => {
         heal: [{ do: "inject", target: linkOf(cell), action: "clear-rst" }],
         restore: [],
       };
-    case "blackhole":
+    case "blackhole": {
+      // a quiet black hole stops the calls before the fault, and starts them again after the clear.
+      // The restore puts back the tcp_retries2 of each client pod, and starts the calls of a client
+      // that a failed heal left stopped
+      const quiet = trigger.quiet === true;
+      const retries = trigger.retries;
+      if (retries !== undefined && !(Number.isInteger(retries) && retries >= 1 && retries <= 255)) throw new Error(`tcp_retries2 is a count from 1 to 255, not ${retries}`);
+      const start: Step[] = quiet ? [{ do: "signal", target: "clients", signal: "SIGUSR2" }] : [];
+      const prepare: Step[] = [
+        ...(retries === undefined ? [] : [{ do: "sysctl" as const, target: "clients" as const, key: SYSCTL.retries, value: String(retries) }]),
+        ...(quiet ? [{ do: "signal" as const, target: "clients" as const, signal: "SIGUSR1" as const }, { do: "wait" as const, time: QUIET_LEAD }] : []),
+      ];
       return {
+        ...(prepare.length === 0 ? {} : { prepare }),
         inject: [{ do: "inject", target: linkOf(cell), action: "blackhole" }],
         hold: needs(trigger.hold, "a hold"),
-        heal: [{ do: "inject", target: linkOf(cell), action: "clear" }],
-        restore: [],
+        heal: [{ do: "inject", target: linkOf(cell), action: "clear" }, ...start],
+        restore: [...(retries === undefined ? [] : [{ do: "sysctl" as const, target: "clients" as const, key: SYSCTL.retries, value: NETNS_DEFAULTS.retries }]), ...start],
       };
+    }
     case "peer-gone-without-close":
       // the rules drop the FIN of Redis, then Redis goes away with its namespace and its rules
       return {
@@ -228,14 +350,26 @@ export const planOf = (cell: KindCell): FaultPlan => {
         heal: [{ do: "kubectl", args: [...ns, "delete", "authorizationpolicy", POLICY] }],
         restore: [{ do: "kubectl", args: [...ns, "delete", "authorizationpolicy", POLICY, "--ignore-not-found"] }],
       };
-    case "idle":
+    case "idle": {
       // the gap of the clients: the restore starts the calls of a client that a failed heal left stopped
+      const hold = needs(trigger.hold, "a hold, the time of the gap");
+      const start: Step = { do: "signal", target: "clients", signal: "SIGUSR2" };
+      if (trigger.close === true) {
+        // each client closes its channel before the fault. At the fault it opens a new channel, calls
+        // on it, and closes it. Thus the fault is the last use of the HBONE connection of the client
+        const close: Step = { do: "signal", target: "clients", signal: "SIGHUP" };
+        return { prepare: [close, { do: "wait", time: CLOSE_LEAD }], inject: [start, { do: "wait", time: CHANNEL_USE }, close], hold, heal: [start], restore: [start] };
+      }
+      const middlebox = trigger.middlebox;
+      // the middlebox is in the namespace of each replica from before the gap to the end of the run
       return {
+        ...(middlebox === undefined ? {} : { prepare: [{ do: "middlebox" as const, target: "servers" as const, idle: middlebox, port: HBONE_PORT }] }),
         inject: [{ do: "signal", target: "clients", signal: "SIGUSR1" }],
-        hold: needs(trigger.hold, "a hold, the time of the gap"),
-        heal: [{ do: "signal", target: "clients", signal: "SIGUSR2" }],
-        restore: [{ do: "signal", target: "clients", signal: "SIGUSR2" }],
+        hold,
+        heal: [start],
+        restore: [start, ...(middlebox === undefined ? [] : [{ do: "middlebox" as const, target: "servers" as const, idle: null, port: HBONE_PORT }])],
       };
+    }
     case "ztunnel-restart":
       // the ztunnel pod of each node goes with its grace. The flow of each client crosses the ztunnel
       // of its own node, thus each client meets the restart. The restore waits for the DaemonSet

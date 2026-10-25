@@ -1018,15 +1018,23 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - Step 4 (done, kind run 40162204803): a line at each close of the socket of a client, and the trigger `idle`. T15.defaults.2 is a black hole, and T15.defaults.10 is an idle gap.
     - The run had 3 shards. Each cell had 11 counted runs, no run was void, and no run failed.
     - T15.defaults.12, .2, .10, .13 and .5 hold, and CAL.T15.sidecar and CAL.T15.policy ran as calibrations. The median of T15.defaults.2 was 20.949 s.
-  - Step 5 (in progress): the restarts of ztunnel. T15.defaults.14 is a control, and T15.border-off.85 and .86 are the borders of O10.
-  - Step 6: the borders of O03, O17 and O02, with a conntrack middlebox and a sysctl of a pod.
+  - Step 5 (done, kind run 40168931281): the restarts of ztunnel. T15.defaults.14 is a control, and T15.border-off.85 and .86 are the borders of O10.
+    - The run had 4 shards. Each cell had 11 counted runs, no run was void, and no run failed.
+    - T15.defaults.12, .2, .10, .14, .13, .5, .85 and .86 hold. The median of .85 was 29.02 s in [29, 29.52] s, and the median of .86 was 30.047 s in [30, 30.52] s.
+  - Step 6 (in progress): the borders of O03, O17 and O02, with a stateful middlebox and a sysctl of a pod. T15.border-off.79 and .80 are the borders of O03, .87 and .88 of O17, and .77 of O02.
+    - Kind run 40181243549: 13 of the 15 cells hold or are calibrations. T15.border-off.79 failed 11 of 11 runs, and .77 failed 2 of 11.
+    - The lab of .79 was wrong. The sysctls of conntrack also forgot the local leg from ztunnel to grpc-go, and istio-cni needs its conntrack entry. In kind 0.8.1, the middlebox uses the match recent, and conntrack stays as it is. The lab of .80 changes with it.
+    - The prediction of .77 was too strict. The server answers the GOAWAY of the client at once, and its FIN can come first. The band `answer` accepts CLOSE_WAIT from the release to one round trip and one step after the band.
   - Step 7: O22, the 2 cells that wait with their reasons, and the page of the results.
 - The decisions of the plan of T15. None needs Mark, because no money, account or key is in them.
   - The plan has pairs with no constraint by mesh mode. T15.defaults.14 and T15.array.14 run as a control, because the borders of O10 already restart ztunnel under ambient.
   - O17 moves through `tcp_retries2` of the client pod. The PING of ztunnel is a constant, and the middlebox half of O17 is the line of O03.
-  - The middlebox of O03 is a conntrack timeout in the namespace of the server pod, because kind has no router between its nodes. The cell names the substitution.
+  - The middlebox of O03 is in the namespace of the server pod, because kind has no router between its nodes. The cell names the substitution.
   - The lab uses Istio 1.31.3, not the 1.31.1 of R3, because it is the newest patch. Its release notes change no default that a cell reads.
   - Each image loads with `kind load` under a tag that holds its digest, as the images of Redis and grpc-go do. A pull-through registry on the kind network is the fallback.
+  - The middlebox uses a table of the match recent in the namespace of each server pod, keyed on the address of each client pod. A `ct timeout` object of nftables acts only on a flow that conntrack has not confirmed yet (`nft_ct.c` of Linux v6.17, line 915). The sysctls of conntrack also forget the local leg from ztunnel to the app.
+  - T15.border-off.88 sets `tcp_retries2` 4, not the 5 of the plan. With 5, TCP gives up 12.8 s to 26.936 s after the PING: on each side of the PING timeout of 20 s.
+  - The release of the pool of ztunnel counts from the last checkout of the connection, not from the end of the last stream. Thus T15.border-off.77 gives each client a new channel for 5 s at the fault, and its band tells the two apart.
 - Step 1 of T15 (kind 0.3.0). A cell can name a mesh (`mesh`), and the template `T15` is new. The cells of one mesh flavor share a cluster.
   - The install is `istioctl install` of 1.31.3, pinned by the sha256 of its tar file. The digests of their index on Docker Hub pin istiod and the proxy.
   - The profile is `minimal`, not `default`: the profile `default` also has an ingress gateway, which no cell uses. The init container of the injector gets the image of the proxy too.
@@ -1072,6 +1080,15 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - T15.border-off.86 sets a deadline of 31 s. The SIGKILL at the end of the grace ends each socket 30 s to 30.52 s after the deletion.
   - The bands let the SIGTERM of the kubelet come up to 0.5 s after the deletion. That is an assumption, and the runs measure it.
   - T15.array.14 is an alias of T15.defaults.14. DP51 sets no knob of ztunnel.
+- Step 6 of T15 (kind 0.8.0, machines 0.3.28). A plan can have steps before the fault (`prepare`). They are a sysctl of the namespace of a pod, a stateful middlebox, and a stop of the calls.
+  - The middlebox is two chains in the namespace of each server pod, with a table of the match recent (kind 0.8.1). After the idle timeout with no segment, they drop each segment of the client pod on the port 15008: the silent-drop form. It stands in for `router-netns:azure-lb-240` (`substitutes`).
+  - T15.border-off.79 forgets an idle flow at 11 s. Each PING of ztunnel refreshes the flow, thus nothing ends the tunnel in a gap of 120 s.
+  - T15.border-off.80 forgets an idle flow at 9 s. The PING timeout ends the socket 28.98 s to 39.73 s after the fault.
+  - T15.border-off.87 and .88 are quiet clients behind a black hole of 45 s, with `tcp_retries2` 6 and 4 in each client pod. With 6, the PING timeout ends the socket 20 s to 30.03 s after the fault. With 4, TCP gives up first with ETIMEDOUT, 6.4 s to 23.772 s after the fault.
+  - T15.border-off.77 gives each client a new channel for 5 s at the fault of a gap of 330 s. The pool of ztunnel releases the tunnel 300 s to 300.62 s after the fault, and the side of the client closes it. The FIN of the answer of the peer can come first, up to 300.631 s (`answer`, kind 0.8.1). The prediction `ends` of the tunnel reads the state records of the prober.
+  - A band from a signal lets the signal of each client come up to 0.5 s after the first one. That is an assumption, and the runs measure it.
+  - `kind.yml` tries the kernel features of the borders in a new namespace of the runner, and it prints each result in `borders.txt`.
+  - The document `ztunnel-hbone` gets the fix of the release: its timer starts at each checkout. The why of T15.defaults.10 cited the wrong fact, and its prediction stays the same.
 
 ## Kubernetes
 
