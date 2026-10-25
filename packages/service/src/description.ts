@@ -31,6 +31,22 @@ export interface Check {
   /** This gate is the policy that it controls, or null for a check that only reports. It has no default. */
   readonly gates: Gate | null;
   readonly poll: Poll;
+  /**
+   * These are the loops that mark the progress of a check of the step `progress`, and its stall
+   * time. Without a declaration, the check names no loops, and `lint()` does not compare its stall time.
+   */
+  readonly marks?: ProgressMarks | undefined;
+}
+
+/**
+ * A progress mark declaration tells which loops mark the progress of a check, and how long the
+ * check waits for a mark. The check function fails when no loop marked in the stall time.
+ */
+export interface ProgressMarks {
+  /** These are the names of the loops: a check (its poller) or a worker of the service. */
+  readonly loops: readonly string[];
+  /** This time is the most time from one mark to the next before the check fails. */
+  readonly stall: Quantity;
 }
 
 /**
