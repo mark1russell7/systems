@@ -105,8 +105,9 @@ export const sentinelConfig = (group: Group, primary: string): string =>
 
 /**
  * This function gives the peers that a fault on a part cuts it from, by their addresses. `all` is
- * each other part and the client, `group` is the other parts, and `clients` is the client. The
- * observer is not a peer, thus the timeline of the group stays whole.
+ * each other part and the client, `group` is the other parts, and `clients` is the client. `one`
+ * and `one-way` are the first other member. The observer is not a peer, thus the timeline of the
+ * group stays whole.
  */
 export const peersOf = (
   parts: { readonly members: Readonly<Record<string, RunPart>>; readonly sentinels: Readonly<Record<string, RunPart>> },
@@ -119,8 +120,16 @@ export const peersOf = (
     .map(([, at]) => at.ip);
   if (cuts === "clients") return [client];
   if (cuts === "group") return others;
+  if (cuts === "one" || cuts === "one-way")
+    return Object.entries(parts.members)
+      .filter(([name]) => name !== part)
+      .slice(0, 1)
+      .map(([, at]) => at.ip);
   return [...others, client];
 };
+
+/** This function gives the direction of the rules of a cut: `one-way` drops only the segments from the part. */
+const directionOf = (cuts: NonNullable<GroupPlace["cuts"]>): string[] => (cuts === "one-way" ? ["--direction", "out"] : []);
 
 /** This function reads the flat reply of a command line client into its fields: name, value, name, value. */
 export const fieldsOf = (text: string): Array<Record<string, string>> => {
@@ -413,11 +422,11 @@ export const openGroupLab = async (group: Group, options: { readonly watchSentin
       },
       fault(kind, part, cuts, at) {
         const peers = peersOf(parts, clientIp, part, cuts).join(",");
-        return stamped(injectorOf(part), ["/opt/harness/inject", kind, peers, ...after(at)]);
+        return stamped(injectorOf(part), ["/opt/harness/inject", kind, peers, ...directionOf(cuts), ...after(at)]);
       },
       lift(kind, part, cuts, at) {
         const peers = peersOf(parts, clientIp, part, cuts).join(",");
-        return stamped(injectorOf(part), ["/opt/harness/inject", kind === "rst" ? "clear-rst" : "clear", peers, ...after(at)]);
+        return stamped(injectorOf(part), ["/opt/harness/inject", kind === "rst" ? "clear-rst" : "clear", peers, ...directionOf(cuts), ...after(at)]);
       },
       signal(part, signal, at) {
         const program = group.sentinels.includes(part) ? group.programs.sentinel : group.programs.server;

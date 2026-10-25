@@ -1,3 +1,5 @@
+import { setFlagsFromString } from "node:v8";
+import { runInNewContext } from "node:vm";
 import { describe, expect, it } from "vitest";
 import type { Lifecycle, RequestEvent, RouteRequest, Rule } from "./index.ts";
 import { lint, service } from "./index.ts";
@@ -19,6 +21,13 @@ const drainSpan = (r: Rig) => {
   return { from: moves[at]!.at, to: moves[at + 1]!.at };
 };
 const cooperativeAt = (r: Rig) => r.events.find((event) => event.on === "drain.cooperative-abort")?.at;
+/** This function collects the garbage after the current job ends: until then, each WeakRef keeps its target. */
+const collect = async (): Promise<void> => {
+  setFlagsFromString("--expose-gc");
+  const gc = runInNewContext("gc") as () => void;
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  gc();
+};
 
 describe("each request is a stream (SYS-6)", () => {
   it("gives a unary value as a stream of one item, from a value, a promise or a throw", async () => {
@@ -221,6 +230,27 @@ describe("each request is a stream (SYS-6)", () => {
     expect(signal!.aborted).toBe(true);
     expect(closed).toBe(true);
     expect(life.inFlight()).toBe(0);
+    void life.shutdown();
+    await exited(r, life);
+  });
+
+  it("keeps no item that the reader took while the stream stays open", async () => {
+    const r = rig();
+    const life = await run(r);
+    const given: Array<WeakRef<object>> = [];
+    const stream = life.request("api", "GET /things", async function* () {
+      for (;;) {
+        const item = { pad: new Array(256).fill(given.length) };
+        given.push(new WeakRef(item));
+        yield item;
+      }
+    });
+    const events = stream[Symbol.asyncIterator]();
+    for (let at = 0; at < 50; at += 1) await events.next();
+    await collect();
+    // a race against the end of the request kept each item until the end
+    expect(given.filter((item) => item.deref() !== undefined).length).toBeLessThanOrEqual(1);
+    await events.return?.();
     void life.shutdown();
     await exited(r, life);
   });

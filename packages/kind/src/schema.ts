@@ -193,7 +193,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     rules: z.record(z.string(), a.nullable()).optional(),
     left: a.optional(),
     signals: z.array(a.nullable()).optional(),
-    windows: z.array(z.object({ pod: z.string(), intake: z.number().nullable(), deletion: z.number() })).optional(),
+    deletions: z.array(z.object({ pod: z.string(), intake: z.number().nullable(), deletion: z.number() })).optional(),
     updates: z.record(z.string(), z.object({ after: a.nullable(), by: a }).nullable()).optional(),
     healUpdates: z.record(z.string(), z.object({ after: a.nullable(), by: a }).nullable()).optional(),
     closes: z.record(z.string(), a.nullable()).optional(),

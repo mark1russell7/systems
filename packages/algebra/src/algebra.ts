@@ -140,7 +140,8 @@ export const parseExpr = (text: string): Node => {
     if (token === "-") return { op: "neg", a: factor() };
     if (/^\d/.test(token)) return { op: "num", n: r.fromDecimal(token) };
     if (!/^[A-Za-z_]/.test(token)) throw new Error(`"${text}": ${token} is not a term`);
-    if (token in FUNCTIONS) {
+    // Only an own key is a function: `toString` is a knob, as each other name.
+    if (Object.hasOwn(FUNCTIONS, token)) {
       const name = token as keyof typeof FUNCTIONS;
       take("(");
       const args = [expr()];
@@ -523,6 +524,9 @@ const MODELS: Readonly<Record<string, Model>> = {
   },
 };
 
+/** This function gives the model of a name, or undefined. Only an own key is a model: `toString` is not one. */
+const modelOf = (name: string): Model | undefined => (Object.hasOwn(MODELS, name) ? MODELS[name] : undefined);
+
 // ---------------------------------------------------------------------------------------------
 // the evaluation of a duration and a timer
 // ---------------------------------------------------------------------------------------------
@@ -542,7 +546,7 @@ const knobIn = (
     return fired === undefined
       ? unknown("one wait of a timer with a backoff: say which, by how many times it has fired")
       : exact(r.fromNumber(fired));
-  if (doc.knobs[name] === undefined) return unknown(`the machine names no knob ${name}`);
+  if (!Object.hasOwn(doc.knobs, name)) return unknown(`the machine names no knob ${name}`);
   const given = values(name);
   if (given === undefined) return unknown(`nothing gives ${name}'s value`);
   if ("unknown" in given) return unknown(`${name}: ${given.unknown}`);
@@ -589,7 +593,7 @@ export const evaluate = (
     );
     return out(value, expr.unit);
   }
-  const model = MODELS[expr.model];
+  const model = modelOf(expr.model);
   if (model === undefined) return { unknown: `no model ${expr.model}`, unit: expr.unit };
   if (model.knobs.length !== expr.knobs.length) {
     return {
@@ -756,7 +760,7 @@ export const algebraProblems = (doc: Machine): string[] => {
           problems.push(`${where}: ${(error as Error).message}`);
         }
       }
-      if ("model" in expr && MODELS[expr.model] === undefined)
+      if ("model" in expr && modelOf(expr.model) === undefined)
         problems.push(`${where}: no model ${expr.model}`);
     }
   };
@@ -772,7 +776,7 @@ export const algebraProblems = (doc: Machine): string[] => {
 };
 
 /** This function gives the source of the formula of a named model, for a reader of a result. */
-export const modelSource = (name: string): string | undefined => MODELS[name]?.source;
+export const modelSource = (name: string): string | undefined => modelOf(name)?.source;
 
 // ---------------------------------------------------------------------------------------------
 // detection: the minimum over the detectors that are live in what the connection was doing

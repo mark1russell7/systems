@@ -18,4 +18,11 @@ describe("the identity fixture every collector decodes", () => {
     for (let kind = 1; kind <= 15; kind += 1) expect(kinds.has(kind), `kind ${kind}`).toBe(true);
     expect(kinds.has(0) && kinds.has(99)).toBe(true);
   });
+
+  it("has the record size of the comparison script, which cuts the fixture into whole records", async () => {
+    // a script at an old size cut a record in two, thus each copy of its throughput fixture started inside a record
+    const script = await readFile(new URL("../image/compare.sh", import.meta.url), "utf8");
+    expect(script).toContain(`\nSIZE=${RECORD_SIZE}\n`);
+    expect(script).not.toMatch(/head -c \$\(\(\d/);
+  });
 });

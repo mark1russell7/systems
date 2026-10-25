@@ -265,6 +265,30 @@ export const settleWithin = (clock: Clock, ms: number, work: Promise<unknown>): 
   });
 
 /**
+ * This function gives the value of a promise, or `stop` when the signal aborts first. Each wait adds
+ * its own listener, and removes it when the promise settles. A race against one pending promise
+ * keeps each settled value until that promise ends.
+ */
+export const untilAbort = <T, S>(promise: Promise<T>, signal: AbortSignal, stop: S): Promise<T | S> => {
+  // A promise that settled before the abort still comes first, as in a race.
+  if (signal.aborted) return Promise.race([promise, Promise.resolve(stop)]);
+  return new Promise<T | S>((resolve, reject) => {
+    const onAbort = (): void => resolve(stop);
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
+};
+
+/**
  * This function gives the backoff of the knobs of a loop. The first delay is `retry_base`, and each
  * delay is two times longer, up to `retry_cap`. Each delay has a jitter up to the base, as in the Redis client.
  */

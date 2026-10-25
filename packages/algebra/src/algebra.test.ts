@@ -353,6 +353,13 @@ describe("the closed forms of the models", () => {
     expect(modelSource("ioredis.retry-base")).toContain("ioredis 6.0.0");
     expect(modelSource("nonesuch")).toBeUndefined();
     expect(evaluate(SOCKET, model("nonesuch", []), given({}))).toEqual({ unknown: "no model nonesuch", unit: "s" });
+    // a key of each object is not a model, a function or a knob
+    expect(modelSource("toString")).toBeUndefined();
+    expect(evaluate(SOCKET, model("constructor", []), given({}))).toEqual({ unknown: "no model constructor", unit: "s" });
+    const odd = { duration: model("toString", []), arms: [], fires: "timer.rto" };
+    expect(algebraProblems({ ...SOCKET, timers: { ...SOCKET.timers, odd } })).toEqual(["timer odd: no model toString"]);
+    expect(parseExpr("valueOf + 1")).toEqual({ op: "+", a: { op: "knob", name: "valueOf" }, b: parseExpr("1") });
+    expect(evaluate(SOCKET, { expr: "toString * 2", unit: "s" }, given({}))).toEqual({ unknown: "the machine names no knob toString", unit: "s" });
     expect(evaluate(SOCKET, model("linux.jiffy", ["hz", "rtt"]), given(HERE))).toEqual({
       unknown: "linux.jiffy reads 1 knobs, not 2",
       unit: "s",

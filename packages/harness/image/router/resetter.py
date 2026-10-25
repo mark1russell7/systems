@@ -39,6 +39,9 @@ def sniff(ifname):
         sport, dport, _seq, ack = struct.unpack("!HHII", tcp[:12])
         fl = tcp[13]
         with flock:
+            # A SYN starts a new flow: a 4-tuple that comes again has none of the state of its last flow.
+            if fl & 0x02:
+                flows.pop((src, sport, dst, dport), None)
             f = flows.setdefault((src, sport, dst, dport), {"ack": None, "closed": False})
             if fl & 0x10:
                 f["ack"] = ack
@@ -85,8 +88,10 @@ def main():
         c, s, cp, sp, s2, r, sp2, rp = m.groups()
         cp, sp, sp2, rp = int(cp), int(sp), int(sp2), int(rp)
         k_cs, k_sr = (c, cp, s, sp), (s2, sp2, r, rp)
+        keys = (k_cs, (s, sp, c, cp), (r, rp, s2, sp2), k_sr)
         with flock:
-            fs = {k: dict(flows[k]) for k in (k_cs, (s, sp, c, cp), (r, rp, s2, sp2), k_sr) if k in flows}
+            # Conntrack forgot the flow, thus the table forgets it too.
+            fs = {k: flows.pop(k) for k in keys if k in flows}
         if not fs or any(f["closed"] for f in fs.values()):
             continue
         seq_c = fs.get(k_cs, {}).get("ack")  # the RCV.NXT of the client

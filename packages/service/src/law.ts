@@ -1,6 +1,7 @@
 /**
  * This module is the evaluator of the timer-ordering law. Its decisions are the same as the
- * decisions of the research evaluator. The rules are data, and the caller gives them. Each rule
+ * decisions of the research evaluator, except when absent timers leave no order (`evaluate`). The
+ * rules are data, and the caller gives them. Each rule
  * is one or more linear inequalities over symbols at a hop (`readiness_detection_window@pod`),
  * with a margin. A binding maps `symbol@hop` to seconds, or to "inf" for a timer that is absent.
  */
@@ -107,10 +108,18 @@ const marginOf = (inequality: Inequality, index: number, bind: Binding): number 
   return typeof inequality.margin === "number" ? inequality.margin : 0;
 };
 
+/** This function tells if an inequality reads a symbol with no limit: "inf", "off" or an infinite number. */
+const readsAbsent = (inequality: Inequality, bind: Binding): boolean =>
+  [...inequality.lhs.terms, ...inequality.rhs.terms].some((term) => {
+    const bound = boundOf(bind, keyOf(term));
+    return bound !== undefined && value(bound) === Infinity;
+  });
+
 /**
  * This function evaluates each inequality on one binding. "<" holds when lhs + margin < rhs, and
  * ">" holds when lhs > rhs + margin. Only the inequalities with all their symbols bound apply.
- * The others are null.
+ * The others are null. Absent timers can leave no order: the same infinity on each side, or both
+ * signs of infinity on one side. Then the inequality holds only because a timer is absent.
  */
 export const evaluate = (rule: Rule, bind: Binding): Evaluated[] =>
   inequalities(rule).map((inequality, index) => {
@@ -118,6 +127,8 @@ export const evaluate = (rule: Rule, bind: Binding): Evaluated[] =>
     const rhs = sideOf(inequality.rhs, bind);
     const margin = marginOf(inequality, index, bind);
     if (lhs === null || rhs === null) return { lhs, rhs, margin, holds: null };
+    const unordered = Number.isNaN(lhs) || Number.isNaN(rhs) || (lhs === rhs && !Number.isFinite(lhs));
+    if (unordered && readsAbsent(inequality, bind)) return { lhs, rhs, margin, holds: true };
     const holds =
       inequality.op === "<"
         ? lhs + margin < rhs
@@ -140,12 +151,6 @@ export const verdictOf = (rule: Rule, bind: Binding, evaluated: readonly Evaluat
   if (applicable.length === 0) return "depends";
   if (applicable.some((index) => evaluated[index]?.holds === false)) return "violated";
   const all = inequalities(rule);
-  const infinite = applicable.some((index) => {
-    const inequality = all[index]!;
-    return [...inequality.lhs.terms, ...inequality.rhs.terms].some((term) => {
-      const bound = boundOf(bind, keyOf(term));
-      return bound !== undefined && value(bound) === Infinity;
-    });
-  });
+  const infinite = applicable.some((index) => readsAbsent(all[index]!, bind));
   return infinite ? "unbounded" : "holds";
 };

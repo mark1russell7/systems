@@ -130,6 +130,19 @@ describe("the judgement of a record again", () => {
     expect(FORMAT_V1).toBe("systems.kind-cell-record/1");
   });
 
+  it("keeps the deletions of a window for each deleted replica when it reads a record again", () => {
+    const fromV1 = readRecord(json(fixture(FIXTURES.fails)));
+    const deletions = [
+      { pod: "lab-a", intake: 1050, deletion: 1000 },
+      { pod: "lab-b", intake: null, deletion: 8000 },
+    ];
+    const checks = fromV1.verdict.checks.map((check) => ({ ...check, facts: { ...check.facts, deletions } }));
+    expect(checks.length).toBeGreaterThan(0);
+    const each: KindCellRecord = { ...fromV1, verdict: { ...fromV1.verdict, checks } };
+    // the schema named the field windows, thus a read dropped the facts that the judge wrote
+    expect(readRecord(json(each)).verdict.checks.map((check) => check.facts.deletions)).toEqual(checks.map(() => deletions));
+  });
+
   it("reads a record of /2 of a cell of T15 with its mesh, and refuses a mesh that is not one", () => {
     const fromV1 = readRecord(json(fixture(FIXTURES.fails)));
     const meshed: KindCellRecord = { ...fromV1, cell: { ...fromV1.cell, template: "T15", stack: "grpc", mesh: { flavor: "sidecar", mode: "sidecar" } } };
