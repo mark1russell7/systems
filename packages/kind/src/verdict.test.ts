@@ -508,6 +508,34 @@ describe("the judgement of the end of the sockets of the clients", () => {
     expect(observationEnd(gap, runOf([]))).toBeNull();
   });
 
+  it("counts the close of a restart of ztunnel from the first deletion of a ztunnel pod, with the calls in flight in the window", () => {
+    const zpod = (t: number, name: string): Line => ({ ev: "ztunnel-pod", t, type: "MODIFIED", name, node: "w1", ip: null, del: true, cs: [] });
+    const failed = { lo: s(28.98), hi: s(29.52) };
+    const restart: KindCell = {
+      ...hole,
+      trigger: { kind: "ztunnel-restart" },
+      prediction: {
+        kind: "ends",
+        from: "restart",
+        band: b(29, 29.52),
+        window: { kind: "window", nodes: "all", start: { from: "restart", band: failed }, end: { from: "restart", band: failed }, certain: false, outcomes: ["error", "reset"], why: "a window" },
+        why: "a test",
+      },
+    };
+    // the deletions at 6000 and 6010; each socket ends 29.2 s and 29.3 s after the first one, with a call in flight on w1
+    const lines = [zpod(6000, "zt-1"), zpod(6010, "zt-2"), call(35_195, "error", "w1", 40_001), close(35_200, "w1", 40_001), close(35_300, "w2", 40_002)];
+    const held = checkRun(restart, runOf(lines, { fault: 5800, heal: null }));
+    expect(held.ok, held.why).toBe(true);
+    expect(held.facts.closes).toEqual({ "client-w1": s(29.2), "client-w2": s(29.3) });
+    // the same close 1 s later is out of the band: the side of the kill at the end of the grace
+    const killed = checkRun(restart, runOf([zpod(6000, "zt-1"), close(36_200, "w1", 40_001), close(36_300, "w2", 40_002)], { fault: 5800, heal: null }));
+    expect(killed.ok).toBe(false);
+    expect(killed.why).toMatch(/the socket of client-w1 ended at 30.2 s/);
+    // a run with no deletion of a ztunnel pod has no reference
+    expect(checkRun(restart, runOf([close(35_200, "w1", 40_001)], { fault: 5800, heal: null })).why).toMatch(/the run has no restart reference/);
+    expect(observationEnd(restart, runOf(lines, { fault: 5800, heal: null }))).toBe(6000 + 29_520 + 2000 + 100);
+  });
+
   it("writes the prediction of a close and of a gap", () => {
     expect(predictionText(hole.prediction)).toMatch(/^the socket of each client ends in /);
     expect(predictionText(hole.prediction)).toContain("; ");

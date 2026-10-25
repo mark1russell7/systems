@@ -65,7 +65,7 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `ISTIO_SIDECAR_OUTBOUND` | `istio-sidecar-outbound` | The client sidecar of Istio 1.31.3: Envoy 1.39.4 between the app and the mesh, its retries, an update of LDS and the SIGKILL | proxy | 31 implemented |
 | `ISTIO_SIDECAR_INBOUND` | `istio-sidecar-inbound` | The server sidecar of Istio 1.31.3: Envoy 1.39.4 between the mesh and the app, the policy, an update of LDS and the SIGKILL | proxy | 31 implemented |
 | `PILOT_AGENT` | `pilot-agent` | pilot-agent of Istio 1.31.3: the drain and the SIGKILL of the Envoy of a sidecar at the stop of its pod | proxy | 12 implemented |
-| `ZTUNNEL_HBONE` | `ztunnel-hbone` | ztunnel 1.31.3 in in-pod mode: one HBONE connection from a client pod to a server pod, its PING, its drain and the close of each flow of the app | proxy | 14 implemented, 3 derived |
+| `ZTUNNEL_HBONE` | `ztunnel-hbone` | ztunnel 1.31.3 in in-pod mode: one HBONE connection from a client pod to a server pod, its PING, its drain and the close of each flow of the app | proxy | 15 implemented, 3 derived |
 
 Thirty-three documents operate on Linux TCP (`over`). Eight documents operate on no other document. They are Linux TCP, conntrack, the Sentinel, the replication of mongod, aten, the member of Ra, the `RetryAgent` of undici and pilot-agent.
 
@@ -114,6 +114,13 @@ A document changes only for one of two reasons:
 A change to the version of a system changes its sources too. Each fact of the document then cites the new version.
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
+
+### 0.3.27
+
+- **The SIGKILL at the end of the grace** (`ztunnel-hbone`). The document has the grace of the ztunnel pod as a knob (`grace`, 30 s from the chart) and a timer from SIGTERM.
+  - The drain ends at the first of the deadline and the grace. The transition `zt.deadline` has the guard `deadline < grace`, and the new transition `zt.killed` has the guard `grace <= deadline`.
+  - At the SIGKILL, the kernel closes each socket of ztunnel: a FIN, or a reset when bytes are unread. The source is the kubelet and the CRI of Kubernetes v1.37.0.
+  - The cells T15.border-off.85 and .86 read both timers. A new knob and a new timer are a feature, thus the version is a PATCH before 1.0.0.
 
 ### 0.3.26
 

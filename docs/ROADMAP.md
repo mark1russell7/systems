@@ -992,8 +992,10 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
     - The deleted pod left each client sidecar 0.063 s to 0.133 s after the deletion.
     - A policy reached each server sidecar 0.163 s to 0.225 s after its apply.
     - T15.defaults.13, T15.defaults.5 and T15.defaults.12 hold.
-  - Step 4 (in progress): a line at each close of the socket of a client, and the trigger `idle`. T15.defaults.2 is a black hole, and T15.defaults.10 is an idle gap.
-  - Step 5: the restarts of ztunnel. T15.defaults.14 is a control, and T15.border-off.85 and .86 are the borders of O10.
+  - Step 4 (done, kind run 40162204803): a line at each close of the socket of a client, and the trigger `idle`. T15.defaults.2 is a black hole, and T15.defaults.10 is an idle gap.
+    - The run had 3 shards. Each cell had 11 counted runs, no run was void, and no run failed.
+    - T15.defaults.12, .2, .10, .13 and .5 hold, and CAL.T15.sidecar and CAL.T15.policy ran as calibrations. The median of T15.defaults.2 was 20.949 s.
+  - Step 5 (in progress): the restarts of ztunnel. T15.defaults.14 is a control, and T15.border-off.85 and .86 are the borders of O10.
   - Step 6: the borders of O03, O17 and O02, with a conntrack middlebox and a sysctl of a pod.
   - Step 7: O22, the 2 cells that wait with their reasons, and the page of the results.
 - The decisions of the plan of T15. None needs Mark, because no money, account or key is in them.
@@ -1038,6 +1040,15 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - T15.defaults.10 is a gap of 330 s in the calls. The release of the pool at 300 s does not close a connection with an open stream, thus nothing ends the socket.
   - T15.defaults.10 uses `ends` with no band, not `stays`. The judge of `stays` reads only the endpoints and the refusals, thus it holds when a socket closes and the client connects again.
   - T15.array.2 and T15.array.10 are aliases of the cells at the defaults. DP51 and DP52 set no knob that ztunnel reads on an L4 path.
+- Step 5 of T15 (kind 0.7.0, machines 0.3.27). The trigger `ztunnel-restart` deletes the ztunnel pod of each node. A cell can set the environment of ztunnel (`mesh.ztunnel`), with its undo after the cell.
+  - The chart of ztunnel sets `maxSurge` 1. Thus the controller of the DaemonSet makes the new pod at the deletion, not when the old pod is gone.
+  - The reference `restart` is the first deletion of a ztunnel pod, as the watcher receives it. A run ends when each old pod is gone and each node has a ready new one.
+  - The trigger deletes the pod of each node, not of one node. The flow of each client crosses the ztunnel of its own node, thus each client meets the restart.
+  - T15.defaults.14 is a control: sidecar pods in the ambient flavor. ztunnel is on no path, thus no call fails.
+  - T15.border-off.85 sets a deadline of 29 s in the grace of 30 s. ztunnel ends each socket 29 s to 29.52 s after the deletion.
+  - T15.border-off.86 sets a deadline of 31 s. The SIGKILL at the end of the grace ends each socket 30 s to 30.52 s after the deletion.
+  - The bands let the SIGTERM of the kubelet come up to 0.5 s after the deletion. That is an assumption, and the runs measure it.
+  - T15.array.14 is an alias of T15.defaults.14. DP51 sets no knob of ztunnel.
 
 ## Kubernetes
 

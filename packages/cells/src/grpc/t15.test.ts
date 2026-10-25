@@ -2,8 +2,10 @@ import type { KindCell } from "@mark1russell7/kind";
 import {
   LAST_SLACK,
   POLICY,
+  ZTUNNEL_PODS,
   clientObjects,
   estimatedTime,
+  followsZtunnel,
   namespaceObject,
   namespaceOf,
   planOf,
@@ -13,6 +15,7 @@ import {
   serverCluster,
   serverObjects,
   shardOf,
+  ztunnelEnvArgs,
 } from "@mark1russell7/kind";
 import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
@@ -27,13 +30,18 @@ import {
   P_EDS,
   P_LDS,
   SIDECAR,
+  SIDECAR_IN_AMBIENT,
   T15_GRPC,
   T15_GRPC_ALIASES,
+  TERM_LATE,
   ZTUNNEL_CONNECT,
   blackholeWindow,
+  deadlineMesh,
+  drainEnd,
   longestSynGap,
   policyWindow,
   resetWindow,
+  restartEnds,
   sidecarDeletion,
 } from "./t15.ts";
 
@@ -46,10 +54,28 @@ const cell = (id: string): KindCell => {
 /** These are the cells of the sidecar mesh: steps 1 and 2. */
 const SIDECAR_CELLS = T15_GRPC.filter((each) => each.mesh === SIDECAR);
 
-describe("the gRPC catalog of T15, steps 2 to 4", () => {
-  it("has the calibrations, the deletion and the policy, each in the sidecar mesh, the reset, the black hole and the gap in the ambient mesh, and each name once", () => {
-    expect(T15_GRPC.map((each) => each.id)).toEqual(["CAL.T15.sidecar", "T15.defaults.13", "CAL.T15.policy", "T15.defaults.5", "T15.defaults.12", "T15.defaults.2", "T15.defaults.10"]);
-    expect(T15_GRPC.filter((each) => each.mesh === AMBIENT).map((each) => each.id)).toEqual(["T15.defaults.12", "T15.defaults.2", "T15.defaults.10"]);
+describe("the gRPC catalog of T15, steps 2 to 5", () => {
+  it("has the calibrations, the deletion and the policy, each in the sidecar mesh, the reset, the black hole, the gap and the restarts in the ambient flavor, and each name once", () => {
+    expect(T15_GRPC.map((each) => each.id)).toEqual([
+      "CAL.T15.sidecar",
+      "T15.defaults.13",
+      "CAL.T15.policy",
+      "T15.defaults.5",
+      "T15.defaults.12",
+      "T15.defaults.2",
+      "T15.defaults.10",
+      "T15.defaults.14",
+      "T15.border-off.85",
+      "T15.border-off.86",
+    ]);
+    expect(T15_GRPC.filter((each) => each.mesh?.mode === "ambient").map((each) => each.id)).toEqual([
+      "T15.defaults.12",
+      "T15.defaults.2",
+      "T15.defaults.10",
+      "T15.border-off.85",
+      "T15.border-off.86",
+    ]);
+    expect(T15_GRPC.filter((each) => each.mesh?.flavor === "ambient" && each.mesh.mode === "sidecar").map((each) => each.id)).toEqual(["T15.defaults.14"]);
     expect(new Set(T15_GRPC.map((each) => each.name)).size).toBe(T15_GRPC.length);
     expect(new Set(T15_GRPC.map(namespaceOf)).size).toBe(T15_GRPC.length);
     for (const each of SIDECAR_CELLS) {
@@ -59,7 +85,7 @@ describe("the gRPC catalog of T15, steps 2 to 4", () => {
       expect(each.prediction.why.length, each.name).toBeGreaterThan(10);
       expect(propagationSource(each), each.name).toBe("eds");
     }
-    for (const each of T15_GRPC.filter((one) => one.mesh === AMBIENT)) {
+    for (const each of T15_GRPC.filter((one) => one.mesh?.mode === "ambient")) {
       expect(each.name, each.id).toMatch(/^T15 ambient, gRPC, /);
       expect(each, each.name).toMatchObject({ template: "T15", stack: "grpc", mesh: { flavor: "ambient", mode: "ambient" }, declaration: null, mode: "iptables", runs: 11 });
     }
@@ -227,6 +253,7 @@ describe("the gRPC catalog of T15, steps 2 to 4", () => {
       ["T15.array.12", "T15.defaults.12"],
       ["T15.array.2", "T15.defaults.2"],
       ["T15.array.10", "T15.defaults.10"],
+      ["T15.array.14", "T15.defaults.14"],
     ]);
     expect(T15_GRPC_ALIASES.find((alias) => alias.plan === "T15.array.10")?.why).toContain("workload.proto");
     expect(T15_GRPC_ALIASES.find((alias) => alias.plan === "T15.array.12")?.why).toContain("workload.proto");
@@ -236,7 +263,7 @@ describe("the gRPC catalog of T15, steps 2 to 4", () => {
   it("labels the namespace for the mesh, and gives each cell its objects and its plan", () => {
     for (const each of T15_GRPC) {
       const namespace = namespaceOf(each);
-      const labels = each.mesh === AMBIENT ? { "istio.io/dataplane-mode": "ambient" } : { "istio-injection": "enabled" };
+      const labels = each.mesh?.mode === "ambient" ? { "istio.io/dataplane-mode": "ambient" } : { "istio-injection": "enabled" };
       expect(namespaceObject(each, namespace)).toEqual({ apiVersion: "v1", kind: "Namespace", metadata: { name: namespace, labels } });
       expect(serverCluster(namespace)).toBe(`outbound|80||lab.${namespace}.svc.cluster.local`);
       expect(serverObjects(each, namespace, "image").length).toBe(2);
@@ -269,8 +296,89 @@ describe("the gRPC catalog of T15, steps 2 to 4", () => {
     expect(valueIn(estimatedTime(hole), "s")).toBeCloseTo(2 * 180 + 13 * (25 + 45 + after + 2 + 0.1), 1);
     // a run of the gap: 25 s at rest, the gap of 330 s and 5 s after it
     expect(valueIn(estimatedTime(cell("T15.defaults.10")), "s")).toBe(2 * 180 + 13 * (25 + 335));
-    // with 3 shards, the gap is alone on the shard 1
-    expect(shardOf(T15_GRPC, 1, 3).map((each) => each.id)).toEqual(["T15.defaults.10"]);
-    expect(shardOf(T15_GRPC, 0, 3).map((each) => each.id)).toEqual(["T15.defaults.12", "T15.defaults.2"]);
+    // a run of a restart of ztunnel: 25 s at rest, then the grace of 30 s and the removal of the old pods
+    for (const id of ["T15.defaults.14", "T15.border-off.85", "T15.border-off.86"]) expect(valueIn(estimatedTime(cell(id)), "s"), id).toBe(2 * 180 + 13 * (25 + 40));
+    // with 4 shards, the gap is alone on the shard 1, and the restarts share the shard 2
+    expect(shardOf(T15_GRPC, 0, 4).map((each) => each.id)).toEqual(["T15.defaults.12", "T15.defaults.2"]);
+    expect(shardOf(T15_GRPC, 1, 4).map((each) => each.id)).toEqual(["T15.defaults.10"]);
+    expect(shardOf(T15_GRPC, 2, 4).map((each) => each.id)).toEqual(["T15.defaults.14", "T15.border-off.85", "T15.border-off.86"]);
+    expect(shardOf(T15_GRPC, 3, 4).map((each) => each.id)).toEqual(["CAL.T15.sidecar", "T15.defaults.13", "CAL.T15.policy", "T15.defaults.5"]);
+  });
+});
+
+describe("the restarts of ztunnel of T15, step 5", () => {
+  it("deletes the ztunnel pod of each node, and waits for the DaemonSet in the restore", () => {
+    for (const id of ["T15.defaults.14", "T15.border-off.85", "T15.border-off.86"]) {
+      expect(cell(id).trigger, id).toEqual({ kind: "ztunnel-restart" });
+      expect(planOf(cell(id)), id).toEqual({
+        inject: [{ do: "kubectl", args: ["-n", "istio-system", "delete", "pod", "-l", ZTUNNEL_PODS, "--wait=false"] }],
+        hold: null,
+        heal: [],
+        restore: [{ do: "kubectl", args: ["-n", "istio-system", "rollout", "status", "daemonset/ztunnel", "--timeout=300s"] }],
+      });
+    }
+    expect(ZTUNNEL_PODS).toBe("app=ztunnel");
+  });
+
+  it("runs the control with sidecar pods in the ambient flavor, and predicts no failure", () => {
+    const control = cell("T15.defaults.14");
+    expect(control.mesh).toEqual(SIDECAR_IN_AMBIENT);
+    expect(control.mesh).toEqual({ flavor: "ambient", mode: "sidecar" });
+    expect(control.prediction).toMatchObject({ kind: "none" });
+    expect(control.prediction.why).toContain("informers.go of Istio 1.31.3, line 132");
+    // the sidecar namespace, the EDS poll of a sidecar cell, and the lines of the ztunnel pods as the evidence of the restart
+    expect(namespaceObject(control, "lab-a")).toMatchObject({ metadata: { labels: { "istio-injection": "enabled" } } });
+    expect(propagationSource(control)).toBe("eds");
+    expect(followsZtunnel(control)).toBe(true);
+  });
+
+  it("gives each border the environment of its deadline, with its undo", () => {
+    expect(cell("T15.border-off.85").mesh).toEqual({ flavor: "ambient", mode: "ambient", ztunnel: { CONNECTION_TERMINATION_DEADLINE: "29s" } });
+    expect(cell("T15.border-off.86").mesh).toEqual(deadlineMesh(s(31)));
+    expect(ztunnelEnvArgs({ CONNECTION_TERMINATION_DEADLINE: "29s" }, false)).toEqual(["-n", "istio-system", "set", "env", "daemonset/ztunnel", "CONNECTION_TERMINATION_DEADLINE=29s"]);
+    expect(ztunnelEnvArgs({ B: "2", A: "1" }, true)).toEqual(["-n", "istio-system", "set", "env", "daemonset/ztunnel", "A-", "B-"]);
+    // no other cell of T15 sets the environment of ztunnel
+    expect(T15_GRPC.filter((each) => each.mesh?.ztunnel !== undefined).map((each) => each.id)).toEqual(["T15.border-off.85", "T15.border-off.86"]);
+  });
+
+  it("ends the drain at the first of the deadline and the grace of 30 s: the two sides of the line of O10", () => {
+    expect(drainEnd(s(29))).toEqual({ by: "deadline", span: { lo: 29, hi: 29.01 } });
+    expect(drainEnd(s(31))).toEqual({ by: "grace", span: { lo: 30, hi: 30.01 } });
+    // the default deadline of 25 s is inside the grace too
+    expect(drainEnd(s(25)).by).toBe("deadline");
+    expect(drainEnd(s(30)).by).toBe("grace");
+  });
+
+  it("gives each border a band of the close after the restart, 1 s apart, and a window of the calls in flight", () => {
+    const inside = cell("T15.border-off.85");
+    const outside = cell("T15.border-off.86");
+    // the timer and its lateness of 10 ms, the SIGTERM 500 ms late at the most, and one step of ztunnel
+    expect(TERM_LATE).toEqual(s(0.5));
+    expect(inside.prediction).toMatchObject({
+      kind: "ends",
+      from: "restart",
+      band: { lo: s(29), hi: s(29.52) },
+      window: {
+        kind: "window",
+        nodes: "all",
+        start: { from: "restart", band: { lo: s(28.98), hi: s(29.52) } },
+        end: { from: "restart", band: { lo: s(28.98), hi: s(29.52) } },
+        certain: false,
+        outcomes: ["error", "reset"],
+      },
+    });
+    expect(outside.prediction).toMatchObject({ kind: "ends", from: "restart", band: { lo: s(30), hi: s(30.52) } });
+    const ends = inside.prediction as { readonly why: string; readonly window: { readonly why: string } };
+    expect(inside.prediction).toEqual(restartEnds(s(29), ends.why, ends.window.why));
+    // the bands do not meet, with δ of 100 ms on each side
+    const bandOf = (each: KindCell): { lo: number; hi: number } => {
+      const band = (each.prediction as { band: { lo: { value: number; unit: string }; hi: { value: number; unit: string } } }).band;
+      return { lo: valueIn(band.lo, "s"), hi: valueIn(band.hi, "s") };
+    };
+    expect(bandOf(outside).lo - 0.1).toBeGreaterThan(bandOf(inside).hi + 0.1);
+    expect(inside.prediction.why).toContain("The law O10 holds");
+    expect(outside.prediction.why).toContain("The law O10 is violated");
+    expect(outside.prediction.why).toContain("kuberuntime_container.go of Kubernetes v1.37.0");
+    expect(ends.window.why).toContain("daemon_controller.go, lines 863–924");
   });
 });

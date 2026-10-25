@@ -7,9 +7,24 @@ import type { KindCell } from "./cell.ts";
 import { cellOf } from "./cells.fixture.ts";
 import { clusterFilter, hostsOf, outboundCluster } from "./eds.ts";
 import { CLIENT_ACCOUNT, POLICY, deletes, planOf, policyObject } from "./faults.ts";
-import { ACCESS_LOG_FORMAT, ISTIO_IMAGES, ISTIO_VERSION, LDS_EVERY, MESH_IMAGES, MESH_WORKLOADS, followsZtunnel, istioOperator, meshKey, pollsListeners, serverCluster } from "./istio.ts";
+import {
+  ACCESS_LOG_FORMAT,
+  ISTIO_IMAGES,
+  ISTIO_VERSION,
+  LDS_EVERY,
+  MESH_IMAGES,
+  MESH_WORKLOADS,
+  followsZtunnel,
+  istioOperator,
+  meshKey,
+  pollsListeners,
+  serverCluster,
+  ztunnelEnvArgs,
+} from "./istio.ts";
 import { LDS_FILTER, listenerCountsOf } from "./lds.ts";
 import { clientObjects, namespaceObject } from "./manifests.ts";
+import { restartOf, ztunnelReplaced } from "./observe.ts";
+import { referenceOf } from "./verdict.ts";
 import type { Tool } from "./tools.ts";
 import { ISTIOCTL, ensureTool, sha256, tarEntry, toolPath } from "./tools.ts";
 
@@ -84,11 +99,38 @@ describe("the install of Istio", () => {
     expect(namespaceObject({ mesh: { flavor: "ambient", mode: "sidecar" } }, "lab-a")).toMatchObject({ metadata: { labels: { "istio-injection": "enabled" } } });
     expect(namespaceObject({ mesh: AMBIENT }, "lab-a")).toEqual({ apiVersion: "v1", kind: "Namespace", metadata: { name: "lab-a", labels: { "istio.io/dataplane-mode": "ambient" } } });
     expect(namespaceObject({}, "lab-a")).toEqual({ apiVersion: "v1", kind: "Namespace", metadata: { name: "lab-a" } });
-    // the watcher follows ztunnel only for the pods of the ambient mode
+    // the watcher follows ztunnel in the flavor ambient: sidecar pods there need the lines of a restart of ztunnel too
     expect(followsZtunnel({ mesh: AMBIENT })).toBe(true);
     expect(followsZtunnel({ mesh: SIDECAR })).toBe(false);
-    expect(followsZtunnel({ mesh: { flavor: "ambient", mode: "sidecar" } })).toBe(false);
+    expect(followsZtunnel({ mesh: { flavor: "ambient", mode: "sidecar" } })).toBe(true);
     expect(followsZtunnel({})).toBe(false);
+  });
+
+  it("sets the environment of ztunnel for a cell and removes it after, and reads the restart from the lines of the ztunnel pods", () => {
+    expect(ztunnelEnvArgs({ CONNECTION_TERMINATION_DEADLINE: "29s" }, false)).toEqual(["-n", "istio-system", "set", "env", "daemonset/ztunnel", "CONNECTION_TERMINATION_DEADLINE=29s"]);
+    expect(ztunnelEnvArgs({ CONNECTION_TERMINATION_DEADLINE: "29s" }, true)).toEqual(["-n", "istio-system", "set", "env", "daemonset/ztunnel", "CONNECTION_TERMINATION_DEADLINE-"]);
+    const pod = (t: number, name: string, node: string, del: boolean, ready: boolean, type = "MODIFIED") => ({ ev: "ztunnel-pod", t, type, name, node, ip: null, del, cs: [{ n: "istio-proxy", r: ready, rc: 0, st: "running", id: null }] });
+    const nodes = ["a", "b"];
+    const lines = [
+      pod(1000, "zt-a", "a", true, true),
+      pod(1010, "zt-b", "b", true, true),
+      pod(1200, "zt-a2", "a", false, false, "ADDED"),
+      pod(1300, "zt-b2", "b", false, false, "ADDED"),
+      pod(3000, "zt-a2", "a", false, true),
+      pod(3100, "zt-b2", "b", false, true),
+    ];
+    // the reference is the first deletion after the start of the run
+    expect(restartOf(lines, 0)).toBe(1000);
+    expect(restartOf(lines, 1005)).toBe(1010);
+    expect(restartOf([], 0)).toBeNull();
+    expect(referenceOf({ start: 0, acts: { fault: 900, heal: null, resume: null }, target: null, lines }, "restart")).toBe(1000);
+    // the new pods are ready, and the old pods are not gone yet: the restart is not over
+    expect(ztunnelReplaced(lines, nodes)).toBe(false);
+    const gone = [...lines, pod(31_000, "zt-a", "a", true, false, "DELETED"), pod(31_100, "zt-b", "b", true, false, "DELETED")];
+    expect(ztunnelReplaced(gone, nodes)).toBe(true);
+    // a node with no ready new pod, or no deletion at all
+    expect(ztunnelReplaced(gone, [...nodes, "c"])).toBe(false);
+    expect(ztunnelReplaced(lines.slice(2), nodes)).toBe(false);
   });
 
   it("resets the mesh leg in T15: the injector in each replica, with the client pods as peers, and Redis elsewhere", () => {

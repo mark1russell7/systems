@@ -78,6 +78,8 @@ export const DELETION_COST = "controller.kubernetes.io/pod-deletion-cost";
 export const POLICY = "lab-deny";
 /** This service account is the account of the clients: their pods name no other account. */
 export const CLIENT_ACCOUNT = "default";
+/** This selector gives the ztunnel pods in istio-system: the label `app` of the chart of ztunnel. */
+export const ZTUNNEL_PODS = "app=ztunnel";
 
 /**
  * This function gives the AuthorizationPolicy of the trigger `authorization-policy`. It denies each
@@ -233,6 +235,15 @@ export const planOf = (cell: KindCell): FaultPlan => {
         hold: needs(trigger.hold, "a hold, the time of the gap"),
         heal: [{ do: "signal", target: "clients", signal: "SIGUSR2" }],
         restore: [{ do: "signal", target: "clients", signal: "SIGUSR2" }],
+      };
+    case "ztunnel-restart":
+      // the ztunnel pod of each node goes with its grace. The flow of each client crosses the ztunnel
+      // of its own node, thus each client meets the restart. The restore waits for the DaemonSet
+      return {
+        inject: [{ do: "kubectl", args: ["-n", "istio-system", "delete", "pod", "-l", ZTUNNEL_PODS, "--wait=false"] }],
+        hold: null,
+        heal: [],
+        restore: [{ do: "kubectl", args: ["-n", "istio-system", "rollout", "status", "daemonset/ztunnel", "--timeout=300s"] }],
       };
   }
 };

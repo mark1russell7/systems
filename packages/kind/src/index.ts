@@ -14,7 +14,7 @@ export { CONTROLLER, FLAG_CHECK, ROUTE, WATCHDOG, compose } from "./compose.ts";
 export type { ClusterHosts } from "./eds.ts";
 export { clusterFilter, hostsOf, outboundCluster } from "./eds.ts";
 export type { FaultPlan, Step, Target } from "./faults.ts";
-export { CLIENT_ACCOUNT, POLICY, deletes, planOf, policyObject } from "./faults.ts";
+export { CLIENT_ACCOUNT, POLICY, ZTUNNEL_PODS, deletes, planOf, policyObject } from "./faults.ts";
 export { labImage, stageLabImage } from "./image.ts";
 export type { MeshImages } from "./istio.ts";
 export {
@@ -31,6 +31,8 @@ export {
   meshKey,
   pollsListeners,
   serverCluster,
+  setZtunnelEnv,
+  ztunnelEnvArgs,
 } from "./istio.ts";
 export type { EdsSpec, KindLab, LdsSpec, Stamp } from "./lab.ts";
 export type { ListenerCounts } from "./lds.ts";

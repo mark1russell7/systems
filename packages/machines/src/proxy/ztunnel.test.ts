@@ -57,6 +57,15 @@ describe("the HBONE connection of ztunnel 1.31.3", () => {
     // SIGTERM: a GOAWAY, then the end of what is left at the deadline
     expect(transition("zt.stop")).toMatchObject({ to: "draining", emits: ["tx.goaway"], timer: "deadline" });
     // no idle timeout and no maximum age: the only timer of an open connection with a stream is the PING
-    expect(Object.keys(doc.timers).sort()).toEqual(["connect", "deadline", "ping", "pong", "release"]);
+    expect(Object.keys(doc.timers).sort()).toEqual(["connect", "deadline", "grace", "ping", "pong", "release"]);
+  });
+
+  it("ends a drain at the first of its deadline and the grace of the pod: a deadline past the grace does not come", () => {
+    expect(timerOf(doc, "grace", values).duration).toEqual({ value: 30, unit: "s" });
+    expect(doc.knobs["grace"]?.scope).toBe("pod");
+    // both timers start at SIGTERM, and the guard of each end names the side of the line
+    for (const name of ["deadline", "grace"]) expect(doc.timers[name]?.arms, name).toEqual(["app.stop"]);
+    expect(transition("zt.deadline")).toMatchObject({ from: "draining", on: "timer.deadline", guard: "deadline < grace" });
+    expect(transition("zt.killed")).toMatchObject({ from: "draining", to: "ended", on: "timer.grace", guard: "grace <= deadline", emits: ["tx.app-fin"] });
   });
 });
