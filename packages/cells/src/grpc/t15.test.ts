@@ -1,5 +1,6 @@
 import type { KindCell } from "@mark1russell7/kind";
 import {
+  CHANNEL_USE,
   LAST_SLACK,
   POLICY,
   ZTUNNEL_PODS,
@@ -25,12 +26,15 @@ import { backoffOf, lastWait, synWaitOf } from "./t07.ts";
 import {
   AMBIENT,
   EDS_CALIBRATION,
+  MIDDLEBOX_HOP,
   NEXT_CALL,
   PONG,
   P_EDS,
   P_LDS,
+  RELEASE,
   SIDECAR,
   SIDECAR_IN_AMBIENT,
+  SIGNAL_LATE,
   T15_GRPC,
   T15_GRPC_ALIASES,
   TERM_LATE,
@@ -38,8 +42,14 @@ import {
   blackholeWindow,
   deadlineMesh,
   drainEnd,
+  forgetEnds,
+  giveUpAfterPing,
+  giveUpFirstEnds,
   longestSynGap,
+  pingFirstEnds,
+  pingOnMiddlebox,
   policyWindow,
+  releaseEnds,
   resetWindow,
   restartEnds,
   sidecarDeletion,
@@ -54,7 +64,7 @@ const cell = (id: string): KindCell => {
 /** These are the cells of the sidecar mesh: steps 1 and 2. */
 const SIDECAR_CELLS = T15_GRPC.filter((each) => each.mesh === SIDECAR);
 
-describe("the gRPC catalog of T15, steps 2 to 5", () => {
+describe("the gRPC catalog of T15, steps 2 to 6", () => {
   it("has the calibrations, the deletion and the policy, each in the sidecar mesh, the reset, the black hole, the gap and the restarts in the ambient flavor, and each name once", () => {
     expect(T15_GRPC.map((each) => each.id)).toEqual([
       "CAL.T15.sidecar",
@@ -64,16 +74,26 @@ describe("the gRPC catalog of T15, steps 2 to 5", () => {
       "T15.defaults.12",
       "T15.defaults.2",
       "T15.defaults.10",
+      "T15.border-off.79",
+      "T15.border-off.80",
+      "T15.border-off.87",
+      "T15.border-off.88",
       "T15.defaults.14",
       "T15.border-off.85",
       "T15.border-off.86",
+      "T15.border-off.77",
     ]);
     expect(T15_GRPC.filter((each) => each.mesh?.mode === "ambient").map((each) => each.id)).toEqual([
       "T15.defaults.12",
       "T15.defaults.2",
       "T15.defaults.10",
+      "T15.border-off.79",
+      "T15.border-off.80",
+      "T15.border-off.87",
+      "T15.border-off.88",
       "T15.border-off.85",
       "T15.border-off.86",
+      "T15.border-off.77",
     ]);
     expect(T15_GRPC.filter((each) => each.mesh?.flavor === "ambient" && each.mesh.mode === "sidecar").map((each) => each.id)).toEqual(["T15.defaults.14"]);
     expect(new Set(T15_GRPC.map((each) => each.name)).size).toBe(T15_GRPC.length);
@@ -298,11 +318,100 @@ describe("the gRPC catalog of T15, steps 2 to 5", () => {
     expect(valueIn(estimatedTime(cell("T15.defaults.10")), "s")).toBe(2 * 180 + 13 * (25 + 335));
     // a run of a restart of ztunnel: 25 s at rest, then the grace of 30 s and the removal of the old pods
     for (const id of ["T15.defaults.14", "T15.border-off.85", "T15.border-off.86"]) expect(valueIn(estimatedTime(cell(id)), "s"), id).toBe(2 * 180 + 13 * (25 + 40));
-    // with 4 shards, the gap is alone on the shard 1, and the restarts share the shard 2
-    expect(shardOf(T15_GRPC, 0, 4).map((each) => each.id)).toEqual(["T15.defaults.12", "T15.defaults.2"]);
-    expect(shardOf(T15_GRPC, 1, 4).map((each) => each.id)).toEqual(["T15.defaults.10"]);
-    expect(shardOf(T15_GRPC, 2, 4).map((each) => each.id)).toEqual(["T15.defaults.14", "T15.border-off.85", "T15.border-off.86"]);
-    expect(shardOf(T15_GRPC, 3, 4).map((each) => each.id)).toEqual(["CAL.T15.sidecar", "T15.defaults.13", "CAL.T15.policy", "T15.defaults.5"]);
+    // a run of a quiet black hole: the hold and 10 s for the stop and the start of the calls
+    for (const id of ["T15.border-off.87", "T15.border-off.88"]) expect(valueIn(estimatedTime(cell(id)), "s"), id).toBe(2 * 180 + 13 * (25 + 55));
+    // a run of a gap through a middlebox: the gap and 5 s after it
+    expect(valueIn(estimatedTime(cell("T15.border-off.79")), "s")).toBe(2 * 180 + 13 * (25 + 125));
+    expect(valueIn(estimatedTime(cell("T15.border-off.80")), "s")).toBe(2 * 180 + 13 * (25 + 65));
+    expect(valueIn(estimatedTime(cell("T15.border-off.77")), "s")).toBe(2 * 180 + 13 * (25 + 335));
+    // with 7 shards, each gap of 330 s is alone on a shard: the shards 1 and 5
+    expect([0, 1, 2, 3, 4, 5, 6].map((index) => shardOf(T15_GRPC, index, 7).map((each) => each.id))).toEqual([
+      ["T15.defaults.12", "T15.defaults.2"],
+      ["T15.defaults.10"],
+      ["T15.border-off.79", "T15.border-off.80"],
+      ["T15.border-off.87", "T15.border-off.88", "T15.defaults.14"],
+      ["T15.border-off.85", "T15.border-off.86"],
+      ["T15.border-off.77"],
+      ["CAL.T15.sidecar", "T15.defaults.13", "CAL.T15.policy", "T15.defaults.5"],
+    ]);
+  });
+});
+
+describe("the borders of O03, O17 and O02 of T15, step 6", () => {
+  it("puts a middlebox of 11 s and of 9 s in each replica, a stand-in for the router of the research, on each side of O03", () => {
+    const inside = cell("T15.border-off.79");
+    const outside = cell("T15.border-off.80");
+    for (const each of [inside, outside]) {
+      expect(each.substitutes, each.id).toBe(MIDDLEBOX_HOP);
+      expect(each.prediction.why, each.id).toContain("nf_conntrack_proto_tcp.c");
+      expect(planOf(each).prepare, each.id).toEqual([{ do: "middlebox", target: "servers", idle: each.trigger.middlebox, port: 15008 }]);
+      expect(planOf(each).restore.at(-1), each.id).toEqual({ do: "middlebox", target: "servers", idle: null, port: 15008 });
+    }
+    expect([inside.trigger, outside.trigger]).toEqual([
+      { kind: "idle", hold: s(120), middlebox: s(11) },
+      { kind: "idle", hold: s(60), middlebox: s(9) },
+    ]);
+    // the PING at its latest, 10.01 s, against the forget at its earliest
+    expect(pingOnMiddlebox(s(11))).toMatchObject({ holds: true, refresh: 10.01, forget: 11 });
+    expect(pingOnMiddlebox(s(9))).toMatchObject({ holds: false, refresh: 10.01, forget: 9 });
+    expect(pingOnMiddlebox(s(10))).toMatchObject({ holds: false });
+    expect(inside.prediction).toMatchObject({ kind: "ends", from: "fault", band: null });
+  });
+
+  it("ends the tunnel behind a middlebox of 9 s from the forget and the PING timeout, to a sleep later", () => {
+    const outside = cell("T15.border-off.80");
+    // the forget after the last call of 20 ms, then the PING timeout; at the latest the signal, the
+    // delayed ACK, the forget, the sleep and the PING timeout, with their lateness and one step
+    expect(outside.prediction).toMatchObject({ kind: "ends", from: "fault", band: { lo: s(28.98), hi: s(39.73) } });
+    expect(SIGNAL_LATE).toEqual(s(0.5));
+    expect(() => forgetEnds(s(11), "a test")).toThrow(/O03 holds/);
+    // a forget at 9.9 s with a delayed ACK can come after the next PING
+    expect(() => forgetEnds(s(9.9), "a test")).toThrow(/after the next PING/);
+    expect(valueIn(outside.trigger.hold!, "s")).toBeGreaterThan(39.73 + 10);
+  });
+
+  it("moves the give-up of TCP on the PING to each side of the PING timeout with tcp_retries2 6 and 4 (O17)", () => {
+    // the first retransmission one or two RTOs after the PING, then the budget of the give-up and its last step
+    expect(giveUpAfterPing(6)).toEqual({ lo: 25.6, hi: 54.84 });
+    expect(giveUpAfterPing(4)).toEqual({ lo: 6.4, hi: 13.752 });
+    // tcp_retries2 5 can give up on either side of the PING timeout of 20 s, thus no cell takes it
+    expect(giveUpAfterPing(5).lo).toBeLessThan(20);
+    expect(giveUpAfterPing(5).hi).toBeGreaterThan(20);
+    const inside = cell("T15.border-off.87");
+    const outside = cell("T15.border-off.88");
+    expect([inside.trigger, outside.trigger]).toEqual([
+      { kind: "blackhole", hold: s(45), quiet: true, retries: 6 },
+      { kind: "blackhole", hold: s(45), quiet: true, retries: 4 },
+    ]);
+    // the PING timeout first: the band of T15.defaults.2
+    expect(inside.prediction).toMatchObject({ kind: "ends", from: "fault", band: { lo: s(PONG.lo), hi: s(30.03) } });
+    // TCP first: the PING in one sleep after the fault, then the give-up on it and one step
+    expect(outside.prediction).toMatchObject({ kind: "ends", from: "fault", band: { lo: s(6.4), hi: s(23.772) } });
+    expect(outside.prediction.why).toContain("ETIMEDOUT");
+    expect(() => pingFirstEnds(4, "a test")).toThrow(/before its timeout/);
+    expect(() => giveUpFirstEnds(6, "a test")).toThrow(/after its timeout/);
+    expect(planOf(outside).prepare).toEqual([
+      { do: "sysctl", target: "clients", key: "net.ipv4.tcp_retries2", value: "4" },
+      { do: "signal", target: "clients", signal: "SIGUSR1" },
+      { do: "wait", time: s(1) },
+    ]);
+    expect(planOf(outside).restore[0]).toEqual({ do: "sysctl", target: "clients", key: "net.ipv4.tcp_retries2", value: "15" });
+  });
+
+  it("releases the tunnel 300 s after the checkout of a new channel at the fault, not after the end of its stream (O02)", () => {
+    const release = cell("T15.border-off.77");
+    expect(release.trigger).toEqual({ kind: "idle", hold: s(330), close: true });
+    expect(RELEASE).toEqual({ lo: 300, hi: 300.01 });
+    expect(release.prediction).toMatchObject({ kind: "ends", from: "fault", of: "tunnel", band: { lo: s(300), hi: s(300.62) } });
+    expect(release.prediction.why).toContain("pool.rs of ztunnel 1.31.3, lines 150–176 and 338–341");
+    // a release from the end of the stream, 5 s later, is out of the band and its noise
+    expect(300 + valueIn(CHANNEL_USE, "s")).toBeGreaterThan(300.62 + 0.1);
+    expect(() => releaseEnds(s(300), "a test")).toThrow(/ends before the release/);
+    const plan = planOf(release);
+    expect(plan.prepare?.map((step) => (step.do === "signal" ? step.signal : step.do))).toEqual(["SIGHUP", "wait"]);
+    expect(plan.inject.map((step) => (step.do === "signal" ? step.signal : step.do))).toEqual(["SIGUSR2", "wait", "SIGHUP"]);
+    // the gap of T15.defaults.10 keeps its stream open: the release does not end it
+    expect(cell("T15.defaults.10").prediction.why).toContain("lines 142–176 and 338–341");
   });
 });
 

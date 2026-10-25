@@ -110,7 +110,36 @@ export interface SocketLine {
   readonly n: string;
   readonly lp: number | null;
   readonly err?: string | null;
+  /** This address is the local address of the socket at its connect: the address of the client pod. Lines before 0.8.0 do not have it. */
+  readonly la?: string | null;
 }
+
+/** This port is the HBONE port of ztunnel in each pod of the ambient mesh of Istio 1.31.3: the mesh leg ends there. */
+export const HBONE_PORT = 15008;
+
+/** These are the states of a TCP socket of Linux that a tunnel line names (include/net/tcp_states.h of Linux v6.17, lines 12–28). */
+export const TCP_STATE = { established: 1, finWait1: 4, closeWait: 8 } as const;
+
+/**
+ * A tunnel line is a change of the state of a TCP socket with the HBONE port at one end, from the
+ * prober (`kernel.state`). `src` and `dst` are each an address and a port, `a.b.c.d:port`. The stamp
+ * `t` is in ms on CLOCK_MONOTONIC.
+ */
+export interface TunnelLine {
+  readonly t: number;
+  readonly src: string;
+  readonly dst: string;
+  readonly old: number;
+  readonly new: number;
+}
+
+/** This function tells if a kernel record is a change of the state of a socket of the HBONE port. */
+export const isTunnelState = (record: Readonly<Record<string, unknown>>): boolean =>
+  record["ev"] === "state" && [record["src"], record["dst"]].some((end) => typeof end === "string" && end.endsWith(`:${HBONE_PORT}`));
+
+/** This function gives the tunnel lines of a run, in sequence of their stamps. */
+export const tunnelsOf = (lines: readonly Line[]): TunnelLine[] =>
+  lines.filter((line) => line.ev === "kernel.state").map((line) => line as unknown as TunnelLine).sort((a, b) => a.t - b.t);
 
 const of = <T>(lines: readonly Line[], ev: string): T[] => lines.filter((line) => line.ev === ev) as unknown as T[];
 

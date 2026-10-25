@@ -14,7 +14,21 @@ export { CONTROLLER, FLAG_CHECK, ROUTE, WATCHDOG, compose } from "./compose.ts";
 export type { ClusterHosts } from "./eds.ts";
 export { clusterFilter, hostsOf, outboundCluster } from "./eds.ts";
 export type { FaultPlan, Step, Target } from "./faults.ts";
-export { CLIENT_ACCOUNT, POLICY, ZTUNNEL_PODS, deletes, planOf, policyObject } from "./faults.ts";
+export {
+  CHANNEL_USE,
+  CLIENT_ACCOUNT,
+  CLOSE_LEAD,
+  NETNS_DEFAULTS,
+  POLICY,
+  QUIET_LEAD,
+  SYSCTL,
+  ZTUNNEL_PODS,
+  deletes,
+  middleboxCommands,
+  planOf,
+  policyObject,
+  sysctlCommand,
+} from "./faults.ts";
 export { labImage, stageLabImage } from "./image.ts";
 export type { MeshImages } from "./istio.ts";
 export {
@@ -37,7 +51,7 @@ export {
 export type { EdsSpec, KindLab, LdsSpec, Stamp } from "./lab.ts";
 export type { ListenerCounts } from "./lds.ts";
 export { LDS_FILTER, listenerCountsOf } from "./lds.ts";
-export { KEPT_KERNEL, localPin, openKindLab } from "./lab.ts";
+export { KEPT_KERNEL, keptKernel, localPin, openKindLab } from "./lab.ts";
 export { REDIS_IMAGE, clientObjects, namespaceObject, namespaceOf, probeOf, redisObjects, serverObjects, stackOf } from "./manifests.ts";
 export type { DeletionWindow, Propagation } from "./predict.ts";
 export {

@@ -174,6 +174,28 @@ jobs:
             echo "conntrack listing at $before buckets: $slow"
             echo "conntrack listing at 16384 buckets: $(listing)"
           } | tee -a "$RUNNER_TEMP/kindcells/runner.txt"
+      # The borders of O03 and O17 of T15 set sysctls in the network namespace of a pod: the timeout
+      # and the loose pickup of conntrack for a middlebox, and tcp_retries2. Each one must be a sysctl
+      # of the namespace, not of the host (nf_conntrack_standalone.c of Linux v6.17, line 1039). The
+      # middlebox drops each INVALID segment with the match conntrack. This step tries each one in a
+      # new namespace, and it prints each result and the values of the host after it.
+      - name: The kernel features of the borders
+        run: |
+          sudo unshare --net sh -c '
+            try() { if "$@" >/dev/null 2>&1; then echo yes; else echo no; fi; }
+            echo "netns conntrack timeout: $(try sysctl -w net.netfilter.nf_conntrack_tcp_timeout_established=9), now $(sysctl -n net.netfilter.nf_conntrack_tcp_timeout_established 2>&1)"
+            echo "netns conntrack loose: $(try sysctl -w net.netfilter.nf_conntrack_tcp_loose=0), now $(sysctl -n net.netfilter.nf_conntrack_tcp_loose 2>&1)"
+            echo "netns tcp_retries2: $(try sysctl -w net.ipv4.tcp_retries2=4), now $(sysctl -n net.ipv4.tcp_retries2 2>&1)"
+            echo "netns drop of INVALID: $(try iptables -I INPUT -p tcp --dport 15008 -m conntrack --ctstate INVALID -j DROP)"
+          ' | tee "$RUNNER_TEMP/kindcells/borders.txt"
+          {
+            echo "host conntrack timeout: $(sysctl -n net.netfilter.nf_conntrack_tcp_timeout_established)"
+            echo "host conntrack loose: $(sysctl -n net.netfilter.nf_conntrack_tcp_loose)"
+            echo "host tcp_retries2: $(sysctl -n net.ipv4.tcp_retries2)"
+          } | tee -a "$RUNNER_TEMP/kindcells/borders.txt"
+          if grep -q ': no' "$RUNNER_TEMP/kindcells/borders.txt"; then
+            echo "::warning::a kernel feature of the borders of T15 is missing, see borders.txt"
+          fi
       - name: The cells
         env:
           KIND_LAB: "1"

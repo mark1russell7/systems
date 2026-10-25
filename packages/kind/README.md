@@ -161,6 +161,7 @@ The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`
 - **The gRPC clients** (`client-grpc.mjs`) hold one channel of grpc-js 1.14.6 to the ClusterIP, and send a call of `grpc.health.v1.Health/Check` each interval on it. Each call gives the line of a request of `client.mjs`, with the pod that answered (the header `x-pod`). A call that fails at once names the errno of the last connect: refused, reset or unreachable. A call of grpc-js has no deadline at its defaults. Thus a call with no answer in the timeout is a timeout, and the client cancels it.
   - From 0.6.0, each socket of the channel also gives a `sock` line at its connect and at its close (`client-lines.ts`). Each line gives the local port of the socket (`lp`). The close line keeps the port of the connect, and it gives the code of the error of the socket (`err`), or null.
   - From 0.6.0, SIGUSR1 stops the calls of the client, and SIGUSR2 starts them again. Each signal gives a `gap` line. The channel and its socket stay open in the gap. A listener of SIGUSR1 replaces the start of the inspector of Node at that signal.
+  - From 0.8.0, SIGHUP stops the calls and closes the channel. Then the next SIGUSR2 opens a new channel before it starts the calls, and its `gap` line has `open: true`. The connect line of a socket also gives its local address (`la`): the address of the pod.
 
 ## The triggers
 
@@ -181,10 +182,17 @@ The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`
 | `rollout` | no Redis pod, then a rolling update |
 | `cpu-throttle` | `cpu.max` in the cgroup of the container of the first replica |
 | `authorization-policy` | `kubectl apply` of a DENY AuthorizationPolicy on the server pods for the principal of an account (`account`, the account `default` of the clients when not given), then `kubectl delete` after the hold |
-| `idle` | SIGUSR1 to the gRPC client of each client pod, and SIGUSR2 after the hold: a gap of the calls (the target `clients`). The restore sends SIGUSR2 again |
+| `idle` | SIGUSR1 to the gRPC client of each client pod, and SIGUSR2 after the hold: a gap of the calls (the target `clients`). The restore sends SIGUSR2 again. With `middlebox`, a conntrack middlebox in each replica from before the gap to the restore. With `close`, a new channel at the fault for 5 s: SIGHUP before the fault, then SIGUSR2, a wait and SIGHUP |
 | `ztunnel-restart` | `kubectl delete pod` of the ztunnel pod of each node, with its grace (`ZTUNNEL_PODS`). The flow of each client crosses the ztunnel of its own node. The restore waits for the rollout of the DaemonSet |
 
 A cgroup path that is not the scope of one container is refused. A write to the root of the node throttles or freezes each pod of the node.
+
+From 0.8.0, a plan can have steps before the fault (`prepare`). No reference comes from them, and a failed one makes the run void after the restore. The steps of the borders of T15:
+
+- **A sysctl of a namespace** (`sysctl`): the injector of the harness enters the network namespace of each client pod or each replica. There it sets one sysctl (`sysctlCommand`). Only a sysctl of the namespace (`net.`) and a whole number reach it. A black hole of T15 with `retries` sets `net.ipv4.tcp_retries2` of each client pod. The restore sets the default of a new namespace, 15 (`NETNS_DEFAULTS`).
+- **A conntrack middlebox** (`middlebox`): in the network namespace of each replica, `nf_conntrack_tcp_timeout_established` is the idle timeout, and `nf_conntrack_tcp_loose` is 0. Two rules drop each INVALID segment from each client pod to the HBONE port and back: the silent-drop form (`middleboxCommands`). The sysctls of conntrack are of each namespace (`nf_conntrack_standalone.c` of Linux v6.17, lines 739, 795 and 1039). The lab reads the raw table after the set and the filter table before the removal. A timeout object of nftables (`ct timeout`) is not used: it acts only on a flow that conntrack has not confirmed yet (`nft_ct.c`, line 915).
+- **A quiet black hole** (`quiet`): SIGUSR1 to each client 1 s before the fault, and SIGUSR2 after the clear. Thus the PING of ztunnel is the only data that gets no answer.
+- `KindLab` has the method `netns`: the commands of the injector in the namespace of a PID, in sequence, each word plain. Each one gives an `act` line with its output.
 
 The plan's `event:clock-jump` has no trigger. A step of CLOCK_REALTIME in the VM steps the clock of each container: the kubelet, the API server and the cells of other agents. A time namespace offsets only the monotonic clocks, and the runtime of the service reads only the monotonic clock.
 
@@ -236,6 +244,14 @@ From 0.6.0, the prediction `ends` is the end of the socket of each client, from 
 - With no band, no socket of a client can close after the reference. The first request of each client after the heal must be `ok` on the socket of its last answer. The main value is the count of the closes, in `{socket}`.
 - With a window (`window`), the failed requests must also agree with that window. The observation lasts until each socket can end, and until each request of the window ended.
 - The facts of a run give the first close of each client after the reference (`closes`).
+
+From 0.8.0, a prediction `ends` can be the end of the tunnel of each client (`of: "tunnel"`). The tunnel is the HBONE connection of its ztunnel to the replica of its last answer before the heal.
+
+- The prober gives each change of the state of a socket of the HBONE port, 15008. The lab keeps these records (`keptKernel`) as `kernel.state` lines (`tunnelsOf`). It drops the other changes of state, as before.
+- The tunnel of a client goes from the address of its pod (`la` of a `sock` line) to that replica at port 15008. Its first change out of ESTABLISHED after the reference must be in the band ± δ. It must be to FIN_WAIT1: the side of the client closes it, and the peer does not close first.
+- The first request of each client after the heal must be `ok`, on a new tunnel. The main value is the middle of the ends, in `s`.
+
+New members of the union `Step` (`sysctl` and `middlebox`) and of the signals of a step (`SIGHUP`) break a reader that switches on them. `KindLab` also has a new method, `netns`. Each is a breaking change before 1.0.0, thus the version is 0.8.0. The record format stays `/2`. A trigger has the optional fields `middlebox`, `retries`, `quiet` and `close`, and `ends` has the optional field `of`. The lines `kernel.state` are new lines of a run.
 
 A new member of the union `TriggerKind`, `ztunnel-restart`, and a new member of the union `Reference`, `restart`, break a reader that switches on them. Each is a breaking change before 1.0.0, thus the version is 0.7.0. The record format stays `/2`, with the optional field `mesh.ztunnel`.
 

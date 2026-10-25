@@ -115,6 +115,13 @@ A change to the version of a system changes its sources too. Each fact of the do
 
 In this repository, a snapshot of the predictions of the cells (`packages/cells/src/__snapshots__/predictions.json`) shows each prediction that a change to a document moves.
 
+### 0.3.28
+
+- **The release of the pool counts from the last checkout** (`ztunnel-hbone`). Each checkout of a connection, new or used again, puts it back in the pool with a new release timer (`pool.rs` of ztunnel 1.31.3, lines 150–176 and 338–341). The end of a stream does not start a timer.
+  - The timer `release` arms at the new event `local.checkout`, through the new transition `zt.checkout`. Before, it armed at the end of the last stream, and the cell of a gap cited that wrong fact.
+  - The release only drops the reference of the pool. HTTP/2 closes the connection when no reference and no stream is left (lines 142–146), thus an open flow keeps it.
+  - The cell T15.border-off.77 reads it. A fix of a fact is a PATCH.
+
 ### 0.3.27
 
 - **The SIGKILL at the end of the grace** (`ztunnel-hbone`). The document has the grace of the ztunnel pod as a knob (`grace`, 30 s from the chart) and a timer from SIGTERM.

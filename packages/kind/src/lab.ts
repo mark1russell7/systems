@@ -7,6 +7,7 @@ import { deletedOf } from "./conntrack.ts";
 import type { Cluster } from "./cluster.ts";
 import { command } from "./cluster.ts";
 import type { Line } from "./observe.ts";
+import { isTunnelState } from "./observe.ts";
 
 export type { Line } from "./observe.ts";
 
@@ -16,8 +17,15 @@ export interface Stamp {
   readonly t1: number;
 }
 
-/** These kinds of kernel record stay in the raw record of a run. The lab counts the other kinds and drops them. */
+/**
+ * These kinds of kernel record stay in the raw record of a run. The lab also keeps each change of the
+ * state of a socket of the HBONE port (`isTunnelState`): the tunnels of ztunnel. It counts the other
+ * records and drops them.
+ */
 export const KEPT_KERNEL: ReadonlySet<string> = new Set(["rst_tx", "rst_rx", "rst_v4", "error", "retrans", "begin", "fail"]);
+
+/** This function tells if the lab keeps a kernel record of the prober. */
+export const keptKernel = (record: Readonly<Record<string, unknown>>): boolean => KEPT_KERNEL.has(String(record["ev"])) || isTunnelState(record);
 
 /** An EDS spec is the cluster that the EDS pollers read, their interval, and each client pod with its node and a PID in it. */
 export interface EdsSpec {
@@ -81,6 +89,13 @@ export interface KindLab {
    * lines as a line `tables`: evidence of which rules matched.
    */
   tables(node: string, pid: number, table: string): Promise<string>;
+  /**
+   * This method runs commands of the injector of the harness in the network namespace of a PID. Each
+   * command is a sysctl or a rule of iptables, in sequence. It stops at the first command that fails. Each word of
+   * a command is plain: letters, digits and `_ . , : = / + -`. The method adds the commands and their
+   * output to the lines as a line `act`, and gives the output.
+   */
+  netns(node: string, pid: number, commands: ReadonlyArray<readonly string[]>): Promise<string>;
   now(): Promise<number>;
   pidOf(node: string, namespace: string, pod: string, container: string): Promise<number>;
   netnsOf(node: string, pid: number): Promise<number>;
@@ -249,7 +264,7 @@ export const openKindLab = async (cluster: Cluster, image: string): Promise<Kind
             const ev = String(record["ev"]);
             if (ev === "begin") begun(true, "");
             if (ev === "fail") begun(false, String(record["why"]));
-            if (!KEPT_KERNEL.has(ev) && ev !== "clock") {
+            if (!keptKernel(record) && ev !== "clock") {
               dropped[ev] = (dropped[ev] ?? 0) + 1;
               return;
             }
@@ -309,6 +324,15 @@ export const openKindLab = async (cluster: Cluster, image: string): Promise<Kind
       const t = await lab.now();
       const text = await output(sidecarOf(node).injector, ["nsenter", "-t", String(pid), "-n", "iptables-save", "-c", "-t", table]);
       push({ ev: "tables", t, node, pid, table, text: text.slice(0, 8000) });
+      return text;
+    },
+    async netns(node, pid, commands) {
+      // the words go to a shell as they are, thus each one is plain
+      for (const word of commands.flat()) if (!/^[A-Za-z0-9_.,:=/+-]+$/.test(word)) throw new Error(`not a plain word of a command: ${word}`);
+      if (commands.length === 0) throw new Error("no command");
+      const t = await lab.now();
+      const text = await output(sidecarOf(node).injector, ["nsenter", "-t", String(pid), "-n", "sh", "-c", commands.map((argv) => argv.join(" ")).join(" && ")]);
+      push({ ev: "act", t, t1: await lab.now(), node, spec: { op: "netns", pid, commands }, out: text.slice(0, 2000) });
       return text;
     },
     async now() {

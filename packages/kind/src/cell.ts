@@ -49,13 +49,17 @@ export type Stack = "service" | "grpc";
  * - `crash` stops the process of the service with SIGKILL from the node.
  * - `liveness-restart` fails the liveness check of one replica, and the kubelet restarts it.
  * - `freeze-process` stops a process with SIGSTOP from the node: kube-proxy on one node (T07), or Redis (T18).
- * - `rst` and `blackhole` are the rules of the injector of the harness in the namespace of Redis.
+ * - `rst` and `blackhole` are the rules of the injector of the harness in the namespace of Redis. In
+ *   T15 they are in the namespace of each replica. A black hole of T15 can stop the calls of the
+ *   clients before the fault (`quiet`). It can also set `tcp_retries2` of each client pod (`retries`).
  * - `peer-gone-without-close` drops the segments of Redis, and then Redis goes away.
  * - `app-stall` blocks the event loop of one replica.
  * - `rollout` is a rolling update while Redis is down.
  * - `cpu-throttle` sets `cpu.max` in the cgroup of one replica.
  * - `authorization-policy` applies an AuthorizationPolicy of Istio that denies the clients, for the hold (T15).
  * - `idle` stops the calls of each client with SIGUSR1, and starts them again with SIGUSR2 after the hold: a gap (T15).
+ *   The gap can have a conntrack middlebox in each replica (`middlebox`), or a new channel that each
+ *   client closes before the gap (`close`).
  * - `ztunnel-restart` deletes the ztunnel pod of each node with its grace. The DaemonSet makes a new pod on each node (T15).
  * - `none` injects nothing: a calibration measures the path itself.
  */
@@ -95,6 +99,29 @@ export interface Trigger<A = Quantity> {
    * and denies no call.
    */
   readonly account?: string | undefined;
+  /**
+   * This time is the idle timeout of a conntrack middlebox in the network namespace of each replica
+   * (T15). The middlebox is there from before the fault to the end of the run. Conntrack forgets an
+   * established flow after this time with no segment. It does not take up a flow that it does not
+   * know. The lab drops each segment of such a flow on the mesh leg: the silent-drop form of a
+   * router. Each segment of the flow refreshes the timeout, thus the PING of ztunnel can keep an idle flow.
+   */
+  readonly middlebox?: Quantity | undefined;
+  /** This count is `net.ipv4.tcp_retries2` in the network namespace of each client pod for the run (T15): the HBONE socket of its ztunnel is there. */
+  readonly retries?: number | undefined;
+  /**
+   * This flag stops the calls of each client before the fault, and starts them again after the heal
+   * (T15 `blackhole`). Thus no data of the app is on the mesh leg in the fault. The PING of ztunnel
+   * is the first segment that gets no answer.
+   */
+  readonly quiet?: boolean | undefined;
+  /**
+   * This flag gives each client a new channel at the fault of `idle` (T15). The client closes its
+   * channel before the fault. At the fault it opens a new channel and calls on it for a short time,
+   * then it closes it. Thus the HBONE connection of the client carries no stream in the gap, and its
+   * last use is at the fault. The heal opens a new channel again.
+   */
+  readonly close?: boolean | undefined;
 }
 
 /** A kubelet probe is the period, the failure threshold and the timeout of one probe of the pod. */
@@ -208,6 +235,7 @@ export interface ResetReuse<A = Quantity> {
  * - `ends`: the socket of each client ends in the band after the reference `from`. With no band, no
  *   socket of a client ends in the run. Then the first request of each client after the heal goes on
  *   the socket of its last request before the fault. With `window`, the failed requests also start in that window.
+ *   With `of: "tunnel"`, the HBONE connection of the ztunnel of each client ends in the band instead.
  * - `measured`: no document bounds the outcome. The run keeps the measurement.
  */
 export type Prediction<A = Quantity> =
@@ -231,6 +259,13 @@ export type Prediction<A = Quantity> =
       readonly band: Band<A> | null;
       /** This window is where the failed requests start, or none when the prediction does not test them. */
       readonly window?: WindowPrediction<A> | undefined;
+      /**
+       * This text names what ends. `socket`, the default, is the socket of the channel of each client.
+       * `tunnel` is the HBONE connection of the ztunnel of each client to the replica of its last answer
+       * before the heal (T15 ambient). Its side of the client must close it: the peer does not close
+       * first. Then the first request of each client after the heal must succeed, on a new tunnel.
+       */
+      readonly of?: "socket" | "tunnel" | undefined;
       readonly why: string;
     }
   | { readonly kind: "measured"; readonly why: string };

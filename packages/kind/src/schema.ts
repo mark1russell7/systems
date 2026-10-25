@@ -151,7 +151,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     z.object({ kind: z.literal("restarts"), band: band.nullable(), why: z.string() }),
     z.object({ kind: z.literal("stays"), why: z.string() }),
     z.object({ kind: z.literal("stalls"), why: z.string() }),
-    z.object({ kind: z.literal("ends"), from: reference, band: band.nullable(), window: window.optional(), why: z.string() }),
+    z.object({ kind: z.literal("ends"), from: reference, band: band.nullable(), window: window.optional(), of: z.enum(["socket", "tunnel"]).optional(), why: z.string() }),
     z.object({ kind: z.literal("measured"), why: z.string() }),
   ]);
   const cell = z.object({
@@ -171,6 +171,10 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
       lead: time.optional(),
       cpuMax: z.object({ quota: a, period: a }).optional(),
       account: z.string().optional(),
+      middlebox: time.optional(),
+      retries: count.optional(),
+      quiet: z.boolean().optional(),
+      close: z.boolean().optional(),
     }),
     pod: z.object({ replicas: count, grace: time, preStop: time, readiness: probe, liveness: probe, startup: probe.nullable() }),
     declaration: declaration.nullable(),

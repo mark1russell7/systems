@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { KindCell } from "./cell.ts";
 import { cellOf } from "./cells.fixture.ts";
 import { clusterFilter, hostsOf, outboundCluster } from "./eds.ts";
-import { CLIENT_ACCOUNT, POLICY, deletes, planOf, policyObject } from "./faults.ts";
+import { CHANNEL_USE, CLIENT_ACCOUNT, CLOSE_LEAD, NETNS_DEFAULTS, POLICY, QUIET_LEAD, SYSCTL, deletes, middleboxCommands, planOf, policyObject, sysctlCommand } from "./faults.ts";
 import {
   ACCESS_LOG_FORMAT,
   ISTIO_IMAGES,
@@ -23,7 +23,8 @@ import {
 } from "./istio.ts";
 import { LDS_FILTER, listenerCountsOf } from "./lds.ts";
 import { clientObjects, namespaceObject } from "./manifests.ts";
-import { restartOf, ztunnelReplaced } from "./observe.ts";
+import { keptKernel } from "./lab.ts";
+import { HBONE_PORT, TCP_STATE, restartOf, tunnelsOf, ztunnelReplaced } from "./observe.ts";
 import { referenceOf } from "./verdict.ts";
 import type { Tool } from "./tools.ts";
 import { ISTIOCTL, ensureTool, sha256, tarEntry, toolPath } from "./tools.ts";
@@ -158,6 +159,98 @@ describe("the install of Istio", () => {
     });
     expect(deletes(gap)).toBe(false);
     expect(() => planOf({ ...gap, trigger: { kind: "idle" } })).toThrow(/a hold, the time of the gap/);
+  });
+
+  const s = (value: number) => ({ value, unit: "s" }) as const;
+  const gapOf = (trigger: KindCell["trigger"]): KindCell => ({ ...cellOf("idle"), template: "T15", stack: "grpc", mesh: AMBIENT, declaration: null, trigger });
+
+  it("puts a middlebox in each replica before a gap, and removes it after the run", () => {
+    expect(planOf(gapOf({ kind: "idle", hold: s(60), middlebox: s(9) }))).toEqual({
+      prepare: [{ do: "middlebox", target: "servers", idle: s(9), port: HBONE_PORT }],
+      inject: [{ do: "signal", target: "clients", signal: "SIGUSR1" }],
+      hold: s(60),
+      heal: [{ do: "signal", target: "clients", signal: "SIGUSR2" }],
+      restore: [
+        { do: "signal", target: "clients", signal: "SIGUSR2" },
+        { do: "middlebox", target: "servers", idle: null, port: HBONE_PORT },
+      ],
+    });
+  });
+
+  it("gives each client a new channel at the fault of a gap with close, and closes it before the gap", () => {
+    const hup = { do: "signal", target: "clients", signal: "SIGHUP" } as const;
+    const usr2 = { do: "signal", target: "clients", signal: "SIGUSR2" } as const;
+    expect(planOf(gapOf({ kind: "idle", hold: s(330), close: true }))).toEqual({
+      prepare: [hup, { do: "wait", time: CLOSE_LEAD }],
+      // the first act, the new channel, is the fault
+      inject: [usr2, { do: "wait", time: CHANNEL_USE }, hup],
+      hold: s(330),
+      heal: [usr2],
+      restore: [usr2],
+    });
+  });
+
+  it("stops the calls before a quiet black hole, sets tcp_retries2 of each client pod, and puts both back", () => {
+    const hole = gapOf({ kind: "blackhole", hold: s(45), quiet: true, retries: 4 });
+    const usr2 = { do: "signal", target: "clients", signal: "SIGUSR2" } as const;
+    expect(planOf(hole)).toEqual({
+      prepare: [
+        { do: "sysctl", target: "clients", key: SYSCTL.retries, value: "4" },
+        { do: "signal", target: "clients", signal: "SIGUSR1" },
+        { do: "wait", time: QUIET_LEAD },
+      ],
+      inject: [{ do: "inject", target: "servers", action: "blackhole" }],
+      hold: s(45),
+      heal: [{ do: "inject", target: "servers", action: "clear" }, usr2],
+      restore: [{ do: "sysctl", target: "clients", key: SYSCTL.retries, value: NETNS_DEFAULTS.retries }, usr2],
+    });
+    // a black hole with neither keeps the plan of T15.defaults.2: no prepare
+    expect(planOf(gapOf({ kind: "blackhole", hold: s(45) })).prepare).toBeUndefined();
+    expect(() => planOf(gapOf({ kind: "blackhole", hold: s(45), retries: 0 }))).toThrow(/tcp_retries2 is a count from 1 to 255/);
+  });
+});
+
+describe("the commands of the injector in a namespace", () => {
+  it("sets the conntrack middlebox with the sysctls first, and removes it with the defaults first", () => {
+    const set = middleboxCommands(["10.244.1.9", "10.244.2.9"], { value: 9, unit: "s" }, 15008);
+    expect(set.slice(0, 2)).toEqual([
+      ["sysctl", "-w", "net.netfilter.nf_conntrack_tcp_timeout_established=9"],
+      ["sysctl", "-w", "net.netfilter.nf_conntrack_tcp_loose=0"],
+    ]);
+    expect(set[2]).toEqual(["iptables", "-I", "INPUT", "-s", "10.244.1.9/32", "-p", "tcp", "--dport", "15008", "-m", "conntrack", "--ctstate", "INVALID", "-j", "DROP"]);
+    expect(set[3]).toEqual(["iptables", "-I", "OUTPUT", "-d", "10.244.1.9/32", "-p", "tcp", "--sport", "15008", "-m", "conntrack", "--ctstate", "INVALID", "-j", "DROP"]);
+    expect(set).toHaveLength(6);
+    const clear = middleboxCommands(["10.244.1.9"], null, 15008);
+    expect(clear.slice(0, 2)).toEqual([
+      ["sysctl", "-w", `net.netfilter.nf_conntrack_tcp_timeout_established=${NETNS_DEFAULTS.established}`],
+      ["sysctl", "-w", `net.netfilter.nf_conntrack_tcp_loose=${NETNS_DEFAULTS.loose}`],
+    ]);
+    expect(clear.slice(2).map((argv) => argv[1])).toEqual(["-D", "-D"]);
+  });
+
+  it("refuses a word that is not plain: an address, a port, a time or a sysctl", () => {
+    expect(() => middleboxCommands(["10.244.1.9; reboot"], { value: 9, unit: "s" }, 15008)).toThrow(/not an address/);
+    expect(() => middleboxCommands([], { value: 9, unit: "s" }, 15008)).toThrow(/needs a peer/);
+    expect(() => middleboxCommands(["10.244.1.9"], { value: 9.5, unit: "s" }, 15008)).toThrow(/a whole number of seconds/);
+    expect(() => middleboxCommands(["10.244.1.9"], { value: 9, unit: "s" }, 0)).toThrow(/not a port/);
+    expect(sysctlCommand("net.ipv4.tcp_retries2", "6")).toEqual(["sysctl", "-w", "net.ipv4.tcp_retries2=6"]);
+    expect(() => sysctlCommand("kernel.panic", "1")).toThrow(/not a sysctl of a network namespace/);
+    expect(() => sysctlCommand("net.ipv4.tcp_retries2", "6 && reboot")).toThrow(/not a whole number/);
+  });
+
+  it("keeps each change of the state of a socket of the HBONE port, and drops the others", () => {
+    expect(keptKernel({ ev: "state", src: "10.244.1.9:51000", dst: "10.244.2.4:15008", old: 1, new: 4 })).toBe(true);
+    expect(keptKernel({ ev: "state", src: "10.244.2.4:15008", dst: "10.244.1.9:51000", old: 1, new: 8 })).toBe(true);
+    expect(keptKernel({ ev: "state", src: "10.244.1.9:51000", dst: "10.244.2.4:8080", old: 1, new: 4 })).toBe(false);
+    expect(keptKernel({ ev: "retrans" })).toBe(true);
+    expect(keptKernel({ ev: "tx" })).toBe(false);
+    const lines = [
+      { ev: "kernel.state", t: 20, src: "10.244.1.9:51000", dst: "10.244.2.4:15008", old: 1, new: 4 },
+      { ev: "kernel.retrans", t: 5 },
+      { ev: "kernel.state", t: 10, src: "10.244.1.9:51000", dst: "10.244.2.4:15008", old: 2, new: 1 },
+    ];
+    expect(tunnelsOf(lines).map((line) => line.t)).toEqual([10, 20]);
+    expect(TCP_STATE).toEqual({ established: 1, finWait1: 4, closeWait: 8 });
   });
 });
 
