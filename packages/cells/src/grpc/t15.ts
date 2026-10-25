@@ -1,21 +1,26 @@
-import type { KindCell, Mesh } from "@mark1russell7/kind";
-import { T07_WORKLOAD, WORKERS, kubeDefaults, s } from "../kind.ts";
+import type { KindCell, Mesh, Prediction, Propagation } from "@mark1russell7/kind";
+import { EDS_EVERY, LAST_SLACK } from "@mark1russell7/kind";
+import { ENVOY_HTTP2 } from "@mark1russell7/machines";
+import type { Quantity } from "@mark1russell7/quantity";
+import { valueIn } from "@mark1russell7/quantity";
+import type { Calibration } from "../kind.ts";
+import { T07_WORKLOAD, WORKERS, calibrated, kubeDefaults, s, say } from "../kind.ts";
 import type { Alias } from "../mongo/cells.ts";
 
 /**
  * The gRPC cells of T15: the endpoint lifecycle of T07 through an Istio 1.31.3 mesh in the kind lab.
  * The client of grpc-js 1.14.6 and the server grpc-go v1.84.0 are the stack `grpc` of T07. Each pod
  * has an Envoy sidecar, thus each call crosses two mesh hops: the sidecar of the client and the
- * sidecar of the server. The source of each fact is Istio at the tag 1.31.3 (`I/`), its Envoy
- * v1.39.4, and the kubelet of v1.37.0.
+ * sidecar of the server. The source of each fact is Istio at the tag 1.31.3, its Envoy v1.39.4, and
+ * the kubelet of v1.37.0. The documents `istio-sidecar-outbound`, `istio-sidecar-inbound` and
+ * `pilot-agent` of `@mark1russell7/machines` hold these facts.
  *
  * The client sidecar balances each call over the replicas from its endpoints (EDS), not each
  * connection. Thus the propagation of a deletion is the push of istiod to each client sidecar, and
- * not a sync of kube-proxy. The calibration measures that push: from the deletion to the first poll
- * of each client sidecar without the pod.
+ * not a sync of kube-proxy. A policy goes to the server sidecars as an update of LDS.
  *
- * This is step 1 of the plan of T15: the sidecar flavor in kind, the calibration, and the deletion as
- * a measurement. Step 2 gives the deletion its band from the calibration.
+ * This is step 2 of the plan of T15. The deletion gets its band from the calibration of step 1. The
+ * policy gets a calibration of its LDS update, and a band from the documented debounce until then.
  */
 
 /** This mesh is the sidecar flavor of Istio 1.31.3 with each pod of the cell in sidecar mode. */
@@ -35,18 +40,100 @@ const BASE = {
 } as const;
 
 /**
- * This text is why the deletion of T15.defaults.13 is a measurement. Each fact has its source in
+ * This calibration is the push of EDS after a deletion, from CAL.T15.sidecar in kind run 40147396211.
+ * It counts the first poll of each client sidecar without the pod: 3 nodes in 11 runs.
+ */
+export const EDS_CALIBRATION: Calibration = { cell: "CAL.T15.sidecar", run: 40147396211, count: 33, min: s(0.128), median: s(0.168), max: s(0.205), poll: EDS_EVERY };
+
+/** This propagation is the push of EDS to each client sidecar after a deletion (`calibrated`). */
+export const P_EDS: Propagation = calibrated(EDS_CALIBRATION);
+
+/**
+ * This propagation is the LDS update of each server sidecar after a change of a policy, before a
+ * calibration. The debounce of istiod pushes a change after 100 ms with no other change, and at
+ * most 10 s after the first change (tuning.go of Istio 1.31.3, lines 77–90).
+ */
+export const P_LDS: Propagation = { lo: s(0.1), hi: s(10), from: "PILOT_DEBOUNCE_AFTER (100 ms) to PILOT_DEBOUNCE_MAX (10 s), not calibrated" };
+
+/**
+ * This time is the next call of a client to one replica after a change. A client sends a call each
+ * 20 ms, and the client sidecar sends each call to either replica with a chance of 1 in 2. Thus 12
+ * calls in sequence miss one replica with a chance of 1 in 4096. It is the slack of the last failure
+ * of the judge (`LAST_SLACK`), from the same reason.
+ */
+export const NEXT_CALL: Quantity = LAST_SLACK;
+
+/** This time is the lateness of one step of the event loop of Envoy (`slack` of `envoy-http2`). */
+const STEP: Quantity = s(ENVOY_HTTP2.knobs["slack"]!.default!);
+
+/** This function gives the sum of times in seconds, rounded to the microsecond. */
+const sum = (...times: readonly Quantity[]): Quantity => s(Math.round(times.reduce((total, time) => total + valueIn(time, "s"), 0) * 1e6) / 1e6);
+
+/**
+ * This function gives the window of a deletion in the sidecar mesh. Each failure starts before the
+ * client sidecar of its node drops the pod. It is a reset at the SIGKILL of the Envoy of the pod, or
+ * a connect with no answer. Thus the window starts at the deletion and ends one propagation of EDS
+ * after it. The timeout of the client ends such a call later, but the judge places a call by its
+ * start. A drop after the band agrees with the law, and its cell is `extend`.
+ */
+export const sidecarDeletion = (propagation: Propagation, why: string): Prediction => ({
+  kind: "window",
+  nodes: "all",
+  start: { from: "deletion", band: { lo: s(0), hi: propagation.hi } },
+  end: { from: "deletion", band: { lo: s(0), hi: propagation.hi } },
+  certain: false,
+  propagation: { lo: propagation.lo, hi: propagation.hi },
+  why,
+});
+
+/**
+ * This function gives the window of a policy that denies the clients for `hold`. Each server sidecar
+ * takes the update in `propagation` after the apply. Its open connection keeps the old chain until its
+ * next response carries the GOAWAY notice. The next call after it opens a connection on the new chain,
+ * and gets a denial. Thus the first denial starts by the update and two next calls.
+ *
+ * After the delete, the next call on the denying chain is the last denial. The window is certain when
+ * the latest first denial comes before the delete.
+ */
+export const policyWindow = (propagation: Propagation, hold: Quantity, why: string): Prediction => {
+  const first = sum(propagation.hi, NEXT_CALL, NEXT_CALL, STEP);
+  return {
+    kind: "window",
+    nodes: "all",
+    start: { from: "fault", band: { lo: propagation.lo, hi: first } },
+    end: { from: "heal", band: { lo: propagation.lo, hi: sum(propagation.hi, NEXT_CALL, STEP) } },
+    certain: valueIn(first, "s") < valueIn(hold, "s"),
+    outcomes: ["denied"],
+    propagation: { lo: propagation.lo, hi: propagation.hi },
+    why,
+  };
+};
+
+/**
+ * This text is why the deletion of T15.defaults.13 fails in its window. Each fact has its source in
  * Istio 1.31.3, Envoy v1.39.4 or the kubelet of v1.37.0.
  */
 const DELETION_WHY = [
   "At the deletion, grpc-go gets SIGTERM, and the preStop hook of the native sidecar starts the drain of pilot-agent at the same time (injection-template.yaml of Istio 1.31.3, lines 225–235, and kuberuntime_container.go at v1.37.0, lines 895–915).",
-  "grpc-go closes its listener and sends GOAWAY. A call that reaches the leaving pod then gets a local 503 from its inbound sidecar, thus UNAVAILABLE, and the client sidecar retries it on the other replica (retry.go, lines 36–57: 2 retries on connect-failure, refused-stream, unavailable and cancelled).",
-  "When grpc-go exits, the kubelet stops the sidecar, and pilot-agent kills Envoy (agent.go, lines 146–163). A call in flight on that connection gets a reset before its headers, and a reset is not on the retry list.",
-  "A connect after the address of the pod goes gets no answer until EDS drops the pod. istiod drops a terminating endpoint (endpoint_builder.go, lines 623–632) after its debounce of 100 ms to 10 s (tuning.go, lines 77–104). The connect timeout of the sidecar is 10 s, longer than the 2 s of the client.",
-  "No calibration bounds the push of EDS yet (CAL.T15.sidecar), thus the run keeps the measurement.",
+  "grpc-go closes its listener and sends GOAWAY. A call that reaches the leaving pod then gets a local 503 from its inbound sidecar, thus UNAVAILABLE. The inbound route of a port of gRPC has no retry policy (route.go, lines 1321–1341). The client sidecar retries the call on the other replica (retry.go, lines 35–50).",
+  "When grpc-go exits, the kubelet stops the sidecar, and pilot-agent kills Envoy (agent.go, lines 146–164). A call in flight on that connection gets a reset before its headers, and a reset is not on the retry list.",
+  "A connect after the address of the pod goes gets no answer until EDS drops the pod (endpoint_builder.go, lines 623–632). The connect timeout of the sidecar is 10 s, longer than the 2 s of the client.",
+  `Each such call starts before the client sidecar of its node drops the pod, thus the window ends one push of EDS after the deletion: ${say(P_EDS.hi)} (${P_EDS.from}). The timeout ends such a call later, but the judge places a call by its start.`,
 ].join(" ");
 
-/** These are the gRPC cells of T15 for the kind lab: the calibration of the propagation, and the deletion. */
+/** This hold is the time of a policy: longer than the documented debounce and two next calls, thus the policy denies a call in it. */
+const POLICY_HOLD = s(15);
+
+/** This text is why the policy of T15.defaults.5 fails only in its window, and only with PERMISSION_DENIED. */
+const POLICY_WHY = [
+  "The policy denies the principal of the clients on the server pods. Its RBAC filter is in the inbound chain, and a change of it pushes LDS (builder.go of Istio 1.31.3, lines 321–330, and lds.go, lines 46–55).",
+  "Envoy updates the chain in place. An open connection keeps the old chain until the headers of its next response carry the GOAWAY notice (conn_manager_impl.cc of Envoy v1.39.4, lines 1959–1968).",
+  "A call on a new connection meets the new chain: the local reply 403, thus PERMISSION_DENIED (rbac_filter.cc, lines 234–235, and status.cc, lines 14–15). The client sidecar does not retry it, because retriable-status-codes lists no code.",
+  `Each server sidecar takes the update in ${say(P_LDS.lo)} to ${say(P_LDS.hi)} after the apply and after the delete (${P_LDS.from}). Each next call to one replica comes in ${say(NEXT_CALL)}.`,
+  "The judge places a call by its start, and a call starts before the handshake of its new connection, thus the band has no handshake.",
+].join(" ");
+
+/** These are the gRPC cells of T15 for the kind lab: the calibrations of the propagation, the deletion and the policy. */
 export const T15_GRPC: readonly KindCell[] = [
   {
     ...BASE,
@@ -66,7 +153,28 @@ export const T15_GRPC: readonly KindCell[] = [
     name: "T15 sidecar, gRPC, pod deletion: the retries of the client sidecar, no preStop",
     trigger: { kind: "pod-deletion" },
     pod: kubeDefaults(2),
-    prediction: { kind: "measured", why: DELETION_WHY },
+    prediction: sidecarDeletion(P_EDS, DELETION_WHY),
+    calibrates: false,
+  },
+  {
+    ...BASE,
+    id: "CAL.T15.policy",
+    name: "T15 sidecar, gRPC, the propagation of a policy to each server sidecar, an account that no pod has",
+    trigger: { kind: "authorization-policy", hold: POLICY_HOLD, account: "lab-absent" },
+    pod: kubeDefaults(2),
+    prediction: {
+      kind: "none",
+      why: "The policy denies the account lab-absent, and no pod has it. The chain of each server sidecar changes in place, and its open connection drains with a GOAWAY notice, thus no call fails (conn_manager_impl.cc of Envoy v1.39.4, lines 1959–1968)",
+    },
+    calibrates: true,
+  },
+  {
+    ...BASE,
+    id: "T15.defaults.5",
+    name: "T15 sidecar, gRPC, an AuthorizationPolicy that denies the clients for 15 s",
+    trigger: { kind: "authorization-policy", hold: POLICY_HOLD },
+    pod: kubeDefaults(2),
+    prediction: policyWindow(P_LDS, POLICY_HOLD, POLICY_WHY),
     calibrates: false,
   },
 ];
@@ -77,5 +185,10 @@ export const T15_GRPC_ALIASES: readonly Alias[] = [
     plan: "T15.array.13",
     is: "T15.defaults.13",
     why: "DP51 is the sidecar at the defaults of Istio 1.31: a terminationDrainDuration of 5 s, native sidecars on, and no DestinationRule, thus no pool settings and no outlier detection. Each one is a default of the install of the lab, as in T15.defaults.13",
+  },
+  {
+    plan: "T15.array.5",
+    is: "T15.defaults.5",
+    why: "DP51 sets no knob on the path of a policy: the debounce of istiod, the drain of a filter chain and the retry policy are at the defaults of Istio 1.31, as in T15.defaults.5",
   },
 ];
