@@ -146,6 +146,24 @@ const writeWhole = (path: string, bytes: Uint8Array, executable: boolean): void 
   renameSync(partial, path);
 };
 
+/** These are the waits in ms before the second and the third try of a download. A runner can fail to connect for a moment. */
+export const DOWNLOAD_WAITS: readonly number[] = [2_000, 8_000];
+
+/**
+ * This function gives the bytes of a URL. It tries again after each wait when the connection fails or
+ * the answer is a 5xx, and it refuses each other answer that is not ok at once.
+ */
+export const download = async (url: string, waits: readonly number[] = DOWNLOAD_WAITS): Promise<Uint8Array> => {
+  for (let attempt = 0; ; attempt++) {
+    const response = await fetch(url, { redirect: "follow" }).catch((error: unknown) => (error instanceof Error ? error : new Error(String(error))));
+    if (response instanceof Response && response.ok) return new Uint8Array(await response.arrayBuffer());
+    const failure = response instanceof Response ? new Error(`the download of ${url} answered ${response.status}`) : response;
+    const wait = waits[attempt];
+    if ((response instanceof Response && response.status < 500) || wait === undefined) throw failure;
+    await new Promise((resolve) => setTimeout(resolve, wait));
+  }
+};
+
 /**
  * This function gives the path of a tool, after a download when the cache does not have it. It
  * refuses bytes whose sha256 is not the pinned value, from the cache or from the download. For a
@@ -166,9 +184,7 @@ export const ensureTool = async (tool: Tool, key: string = platformKey(), cache:
     if (found !== asset.sha256) throw new Error(`${kept} has the sha256 ${found}, not the pinned ${asset.sha256}`);
     if (tool.entry === undefined) return path;
   } else {
-    const response = await fetch(asset.url, { redirect: "follow" });
-    if (!response.ok) throw new Error(`the download of ${asset.url} answered ${response.status}`);
-    bytes = new Uint8Array(await response.arrayBuffer());
+    bytes = await download(asset.url);
     const found = sha256(bytes);
     if (found !== asset.sha256) throw new Error(`${asset.url} has the sha256 ${found}, not the pinned ${asset.sha256}`);
     writeWhole(kept, bytes, executable && tool.entry === undefined);
