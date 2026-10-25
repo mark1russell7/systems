@@ -41,7 +41,7 @@ Each system of the S1 set gets a matrix of cells, and the algebra predicts each 
 
 ### S2 · Intermediaries and Kubernetes
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** program
 - **Depends on:** S1
 - **Started:** 2026-10-15
@@ -87,7 +87,7 @@ From the layout of a CMOS cell to the routing fabric of an FPGA, with the real g
 
 ### S6 · The service abstraction
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** program
 - **Depends on:** S1
 - **Started:** 2026-10-08
@@ -226,7 +226,7 @@ A controller can declare a path pattern, and a function gives the idempotency of
 
 ### SYS-6 · Each request is a stream
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** server stack
 - **Depends on:** S6
 - **Started:** 2026-10-17
@@ -371,7 +371,7 @@ This release publishes `workerLoop`, `queueDrain`, `redeliverOnce`, the trigger 
 
 ### SYS-17 · The harness takes its test subjects as data
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** server stack
 - **Depends on:** S6
 - **Started:** 2026-10-18
@@ -1229,7 +1229,7 @@ Five cells put the idle close of Redis against the keepalive of the kernel, both
 
 ### SITE-UX · The weekly round of the site and the tracker
 
-- **Status:** in progress
+- **Status:** later
 - **Area:** site
 - **Depends on:**
 - **Started:** 2026-10-18
