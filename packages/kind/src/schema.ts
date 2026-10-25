@@ -41,6 +41,7 @@ const TRIGGERS = [
   "rollout",
   "cpu-throttle",
   "authorization-policy",
+  "idle",
 ] as const satisfies readonly TriggerKind[];
 const MODES = ["iptables", "ipvs", "nftables"] as const satisfies readonly KubeProxyMode[];
 
@@ -129,25 +130,27 @@ const load = z.object({ t: z.number(), idle: z.number(), top: z.array(z.string()
  */
 const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
   const band = z.object({ lo: a, hi: a });
+  const window = z.object({
+    kind: z.literal("window"),
+    nodes: z.enum(["all", "paused"]),
+    start: z.object({ from: reference, band }),
+    end: z.object({ from: reference, band }).nullable(),
+    certain: z.boolean(),
+    afterReset: z.object({ life: a, outcome: z.string() }).optional(),
+    each: z.boolean().optional(),
+    propagation: band.optional(),
+    outcomes: z.array(z.string()).optional(),
+    why: z.string(),
+  });
   const prediction = z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("none"), outcomes: z.array(z.string()).optional(), why: z.string() }),
-    z.object({
-      kind: z.literal("window"),
-      nodes: z.enum(["all", "paused"]),
-      start: z.object({ from: reference, band }),
-      end: z.object({ from: reference, band }).nullable(),
-      certain: z.boolean(),
-      afterReset: z.object({ life: a, outcome: z.string() }).optional(),
-      each: z.boolean().optional(),
-      propagation: band.optional(),
-      outcomes: z.array(z.string()).optional(),
-      why: z.string(),
-    }),
+    window,
     z.object({ kind: z.literal("removal"), band, why: z.string() }),
     z.object({ kind: z.literal("leaves"), band, why: z.string() }),
     z.object({ kind: z.literal("restarts"), band: band.nullable(), why: z.string() }),
     z.object({ kind: z.literal("stays"), why: z.string() }),
     z.object({ kind: z.literal("stalls"), why: z.string() }),
+    z.object({ kind: z.literal("ends"), from: reference, band: band.nullable(), window: window.optional(), why: z.string() }),
     z.object({ kind: z.literal("measured"), why: z.string() }),
   ]);
   const cell = z.object({
@@ -190,6 +193,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     windows: z.array(z.object({ pod: z.string(), intake: z.number().nullable(), deletion: z.number() })).optional(),
     updates: z.record(z.string(), z.object({ after: a.nullable(), by: a }).nullable()).optional(),
     healUpdates: z.record(z.string(), z.object({ after: a.nullable(), by: a }).nullable()).optional(),
+    closes: z.record(z.string(), a.nullable()).optional(),
   });
   const verdict = z.object({
     decision: z.enum(["holds", "fails", "extend", "measured", "calibration", "void"]),

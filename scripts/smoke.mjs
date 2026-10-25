@@ -105,6 +105,7 @@ const NEEDS = {
     "image/watch.mjs",
     "src/compose.ts",
     "src/backends.ts",
+    "src/client-lines.ts",
   ],
 };
 /** the paths in a gzipped tar file, read with zlib: each entry has a 512-byte ustar header */
@@ -476,7 +477,7 @@ try {
       const context = module.stageLabImage();
       try {
         const packed = readdirSync(join(context, "workspace")).filter((file) => file.endsWith(".tgz"));
-        const files = ["Dockerfile", "app.mjs", "client.mjs", "agent.mjs", "watch.mjs", "compose.ts", "backends.ts"];
+        const files = ["Dockerfile", "app.mjs", "client.mjs", "client-grpc.mjs", "agent.mjs", "watch.mjs", "compose.ts", "backends.ts", "client-lines.ts"];
         check(packed.length === 3 && files.every((file) => existsSync(join(context, file))), "kind stages its lab image from an install");
       } finally {
         rmSync(context, { recursive: true, force: true });

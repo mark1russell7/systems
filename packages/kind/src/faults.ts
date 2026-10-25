@@ -17,13 +17,18 @@ import { CLIENT, REDIS, SERVER } from "./names.ts";
  * - `servers` is each replica of the service. Only the injector takes it: a rule in the network
  *   namespace of each replica, with each client pod as a peer. A REJECT resets only the sender of
  *   the segment that it matches, thus the rule goes where the segments of the clients arrive.
+ * - `clients` is the process of each client pod. Only a signal takes it: the gap of the trigger `idle`.
  */
-export type Target = "server" | "redis" | "kube-proxy" | "servers";
+export type Target = "server" | "redis" | "kube-proxy" | "servers" | "clients";
 
 /** A step is one act of a fault, in the sequence of the plan. */
 export type Step =
   | { readonly do: "kubectl"; readonly args: readonly string[]; readonly background?: boolean }
-  | { readonly do: "signal"; readonly target: Target; readonly signal: "SIGKILL" | "SIGSTOP" | "SIGCONT" }
+  /**
+   * This step sends a signal to the target. For the target `clients`, it sends it to each client
+   * process, the nodes at the same time. SIGUSR1 stops the calls of a gRPC client, and SIGUSR2 starts them again.
+   */
+  | { readonly do: "signal"; readonly target: Target; readonly signal: "SIGKILL" | "SIGSTOP" | "SIGCONT" | "SIGUSR1" | "SIGUSR2" }
   /** This step sends SIGSTOP, then SIGCONT `time` later, as the VM times it. The next step starts at once. */
   | { readonly do: "pause"; readonly target: Target; readonly time: Quantity }
   /**
@@ -220,6 +225,14 @@ export const planOf = (cell: KindCell): FaultPlan => {
         hold: needs(trigger.hold, "a hold"),
         heal: [{ do: "kubectl", args: [...ns, "delete", "authorizationpolicy", POLICY] }],
         restore: [{ do: "kubectl", args: [...ns, "delete", "authorizationpolicy", POLICY, "--ignore-not-found"] }],
+      };
+    case "idle":
+      // the gap of the clients: the restore starts the calls of a client that a failed heal left stopped
+      return {
+        inject: [{ do: "signal", target: "clients", signal: "SIGUSR1" }],
+        hold: needs(trigger.hold, "a hold, the time of the gap"),
+        heal: [{ do: "signal", target: "clients", signal: "SIGUSR2" }],
+        restore: [{ do: "signal", target: "clients", signal: "SIGUSR2" }],
       };
   }
 };

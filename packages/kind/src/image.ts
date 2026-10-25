@@ -28,6 +28,7 @@ const FILES: ReadonlyArray<readonly [string, string]> = [
   ["drops.ts", "src/drops.ts"],
   ["eds.ts", "src/eds.ts"],
   ["lds.ts", "src/lds.ts"],
+  ["client-lines.ts", "src/client-lines.ts"],
 ];
 
 const shell = process.platform === "win32";

@@ -49,6 +49,7 @@ export type Stack = "service" | "grpc";
  * - `rollout` is a rolling update while Redis is down.
  * - `cpu-throttle` sets `cpu.max` in the cgroup of one replica.
  * - `authorization-policy` applies an AuthorizationPolicy of Istio that denies the clients, for the hold (T15).
+ * - `idle` stops the calls of each client with SIGUSR1, and starts them again with SIGUSR2 after the hold: a gap (T15).
  * - `none` injects nothing: a calibration measures the path itself.
  */
 export type TriggerKind =
@@ -65,7 +66,8 @@ export type TriggerKind =
   | "app-stall"
   | "rollout"
   | "cpu-throttle"
-  | "authorization-policy";
+  | "authorization-policy"
+  | "idle";
 
 /**
  * A trigger is its kind and the settings of its fault. The parameter `A` is the form of an amount:
@@ -73,7 +75,7 @@ export type TriggerKind =
  */
 export interface Trigger<A = Quantity> {
   readonly kind: TriggerKind;
-  /** This time is how long a fault holds before it ends: a stall, a pause of kube-proxy, a black hole on Redis. */
+  /** This time is how long a fault holds before it ends: a stall, a pause of kube-proxy, a black hole, or a gap. */
   readonly hold?: Quantity | undefined;
   /** This time is how long before the deletion a pause of kube-proxy starts (T07 `freeze-process`). */
   readonly lead?: Quantity | undefined;
@@ -194,6 +196,9 @@ export interface ResetReuse<A = Quantity> {
  * - `restarts`: each replica receives SIGTERM in the band, or no replica does.
  * - `stays`: no endpoint leaves the Service, and no request is refused.
  * - `stalls`: the rollout does not continue while Redis is down, and it ends after Redis is back.
+ * - `ends`: the socket of each client ends in the band after the reference `from`. With no band, no
+ *   socket of a client ends in the run. Then the first request of each client after the heal goes on
+ *   the socket of its last request before the fault. With `window`, the failed requests also start in that window.
  * - `measured`: no document bounds the outcome. The run keeps the measurement.
  */
 export type Prediction<A = Quantity> =
@@ -203,39 +208,55 @@ export type Prediction<A = Quantity> =
       readonly outcomes?: readonly string[] | undefined;
       readonly why: string;
     }
-  | {
-      readonly kind: "window";
-      readonly nodes: "all" | "paused";
-      readonly start: { readonly from: Reference; readonly band: Band<A> };
-      readonly end: { readonly from: Reference; readonly band: Band<A> } | null;
-      readonly certain: boolean;
-      readonly afterReset?: ResetReuse<A> | undefined;
-      /**
-       * This flag gives a window to each replica of the run (`replicas`) that gets a deletion after the
-       * start of the run. The references `deletion` and `intake` are then those of that replica. A
-       * rolling update deletes each old replica in turn. Without the flag, the window is that of the target.
-       */
-      readonly each?: boolean | undefined;
-      /**
-       * This band is the propagation that the window assumes. It starts at the deletion of the replica
-       * of a window. It ends at the first poll of each node without that replica. That poll is of the
-       * rules, or of the client sidecar in a sidecar mesh (`propagationSource`).
-       *
-       * The judge holds each poll to `hi` ± δ, and it does not test a window without the band. A later
-       * poll agrees with the law, but the band is short, thus its cell is `extend` (D-EXTEND). An
-       * earlier drop only closes the window earlier.
-       */
-      readonly propagation?: Band<A> | undefined;
-      /** These outcomes are the only failures that the window permits. A failure with another outcome fails the run. Without them, each outcome but `ok` can fail. */
-      readonly outcomes?: readonly string[] | undefined;
-      readonly why: string;
-    }
+  | WindowPrediction<A>
   | { readonly kind: "removal"; readonly band: Band<A>; readonly why: string }
   | { readonly kind: "leaves"; readonly band: Band<A>; readonly why: string }
   | { readonly kind: "restarts"; readonly band: Band<A> | null; readonly why: string }
   | { readonly kind: "stays"; readonly why: string }
   | { readonly kind: "stalls"; readonly why: string }
+  | {
+      readonly kind: "ends";
+      /** This reference is where the band of each close starts. */
+      readonly from: Reference;
+      /** This band is the close of the socket of each client after `from`, or null when no socket of a client ends. */
+      readonly band: Band<A> | null;
+      /** This window is where the failed requests start, or none when the prediction does not test them. */
+      readonly window?: WindowPrediction<A> | undefined;
+      readonly why: string;
+    }
   | { readonly kind: "measured"; readonly why: string };
+
+/**
+ * A window prediction is the requests that fail in a window. The window starts at `start` and ends in
+ * `end`. With `certain`, at least one request fails.
+ */
+export interface WindowPrediction<A = Quantity> {
+  readonly kind: "window";
+  readonly nodes: "all" | "paused";
+  readonly start: { readonly from: Reference; readonly band: Band<A> };
+  readonly end: { readonly from: Reference; readonly band: Band<A> } | null;
+  readonly certain: boolean;
+  readonly afterReset?: ResetReuse<A> | undefined;
+  /**
+   * This flag gives a window to each replica of the run (`replicas`) that gets a deletion after the
+   * start of the run. The references `deletion` and `intake` are then those of that replica. A
+   * rolling update deletes each old replica in turn. Without the flag, the window is that of the target.
+   */
+  readonly each?: boolean | undefined;
+  /**
+   * This band is the propagation that the window assumes. It starts at the deletion of the replica
+   * of a window. It ends at the first poll of each node without that replica. That poll is of the
+   * rules, or of the client sidecar in a sidecar mesh (`propagationSource`).
+   *
+   * The judge holds each poll to `hi` ± δ, and it does not test a window without the band. A later
+   * poll agrees with the law, but the band is short, thus its cell is `extend` (D-EXTEND). An
+   * earlier drop only closes the window earlier.
+   */
+  readonly propagation?: Band<A> | undefined;
+  /** These outcomes are the only failures that the window permits. A failure with another outcome fails the run. Without them, each outcome but `ok` can fail. */
+  readonly outcomes?: readonly string[] | undefined;
+  readonly why: string;
+}
 
 /** A replica is one pod of the service at the start of a run. */
 export interface Replica {

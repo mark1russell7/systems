@@ -181,6 +181,45 @@ describe("the judgement of a record again", () => {
     expect(unitOf({ kind: "stalls" })).toBe("s");
     expect(unitOf({ kind: "restarts", band: { lo: 28, hi: 50 } })).toBe("s");
     expect(unitOf({ kind: "restarts", band: null })).toBe("{replica}");
+    expect(unitOf({ kind: "ends", band: { lo: 20, hi: 30 } })).toBe("s");
+    expect(unitOf({ kind: "ends", band: null })).toBe("{socket}");
+  });
+
+  it("reads a record of /2 of a gap and of a black hole: the trigger idle, the prediction ends with and without a band, and the closes", () => {
+    const fromV1 = readRecord(json(fixture(FIXTURES.fails)));
+    const s = (value: number) => ({ value, unit: "s" });
+    const window = {
+      kind: "window",
+      nodes: "all",
+      start: { from: "fault", band: { lo: s(0), hi: s(0.03) } },
+      end: { from: "heal", band: { lo: s(-2), hi: s(4.1) } },
+      certain: true,
+      outcomes: ["timeout", "error", "reset"],
+      why: "a window",
+    } as const;
+    const base = { ...fromV1.cell, template: "T15", stack: "grpc", mesh: { flavor: "ambient", mode: "ambient" } } as const;
+    const valued = (value: { readonly value: number; readonly unit: string }, closes: Record<string, { readonly value: number; readonly unit: string } | null>): KindCellRecord["verdict"] => ({
+      ...fromV1.verdict,
+      median: value,
+      checks: fromV1.verdict.checks.map((check) => ({ ...check, value: check.value === null ? null : value, facts: { ...check.facts, closes } })),
+    });
+    const hole: KindCellRecord = {
+      ...fromV1,
+      cell: { ...base, trigger: { kind: "blackhole", hold: s(45) }, prediction: { kind: "ends", from: "fault", band: { lo: s(20), hi: s(30.03) }, window, why: "a test" } },
+      verdict: valued(s(25.1), { "client-w1": s(25.1), "client-w2": null }),
+    };
+    const read = readRecord(json(hole));
+    expect(read.cell.prediction).toEqual(hole.cell.prediction);
+    expect(read.verdict.checks[0]?.facts.closes).toEqual({ "client-w1": s(25.1), "client-w2": null });
+    const gap: KindCellRecord = {
+      ...fromV1,
+      cell: { ...base, trigger: { kind: "idle", hold: s(330) }, prediction: { kind: "ends", from: "fault", band: null, why: "a test" } },
+      verdict: valued({ value: 0, unit: "{socket}" }, { "client-w1": null }),
+    };
+    expect(readRecord(json(gap)).cell).toMatchObject({ trigger: { kind: "idle", hold: s(330) }, prediction: { kind: "ends", band: null } });
+    // the main value of a close is a time, and with no band it is a count of the sockets
+    expect(kindCellRecordSchema.safeParse(json({ ...hole, verdict: gap.verdict })).success).toBe(false);
+    expect(kindCellRecordSchema.safeParse(json({ ...gap, verdict: hole.verdict })).success).toBe(false);
   });
 
   it("writes the median of a report through its unit", () => {

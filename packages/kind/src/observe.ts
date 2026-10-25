@@ -98,6 +98,20 @@ export interface RecordLine {
   readonly d: string | null;
 }
 
+/**
+ * A socket line is the connect or the close of a socket of the channel of a gRPC client
+ * (`client-lines.ts`). It gives the client (`p`) and its node (`n`), and the local port of the socket.
+ * A close also gives the code of an error of the socket (`err`), or null for a close with no error.
+ */
+export interface SocketLine {
+  readonly t: number;
+  readonly what: "connect" | "close";
+  readonly p: string;
+  readonly n: string;
+  readonly lp: number | null;
+  readonly err?: string | null;
+}
+
 const of = <T>(lines: readonly Line[], ev: string): T[] => lines.filter((line) => line.ev === ev) as unknown as T[];
 
 export const requestsOf = (lines: readonly Line[]): Request[] => of<Request>(lines, "req");
@@ -107,6 +121,7 @@ export const slicesOf = (lines: readonly Line[], svc: string): SliceLine[] =>
 export const rulesOf = (lines: readonly Line[], source: PropagationSource = "rules"): RulesLine[] =>
   of<RulesLine>(lines, source).sort((a, b) => a.t - b.t);
 export const recordsOf = (lines: readonly Line[]): RecordLine[] => of<RecordLine>(lines, "rec");
+export const socketsOf = (lines: readonly Line[]): SocketLine[] => of<SocketLine>(lines, "sock").sort((a, b) => a.t - b.t);
 
 /** This function gives the requests that did not succeed, in sequence of their start. */
 export const failuresOf = (lines: readonly Line[]): Request[] =>

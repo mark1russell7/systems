@@ -23,6 +23,7 @@ export type {
   Template,
   Trigger,
   TriggerKind,
+  WindowPrediction,
   Workload,
 } from "./cell.ts";
 export { CLIENT, HEALTH_PORT, LOG_LABEL, PORT, REDIS, SERVER } from "./names.ts";

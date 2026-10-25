@@ -1,7 +1,7 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import { seconds, secondsOf } from "./bands.ts";
-import type { KindCell, KindRun, Prediction, Reference, ResetReuse } from "./cell.ts";
+import type { KindCell, KindRun, Prediction, Reference, ResetReuse, WindowPrediction } from "./cell.ts";
 import { PORT, SERVER } from "./names.ts";
 import type { Line, PropagationSource, Request } from "./observe.ts";
 import {
@@ -13,9 +13,11 @@ import {
   intakeOf,
   outcomesOf,
   podsOf,
+  requestsOf,
   signalsOf,
   sliceDropOf,
   sliceEmptyOf,
+  socketsOf,
 } from "./observe.ts";
 import { RELATIVE, medianInterval, middle } from "./stats.ts";
 
@@ -77,6 +79,8 @@ export interface RunFacts<A = Quantity> {
   readonly updates?: Readonly<Record<string, Propagated<A> | null>> | undefined;
   /** These are the first LDS updates of the sidecar of each server pod after the heal, by pod. */
   readonly healUpdates?: Readonly<Record<string, Propagated<A> | null>> | undefined;
+  /** These are the first close of the socket of each client after the reference (`ends`), by client, or null for none. */
+  readonly closes?: Readonly<Record<string, A | null>> | undefined;
 }
 
 /** A deleted replica is a replica of a run that got a deletion. It gives its pod, and the stamps of its intake (or null) and of its deletion. */
@@ -120,9 +124,10 @@ export interface KindVerdict<A = Quantity> {
 
 /**
  * This function gives the unit of the main value of a cell, from its prediction:
- * - `s` for a time: the removal, the departure or the restart of a band, and the end of a stall.
+ * - `s` for a time: the removal, the departure or the restart of a band, the end of a stall, or a close.
  * - `{request}` for the failed requests: no failure, a window, a fleet that stays, and a measurement.
  * - `{replica}` for the replicas that received SIGTERM, when no replica must restart.
+ * - `{socket}` for the sockets of the clients that ended, when no socket must end.
  */
 export const unitOf = (prediction: { readonly kind: Prediction["kind"]; readonly band?: unknown }): string => {
   switch (prediction.kind) {
@@ -132,6 +137,8 @@ export const unitOf = (prediction: { readonly kind: Prediction["kind"]; readonly
       return "s";
     case "restarts":
       return prediction.band === null ? "{replica}" : "s";
+    case "ends":
+      return prediction.band === null ? "{socket}" : "s";
     default:
       return "{request}";
   }
@@ -259,16 +266,20 @@ interface Span {
   readonly dropped: (node: string) => number | null;
 }
 
+/** This function gives the window of the failed requests of a prediction: a window, the window of `ends`, or null. */
+const windowOf = (prediction: Prediction): WindowPrediction | null =>
+  prediction.kind === "window" ? prediction : prediction.kind === "ends" ? (prediction.window ?? null) : null;
+
 /**
  * This function gives how long a run observes after the end reference of its last window, or null
  * when its prediction sets no such time. The judge closes a window `end.band.hi` + δ after its end
  * reference. A request that starts by then ends at most the timeout of the workload later: the
- * client cancels it then. A prediction that is not a window, or a window with no end, sets none.
+ * client cancels it then. A prediction with no window, or a window with no end, sets none.
  */
 export const observationAfter = (cell: Pick<KindCell, "prediction" | "workload">): Quantity | null => {
-  const prediction = cell.prediction;
-  if (prediction.kind !== "window" || prediction.end === null) return null;
-  return seconds(sec(valueIn(prediction.end.band.hi, "ms") + valueIn(cell.workload.timeout, "ms") + NOISE));
+  const window = windowOf(cell.prediction);
+  if (window === null || window.end === null) return null;
+  return seconds(sec(valueIn(window.end.band.hi, "ms") + valueIn(cell.workload.timeout, "ms") + NOISE));
 };
 
 /**
@@ -278,18 +289,28 @@ export const observationAfter = (cell: Pick<KindCell, "prediction" | "workload">
  * it can miss its own failures. In a rolling update of gRPC, a call waits in the queue of its channel
  * for a stalled connect. It fails only at its timeout (kind run 40128267098). A reference that is not
  * in the lines yet does not count.
+ *
+ * The band of `ends` also sets an end: its reference, the end of the band and δ.
  */
 export const observationEnd = (cell: KindCell, run: Pick<KindRun, "start" | "acts" | "target" | "replicas" | "lines">): number | null => {
-  const after = observationAfter(cell);
+  const ends: number[] = [];
   const prediction = cell.prediction;
-  if (after === null || prediction.kind !== "window" || prediction.end === null) return null;
-  const from = prediction.end.from;
-  const pods: ReadonlyArray<string | undefined> = prediction.each === true ? run.replicas.map((replica) => replica.pod) : [run.target?.pod];
-  const references = pods.flatMap((pod) => {
-    const at = referenceOf(run, from, pod);
-    return at === null ? [] : [at];
-  });
-  return references.length === 0 ? null : Math.max(...references) + valueIn(after, "ms");
+  if (prediction.kind === "ends" && prediction.band !== null) {
+    const at = referenceOf(run, prediction.from);
+    if (at !== null) ends.push(at + valueIn(prediction.band.hi, "ms") + NOISE);
+  }
+  const after = observationAfter(cell);
+  const window = windowOf(prediction);
+  if (after !== null && window !== null && window.end !== null) {
+    const from = window.end.from;
+    const pods: ReadonlyArray<string | undefined> = window.each === true ? run.replicas.map((replica) => replica.pod) : [run.target?.pod];
+    const references = pods.flatMap((pod) => {
+      const at = referenceOf(run, from, pod);
+      return at === null ? [] : [at];
+    });
+    if (references.length > 0) ends.push(Math.max(...references) + valueIn(after, "ms"));
+  }
+  return ends.length === 0 ? null : Math.max(...ends);
 };
 
 /** This function gives the facts of a run that each table reads: its failures by outcome and node, and the times of its target. */
@@ -574,9 +595,85 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
         return done(true, `the rollout waited for Redis, and its first new pod was ready ${sec(firstReady!.t - heal)} s after Redis came back`, sec(firstReady!.t - heal));
       return done(false, problems.join("; "), null);
     }
+    case "ends":
+      return checkEnds(cell, run, prediction, done);
     case "measured":
       return done(true, "measured", facts.failures);
   }
+};
+
+/**
+ * This function judges a run against a prediction `ends`. Each client with an answer before the
+ * reference is a client of the run. Its socket is the port of that answer (`lp`).
+ * - With a band, the first close of a socket of each client after the reference must be in the band
+ *   ± δ. It must be the close of that socket. The main value is the middle of these times.
+ * - With no band, no socket of a client can close after the reference. The first request of each client
+ *   after the heal must be `ok` on that socket. The main value is the count of the closes.
+ *
+ * With a window, the failed requests of the run must also agree with that window (`checkRun`).
+ */
+const checkEnds = (
+  cell: KindCell,
+  run: KindRun,
+  prediction: Extract<Prediction, { readonly kind: "ends" }>,
+  done: (ok: boolean, why: string, value: number | null, more?: Partial<RunFacts>) => RunCheck,
+): RunCheck => {
+  const from = referenceOf(run, prediction.from);
+  if (from === null) return done(false, `the run has no ${prediction.from} reference`, null);
+  const lines = run.lines as readonly Line[];
+  const calls = requestsOf(lines)
+    .filter((request) => request.t >= run.start && request.t <= run.end)
+    .sort((a, b) => a.t - b.t);
+  // each client of the run, with its last answer before the reference
+  const last = new Map<string, Request>();
+  for (const request of calls) if (request.t < from && request.o === "ok") last.set(request.p, request);
+  if (last.size === 0) return done(false, `no client had an answer before the ${prediction.from}`, null);
+  const clients = [...last.keys()].sort();
+  const shut = socketsOf(lines).filter((line) => line.what === "close" && line.t >= from && line.t <= run.end);
+  const closes: Record<string, Quantity | null> = {};
+  const times: number[] = [];
+  const problems: string[] = [];
+  for (const client of clients) {
+    const close = shut.find((line) => line.p === client);
+    closes[client] = close === undefined ? null : seconds(sec(close.t - from));
+    if (close !== undefined) times.push(sec(close.t - from));
+  }
+  let agrees: string;
+  let value: number | null;
+  if (prediction.band !== null) {
+    const band = secondsOf(prediction.band);
+    for (const client of clients) {
+      const close = shut.find((line) => line.p === client);
+      const port = last.get(client)!.lp ?? null;
+      if (close === undefined) problems.push(`the socket of ${client} did not end`);
+      else if (port !== null && close.lp !== null && close.lp !== port) problems.push(`the first socket of ${client} to end had the port ${close.lp}, not the port ${port} of its last answer`);
+      else if (!inBand(sec(close.t - from), band)) problems.push(`the socket of ${client} ended at ${sec(close.t - from)} s`);
+    }
+    const sorted = [...times].sort((a, b) => a - b);
+    value = sorted.length === 0 ? null : middle(sorted);
+    agrees = `the socket of each of ${clients.length} clients ended, at ${sorted.join(", ")} s`;
+  } else {
+    for (const client of clients) {
+      const close = shut.find((line) => line.p === client);
+      if (close !== undefined) problems.push(`the socket of ${client} ended ${sec(close.t - from)} s after the ${prediction.from}`);
+    }
+    // the first call after the heal goes on the socket of the last answer before the reference
+    const resumed = run.acts.heal ?? from;
+    for (const client of clients) {
+      const port = last.get(client)!.lp ?? null;
+      const next = calls.find((request) => request.p === client && request.t >= resumed);
+      if (next === undefined) problems.push(`${client} sent no call after the heal`);
+      else if (next.o !== "ok") problems.push(`the first call of ${client} after the heal ended ${next.o}`);
+      else if ((next.lp ?? null) !== port) problems.push(`the first call of ${client} after the heal went on the port ${next.lp ?? "none"}, not ${port ?? "none"}`);
+    }
+    value = times.length;
+    agrees = `no socket of ${clients.length} clients ended, and the first call of each one after the heal went on its socket`;
+  }
+  const inner = prediction.window === undefined ? null : checkRun({ ...cell, prediction: prediction.window }, run);
+  if (inner !== null && !inner.ok) problems.push(inner.why);
+  const why = problems.length > 0 ? problems.join("; ") : inner === null ? agrees : `${agrees}; ${inner.why}`;
+  const checked = done(problems.length === 0, why, value, { ...(inner === null ? {} : inner.facts), closes });
+  return inner?.tail === undefined ? checked : { ...checked, tail: inner.tail };
 };
 
 /** This function judges a cell on its runs: each counted run must agree, and a median in a band must be equivalent to it. */
@@ -592,7 +689,7 @@ export const judgeKind = (cell: KindCell, runs: readonly KindRun[]): KindVerdict
   if (cell.calibrates) return { decision: "calibration", counted: counted.length, voided, failed, median, why: "a calibration of the propagation", checks };
   if (cell.prediction.kind === "measured") return { decision: "measured", counted: counted.length, voided, failed: 0, median, why: cell.prediction.why, checks };
   const prediction = cell.prediction;
-  const band = prediction.kind === "removal" || prediction.kind === "leaves" || prediction.kind === "restarts" ? prediction.band : null;
+  const band = prediction.kind === "removal" || prediction.kind === "leaves" || prediction.kind === "restarts" || prediction.kind === "ends" ? prediction.band : null;
   if (failed > 0) {
     const first = checks.find((check) => !check.ok)!;
     return { decision: "fails", counted: counted.length, voided, failed, median, why: `${failed} of ${counted.length} runs disagree, the first: ${first.why}`, checks };
