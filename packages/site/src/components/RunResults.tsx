@@ -3,7 +3,7 @@
  * keep-alive race, MongoDB, PostgreSQL, RabbitMQ, gRPC and kind. Each harness cell has a frame with a strip chart,
  * its prediction and its verdict. The chart has a dot for each counted run, against the band. A frame
  * of a group also has the stages of the failover. A kind cell has a frame with its verdict, and a
- * strip chart when its main value is a time.
+ * strip chart when its main value is a time. The cells of T15 in kind have their own copy.
  */
 import type { ReactElement } from "react";
 import grpc from "../data/grpc-2026-10-20.json";
@@ -13,6 +13,7 @@ import mongodb from "../data/mongodb-2026-10-18.json";
 import pg from "../data/pg-2026-10-19.json";
 import r3 from "../data/r3-2026-10-17.json";
 import rabbitmq from "../data/rabbitmq-2026-10-19.json";
+import t15 from "../data/t15-2026-10-25.json";
 import sentinel from "../data/sentinel-2026-10-17.json";
 import { count as digits, duration, reading } from "../lib/format.ts";
 import { axisOf, code, joined, predictionText, runsText } from "./CellFrame.tsx";
@@ -430,11 +431,13 @@ export function RaceBorder(): ReactElement {
 // the kind cells
 // ---------------------------------------------------------------------------------------------
 
-type KindCell = (typeof kind.cells)[number];
+/** The kind cells of each copy: T07 and T18, and T15 over gRPC through Istio. */
+const KIND_CELLS = [...kind.cells, ...t15.cells];
+type KindCell = (typeof KIND_CELLS)[number];
 
 /** This function writes the main value of a kind cell: a count of failed requests, of replicas, or a time. */
 const valueOf = (cell: KindCell, value: number): string =>
-  cell.unit === "requests" ? count(value, "failed request") : cell.unit === "replicas" ? count(value, "replica") : fine(value);
+  cell.unit === "requests" ? count(value, "failed request") : cell.unit === "replicas" ? count(value, "replica") : cell.unit === "sockets" ? count(value, "ended socket") : fine(value);
 
 /** This function gives the plot of a kind cell whose main value is a time, or null. */
 const kindPlotOf = (cell: KindCell): Plot | null => {
@@ -450,7 +453,7 @@ const kindPlotOf = (cell: KindCell): Plot | null => {
 /** This component is the table of the main value of each counted run of a kind cell. */
 function ValueTable(props: { readonly cell: KindCell }): ReactElement {
   const { cell } = props;
-  const head = cell.unit === "requests" ? "Failed requests" : cell.unit === "replicas" ? "Replicas" : "Time";
+  const head = cell.unit === "requests" ? "Failed requests" : cell.unit === "replicas" ? "Replicas" : cell.unit === "sockets" ? "Ended sockets" : "Time";
   return (
     <div className="sy-scroll">
       <table className="sy-table">
@@ -474,8 +477,8 @@ function ValueTable(props: { readonly cell: KindCell }): ReactElement {
 }
 
 /** The cells of one group of a kind catalog, in the sequence of the catalog. */
-export function KindResults(props: { readonly template: "T07" | "T18"; readonly group: string }): ReactElement {
-  const cells = kind.cells.filter((cell) => cell.template === props.template && cell.group === props.group);
+export function KindResults(props: { readonly template: "T07" | "T18" | "T15"; readonly group: string }): ReactElement {
+  const cells = KIND_CELLS.filter((cell) => cell.template === props.template && cell.group === props.group);
   if (cells.length === 0) throw new Error(`no cell of ${props.template} has the group ${props.group}`);
   return (
     <div className="not-content sy-cells">
@@ -513,6 +516,7 @@ export function KindResults(props: { readonly template: "T07" | "T18"; readonly 
               <p className="sy-muted">The failed requests of each counted run: {cell.values.map(digits).join(", ")}.</p>
             ) : null}
             <p className="sy-muted">{cell.why}</p>
+            {"first" in cell && cell.first === "fails" ? <p className="sy-muted">The first run of this cell failed. These runs are of its next run, after the fix that the page gives.</p> : null}
           </Frame>
         );
       })}

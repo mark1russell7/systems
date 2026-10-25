@@ -1,15 +1,17 @@
-// The export of the kind cells for the site: src/data/kind-<date>.json.
+// The export of the kind cells for the site: src/data/kind-<date>.json, or src/data/t15-<date>.json for
+// the cells of T15.
 //
 //   pnpm exec tsx packages/site/scripts/kind.ts <folder>...
 //
 // T07 is the endpoint lifecycle of a Service in kind, and T18 is a fleet whose readiness needs
-// Redis. Each folder is the output of one shard of the workflow Kind on a runner of GitHub: the raw
+// Redis. T15 is gRPC through two hops of an Istio mesh in kind. Each folder is the output of one shard of the workflow Kind on a runner of GitHub: the raw
 // record of each cell, summary.ndjson and runner.txt. A record of the format /1 is read through
 // `upgrade`. The script judges each record again with the cell of the catalog of the same name
 // (`judgeKind`), as KIND_JUDGE does. The calibration of the
 // propagation changes the windows of the catalog after a run, thus the count of runs that disagree
 // can change. The script stops when the decision, the counts or the median disagree with
-// summary.ndjson. The copy keeps only what the page shows. It keeps no image digest, address, pod,
+// summary.ndjson. A later folder can run a cell again, perhaps under a new name. Then the copy keeps
+// the last run of each id, with the decision of its first run. The copy keeps only what the page shows. It keeps no image digest, address, pod,
 // load of the runner, user or path.
 
 import { writeFileSync } from "node:fs";
@@ -20,7 +22,12 @@ import type { KindCell, KindCellRecord, KindCellRecordV1, KindRun, KindVerdict, 
 import { FORMAT, FORMAT_V1, calibrationOf, judgeKind, propagationOf, referenceOf, upgrade } from "../../kind/src/index.ts";
 import { T07_CELLS } from "../../cells/src/t07.ts";
 import { T18_CELLS } from "../../cells/src/t18.ts";
-import { dateOf, only, readFolders, runnerOf, round, stringify, time } from "./records.ts";
+import { T15_GRPC } from "../../cells/src/grpc/t15.ts";
+import type { Found } from "./records.ts";
+import { dateOf, only, readFolders, runnerOf, round, stringify, time, timeAt } from "./records.ts";
+
+/** This function writes a time of a cell of T15 to the ms: its bands are minutes long and their edges are milliseconds apart. */
+const fine = timeAt(3);
 
 const folders = process.argv.slice(2);
 if (folders.length === 0) {
@@ -40,8 +47,15 @@ interface Summary {
   readonly median: number | Quantity | null;
 }
 
-const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS];
-const found = readFolders<KindRecord, Summary>(folders);
+const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T15_GRPC];
+// A later folder replaces the run of each cell of the same id, also when the cell has a new name.
+const found = new Map<string, Found<KindRecord, Summary>>();
+for (const folder of folders)
+  for (const entry of readFolders<KindRecord, Summary>([folder]).values()) {
+    const before = [...found].find(([, each]) => each.record.cell.id === entry.record.cell.id);
+    if (before !== undefined) found.delete(before[0]);
+    found.set(entry.record.cell.name, { ...entry, first: before === undefined ? null : (before[1].first ?? before[1].summary.decision) });
+  }
 for (const entry of found.values()) {
   // the file can hold another format than its type says
   const { format, cell } = entry.record as { readonly format: string; readonly cell: { readonly name: string } };
@@ -94,6 +108,15 @@ const MEASURED: ReadonlyArray<readonly [RegExp, string]> = [
 const predictionOf = (cell: KindCell) => {
   const p: Prediction = cell.prediction;
   const band = (lo: Quantity, hi: Quantity) => ({ low: s(lo), high: s(hi) });
+  if (cell.calibrates && cell.template === "T15")
+    return {
+      kind: "calibration",
+      band: null,
+      text:
+        cell.trigger.kind === "authorization-policy"
+          ? "This cell is a calibration. The policy denies only an account that no client has, thus no call fails. Each server sidecar gives its propagation: the time from the apply of the policy to its first update of its listeners."
+          : "This cell is a calibration. A preStop sleep of 10 s keeps the pod open while the deletion propagates, thus no call fails. Each client sidecar gives its propagation: the time from the deletion to the first poll of its endpoints without the pod.",
+    };
   if (cell.calibrates)
     return {
       kind: "calibration",
@@ -154,14 +177,25 @@ const predictionOf = (cell: KindCell) => {
         band: null,
         text: "The algebra predicts that the rollout stops while Redis is down, and that it continues after Redis is back. The harness measures the time from the return of Redis to the first new pod that is ready.",
       };
-    case "ends":
-      return p.band === null
-        ? { kind: p.kind, band: null, text: "The algebra predicts that no socket of a client ends, and that each client calls again on its socket." }
-        : {
-            kind: p.kind,
-            band: band(p.band.lo, p.band.hi),
-            text: `The algebra predicts that the socket of each client ends. The band is ${time(s(p.band.lo))} to ${time(s(p.band.hi))} after ${REFERENCES[p.from]}.`,
-          };
+    case "ends": {
+      if (p.band === null) return { kind: p.kind, band: null, text: "The algebra predicts that no socket of a client ends, and that each client calls again on its socket." };
+      const what = p.of === "tunnel" ? "the ztunnel of each client closes its tunnel to the replica" : "the socket of each client ends";
+      const at = cell.template === "T15" ? fine : time;
+      const parts = [`The algebra predicts that ${what}. The band is ${at(s(p.band.lo))} to ${at(s(p.band.hi))} after ${REFERENCES[p.from]}.`];
+      if (p.answer !== undefined) parts.push(`A close of the replica first also agrees, as an answer to that close, up to ${at(s(p.answer.hi))} after ${REFERENCES[p.from]}.`);
+      if (p.window !== undefined) {
+        const w = p.window;
+        const start = `${at(s(w.start.band.lo))}`;
+        const span =
+          w.end === null
+            ? `${start} after ${REFERENCES[w.start.from]} or later`
+            : w.end.from === w.start.from
+              ? `${start} to ${at(s(w.end.band.hi))} after ${REFERENCES[w.start.from]}`
+              : `${start} after ${REFERENCES[w.start.from]} to ${at(s(w.end.band.hi))} after ${REFERENCES[w.end.from]}`;
+        parts.push(`A failed call starts ${span}, or no call fails.`);
+      }
+      return { kind: p.kind, band: band(p.band.lo, p.band.hi), text: parts.join(" ") };
+    }
     case "measured": {
       const why = MEASURED.find(([form]) => form.test(p.why))?.[1];
       if (why === undefined) throw new Error(`${cell.name}: the reason "${p.why}" has no text for the page`);
@@ -214,28 +248,33 @@ const disagreeOf = (why: string): string =>
     })
     .join(". ")}.`;
 
-/** This function gives the unit of the main value of a cell: failed requests, replicas that restart, or seconds. */
-const unitOf = (cell: KindCell): string =>
-  COUNTED.has(cell.prediction.kind) ? "requests" : cell.prediction.kind === "restarts" && cell.prediction.band === null ? "replicas" : "s";
+/** This function gives the unit of the main value of a cell: failed requests, replicas that restart, sockets that end, or seconds. */
+const unitOf = (cell: KindCell): string => {
+  const p = cell.prediction;
+  if (COUNTED.has(p.kind)) return "requests";
+  if (p.kind === "restarts" && p.band === null) return "replicas";
+  return p.kind === "ends" && p.band === null ? "sockets" : "s";
+};
 
 /** This function writes the verdict of a cell as the page shows it. */
-const whyOf = (cell: KindCell, verdict: KindVerdict, values: readonly number[]): string => {
+const whyOf = (cell: KindCell, verdict: KindVerdict, values: readonly number[], measured = ""): string => {
   const counted = verdict.counted;
   const unit = unitOf(cell);
   const lower = (text: string): string => text.replace(/^./, (c) => c.toLowerCase());
+  const at = cell.template === "T15" ? fine : time;
   const first = verdict.checks.find((check) => !check.ok);
   const [low, high] = [Math.min(...values), Math.max(...values)];
   const median =
-    verdict.median === null ? "" : unit === "requests" ? ` The median run had ${of(verdict.median.value, "failed request")}.` : unit === "s" ? ` The median is ${time(s(verdict.median))}.` : "";
+    verdict.median === null ? "" : unit === "requests" ? ` The median run had ${of(verdict.median.value, "failed request")}.` : unit === "s" ? ` The median is ${at(s(verdict.median))}.` : "";
   const range =
-    values.length === 0 || high === 0 ? "" : unit === "requests" ? ` The counted runs had ${low.toLocaleString("en-US")} to ${high.toLocaleString("en-US")} failed requests.` : unit === "s" ? ` The counted runs measured ${time(low)} to ${time(high)}.` : "";
+    values.length === 0 || high === 0 ? "" : unit === "requests" ? ` The counted runs had ${low.toLocaleString("en-US")} to ${high.toLocaleString("en-US")} failed requests.` : unit === "s" ? ` The counted runs measured ${at(low)} to ${at(high)}.` : "";
   if (cell.calibrates) {
     const failed = first === undefined ? "" : ` In ${of(verdict.failed, "counted run")}, ${lower(disagreeOf(first.why))}`;
-    return `The calibration measured the propagation in each of the ${counted} counted runs.${failed}`;
+    return `The calibration measured the propagation in each of the ${counted} counted runs.${measured}${failed}`;
   }
   if (verdict.decision === "measured") return `The harness measured ${counted} counted runs.${median}${range}`;
   if (verdict.decision === "holds") {
-    const none = unit === "replicas" && high === 0 ? " No replica received SIGTERM." : "";
+    const none = unit === "replicas" && high === 0 ? " No replica received SIGTERM." : unit === "sockets" && high === 0 ? " No socket of a client ended." : "";
     return `Each of the ${counted} counted runs agrees with the prediction.${none}${median}${range}`;
   }
   if (verdict.decision === "fails" && first !== undefined) {
@@ -247,6 +286,11 @@ const whyOf = (cell: KindCell, verdict: KindVerdict, values: readonly number[]):
 
 /** This function gives the group of a cell on the page: a section of its catalog. */
 const groupOf = (cell: KindCell): string => {
+  if (cell.template === "T15") {
+    if (cell.trigger.kind === "ztunnel-restart") return "restart";
+    if (cell.mesh?.mode === "sidecar") return "sidecar";
+    return cell.id.startsWith("T15.defaults.") ? "hbone" : "borders";
+  }
   if (cell.template === "T07") {
     if (cell.calibrates) return "calibration";
     if (cell.trigger.kind === "pod-deletion") return "deletion";
@@ -284,7 +328,19 @@ const cells = CATALOG.flatMap((cell) => {
   )
     throw new Error(`${cell.name}: the catalog now gives ${verdict.decision} (${verdict.why}), and summary.ndjson gives ${summary.decision}`);
   const values = verdict.checks.flatMap((check) => (check.value === null ? [] : [check.value.value]));
-  if (cell.calibrates) {
+  let measured = "";
+  if (cell.calibrates && cell.template === "T15") {
+    // The two calibrations of T15 share a mode of kube-proxy, thus the copy keys them by their id.
+    const { all, heal } = calibrationOf({ cell, runs: record.runs, verdict });
+    propagation[cell.id] = { all: spread(all), heal: spread(heal ?? null) };
+    if (all !== null) {
+      const range = `${time(s(all.min))} to ${time(s(all.max))}`;
+      measured =
+        cell.trigger.kind === "authorization-policy"
+          ? ` The policy reached each server sidecar ${range} after its apply, with a median of ${time(s(all.median))} in ${all.count} updates.`
+          : ` Each client sidecar dropped the pod ${range} after the deletion, with a median of ${time(s(all.median))} in ${all.count} drops.`;
+    }
+  } else if (cell.calibrates) {
     const calibration = calibrationOf({ cell, runs: record.runs, verdict });
     propagation[cell.mode] = {
       all: spread(calibration.all),
@@ -310,7 +366,8 @@ const cells = CATALOG.flatMap((cell) => {
       unit: unitOf(cell),
       median: verdict.median === null ? null : round(verdict.median.value),
       values,
-      why: whyOf(cell, verdict, values),
+      why: whyOf(cell, verdict, values, measured),
+      first: entry.first,
     },
   ];
 });
@@ -333,6 +390,8 @@ const copy = {
   propagation,
   cells,
 };
-const out = fileURLToPath(new URL(`../src/data/kind-${date}.json`, import.meta.url));
+const t15 = cells.filter((cell) => cell.template === "T15").length;
+if (t15 !== 0 && t15 !== cells.length) throw new Error("the cells of T15 have their own copy: export them from their own folders");
+const out = fileURLToPath(new URL(`../src/data/${t15 === 0 ? "kind" : "t15"}-${date}.json`, import.meta.url));
 writeFileSync(out, stringify(copy));
 process.stdout.write(`${cells.length} cells, ${cells.reduce((sum, cell) => sum + cell.counted + cell.voided, 0)} runs: ${out}\n`);

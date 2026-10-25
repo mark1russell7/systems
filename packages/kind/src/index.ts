@@ -31,7 +31,7 @@ export {
   sysctlCommand,
 } from "./faults.ts";
 export { labImage, stageLabImage } from "./image.ts";
-export type { MeshImages } from "./istio.ts";
+export type { LeafCertificate, MeshImages } from "./istio.ts";
 export {
   ACCESS_LOG_FORMAT,
   EDS_EVERY,
@@ -40,13 +40,16 @@ export {
   LDS_EVERY,
   MESH_IMAGES,
   MESH_WORKLOADS,
+  certificateArgs,
   followsZtunnel,
   installMesh,
   istioOperator,
+  leafCertificates,
   meshKey,
   pollsListeners,
   serverCluster,
   setZtunnelEnv,
+  ztunnelCertificates,
   ztunnelEnvArgs,
 } from "./istio.ts";
 export type { EdsSpec, KindLab, LdsSpec, Stamp } from "./lab.ts";

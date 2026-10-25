@@ -1,0 +1,391 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-10-25",
+  "units": "s",
+  "runs": 11,
+  "kernel": "6.17.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {
+    "CAL.T15.sidecar": {
+      "all": {
+        "count": 33,
+        "min": 0.121,
+        "median": 0.151,
+        "p99": 0.193,
+        "max": 0.193
+      },
+      "heal": null
+    },
+    "CAL.T15.policy": {
+      "all": {
+        "count": 22,
+        "min": 0.227,
+        "median": 0.266,
+        "p99": 0.455,
+        "max": 0.455
+      },
+      "heal": {
+        "count": 22,
+        "min": 0.171,
+        "median": 0.206,
+        "p99": 0.243,
+        "max": 0.243
+      }
+    }
+  },
+  "cells": [
+    {
+      "id": "CAL.T15.sidecar",
+      "template": "T15",
+      "name": "sidecar, gRPC, the propagation of a deletion to each client sidecar, preStop 10 s",
+      "mode": "iptables",
+      "trigger": "pod-deletion",
+      "group": "sidecar",
+      "prediction": {
+        "kind": "calibration",
+        "band": null,
+        "text": "This cell is a calibration. A preStop sleep of 10 s keeps the pod open while the deletion propagates, thus no call fails. Each client sidecar gives its propagation: the time from the deletion to the first poll of its endpoints without the pod."
+      },
+      "decision": "calibration",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "The calibration measured the propagation in each of the 11 counted runs. Each client sidecar dropped the pod 121 ms to 193 ms after the deletion, with a median of 151 ms in 33 drops.",
+      "first": null
+    },
+    {
+      "id": "T15.defaults.13",
+      "template": "T15",
+      "name": "sidecar, gRPC, pod deletion: the retries of the client sidecar, no preStop",
+      "mode": "iptables",
+      "trigger": "pod-deletion",
+      "group": "sidecar",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the deletion of the pod, and it closes 0 s to 205 ms after the deletion of the pod."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 0 failed requests. The counted runs had 0 to 1 failed requests.",
+      "first": null
+    },
+    {
+      "id": "CAL.T15.policy",
+      "template": "T15",
+      "name": "sidecar, gRPC, the propagation of a policy to each server sidecar, an account that no pod has",
+      "mode": "iptables",
+      "trigger": "authorization-policy",
+      "group": "sidecar",
+      "prediction": {
+        "kind": "calibration",
+        "band": null,
+        "text": "This cell is a calibration. The policy denies only an account that no client has, thus no call fails. Each server sidecar gives its propagation: the time from the apply of the policy to its first update of its listeners."
+      },
+      "decision": "calibration",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "The calibration measured the propagation in each of the 11 counted runs. The policy reached each server sidecar 227 ms to 455 ms after its apply, with a median of 266 ms in 22 updates.",
+      "first": null
+    },
+    {
+      "id": "T15.defaults.5",
+      "template": "T15",
+      "name": "sidecar, gRPC, an AuthorizationPolicy that denies the clients for 15 s",
+      "mode": "iptables",
+      "trigger": "authorization-policy",
+      "group": "sidecar",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens 100 ms after the fault, and it closes 100 ms to 10.26 s after the end of the fault. At least one request fails."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 2247,
+      "values": [2247, 2247, 2215, 2247, 2242, 2250, 2248, 2253, 2247, 2263, 2250],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 2,247 failed requests. The counted runs had 2,215 to 2,263 failed requests.",
+      "first": null
+    },
+    {
+      "id": "T15.defaults.12",
+      "template": "T15",
+      "name": "ambient, gRPC, a reset of the HBONE leg for 10 s: the backoff of grpc-js through ztunnel",
+      "mode": "iptables",
+      "trigger": "rst",
+      "group": "hbone",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 26.102 s after the end of the fault. At least one request fails."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 2248,
+      "values": [2363, 2467, 2104, 2155, 2112, 2248, 2344, 2118, 2319, 2252, 1914],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 2,248 failed requests. The counted runs had 1,914 to 2,467 failed requests.",
+      "first": null
+    },
+    {
+      "id": "T15.defaults.2",
+      "template": "T15",
+      "name": "ambient, gRPC, a black hole on the HBONE leg for 45 s: the PING of ztunnel ends the connection",
+      "mode": "iptables",
+      "trigger": "blackhole",
+      "group": "hbone",
+      "prediction": {
+        "kind": "ends",
+        "band": {
+          "low": 20,
+          "high": 30.03
+        },
+        "text": "The algebra predicts that the socket of each client ends. The band is 20 s to 30.03 s after the fault. A failed call starts 0 s after the fault to 3.046 s after the end of the fault, or no call fails."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 20.897,
+      "values": [20.389, 21.279, 20.091, 20.997, 29.826, 20.705, 20.333, 21.188, 20.029, 20.897, 29.734],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 20.897 s. The counted runs measured 20.029 s to 29.826 s.",
+      "first": null
+    },
+    {
+      "id": "T15.defaults.10",
+      "template": "T15",
+      "name": "ambient, gRPC, the clients send no call for 330 s: nothing in the mesh ends the connection",
+      "mode": "iptables",
+      "trigger": "idle",
+      "group": "hbone",
+      "prediction": {
+        "kind": "ends",
+        "band": null,
+        "text": "The algebra predicts that no socket of a client ends, and that each client calls again on its socket."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "sockets",
+      "median": 0,
+      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "Each of the 11 counted runs agrees with the prediction. No socket of a client ended.",
+      "first": null
+    },
+    {
+      "id": "T15.border-off.79",
+      "template": "T15",
+      "name": "ambient, gRPC, a gap of 120 s through a stateful middlebox that forgets an idle flow at 11 s: the PING of ztunnel keeps the tunnel",
+      "mode": "iptables",
+      "trigger": "idle",
+      "group": "borders",
+      "prediction": {
+        "kind": "ends",
+        "band": null,
+        "text": "The algebra predicts that no socket of a client ends, and that each client calls again on its socket."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "sockets",
+      "median": 0,
+      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "Each of the 11 counted runs agrees with the prediction. No socket of a client ended.",
+      "first": "fails"
+    },
+    {
+      "id": "T15.border-off.80",
+      "template": "T15",
+      "name": "ambient, gRPC, a gap of 60 s through a stateful middlebox that forgets an idle flow at 9 s: the PING timeout ends the tunnel",
+      "mode": "iptables",
+      "trigger": "idle",
+      "group": "borders",
+      "prediction": {
+        "kind": "ends",
+        "band": {
+          "low": 28.98,
+          "high": 39.73
+        },
+        "text": "The algebra predicts that the socket of each client ends. The band is 28.98 s to 39.73 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 38.852,
+      "values": [38.755, 38.858, 38.902, 38.829, 38.857, 38.8, 38.693, 38.87, 38.904, 38.852, 38.832],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 38.852 s. The counted runs measured 38.693 s to 38.904 s.",
+      "first": "holds"
+    },
+    {
+      "id": "T15.border-off.87",
+      "template": "T15",
+      "name": "ambient, gRPC, quiet clients behind a black hole for 45 s with tcp_retries2 6: the PING of ztunnel ends the tunnel before TCP gives up",
+      "mode": "iptables",
+      "trigger": "blackhole",
+      "group": "borders",
+      "prediction": {
+        "kind": "ends",
+        "band": {
+          "low": 20,
+          "high": 30.03
+        },
+        "text": "The algebra predicts that the socket of each client ends. The band is 20 s to 30.03 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 28.323,
+      "values": [28.307, 28.164, 28.184, 28.51, 28.337, 28.517, 28.166, 28.323, 28.499, 28.469, 28.32],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 28.323 s. The counted runs measured 28.164 s to 28.517 s.",
+      "first": null
+    },
+    {
+      "id": "T15.border-off.88",
+      "template": "T15",
+      "name": "ambient, gRPC, quiet clients behind a black hole for 45 s with tcp_retries2 4: TCP gives up before the PING timeout of ztunnel",
+      "mode": "iptables",
+      "trigger": "blackhole",
+      "group": "borders",
+      "prediction": {
+        "kind": "ends",
+        "band": {
+          "low": 6.4,
+          "high": 23.772
+        },
+        "text": "The algebra predicts that the socket of each client ends. The band is 6.4 s to 23.772 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 15.305,
+      "values": [15.348, 15.079, 15.3, 15.09, 15.217, 15.305, 15.391, 15.486, 15.621, 15.246, 15.575],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 15.305 s. The counted runs measured 15.079 s to 15.621 s.",
+      "first": null
+    },
+    {
+      "id": "T15.defaults.14",
+      "template": "T15",
+      "name": "sidecar in the ambient flavor, gRPC, a restart of ztunnel on each node: a control, ztunnel is on no path",
+      "mode": "iptables",
+      "trigger": "ztunnel-restart",
+      "group": "restart",
+      "prediction": {
+        "kind": "none",
+        "band": null,
+        "text": "The algebra predicts that no request fails."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 0 failed requests.",
+      "first": null
+    },
+    {
+      "id": "T15.border-off.85",
+      "template": "T15",
+      "name": "ambient, gRPC, a restart of ztunnel with a deadline of 29 s in a grace of 30 s: ztunnel ends the connection",
+      "mode": "iptables",
+      "trigger": "ztunnel-restart",
+      "group": "restart",
+      "prediction": {
+        "kind": "ends",
+        "band": {
+          "low": 29,
+          "high": 29.52
+        },
+        "text": "The algebra predicts that the socket of each client ends. The band is 29 s to 29.52 s after the deletion of the ztunnel pods. A failed call starts 28.98 s to 29.52 s after the deletion of the ztunnel pods, or no call fails."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 29.028,
+      "values": [29.035, 29.021, 29.028, 29.025, 29.028, 29.059, 29.093, 29.018, 29.054, 29.021, 29.052],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 29.028 s. The counted runs measured 29.018 s to 29.093 s.",
+      "first": null
+    },
+    {
+      "id": "T15.border-off.86",
+      "template": "T15",
+      "name": "ambient, gRPC, a restart of ztunnel with a deadline of 31 s in a grace of 30 s: the kill at the grace ends the connection",
+      "mode": "iptables",
+      "trigger": "ztunnel-restart",
+      "group": "restart",
+      "prediction": {
+        "kind": "ends",
+        "band": {
+          "low": 30,
+          "high": 30.52
+        },
+        "text": "The algebra predicts that the socket of each client ends. The band is 30 s to 30.52 s after the deletion of the ztunnel pods. A failed call starts 29.98 s to 30.52 s after the deletion of the ztunnel pods, or no call fails."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 30.032,
+      "values": [30.031, 30.027, 30.051, 30.023, 30.089, 30.03, 30.066, 30.016, 30.051, 30.032, 30.063],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 30.032 s. The counted runs measured 30.016 s to 30.089 s.",
+      "first": null
+    },
+    {
+      "id": "T15.border-off.77",
+      "template": "T15",
+      "name": "ambient, gRPC, a new channel for 5 s at the start of a gap of 330 s: the pool of ztunnel releases the tunnel 300 s after its last checkout",
+      "mode": "iptables",
+      "trigger": "idle",
+      "group": "borders",
+      "prediction": {
+        "kind": "ends",
+        "band": {
+          "low": 300,
+          "high": 300.62
+        },
+        "text": "The algebra predicts that the ztunnel of each client closes its tunnel to the replica. The band is 300 s to 300.62 s after the fault. A close of the replica first also agrees, as an answer to that close, up to 300.631 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 300.046,
+      "values": [300.06, 300.058, 300.059, 300.04, 300.039, 300.051, 300.062, 300.046, 300.031, 300.038, 300.02],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median is 300.046 s. The counted runs measured 300.02 s to 300.062 s.",
+      "first": "fails"
+    }
+  ]
+}

@@ -915,7 +915,7 @@ The heartbeats of AMQP and the timers of the broker. R3 puts 54 cells on amqplib
 - **Depends on:** HTTP
 - **Started:** 2026-10-19
 - **Shipped:**
-- **Links:** [The results](https://mark1russell7.github.io/systems/results/grpc/), [#105](https://github.com/mark1russell7/systems/pull/105), [The run at main](https://github.com/mark1russell7/systems/actions/runs/39288251967)
+- **Links:** [The results](https://mark1russell7.github.io/systems/results/grpc/), [The results of T15](https://mark1russell7.github.io/systems/results/mesh/), [#105](https://github.com/mark1russell7/systems/pull/105), [The run at main](https://github.com/mark1russell7/systems/actions/runs/39288251967)
 
 The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a gRPC server. R3 puts 148 cells on grpc-js 1.14 and on a server of grpc-go. 66 are in T01: 27 at the defaults, 12 borders of O03, O17, O25 and O26, and 27 in the array stage. The other cells are 22 in T02 (proxies), 22 in T03 (the routers of the clouds), 16 in T07 (kind) and 22 in T15 (Istio).
 
@@ -1043,7 +1043,7 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - The rules dropped each old pod 1.365 s after its deletion at the most, in the new bound of 1.618 s.
   - In CAL.T07.ipvs, a change in the wait after a sync reached the rules 0.293 s to 0.368 s after `minSyncPeriod`. That count starts at the change that started the sync. It is less than two idle propagations, 0.618 s.
   - In the drains and the scale-in, calls failed in 16 of 33 runs, and each failed call was refused. Under DP29 (T07.array.46), the rules dropped each old pod 1.056 s after its deletion at the most.
-- The plan of T15 over gRPC: grpc-js through two hops of an Istio 1.31.3 mesh in the kind lab, to grpc-go. R3 gives 22 cells. 14 start, 6 are aliases and 2 wait.
+- The plan of T15 over gRPC: grpc-js through two hops of an Istio 1.31.3 mesh in the kind lab, to grpc-go. R3 gives 22 cells. 14 start, 6 are aliases and 2 wait with their reasons.
   - Each step is a pull request that `kind.yml` starts with `only='^T15'` and 11 runs of each cell. Each step merges on green and on the verdicts in `summary.ndjson`.
   - Step 1 (done, kind run 40147396211): the sidecar flavor in kind, with istioctl and the images pinned. The calibration of the propagation to each client sidecar, and T15.defaults.13 as a measurement.
     - Each cell had 11 counted runs, and no run was void.
@@ -1065,11 +1065,18 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - Step 5 (done, kind run 40168931281): the restarts of ztunnel. T15.defaults.14 is a control, and T15.border-off.85 and .86 are the borders of O10.
     - The run had 4 shards. Each cell had 11 counted runs, no run was void, and no run failed.
     - T15.defaults.12, .2, .10, .14, .13, .5, .85 and .86 hold. The median of .85 was 29.02 s in [29, 29.52] s, and the median of .86 was 30.047 s in [30, 30.52] s.
-  - Step 6 (in progress): the borders of O03, O17 and O02, with a stateful middlebox and a sysctl of a pod. T15.border-off.79 and .80 are the borders of O03, .87 and .88 of O17, and .77 of O02.
+  - Step 6 (done, kind runs 40181243549 and 40202010754): the borders of O03, O17 and O02, with a stateful middlebox and a sysctl of a pod. T15.border-off.79 and .80 are the borders of O03, .87 and .88 of O17, and .77 of O02.
     - Kind run 40181243549: 13 of the 15 cells hold or are calibrations. T15.border-off.79 failed 11 of 11 runs, and .77 failed 2 of 11.
     - The lab of .79 was wrong. The sysctls of conntrack also forgot the local leg from ztunnel to grpc-go, and istio-cni needs its conntrack entry. In kind 0.8.1, the middlebox uses the match recent, and conntrack stays as it is. The lab of .80 changes with it.
     - The prediction of .77 was too strict. The server answers the GOAWAY of the client at once, and its FIN can come first. The band `answer` accepts CLOSE_WAIT from the release to one round trip and one step after the band.
-  - Step 7: O22, the 2 cells that wait with their reasons, and the page of the results.
+    - Kind run 40202010754 started .79, .80 and .77 again, on 3 shards. Each cell had 11 counted runs, no run was void, and each cell holds.
+    - In .79, no socket of a client ended. The median of .80 was 38.852 s in [28.98, 39.73] s, and the median of .77 was 300.046 s in [300, 300.62] s.
+  - Step 7 (in progress): the border of O22, the 2 cells that wait, and the page of the results.
+    - T15.border-off.92 is the border of O22. It sets the lifetime of each workload certificate of ztunnel to 600 s, and its clients stay busy for 630 s.
+    - The prediction is that no socket of a client ends: an open tunnel outlives its certificate. Thus the law O22 is violated.
+    - T15.border-off.78 and .91 wait with their reasons, in `T15_GRPC_WAITING`. Thus the plan has 14 cells that start, 6 aliases and 2 cells that wait.
+    - The page [gRPC through Istio](https://mark1russell7.github.io/systems/results/mesh/) gives the 15 cells of the runs 40181243549 and 40202010754. 13 cells hold and 2 are calibrations, with 165 counted runs and no void run.
+    - Left: the kind run of .92. H2 is done when its verdict holds.
 - The decisions of the plan of T15. None needs Mark, because no money, account or key is in them.
   - The plan has pairs with no constraint by mesh mode. T15.defaults.14 and T15.array.14 run as a control, because the borders of O10 already restart ztunnel under ambient.
   - O17 moves through `tcp_retries2` of the client pod. The PING of ztunnel is a constant, and the middlebox half of O17 is the line of O03.
@@ -1133,6 +1140,17 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - A band from a signal lets the signal of each client come up to 0.5 s after the first one. That is an assumption, and the runs measure it.
   - `kind.yml` tries the kernel features of the borders in a new namespace of the runner, and it prints each result in `borders.txt`.
   - The document `ztunnel-hbone` gets the fix of the release: its timer starts at each checkout. The why of T15.defaults.10 cited the wrong fact, and its prediction stays the same.
+- Step 7 of T15 (kind 0.9.0). The trigger `certificate-expiry` keeps the calls of each client going for the hold. No act of the lab touches a connection.
+  - The cell sets `SECRET_TTL` of ztunnel to 600 s, through `mesh.ztunnel`. Each CSR of ztunnel asks for that lifetime (`config.rs` of ztunnel 1.31.3, lines 59, 104 and 868).
+  - The CA of istiod signs the lifetime of the request, up to 90 days, with no minimum (`ca.go` of Istio 1.31.3, lines 460–469). It backdates each certificate by 120 s.
+  - The renewal of ztunnel comes at the middle of the validity, 240 s after the issue (`certificate.rs`, lines 402–408). A renewal touches no open connection (`manager.rs`, lines 408–431).
+  - Only a revocation in the CRL ends an open tunnel for its certificate. The release of the pool does not close a connection with an open stream (`pool.rs`, lines 142–146).
+  - The step `certificates` reads the workload certificates of each ztunnel at the fault and at the heal, with `istioctl ztunnel-config certificate`. The lines `certificates` of a run give the validity of each leaf.
+  - The judge does not read these lines. Thus a reader of the raw record checks that each leaf had a lifetime of 600 s.
+  - T15.border-off.78 waits. The outside of O02 needs a release at or after an idle close of the peer, and the HBONE server has no idle close (`h2/server.rs`, lines 110–124 and 140–186).
+  - T15.border-off.91 waits. The inside of O22 needs a maximum age of a connection, and the pool of ztunnel has none (`config.rs`, lines 74–75 and 790–797).
+  - A maximum age of the connections of grpc-go is a setting of the server, not of ztunnel. That is another pair, for a later plan.
+  - The export `scripts/kind.ts` writes the copy of T15 to its own file. A later run of a cell replaces its first run, by its id, also under a new name.
 
 ## Kubernetes
 

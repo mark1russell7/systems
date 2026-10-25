@@ -14,8 +14,10 @@ import {
   LDS_EVERY,
   MESH_IMAGES,
   MESH_WORKLOADS,
+  certificateArgs,
   followsZtunnel,
   istioOperator,
+  leafCertificates,
   meshKey,
   pollsListeners,
   serverCluster,
@@ -163,6 +165,31 @@ describe("the install of Istio", () => {
 
   const s = (value: number) => ({ value, unit: "s" }) as const;
   const gapOf = (trigger: KindCell["trigger"]): KindCell => ({ ...cellOf("idle"), template: "T15", stack: "grpc", mesh: AMBIENT, declaration: null, trigger });
+
+  it("keeps the calls going for the hold of a certificate expiry, and reads the certificates of ztunnel at the fault and at the heal", () => {
+    const expiry = gapOf({ kind: "certificate-expiry", hold: s(630) });
+    expect(planOf(expiry)).toEqual({ inject: [{ do: "certificates" }], hold: s(630), heal: [{ do: "certificates" }], restore: [] });
+    expect(deletes(expiry)).toBe(false);
+    expect(() => planOf(gapOf({ kind: "certificate-expiry" }))).toThrow(/a hold, the time past the lifetime/);
+    expect(certificateArgs("ztunnel-x1", "/k/config")).toEqual(["ztunnel-config", "certificate", "ztunnel-x1.istio-system", "--kubeconfig", "/k/config", "-o", "json"]);
+    // the JSON of istioctl: the leaf is the first certificate of the chain, and an identity can have no chain yet
+    const dump = JSON.stringify([
+      {
+        identity: "spiffe://cluster.local/ns/lab/sa/default",
+        state: "Available",
+        certChain: [
+          { pem: "a", serialNumber: "1", validFrom: "2026-10-25T10:00:00Z", expirationTime: "2026-10-25T10:12:00Z" },
+          { pem: "b", serialNumber: "2", validFrom: "2026-10-01T00:00:00Z", expirationTime: "2036-10-01T00:00:00Z" },
+        ],
+        rootCerts: [],
+      },
+      { identity: "spiffe://cluster.local/ns/lab/sa/server", state: "Initializing", certChain: [], rootCerts: [] },
+    ]);
+    expect(leafCertificates("ztunnel-x1", dump)).toEqual([
+      { pod: "ztunnel-x1", identity: "spiffe://cluster.local/ns/lab/sa/default", state: "Available", from: "2026-10-25T10:00:00Z", to: "2026-10-25T10:12:00Z" },
+      { pod: "ztunnel-x1", identity: "spiffe://cluster.local/ns/lab/sa/server", state: "Initializing", from: null, to: null },
+    ]);
+  });
 
   it("puts a middlebox in each replica before a gap, and removes it after the run", () => {
     expect(planOf(gapOf({ kind: "idle", hold: s(60), middlebox: s(9) }))).toEqual({

@@ -48,6 +48,7 @@ export default defineConfig({
             "results/pg",
             "results/rabbitmq",
             "results/grpc",
+            "results/mesh",
             "results/kind",
             "results/r3",
             "results/timers",

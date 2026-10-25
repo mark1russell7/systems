@@ -19,6 +19,7 @@ These are the results of the gRPC cells, from 2026-10-19 and 2026-10-20. The cli
 - **T01** is the direct pair. The client and the server are in their own network namespaces, with a pair of veth devices between them. A border of O03 has a router between them.
 - **T03** has one router between the client and grpc-go: a NAT router with conntrack, at the idle timeout of a cloud preset, in real time. A fault at the router goes toward the client.
 - **T02** has one proxy between the client and grpc-go: Envoy 1.39.4, Caddy 2.11.7, nginx 1.29.6, Traefik 3.7.15, Toxiproxy 2.12.0 or the docker-proxy of Docker 29.1.5. Each proxy is at its defaults.
+- **T15** puts grpc-js and grpc-go in kind, with two hops of an Istio mesh between them. Its cells have [their own page](../mesh/).
 
 The machine documents give each band: `grpc-js`, `grpc-go-server` and `etcd-server`, and a document for each proxy. Each fact comes from the source at its tag. The algebra composes the documents over Linux TCP.
 

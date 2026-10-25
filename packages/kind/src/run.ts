@@ -12,7 +12,7 @@ import type { Step, Target } from "./faults.ts";
 import { NODE, POD, VERSION, deletes as deletesAPod, middleboxCommands, planOf, sysctlCommand } from "./faults.ts";
 import { labImage } from "./image.ts";
 import type { MeshImages } from "./istio.ts";
-import { EDS_EVERY, ISTIO_IMAGES, LDS_EVERY, MESH_IMAGES, followsZtunnel, installMesh, meshKey, pollsListeners, serverCluster, setZtunnelEnv } from "./istio.ts";
+import { EDS_EVERY, ISTIO_IMAGES, LDS_EVERY, MESH_IMAGES, followsZtunnel, installMesh, meshKey, pollsListeners, serverCluster, setZtunnelEnv, ztunnelCertificates } from "./istio.ts";
 import type { KindLab, Line, Stamp } from "./lab.ts";
 import { localPin, openKindLab } from "./lab.ts";
 import { CLIENT, REDIS, REDIS_IMAGE, SERVER, clientObjects, namespaceObject, namespaceOf, redisObjects, serverObjects, stackOf } from "./manifests.ts";
@@ -480,6 +480,14 @@ const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], ba
       await Promise.all((await namespacesOf(ctx, step.target, replicas)).map(({ node, pid }) => lab.netns(node, pid, [command])));
       return { t0, t1: await lab.now() };
     }
+    case "certificates": {
+      // a failed read is evidence too: the line has its error, and the run goes on
+      const t0 = await lab.now();
+      const certificates = await ztunnelCertificates(cluster).catch((error: unknown) => String(error).slice(0, 400));
+      const t1 = await lab.now();
+      lab.record(typeof certificates === "string" ? { ev: "certificates", t: t0, t1, error: certificates } : { ev: "certificates", t: t0, t1, certificates });
+      return { t0, t1 };
+    }
     case "middlebox":
       if (step.target !== "servers") throw new Error(`a middlebox takes the target servers, not ${step.target}`);
       return middleboxServers(ctx, step.idle, step.port, replicas);
@@ -789,6 +797,8 @@ const estimate = (cell: KindCell, environments = 2): number => {
     idle: hold + 5,
     // the grace of 30 s of the chart of ztunnel, then the removal of the old pods
     "ztunnel-restart": 40,
+    // the hold, and a read of the certificates of each ztunnel pod at the fault and at the heal
+    "certificate-expiry": hold + 20,
   };
   // a window can need a longer observation: from the end of the hold, until each request that started in it ended
   const after = observationAfter(cell);

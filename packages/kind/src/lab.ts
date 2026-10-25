@@ -60,6 +60,8 @@ export interface KindLab {
   take(): Line[];
   /** This method adds a listener of each line, and gives the function that removes it. */
   listen(listener: (line: Line) => void): () => void;
+  /** This method adds a line of the runner to the lines: for example, evidence that the runner reads with a tool. */
+  record(line: Line): void;
   /**
    * This method starts the watcher of the API on the namespaces. With `ztunnel`, it also follows the
    * log of each ztunnel in istio-system: lines `ztunnel-pod` and `ztunnel`, which no tracker of the
@@ -234,6 +236,9 @@ export const openKindLab = async (cluster: Cluster, image: string): Promise<Kind
       const out = lines;
       lines = [];
       return out;
+    },
+    record(line) {
+      push(line);
     },
     listen(listener) {
       listeners.add(listener);

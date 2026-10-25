@@ -230,6 +230,9 @@ describe("the judgement of a record again", () => {
       verdict: valued({ value: 0, unit: "{socket}" }, { "client-w1": null }),
     };
     expect(readRecord(json(gap)).cell).toMatchObject({ trigger: { kind: "idle", hold: s(330) }, prediction: { kind: "ends", band: null } });
+    // a certificate expiry is a trigger of a record too
+    const expiry = { ...gap, cell: { ...gap.cell, trigger: { kind: "certificate-expiry", hold: s(630) } } } satisfies KindCellRecord;
+    expect(readRecord(json(expiry)).cell.trigger).toEqual({ kind: "certificate-expiry", hold: s(630) });
     // the main value of a close is a time, and with no band it is a count of the sockets
     expect(kindCellRecordSchema.safeParse(json({ ...hole, verdict: gap.verdict })).success).toBe(false);
     expect(kindCellRecordSchema.safeParse(json({ ...gap, verdict: hole.verdict })).success).toBe(false);
