@@ -522,6 +522,21 @@ With SYS-31, the machines package has a document of HAProxy at a pinned version.
 
 It comes in machines as a PATCH: a new export before 1.0.0.
 
+### SYS-32 · The service gives its drain rules from a light entry
+
+- **Status:** later
+- **Area:** server stack
+- **Depends on:**
+- **Started:**
+- **Shipped:**
+- **Links:** [template #26](https://github.com/mark1russell7/template/pull/26), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+The review of the template item OTH-5 found it. `lint()` of the service takes its rules from the caller. But the drain rules, O10, O16 and the others, are only in `@mark1russell7/kind`, and kind loads Testcontainers. Thus each new service copies the data of the rules into its tests.
+
+With SYS-32, an entry of the service that loads no Testcontainers, for example `./rules`, gives the rules as data. The preset of the template then imports it, and the rules have one source.
+
+It comes in service as a PATCH: a new entry and new exports, before 1.0.0.
+
 ### SYS-33 · The idle close keeps an answer that still goes
 
 - **Status:** done
@@ -967,8 +982,12 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
     - Each cell had 11 counted runs, and no run was void.
     - In CAL.T15.sidecar, each client sidecar dropped the pod 0.128 s to 0.205 s after the deletion, with a median of 0.168 s in 33 drops.
     - T15.defaults.13 had no failed call in each of its 11 runs.
-  - Step 2 (in progress): the documents of the sidecar and of pilot-agent, and the trigger `authorization-policy`. T15.defaults.13 gets its band, and T15.defaults.5 starts.
-  - Step 3: the ambient flavor, with istio-cni, ztunnel and the document `ztunnel-hbone`. T15.defaults.12 is a reset on the HBONE leg.
+  - Step 2 (done, kind run 40151861479): the documents of the sidecar and of pilot-agent, and the trigger `authorization-policy`. T15.defaults.13 gets its band, and T15.defaults.5 starts.
+    - Each cell had 11 counted runs, no run was void, and no run failed.
+    - The deleted pod left each client sidecar 0.066 s to 0.147 s after the deletion.
+    - A policy reached each server sidecar 0.154 s to 0.292 s after its apply.
+    - T15.defaults.13 and T15.defaults.5 hold.
+  - Step 3 (in progress): the ambient flavor, with istio-cni, ztunnel and the document `ztunnel-hbone`. T15.defaults.12 is a reset on the HBONE leg.
   - Step 4: a line at each close of the socket of a client, and the trigger `idle`. T15.defaults.2 is a black hole, and T15.defaults.10 is an idle gap.
   - Step 5: the restarts of ztunnel. T15.defaults.14 is a control, and T15.border-off.85 and .86 are the borders of O10.
   - Step 6: the borders of O03, O17 and O02, with a conntrack middlebox and a sysctl of a pod.
@@ -995,6 +1014,18 @@ The PING frames of HTTP/2, the keepalive of gRPC and the enforcement policy of a
   - The agent polls the counters of LDS of each server sidecar each 50 ms. CAL.T15.policy calibrates that update with an account that no pod has.
   - Each failure in the window of T15.defaults.5 must be PERMISSION_DENIED. Its band is the debounce of istiod until its calibration.
   - The inbound route of a port of gRPC has no retry policy (`route.go`, lines 1321–1341). A port of another protocol gets 2 retries on reset-before-request.
+- Step 3 of T15 (kind 0.5.0, machines 0.3.26). The flavor `ambient` installs the profile `ambient` of 1.31.3: istiod, istio-cni and ztunnel on each node.
+  - The digests of their index on Docker Hub pin istio-cni and ztunnel too. The chart of ztunnel reads only its own pull policy, thus the operator sets it there.
+  - The namespace of an ambient cell has the label `istio.io/dataplane-mode=ambient`. Its pods have no sidecar, and ztunnel balances each connection, not each call.
+  - The job loads the modules of the iptables rules of istio-cni first, and it prints each result. When a module does not load, each ambient cell waits with its name.
+  - In T15, the trigger `rst` puts a rule in each server pod, with each client pod as a peer. A REJECT resets only the sender, thus the rule goes where the segments of the clients arrive.
+  - The rules of all server pods commit at one instant. Before the heal, the lab reads the tables of each server pod, as evidence of which rule matched.
+  - The watcher follows the log of each ztunnel. Its stamps are of the wall clock, thus no band reads them.
+  - The document `ztunnel-hbone` gives the PING of ztunnel: 10 s after each PONG, then at most 20 s for the PONG. Both are constants, and data does not put a PING off.
+  - The window of T15.defaults.12 starts by one call and one step of ztunnel after the fault: 0.03 s.
+  - It ends by the wait 5 of the backoff of grpc-js after the heal: 26.101926 s. The heal comes at most 12 s after the fault, thus no later wait can be in progress.
+  - The jitter of grpc-js adds up over its waits, thus the wait 5 is long. The clear uses the PIDs of the fault again, thus the heal comes soon after the hold.
+  - T15.array.12 is an alias of T15.defaults.12. ztunnel reads no field of the DestinationRule of DP36 on an L4 path.
 
 ## Kubernetes
 

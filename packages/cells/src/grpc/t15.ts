@@ -1,11 +1,12 @@
 import type { KindCell, Mesh, Prediction, Propagation } from "@mark1russell7/kind";
 import { EDS_EVERY, LAST_SLACK } from "@mark1russell7/kind";
-import { ENVOY_HTTP2 } from "@mark1russell7/machines";
+import { ENVOY_HTTP2, ZTUNNEL_HBONE } from "@mark1russell7/machines";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Calibration } from "../kind.ts";
 import { T07_WORKLOAD, WORKERS, calibrated, kubeDefaults, s, say } from "../kind.ts";
 import type { Alias } from "../mongo/cells.ts";
+import { backoffOf, lastWait } from "./t07.ts";
 
 /**
  * The gRPC cells of T15: the endpoint lifecycle of T07 through an Istio 1.31.3 mesh in the kind lab.
@@ -19,12 +20,20 @@ import type { Alias } from "../mongo/cells.ts";
  * connection. Thus the propagation of a deletion is the push of istiod to each client sidecar, and
  * not a sync of kube-proxy. A policy goes to the server sidecars as an update of LDS.
  *
- * This is step 2 of the plan of T15. The deletion gets its band from the calibration of step 1. The
- * policy gets a calibration of its LDS update, and a band from the documented debounce until then.
+ * Step 2 of the plan of T15 gave the deletion its band from the calibration of step 1. The policy
+ * got a calibration of its LDS update, and a band from the documented debounce until then.
+ *
+ * Step 3 adds the ambient mesh: ztunnel on each node, and no sidecar. istio-cni redirects the traffic
+ * of each pod to ztunnel in the network namespace of the pod. ztunnel balances each connection, not
+ * each call, thus a channel stays on one replica, as in T07. The document `ztunnel-hbone` holds the
+ * facts of ztunnel 1.31.3.
  */
 
 /** This mesh is the sidecar flavor of Istio 1.31.3 with each pod of the cell in sidecar mode. */
 export const SIDECAR: Mesh = { flavor: "sidecar", mode: "sidecar" };
+
+/** This mesh is the ambient flavor of Istio 1.31.3 with each pod of the cell in ambient mode. */
+export const AMBIENT: Mesh = { flavor: "ambient", mode: "ambient" };
 
 /** These are the parts of each sidecar cell of T15: the stack `grpc` of T07 in the sidecar mesh, on iptables, with 2 workers. */
 const BASE = {
@@ -133,7 +142,60 @@ const POLICY_WHY = [
   "The judge places a call by its start, and a call starts before the handshake of its new connection, thus the band has no handshake.",
 ].join(" ");
 
-/** These are the gRPC cells of T15 for the kind lab: the calibrations of the propagation, the deletion and the policy. */
+/** This time is the lateness of one step of the runtime of ztunnel (`slack` of `ztunnel-hbone`). */
+const ZTUNNEL_STEP: Quantity = s(ZTUNNEL_HBONE.knobs["slack"]!.default!);
+
+/** This hold is the time of the reset of T15.defaults.12. */
+const RESET_HOLD = s(10);
+
+/**
+ * This time is the most that the heal of a reset comes after its hold. The lab commits the clear
+ * 700 ms after the end of the hold (`--at`), and it reads the tables of each replica before it.
+ */
+const HEAL_LATE = s(2);
+
+/** This function rounds a time in seconds to the microsecond, as a quantity. */
+const us = (seconds: number): Quantity => s(Math.round(seconds * 1e6) / 1e6);
+
+/**
+ * This function gives the window of a reset of the mesh leg for `hold`, in the ambient mesh. The rule
+ * in each replica answers the next segment of each client pod with a reset. A call sends a segment
+ * each 20 ms, thus the window starts by one call and one step of ztunnel after the fault.
+ *
+ * Until the heal, each connect of grpc-js fails in a few milliseconds, and each wait of its backoff
+ * follows. After the heal, the next connect comes at the end of the wait in progress. The heal comes
+ * at most `hold` and `HEAL_LATE` after the fault. Thus that wait is at most the wait K = `lastWait`
+ * of that time, the backoff model of T07.
+ */
+export const resetWindow = (hold: Quantity, why: string): Prediction => {
+  const wait = backoffOf(lastWait(valueIn(hold, "s") + valueIn(HEAL_LATE, "s")));
+  return {
+    kind: "window",
+    nodes: "all",
+    start: { from: "fault", band: { lo: s(0), hi: sum(T07_WORKLOAD.every, ZTUNNEL_STEP) } },
+    end: { from: "heal", band: { lo: s(0), hi: us(wait.hi) } },
+    certain: true,
+    outcomes: ["error", "reset", "refused"],
+    why,
+  };
+};
+
+/** This index is the wait of the backoff of grpc-js that the heal of T15.defaults.12 can come in. */
+const RESET_WAIT = lastWait(valueIn(RESET_HOLD, "s") + valueIn(HEAL_LATE, "s"));
+
+/**
+ * This text is why the reset of T15.defaults.12 fails in its window. Each fact has its source in
+ * ztunnel 1.31.3 or grpc-js 1.14.6.
+ */
+const RESET_WHY = [
+  "The rule in each server pod answers the next segment of each client pod with a reset. That segment is on the HBONE connection of the ztunnel of the client, from the address of the client pod to the port 15008.",
+  "ztunnel drops the connection, and its copy loop shuts down the socket of the app. grpc-js gets a FIN, and the call in flight fails (h2.rs of ztunnel 1.31.3, lines 229–238, and copy.rs, lines 176–183).",
+  "grpc-js connects again, and its local ztunnel accepts. The connect of ztunnel to 15008 gets a reset, and ztunnel closes the socket of the app before any answer. grpc-js counts a failed connect and waits its backoff.",
+  "A call in TRANSIENT_FAILURE fails at once (load-balancing-call.ts of grpc-js 1.14.6, lines 338–345). Thus the calls fail until the heal, and no call waits for its timeout.",
+  `After the heal, the next connect comes at the end of the wait in progress. The heal comes at most ${say(sum(RESET_HOLD, HEAL_LATE))} after the fault, thus that wait is at most the wait ${RESET_WAIT}: ${say(us(backoffOf(RESET_WAIT).hi))}.`,
+].join(" ");
+
+/** These are the gRPC cells of T15 for the kind lab: the calibrations of the propagation, the deletion, the policy and the reset. */
 export const T15_GRPC: readonly KindCell[] = [
   {
     ...BASE,
@@ -177,6 +239,16 @@ export const T15_GRPC: readonly KindCell[] = [
     prediction: policyWindow(P_LDS, POLICY_HOLD, POLICY_WHY),
     calibrates: false,
   },
+  {
+    ...BASE,
+    mesh: AMBIENT,
+    id: "T15.defaults.12",
+    name: "T15 ambient, gRPC, a reset of the HBONE leg for 10 s: the backoff of grpc-js through ztunnel",
+    trigger: { kind: "rst", hold: RESET_HOLD },
+    pod: kubeDefaults(2),
+    prediction: resetWindow(RESET_HOLD, RESET_WHY),
+    calibrates: false,
+  },
 ];
 
 /** These are the cells of the plan over grpc-go in T15 that are cells of this catalog under other names. */
@@ -190,5 +262,10 @@ export const T15_GRPC_ALIASES: readonly Alias[] = [
     plan: "T15.array.5",
     is: "T15.defaults.5",
     why: "DP51 sets no knob on the path of a policy: the debounce of istiod, the drain of a filter chain and the retry policy are at the defaults of Istio 1.31, as in T15.defaults.5",
+  },
+  {
+    plan: "T15.array.12",
+    is: "T15.defaults.12",
+    why: "DP36 sets the locality load balancing and the outlier detection of a DestinationRule. ztunnel reads neither of them on an L4 path: its workload API has only routing preferences and a health policy (workload.proto of ztunnel 1.31.3, lines 148–198). Thus the reset is the one of T15.defaults.12",
   },
 ];
