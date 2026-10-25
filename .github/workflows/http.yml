@@ -3,7 +3,8 @@
 #
 #   http   HTTP_IT=1: the conformance kit of a transport on real sockets (the fake clock and the real
 #          clock), keep-alive, the stop of the intake, the upgrades, the probe server, and a service
-#          under run() after SIGTERM. Each job of the matrix is one version of Node. Each one uploads
+#          under run() after SIGTERM, and the idle close of a large answer to a slow client
+#          (idle-close.test.ts, SYS-33). Each job of the matrix is one version of Node. Each one uploads
 #          its raw records (HTTP_RECORDS) as an artifact.
 #   units  WORKERS_IT=1: the conformance kit of the worker loop and of the queue drain on the real
 #          clock. Their raw records (WORKERS_RECORDS) go in the same artifact.
@@ -57,7 +58,7 @@ jobs:
         env:
           HTTP_IT: "1"
           HTTP_RECORDS: ${{ runner.temp }}/http-records
-        run: pnpm --filter @mark1russell7/service exec vitest run src/http/http-it.test.ts --reporter=default --reporter=junit --outputFile.junit="$RUNNER_TEMP/http-records/junit.xml"
+        run: pnpm --filter @mark1russell7/service exec vitest run src/http/http-it.test.ts src/http/idle-close.test.ts --reporter=default --reporter=junit --outputFile.junit="$RUNNER_TEMP/http-records/junit.xml"
       - name: The worker loop and the queue drain on the real clock
         if: always()
         env:
