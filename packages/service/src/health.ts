@@ -282,7 +282,8 @@ export const healthRuntime = (
       if (kind === "liveness") return answer(kind, now.alive);
       if (kind === "report") return answer(kind, now.ready && now.alive);
       if (controller === undefined) return answer(kind, now.ready);
-      const known = now.controllers[controller];
+      // only an own key is a controller: a name such as "constructor" is not one
+      const known = Object.hasOwn(now.controllers, controller) ? now.controllers[controller] : undefined;
       if (known === undefined) throw new Error(`${description.name} has no controller ${controller}`);
       return answer(kind, known, controller);
     },

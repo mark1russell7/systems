@@ -554,6 +554,29 @@ With the fix, the transport replaces `closeIdleConnections` on its server. For t
 
 It comes in service 0.5.9, a PATCH: a bug fix, with no change to an export.
 
+### SYS-34 · The alerts of the first security scan
+
+- **Status:** done
+- **Area:** server stack
+- **Depends on:**
+- **Started:** 2026-10-25
+- **Shipped:** 2026-10-25
+- **Links:** [#149](https://github.com/mark1russell7/systems/pull/149), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+The first scan of the shared security workflow gave five alerts of high severity. Each one has a fix, and none is dismissed.
+
+- **The probes of the service (`js/reflected-xss`).** The 404 of an unknown controller repeated its name from the path: each JSON body escapes `<`, `>` and `&`, and each answer gets `nosniff`.
+- **The HTTP target of the cells (`js/resource-exhaustion`, two alerts).** A request set a timer and a buffer with no bound, thus a hold above 600 s or a body above 64 MiB gets 400.
+- **The copies of the site (`js/redos`).** The pattern that puts a list of numbers on one line backtracked exponentially on negative numbers, thus its new pattern has no nested quantifier.
+- **The `undici` 8.11.2 of the lockfile (CVE-2026-109869).** The ranges of `testcontainers` and of the site take a fix, thus the lockfile moves to 8.12.3, with no change to a range.
+- **The `zod` 4.6.5 of the lockfile (CVE-2023-54404).** The ranges of Astro take a fix, thus the lockfile moves each copy of `zod` to 4.6.7, with no change to a range.
+
+The health runtime gives only `application/health+json`, thus no probe answer was HTML. The review of the alert found a bug too. A controller name, for example `constructor`, found a key of each object, thus its readiness answered 200 in place of 404. With the fix, only an own key is a controller.
+
+The cells ask for a hold of 60 s and a body of 2 MB at most, and a test keeps each cell under the bounds. The output of the new pattern is the same for each copy of the site. The lockfile also closes two alerts of `undici` with medium severity.
+
+It comes in service 0.5.10, a PATCH: a bug fix, with no change to an export.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue

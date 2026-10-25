@@ -41,6 +41,22 @@ describe("the HTTP cells for the harness", () => {
     expect(SERVER_SCRIPT).not.toMatch(/from "\.\//);
   });
 
+  it("bounds a held reply and a long body of the server above each cell of the catalog (SYS-34)", () => {
+    const boundOf = (name: string): number => {
+      const found = new RegExp(`const ${name} = ([\\d_ *]+);`).exec(SERVER_SCRIPT);
+      if (found === null) throw new Error(`the server script has no ${name}`);
+      return found[1]!.split("*").reduce((product, factor) => product * Number(factor.trim().replaceAll("_", "")), 1);
+    };
+    const [hold, bytes] = [boundOf("MAX_HOLD_MS"), boundOf("MAX_BYTES")];
+    expect([hold, bytes]).toEqual([600_000, 67_108_864]);
+    const inflight = HTTP_SPECS.flatMap((spec) => (spec.workload.mode === "inflight" ? [spec.workload] : []));
+    expect(inflight.some((each) => each.hold !== undefined) && inflight.some((each) => each.bytes !== undefined)).toBe(true);
+    for (const each of inflight) {
+      expect(each.hold ?? 0).toBeLessThanOrEqual(hold);
+      expect(each.bytes ?? 0).toBeLessThanOrEqual(bytes);
+    }
+  });
+
   it("gives the settings of a client as the flags of its program, in their units", () => {
     const go = HTTP_SPECS.find((spec) => spec.name.startsWith("go idle, blackhole at the router"))!;
     expect(optionsOf(go)).toEqual({ "idle-conn-timeout-ms": 9000, "keepalive-ms": 3000, "keepalive-interval-ms": 1500 });

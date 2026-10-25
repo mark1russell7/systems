@@ -47,10 +47,17 @@ const prefixProblem = (prefix: string): string | null =>
     ? null
     : `the probe prefix "${prefix}" does not start with "/", or it ends with "/"`;
 
+/** These escapes replace `<`, `>` and `&` in a JSON body. The JSON stays valid, with the same value, and no part of it is markup. */
+const ESCAPES: Readonly<Record<string, string>> = { "<": "\\u003c", ">": "\\u003e", "&": "\\u0026" };
+
+/**
+ * This function gives a JSON answer, and its body escapes `<`, `>` and `&`. A body can repeat a part
+ * of the path. An example is the name of a controller that the service does not have.
+ */
 const json = (status: number, body: unknown): ProbeResponse => ({
   status,
   headers: { "content-type": "application/health+json", "cache-control": "no-store" },
-  body: JSON.stringify(body),
+  body: JSON.stringify(body).replace(/[<>&]/g, (char) => ESCAPES[char]!),
 });
 
 /**
@@ -85,10 +92,14 @@ export const probeResponse = (
   }
 };
 
-/** This function writes a probe response. A 503 gets `Retry-After`, when the writer has the time of a retry. */
+/**
+ * This function writes a probe response. Each response gets `X-Content-Type-Options: nosniff`, thus a
+ * browser does not read it as a different type. A 503 gets `Retry-After`, when the writer has the time of a retry.
+ */
 const write = (req: IncomingMessage, res: ServerResponse, response: ProbeResponse, retryAfter: string | undefined): void => {
   const retry = response.status === 503 && retryAfter !== undefined ? { "retry-after": retryAfter } : {};
-  res.writeHead(response.status, { ...response.headers, ...retry, "content-length": String(Buffer.byteLength(response.body)) });
+  const length = String(Buffer.byteLength(response.body));
+  res.writeHead(response.status, { ...response.headers, ...retry, "x-content-type-options": "nosniff", "content-length": length });
   res.end(req.method === "HEAD" ? undefined : response.body);
 };
 

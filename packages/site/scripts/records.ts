@@ -146,9 +146,25 @@ export const ordinal = (n: number): string => {
   return word;
 };
 
-/** This function writes a copy as JSON with an indent of 2. Each list of numbers stays on one line, thus the copy stays small. */
-export const stringify = (copy: unknown): string =>
-  `${JSON.stringify(copy, null, 2).replace(/\[\s*((?:-?[\d.e+-]+|null)(?:,\s*(?:-?[\d.e+-]+|null))*)\s*\]/g, (_, items: string) => `[${items.split(/,\s*/).join(", ")}]`)}\n`;
+/** This form is one item of a list of numbers in a copy: the text of a number in JSON. */
+const NUMBER = /^[\d.e+-]+$/;
+
+/**
+ * This function gives a list of numbers on one line, or the list as it is. A list of numbers has
+ * a number or null as each item. White space can come before each item, and after the last one.
+ */
+const oneLine = (list: string, inside: string): string => {
+  const items = inside.split(",");
+  const last = items.length - 1;
+  const trimmed = items.map((item, at) => (at === last ? item.trim() : item.trimStart()));
+  return trimmed.every((item) => item === "null" || NUMBER.test(item)) ? `[${trimmed.join(", ")}]` : list;
+};
+
+/**
+ * This function writes a copy as JSON with an indent of 2. Each list of numbers stays on one line, thus the copy stays small.
+ * The pattern of a list has no nested quantifier, thus it cannot backtrack without a bound (SYS-34).
+ */
+export const stringify = (copy: unknown): string => `${JSON.stringify(copy, null, 2).replace(/\[([\s\d.e+,nul-]*)\]/g, oneLine)}\n`;
 
 /** This function gives the date of a copy: the day that the last of its records ended. */
 export const dateOf = (ended: readonly string[]): string => ended.map((each) => each.slice(0, 10)).sort().at(-1)!;
