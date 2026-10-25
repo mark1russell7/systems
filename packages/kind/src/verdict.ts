@@ -3,7 +3,7 @@ import { valueIn } from "@mark1russell7/quantity";
 import { seconds, secondsOf } from "./bands.ts";
 import type { KindCell, KindRun, Prediction, Reference, ResetReuse } from "./cell.ts";
 import { PORT, SERVER } from "./names.ts";
-import type { Line, Request } from "./observe.ts";
+import type { Line, PropagationSource, Request } from "./observe.ts";
 import {
   byNode,
   deletionOf,
@@ -170,16 +170,29 @@ export const referenceOf = (run: Pick<KindRun, "start" | "acts" | "target" | "li
 };
 
 /**
+ * This function gives the source of the propagation of a cell. In a sidecar mesh, the client sidecar
+ * picks the backend of each call from its endpoints (EDS), thus the source is `eds`. Each other cell
+ * goes through the rules of kube-proxy (`rules`).
+ */
+export const propagationSource = (cell: Pick<KindCell, "mesh">): PropagationSource => (cell.mesh?.mode === "sidecar" ? "eds" : "rules");
+
+/**
  * This function gives the propagation of each node for the target of a run, or for the replica of
  * the address `ip`. It is the time from its deletion (or its crash) to the first poll of the rules
  * of the node without it. The change came between the poll before (`after`) and that poll (`by`).
+ * The source `eds` gives the poll of the client sidecar of each node.
  */
-export const propagationOf = (run: KindRun, from: number | null, ip: string | undefined = run.target?.ip): Record<string, Propagated | null> => {
+export const propagationOf = (
+  run: KindRun,
+  from: number | null,
+  ip: string | undefined = run.target?.ip,
+  source: PropagationSource = "rules",
+): Record<string, Propagated | null> => {
   const out: Record<string, Propagated | null> = {};
   if (ip === undefined || from === null) return out;
-  const nodes = [...new Set((run.lines as readonly Line[]).filter((line) => line.ev === "rules").map((line) => String(line["node"])))].sort();
+  const nodes = [...new Set((run.lines as readonly Line[]).filter((line) => line.ev === source).map((line) => String(line["node"])))].sort();
   for (const node of nodes) {
-    const drop = dropOf(run.lines as readonly Line[], node, `${ip}:${PORT}`, from);
+    const drop = dropOf(run.lines as readonly Line[], node, `${ip}:${PORT}`, from, source);
     out[node] = drop === null ? null : { after: drop.prev === null ? null : seconds(sec(Math.max(0, drop.prev - from))), by: seconds(sec(drop.t - from)) };
   }
   return out;
@@ -269,7 +282,7 @@ export const factsOf = (cell: KindCell, run: KindRun): RunFacts => {
       const at = sliceDropOf(lines, SERVER, run.target!.ip, from);
       return at === null ? null : sec(at - from);
     })()),
-    propagation: propagationOf(run, from),
+    propagation: propagationOf(run, from, undefined, propagationSource(cell)),
     ...(eachOf(cell.prediction) ? { deletions: deletionsOf(run) } : {}),
   };
 };
@@ -315,7 +328,7 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
           return done(false, `the run has no ${start === null ? prediction.start.from : prediction.end!.from} reference${each ? ` for ${pod}` : ""}`, null);
         const origin = each ? referenceOf(run, "deletion", pod) : (facts.deletion ?? (cell.trigger.kind === "crash" ? run.acts.fault : null));
         const ip = run.replicas.find((replica) => replica.pod === pod)?.ip;
-        const propagation = each ? propagationOf(run, origin, ip) : facts.propagation;
+        const propagation = each ? propagationOf(run, origin, ip, propagationSource(cell)) : facts.propagation;
         windows.push({
           pod,
           start,
@@ -431,7 +444,7 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
       const band = secondsOf(prediction.band);
       const problems: string[] = [];
       if (!inBand(value, band)) problems.push(`${run.target.pod} left the EndpointSlice at ${value} s`);
-      const propagation = propagationOf(run, fault);
+      const propagation = propagationOf(run, fault, undefined, propagationSource(cell));
       for (const [node, drop] of Object.entries(propagation)) {
         const by = drop === null ? null : valueIn(drop.by, "s");
         if (by === null) problems.push(`the rules of ${node} kept ${run.target.pod}`);

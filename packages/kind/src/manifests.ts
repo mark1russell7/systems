@@ -30,6 +30,16 @@ export const namespaceOf = (cell: Pick<KindCell, "name">): string =>
   `lab-${createHash("sha256").update(cell.name).digest("hex").slice(0, 10)}`;
 
 /**
+ * This function gives the Namespace object of a cell. In the sidecar mode of a mesh, the label
+ * `istio-injection=enabled` makes the injector of Istio put a sidecar in each pod of the namespace.
+ */
+export const namespaceObject = (cell: Pick<KindCell, "mesh">, namespace: string): Record<string, unknown> => ({
+  apiVersion: "v1",
+  kind: "Namespace",
+  metadata: { name: namespace, ...(cell.mesh?.mode === "sidecar" ? { labels: { "istio-injection": "enabled" } } : {}) },
+});
+
+/**
  * This function gives a probe of the pod, with each field of the cell. The probe of the service is an
  * HTTP GET of its health server (`path`). The probe of grpc-go (`path` null) is the gRPC probe of the
  * kubelet. It is a Check of the service "" on the port of the server, and the answer is SERVING until

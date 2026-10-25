@@ -3,8 +3,29 @@ import type { Coupling, Gate, Poll, Stage, Timing } from "@mark1russell7/service
 import type { RedisKnobs } from "@mark1russell7/service/redis";
 import type { KubeProxyMode } from "./scenario.ts";
 
-/** A template is the topology of a cell: T07, the endpoint lifecycle of a Service, or T18, a health-gated fleet. */
-export type Template = "T07" | "T18";
+/**
+ * A template is the topology of a cell:
+ * - `T07` is the endpoint lifecycle of a Service.
+ * - `T15` is the same lifecycle through an Istio mesh: a mesh hop at the client and a mesh hop at the server.
+ * - `T18` is a health-gated fleet.
+ */
+export type Template = "T07" | "T15" | "T18";
+
+/**
+ * A mesh flavor is the install of Istio 1.31.3 in the cluster:
+ * - `sidecar`: the profile `minimal`, istiod only. The injector puts an Envoy sidecar in each pod of a labeled namespace.
+ * - `ambient`: the profile `ambient`, with istio-cni and ztunnel. The lab does not install it yet.
+ */
+export type MeshFlavor = "sidecar" | "ambient";
+
+/** A mesh mode is the data plane of the pods of a cell: an Envoy sidecar in each pod, or ztunnel on each node. */
+export type MeshMode = "sidecar" | "ambient";
+
+/** A mesh is the install of Istio in the cluster of a cell, and the data plane of the pods of the cell. */
+export interface Mesh {
+  readonly flavor: MeshFlavor;
+  readonly mode: MeshMode;
+}
 
 /**
  * A stack is the server and the clients of a cell:
@@ -188,10 +209,12 @@ export type Prediction<A = Quantity> =
       readonly each?: boolean | undefined;
       /**
        * This band is the propagation that the window assumes. It starts at the deletion of the replica
-       * of a window. It ends at the first poll of the rules of each node without that replica. The
-       * judge holds each such poll to `hi` ± δ, and it does not test a window without the band. A
-       * later poll agrees with the law, but the band is short, thus its cell is `extend` (D-EXTEND).
-       * An earlier drop only closes the window earlier.
+       * of a window. It ends at the first poll of each node without that replica. That poll is of the
+       * rules, or of the client sidecar in a sidecar mesh (`propagationSource`).
+       *
+       * The judge holds each poll to `hi` ± δ, and it does not test a window without the band. A later
+       * poll agrees with the law, but the band is short, thus its cell is `extend` (D-EXTEND). An
+       * earlier drop only closes the window earlier.
        */
       readonly propagation?: Band<A> | undefined;
       readonly why: string;
@@ -249,6 +272,8 @@ export interface KindCell<A = Quantity> {
   readonly template: Template;
   /** This stack is the server and the clients of the cell. Without it, the cell has the service (`service`). */
   readonly stack?: Stack | undefined;
+  /** This mesh is the Istio of the cell (T15). Without it, the cell has no mesh. */
+  readonly mesh?: Mesh | undefined;
   /** This text names a system of the plan that the cell replaces with the service of this repository, or null. */
   readonly substitutes: string | null;
   readonly mode: KubeProxyMode;

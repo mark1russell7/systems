@@ -130,6 +130,14 @@ describe("the judgement of a record again", () => {
     expect(FORMAT_V1).toBe("systems.kind-cell-record/1");
   });
 
+  it("reads a record of /2 of a cell of T15 with its mesh, and refuses a mesh that is not one", () => {
+    const fromV1 = readRecord(json(fixture(FIXTURES.fails)));
+    const meshed: KindCellRecord = { ...fromV1, cell: { ...fromV1.cell, template: "T15", stack: "grpc", mesh: { flavor: "sidecar", mode: "sidecar" } } };
+    expect(readRecord(json(meshed)).cell.mesh).toEqual({ flavor: "sidecar", mode: "sidecar" });
+    const unknown = { ...meshed, cell: { ...meshed.cell, mesh: { flavor: "linkerd", mode: "sidecar" } } };
+    expect(kindCellRecordSchema.safeParse(json(unknown)).success).toBe(false);
+  });
+
   it("gives the unit of the main value from the prediction", () => {
     expect(unitOf({ kind: "none" })).toBe("{request}");
     expect(unitOf({ kind: "window" })).toBe("{request}");

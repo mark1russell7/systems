@@ -3,6 +3,13 @@
 // EndpointSlices and the events of one namespace through the API, and it follows the log of each
 // pod with the label lab.systems/log=1. A log line is JSON with its own stamp, and the watcher
 // passes it on as it is.
+//
+// The sidecar of Istio (the container istio-proxy) is a native sidecar: an init container that
+// runs beside the app. The watcher follows it too. Its lines are the access log of Envoy (JSON, a
+// stamp of the wall clock) and the text of pilot-agent. Each one becomes a line `proxy` with the
+// stamp of its arrival: evidence, not a time that a band reads. An access line of a call that
+// succeeded at its first attempt is only counted (`proxy-ok`, each second), thus the record keeps
+// the failures, the retries and the local replies.
 import https from "node:https";
 
 const kube = JSON.parse(process.env.KUBE ?? "{}");
@@ -75,6 +82,38 @@ const stateOf = (state) => {
   return "none";
 };
 
+/** the container of the sidecar of Istio */
+const PROXY = "istio-proxy";
+/** the access lines of each sidecar that the watcher only counted, by pod, since the last count */
+const counted = new Map();
+setInterval(() => {
+  const t = now();
+  for (const [pod, n] of counted) say({ ev: "proxy-ok", t, p: pod, n });
+  counted.clear();
+}, 1000);
+
+/** an access line of Envoy that tells nothing more than its call: status 200, no flag, gRPC status 0, one attempt */
+const plain = (log) =>
+  String(log.code) === "200" && (log.flags === "-" || log.flags === "" || log.flags === undefined) && String(log.grpc) === "0" && Number(log.attempts ?? 1) <= 1;
+
+/** a line of the sidecar: an access line of Envoy as JSON, or a text line of pilot-agent */
+const proxyLine = (pod, text) => {
+  if (text.startsWith("{")) {
+    try {
+      const log = JSON.parse(text);
+      if (plain(log)) {
+        counted.set(pod, (counted.get(pod) ?? 0) + 1);
+        return;
+      }
+      say({ ev: "proxy", t: now(), p: pod, log });
+      return;
+    } catch {
+      // a line that is not whole JSON is text
+    }
+  }
+  say({ ev: "proxy", t: now(), p: pod, text: text.slice(0, 500) });
+};
+
 const following = new Set();
 const follow = (ns, pod, container, id) => {
   const key = `${ns}/${pod}/${container}/${id}`;
@@ -84,7 +123,8 @@ const follow = (ns, pod, container, id) => {
     `/api/v1/namespaces/${ns}/pods/${pod}/log`,
     { container, follow: "true" },
     (text) => {
-      if (text.startsWith("{")) pending.push(`${text}\n`);
+      if (container === PROXY) proxyLine(pod, text);
+      else if (text.startsWith("{")) pending.push(`${text}\n`);
       else say({ ev: "text", t: now(), p: pod, text: text.slice(0, 500) });
     },
     false,
@@ -109,6 +149,10 @@ for (const ns of namespaces) {
       last: stateOf(status.lastState),
       id: status.containerID ?? null,
     }));
+    // the native sidecar of Istio is a running init container: its state, apart from the containers
+    const sidecars = (pod.status?.initContainerStatuses ?? [])
+      .filter((status) => status.name === PROXY)
+      .map((status) => ({ n: status.name, r: status.ready, rc: status.restartCount, st: stateOf(status.state), id: status.containerID ?? null }));
     say({
       ev: "pod",
       t,
@@ -121,11 +165,13 @@ for (const ns of namespaces) {
       ready,
       phase: pod.status?.phase ?? null,
       cs: containers,
+      ...(sidecars.length === 0 ? {} : { sc: sidecars }),
       labels: pod.metadata.labels ?? {},
     });
-    if (event.type !== "DELETED" && pod.metadata.labels?.["lab.systems/log"] === "1")
-      for (const status of pod.status?.containerStatuses ?? [])
-        if (status.state?.running && status.containerID) follow(ns, pod.metadata.name, status.name, status.containerID);
+    if (event.type !== "DELETED" && pod.metadata.labels?.["lab.systems/log"] === "1") {
+      const running = [...(pod.status?.containerStatuses ?? []), ...(pod.status?.initContainerStatuses ?? []).filter((status) => status.name === PROXY)];
+      for (const status of running) if (status.state?.running && status.containerID) follow(ns, pod.metadata.name, status.name, status.containerID);
+    }
     return pod.metadata.resourceVersion;
   });
   stream(`/apis/discovery.k8s.io/v1/namespaces/${ns}/endpointslices`, { watch: "1", allowWatchBookmarks: "true" }, (text, t) => {

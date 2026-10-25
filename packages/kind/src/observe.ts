@@ -65,13 +65,25 @@ export interface SliceLine {
   readonly eps: readonly Endpoint[];
 }
 
-/** A rules line is the backends of the Service in the rules of one node, after a change. `prev` is the start of the poll before it. */
+/**
+ * A rules line is the backends of the Service in the rules of one node, after a change. `prev` is the
+ * start of the poll before it. An EDS line has the same fields (`ev` is `eds`). It gives the healthy
+ * hosts of the server cluster in the Envoy of the client sidecar on the node.
+ */
 export interface RulesLine {
   readonly t: number;
   readonly prev: number | null;
   readonly node: string;
   readonly b: readonly string[];
 }
+
+/**
+ * A propagation source is the poll whose lines give the backends of each node:
+ * - `rules`: the rules of kube-proxy in the namespaces of the node.
+ * - `eds`: the hosts of the server cluster in the Envoy of the client sidecar on the node. In a sidecar
+ *   mesh, the client sidecar picks the backend of each call, thus kube-proxy is not on the path.
+ */
+export type PropagationSource = "rules" | "eds";
 
 /** A record line is one transition of a machine of the service, with its own stamp `at`. */
 export interface RecordLine {
@@ -92,7 +104,8 @@ export const requestsOf = (lines: readonly Line[]): Request[] => of<Request>(lin
 export const podsOf = (lines: readonly Line[]): PodLine[] => of<PodLine>(lines, "pod").sort((a, b) => a.t - b.t);
 export const slicesOf = (lines: readonly Line[], svc: string): SliceLine[] =>
   of<SliceLine>(lines, "slice").filter((line) => line.svc === svc);
-export const rulesOf = (lines: readonly Line[]): RulesLine[] => of<RulesLine>(lines, "rules").sort((a, b) => a.t - b.t);
+export const rulesOf = (lines: readonly Line[], source: PropagationSource = "rules"): RulesLine[] =>
+  of<RulesLine>(lines, source).sort((a, b) => a.t - b.t);
 export const recordsOf = (lines: readonly Line[]): RecordLine[] => of<RecordLine>(lines, "rec");
 
 /** This function gives the requests that did not succeed, in sequence of their start. */
@@ -161,9 +174,10 @@ export const signalOf = (lines: readonly Line[], pod: string, after: number): nu
 /**
  * This function gives when the rules of a node stopped the selection of a backend: the first poll
  * after a time without it. The change came after `prev`, the poll before it, and at the latest at `t`.
+ * The source `eds` gives the same for the client sidecar of the node.
  */
-export const dropOf = (lines: readonly Line[], node: string, backend: string, after: number): RulesLine | null =>
-  rulesOf(lines).find((line) => line.node === node && line.t >= after && !line.b.includes(backend)) ?? null;
+export const dropOf = (lines: readonly Line[], node: string, backend: string, after: number, source: PropagationSource = "rules"): RulesLine | null =>
+  rulesOf(lines, source).find((line) => line.node === node && line.t >= after && !line.b.includes(backend)) ?? null;
 
 /** This function gives when the rules of a node had no backend of the Service, after a time. */
 export const emptyOf = (lines: readonly Line[], node: string, after: number): RulesLine | null =>

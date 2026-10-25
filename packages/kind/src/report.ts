@@ -4,7 +4,7 @@ import { seconds, secondsOf, showBand } from "./bands.ts";
 import type { Band, KindCell, KindRun, Prediction } from "./cell.ts";
 import { quantileOf } from "./stats.ts";
 import type { KindVerdict } from "./verdict.ts";
-import { factsOf, propagationOf, referenceOf } from "./verdict.ts";
+import { factsOf, propagationOf, propagationSource, referenceOf } from "./verdict.ts";
 
 /** A judged cell is a cell, its runs and its verdict: the part of a result that a report reads. */
 export interface Judged {
@@ -110,7 +110,7 @@ export const calibrationOf = (judged: Judged): {
   const intake: Quantity[] = [];
   for (const run of judged.runs.filter((each) => !each.warmup && each.void === null)) {
     const deletion = referenceOf(run, "deletion");
-    for (const [node, drop] of Object.entries(propagationOf(run, deletion))) if (drop !== null) (byNode[node] ??= []).push(drop.by);
+    for (const [node, drop] of Object.entries(propagationOf(run, deletion, undefined, propagationSource(judged.cell)))) if (drop !== null) (byNode[node] ??= []).push(drop.by);
     const facts = factsOf(judged.cell, run);
     if (facts.sliceAfter !== null) slice.push(facts.sliceAfter);
     if (facts.intakeAfterDeletion !== null) intake.push(facts.intakeAfterDeletion);

@@ -3,7 +3,7 @@ import type { KindCell, KindRun, Prediction } from "./cell.ts";
 import type { Line } from "./lab.ts";
 import { cellOf } from "./cells.fixture.ts";
 import { predictionText } from "./report.ts";
-import { checkRun, judgeKind, observationAfter, observationEnd, propagationOf } from "./verdict.ts";
+import { checkRun, judgeKind, observationAfter, observationEnd, propagationOf, propagationSource } from "./verdict.ts";
 
 const TARGET = { pod: "lab-a", node: "w1", ip: "10.244.1.3", version: "h1" };
 const OTHER = { pod: "lab-b", node: "w2", ip: "10.244.2.4", version: "h1" };
@@ -38,6 +38,20 @@ const cell = (prediction: Prediction): KindCell => ({ ...cellOf("pod-deletion"),
 describe("the judgement of a kind run", () => {
   it("measures the propagation of each node from the deletion, between two polls", () => {
     expect(propagationOf(runWith([]), 1000)).toEqual({ w1: { after: s(0.05), by: s(0.1) }, w2: { after: s(0.03), by: s(0.08) } });
+  });
+
+  it("measures the propagation of a sidecar mesh from the EDS poll of each client sidecar, not from the rules", () => {
+    const eds: Line[] = [
+      { ev: "eds", t: 1300, prev: 1250, node: "w1", pod: "client-w1", b: ["10.244.2.4:8080"] },
+      { ev: "eds", t: 1420, prev: 1370, node: "w2", pod: "client-w2", b: ["10.244.2.4:8080"] },
+    ];
+    const run = runWith(eds);
+    expect(propagationOf(run, 1000, undefined, "eds")).toEqual({ w1: { after: s(0.25), by: s(0.3) }, w2: { after: s(0.37), by: s(0.42) } });
+    const sidecar = { ...cellOf("pod-deletion"), template: "T15", mesh: { flavor: "sidecar", mode: "sidecar" } } as const;
+    expect(propagationSource(sidecar)).toBe("eds");
+    expect(propagationSource(cellOf("pod-deletion"))).toBe("rules");
+    expect(checkRun({ ...sidecar, prediction: { kind: "none", why: "a test" } }, run).facts.propagation).toEqual(propagationOf(run, 1000, undefined, "eds"));
+    expect(checkRun(cell({ kind: "none", why: "a test" }), run).facts.propagation).toEqual(propagationOf(run, 1000));
   });
 
   it("holds a prediction of no failure only when each request succeeds", () => {
