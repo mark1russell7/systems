@@ -6,6 +6,7 @@
 // sets one timer of the server, and each timer without a flag keeps the default of Node. The
 // server answers at once on each path, on /hold?ms=N after N ms (a held reply, as BLPOP is for
 // Redis), and on /big?bytes=N with a body of N bytes. It reads and drops the body of a request.
+// A hold above 600 s or a body above 64 MiB gets 400. The cells ask for 60 s and 2 MB at most.
 //
 // Each event is a JSON line on the clock of the clients: a connection, a request, the end of a
 // response (where the keep-alive timer arms, lib/_http_server.js:1096-1142), the timeout of an idle
@@ -42,6 +43,10 @@ set("connectionsCheckingInterval", "--checking-interval-ms");
 
 const peerOf = (socket) => `${socket.remoteAddress}:${socket.remotePort}`;
 
+// the bounds of a held reply and of a long body: a request cannot hold a timer or a buffer without a limit
+const MAX_HOLD_MS = 600_000;
+const MAX_BYTES = 64 * 1024 * 1024;
+
 const server = http.createServer(options, (req, res) => {
   const peer = peerOf(req.socket);
   emit("request", { peer, method: req.method, url: req.url });
@@ -50,7 +55,13 @@ const server = http.createServer(options, (req, res) => {
   res.on("finish", () => emit("finished", { peer }));
   const hold = url.pathname === "/hold" ? Number(url.searchParams.get("ms") ?? 0) : 0;
   const bytes = url.pathname === "/big" ? Number(url.searchParams.get("bytes") ?? 0) : 0;
-  const answer = () => res.end(bytes > 0 ? Buffer.alloc(bytes, 120) : "ok\n");
+  if (hold > MAX_HOLD_MS || bytes > MAX_BYTES) {
+    res.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
+    res.end(`a hold of at most ${MAX_HOLD_MS} ms, and a body of at most ${MAX_BYTES} bytes\n`);
+    return;
+  }
+  const body = bytes > 0 ? Buffer.alloc(bytes, 120) : "ok\n";
+  const answer = () => res.end(body);
   if (hold > 0) setTimeout(answer, hold);
   else answer();
 });

@@ -14,10 +14,10 @@ const s = (value: number) => ({ value, unit: "s" });
 const poll = { interval: s(1), jitter: 0, timeout: s(0.4) };
 
 /** A started service: one dependency with a readiness check, and a controller that needs it. */
-const runtime = async (): Promise<{ health: Health; check: ReturnType<typeof scriptedCheck>; clock: ReturnType<typeof fakeClock> }> => {
+const runtime = async (name = "shop"): Promise<{ health: Health; check: ReturnType<typeof scriptedCheck>; clock: ReturnType<typeof fakeClock> }> => {
   const check = scriptedCheck("ok");
   const clock = fakeClock();
-  const svc = service("shop")
+  const svc = service(name)
     .dependency("db", { system: null, knobs: {}, operations: {} })
     .check({ name: "db.round-trip", dependency: "db", step: "round-trip", ownConnection: true, gates: "readiness", poll }, check.run)
     .readiness({ type: "debounce", interval: s(1), failAfter: 1, recoverAfter: 1 })
@@ -72,6 +72,29 @@ describe("probeResponse: the answer of a probe path, from the cache", () => {
     expect(early.status).toBe(503);
     expect(JSON.parse(early.body)).toEqual({ status: "fail", probe: "startup" });
   });
+
+  it("escapes <, > and & in each JSON body, thus a controller from the path is no markup, and the value stays (SYS-34)", async () => {
+    const { health } = await runtime();
+    const missing = probeResponse(health, "GET", "/readiness/<img src=x onerror=alert(1)>&x")!;
+    expect(missing.status).toBe(404);
+    expect(missing.body).not.toMatch(/[<>&]/);
+    expect(missing.body).toBe('{"status":"fail","probe":"readiness","controller":"\\u003cimg src=x onerror=alert(1)\\u003e\\u0026x"}');
+    expect(JSON.parse(missing.body)).toEqual({ status: "fail", probe: "readiness", controller: "<img src=x onerror=alert(1)>&x" });
+    // the answers of the health runtime go through the same escape
+    const named = probeResponse((await runtime("<shop> & co")).health, "GET", "/startup")!;
+    expect(named.body).not.toMatch(/[<>&]/);
+    expect(JSON.parse(named.body)).toEqual({ status: "pass", service: "<shop> & co", probe: "startup" });
+  });
+
+  it("answers 404 for a controller named for a key of each object, for example constructor (SYS-34)", async () => {
+    const { health } = await runtime();
+    for (const name of ["constructor", "__proto__", "toString", "hasOwnProperty"]) {
+      const response = probeResponse(health, "GET", `/readiness/${name}`)!;
+      expect(response.status, name).toBe(404);
+      expect(JSON.parse(response.body), name).toEqual({ status: "fail", probe: "readiness", controller: name });
+    }
+    expect(() => health.probe("readiness", "constructor")).toThrow("shop has no controller constructor");
+  });
 });
 
 describe("probeHandler: the probes on the port of the application", () => {
@@ -98,6 +121,24 @@ describe("probeHandler: the probes on the port of the application", () => {
     handler(fakeReq("/startup", "HEAD"), head as unknown as ServerResponse, undefined as never);
     expect(head.statusCode).toBe(200);
     expect(head.chunks).toEqual([]);
+  });
+
+  it("gives each answer X-Content-Type-Options: nosniff, before the runtime and after it (SYS-34)", async () => {
+    let current: Health | null = null;
+    const handler = probeHandler(() => current, { prefix: "/health" });
+    const answers: FakeResponse[] = [];
+    const ask = (url: string, method = "GET"): FakeResponse => {
+      const res = new FakeResponse(new FakeSocket());
+      handler(fakeReq(url, method), res as unknown as ServerResponse, undefined as never);
+      answers.push(res);
+      return res;
+    };
+    expect(ask("/health/startup").statusCode).toBe(503);
+    current = (await runtime()).health;
+    expect(ask("/health/readiness").statusCode).toBe(200);
+    expect(ask("/health/readiness/nobody").statusCode).toBe(404);
+    expect(ask("/health/liveness", "POST").statusCode).toBe(405);
+    for (const res of answers) expect(res.headers.get("x-content-type-options"), String(res.statusCode)).toBe("nosniff");
   });
 
   it("answers until close transports, and refuses a prefix that does not start with a slash or ends with one", () => {
@@ -145,6 +186,24 @@ describe("probeServer: the probes on a port of their own", () => {
     expect([draining.status, draining.headers.get("retry-after")]).toEqual([503, "3"]);
     const missing = await server.request("/nothing");
     expect([missing.status, missing.headers.get("retry-after")]).toEqual([404, undefined]);
+  });
+
+  it("gives each answer X-Content-Type-Options: nosniff: a probe, a 503, a 404 and a 405 (SYS-34)", async () => {
+    const { health } = await runtime();
+    const server = new FakeServer();
+    await probeServer({ server_retry_after: s(1), port: 0, server: server.asServer }).listen(health);
+    const ready = await server.request("/readiness");
+    const missing = await server.request("/nothing");
+    const refused = await server.request("/readiness", "POST");
+    health.drain();
+    const draining = await server.request("/readiness");
+    const statuses = [ready, missing, refused, draining].map((each) => [each.status, each.headers.get("x-content-type-options")]);
+    expect(statuses).toEqual([
+      [200, "nosniff"],
+      [404, "nosniff"],
+      [405, "nosniff"],
+      [503, "nosniff"],
+    ]);
   });
 
   it("has no defaults: server_retry_after is necessary, and it is a time with a bound", () => {
