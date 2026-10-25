@@ -207,6 +207,7 @@ const STATUS_TEXT: Readonly<Record<number, string>> = { 404: "Not Found", 500: "
  *   connection until its `close`.
  * - `stopIntake` closes the listener, and new connections get a refusal. It closes the idle connections
  *   at once and at each `server_idle_sweep_interval`. Each later response gets `Connection: close`.
+ *   A connection is not idle while the bytes of its answer go (SYS-33).
  * - `drain` waits until no work is in flight, or until the deadline. It gives the cooperative abort to
  *   the handlers through their context. At the deadline, it also waits for each answer that is to come
  *   or to go out (SYS-29). The cap of the phase bounds that wait. Answers that did not go out by the
@@ -421,6 +422,24 @@ export const httpTransport = (server: Server, knobs: HttpKnobs, options: HttpTra
       sockets.delete(socket);
       settled();
     });
+  };
+
+  /**
+   * Node counts a connection idle at the `end()` of its response, also while the bytes of the body
+   * still go. Then `closeIdleConnections` destroys the socket and cuts the answer (SYS-33). This
+   * method replaces it on the server, thus `server.close()` uses it too. Node keeps the socket of
+   * a response that did not end. Thus the method shows each answer whose bytes did not go as not
+   * ended, for the time of the call.
+   */
+  const closeIdle = server.closeIdleConnections;
+  server.closeIdleConnections = function closeIdleConnections(this: Server): void {
+    const going = [...responses].filter((res) => res.writableEnded && !res.writableFinished && !res.destroyed);
+    for (const res of going) res.finished = false;
+    try {
+      closeIdle.call(this);
+    } finally {
+      for (const res of going) res.finished = true;
+    }
   };
 
   server.on("request", onRequest);
