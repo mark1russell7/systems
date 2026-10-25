@@ -17,6 +17,8 @@
 // Each socket of the channel also gives a line `sock` at its connect and at its close (client-lines.ts).
 // SIGUSR1 stops the calls, and SIGUSR2 starts them again: the gap of the trigger `idle`. A listener of
 // SIGUSR1 replaces the start of the inspector of Node at that signal. The channel stays open in the gap.
+// SIGHUP stops the calls and closes the channel (internal-channel.ts:839-861). Then the next SIGUSR2
+// opens a new channel. The connect line of a socket also gives its local address (`la`).
 import net from "node:net";
 import { followSocket, gapOf } from "./client-lines.ts";
 
@@ -42,6 +44,12 @@ const portOf = (socket) => {
   socket?._handle?.getsockname?.(out);
   return typeof out.port === "number" ? out.port : null;
 };
+// the local address of a socket, or null once its handle is closed
+const addressOf = (socket) => {
+  const out = {};
+  socket?._handle?.getsockname?.(out);
+  return typeof out.address === "string" ? out.address : null;
+};
 
 // grpc-js connects with net.connect (transport.ts:830), on the module object that this patch changes.
 // It loads after the patch. With an address and no host name, connect() comes before net.connect
@@ -54,13 +62,19 @@ net.connect = function (...args) {
   socket.once("connect", () => {
     lp = portOf(socket) ?? lp;
   });
-  followSocket(socket, () => portOf(socket), say, now);
+  followSocket(socket, () => portOf(socket), say, now, () => addressOf(socket));
   return socket;
 };
 
-const gap = gapOf((signal, listener) => process.on(signal, listener), say, now);
-
 const grpc = await import("@grpc/grpc-js");
+const open = () => new grpc.Client(`${host}:${port}`, grpc.credentials.createInsecure(), {});
+let client = open();
+const gap = gapOf((signal, listener) => process.on(signal, listener), say, now, {
+  close: () => client.close(),
+  open: () => {
+    client = open();
+  },
+});
 
 // ---- the messages of grpc.health.v1, encoded by hand: the request of the service "", and the status of the reply
 const encodeRequest = () => Buffer.alloc(0);
@@ -76,8 +90,6 @@ const outcomeOf = (error) => {
   if (error.code === grpc.status.PERMISSION_DENIED) return "denied";
   return "error";
 };
-
-const client = new grpc.Client(`${host}:${port}`, grpc.credentials.createInsecure(), {});
 
 const fire = () => {
   if (gap.stopped) return;

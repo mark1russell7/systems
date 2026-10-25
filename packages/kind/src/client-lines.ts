@@ -20,8 +20,11 @@ export type Say = (line: Readonly<Record<string, unknown>>) => void;
  *
  * A prediction `ends` reads the close line: the end of the socket of the channel. A FIN of the peer
  * and a reset each end it.
+ *
+ * With `address`, the connect line also gives the local address of the socket (`la`): the address of
+ * the pod. A prediction of the tunnels finds the HBONE connection of the ztunnel of the pod by it.
  */
-export const followSocket = (socket: WatchedSocket, port: () => number | null, say: Say, now: () => number): void => {
+export const followSocket = (socket: WatchedSocket, port: () => number | null, say: Say, now: () => number, address?: () => string | null): void => {
   let lp = port();
   let error: string | null = null;
   socket.once("error", (failure) => {
@@ -29,32 +32,60 @@ export const followSocket = (socket: WatchedSocket, port: () => number | null, s
   });
   socket.once("connect", () => {
     lp = port() ?? lp;
-    say({ ev: "sock", what: "connect", t: now(), lp });
+    say({ ev: "sock", what: "connect", t: now(), lp, ...(address === undefined ? {} : { la: address() }) });
   });
   socket.once("close", (hadError) => {
     say({ ev: "sock", what: "close", t: now(), lp, err: hadError ? (error ?? "error") : null });
   });
 };
 
-/** A gap is the state of the calls of a client: `stopped` from SIGUSR1 to the next SIGUSR2. */
+/**
+ * A gap is the state of the calls of a client. It is `stopped` from SIGUSR1 or SIGHUP to the next
+ * SIGUSR2. It is `closed` from SIGHUP to the next SIGUSR2.
+ */
 export interface Gap {
   readonly stopped: boolean;
+  readonly closed: boolean;
 }
+
+/** A channel is the part of the channel of a client that a gap closes and opens again. */
+export interface Channel {
+  close(): void;
+  open(): void;
+}
+
+/** These are the signals of a gap. */
+export type GapSignal = "SIGUSR1" | "SIGUSR2" | "SIGHUP";
 
 /**
  * This function stops the calls of a client at SIGUSR1, and it starts them again at SIGUSR2. That is
  * the gap of the trigger `idle`. Each signal writes a line `gap` with the stamp of `now`, also when it
  * changes nothing. The channel and its socket stay open in the gap.
+ *
+ * With a `channel`, SIGHUP also stops the calls and closes the channel (`close`). Then the next
+ * SIGUSR2 opens a new channel before it starts the calls (`open`, a line `gap` with `open: true`).
  */
-export const gapOf = (on: (signal: "SIGUSR1" | "SIGUSR2", listener: () => void) => unknown, say: Say, now: () => number): Gap => {
-  const gap = { stopped: false };
+export const gapOf = (on: (signal: GapSignal, listener: () => void) => unknown, say: Say, now: () => number, channel?: Channel): Gap => {
+  const gap = { stopped: false, closed: false };
   on("SIGUSR1", () => {
     gap.stopped = true;
     say({ ev: "gap", what: "stop", t: now() });
   });
   on("SIGUSR2", () => {
+    const open = gap.closed && channel !== undefined;
+    if (open) {
+      channel.open();
+      gap.closed = false;
+    }
     gap.stopped = false;
-    say({ ev: "gap", what: "start", t: now() });
+    say({ ev: "gap", what: "start", t: now(), ...(open ? { open: true } : {}) });
   });
+  if (channel !== undefined)
+    on("SIGHUP", () => {
+      gap.stopped = true;
+      if (!gap.closed) channel.close();
+      gap.closed = true;
+      say({ ev: "gap", what: "close", t: now() });
+    });
   return gap;
 };

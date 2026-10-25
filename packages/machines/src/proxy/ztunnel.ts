@@ -20,8 +20,10 @@ const K = "kubernetes v1.37.0";
  * 30 s later.
  *
  * At the end of a stream or of its connection, ztunnel shuts down the socket of the app. The app then
- * gets a FIN. No timer closes an idle connection or an old one. At SIGTERM, ztunnel sends GOAWAY, and
- * it ends what is left at its deadline of 25 s. A deadline longer than the grace of 30 s does not
+ * gets a FIN. The release of the pool closes a connection with no stream, 5 min after its last
+ * checkout. No timer closes a connection with an open stream, or an old one.
+ *
+ * At SIGTERM, ztunnel sends GOAWAY, and it ends what is left at its deadline of 25 s. A deadline longer than the grace of 30 s does not
  * come. The kubelet sends SIGKILL to ztunnel at the end of the grace, and the kernel closes each socket.
  */
 export const ZTUNNEL_HBONE: Machine = machineSchema.parse({
@@ -43,7 +45,7 @@ export const ZTUNNEL_HBONE: Machine = machineSchema.parse({
     },
     { ref: `${Z} src/config.rs:74, :106, :790 and src/proxy/h2/client.rs:183-190 at most 100 streams on one HBONE connection`, rung: "implemented" },
     {
-      ref: `${Z} src/config.rs:75, :105, :795 and src/proxy/pool.rs:142-146 POOL_UNUSED_RELEASE_TIMEOUT is 5 min. A release does not close the connection: HTTP/2 closes it when no reference and no stream is left`,
+      ref: `${Z} src/config.rs:75, :105, :795 and src/proxy/pool.rs:142-176, :338-341 POOL_UNUSED_RELEASE_TIMEOUT is 5 min. Each checkout of a connection, new or used again, puts it back in the pool with a new release timer: the timer counts from the last checkout, the start of the last flow. A release does not close the connection: HTTP/2 closes it when no reference and no stream is left`,
       rung: "implemented",
     },
     { ref: `${Z} src/proxy.rs:645, :695 the TCP connect of ztunnel times out at 10 s, a constant`, rung: "implemented" },
@@ -97,6 +99,7 @@ export const ZTUNNEL_HBONE: Machine = machineSchema.parse({
     "local.accept": { kind: "local", note: "The listener 15001 accepts a connection of the app, and the pool has no connection for its key" },
     "local.connected": { kind: "local", note: "The TCP connect and the TLS handshake to 15008 complete" },
     "local.connect-failed": { kind: "local", note: "The connect to 15008 fails: a reset, a refusal or a failed handshake" },
+    "local.checkout": { kind: "local", note: "A new flow of an app takes the connection from the pool: the first flow, or each later flow to the same key" },
     "local.stream-end": { kind: "local", note: "The last stream on the connection ends" },
     "local.policy-denied": { kind: "local", note: "A change of a policy denies the connection: on the side of the server" },
     "local.del-workload": { kind: "local", note: "DelWorkload of the node agent of istio-cni for the pod: its deletion" },
@@ -107,7 +110,7 @@ export const ZTUNNEL_HBONE: Machine = machineSchema.parse({
     "timer.connect": { kind: "timer", note: "The connect does not complete in 10 s" },
     "timer.ping": { kind: "timer", note: "10 s after the last PONG: the next PING" },
     "timer.pong": { kind: "timer", note: "No PONG for 20 s after a PING" },
-    "timer.release": { kind: "timer", note: "No stream on the connection for the unused release timeout" },
+    "timer.release": { kind: "timer", note: "No checkout of the connection for the unused release timeout" },
     "timer.deadline": { kind: "timer", note: "The deadline of the drain after SIGTERM" },
     "timer.grace": { kind: "timer", note: "The end of the grace of the pod after SIGTERM: the kubelet kills ztunnel" },
     "tx.ping": { kind: "tx", note: "A PING of HTTP/2" },
@@ -157,10 +160,9 @@ export const ZTUNNEL_HBONE: Machine = machineSchema.parse({
     release: {
       duration: { knob: "pool_release", unit: "s" },
       lateness: { knob: "slack", unit: "s" },
-      arms: ["local.stream-end"],
-      cancels: ["local.accept"],
+      arms: ["local.checkout"],
       fires: "timer.release",
-      note: "pool.rs:142-146: from the end of the last stream",
+      note: "pool.rs:150-176, :338-341: from the last checkout. Each checkout starts a new timer, and the end of a stream does not start one",
     },
     deadline: {
       duration: { knob: "deadline", unit: "s" },
@@ -198,6 +200,15 @@ export const ZTUNNEL_HBONE: Machine = machineSchema.parse({
       source: "outbound.rs",
     },
     { id: "zt.connect-timeout", from: "connecting", to: "ended", on: "timer.connect", timer: "connect", emits: ["tx.app-close"], source: "proxy.rs:645, :695" },
+    {
+      id: "zt.checkout",
+      from: "ready",
+      to: "ready",
+      on: "local.checkout",
+      timer: "release",
+      note: "A new flow takes the connection as a new stream, and the pool starts a new release timer",
+      source: "pool.rs:150-176, :338-341",
+    },
     { id: "zt.ping", from: "ready", to: "ready", on: "timer.ping", timer: "ping", emits: ["tx.ping"], source: "h2.rs:39-46" },
     { id: "zt.pong", from: "ready", to: "ready", on: "rx.pong", note: "The PONG starts the sleep and the wait again", source: "h2.rs:46-56" },
     {
@@ -236,7 +247,8 @@ export const ZTUNNEL_HBONE: Machine = machineSchema.parse({
       timer: "release",
       guard: "no stream is open and no other flow holds the connection",
       emits: ["tx.close"],
-      source: "pool.rs:142-146",
+      note: "The pool drops its reference, and HTTP/2 closes the connection when no stream is left. Thus a flow that is open at the timer keeps the connection",
+      source: "pool.rs:142-176, :338-341",
     },
     { id: "zt.stop", from: "ready", to: "draining", on: "app.stop", timer: "deadline", emits: ["tx.goaway"], note: "The accept loops stop, and the HBONE server sends GOAWAY", source: "server.rs:170-172, outbound.rs:121" },
     { id: "zt.drained", from: "draining", to: "ended", on: "local.stream-end", emits: ["tx.close"], source: "drain.rs:52-70" },

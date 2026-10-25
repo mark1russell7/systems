@@ -56,6 +56,18 @@ describe("the socket lines of the gRPC client", () => {
     await closed(socket);
     expect(lines).toEqual([{ ev: "sock", what: "close", t: 7, lp: null, err: "ECONNREFUSED" }]);
   });
+
+  it("gives the local address of a socket at its connect, when it can read it", async () => {
+    const { server, port } = await serve((socket) => socket.end());
+    const lines: Array<Record<string, unknown>> = [];
+    const socket = net.connect(port, "127.0.0.1");
+    followSocket(socket, () => portOf(socket), (line) => lines.push(line), () => 1, () => socket.localAddress ?? null);
+    await closed(socket);
+    server.close();
+    expect(lines[0]).toMatchObject({ ev: "sock", what: "connect", la: "127.0.0.1" });
+    // the close line has no address
+    expect(lines[1]).not.toHaveProperty("la");
+  });
 });
 
 describe("the gap of the gRPC client", () => {
@@ -76,6 +88,34 @@ describe("the gap of the gRPC client", () => {
       { ev: "gap", what: "stop", t: 10 },
       { ev: "gap", what: "stop", t: 20 },
       { ev: "gap", what: "start", t: 30 },
+    ]);
+    // with no channel, SIGHUP has no listener of the gap
+    expect(process.listenerCount("SIGHUP")).toBe(0);
+  });
+
+  it("closes the channel at SIGHUP, and opens a new one at the next SIGUSR2", () => {
+    const process = new EventEmitter();
+    const lines: Array<Record<string, unknown>> = [];
+    const acts: string[] = [];
+    let clock = 0;
+    const channel = { close: () => acts.push("close"), open: () => acts.push("open") };
+    const gap = gapOf((signal, listener) => process.on(signal, listener), (line) => lines.push(line), () => (clock += 10), channel);
+    process.emit("SIGHUP");
+    expect(gap).toEqual({ stopped: true, closed: true });
+    // a second SIGHUP does not close the channel again
+    process.emit("SIGHUP");
+    process.emit("SIGUSR2");
+    expect(gap).toEqual({ stopped: false, closed: false });
+    // a SIGUSR2 with an open channel opens no channel
+    process.emit("SIGUSR1");
+    process.emit("SIGUSR2");
+    expect(acts).toEqual(["close", "open"]);
+    expect(lines).toEqual([
+      { ev: "gap", what: "close", t: 10 },
+      { ev: "gap", what: "close", t: 20 },
+      { ev: "gap", what: "start", t: 30, open: true },
+      { ev: "gap", what: "stop", t: 40 },
+      { ev: "gap", what: "start", t: 50 },
     ]);
   });
 });

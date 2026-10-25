@@ -5,6 +5,8 @@ import type { KindCell, KindRun, Prediction, Reference, ResetReuse, WindowPredic
 import { PORT, SERVER } from "./names.ts";
 import type { Line, PropagationSource, Request } from "./observe.ts";
 import {
+  HBONE_PORT,
+  TCP_STATE,
   byNode,
   deletionOf,
   dropOf,
@@ -19,6 +21,7 @@ import {
   sliceDropOf,
   sliceEmptyOf,
   socketsOf,
+  tunnelsOf,
 } from "./observe.ts";
 import { RELATIVE, medianInterval, middle } from "./stats.ts";
 
@@ -612,7 +615,8 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
  * - With no band, no socket of a client can close after the reference. The first request of each client
  *   after the heal must be `ok` on that socket. The main value is the count of the closes.
  *
- * With a window, the failed requests of the run must also agree with that window (`checkRun`).
+ * With a window, the failed requests of the run must also agree with that window (`checkRun`). A
+ * prediction of the tunnels (`of: "tunnel"`) has its own judge (`checkTunnels`).
  */
 const checkEnds = (
   cell: KindCell,
@@ -622,6 +626,7 @@ const checkEnds = (
 ): RunCheck => {
   const from = referenceOf(run, prediction.from);
   if (from === null) return done(false, `the run has no ${prediction.from} reference`, null);
+  if (prediction.of === "tunnel") return checkTunnels(run, prediction, from, done);
   const lines = run.lines as readonly Line[];
   const calls = requestsOf(lines)
     .filter((request) => request.t >= run.start && request.t <= run.end)
@@ -676,6 +681,77 @@ const checkEnds = (
   const why = problems.length > 0 ? problems.join("; ") : inner === null ? agrees : `${agrees}; ${inner.why}`;
   const checked = done(problems.length === 0, why, value, { ...(inner === null ? {} : inner.facts), closes });
   return inner?.tail === undefined ? checked : { ...checked, tail: inner.tail };
+};
+
+/**
+ * This function judges a run against a prediction `ends` of the tunnels (`of: "tunnel"`). Each client
+ * with an answer before the reference is a client of the run. Its tunnel is the HBONE connection of
+ * its ztunnel. The tunnel goes from the address of its pod to the HBONE port of the replica of its
+ * last answer before the heal. The address of the pod is the local address of a socket of the client
+ * in the run (`la`).
+ * - The first change of the tunnel out of ESTABLISHED after the reference must be in the band ± δ.
+ *   It must be to FIN_WAIT1: the side of the client closes the tunnel, and the peer does not close first.
+ * - With `answer`, a change to CLOSE_WAIT in that band ± δ also agrees. The peer closed first, but as
+ *   an answer to the close of the client.
+ * - The first request of each client after the heal must succeed. The main value is the middle of the ends.
+ */
+const checkTunnels = (
+  run: KindRun,
+  prediction: Extract<Prediction, { readonly kind: "ends" }>,
+  from: number,
+  done: (ok: boolean, why: string, value: number | null, more?: Partial<RunFacts>) => RunCheck,
+): RunCheck => {
+  if (prediction.band === null) return done(false, "a prediction of the tunnels needs a band", null);
+  const heal = run.acts.heal;
+  if (heal === null) return done(false, "the run has no heal", null);
+  const lines = run.lines as readonly Line[];
+  const calls = requestsOf(lines)
+    .filter((request) => request.t >= run.start && request.t <= run.end)
+    .sort((a, b) => a.t - b.t);
+  const clients = [...new Set(calls.filter((request) => request.t < from && request.o === "ok").map((request) => request.p))].sort();
+  if (clients.length === 0) return done(false, `no client had an answer before the ${prediction.from}`, null);
+  const band = secondsOf(prediction.band);
+  const reply = prediction.answer === undefined ? null : secondsOf(prediction.answer);
+  const tunnels = tunnelsOf(lines).filter((line) => line.t >= from && line.t <= run.end);
+  const sockets = socketsOf(lines);
+  const closes: Record<string, Quantity | null> = {};
+  const times: number[] = [];
+  const problems: string[] = [];
+  for (const client of clients) {
+    closes[client] = null;
+    const answer = calls.filter((request) => request.p === client && request.t < heal && request.o === "ok").at(-1);
+    const replica = run.replicas.find((each) => answer !== undefined && each.pod === answer.b);
+    const address = sockets.find((line) => line.p === client && typeof line.la === "string" && line.la !== "")?.la;
+    if (replica === undefined) {
+      problems.push(`no replica of the run answered ${client} before the heal`);
+      continue;
+    }
+    if (address === undefined || address === null) {
+      problems.push(`no socket of ${client} gave the address of its pod`);
+      continue;
+    }
+    const end = tunnels.find((line) => line.src.startsWith(`${address}:`) && line.dst === `${replica.ip}:${HBONE_PORT}` && line.old === TCP_STATE.established);
+    if (end === undefined) {
+      problems.push(`the tunnel of ${client} to ${replica.pod} did not end`);
+      continue;
+    }
+    const at = sec(end.t - from);
+    closes[client] = seconds(at);
+    times.push(at);
+    if (end.new === TCP_STATE.closeWait && reply !== null) {
+      if (!inBand(at, reply)) problems.push(`the peer closed the tunnel of ${client} at ${at} s, outside the band of its answer`);
+    } else if (end.new !== TCP_STATE.finWait1) problems.push(`the tunnel of ${client} went from ESTABLISHED to the state ${end.new}, not FIN_WAIT1: the peer closed first`);
+    else if (!inBand(at, band)) problems.push(`the tunnel of ${client} ended at ${at} s`);
+    const next = calls.find((request) => request.p === client && request.t >= heal);
+    if (next === undefined) problems.push(`${client} sent no call after the heal`);
+    else if (next.o !== "ok") problems.push(`the first call of ${client} after the heal ended ${next.o}`);
+  }
+  const sorted = [...times].sort((a, b) => a - b);
+  const why =
+    problems.length > 0
+      ? problems.join("; ")
+      : `the side of the client ended the tunnel of each of ${clients.length} clients, at ${sorted.join(", ")} s, and the first call of each one after the heal succeeded`;
+  return done(problems.length === 0, why, sorted.length === 0 ? null : middle(sorted), { closes });
 };
 
 /** This function judges a cell on its runs: each counted run must agree, and a median in a band must be equivalent to it. */
