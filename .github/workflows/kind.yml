@@ -1,5 +1,6 @@
-# Runs the kind catalogs, T07 and T18, on GitHub's runners. Each shard gets a runner of its own, and
-# each job makes its own kind clusters with the pinned kind and node image, then deletes them.
+# Runs the kind catalogs, T07, T15 and T18, on GitHub's runners. Each shard gets a runner of its own,
+# and each job makes its own kind clusters with the pinned kind and node image, then deletes them.
+# A cell of T15 gets Istio 1.31.3 in its cluster, from the pinned istioctl and images pinned by digest.
 #
 #   plan    The shards: the input for a dispatch, one for a pull request.
 #   kind    Writes what the runner is, and which kube-proxy modes its kernel can do. Then it runs
@@ -8,6 +9,7 @@
 #           waits, with its reason in summary.ndjson.
 #
 # Start it with: gh workflow run kind.yml -R mark1russell7/systems --ref <branch> -f only='^T07' -f shards=10
+# The shards keep the cells of one kube-proxy mode and one mesh flavor together (shardOf).
 # A pull request that changes this file runs a smoke: the calibration of each mode, 2 runs, one cluster.
 #
 # A runner has 4 CPUs and 16 GB. A cluster of one control plane and 2 workers idles at about 1.2 GB
@@ -114,6 +116,14 @@ jobs:
           } | tee "$RUNNER_TEMP/kindcells/modes.txt"
           echo "KIND_MODES=$modes" >> "$GITHUB_ENV"
           echo "KIND_WAITING=$waiting" >> "$GITHUB_ENV"
+      # Each kind node is a container on the kernel of the runner, thus the pods of all nodes share its
+      # inotify limits. The default of 128 instances for each user is too few for a cluster with the
+      # DaemonSets and the sidecars of a mesh, and a kubelet or a log stream then fails with "too many
+      # open files". These are the limits that the known issues of kind give.
+      - name: The inotify limits of the nodes
+        run: |
+          sudo sysctl -w fs.inotify.max_user_instances=512 fs.inotify.max_user_watches=524288
+          echo "inotify: $(sysctl -n fs.inotify.max_user_instances) instances, $(sysctl -n fs.inotify.max_user_watches) watches" | tee -a "$RUNNER_TEMP/kindcells/runner.txt"
       # A dump of conntrack through netlink walks each bucket of the table of the kernel with the
       # softirqs off, and a segment that comes in that walk waits for its end. The agent of each node
       # dumps the table each second. A runner of 16 GB has 262144 buckets: the table gets 16384.

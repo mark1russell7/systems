@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ALL } from "./all.ts";
 import { HZ } from "./catalog.ts";
 import { T07_GRPC } from "./grpc/t07.ts";
+import { T15_GRPC } from "./grpc/t15.ts";
 import { HTTP_CAL, HTTP_CELLS } from "./http/catalog.ts";
 import { T01_MONGO } from "./mongo/t01.ts";
 import { T03_MONGO } from "./mongo/t03.ts";
@@ -20,6 +21,7 @@ const CATALOGS: Readonly<Record<string, ReadonlyArray<{ readonly name: string; r
   T07_CELLS,
   T18_CELLS,
   T07_GRPC,
+  T15_GRPC,
 };
 
 /** one line for each cell, its catalog and name, then its prediction: a change of one prediction is a change of one line */
