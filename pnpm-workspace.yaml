@@ -13,5 +13,8 @@ allowBuilds:
   ssh2: false
 
 minimumReleaseAgeExclude:
+  # Our own packages: the release train updates them, so the release age check of pnpm does not apply to them.
+  - "@mark1russell7/*"
+  - "@procedures/*"
   - "@astrojs/starlight@0.42.6"
   - astro@7.3.8
