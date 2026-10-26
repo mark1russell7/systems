@@ -2,6 +2,7 @@ import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { realClock } from "../clock.ts";
 import type { Attempt, CheckOptions, Client, ClientJoin, ClientKnobs, ClientOptions, ClientSpec, ClientStep, DialFn, SendOptions, Sent } from "../client/core.ts";
 import {
+  ageProblems,
   attachClient,
   clientBounds,
   clientProblems,
@@ -10,6 +11,7 @@ import {
   dialCheck,
   finiteMs,
   inFlight,
+  keepaliveOnProblems,
   localStateCheck,
   message,
   ms,
@@ -147,9 +149,7 @@ export const specProblems = (name: string, spec: MongoClientSpec): string[] => {
   ];
   if (ms(knobs.heartbeat_interval) < LEAST_HEARTBEAT_MS)
     problems.push(`${name}'s heartbeat_interval is below 500 ms, the least that the driver takes`);
-  if (!(ms(knobs.keepalive_idle) > 0) || !Number.isFinite(ms(knobs.keepalive_idle)))
-    problems.push(`${name}'s keepalive_idle is not a finite time above zero: the driver always turns keepalive on`);
-  if (knobs.max_connection_age.value !== "infinite") problems.push(`${name}'s max_connection_age is not "infinite": the driver has no age for a connection`);
+  problems.push(...keepaliveOnProblems(name, knobs, "the driver"), ...ageProblems(name, knobs, "the driver has no age for a connection"));
   return problems;
 };
 

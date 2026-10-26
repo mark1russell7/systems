@@ -7,6 +7,7 @@ import * as backoffEntry from "./backoff.ts";
 import * as clockEntry from "./clock.ts";
 import * as heartbeatEntry from "./heartbeat.ts";
 import * as httpEntry from "./http.ts";
+import * as httpClientEntry from "./http-client.ts";
 import * as root from "./index.ts";
 import * as limiterEntry from "./limiter.ts";
 import * as rabbitEntry from "./rabbitmq.ts";
@@ -76,7 +77,7 @@ const reachAll = (entry: string, from = here): string[] => {
 
 describe("zod is an optional peer: no entry of the service loads it (SYS-12)", () => {
   it("reaches no zod from any entry, through quantity and the replay of the algebra too", () => {
-    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "clock.ts", "heartbeat.ts", "backoff.ts", "limiter.ts"])
+    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "clock.ts", "heartbeat.ts", "backoff.ts", "limiter.ts"])
       expect(reachAll(entry), entry).not.toContain("zod");
     // the root loads no other package and no node: module at run time
     expect(reachAll("index.ts")).toEqual([]);
@@ -173,6 +174,33 @@ describe("the rabbitmq entry: amqplib is an optional peer, loaded only at the co
 
   it("shares the backoff of the core with the redis entry, which keeps its export of 0.5", () => {
     expect(rabbitEntry.retryBackoff).toBe(redisEntry.retryBackoff);
+  });
+});
+
+describe("the http-client entry: node:http is a built-in, loaded only at the connect", () => {
+  it("loads no node:http at its import, and no node: module other than node:net", () => {
+    const { packages } = reach("http-client.ts");
+    expect(packages.filter((name) => name.startsWith("node:"))).toEqual(["node:net"]);
+    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/quantity"]);
+  });
+
+  it("does not load the fakes of its tests", () => {
+    expect(reach("http-client.ts").files.filter((file) => file.includes("fake"))).toEqual([]);
+  });
+
+  it("is in the manifest, for the source and for npm, beside the server edge ./http", () => {
+    const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
+      exports: Record<string, string>;
+      publishConfig: { exports: Record<string, { types: string; default: string }> };
+    };
+    expect(manifest.exports["./http-client"]).toBe("./src/http-client.ts");
+    expect(manifest.publishConfig.exports["./http-client"]).toEqual({ types: "./build/http-client.d.ts", default: "./build/http-client.js" });
+    expect(manifest.exports["./http"]).toBe("./src/http.ts");
+  });
+
+  it("gives no function of the server edge, and the server edge gives none of the client", () => {
+    for (const name of Object.keys(httpEntry)) expect(httpClientEntry, name).not.toHaveProperty(name);
+    expect(httpEntry).not.toHaveProperty("httpClient");
   });
 });
 

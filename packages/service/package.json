@@ -36,6 +36,7 @@
     "./pg": "./src/pg.ts",
     "./mongodb": "./src/mongodb.ts",
     "./rabbitmq": "./src/rabbitmq.ts",
+    "./http-client": "./src/http-client.ts",
     "./clock": "./src/clock.ts",
     "./heartbeat": "./src/heartbeat.ts",
     "./backoff": "./src/backoff.ts",
@@ -125,6 +126,10 @@
       "./rabbitmq": {
         "types": "./build/rabbitmq.d.ts",
         "default": "./build/rabbitmq.js"
+      },
+      "./http-client": {
+        "types": "./build/http-client.d.ts",
+        "default": "./build/http-client.js"
       },
       "./clock": {
         "types": "./build/clock.d.ts",

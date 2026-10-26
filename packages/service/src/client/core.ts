@@ -1,5 +1,5 @@
 // The parts of a client wrapper that do not change from one client to the next. Each client entry
-// (`./redis`, `./pg`, and each later client of S1) fills them in with its driver. The core gives
+// (`./redis`, `./pg`, `./http-client`, and each later client of S1) fills them in with its driver. The core gives
 // the shapes of a client, the outcome of a call in three values, the rule that sends a call again,
 // the record of the calls in flight, the bounded close, the checks of the steps of a connection,
 // and the problems of a spec and of a client in a description. It loads only quantity.
@@ -232,15 +232,28 @@ export interface InFlight {
   ): Promise<Attempt<T>>;
   /** This method settles each call in flight as indeterminate, with this error. */
   settleAll(error: string): void;
+  /** This method resolves when no call is in flight. A close that waits for its calls uses it in its bound. */
+  idle(): Promise<void>;
 }
 
 /** This function makes the record of the calls in flight of a client. */
 export const inFlight = (): InFlight => {
   const closes = new Set<(error: string) => void>();
+  const waiters = new Set<() => void>();
+  const wake = (): void => {
+    if (closes.size > 0) return;
+    for (const waiter of [...waiters]) waiter();
+    waiters.clear();
+  };
   return {
     get size() {
       return closes.size;
     },
+    idle: () =>
+      new Promise<void>((resolve) => {
+        if (closes.size === 0) resolve();
+        else waiters.add(resolve);
+      }),
     track<T>(
       signal: AbortSignal | undefined,
       abandoned: string,
@@ -256,6 +269,7 @@ export const inFlight = (): InFlight => {
           signal?.removeEventListener("abort", aborted);
           after?.(value, cause);
           resolve(value);
+          wake();
         };
         const close = (error: string): void => settle({ outcome: "indeterminate", error }, new Error(error));
         const aborted = (): void => close(abandoned);
@@ -268,6 +282,37 @@ export const inFlight = (): InFlight => {
       for (const close of [...closes]) close(error);
     },
   };
+};
+
+/**
+ * This function sends one call through the record of the calls in flight, with a timer of the
+ * wrapper. A driver with no timer for its call uses it: amqplib, and the agent of Node. At `bound`
+ * milliseconds the call is indeterminate with the error `timedOut`, because it left the client.
+ * The timer stops when the call settles, before `after` operates.
+ */
+export const trackWithTimer = <T>(
+  flight: InFlight,
+  clock: Clock,
+  bound: number,
+  signal: AbortSignal | undefined,
+  abandoned: string,
+  timedOut: string,
+  start: (settle: Settle<T>) => void,
+  after?: (value: Attempt<T>, cause: Error | undefined) => void,
+): Promise<Attempt<T>> => {
+  let stop: Cancel = () => {};
+  return flight.track<T>(
+    signal,
+    abandoned,
+    (settle) => {
+      stop = clock.after(bound, () => settle({ outcome: "indeterminate", error: timedOut }));
+      start(settle);
+    },
+    (value, cause) => {
+      stop();
+      after?.(value, cause);
+    },
+  );
 };
 
 /**
@@ -429,6 +474,38 @@ export const deadlineProblem = (name: string, request: Quantity, deadline: Exten
   deadline.value !== "infinite" && ms(request) <= ms(deadline)
     ? `${name}'s request_timeout is not above its statement_timeout: the server goes on with a ${call} that the client gave up (O07)`
     : null;
+
+/**
+ * This function gives the problem O01 of a client pool, or null. The pool must close an idle
+ * connection before its server does. Otherwise a request can go on a connection that the server
+ * closed. A server that keeps an idle connection with no bound gives no problem.
+ */
+export const idleCloseProblem = (name: string, expiry: Extent, close: Extent): string | null =>
+  close.value !== "infinite" && !(ms(expiry) < ms(close))
+    ? `${name}'s pool_idle_expiry is not below the idle close of its server: a request can go on a connection that the server closed (O01)`
+    : null;
+
+/**
+ * This function gives the problems of the timers that the wrapper has, because its driver has none.
+ * Each one must be a finite time above zero. `bounds` gives what each knob bounds, for example "a call".
+ */
+export const wrapperTimerProblems = (name: string, knobs: object, bounds: Readonly<Record<string, string>>): string[] =>
+  Object.entries(bounds)
+    .filter(([knob]) => {
+      const value = ms(knobOf(knobs, knob));
+      return !(value > 0) || !Number.isFinite(value);
+    })
+    .map(([knob, what]) => `${name}'s ${knob} is not a finite time above zero: the timer of the wrapper is the only bound of ${what}`);
+
+/** This function gives the problem of a finite connection age, for a client that does not replace a connection at an age. `reason` tells why. */
+export const ageProblems = (name: string, knobs: Pick<ClientKnobs, "max_connection_age">, reason: string): string[] =>
+  knobs.max_connection_age.value === "infinite" ? [] : [`${name}'s max_connection_age is not "infinite": ${reason}`];
+
+/** This function gives the problem of a keepalive that is not a finite time above zero, for a driver that always turns keepalive on. */
+export const keepaliveOnProblems = (name: string, knobs: Pick<ClientKnobs, "keepalive_idle">, driver: string): string[] => {
+  const value = ms(knobs.keepalive_idle);
+  return value > 0 && Number.isFinite(value) ? [] : [`${name}'s keepalive_idle is not a finite time above zero: ${driver} always turns keepalive on`];
+};
 
 /** These are the parts of one call that the core uses to send it, and to send it again. */
 export interface Reissue<T> {
