@@ -382,6 +382,7 @@ The S2 cells (`src/callers.ts`, `CALLERS_CELLS`) measure the dimension "how call
   - C has 3 sessions in all, and each session on the target fails 50 requests each second until the latch. The band is 0 to 3 sessions in each mode. At random, a run has no session on the target with a chance of 1/8. In turn, the first pick of each node is not known. C expects 0 to 2,700.
   - C has the mean of B: an eighth of the connections, each with 8 times the requests. Its band is wider, because a client on the target fails each of its requests, and a client on the other replica fails none.
   - A run of C with no session on the target has no failure, thus the prediction of C is not `certain`.
+- **The scores of S6** (`src/scores.ts`, `scoreCallers`). The function gives each candidate of each mode a score on each criterion of S6, from the copy of a kind run. A score is `measured`, `bounded` or `not measured`. A measured score has the prediction next to the values, and each score names its run and its cell. A criterion that the copy cannot support gives its reason and no number. The script `packages/site/scripts/scores.ts` writes the scorecard that the kind page shows.
 
 ## The runner
 

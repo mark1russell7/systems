@@ -4,6 +4,8 @@
  * its prediction and its verdict. The chart has a dot for each counted run, against the band. A frame
  * of a group also has the stages of the failover. A kind cell has a frame with its verdict, and a
  * strip chart when its main value is a time. The cells of T15 in kind and the S2 cells have their own copy.
+ *
+ * The scores of S6 for the S2 cells have their own copy too.
  */
 import type { ReactElement } from "react";
 import grpc from "../data/grpc-2026-10-20.json";
@@ -14,6 +16,7 @@ import pg from "../data/pg-2026-10-19.json";
 import r3 from "../data/r3-2026-10-17.json";
 import rabbitmq from "../data/rabbitmq-2026-10-19.json";
 import s2 from "../data/s2-2026-10-26.json";
+import s6 from "../data/s6-2026-10-26.json";
 import t15 from "../data/t15-2026-10-25.json";
 import sentinel from "../data/sentinel-2026-10-17.json";
 import { count as digits, duration, reading } from "../lib/format.ts";
@@ -586,6 +589,177 @@ export function CallersTable(): ReactElement {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/** A quantity of the scorecard of S6: a value and its unit, `s` or `{request}`. */
+interface Amount {
+  readonly value: number;
+  readonly unit: string;
+}
+/** A score of the scorecard of S6, as `scoreCallers` of the cells writes it. */
+type ScoreCopy =
+  | { readonly criterion: string; readonly kind: "measured"; readonly median: Amount; readonly values: readonly Amount[]; readonly prediction: { readonly lo: Amount; readonly hi: Amount }; readonly holds: boolean; readonly evidence: { readonly run: number; readonly cell: string } }
+  | { readonly criterion: string; readonly kind: "bounded"; readonly prediction: { readonly from: string; readonly band: { readonly lo: Amount; readonly hi: Amount } }; readonly holds: boolean; readonly evidence: { readonly run: number; readonly cell: string }; readonly why: string }
+  | { readonly criterion: string; readonly kind: "not measured"; readonly why: string };
+/** The scores of one mode of the scorecard: each candidate, and the label of the candidate with the fewest failed requests. */
+interface ModeCopy {
+  readonly mode: string;
+  readonly candidates: ReadonlyArray<{ readonly candidate: string; readonly label: string; readonly cell: string; readonly scores: readonly ScoreCopy[] }>;
+  readonly fewest: string | null;
+}
+/** The scorecard of S6: the run, the criteria, and the scores of each incident. */
+interface ScorecardCopy {
+  readonly run: number;
+  readonly criteria: readonly string[];
+  readonly incidents: ReadonlyArray<{ readonly incident: string; readonly kind: "scored"; readonly modes: readonly ModeCopy[] } | { readonly incident: string; readonly kind: "not measured"; readonly why: string }>;
+}
+const SCORES = s6 as unknown as ScorecardCopy;
+
+/** This function gives the link of a CI run of the repository. */
+const runLink = (run: number): string => `https://github.com/mark1russell7/systems/actions/runs/${run}`;
+
+/** This function writes a criterion as the head of a row: its first letter in capitals. */
+const headOf = (criterion: string): string => `${criterion.charAt(0).toUpperCase()}${criterion.slice(1)}`;
+
+/** This function gives the reason of each candidate for a criterion with no number, or null when a mode gives a different reason. */
+const reasonsOf = (modes: readonly ModeCopy[], criterion: string): readonly string[] | null => {
+  const of = (mode: ModeCopy): string[] => mode.candidates.map((each) => {
+    const score = each.scores.find((one) => one.criterion === criterion);
+    return score?.kind === "not measured" ? score.why : "";
+  });
+  const first = modes[0] === undefined ? [] : of(modes[0]);
+  return modes.every((mode) => of(mode).join("\n") === first.join("\n")) ? first : null;
+};
+
+/**
+ * This table shows the scores of S6 for "how callers learn", side by side in each mode of kube-proxy.
+ * A row gives each criterion that has a score from the run, with the prediction next to the measure.
+ * Each cell links to the run of its evidence. A criterion that the data cannot support gives its reason,
+ * and no number. The incidents with no cell of the candidates follow the table.
+ */
+export function CallersScores(): ReactElement {
+  const scored = SCORES.incidents.find((each) => each.kind === "scored");
+  if (scored === undefined || scored.kind !== "scored") throw new Error("the scorecard of S6 has no incident with scores");
+  const modes = scored.modes;
+  const heads = modes[0]?.candidates ?? [];
+  const rest = SCORES.incidents.flatMap((each) => (each.kind === "not measured" ? [each] : []));
+  const scoreAt = (mode: ModeCopy, label: string, criterion: string): ScoreCopy => {
+    const score = mode.candidates.find((each) => each.label === label)?.scores.find((each) => each.criterion === criterion);
+    if (score === undefined) throw new Error(`no score of S6 for ${mode.mode}, ${label}, ${criterion}`);
+    return score;
+  };
+  const cellOf = (mode: ModeCopy, label: string, criterion: string): ReactElement => {
+    const score = scoreAt(mode, label, criterion);
+    if (score.kind === "not measured") return <span className="sy-muted">{`Not measured. ${score.why}`}</span>;
+    const evidence = (
+      <a href={runLink(score.evidence.run)}>
+        <code>{score.evidence.cell}</code>
+      </a>
+    );
+    if (score.kind === "measured")
+      return (
+        <>
+          <Verdict decision={score.holds ? "holds" : "fails"} text={`${count(score.median.value, "failed request")} in the median run`} />
+          {mode.fewest === label ? <strong> The fewest in this mode.</strong> : null}
+          <br />
+          <span className="sy-muted">
+            {`The prediction: ${digits(score.prediction.lo.value)} to ${digits(score.prediction.hi.value)}. The counted runs: ${score.values.map((each) => digits(each.value)).join(", ")}. `}
+            {evidence}
+          </span>
+        </>
+      );
+    const { from, band } = score.prediction;
+    return (
+      <>
+        <Verdict decision={score.holds ? "holds" : "fails"} text="each failure in the window" />
+        <br />
+        <span className="sy-muted">
+          {`The prediction: the last failure ${fine(band.lo.value)} to ${fine(band.hi.value)} after ${S2_FROM[from] ?? from}. `}
+          {evidence}
+        </span>
+      </>
+    );
+  };
+  const measured = SCORES.criteria.filter((criterion) => modes.some((mode) => mode.candidates.some((each) => scoreAt(mode, each.label, criterion).kind !== "not measured")));
+  const unmeasured = SCORES.criteria.filter((criterion) => !measured.includes(criterion));
+  const notes = [...new Set(measured.flatMap((criterion) => modes.flatMap((mode) => mode.candidates.flatMap((each) => {
+    const score = scoreAt(mode, each.label, criterion);
+    return score.kind === "bounded" ? [score.why] : [];
+  }))))];
+  // a note that another note holds is not shown twice
+  const shown = notes.filter((note) => !notes.some((other) => other !== note && other.includes(note)));
+  return (
+    <div className="not-content">
+      <p>
+        {`The scores of ${scored.incident}, from the run `}
+        <a href={runLink(SCORES.run)}>{SCORES.run}</a>.
+      </p>
+      <div className="sy-scroll">
+        <table className="sy-table">
+          <thead>
+            <tr>
+              <th>Criterion</th>
+              <th>Mode</th>
+              {heads.map((each) => (
+                <th key={each.label}>{`${each.label}: ${each.candidate}`}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {measured.flatMap((criterion) =>
+              modes.map((mode, row) => (
+                <tr key={`${criterion} ${mode.mode}`}>
+                  {row === 0 ? <td rowSpan={modes.length}>{headOf(criterion)}</td> : null}
+                  <td>{code(mode.mode)}</td>
+                  {heads.map((each) => (
+                    <td key={each.label}>{cellOf(mode, each.label, criterion)}</td>
+                  ))}
+                </tr>
+              )),
+            )}
+            {unmeasured.map((criterion) => {
+              const reasons = reasonsOf(modes, criterion);
+              if (reasons === null)
+                return modes.map((mode, row) => (
+                  <tr key={`${criterion} ${mode.mode}`}>
+                    {row === 0 ? <td rowSpan={modes.length}>{headOf(criterion)}</td> : null}
+                    <td>{code(mode.mode)}</td>
+                    {heads.map((each) => (
+                      <td key={each.label}>{cellOf(mode, each.label, criterion)}</td>
+                    ))}
+                  </tr>
+                ));
+              return (
+                <tr key={criterion}>
+                  <td>{headOf(criterion)}</td>
+                  <td>Each mode</td>
+                  {new Set(reasons).size === 1 ? (
+                    <td colSpan={heads.length}>
+                      <span className="sy-muted">{`Not measured. ${reasons[0] ?? ""}`}</span>
+                    </td>
+                  ) : (
+                    reasons.map((why, at) => (
+                      <td key={heads[at]?.label ?? at}>
+                        <span className="sy-muted">{`Not measured. ${why}`}</span>
+                      </td>
+                    ))
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {shown.map((note) => (
+        <p key={note} className="sy-muted">
+          {note}
+        </p>
+      ))}
+      <p className="sy-muted">
+        {`Not measured yet: ${rest.map((each) => each.incident).join(", ")}. ${rest[0]?.why ?? ""}`}
+      </p>
     </div>
   );
 }
