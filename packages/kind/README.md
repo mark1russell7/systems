@@ -148,7 +148,9 @@ A new member of the union `Template` breaks a reader that switches on it. That i
 
 ## The image
 
-The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`, its clients, the agent and the watcher, on Node 24.21.0. Its base is pinned by digest, and `npm-lock.json` pins the packages from npm. `stageLabImage()` stages its context, and `labImage()` tags the image by its content.
+The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`, its clients, the agent and the watcher, on Node 24.21.0. Its base is pinned by digest, and `npm-lock.json` pins the packages from npm. `stageLabImage()` stages its context, and `labImage()` gives the tag of the image.
+
+- **The resolver.** From 0.10.1, the lab image is a `build` source of the harness (`labSource()`). The resolver of the harness plans it and builds it, as it does each other image (`planOf`, `imageOf`). Thus its tag comes from its content, and each `FROM` has a digest. Each manifest of packages has a lockfile, and a failed build tries again after each wait. The build goes through the CLI of Docker, not through Testcontainers.
 
 - **In the workspace** of this repository, the stage builds `@mark1russell7/quantity`, `@mark1russell7/algebra` and `@mark1russell7/service`, and packs each one as npm gets it.
 - **From npm**, the stage packs the installed versions of the same packages. The package holds the files of the image, and `src/compose.ts` and `src/backends.ts`, for that.
