@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/package",
   "name": "@mark1russell7/kind",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "description": "Kubernetes in Docker as a lab for connection timers: a kind cluster from a scenario, faults in the namespaces of its pods, observations on the one monotonic clock of the VM, and predictions from the ordering law. Its judge entry reads and judges a raw record without Docker.",
   "keywords": [
     "kubernetes",
