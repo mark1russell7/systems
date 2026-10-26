@@ -88,6 +88,8 @@ export type {
   ProbeKind,
   StartOptions,
 } from "./health.ts";
+export type { CheckMetrics, DurationHistogram, Episode, HealthMetrics } from "./metrics.ts";
+export { DURATION_FRACTIONS, EPISODES_KEPT, redact } from "./metrics.ts";
 export type { LifecycleEvent, MachineName, Recorder } from "./events.ts";
 export type {
   DependencyHandle,
