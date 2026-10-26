@@ -555,7 +555,7 @@ It comes in service 0.5.8, a PATCH: a new optional option and new exports, befor
 - **Depends on:** WS
 - **Started:** 2026-10-26
 - **Shipped:** 2026-10-26
-- **Links:** [The WST cells](https://github.com/mark1russell7/systems/blob/main/packages/cells/src/ws-topologies.ts), [the document](https://github.com/mark1russell7/systems/blob/main/packages/machines/src/proxy/haproxy.ts)
+- **Links:** [PR #185](https://github.com/mark1russell7/systems/pull/185), [the WST cells](https://github.com/mark1russell7/systems/blob/main/packages/cells/src/ws-topologies.ts), [the document](https://github.com/mark1russell7/systems/blob/main/packages/machines/src/proxy/haproxy.ts)
 
 The client item O17 found it. HAProxy had no machine document. Thus three WST cells of an idle timeout of HAProxy had no band, and each one was a measurement.
 
@@ -568,6 +568,8 @@ Thus the algebra gives a band to each of the three cells:
 - `timeout client` sends a FIN to the server, and the server of ws answers with its own. Thus its band gets one round trip and one step of HAProxy more.
 
 The `timeout server` cell of T02 gets the same band. The `timeout client` cell of T02 stays a measurement, because the document of Redis does not give its FIN back.
+
+It shipped in [PR #185](https://github.com/mark1russell7/systems/pull/185).
 
 It comes in machines as a PATCH: a new export before 1.0.0.
 
