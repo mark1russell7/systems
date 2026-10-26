@@ -92,10 +92,13 @@ One replica of 2 cannot serve for 30 s. A flag file fails its route with 503, an
 
 - **A: endpoints only.** The edge keeps each connection open. The removal of the endpoint changes nothing for an open connection, thus its requests fail until the heal.
 - **B: in band (lame duck).** While the service is not ready, each answer has `Connection: close`. Each caller then opens a new connection, and the rules send it to the other replica after the removal.
+- **C: in band on HTTP/2 (GOAWAY).** The same lame duck on an edge of HTTP/2 without TLS. While the service is not ready, the edge sends GOAWAY on each session. Each client sends its requests as streams on one session, thus it opens a new connection through the rules after the GOAWAY.
 
-The two candidates differ only in the field `lameDuck` of the declaration. The mode of kube-proxy gives the propagation of the removal, thus the end of the window of the lame duck. The table gives the verdict, the failed requests of the median run, and the prediction of each candidate.
+A and B differ only in the field `lameDuck` of the declaration. C is B with the field `protocol` set to `h2c`, and one session for each client. The mode of kube-proxy gives the propagation of the removal, thus the end of the window of the lame duck. The table gives the verdict, the failed requests of the median run, and the prediction of each candidate.
 
 Each connection on the target fails one request in each turn of 160 ms. Thus the count of failed requests follows the connections on the target at the fault. IPVS selects the backends in turn, thus 12 of the 24 connections go to the target. The rules of iptables and nftables select at random, thus the count is binomial. It is 7 to 17 in 95 % of the runs at the least. The runs had 9 to 14.
+
+C has fewer connections, thus each connection carries more requests. Each session on the target fails one request in each turn of 20 ms, thus its window ends 140 ms earlier than B at the latest. The 3 sessions give the same mean count as the 24 connections of B, but a wider band. From 0 to 3 sessions go to the target, and a run with none has no failure. C has no run yet, thus its column shows only its prediction.
 
 <CallersTable />
 

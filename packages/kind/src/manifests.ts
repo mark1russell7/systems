@@ -222,7 +222,8 @@ export const serverObjects = (cell: KindCell, namespace: string, image: string, 
 /**
  * These are the objects of the clients: a DaemonSet with one client on each node, the control plane
  * too. The client of the service is `client.mjs`, and the client of grpc-go is `client-grpc.mjs`.
- * Each one is in the lab image, and each one writes the same lines.
+ * Each one is in the lab image, and each one writes the same lines. A service with the protocol
+ * `h2c` gives its clients `PROTOCOL`, thus they speak HTTP/2 to it.
  */
 export const clientObjects = (cell: KindCell, namespace: string, image: string, target: string): unknown[] => [
   {
@@ -247,6 +248,7 @@ export const clientObjects = (cell: KindCell, namespace: string, image: string, 
                 { name: "EVERY_MS", value: String(valueIn(cell.workload.every, "ms")) },
                 { name: "TIMEOUT_MS", value: String(valueIn(cell.workload.timeout, "ms")) },
                 ...(cell.workload.connections === undefined ? [] : [{ name: "CONNECTIONS", value: String(cell.workload.connections) }]),
+                ...(cell.declaration?.protocol === "h2c" ? [{ name: "PROTOCOL", value: "h2c" }] : []),
                 { name: "POD_NAME", valueFrom: { fieldRef: { fieldPath: "metadata.name" } } },
                 { name: "NODE_NAME", valueFrom: { fieldRef: { fieldPath: "spec.nodeName" } } },
               ],

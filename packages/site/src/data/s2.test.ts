@@ -24,6 +24,23 @@ describe("the copy of the S2 cells holds the figures of their kind run", () => {
     for (const cell of s2.cells) for (const value of cell.values) expect(value, cell.id).toBeLessThanOrEqual(cell.candidate.expected.high);
   });
 
+  it("has the prediction of each S2 cell of the catalog: C too, before its first run", () => {
+    const ids = ["iptables", "ipvs", "nftables"].flatMap((mode) => [`S2.T07.${mode}.endpoints`, `S2.T07.${mode}.lame-duck`, `S2.T07.${mode}.goaway`]);
+    expect(s2.predictions.map((each) => each.id)).toEqual(ids);
+    // each cell with a run has the prediction of the catalog
+    for (const cell of s2.cells) expect(s2.predictions.find((each) => each.id === cell.id)?.candidate, cell.id).toEqual(cell.candidate);
+    // C: one session of HTTP/2 for each client, thus 0 to 3 sessions on the target, and a turn of 20 ms
+    const c = s2.predictions.filter((each) => each.candidate.label === "C").map((each) => each.candidate);
+    expect(c.map((each) => [each.name, each.connections, each.expected, each.start.high])).toEqual(
+      Array.from({ length: 3 }, () => ["in band on HTTP/2 (GOAWAY)", { low: 0, high: 3, of: 3 }, { low: 0, high: 2700 }, 0.02]),
+    );
+    expect(c.map((each) => each.end)).toEqual([
+      { from: "fault", low: 8, high: 24.125 },
+      { from: "fault", low: 8, high: 24.329 },
+      { from: "fault", low: 8, high: 24.099 },
+    ]);
+  });
+
   it("names no machine: no image digest, address, pod, user or path", () => {
     const text = readFileSync(new URL("./s2-2026-10-26.json", import.meta.url), "utf8");
     expect(text).not.toMatch(/boot_id|sha256|digest|netns|inode|[0-9a-f]{12,}|\b\d{1,3}(\.\d{1,3}){3}\b/i);

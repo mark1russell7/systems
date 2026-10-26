@@ -5,7 +5,9 @@
 //
 // T07 is the endpoint lifecycle of a Service in kind, and T18 is a fleet whose readiness needs
 // Redis. T15 is gRPC through two hops of an Istio mesh in kind. The S2 cells are T07 with a replica
-// that cannot serve, for two candidates in each mode: A (endpoints only) and B (lame duck). Each folder is the output of one shard of the workflow Kind on a runner of GitHub: the raw
+// that cannot serve, for three candidates in each mode: A (endpoints only), B (lame duck) and C
+// (GOAWAY on HTTP/2). The copy of S2 also has the prediction of each S2 cell of the catalog
+// (`predictions`), thus the page shows a candidate with no run. Each folder is the output of one shard of the workflow Kind on a runner of GitHub: the raw
 // record of each cell, summary.ndjson and runner.txt. A record of the format /1 is read through
 // `upgrade`. The script judges each record again with the cell of the catalog of the same name
 // (`judgeKind`), as KIND_JUDGE does. The calibration of the
@@ -24,8 +26,8 @@ import { FORMAT, FORMAT_V1, calibrationOf, judgeKind, propagationOf, referenceOf
 import { T07_CELLS } from "../../cells/src/t07.ts";
 import { T18_CELLS } from "../../cells/src/t18.ts";
 import { T15_GRPC } from "../../cells/src/grpc/t15.ts";
-import type { Candidate } from "../../cells/src/callers.ts";
-import { CALLERS_CELLS, CANDIDATES, expectedFailures } from "../../cells/src/callers.ts";
+import { CALLERS_CELLS } from "../../cells/src/callers.ts";
+import { callerPredictions, candidateOf } from "./callers.ts";
 import type { Found } from "./records.ts";
 import { dateOf, only, readFolders, runnerOf, round, stringify, time, timeAt } from "./records.ts";
 
@@ -317,30 +319,6 @@ const propagationValues = (runs: readonly KindRun[]): number[] =>
 const spread = (value: TimeSpread | null) =>
   value === null ? null : { count: value.count, min: s(value.min), median: s(value.median), p99: s(value.p99), max: s(value.max) };
 
-/** This function gives the candidate of an S2 cell, by the end of its name. */
-const candidateName = (cell: KindCell): Candidate => {
-  const name = CANDIDATES.find((each) => cell.name.endsWith(`: ${each}`));
-  if (name === undefined) throw new Error(`${cell.name}: no candidate of S2`);
-  return name;
-};
-
-/** This function gives the candidate of an S2 cell for the side-by-side table: its window and its expected count of failed requests. */
-const candidateOf = (cell: KindCell) => {
-  if (cell.trigger.kind !== "cannot-serve") return null;
-  const p = cell.prediction;
-  if (p.kind !== "window" || p.end === null) throw new Error(`${cell.name}: an S2 cell has a window that ends`);
-  const name = candidateName(cell);
-  const expected = expectedFailures(name, cell.mode);
-  return {
-    name,
-    label: name === "endpoints only" ? "A" : "B",
-    start: { from: p.start.from, low: s(p.start.band.lo), high: s(p.start.band.hi) },
-    end: { from: p.end.from, low: s(p.end.band.lo), high: s(p.end.band.hi) },
-    expected: { low: expected.lo.value, high: expected.hi.value },
-    connections: { low: expected.connections.lo.value, high: expected.connections.hi.value, of: expected.connections.of.value },
-  };
-};
-
 /** This function gives the copy of a cell: kind for T07 and T18, t15 for T15, and s2 for the S2 cells. */
 const copyOf = (cell: KindCell): "kind" | "t15" | "s2" => (cell.template === "T15" ? "t15" : cell.id.startsWith("S2.") ? "s2" : "kind");
 
@@ -426,5 +404,7 @@ const copy = {
 };
 const name = only("the copy of their cells (the cells of T15 and of S2 each have their own copy)", cells.map((cell) => cell.copy));
 const out = fileURLToPath(new URL(`../src/data/${name}-${date}.json`, import.meta.url));
-writeFileSync(out, stringify({ ...copy, cells: cells.map(({ copy: _copy, ...cell }) => cell) }));
+// the copy of S2 has the prediction of each S2 cell of the catalog, with a run or not
+const predictions = name === "s2" ? { predictions: callerPredictions() } : {};
+writeFileSync(out, stringify({ ...copy, cells: cells.map(({ copy: _copy, ...cell }) => cell), ...predictions }));
 process.stdout.write(`${cells.length} cells, ${cells.reduce((sum, cell) => sum + cell.counted + cell.voided, 0)} runs: ${out}\n`);

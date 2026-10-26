@@ -74,7 +74,10 @@ describe("the components of the CI runs", () => {
     expect(table).toContain("The prediction: 1,313 to 3,842 failed requests, with 7 to 17 of the 24 connections on the target.");
     expect(table).toContain("The prediction: 600 to 1,350 failed requests, with 12 of the 24 connections on the target.");
     expect(table).not.toContain("disagree");
-    expect(table).not.toContain("no run");
+    // C has a column from its prediction before its first run
+    expect(table).toContain("C: in band on HTTP/2 (GOAWAY)");
+    expect(table.split("No run in the copy yet.").length - 1).toBe(3);
+    expect(table).toContain("The prediction: 0 to 2,700 failed requests, with 0 to 3 of the 3 connections on the target.");
     expect(table.split("<tr>").length - 1).toBe(4);
     const frames = renderToString(<KindResults template="T07" group="callers" />);
     expect(frames.split('class="sy-frame').length - 1).toBe(6);

@@ -179,17 +179,28 @@ export interface Declaration {
   /** This watchdog of the event loop gates liveness: a tick later than the threshold fails it. Null declares no watchdog. */
   readonly watchdog: { readonly tick: Quantity; readonly threshold: Quantity } | null;
   /**
-   * This flag is the lame-duck state of the HTTP edge. With true or no value, the edge sends
-   * `Connection: close` while the service is not ready, thus each caller opens a new connection.
-   * With false, the edge keeps each connection open, thus a caller learns only from the endpoints.
+   * This flag is the lame-duck state of the HTTP edge. With true or no value, the edge closes each
+   * connection in band while the service is not ready, thus each caller opens a new connection. On
+   * HTTP/1.1 the signal is `Connection: close`, and on HTTP/2 it is GOAWAY. With false, the edge keeps
+   * each connection open, thus a caller learns only from the endpoints.
    */
   readonly lameDuck?: boolean | undefined;
+  /**
+   * This text is the protocol of the HTTP edge and of its clients. `h2c` is HTTP/2 without TLS: the
+   * app listens with `node:http2`, and each client sends its requests as streams on its sessions.
+   * With `http/1.1` or no value, the edge is `node:http`.
+   */
+  readonly protocol?: EdgeProtocol | undefined;
 }
+
+/** An edge protocol is the protocol of the HTTP edge of the service: HTTP/1.1, or HTTP/2 without TLS (`h2c`). */
+export type EdgeProtocol = "http/1.1" | "h2c";
 
 /**
  * A workload is the clients: one pod on each node, each with requests to the ClusterIP. The HTTP client
- * opens a new connection for each request, or it keeps `connections` open. The gRPC client sends each
- * call on its one channel.
+ * opens a new connection for each request, or it keeps `connections` open. On HTTP/2 (`protocol` of
+ * the declaration), each connection is a session, and each request is a stream on it. The gRPC client
+ * sends each call on its one channel.
  */
 export interface Workload {
   /** This time is the interval between two requests of one client. The clients do not wait for an answer. */
@@ -201,7 +212,8 @@ export interface Workload {
   readonly timeout: Quantity;
   /**
    * This count is the keep-alive connections of each HTTP client. Each request goes on the next
-   * connection in turn. With no value, the client opens a new connection for each request.
+   * connection in turn. With no value, the client opens a new connection for each request. A client
+   * of HTTP/2 keeps this count of sessions, and it needs the count.
    */
   readonly connections?: number | undefined;
 }

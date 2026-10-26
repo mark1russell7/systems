@@ -369,15 +369,19 @@ Kubernetes keeps its timers in real time, thus these cells are not compressed.
 
 The S2 cells (`src/callers.ts`, `CALLERS_CELLS`) measure the dimension "how callers learn that a pod cannot serve". One replica of 2 cannot serve for 30 s: a flag file fails its route with 503 and its readiness check (`cannot-serve`). The cells measure when the callers stop getting errors, and how many requests fail.
 
-- **Two candidates, one cell.** `S2.T07.<mode>.endpoints` (A) keeps each connection open, thus the endpoints alone tell the callers. `S2.T07.<mode>.lame-duck` (B) is the service as it is: its edge sends `Connection: close` while it is not ready. The cells differ only in the field `lameDuck` of the declaration.
+- **Three candidates, one cell.** `S2.T07.<mode>.endpoints` (A) keeps each connection open, thus the endpoints alone tell the callers. `S2.T07.<mode>.lame-duck` (B) is the service as it is: its edge sends `Connection: close` while it is not ready. A and B differ only in the field `lameDuck` of the declaration.
+- **C on HTTP/2.** `S2.T07.<mode>.goaway` (C) is B on an edge of HTTP/2 without TLS: the field `protocol` is `h2c`. While the service is not ready, the same transport sends GOAWAY on each session. A client of HTTP/2 opens one connection to an origin, thus C has one session for each client (`MULTIPLEXED`). C is one more value of the candidate, not a new family of cells.
 - **Keep-alive clients** (`KEEP_ALIVE`, 8 connections for each client). kube-proxy selects a backend only for a new connection, and an established flow keeps its conntrack NAT. Thus a client with a new connection for each request cannot tell the candidates apart. In `ipvs`, a graceful delete sets the weight of the backend to 0, and its open connections stay.
 - **Each mode from one definition** (`CALLERS_MODES`). The mode is only a parameter of the cell: `iptables`, `ipvs` and `nftables`, each with its calibrated propagation (`PROPAGATION`). The mode changes only the end of the window of the lame duck.
 - **The smallest scenario.** T07 with 2 workers, 2 replicas, and the readiness probe of the chart (2 s, 3 times).
-- **The predictions** (`learnWindow` of `@mark1russell7/kind`). B ends 8 s after the fault at the earliest: the latch, the probe, the propagation and one turn of 160 ms. Its latest end is 24.265 s in `iptables`, 24.469 s in `ipvs` and 24.239 s in `nftables`. A ends up to 6.16 s after the heal in each mode: the recovery of the readiness and one turn.
+- **The predictions** (`learnWindow` of `@mark1russell7/kind`). B ends 8 s after the fault at the earliest: the latch, the probe, the propagation and one turn of 160 ms. Its latest end is 24.265 s in `iptables`, 24.469 s in `ipvs` and 24.239 s in `nftables`. A ends up to 6.16 s after the heal in each mode: the recovery of the readiness and one turn. C has the latch and the removal of B, and a turn of 20 ms on one session. Thus it ends 140 ms earlier than B at the latest: 24.125 s, 24.329 s and 24.099 s.
 - **The expected failed requests** (`expectedFailures`). Each connection on the target fails one request in each turn of 160 ms. Thus the count follows the connections on the target at the fault (`targetConnections`).
   - IPVS selects the backends in turn (`SELECTION`), thus 12 of the 24 connections go to the target. A expects 2,250 to 2,712, and the lame duck 600 to 1,350.
   - The rules of iptables and nftables select at random, thus the count of connections is binomial. The band of 7 to 17 has a chance of 95 % at the least. A expects 1,313 to 3,842, and the lame duck 350 to 1,913.
   - The run 40345515219 had 9 to 14 connections on the target in these two modes. Each why text and the site give the expected count.
+  - C has 3 sessions in all, and each session on the target fails 50 requests each second until the latch. The band is 0 to 3 sessions in each mode. At random, a run has no session on the target with a chance of 1/8. In turn, the first pick of each node is not known. C expects 0 to 2,700.
+  - C has the mean of B: an eighth of the connections, each with 8 times the requests. Its band is wider, because a client on the target fails each of its requests, and a client on the other replica fails none.
+  - A run of C with no session on the target has no failure, thus the prediction of C is not `certain`.
 
 ## The runner
 

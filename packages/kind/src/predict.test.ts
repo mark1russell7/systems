@@ -52,6 +52,13 @@ describe("the arithmetic of the predictions", () => {
     expect(learnWindow({ ...DESIGN, lameDuck: false }, chart, E, keeps).end).toEqual({ from: "heal", band: b(0, 6.16) });
     // a new connection for each request: one turn is one interval
     expect(learnWindow(DESIGN, chart, E, { every: keeps.every, timeout: s(2) }).turn).toEqual(s(0.02));
+    // GOAWAY on one session of HTTP/2: the same latch and removal, and a turn of one interval, thus the window ends 140 ms earlier
+    expect(learnWindow({ ...DESIGN, protocol: "h2c" }, chart, E, { ...keeps, connections: 1 })).toEqual({
+      turn: s(0.02),
+      latch: b(8, 18),
+      start: b(0, 0.02),
+      end: { from: "fault", band: b(8, 24.42) },
+    });
   });
 
   it("opens a deletion window only when the preStop sleep and the hold end before the propagation", () => {

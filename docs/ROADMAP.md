@@ -52,7 +52,7 @@ H2 was the last system of the set, and its last cell held on 2026-10-25. Thus ea
 
 kube-proxy in each mode, Cilium, Istio, kube-vip, CoreDNS, MetalLB and Pulsar, with drains and the lifecycle of a pod. kind checks each one.
 
-The first step measures how callers learn that a pod cannot serve: endpoint propagation (A) or an in-band `Connection: close` (B), on keep-alive clients (the cells `S2.T07.<mode>.endpoints` and `S2.T07.<mode>.lame-duck`). The next step runs the two candidates in each mode of kube-proxy from one definition, and the kind page shows them side by side.
+The first step measures how callers learn that a pod cannot serve: endpoint propagation (A) or an in-band `Connection: close` (B), on keep-alive clients (the cells `S2.T07.<mode>.endpoints` and `S2.T07.<mode>.lame-duck`). The next step runs the two candidates in each mode of kube-proxy from one definition, and the kind page shows them side by side. Candidate C sends GOAWAY on HTTP/2 from the same transport of the service (the cells `S2.T07.<mode>.goaway`). Each client has one session, thus fewer connections fail more requests each, and the window ends 140 ms earlier.
 
 ### S3 · Outcomes under failure and load
 

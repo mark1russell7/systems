@@ -148,7 +148,10 @@ export const pausedWindow = (
  * replica that cannot serve. The window starts at the fault, and its end comes from `end.from`.
  */
 export interface LearnWindow {
-  /** This time is the interval between two requests on one connection of a client: `every` times the connections. */
+  /**
+   * This time is the interval between two requests on one connection of a client: `every` times the
+   * connections. A client of HTTP/2 sends its streams on fewer connections, thus its turn is shorter.
+   */
   readonly turn: Quantity;
   /** This band is the trip of the readiness latch of the service after the fault. */
   readonly latch: Band;
@@ -160,9 +163,11 @@ export interface LearnWindow {
 /**
  * This function gives the learn window of a declaration, its readiness probe, a propagation and a
  * workload of keep-alive connections. A caller selects a replica only when it opens a connection:
- * - The lame duck (`lameDuck` true or no value): after the latch, each answer has `Connection: close`,
+ * - The lame duck (`lameDuck` true or no value): after the latch, each answer closes its connection,
  *   thus each connection of the replica gets one more failure and opens again. The rules select the
  *   replica until the removal, thus the last failure comes in one turn after it.
+ * - The signal of the lame duck is `Connection: close` on HTTP/1.1, and GOAWAY on HTTP/2. The
+ *   arithmetic is the same: the turn is `every` times the connections, which are sessions on HTTP/2.
  * - No lame duck: no connection opens again, thus the rules do not matter. The failures end only
  *   when the readiness of the service recovers after the heal, and one turn after it.
  */

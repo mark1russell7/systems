@@ -7,6 +7,7 @@ export { bandOf, seconds, secondsOf, showBand } from "./bands.ts";
 export type {
   Band,
   Declaration,
+  EdgeProtocol,
   KindCell,
   KindRun,
   KubeletProbe,

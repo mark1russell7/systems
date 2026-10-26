@@ -57,4 +57,14 @@ describe("the manifests of cannot-serve", () => {
     expect(envOf(clientObjects(keeps, "lab-ns", "lab:test", "10.96.0.10:8080"), 0)).toContainEqual({ name: "CONNECTIONS", value: "8" });
     expect(envOf(clientObjects(cellOf("cannot-serve"), "lab-ns", "lab:test", "10.96.0.10:8080"), 0).map((entry) => entry.name)).not.toContain("CONNECTIONS");
   });
+
+  it("tells each client to speak HTTP/2 only when the declaration has the protocol h2c, and the app gets the protocol in its config", () => {
+    const base = cellOf("cannot-serve");
+    const h2c: KindCell = { ...base, declaration: { ...base.declaration!, protocol: "h2c" }, workload: { ...base.workload, connections: 1 } };
+    expect(envOf(clientObjects(h2c, "lab-ns", "lab:test", "10.96.0.10:8080"), 0)).toContainEqual({ name: "PROTOCOL", value: "h2c" });
+    expect(configOf(h2c)).toMatchObject({ declaration: { protocol: "h2c" } });
+    expect(envOf(clientObjects(base, "lab-ns", "lab:test", "10.96.0.10:8080"), 0).map((entry) => entry.name)).not.toContain("PROTOCOL");
+    const plain: KindCell = { ...base, declaration: { ...base.declaration!, protocol: "http/1.1" } };
+    expect(envOf(clientObjects(plain, "lab-ns", "lab:test", "10.96.0.10:8080"), 0).map((entry) => entry.name)).not.toContain("PROTOCOL");
+  });
 });
