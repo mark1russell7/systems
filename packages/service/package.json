@@ -38,6 +38,7 @@
     "./rabbitmq": "./src/rabbitmq.ts",
     "./http-client": "./src/http-client.ts",
     "./websocket": "./src/websocket.ts",
+    "./grpc": "./src/grpc.ts",
     "./clock": "./src/clock.ts",
     "./heartbeat": "./src/heartbeat.ts",
     "./backoff": "./src/backoff.ts",
@@ -65,6 +66,7 @@
     "@mark1russell7/quantity": "workspace:^"
   },
   "peerDependencies": {
+    "@grpc/grpc-js": "^1.14.6",
     "amqplib": "^2.2.0",
     "ioredis": "^6.0.0",
     "mongodb": "^7.7.0",
@@ -73,6 +75,9 @@
     "zod": "^4.1.0"
   },
   "peerDependenciesMeta": {
+    "@grpc/grpc-js": {
+      "optional": true
+    },
     "amqplib": {
       "optional": true
     },
@@ -93,6 +98,7 @@
     }
   },
   "devDependencies": {
+    "@grpc/grpc-js": "1.14.6",
     "@mark1russell7/cue": "github:mark1russell7/cue",
     "@mark1russell7/harness": "workspace:^",
     "@types/node": "^26.6.4",
@@ -139,6 +145,10 @@
       "./websocket": {
         "types": "./build/websocket.d.ts",
         "default": "./build/websocket.js"
+      },
+      "./grpc": {
+        "types": "./build/grpc.d.ts",
+        "default": "./build/grpc.js"
       },
       "./clock": {
         "types": "./build/clock.d.ts",

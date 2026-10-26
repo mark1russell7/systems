@@ -7,6 +7,7 @@ import * as backoffEntry from "./backoff.ts";
 import { retrySchedule } from "./client/core.ts";
 import { statusLineJudge } from "./client/dial.ts";
 import * as clockEntry from "./clock.ts";
+import * as grpcEntry from "./grpc.ts";
 import * as heartbeatEntry from "./heartbeat.ts";
 import * as httpEntry from "./http.ts";
 import * as httpClientEntry from "./http-client.ts";
@@ -80,7 +81,7 @@ const reachAll = (entry: string, from = here): string[] => {
 
 describe("zod is an optional peer: no entry of the service loads it (SYS-12)", () => {
   it("reaches no zod from any entry, through quantity and the replay of the algebra too", () => {
-    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "websocket.ts", "clock.ts", "heartbeat.ts", "backoff.ts", "limiter.ts"])
+    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "websocket.ts", "grpc.ts", "clock.ts", "heartbeat.ts", "backoff.ts", "limiter.ts"])
       expect(reachAll(entry), entry).not.toContain("zod");
     // the root loads no other package and no node: module at run time
     expect(reachAll("index.ts")).toEqual([]);
@@ -89,13 +90,14 @@ describe("zod is an optional peer: no entry of the service loads it (SYS-12)", (
     expect(reachAll(schema.slice(dirname(schema).length + 1), dirname(schema))).toContain("zod");
   });
 
-  it("marks zod optional in the manifest, beside amqplib, ioredis, pg, mongodb and ws", () => {
+  it("marks zod optional in the manifest, beside @grpc/grpc-js, amqplib, ioredis, pg, mongodb and ws", () => {
     const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
       peerDependencies: Record<string, string>;
       peerDependenciesMeta: Record<string, { optional?: boolean }>;
     };
-    expect(Object.keys(manifest.peerDependencies).sort()).toEqual(["amqplib", "ioredis", "mongodb", "pg", "ws", "zod"]);
+    expect(Object.keys(manifest.peerDependencies).sort()).toEqual(["@grpc/grpc-js", "amqplib", "ioredis", "mongodb", "pg", "ws", "zod"]);
     expect(manifest.peerDependenciesMeta).toEqual({
+      "@grpc/grpc-js": { optional: true },
       amqplib: { optional: true },
       ioredis: { optional: true },
       mongodb: { optional: true },
@@ -233,6 +235,34 @@ describe("the websocket entry: ws is an optional peer, loaded only at the connec
     expect(wsEntry.retryBackoff).toBe(rabbitEntry.retryBackoff);
     expect(wsEntry.retrySchedule).toBe(retrySchedule);
     expect(wsEntry.statusLineJudge).toBe(statusLineJudge);
+  });
+});
+
+describe("the grpc entry: @grpc/grpc-js is an optional peer, loaded only at the connect", () => {
+  it("loads no @grpc/grpc-js at its import, and no node: module other than node:net", () => {
+    const { packages } = reach("grpc.ts");
+    expect(packages).not.toContain("@grpc/grpc-js");
+    expect(packages.filter((name) => name.startsWith("node:"))).toEqual(["node:net"]);
+    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/quantity"]);
+  });
+
+  it("does not load the fakes of its tests", () => {
+    expect(reach("grpc.ts").files.filter((file) => file.includes("fake"))).toEqual([]);
+  });
+
+  it("is in the manifest, for the source and for npm", () => {
+    const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
+      exports: Record<string, string>;
+      publishConfig: { exports: Record<string, { types: string; default: string }> };
+    };
+    expect(manifest.exports["./grpc"]).toBe("./src/grpc.ts");
+    expect(manifest.publishConfig.exports["./grpc"]).toEqual({ types: "./build/grpc.d.ts", default: "./build/grpc.js" });
+  });
+
+  it("shares the wait for a ready client and the check of the retry knobs with the websocket entry", () => {
+    expect(grpcEntry.readyWait).toBe(wsEntry.readyWait);
+    expect(grpcEntry.retryProblems).toBe(wsEntry.retryProblems);
+    expect(grpcEntry.STARTING_POLL).toBe(wsEntry.STARTING_POLL);
   });
 });
 
