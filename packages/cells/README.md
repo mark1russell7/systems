@@ -50,9 +50,11 @@ The cells of T03 go one at a time: the listing of a router evicts the expired fl
 
 T02 is the pooled request chain: client → HAProxy 3.2 in TCP mode → Redis 7.4 (`src/t02.ts`). HAProxy ends each connection, thus each leg has its own sockets and its own timers.
 
-- **The idle timeouts of HAProxy** against a keepalive on each side. HAProxy has no machine document, thus these cells are measurement-only.
+- **The idle timeouts of HAProxy** against a keepalive on each side. `HAPROXY_TCP` gives each timeout, and a keepalive probe resets neither of them.
+  - `timeout server` sends a FIN to the client at once: 4.989 s to 5.011 s after the last data.
+  - `timeout client` sends a FIN to Redis first. The FIN to the client follows the FIN of Redis, and `REDIS_CLIENT` does not give that FIN. Thus this cell stays measurement-only.
 - **A black hole on each leg, from each side.** Each socket that can detect it is an observer: the client, the socket of HAProxy toward each side, and the socket of Redis. Linux TCP predicts each of them. HAProxy has kernel keepalive on its sockets (`clitcpka`, `srvtcpka`), at 3 s idle and 3 probes 1 s apart.
-- **What the client sees** when HAProxy gives up on the server is measurement-only.
+- **What the client sees** when HAProxy gives up on the server is measurement-only. `HAPROXY_TCP` gives no event for an error of the socket toward the server.
 
 ## The TOX catalog
 
@@ -210,8 +212,11 @@ The WST catalog has the client and the server of the WS catalog through a topolo
   - `silent-drop`: the ping goes into nothing, and the pong timeout drops the connection 1 s after the ping.
   - Then the reconnect waits 0.5 s. Its SYN makes a new flow, and each form lets a SYN through.
 - **HAProxy of T02**, in TCP mode, on the port of the procedures server. Each ping and its pong is data on the two legs.
-  - HAProxy has no machine document. Thus its idle timeouts are measurement-only: a heartbeat of 4 s against 5 s on each side, and 6 s against a `timeout client` or a `timeout server` of 5 s.
-  - A measurement-only cell can give the bands of its reconnect (`reconnects`). Thus the cells of 6 s also time the reconnect after HAProxy closes the connection.
+  - `HAPROXY_TCP` gives a timer to each side. Only bytes reset it, thus a keepalive probe refreshes nothing. O03 reads the earlier timeout as the forget of the middlebox (`forgetterOf`).
+  - A heartbeat of 4 s against 5 s on each side keeps the connection, and the cell is silent for 15 s.
+  - With a heartbeat of 6 s, `timeout server` of 5 s sends a FIN to the client at once. The band is 4.989 s to 5.011 s after the last data (`haproxyIdle`).
+  - With a heartbeat of 6 s, `timeout client` of 5 s sends a FIN to the server. The server of ws answers with its own FIN (`ps.peer-end`), and then HAProxy sends a FIN to the client. Thus the band gets one round trip and one step of HAProxy more.
+  - Then the reconnect waits 0.5 s, as after the FIN of the server in the WS catalog.
 - **A black hole on each leg of HAProxy.** The heartbeat detects each one, 1 s after the ping.
   - On the client leg, nothing comes back.
   - On the target leg, the kernel of HAProxy acknowledges the ping, as the kernel of a frozen server does. Thus only the heartbeat finds it.

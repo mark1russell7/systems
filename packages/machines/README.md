@@ -37,7 +37,7 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `UNDICI_RETRY` | `undici-retry-agent` | One request through a `RetryAgent` of undici 8.12.2 | driver | 7 implemented, 1 normative |
 | `GO_TRANSPORT` | `go-nethttp-transport` | One connection of the `http.Transport` of Go 1.27.2 | driver | 7 implemented |
 | `PROCEDURES_WS_CLIENT` | `procedures-ws-client` | The WebSocket client of `@procedures/client` 0.22.0 (client 2408cea) | driver | 9 implemented, 1 documented |
-| `PROCEDURES_WS_SERVER` | `procedures-ws-server` | The WebSocket server of `@procedures/client` 0.22.0 (client 2408cea) | server | 4 implemented |
+| `PROCEDURES_WS_SERVER` | `procedures-ws-server` | The WebSocket server of `@procedures/client` 0.22.0 (client 2408cea) | server | 5 implemented |
 | `MONGODB_NODE` | `mongodb-node` | The MongoDB Node driver 7.7.0, for one server of a replica set | driver | 19 implemented |
 | `MONGOD_REPL` | `mongod-replication` | The replication of mongod 9.0.4: one member of a replica set | server | 29 implemented |
 | `MONGOD_SESSION` | `mongod-session` | One client connection of mongod 9.0.4 | server | 6 implemented |
@@ -62,6 +62,7 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `CADDY_HTTP2` | `caddy-http2` | Caddy 2.11.7 as an HTTP/2 proxy of gRPC: one connection of a client, its idle close, its replies and its stop | proxy | 12 implemented |
 | `NGINX_GRPC` | `nginx-grpc` | nginx 1.29.6 as an HTTP/2 proxy of gRPC: one connection of a client, its idle close, the read timer of a call, and a stopped worker | proxy | 12 implemented, 1 documented |
 | `TRAEFIK_HTTP2` | `traefik-http2` | Traefik 3.7.15 as an HTTP/2 proxy of gRPC: one connection of a client, its idle close, a reload of its dynamic file and its stop | proxy | 10 implemented, 1 observed |
+| `HAPROXY_TCP` | `haproxy-tcp` | HAProxy 3.2.25 in TCP mode: one proxied connection, the idle timeout of each side and the FIN at each timeout | proxy | 13 implemented |
 | `ISTIO_SIDECAR_OUTBOUND` | `istio-sidecar-outbound` | The client sidecar of Istio 1.31.3: Envoy 1.39.4 between the app and the mesh, its retries, an update of LDS and the SIGKILL | proxy | 31 implemented |
 | `ISTIO_SIDECAR_INBOUND` | `istio-sidecar-inbound` | The server sidecar of Istio 1.31.3: Envoy 1.39.4 between the mesh and the app, the policy, an update of LDS and the SIGKILL | proxy | 31 implemented |
 | `PILOT_AGENT` | `pilot-agent` | pilot-agent of Istio 1.31.3: the drain and the SIGKILL of the Envoy of a sidecar at the stop of its pod | proxy | 12 implemented |

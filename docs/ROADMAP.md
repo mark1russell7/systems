@@ -550,16 +550,24 @@ It comes in service 0.5.8, a PATCH: a new optional option and new exports, befor
 
 ### SYS-31 · A machine document for HAProxy
 
-- **Status:** later
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** WS
-- **Started:**
-- **Shipped:**
-- **Links:** [The WST cells](https://github.com/mark1russell7/systems/blob/main/packages/cells/src/ws-topologies.ts)
+- **Started:** 2026-10-26
+- **Shipped:** 2026-10-26
+- **Links:** [The WST cells](https://github.com/mark1russell7/systems/blob/main/packages/cells/src/ws-topologies.ts), [the document](https://github.com/mark1russell7/systems/blob/main/packages/machines/src/proxy/haproxy.ts)
 
-The client item O17 found it. HAProxy has no machine document. Thus three WST cells of an idle timeout of HAProxy have no band, and each one is a measurement.
+The client item O17 found it. HAProxy had no machine document. Thus three WST cells of an idle timeout of HAProxy had no band, and each one was a measurement.
 
-With SYS-31, the machines package has a document of HAProxy at a pinned version. It gives the inactivity timeouts of each side and the events that reset each one, with citations to the source. Then the algebra gives a band to each of the three cells.
+With SYS-31, the machines package has `HAPROXY_TCP`: HAProxy 3.2.25 in TCP mode, with citations to its source at that tag. It gives the inactivity timeout of each side and the events that reset each one. Only bytes reset a timer, thus a keepalive probe resets nothing.
+
+Thus the algebra gives a band to each of the three cells:
+
+- O03 reads HAProxy as a middlebox. A heartbeat of 4 s against 5 s on each side is silent.
+- `timeout server` sends a FIN to the client at once: 4.989 s to 5.011 s after the last data.
+- `timeout client` sends a FIN to the server, and the server of ws answers with its own. Thus its band gets one round trip and one step of HAProxy more.
+
+The `timeout server` cell of T02 gets the same band. The `timeout client` cell of T02 stays a measurement, because the document of Redis does not give its FIN back.
 
 It comes in machines as a PATCH: a new export before 1.0.0.
 

@@ -348,6 +348,10 @@ export const PROCEDURES_WS_SERVER: Machine = machineSchema.parse({
       ref: `node v24.21.0 lib/_http_server.js:646-651 and lib/net.js:2753-2756: keepAlive of http.Server is off at the default, thus an accepted socket has no SO_KEEPALIVE. The transport takes the upgrades of the server of its host (${ST}:187-230) and sets no option of a socket`,
       rung: "implemented",
     },
+    {
+      ref: "ws 8.22.0 lib/websocket-server.js:372, :431 an upgrade gives its socket to setSocket(); lib/websocket.js:267 and :1398-1404 an end of file of that socket ends it at once: a FIN back",
+      rung: "implemented",
+    },
   ],
   states: {
     ABSENT: { initial: true, pseudo: true },
@@ -362,6 +366,7 @@ export const PROCEDURES_WS_SERVER: Machine = machineSchema.parse({
     "rx.ping": { kind: "rx", note: "a ping of the heartbeat of the client" },
     "misses-reached": { kind: "timer" },
     close: { kind: "peer", note: "the close event of the socket of ws" },
+    "rx.fin": { kind: "peer", note: "the end event of the socket of ws: the peer sent a FIN" },
     "socket.error": { kind: "local", note: "the kernel beneath gave up on the socket, or a reset arrived" },
   },
   knobs: {
@@ -393,6 +398,15 @@ export const PROCEDURES_WS_SERVER: Machine = machineSchema.parse({
     { id: "ps.pong", from: "MISSING", on: "rx.pong", to: "OPEN" },
     { id: "ps.ping", from: ["OPEN", "MISSING"], on: "rx.ping", to: "OPEN", emits: ["tx.pong"], source: `${ST}:523-527` },
     { id: "ps.terminate", from: "MISSING", on: "misses-reached", to: "CLOSED", timer: "heartbeat", emits: ["tx.fin"], source: `${ST}:163-167` },
+    {
+      id: "ps.peer-end",
+      from: ["OPEN", "MISSING"],
+      on: "rx.fin",
+      to: "CLOSED",
+      emits: ["tx.fin"],
+      note: "socketOnEnd: ws ends its side of the socket at once",
+      source: "ws 8.22.0 lib/websocket.js:1398-1404",
+    },
     { id: "ps.close", from: ["OPEN", "MISSING"], on: ["close", "socket.error"], to: "CLOSED" },
   ],
   over: {

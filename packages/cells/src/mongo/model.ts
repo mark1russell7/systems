@@ -35,7 +35,7 @@ export const hull = (a: Span, b: Span): Span => span(Math.min(a.lo, b.lo), Math.
 const NONE_AT_ZERO = new Set(["connectTimeoutMS", "socketTimeoutMS", "waitQueueTimeoutMS", "maxIdleTimeMS", "serverSelectionTimeoutMS"]);
 
 /** This function gives the defaults of the knobs of a document that have a default and a unit. */
-const defaultsOf = (doc: Machine): Record<string, Extent> => {
+export const defaultsOf = (doc: Machine): Record<string, Extent> => {
   const out: Record<string, Extent> = {};
   for (const [name, knob] of Object.entries(doc.knobs))
     if (knob.default !== null && knob.unit !== null) out[name] = { value: knob.default, unit: knob.unit };

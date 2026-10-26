@@ -1,8 +1,19 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { algebraProblems, detection, machineProblems, machineSchema, timerOf } from "@mark1russell7/algebra";
+import { algebraProblems, detection, machineProblems, machineSchema, realizationOf, timerOf, transitionOn } from "@mark1russell7/algebra";
 import { describe, expect, it } from "vitest";
 import * as root from "./index.ts";
-import { IOREDIS_STATUS, LINUX_TCP, MACHINES, MANIFESTATIONS, PGPOOL_SESSION, SUPAVISOR_CLIENT, SUPAVISOR_SERVER, UNDICI_RETRY } from "./index.ts";
+import {
+  HAPROXY_TCP,
+  IOREDIS_STATUS,
+  LINUX_TCP,
+  MACHINES,
+  MANIFESTATIONS,
+  PGPOOL_SESSION,
+  PROCEDURES_WS_SERVER,
+  SUPAVISOR_CLIENT,
+  SUPAVISOR_SERVER,
+  UNDICI_RETRY,
+} from "./index.ts";
 
 /** This function gives the values of the knobs of a document at its defaults. A knob at its off value has no bound. */
 const defaults = (doc: Machine) => (name: string) => {
@@ -16,7 +27,7 @@ describe("the machine documents", () => {
     const documents = Object.values(root).filter(
       (value): value is Machine => typeof value === "object" && value !== null && "format" in value,
     );
-    expect(documents.length).toBe(41);
+    expect(documents.length).toBe(42);
     expect(Object.keys(MACHINES).sort()).toEqual(documents.map((doc) => doc.id).sort());
     for (const [id, doc] of Object.entries(MACHINES)) {
       expect(doc.id, id).toBe(id);
@@ -111,6 +122,31 @@ describe("the machine documents", () => {
     // the server socket has no keepalive: keepidle has no bound
     expect(values("keepalive_idle")).toEqual({ value: "infinite", unit: "s" });
     expect(server.over?.states["connecting"]).toBe("SYN_SENT");
+  });
+
+  it("gives HAProxy in TCP mode a timer on each side that bytes reset, and a FIN at each timeout", () => {
+    const doc = HAPROXY_TCP;
+    const at = (client: number, server: number) => (name: string) =>
+      name === "timeout_client" ? { value: client, unit: "s" } : name === "timeout_server" ? { value: server, unit: "s" } : defaults(doc)(name);
+    // each timer is its timeout, one ms of the clock and one step of the loop early or late
+    const client = timerOf(doc, "timeout_client", at(5, 30));
+    expect(client.duration).toEqual({ value: 5, unit: "s" });
+    for (const bound of [client.lateness, client.early]) expect(bound && "value" in bound ? bound.value : undefined).toBeCloseTo(0.011, 9);
+    expect(timerOf(doc, "timeout_server", at(5, 30)).duration).toEqual({ value: 30, unit: "s" });
+    // the earlier timer forgets an idle connection, and 0 turns a timer off
+    expect(realizationOf(doc, "systems.mechanism.middlebox-idle", at(5, 30))?.duration).toEqual({ value: 5, unit: "s" });
+    expect(realizationOf(doc, "systems.mechanism.middlebox-idle", at(0, 30))?.duration).toEqual({ value: 30, unit: "s" });
+    expect(timerOf(doc, "timeout_client", at(0, 30)).duration).toEqual({ value: "infinite", unit: "s" });
+    // only bytes reset a timer: a read from its side, or a send to it. No keepalive probe is an event
+    expect(doc.timers["timeout_client"]?.arms).toEqual(["local.accept", "rx.client-data", "tx.client-data"]);
+    expect(doc.timers["timeout_server"]?.arms).toEqual(["local.dialed", "rx.upstream-data", "tx.upstream-data"]);
+    expect(Object.keys(doc.events).filter((event) => event.includes("keepalive"))).toEqual([]);
+    // timeout server sends a FIN to the client at once; timeout client sends it after the end of the server side
+    expect(transitionOn(doc, "linked", "timer.server")).toMatchObject({ to: "ended", emits: ["tx.client-fin"] });
+    expect(transitionOn(doc, "linked", "timer.client")).toMatchObject({ to: "upstream-shut", emits: ["tx.upstream-fin"] });
+    expect(transitionOn(doc, "upstream-shut", "peer.upstream-fin")).toMatchObject({ to: "ended", emits: ["tx.client-fin"] });
+    // the WebSocket server answers that FIN with its own
+    expect(transitionOn(PROCEDURES_WS_SERVER, "OPEN", "rx.fin")).toMatchObject({ to: "CLOSED", emits: ["tx.fin"] });
   });
 
   it("gives the delay of a retry of the RetryAgent of undici: the Retry-After capped at 30 s, or the backoff", () => {

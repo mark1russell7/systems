@@ -28,6 +28,7 @@ import { SUPAVISOR_SERVER } from "./pg/supavisor-server.ts";
 import { PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "./procedures-ws.ts";
 import { CADDY_HTTP2 } from "./proxy/caddy.ts";
 import { ENVOY_HTTP2 } from "./proxy/envoy.ts";
+import { HAPROXY_TCP } from "./proxy/haproxy.ts";
 import { ISTIO_SIDECAR_INBOUND, ISTIO_SIDECAR_OUTBOUND, PILOT_AGENT, istioSidecar } from "./proxy/istio.ts";
 import { NGINX_GRPC } from "./proxy/nginx.ts";
 import { TRAEFIK_HTTP2 } from "./proxy/traefik.ts";
@@ -49,6 +50,7 @@ export {
   GO_TRANSPORT,
   GRPC_GO_SERVER,
   GRPC_JS,
+  HAPROXY_TCP,
   HIKARICP_PGJDBC,
   IOREDIS_SENTINEL,
   IOREDIS_STATUS,
@@ -149,6 +151,7 @@ export const MACHINES: Readonly<Record<string, Machine>> = byId([
   CADDY_HTTP2,
   NGINX_GRPC,
   TRAEFIK_HTTP2,
+  HAPROXY_TCP,
   ISTIO_SIDECAR_OUTBOUND,
   ISTIO_SIDECAR_INBOUND,
   PILOT_AGENT,

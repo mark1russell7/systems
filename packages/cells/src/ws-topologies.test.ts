@@ -7,8 +7,9 @@ import { describe, expect, it } from "vitest";
 import { HZ } from "./catalog.ts";
 import { PROCEDURES } from "./subjects.ts";
 import { T02_CELLS } from "./t02.ts";
+import { haproxyIdle } from "./topologies.ts";
 import { clientValues, CLIENT, SILENT_CLIENT, serverValues } from "./ws.ts";
-import { FIRST_REPLY, WST_CELLS, WST_SPECS, beatOf, forgetOf, o03Server, o03Ws, o03Wst, predictWstAt, wstCells } from "./ws-topologies.ts";
+import { FIRST_REPLY, WST_CELLS, WST_SPECS, beatOf, forgetOf, forgetterOf, o03Server, o03Ws, o03Wst, predictWstAt, wstCells } from "./ws-topologies.ts";
 
 const round = (value: number) => Math.round(value * 1e9) / 1e9;
 const cell = (name: string) => {
@@ -100,13 +101,42 @@ describe("the WST catalog", () => {
     }
   });
 
-  it("leaves the idle timeouts of HAProxy to measurement, with the bands of the reconnect", () => {
-    expect(band("client idle, HAProxy timeouts 5 s, heartbeat 4 s and 1 s")).toEqual({ measured: 15, from: "last-received" });
+  it("gives each idle timeout of HAProxy a band from its document, and the bands of the reconnect", () => {
+    // O03 with HAProxy as the middlebox: the ping at its latest against 5 s at its earliest, one ms and one step early
+    const step = 0.001 + 0.01;
+    expect(o03Ws(heartbeat(4000), 1, forgetterOf({ kind: "proxy", timeouts: { client: 5, server: 5 } }))).toEqual({
+      holds: true,
+      refresh: round(4 + nodeLateSeconds(4, HZ)),
+      forget: round(5 - step),
+      margin: round(0.001 + 1 / HZ),
+    });
+    // only bytes reset the timers of HAProxy: without the heartbeat, the keepalive of undici refreshes nothing
+    expect(o03Ws({ ...CLIENT, heartbeat: null }, 1, forgetterOf({ kind: "proxy", timeouts: { client: 5, server: 5 } }))).toMatchObject({ holds: false, refresh: "inf" });
+    expect(band("client idle, HAProxy timeouts 5 s, heartbeat 4 s and 1 s")).toEqual({ silent: 15 });
     expect(waits("client idle, HAProxy timeouts 5 s, heartbeat 4 s and 1 s")).toEqual([]);
+    // timeout server: a FIN to the client at once, 5 s after the last data at the timer of HAProxy
+    expect(band("client idle, HAProxy timeout server 5 s, heartbeat 6 s and 1 s")).toEqual({
+      timer: "timeout_server",
+      errno: "EOF",
+      from: "last-data",
+      low: round(5 - step),
+      high: round(5 + step),
+    });
+    // timeout client: a FIN to the target, the FIN of ws back, then a FIN to the client, one round trip and one step later
+    expect(band("client idle, HAProxy timeout client 5 s, heartbeat 6 s and 1 s")).toEqual({
+      timer: "timeout_client",
+      errno: "EOF",
+      from: "last-data",
+      low: round(5 - step),
+      high: round(5 + step + 0.001 + 0.01),
+    });
+    expect(haproxyIdle({ client: 5, server: 30 }, 0.001)).toEqual({ why: "timeout_client sends a FIN to the target, and no document tells what the target does then" });
+    expect(haproxyIdle({ client: 5, server: 5 }, 0.001)).toEqual({ why: "the two idle timeouts of HAProxy can fire in either sequence" });
     for (const name of ["client idle, HAProxy timeout client 5 s, heartbeat 6 s and 1 s", "client idle, HAProxy timeout server 5 s, heartbeat 6 s and 1 s"]) {
-      expect(band(name), name).toEqual({ measured: 10, from: "last-received" });
       expect(waits(name), name).toEqual([nodeBand(0.5)]);
       expect(cell(name).fault).toBe("proxy-idle");
+      // the first ping comes after the latest FIN, even with a first reply FIRST_REPLY after the open
+      expect(6 - nodeEarlySeconds(HZ) - FIRST_REPLY, name).toBeGreaterThan(5 + 2 * step + 0.001);
     }
     const config = (name: string) => {
       const hop = cell(name).topology?.hops[0];
