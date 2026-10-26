@@ -35,6 +35,7 @@
     "./redis": "./src/redis.ts",
     "./pg": "./src/pg.ts",
     "./mongodb": "./src/mongodb.ts",
+    "./rabbitmq": "./src/rabbitmq.ts",
     "./clock": "./src/clock.ts",
     "./heartbeat": "./src/heartbeat.ts",
     "./backoff": "./src/backoff.ts",
@@ -62,12 +63,16 @@
     "@mark1russell7/quantity": "workspace:^"
   },
   "peerDependencies": {
+    "amqplib": "^2.2.0",
     "ioredis": "^6.0.0",
     "mongodb": "^7.7.0",
     "pg": "^8.23.1",
     "zod": "^4.1.0"
   },
   "peerDependenciesMeta": {
+    "amqplib": {
+      "optional": true
+    },
     "ioredis": {
       "optional": true
     },
@@ -116,6 +121,10 @@
       "./mongodb": {
         "types": "./build/mongodb.d.ts",
         "default": "./build/mongodb.js"
+      },
+      "./rabbitmq": {
+        "types": "./build/rabbitmq.d.ts",
+        "default": "./build/rabbitmq.js"
       },
       "./clock": {
         "types": "./build/clock.d.ts",

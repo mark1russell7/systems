@@ -9,6 +9,7 @@ import * as heartbeatEntry from "./heartbeat.ts";
 import * as httpEntry from "./http.ts";
 import * as root from "./index.ts";
 import * as limiterEntry from "./limiter.ts";
+import * as rabbitEntry from "./rabbitmq.ts";
 import * as redisEntry from "./redis.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -75,7 +76,7 @@ const reachAll = (entry: string, from = here): string[] => {
 
 describe("zod is an optional peer: no entry of the service loads it (SYS-12)", () => {
   it("reaches no zod from any entry, through quantity and the replay of the algebra too", () => {
-    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "clock.ts", "heartbeat.ts", "backoff.ts", "limiter.ts"])
+    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "clock.ts", "heartbeat.ts", "backoff.ts", "limiter.ts"])
       expect(reachAll(entry), entry).not.toContain("zod");
     // the root loads no other package and no node: module at run time
     expect(reachAll("index.ts")).toEqual([]);
@@ -84,13 +85,14 @@ describe("zod is an optional peer: no entry of the service loads it (SYS-12)", (
     expect(reachAll(schema.slice(dirname(schema).length + 1), dirname(schema))).toContain("zod");
   });
 
-  it("marks zod optional in the manifest, beside ioredis, pg and mongodb", () => {
+  it("marks zod optional in the manifest, beside amqplib, ioredis, pg and mongodb", () => {
     const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
       peerDependencies: Record<string, string>;
       peerDependenciesMeta: Record<string, { optional?: boolean }>;
     };
-    expect(Object.keys(manifest.peerDependencies).sort()).toEqual(["ioredis", "mongodb", "pg", "zod"]);
+    expect(Object.keys(manifest.peerDependencies).sort()).toEqual(["amqplib", "ioredis", "mongodb", "pg", "zod"]);
     expect(manifest.peerDependenciesMeta).toEqual({
+      amqplib: { optional: true },
       ioredis: { optional: true },
       mongodb: { optional: true },
       pg: { optional: true },
@@ -146,6 +148,31 @@ describe("the mongodb entry: mongodb is an optional peer, loaded only at the con
     };
     expect(manifest.exports["./mongodb"]).toBe("./src/mongodb.ts");
     expect(manifest.publishConfig.exports["./mongodb"]).toEqual({ types: "./build/mongodb.d.ts", default: "./build/mongodb.js" });
+  });
+});
+
+describe("the rabbitmq entry: amqplib is an optional peer, loaded only at the connect", () => {
+  it("loads no amqplib at its import, and no node: module other than node:net", () => {
+    const { packages } = reach("rabbitmq.ts");
+    expect(packages).not.toContain("amqplib");
+    expect(packages.filter((name) => name.startsWith("node:"))).toEqual(["node:net"]);
+  });
+
+  it("does not load the fakes of its tests", () => {
+    expect(reach("rabbitmq.ts").files.filter((file) => file.includes("fake"))).toEqual([]);
+  });
+
+  it("is in the manifest, for the source and for npm", () => {
+    const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
+      exports: Record<string, string>;
+      publishConfig: { exports: Record<string, { types: string; default: string }> };
+    };
+    expect(manifest.exports["./rabbitmq"]).toBe("./src/rabbitmq.ts");
+    expect(manifest.publishConfig.exports["./rabbitmq"]).toEqual({ types: "./build/rabbitmq.d.ts", default: "./build/rabbitmq.js" });
+  });
+
+  it("shares the backoff of the core with the redis entry, which keeps its export of 0.5", () => {
+    expect(rabbitEntry.retryBackoff).toBe(redisEntry.retryBackoff);
   });
 });
 

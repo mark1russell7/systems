@@ -543,13 +543,31 @@ const life = await app.run(); // the process exits after SIGTERM, with 0 or 1
 - **The close.** At the shutdown, the client closes the driver, and it records `close.bound` at its `close_bound`. The driver gives no socket to destroy, thus its close goes on in the background.
 - **The manifestations and the machine.** `meets` lists the manifestations and their detectors. `MONGO_CLIENT_MACHINE` is the client as a `mark1russell7.machine/1` document, and the tests replay the client against it.
 
+## The RabbitMQ client
+
+`@mark1russell7/service/rabbitmq` is the RabbitMQ client of the service, over amqplib 2. This entry is a part of S6. The peer dependency amqplib is optional. The client loads it only when it connects.
+
+- **The declaration.** `rabbitClient(name, spec)` declares `connect_bound`, `request_timeout`, `heartbeat_interval`, `retry_base`, `retry_cap`, `keepalive_idle`, `max_connection_age`, `close_bound` and `retrans_giveup_time`. The client derives `heartbeat_detection_time` (3 heartbeats) and `idle_refresh_interval` (a half heartbeat).
+- **The problems of a spec.** `specProblems` refuses a knob that amqplib cannot use. Examples are a zero, which amqplib reads as no timer, a heartbeat that is not a whole number of seconds, and a finite connection age.
+- **The starting knobs.** `RABBIT_STARTING_KNOBS` and `RABBIT_STARTING_POLL` are a declaration from the cells of R3. Each value has its measured reason in its doc comment.
+- **A call.** A call is a publish on a confirm channel until its confirm, or an RPC until its reply, for example `basic.get`. The client ends each call at `request_timeout`, because amqplib has no timer for them.
+- **Three outcomes.** `publish(operation, message)` and `get(operation, queue)` give `ok`, `error` or `indeterminate`. An ack is `ok`. A reply code of the broker is certain. A nack, a timeout and the end of the channel before the confirm are not certain. A call while the client is not ready, or while a resource alarm blocks it, did not leave the client.
+- **Idempotency for each operation.** A message does not tell if its consumers remove duplicates. Thus the client sends again only an idempotent operation that its table names. The second send waits for a ready client, in the bound of the call.
+- **One generation.** The client has one connection and one confirm channel. The end of either one ends the generation. The client then connects again by itself, to the next node, after a backoff from `retry_base` to `retry_cap`. The built-in recovery of amqplib stays off.
+- **The join.** At each generation, the client records the node and the name of the connection, `local:port -> remote:port` (`joins`).
+- **The jobs of a queue drain.** `jobs(operation, queue)` gives the source and the settle of `queueDrain`. The count of deliveries comes from `x-delivery-count`. A message that arrives after its call ended goes back to its queue at once.
+- **No unheard error.** The client listens to the error events of the connection and of the channel. In Node, an error with no listener ends the process.
+- **The checks.** `checks({ poll, steps })` gives `local-state`, `round-trip` (a passive declare of `amq.direct` on the channel of the application) and `dial` (the protocol header on a new connection, with no login).
+- **The close.** At the shutdown, the client sends `connection.close`, and it destroys the socket at its `close_bound`.
+- **The manifestations and the machine.** `meets` lists the manifestations and their detectors. `RABBIT_CLIENT_MACHINE` is the client as a `mark1russell7.machine/1` document, and the tests replay the client against it.
+
 ## Installation
 
 ```sh
 pnpm add @mark1russell7/service
 ```
 
-For the Redis client, the application also installs `ioredis@6`. For the PostgreSQL client, it installs `pg@8`. For the MongoDB client, it installs `mongodb@7`.
+For the Redis client, the application also installs `ioredis@6`. For the PostgreSQL client, it installs `pg@8`. For the MongoDB client, it installs `mongodb@7`. For the RabbitMQ client, it installs `amqplib@2`.
 
 The package uses [`@mark1russell7/quantity`](https://www.npmjs.com/package/@mark1russell7/quantity) for each amount. No entry of the service loads `zod` at run time, thus `zod` is an optional peer dependency. An application that validates amounts with the schemas of `quantity` installs `zod`.
 

@@ -1,11 +1,24 @@
 import { describe, expect, it } from "vitest";
 import { MONGO_CLIENT_MACHINE, MONGO_STARTING_KNOBS, MONGO_STARTING_POLL, mongoMeetings } from "../mongodb.ts";
 import { PG_CLIENT_MACHINE, PG_STARTING_KNOBS, PG_STARTING_POLL, pgMeetings } from "../pg.ts";
+import { RABBIT_CLIENT_MACHINE, RABBIT_STARTING_KNOBS, RABBIT_STARTING_POLL, rabbitMeetings } from "../rabbitmq.ts";
 import type { RedisKnobs } from "../redis.ts";
 import { REDIS_CLIENT_MACHINE, meetings } from "../redis.ts";
 import { fakeClock } from "../testing.ts";
 import type { Attempt } from "./core.ts";
-import { STARTING_POLL, deadlineProblem, inFlight, poolProblems, timeProblems, wholeProblems, withinBound, zeroProblems } from "./core.ts";
+import {
+  STARTING_POLL,
+  deadlineProblem,
+  inFlight,
+  poolProblems,
+  readyWait,
+  retryBackoff,
+  retryProblems,
+  timeProblems,
+  wholeProblems,
+  withinBound,
+  zeroProblems,
+} from "./core.ts";
 import { CLIENT_EVENTS } from "./machine.ts";
 import { MANIFESTATIONS, WHAT } from "./meets.ts";
 
@@ -30,7 +43,12 @@ const REDIS_KNOBS: RedisKnobs = {
 
 describe("the core of the clients: one vocabulary for each client", () => {
   it("gives each client a meeting for each manifestation, in one sequence, with the shared words", () => {
-    for (const meets of [meetings("cache", REDIS_KNOBS, s(2.4)), pgMeetings("db", PG_STARTING_KNOBS), mongoMeetings("docs", MONGO_STARTING_KNOBS)]) {
+    for (const meets of [
+      meetings("cache", REDIS_KNOBS, s(2.4)),
+      pgMeetings("db", PG_STARTING_KNOBS),
+      mongoMeetings("docs", MONGO_STARTING_KNOBS),
+      rabbitMeetings("mq", RABBIT_STARTING_KNOBS),
+    ]) {
       expect(meets.map((meeting) => meeting.manifestation)).toEqual([...MANIFESTATIONS]);
       for (const meeting of meets)
         if (meeting.manifestation !== "app-stall") expect(meeting.what).toBe(WHAT[meeting.manifestation as keyof typeof WHAT]);
@@ -38,13 +56,20 @@ describe("the core of the clients: one vocabulary for each client", () => {
   });
 
   it("declares the events of the core in the machine document of each client", () => {
-    for (const machine of [REDIS_CLIENT_MACHINE, PG_CLIENT_MACHINE, MONGO_CLIENT_MACHINE])
+    for (const machine of [REDIS_CLIENT_MACHINE, PG_CLIENT_MACHINE, MONGO_CLIENT_MACHINE, RABBIT_CLIENT_MACHINE])
       for (const event of CLIENT_EVENTS) expect(machine.events, `${machine.id} ${event}`).toHaveProperty([event]);
   });
 
-  it("gives one starting poll, which the pg and mongodb entries give by their own names too", () => {
+  it("gives one starting poll, which the pg, mongodb and rabbitmq entries give by their own names too", () => {
     expect(PG_STARTING_POLL).toBe(STARTING_POLL);
     expect(MONGO_STARTING_POLL).toBe(STARTING_POLL);
+    expect(RABBIT_STARTING_POLL).toBe(STARTING_POLL);
+  });
+
+  it("gives the backoff of the tries to connect from retry_base and retry_cap (redis and rabbitmq)", () => {
+    expect(retryBackoff({ retry_base: ms(100), retry_cap: s(2) })).toEqual({ base: 100, factor: 2, cap: 2000, jitter: { kind: "add", amount: 100 } });
+    expect(retryProblems("x", { retry_base: s(1), retry_cap: s(1) })).toEqual([]);
+    expect(retryProblems("x", { retry_base: s(1), retry_cap: ms(999) })).toEqual(["x's retry_cap is below its retry_base"]);
   });
 
   it("refuses a knob that is not a time of zero or more", () => {
@@ -66,6 +91,35 @@ describe("the core of the clients: one vocabulary for each client", () => {
     expect(poolProblems("x", { max: 0, min: 1 })).toHaveLength(2);
     expect(deadlineProblem("x", s(5), never, "command")).toBeNull();
     expect(deadlineProblem("x", s(5), s(5), "command")).toMatch(/with a command that the client gave up \(O07\)$/);
+  });
+});
+
+describe("the wait for a ready client before a second try (redis and rabbitmq)", () => {
+  it("gives true at once for a ready client, true at a wake, and the state at the end of its time", async () => {
+    const clock = fakeClock(0);
+    let ready = true;
+    const readied = readyWait(clock, () => ready);
+    expect(await readied.wait(100)).toBe(true);
+    ready = false;
+    const woken = readied.wait(100);
+    await clock.advance(50);
+    ready = true;
+    readied.wake();
+    expect(await woken).toBe(true);
+    expect(clock.now()).toBe(50);
+    ready = false;
+    const late = readied.wait(100);
+    await clock.advance(100);
+    expect(await late).toBe(false);
+  });
+
+  it("gives false at an abort", async () => {
+    const clock = fakeClock(0);
+    const readied = readyWait(clock, () => false);
+    const abort = new AbortController();
+    const waited = readied.wait(100, abort.signal);
+    abort.abort();
+    expect(await waited).toBe(false);
   });
 });
 
