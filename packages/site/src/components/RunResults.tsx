@@ -565,13 +565,14 @@ export function CallersTable(): ReactElement {
               <td>{code(mode)}</td>
               {candidates.map((name) => {
                 const cell = find(mode, name);
-                const { expected, end } = cell.candidate;
+                const { expected, end, connections } = cell.candidate;
+                const on = connections.low === connections.high ? `${connections.low}` : `${connections.low} to ${connections.high}`;
                 return (
                   <td key={name}>
                     <Verdict decision={cell.decision} text={cell.median === null ? "" : `${count(cell.median, "failed request")} in the median run`} />
                     <br />
                     <span className="sy-muted">
-                      {`The prediction: ${digits(expected.low)} to ${digits(expected.high)} failed requests. The last one starts ${fine(end.low)} to ${fine(end.high)} after ${S2_FROM[end.from] ?? end.from}.`}
+                      {`The prediction: ${digits(expected.low)} to ${digits(expected.high)} failed requests, with ${on} of the ${connections.of} connections on the target. The last one starts ${fine(end.low)} to ${fine(end.high)} after ${S2_FROM[end.from] ?? end.from}.`}
                       {cell.failed === 0 ? "" : ` ${cell.failed} of ${cell.counted} runs ${cell.failed === 1 ? "disagrees" : "disagree"}.`}
                     </span>
                   </td>

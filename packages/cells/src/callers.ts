@@ -49,29 +49,82 @@ export const CANDIDATES: readonly Candidate[] = ["endpoints only", "in band (lam
 /** These are the modes of the S2 cells: each mode of kube-proxy. The type of `PROPAGATION` gives a calibrated propagation to each mode. */
 export const CALLERS_MODES: readonly KubeProxyMode[] = KUBE_PROXY_MODES;
 
-/** This band is the expected count of failed requests in a run, as quantities in `{request}`. */
+/**
+ * These are the ways that each mode selects the backend of a new connection. The rules of iptables
+ * and nftables select at random (`statistic --mode random`, `numgen random`). IPVS selects in turn, because the
+ * default scheduler of kube-proxy is `rr`.
+ */
+export const SELECTION: Readonly<Record<KubeProxyMode, "random" | "in turn">> = { iptables: "random", ipvs: "in turn", nftables: "random" };
+
+/** This count is the clients: one on each worker and one on the control plane. */
+const CLIENTS = WORKERS + 1;
+
+/** This count is the replicas of the S2 cells. One of them is the target. */
+const REPLICAS = 2;
+
+/** This share is the chance that the band of the connections on the target covers at the least, when the selection is random. */
+const COVER = 0.95;
+
+/**
+ * This band is the expected count of failed requests in a run, as quantities in `{request}`. It
+ * comes from the band of the connections on the target at the fault (`connections`, in
+ * `{connection}`).
+ */
 export interface Expected {
   readonly lo: Quantity;
   readonly hi: Quantity;
+  readonly connections: Connections;
+}
+
+/** This band is the count of the connections on the target at the fault, of all the connections of the clients (`of`), in `{connection}`. */
+export interface Connections {
+  readonly lo: Quantity;
+  readonly hi: Quantity;
+  readonly of: Quantity;
 }
 
 const requests = (value: number): Quantity => ({ value: Math.round(value), unit: "{request}" });
+const connections = (value: number): Quantity => ({ value, unit: "{connection}" });
+
+/**
+ * This function gives the band of the connections of all clients on the target at the fault. In
+ * turn, each client puts half of its connections on each replica. At random, the count is binomial,
+ * and the band is the central band that has the chance `COVER` at the least.
+ */
+export const targetConnections = (mode: KubeProxyMode): Connections => {
+  const total = CLIENTS * CONNECTIONS;
+  if (SELECTION[mode] === "in turn")
+    return { lo: connections(CLIENTS * Math.floor(CONNECTIONS / REPLICAS)), hi: connections(CLIENTS * Math.ceil(CONNECTIONS / REPLICAS)), of: connections(total) };
+  const p = 1 / REPLICAS;
+  const choose = (k: number): number => (k === 0 ? 1 : (choose(k - 1) * (total - k + 1)) / k);
+  const chance = Array.from({ length: total + 1 }, (_, k) => choose(k) * p ** k * (1 - p) ** (total - k));
+  const below = (k: number): number => chance.slice(0, k).reduce((sum, each) => sum + each, 0);
+  const above = (k: number): number => chance.slice(k + 1).reduce((sum, each) => sum + each, 0);
+  const tail = (1 - COVER) / 2;
+  let lo = 0;
+  while (below(lo + 1) <= tail) lo += 1;
+  let hi = total;
+  while (above(hi - 1) <= tail) hi -= 1;
+  return { lo: connections(lo), hi: connections(hi), of: connections(total) };
+};
 
 /** This function gives the declaration of a candidate: the design, with the lame duck or without it. */
 const declarationOf = (candidate: Candidate): Declaration => (candidate === "in band (lame duck)" ? CANNOT_SERVE : { ...CANNOT_SERVE, lameDuck: false });
 
 /**
- * This function gives the expected count of failed requests of a candidate in a mode. Half of the
- * connections of the clients go to the target. The lame duck fails until the latch trips. A fails
- * for the hold and until the readiness recovers.
+ * This function gives the expected count of failed requests of a candidate in a mode. Each
+ * connection on the target fails one request in each turn. The lame duck fails until the latch
+ * trips. A fails for the hold and until the readiness recovers.
  */
 export const expectedFailures = (candidate: Candidate, mode: KubeProxyMode): Expected => {
-  // one client on each worker and one on the control plane
-  const rate = (WORKERS + 1) / valueIn(KEEP_ALIVE.every, "s") / 2;
   const window = learnWindow(declarationOf(candidate), CHART_READINESS, PROPAGATION[mode], KEEP_ALIVE);
-  if (candidate === "in band (lame duck)") return { lo: requests(rate * valueIn(window.latch.lo, "s")), hi: requests(rate * valueIn(window.latch.hi, "s")) };
+  const turn = valueIn(window.turn, "s");
+  const on = targetConnections(mode);
+  const [few, many] = [on.lo.value / turn, on.hi.value / turn];
+  if (candidate === "in band (lame duck)")
+    return { lo: requests(few * valueIn(window.latch.lo, "s")), hi: requests(many * valueIn(window.latch.hi, "s")), connections: on };
   const hold = valueIn(CANNOT_SERVE_HOLD, "s");
-  return { lo: requests(rate * hold), hi: requests(rate * (hold + valueIn(window.end.band.hi, "s"))) };
+  return { lo: requests(few * hold), hi: requests(many * (hold + valueIn(window.end.band.hi, "s"))), connections: on };
 };
 
 const cellOf = (mode: KubeProxyMode, candidate: Candidate): KindCell => {
@@ -81,7 +134,12 @@ const cellOf = (mode: KubeProxyMode, candidate: Candidate): KindCell => {
   const propagation = PROPAGATION[mode];
   const window = learnWindow(declaration, CHART_READINESS, propagation, KEEP_ALIVE);
   const expected = expectedFailures(candidate, mode);
-  const about = `About ${expected.lo.value}–${expected.hi.value} requests fail`;
+  const on = expected.connections;
+  const selects =
+    SELECTION[mode] === "random"
+      ? `The rules select the backend of each connection at random, thus ${on.lo.value}–${on.hi.value} of the ${on.of.value} connections go to the target in ${COVER * 100} % of the runs at the least`
+      : `IPVS selects the backends in turn, thus ${on.lo.value} of the ${on.of.value} connections go to the target`;
+  const about = `${selects}. About ${expected.lo.value}–${expected.hi.value} requests fail`;
   const why = lameDuck
     ? `Each request on a connection to the target fails until the readiness latch of the service trips (${say(window.latch.lo)}–${say(window.latch.hi)}). Then each answer closes its connection, and the next connection can go to the target until the readiness probe and the propagation (${propagation.from}) remove it, up to ${say(window.end.band.hi)}. ${about}`
     : `Each connection to the target stays open, and the rules select a backend only for a new connection. Thus the removal of the endpoint changes nothing, and each request on those connections fails for the hold (${say(CANNOT_SERVE_HOLD)}) and until the readiness of the service recovers, up to ${say(window.end.band.hi)} after the heal. ${about}`;

@@ -3,7 +3,8 @@ import type { KindCell } from "@mark1russell7/kind";
 import { clientObjects, describeCell, lintCell, namespaceOf, pausedWindow, planOf, serverObjects, stopOf, verdictsOf } from "@mark1russell7/kind";
 import { STOP_RULE } from "@mark1russell7/service";
 import { valueIn } from "@mark1russell7/quantity";
-import { CALLERS_CELLS, CALLERS_MODES, CANDIDATES, CANNOT_SERVE_HOLD, KEEP_ALIVE, expectedFailures } from "./callers.ts";
+import type { Candidate } from "./callers.ts";
+import { CALLERS_CELLS, CALLERS_MODES, CANDIDATES, CANNOT_SERVE_HOLD, KEEP_ALIVE, SELECTION, expectedFailures, targetConnections } from "./callers.ts";
 import { PROPAGATION, SYN_SENT, afterSync, s } from "./kind.ts";
 import { T07_CELLS } from "./t07.ts";
 import { T18_CELLS } from "./t18.ts";
@@ -172,10 +173,18 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
     }
   });
 
-  it("expects the same failed requests in each mode: 75 each second on the target", () => {
-    for (const mode of CALLERS_MODES) {
-      expect(expectedFailures("endpoints only", mode)).toEqual({ lo: { value: 2250, unit: "{request}" }, hi: { value: 2712, unit: "{request}" } });
-      expect(expectedFailures("in band (lame duck)", mode)).toEqual({ lo: { value: 600, unit: "{request}" }, hi: { value: 1350, unit: "{request}" } });
-    }
+  it("puts 12 of the 24 connections on the target in turn, and 7 to 17 at random", () => {
+    const band = (lo: number, hi: number) => ({ lo: { value: lo, unit: "{connection}" }, hi: { value: hi, unit: "{connection}" }, of: { value: 24, unit: "{connection}" } });
+    expect(SELECTION).toEqual({ iptables: "random", ipvs: "in turn", nftables: "random" });
+    // the binomial count of 24 connections with a chance of 1/2: P(k <= 6) = P(k >= 18) = 0.011, P(k <= 7) = 0.032
+    expect(CALLERS_MODES.map(targetConnections)).toEqual([band(7, 17), band(12, 12), band(7, 17)]);
+  });
+
+  it("expects 6.25 failed requests each second for each connection on the target", () => {
+    const band = (lo: number, hi: number) => ({ lo: { value: lo, unit: "{request}" }, hi: { value: hi, unit: "{request}" } });
+    const counts = (candidate: Candidate) => CALLERS_MODES.map((mode) => { const { lo, hi } = expectedFailures(candidate, mode); return { lo, hi }; });
+    // A: the hold of 30 s, then up to 6.16 s of recovery. B: the latch of 8 to 18 s
+    expect(counts("endpoints only")).toEqual([band(1313, 3842), band(2250, 2712), band(1313, 3842)]);
+    expect(counts("in band (lame duck)")).toEqual([band(350, 1913), band(600, 1350), band(350, 1913)]);
   });
 });

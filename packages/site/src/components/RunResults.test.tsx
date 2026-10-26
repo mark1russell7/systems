@@ -66,17 +66,18 @@ describe("the components of the CI runs", () => {
 
   it("render the S2 candidates side by side, with the frame of each cell", () => {
     const table = renderToString(<CallersTable />);
-    // the iptables run: the median of each candidate and its prediction
+    // the median of each candidate in each mode, and its prediction
     expect(table).toContain("A: endpoints only");
     expect(table).toContain("B: in band (lame duck)");
-    expect(table).toContain("2,542 failed requests in the median run");
-    expect(table).toContain("1,095 failed requests in the median run");
-    expect(table).toContain("The prediction: 2,250 to 2,712 failed requests.");
-    expect(table).toContain("The prediction: 600 to 1,350 failed requests.");
+    expect(table).toContain("2,119 failed requests in the median run");
+    expect(table).toContain("900 failed requests in the median run");
+    expect(table).toContain("The prediction: 1,313 to 3,842 failed requests, with 7 to 17 of the 24 connections on the target.");
+    expect(table).toContain("The prediction: 600 to 1,350 failed requests, with 12 of the 24 connections on the target.");
     expect(table).not.toContain("disagree");
-    expect(table).toContain("The copy has no run of ipvs or nftables yet.");
+    expect(table).not.toContain("no run");
+    expect(table.split("<tr>").length - 1).toBe(4);
     const frames = renderToString(<KindResults template="T07" group="callers" />);
-    expect(frames.split('class="sy-frame').length - 1).toBe(2);
+    expect(frames.split('class="sy-frame').length - 1).toBe(6);
     expect(frames).toContain("Each failed request ends with an answer of 503.");
   });
 });

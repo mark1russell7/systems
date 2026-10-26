@@ -337,6 +337,7 @@ const candidateOf = (cell: KindCell) => {
     start: { from: p.start.from, low: s(p.start.band.lo), high: s(p.start.band.hi) },
     end: { from: p.end.from, low: s(p.end.band.lo), high: s(p.end.band.hi) },
     expected: { low: expected.lo.value, high: expected.hi.value },
+    connections: { low: expected.connections.lo.value, high: expected.connections.hi.value, of: expected.connections.of.value },
   };
 };
 
