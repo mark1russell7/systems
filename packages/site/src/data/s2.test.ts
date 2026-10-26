@@ -3,28 +3,46 @@ import { describe, expect, it } from "vitest";
 import s2 from "./s2-2026-10-26.json";
 
 describe("the copy of the S2 cells holds the figures of their kind run", () => {
-  it("has the two candidates in each mode on Linux 6.17 at HZ 1000: each one holds in 3 counted runs", () => {
+  it("has the three candidates in each mode on Linux 6.17 at HZ 1000: each one holds in 3 counted runs", () => {
     expect([s2.kernel, s2.hz, s2.kubernetes, s2.kind, s2.runs]).toEqual(["6.17.0", 1000, "v1.37.0", "v0.33.0", 3]);
-    const ids = ["iptables", "ipvs", "nftables"].flatMap((mode) => [`S2.T07.${mode}.endpoints`, `S2.T07.${mode}.lame-duck`]);
+    const ids = ["iptables", "ipvs", "nftables"].flatMap((mode) => [`S2.T07.${mode}.endpoints`, `S2.T07.${mode}.lame-duck`, `S2.T07.${mode}.goaway`]);
     expect(s2.cells.map((cell) => cell.id)).toEqual(ids);
     expect(s2.cells.every((cell) => cell.group === "callers" && cell.decision === "holds" && cell.counted === 3 && cell.voided === 0 && cell.failed === 0)).toBe(true);
-    expect(s2.cells.map((cell) => cell.median)).toEqual([2119, 738, 2462, 900, 2547, 795]);
+    expect(s2.cells.map((cell) => cell.median)).toEqual([3044, 813, 1087, 2449, 983, 2133, 2562, 1092, 706]);
   });
 
   it("gives each candidate its window and its expected failed requests, and each counted run is in that count", () => {
     const [a, b] = s2.cells;
     expect([a?.candidate.label, a?.candidate.end, a?.candidate.expected, a?.candidate.connections]).toEqual(["A", { from: "heal", low: 0, high: 6.16 }, { low: 1313, high: 3842 }, { low: 7, high: 17, of: 24 }]);
     expect([b?.candidate.label, b?.candidate.end, b?.candidate.expected]).toEqual(["B", { from: "fault", low: 8, high: 24.265 }, { low: 350, high: 1913 }]);
-    // IPVS selects in turn, thus its band of connections is one count
+    // IPVS selects in turn, thus its band of 8 connections for each client is one count
     expect(s2.cells.filter((cell) => cell.mode === "ipvs").map((cell) => [cell.candidate.connections, cell.candidate.expected])).toEqual([
       [{ low: 12, high: 12, of: 24 }, { low: 2250, high: 2712 }],
       [{ low: 12, high: 12, of: 24 }, { low: 600, high: 1350 }],
+      [{ low: 0, high: 3, of: 3 }, { low: 0, high: 2700 }],
     ]);
     for (const cell of s2.cells) for (const value of cell.values) expect(value, cell.id).toBeGreaterThanOrEqual(cell.candidate.expected.low);
     for (const cell of s2.cells) for (const value of cell.values) expect(value, cell.id).toBeLessThanOrEqual(cell.candidate.expected.high);
   });
 
-  it("has the prediction of each S2 cell of the catalog: C too, before its first run", () => {
+  it("gives each run of C a count in the band of its own sessions on the target", () => {
+    // the sessions on the target at the fault in each counted run, from the lines of the clients of
+    // run 40358038728: the backend of the last answer on each session in the second before the fault
+    const sessions: Readonly<Record<string, readonly number[]>> = { iptables: [2, 2, 0], ipvs: [3, 3, 3], nftables: [1, 3, 1] };
+    for (const cell of s2.cells.filter((each) => each.candidate.label === "C")) {
+      const on = sessions[cell.mode]!;
+      expect(cell.values.length, cell.id).toBe(on.length);
+      // each session on the target fails one request in each turn of 20 ms until the latch: 8 s to 18 s
+      cell.values.forEach((value, run) => {
+        expect(value, `${cell.id} run ${run}`).toBeGreaterThanOrEqual((on[run]! * 8) / cell.candidate.start.high);
+        expect(value, `${cell.id} run ${run}`).toBeLessThanOrEqual((on[run]! * 18) / cell.candidate.start.high);
+      });
+    }
+    // one run had no session on the target, thus no failure: C is not certain
+    expect(s2.cells.find((cell) => cell.id === "S2.T07.iptables.goaway")?.values).toContain(0);
+  });
+
+  it("has the prediction of each S2 cell of the catalog", () => {
     const ids = ["iptables", "ipvs", "nftables"].flatMap((mode) => [`S2.T07.${mode}.endpoints`, `S2.T07.${mode}.lame-duck`, `S2.T07.${mode}.goaway`]);
     expect(s2.predictions.map((each) => each.id)).toEqual(ids);
     // each cell with a run has the prediction of the catalog

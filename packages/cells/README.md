@@ -378,7 +378,7 @@ The S2 cells (`src/callers.ts`, `CALLERS_CELLS`) measure the dimension "how call
 - **The expected failed requests** (`expectedFailures`). Each connection on the target fails one request in each turn of 160 ms. Thus the count follows the connections on the target at the fault (`targetConnections`).
   - IPVS selects the backends in turn (`SELECTION`), thus 12 of the 24 connections go to the target. A expects 2,250 to 2,712, and the lame duck 600 to 1,350.
   - The rules of iptables and nftables select at random, thus the count of connections is binomial. The band of 7 to 17 has a chance of 95 % at the least. A expects 1,313 to 3,842, and the lame duck 350 to 1,913.
-  - The run 40345515219 had 9 to 14 connections on the target in these two modes. Each why text and the site give the expected count.
+  - The run 40358038728 had 8 to 16 connections on the target in these two modes. Each why text and the site give the expected count.
   - C has 3 sessions in all, and each session on the target fails 50 requests each second until the latch. The band is 0 to 3 sessions in each mode. At random, a run has no session on the target with a chance of 1/8. In turn, the first pick of each node is not known. C expects 0 to 2,700.
   - C has the mean of B: an eighth of the connections, each with 8 times the requests. Its band is wider, because a client on the target fails each of its requests, and a client on the other replica fails none.
   - A run of C with no session on the target has no failure, thus the prediction of C is not `certain`.
