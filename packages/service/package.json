@@ -37,6 +37,7 @@
     "./mongodb": "./src/mongodb.ts",
     "./rabbitmq": "./src/rabbitmq.ts",
     "./http-client": "./src/http-client.ts",
+    "./websocket": "./src/websocket.ts",
     "./clock": "./src/clock.ts",
     "./heartbeat": "./src/heartbeat.ts",
     "./backoff": "./src/backoff.ts",
@@ -68,6 +69,7 @@
     "ioredis": "^6.0.0",
     "mongodb": "^7.7.0",
     "pg": "^8.23.1",
+    "ws": "^8.22.0",
     "zod": "^4.1.0"
   },
   "peerDependenciesMeta": {
@@ -81,6 +83,9 @@
       "optional": true
     },
     "pg": {
+      "optional": true
+    },
+    "ws": {
       "optional": true
     },
     "zod": {
@@ -130,6 +135,10 @@
       "./http-client": {
         "types": "./build/http-client.d.ts",
         "default": "./build/http-client.js"
+      },
+      "./websocket": {
+        "types": "./build/websocket.d.ts",
+        "default": "./build/websocket.js"
       },
       "./clock": {
         "types": "./build/clock.d.ts",

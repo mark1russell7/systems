@@ -44,3 +44,21 @@ export const helloDial =
       socket.once("error", (error) => end(error));
       socket.once("close", () => end(new Error("the server closed the dial")));
     });
+
+/** This function gives the authority of a host and a port for a Host header. An IPv6 address goes in brackets. */
+export const authority = (host: string, port: number): string => `${host.includes(":") ? `[${host}]` : host}:${port}`;
+
+/**
+ * This function makes a judge of the status line of an HTTP/1.1 answer. The judge waits for the end
+ * of the line, in the first 8 KiB. Then `accept` reads the status code, and gives null for a good status or an error.
+ * The HTTP client accepts each status. The WebSocket client accepts only 101.
+ */
+export const statusLineJudge =
+  (accept: (status: number, line: string) => Error | null): Judge =>
+  (received) => {
+    const end = received.indexOf("\r\n");
+    if (end < 0) return received.length > 8192 ? new Error("the answer has no status line in its first 8 KiB") : "more";
+    const line = received.toString("latin1", 0, end);
+    const status = /^HTTP\/1\.[01] (\d{3})/.exec(line);
+    return status === null ? new Error(`the answer ${JSON.stringify(line)} is not an HTTP/1.1 status line`) : accept(Number(status[1]), line);
+  };

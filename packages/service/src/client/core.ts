@@ -1,5 +1,5 @@
 // The parts of a client wrapper that do not change from one client to the next. Each client entry
-// (`./redis`, `./pg`, `./http-client`, and each later client of S1) fills them in with its driver. The core gives
+// (`./redis`, `./pg`, `./http-client`, `./websocket`, and each later client of S1) fills them in with its driver. The core gives
 // the shapes of a client, the outcome of a call in three values, the rule that sends a call again,
 // the record of the calls in flight, the bounded close, the checks of the steps of a connection,
 // and the problems of a spec and of a client in a description. It loads only quantity.
@@ -8,6 +8,7 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 import type { Backoff } from "../backoff.ts";
+import { backoffDelay } from "../backoff.ts";
 import type { ServiceBuilder } from "../builder.ts";
 import type { Cancel, Clock } from "../clock.ts";
 import type { Check, Dependency, Gate, ServiceDescription, Step } from "../description.ts";
@@ -394,9 +395,58 @@ export const retryBackoff = (knobs: RetryKnobs): Backoff => ({
   jitter: { kind: "add", amount: ms(knobs.retry_base) },
 });
 
+/**
+ * A retry schedule holds the next try to connect, for a client that connects again by itself. It
+ * counts the tries since the last join. Each delay comes from the backoff, rounded to a whole millisecond.
+ */
+export interface RetrySchedule {
+  /** This count is the number of tries since the last reset. */
+  readonly tries: number;
+  /** This method counts one more try, and starts `due` after the delay of that try. It stops a try that waits. */
+  schedule(due: () => void): void;
+  /** This method stops the try that waits. The close uses it. */
+  cancel(): void;
+  /** This method sets the count of tries to zero. The client uses it at each join. */
+  reset(): void;
+}
+
+/** This function makes the retry schedule of a client, from its backoff and its random numbers. RabbitMQ and WebSocket use it. */
+export const retrySchedule = (clock: Clock, backoff: Backoff, random: () => number): RetrySchedule => {
+  let tries = 0;
+  let timer: Cancel | null = null;
+  return {
+    get tries() {
+      return tries;
+    },
+    schedule(due) {
+      tries += 1;
+      const delay = Math.round(backoffDelay(backoff, tries, random));
+      timer?.();
+      timer = clock.after(delay, () => {
+        timer = null;
+        due();
+      });
+    },
+    cancel() {
+      timer?.();
+      timer = null;
+    },
+    reset() {
+      tries = 0;
+    },
+  };
+};
+
 /** This function gives the problems of the retry knobs: the cap must not be below the base. */
 export const retryProblems = (name: string, knobs: RetryKnobs): string[] =>
   ms(knobs.retry_cap) < ms(knobs.retry_base) ? [`${name}'s retry_cap is below its retry_base`] : [];
+
+/**
+ * This function gives the problem of a count of misses that is not a whole number above zero. A
+ * client that closes its connection after a count of heartbeat misses uses it. `mechanism` names the heartbeat, for example "watchdog".
+ */
+export const missesProblems = (name: string, misses: number, mechanism: string): string[] =>
+  Number.isInteger(misses) && misses >= 1 ? [] : [`${name}'s ${mechanism} closes the connection after ${misses} misses, not a whole number above zero`];
 
 /** This function gives the problems of the knobs of a spec that each client has: each knob must be a time of zero or more. */
 export const timeProblems = (name: string, knobs: object): string[] => {

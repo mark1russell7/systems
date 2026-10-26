@@ -108,6 +108,8 @@ The draft [PR #157](https://github.com/mark1russell7/systems/pull/157) is a prot
 
 [PR #163](https://github.com/mark1russell7/systems/pull/163) adds the HTTP client (`./http-client`) over the agent of Node, on that core. It moves the timer of a call and the problems of a wrapper timer, an age and a keepalive into the core.
 
+[PR #164](https://github.com/mark1russell7/systems/pull/164) adds the WebSocket client (`./websocket`) over ws, on that core. It moves the retry schedule, the misses problem and the status line judge into the core.
+
 ## The server stack in S6
 
 These items are the part of the server stack in this repository. The server stack is a plan across repositories: one service runner here, and one procedures server in the client. [Its tracker](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb) has the whole plan, with the same ids.
