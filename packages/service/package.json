@@ -103,7 +103,7 @@
     "@mark1russell7/harness": "workspace:^",
     "@types/node": "^26.6.4",
     "ioredis": "6.0.0",
-    "testcontainers": "12.2.0",
+    "testcontainers": "12.2.1",
     "tsdown": "^0.23.1",
     "typescript": "^7.0.2",
     "vitest": "^5.0.3",
