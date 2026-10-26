@@ -189,6 +189,14 @@ const REASONS: ReadonlyArray<readonly [RegExp, string]> = [
     "HAProxy has no machine document yet, and its documentation does not tell what it does on one side when the other side fails. The client gets what HAProxy sends when its own keepalive gives up on the server.",
   ],
   [
+    /^timeout_client sends a FIN to the target, and the document redis-client of the target gives no FIN back/,
+    "At its client timeout, HAProxy sends a FIN to Redis. Its FIN to the client follows the FIN of Redis. The machine document of Redis does not give that FIN, thus the harness measures it.",
+  ],
+  [
+    /^HAPROXY_TCP gives no event for an error of the socket toward the server/,
+    "The machine document of HAProxy gives no event for an error of its socket toward the server. The client gets what HAProxy sends when its own keepalive gives up on the server.",
+  ],
+  [
     /^Toxiproxy documents its toxics, but not what it sends to the client when its upstream connection fails$/,
     "Toxiproxy has no machine document yet. Its documentation tells what each toxic does, but not what Toxiproxy sends to the client when its upstream connection fails.",
   ],

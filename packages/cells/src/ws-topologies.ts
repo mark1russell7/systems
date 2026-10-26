@@ -1,7 +1,8 @@
+import type { KnobValues, Machine } from "@mark1russell7/algebra";
 import { overValues, timerOf, transitionOn } from "@mark1russell7/algebra";
 import type { Cell, MiddleboxForm, Prediction, Subject } from "@mark1russell7/harness";
 import { subjectClient } from "@mark1russell7/harness";
-import { LINUX_TCP, NF_CONNTRACK_TCP, PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "@mark1russell7/machines";
+import { HAPROXY_TCP, LINUX_TCP, NF_CONNTRACK_TCP, PROCEDURES_WS_CLIENT, PROCEDURES_WS_SERVER } from "@mark1russell7/machines";
 import { RTT_MS, RUNS, WINDOW, given, q, seconds, sysctlsOf } from "./catalog.ts";
 import type { Span } from "./mongo/model.ts";
 import { plus, spanOf } from "./mongo/model.ts";
@@ -9,8 +10,8 @@ import { assuming } from "./rtt.ts";
 import { PROCEDURES } from "./subjects.ts";
 import { PROXY_SYSCTLS } from "./t02.ts";
 import { IDLE, routerValues } from "./t03.ts";
-import type { O03Verdict } from "./topologies.ts";
-import { ackDelay, haproxy, o03, o03From, router } from "./topologies.ts";
+import type { FinAnswer, O03Verdict } from "./topologies.ts";
+import { ackDelay, haproxy, haproxyIdle, haproxyValues, o03, o03From, router } from "./topologies.ts";
 import type { WsClientSettings, WsServerSettings, WsSpec } from "./ws.ts";
 import {
   CLIENT,
@@ -30,8 +31,8 @@ import {
 /**
  * This module is the WST catalog: the WebSocket client and server of a procedures subject through
  * a topology. The router of T03 forgets an idle flow at 5 s, and HAProxy of T02 closes an idle
- * connection at its own timeouts. The client and the server are the client and the server of the
- * WS catalog, on the same subject, with the same documents and settings.
+ * connection at its own timeouts (`HAPROXY_TCP`). The client and the server are the client and the
+ * server of the WS catalog, on the same subject, with the same documents and settings.
  */
 
 /** These are the times of a heartbeat below the idle timeout of the hop: a ping each 4 s, against 5 s. */
@@ -40,8 +41,6 @@ const BELOW = { interval: 4000, timeout: 1000, misses: 1 };
 const ABOVE = { interval: 6000, timeout: 1000, misses: 1 };
 /** This time is the window of a silent cell: three pings of a heartbeat below the timeout, as T03 has it. */
 const SILENT = 15;
-/** This time is the window of a measurement of an idle timeout of HAProxy, as T02 has it. */
-const MEASURED = 10;
 /**
  * This time is the longest first request of a run, from the open of its socket to its reply. The
  * heartbeat counts from the open, and the router counts from the reply. No source bounds it: it is
@@ -86,9 +85,10 @@ const SERVER_ABOVE: WsServerSettings = { heartbeat: { interval: 6000, misses: 2 
  * - The router of T03. O03 decides the flow: the ping of the heartbeat is the refresh, and the idle
  *   timeout of conntrack is the forget. A heartbeat of 4 s keeps the flow, and one of 6 s does not.
  *   Then the form of the router decides what the client sees.
- * - HAProxy of T02. Each ping and its pong is data on the two legs. HAProxy has no machine
- *   document, thus its idle timeouts are measurement-only. A black hole on one leg gets the band
- *   of the heartbeat.
+ * - HAProxy of T02. Each ping and its pong is data on the two legs, thus it resets the timer of
+ *   each side. O03 decides with `HAPROXY_TCP` as the middlebox: a heartbeat of 4 s keeps the
+ *   connection, and one of 6 s does not. Then the timer that fires first ends the connection with
+ *   a FIN. A black hole on one leg gets the band of the heartbeat.
  */
 const GLOBAL_SPECS: readonly WstSpec[] = [
   // ---- the router of T03: the heartbeat on each side of the border of O03
@@ -122,7 +122,6 @@ const GLOBAL_SPECS: readonly WstSpec[] = [
     fault: "proxy-idle",
     client: { ...CLIENT, heartbeat: ABOVE },
     tries: 1,
-    window: MEASURED,
   },
   {
     name: "client idle, HAProxy timeout server 5 s, heartbeat 6 s and 1 s",
@@ -130,7 +129,6 @@ const GLOBAL_SPECS: readonly WstSpec[] = [
     fault: "proxy-idle",
     client: { ...CLIENT, heartbeat: ABOVE },
     tries: 1,
-    window: MEASURED,
   },
   // ---- a black hole on each leg of HAProxy
   ...(["client", "target"] as const).map(
@@ -211,16 +209,40 @@ const asWs = (spec: WstSpec): WsSpec => ({
 const refreshOf = (verdict: O03Verdict): number => (verdict.refresh === "inf" ? Number.POSITIVE_INFINITY : verdict.refresh);
 
 /**
- * This function gives the O03 verdict of a client against the router of T03, at a round trip in
- * ms. Two timers refresh its flow: the ping of its heartbeat, and the keepalive that its socket
- * class sets. The earlier refresh of the two decides.
+ * A forgetter is the middlebox of O03 on a hop: its document, its values, and if a keepalive probe
+ * refreshes it. Conntrack counts each segment. The timers of `HAPROXY_TCP` count bytes only, and a
+ * keepalive probe carries none.
  */
-export const o03Ws = (client: WsClientSettings, rttMs = RTT_MS): O03Verdict => {
+export interface Forgetter {
+  readonly doc: Machine;
+  readonly values: KnobValues;
+  readonly keepalive: boolean;
+}
+
+/** This forgetter is the router of T03: conntrack at the idle timeout of the router. */
+const ROUTER: Forgetter = { doc: NF_CONNTRACK_TCP, values: routerValues, keepalive: true };
+
+/** This function gives the forgetter of a hop: the router of T03, or HAProxy at its idle timeouts. */
+export const forgetterOf = (hop: WstHop): Forgetter =>
+  hop.kind === "router" ? ROUTER : { doc: HAPROXY_TCP, values: haproxyValues(hop.timeouts), keepalive: false };
+
+/**
+ * This function gives the O03 verdict of a client against a forgetter, at a round trip in ms. The
+ * default is the router of T03. Two timers refresh its flow: the ping of its heartbeat, and the
+ * keepalive that its socket class sets. The earlier refresh of the two decides.
+ */
+export const o03Ws = (client: WsClientSettings, rttMs = RTT_MS, forgetter: Forgetter = ROUTER): O03Verdict => {
   const spec = asWs({ name: "o03", hop: { kind: "router", form: "none" }, fault: "middlebox-forget", client });
   const values = clientValues(client);
   const rtt = rttMs / 1000;
-  const heartbeat = o03({ doc: PROCEDURES_WS_CLIENT, values }, routerValues, rtt);
-  const keepalive = o03({ doc: LINUX_TCP, values: overValues(PROCEDURES_WS_CLIENT, values, given(linuxValues(spec, rttMs))) }, routerValues, rtt);
+  const heartbeat = o03({ doc: PROCEDURES_WS_CLIENT, values }, forgetter.values, rtt, forgetter.doc);
+  if (!forgetter.keepalive) return heartbeat;
+  const keepalive = o03(
+    { doc: LINUX_TCP, values: overValues(PROCEDURES_WS_CLIENT, values, given(linuxValues(spec, rttMs))) },
+    forgetter.values,
+    rtt,
+    forgetter.doc,
+  );
   return refreshOf(heartbeat) <= refreshOf(keepalive) ? heartbeat : keepalive;
 };
 
@@ -233,20 +255,21 @@ export const beatOf = (server: WsServerSettings & { readonly heartbeat: NonNulla
   timerOf(PROCEDURES_WS_SERVER, "heartbeat", serverValues({ heartbeat: { ...server.heartbeat, misses: 1 } }));
 
 /**
- * This function gives the O03 verdict of the heartbeat of a server against the router of T03, at a
- * round trip in ms. Each beat pings each connection, and the pong comes back. Thus the refresh is
- * one beat. `PROCEDURES_WS_SERVER` realizes no idle refresh, thus the refresh is its heartbeat timer
- * at one miss (`beatOf`). The server socket has no keepalive.
+ * This function gives the O03 verdict of the heartbeat of a server against a forgetter, at a round
+ * trip in ms. The default is the router of T03. Each beat pings each connection, and the pong comes
+ * back. Thus the refresh is one beat. `PROCEDURES_WS_SERVER` realizes no idle refresh, thus the
+ * refresh is its heartbeat timer at one miss (`beatOf`). The server socket has no keepalive.
  */
-export const o03Server = (server: WsServerSettings, rttMs = RTT_MS): O03Verdict | undefined => {
+export const o03Server = (server: WsServerSettings, rttMs = RTT_MS, forgetter: Forgetter = ROUTER): O03Verdict | undefined => {
   const { heartbeat } = server;
-  return heartbeat === null ? undefined : o03From(beatOf({ heartbeat }), routerValues, rttMs / 1000);
+  return heartbeat === null ? undefined : o03From(beatOf({ heartbeat }), forgetter.values, rttMs / 1000, forgetter.doc);
 };
 
-/** This function gives the O03 verdict of a WST cell: the earlier refresh of its client and of its server. */
+/** This function gives the O03 verdict of a WST cell on its hop: the earlier refresh of its client and of its server. */
 export const o03Wst = (spec: WstSpec, rttMs = RTT_MS): O03Verdict => {
-  const client = o03Ws(spec.client, rttMs);
-  const server = o03Server(spec.server ?? QUIET_SERVER, rttMs);
+  const forgetter = forgetterOf(spec.hop);
+  const client = o03Ws(spec.client, rttMs, forgetter);
+  const server = o03Server(spec.server ?? QUIET_SERVER, rttMs, forgetter);
   return server === undefined || refreshOf(client) <= refreshOf(server) ? client : server;
 };
 
@@ -258,9 +281,26 @@ export const o03Wst = (spec: WstSpec, rttMs = RTT_MS): O03Verdict => {
 export const forgetOf = (rttMs: number): Span =>
   plus(ackDelay(rttMs), spanOf(NF_CONNTRACK_TCP, "expire_established", routerValues));
 
-/** This text tells why a cell of an idle timeout of HAProxy has no band. */
-const NO_DOCUMENT =
-  "HAProxy has no machine document. Its documentation gives an inactivity timeout on each side, and each ping and pong is data on the two legs, but the algebra cannot read that";
+/** This answer is the procedures server at a FIN: ws ends its side of the socket at once (`ps.peer-end`). */
+const WS_TARGET: FinAnswer = { doc: PROCEDURES_WS_SERVER, state: "OPEN", on: "rx.fin", fin: "tx.fin" };
+
+/**
+ * This function gives what the client sees when an idle timeout of HAProxy ends the connection.
+ * The band is from `haproxyIdle`, from the last data that the client received. The first ping must
+ * come after the latest FIN. Then the client meets a FIN, as at the FIN of the server in the WS
+ * catalog: the same error and the same reconnect.
+ */
+const proxyIdleAt = (spec: WstSpec, timeouts: { readonly client: number; readonly server: number }, rttMs: number): Prediction => {
+  const ws = asWs(spec);
+  const idle = haproxyIdle(timeouts, rttMs / 1000, WS_TARGET);
+  if ("why" in idle) throw new Error(`${spec.name}: ${idle.why}`);
+  // the heartbeat counts from the open, at most FIRST_REPLY before the reply
+  const ping = spanOf(PROCEDURES_WS_CLIENT, "ping", clientValues(spec.client));
+  if (!(ping.lo - FIRST_REPLY > idle.hi)) throw new Error(`${spec.name}: the first ping can come before the FIN of HAProxy`);
+  const fin = predictWsAt({ ...ws, manifestation: "fin" }, rttMs);
+  if (fin.detects !== true) throw new Error(`${spec.name}: nothing detects the FIN of HAProxy`);
+  return { ...fin, timer: idle.timer, from: "last-data", low: q(idle.lo), high: q(idle.hi) };
+};
 
 /**
  * This function gives what the server sees when the router forgot the flow, at a round trip in ms.
@@ -299,8 +339,8 @@ const serverAt = (spec: WstSpec, form: MiddleboxForm, rttMs: number): Prediction
 
 /**
  * This function gives the prediction of a WST cell at a round trip in ms.
- * - An idle timeout of HAProxy is measurement-only. A cell that times its reconnect gets the bands
- *   of its waits from the document of the client.
+ * - At HAProxy, O03 decides with `HAPROXY_TCP` as the middlebox. When it holds, nothing occurs in
+ *   the window. Else an idle timeout ends the connection (`proxyIdleAt`).
  * - A black hole on a leg of HAProxy gets the band of the WS catalog: the pong timeout after the
  *   first ping without an answer.
  * - At the router, O03 decides with the earlier refresh of the two ends. When it holds, nothing
@@ -314,12 +354,8 @@ export const predictWstAt = (spec: WstSpec, rttMs: number): Prediction => {
   const ws = asWs(spec);
   if (spec.hop.kind === "proxy") {
     if (spec.fault === "blackhole") return predictWsAt(ws, rttMs);
-    const reconnects = reconnectsOf(ws);
-    const why =
-      reconnects.reconnects === undefined
-        ? `${NO_DOCUMENT}: the cell measures if the connection lives`
-        : `${NO_DOCUMENT}: the cell measures when HAProxy closes the idle connection. The waits of the reconnect have bands from the document of the client`;
-    return { detects: null, window: q(spec.window ?? MEASURED), why, from: "last-received", ...reconnects };
+    if (o03Wst(spec, rttMs).holds) return { detects: false, window: q(spec.window ?? WINDOW) };
+    return proxyIdleAt(spec, spec.hop.timeouts, rttMs);
   }
   const verdict = o03Wst(spec, rttMs);
   if (verdict.holds) return { detects: false, window: q(spec.window ?? WINDOW) };

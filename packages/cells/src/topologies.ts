@@ -1,13 +1,14 @@
 import type { KnobValues, Machine, TimerBounds } from "@mark1russell7/algebra";
-import { evaluate as evaluateTime, realizationOf } from "@mark1russell7/algebra";
+import { evaluate as evaluateTime, realizationOf, timerOf, transitionOn } from "@mark1russell7/algebra";
 import type { ProxyHop, RouterHop, Target } from "@mark1russell7/harness";
 import { LISTING, PUMP_SLACK } from "@mark1russell7/harness";
-import { LINUX_TCP, NF_CONNTRACK_TCP } from "@mark1russell7/machines";
+import { HAPROXY_TCP, LINUX_TCP, NF_CONNTRACK_TCP } from "@mark1russell7/machines";
 import type { Extent, Quantity, Unknown } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Binding, Rule } from "@mark1russell7/service";
 import { evaluate, verdictOf } from "@mark1russell7/service";
 import { HZ, REDIS, given, s, seconds } from "./catalog.ts";
+import { defaultsOf } from "./mongo/model.ts";
 
 /** This target is Redis with a command that closes the connection of each client (`CLIENT KILL`). */
 export const REDIS_CLOSING: Target = {
@@ -90,6 +91,67 @@ export const haproxy = (
   sysctls,
   settings: { "timeout client": `${timeouts.client}s`, "timeout server": `${timeouts.server}s` },
 });
+
+/** This function gives the values of `HAPROXY_TCP` for the idle timeouts of a hop in seconds, and the defaults of its other knobs. */
+export const haproxyValues = (timeouts: { readonly client: number; readonly server: number }): KnobValues =>
+  given({ ...defaultsOf(HAPROXY_TCP), timeout_client: s(timeouts.client), timeout_server: s(timeouts.server) });
+
+/** A FIN answer names the transition of the document of a target that takes the FIN of HAProxy. It also names the FIN of the target. */
+export interface FinAnswer {
+  readonly doc: Machine;
+  readonly state: string;
+  readonly on: string;
+  readonly fin: string;
+}
+
+/**
+ * An idle end of HAProxy is the timer of HAProxy that ends an idle connection, and when its FIN
+ * reaches the client. The time is in seconds from the last data that the client received. A why
+ * tells why the documents give no such time.
+ */
+export type HaproxyIdle = { readonly timer: string; readonly lo: number; readonly hi: number } | { readonly why: string };
+
+/** This event of `HAPROXY_TCP` is its FIN to the client. */
+const CLIENT_FIN = "tx.client-fin";
+/** This event of `HAPROXY_TCP` is its FIN to the target. */
+const UPSTREAM_FIN = "tx.upstream-fin";
+
+/**
+ * This function gives how HAProxy ends an idle connection, from `HAPROXY_TCP`, at a round trip to
+ * the target in seconds. Only bytes reset the timer of each side, thus each timer counts from the
+ * last data. The timer that fires first decides.
+ * - `timeout server` sends a FIN to the client at once.
+ * - `timeout client` sends a FIN to the target, and the FIN to the client follows the FIN of the
+ *   target. Then the band gets one round trip to the target and one step of HAProxy. The document of
+ *   the target must answer the FIN with its own (`target`), else the band is unknown.
+ */
+export const haproxyIdle = (
+  timeouts: { readonly client: number; readonly server: number },
+  rtt: number,
+  target?: FinAnswer,
+): HaproxyIdle => {
+  const values = haproxyValues(timeouts);
+  const spans = (["timeout_client", "timeout_server"] as const)
+    .flatMap((timer) => {
+      const bounds = timerOf(HAPROXY_TCP, timer, values);
+      const duration = secondsOrInfinite(bounds.duration, timer);
+      if (duration === "inf") return [];
+      return [{ timer, lo: duration - seconds(bounds.early, `${timer}'s early bound`), hi: duration + seconds(bounds.lateness, `${timer}'s lateness`) }];
+    })
+    .sort((a, b) => a.lo - b.lo);
+  const [first, next] = spans;
+  if (first === undefined) return { why: "HAProxy has no idle timeout on either side" };
+  if (next !== undefined && !(first.hi < next.lo)) return { why: "the two idle timeouts of HAProxy can fire in either sequence" };
+  const ends = transitionOn(HAPROXY_TCP, "linked", HAPROXY_TCP.timers[first.timer]!.fires);
+  if (ends?.emits?.includes(CLIENT_FIN)) return first;
+  if (ends === undefined || !ends.emits?.includes(UPSTREAM_FIN)) throw new Error(`${HAPROXY_TCP.title}: ${first.timer} sends no FIN`);
+  if (target === undefined) return { why: `${first.timer} sends a FIN to the target, and no document tells what the target does then` };
+  if (!(transitionOn(target.doc, target.state, target.on)?.emits ?? []).includes(target.fin))
+    return { why: `${first.timer} sends a FIN to the target, and the document ${target.doc.id} of the target gives no FIN back` };
+  if (!(transitionOn(HAPROXY_TCP, ends.to, "peer.upstream-fin")?.emits ?? []).includes(CLIENT_FIN))
+    throw new Error(`${HAPROXY_TCP.title}: the FIN of the target sends no FIN to the client`);
+  return { timer: first.timer, lo: first.lo, hi: first.hi + rtt + seconds(values("slack"), "the slack of HAProxy") };
+};
 
 /** This image is Toxiproxy 2.12.0, pinned by digest: the subject of the TOX cells. */
 export const TOXIPROXY_IMAGE =
@@ -175,19 +237,27 @@ export const o03 = (
   endpoint: { readonly doc: Machine; readonly values: KnobValues },
   middlebox: KnobValues,
   rtt: number,
+  forgetter: Machine = NF_CONNTRACK_TCP,
 ): O03Verdict => {
   const refreshing = realizationOf(endpoint.doc, "systems.mechanism.idle-refresh-interval", endpoint.values);
   if (refreshing === undefined) throw new Error("a document realizes no term of O03");
-  return o03From(refreshing, middlebox, rtt);
+  return o03From(refreshing, middlebox, rtt, forgetter);
 };
 
 /**
  * This function decides O03 for a refresh that a timer of a document gives, on a middlebox. The
- * refresh is the timer at its latest. The forget is the idle timeout of conntrack at its earliest.
+ * refresh is the timer at its latest. The forget is the idle timeout of the middlebox at its
+ * earliest: the realization of `systems.mechanism.middlebox-idle` in its document. That is
+ * conntrack of a router, or the earlier timeout of a proxy (`HAPROXY_TCP`).
  */
-export const o03From = (refreshing: TimerBounds, middlebox: KnobValues, rtt: number): O03Verdict => {
-  const forgetting = realizationOf(NF_CONNTRACK_TCP, "systems.mechanism.middlebox-idle", middlebox);
-  if (forgetting === undefined) throw new Error("a document realizes no term of O03");
+export const o03From = (
+  refreshing: TimerBounds,
+  middlebox: KnobValues,
+  rtt: number,
+  forgetter: Machine = NF_CONNTRACK_TCP,
+): O03Verdict => {
+  const forgetting = realizationOf(forgetter, "systems.mechanism.middlebox-idle", middlebox);
+  if (forgetting === undefined) throw new Error(`${forgetter.title} realizes no term of O03`);
   const idle = secondsOrInfinite(refreshing.duration, "the refresh");
   const refresh = idle === "inf" ? "inf" : idle + seconds(refreshing.lateness, "the lateness of the refresh");
   const forget =

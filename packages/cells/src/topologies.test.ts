@@ -76,8 +76,21 @@ describe("the catalogs of the topologies", () => {
     for (const each of T03_CELLS) expect(each.concurrency, each.name).toBe(1);
   });
 
-  it("predicts each leg of T02 with Linux TCP, and leaves the idle timers of HAProxy to measurement", () => {
+  it("predicts each leg of T02 with Linux TCP, and timeout server from HAPROXY_TCP; Redis gives no FIN back in its document", () => {
+    // timeout server: the FIN goes to the client at once. No keepalive probe resets the timer: the band counts from the last data
+    expect(band(T02_CELLS, "T02 client idle, keepalive 2 s, HAProxy timeout server 5 s, Redis tcp-keepalive 2 s")).toEqual({
+      timer: "timeout_server",
+      errno: "EOF",
+      from: "last-data",
+      low: 4.989,
+      high: 5.011,
+    });
+    // timeout client: the FIN to the client follows the FIN of Redis, and REDIS_CLIENT gives none
     expect(band(T02_CELLS, "T02 client idle, keepalive 2 s, HAProxy timeout client 5 s")).toBe("measured");
+    const client = named(T02_CELLS, "T02 client idle, keepalive 2 s, HAProxy timeout client 5 s").prediction;
+    expect(client.detects === null ? client.why : "").toBe(
+      "timeout_client sends a FIN to the target, and the document redis-client of the target gives no FIN back. Thus the cell measures when the FIN reaches the client",
+    );
     expect(band(T02_CELLS, "T02 client idle, keepalive 5 s, blackhole at HAProxy toward the client")).toMatchObject({ low: 10.996, high: 11.352 });
     expect(band(T02_CELLS, "T02 HAProxy toward the client idle, blackhole at the client")).toMatchObject({ low: 5.996, high: 6.352 });
     expect(band(T02_CELLS, "T02 server idle, tcp-keepalive 5 s, blackhole at HAProxy toward the target")).toMatchObject({ low: 7.996, high: 8.352 });

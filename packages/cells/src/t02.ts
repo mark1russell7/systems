@@ -18,7 +18,8 @@ import {
   sysctlsOf,
 } from "./catalog.ts";
 import { MANIFESTATIONS } from "./manifestations.ts";
-import { haproxy } from "./topologies.ts";
+import type { FinAnswer } from "./topologies.ts";
+import { haproxy, haproxyIdle } from "./topologies.ts";
 
 /** These are the knobs of Linux TCP in the namespace of the proxy: keepalive at 3 s idle and 3 probes 1 s apart, 6 s in all. */
 const PROXY_LINUX = { keepidle: s(3), keepintvl: s(1), keepcnt: count(3), tcp_retries2: count(3) };
@@ -62,9 +63,20 @@ const idleRedis = (keepalive: number): Prediction => {
   return { detects: true, timer: found.first.timer, errno: "ETIMEDOUT", from: "last-received", ...bandOf(found.first.timer, overValues(REDIS_CLIENT, redis, linux)) };
 };
 
-/** This text tells why a cell of the idle timer of HAProxy is measurement only. */
-const NO_DOCUMENT =
-  "HAProxy has no machine document. Its documentation gives an inactivity timeout on each side, and a keepalive probe carries no data, but the algebra cannot read that";
+/** This answer is Redis at a FIN of HAProxy: `REDIS_CLIENT` frees the client (`rc.gone`), and its document gives no FIN back. */
+const REDIS_TARGET: FinAnswer = { doc: REDIS_CLIENT, state: "CONNECTED", on: "peer.fin", fin: "tx.fin" };
+
+/**
+ * This function gives the prediction of an idle timeout of HAProxy against the keepalive probes of
+ * each end, from `HAPROXY_TCP`. A probe carries no data, thus it resets no timer, and the band
+ * counts from the last data. When the documents give no band, the cell is measurement-only.
+ */
+const proxyIdle = (timeouts: { readonly client: number; readonly server: number }): Prediction => {
+  const idle = haproxyIdle(timeouts, RTT_MS / 1000, REDIS_TARGET);
+  if ("why" in idle) return measured(10, `${idle.why}. Thus the cell measures when the FIN reaches the client`);
+  const [fin] = detection(LINUX_TCP, { state: "ESTABLISHED", inFlight: false }, MANIFESTATIONS.fin, given(values({}))).delivered;
+  return { detects: true, timer: idle.timer, errno: fin?.errno ?? "EOF", from: "last-data", low: q(idle.lo), high: q(idle.hi) };
+};
 
 /** A T02 spec is one cell of the pooled request chain: client → HAProxy → Redis 7.4. */
 interface T02Spec {
@@ -97,7 +109,7 @@ const T02_SPECS: readonly T02Spec[] = [
     observer: "client",
     timeouts: { client: 5, server: 30 },
     keepalive: "short",
-    prediction: measured(10, `${NO_DOCUMENT}: the client side times out at 5 s whether or not the client sends keepalive probes`),
+    prediction: proxyIdle({ client: 5, server: 30 }),
   },
   {
     name: "client idle, keepalive 2 s, HAProxy timeout server 5 s, Redis tcp-keepalive 2 s",
@@ -106,7 +118,7 @@ const T02_SPECS: readonly T02Spec[] = [
     timeouts: { client: 30, server: 5 },
     keepalive: "short",
     redisKeepalive: 2,
-    prediction: measured(10, `${NO_DOCUMENT}: the server side times out at 5 s whether or not Redis sends keepalive probes`),
+    prediction: proxyIdle({ client: 30, server: 5 }),
   },
   // ---- a black hole between the client and the proxy: the client at 11 s, the proxy at 6 s
   {
@@ -152,7 +164,7 @@ const T02_SPECS: readonly T02Spec[] = [
     timeouts: { client: 30, server: 30 },
     prediction: measured(
       15,
-      "HAProxy has no machine document for what it does on one side when the other side fails: the client hears what HAProxy sends when its own keepalive gives up on the server",
+      "HAPROXY_TCP gives no event for an error of the socket toward the server: the client hears what HAProxy sends when its own keepalive gives up on the server",
     ),
   },
 ];
