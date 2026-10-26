@@ -669,7 +669,7 @@ It comes as a PATCH before 1.0.0: a new entry and new exports.
 - **Depends on:**
 - **Started:** 2026-10-26
 - **Shipped:** 2026-10-26
-- **Links:**
+- **Links:** [#186](https://github.com/mark1russell7/systems/pull/186)
 
 The server stack found that service 0.5.16 has no logger. With this item, `run({ logger })` and `start({ logger })` take a `Logger`, as they take the clock. The port has one method, `log(level, message, fields)`, thus an adapter to another logger is a few lines.
 
