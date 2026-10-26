@@ -1,7 +1,7 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
-import type { Finding, Rule, Scenario, ServiceDescription, Verdict } from "@mark1russell7/service";
-import { lint } from "@mark1russell7/service";
+import type { Finding, Rule, Scenario, ServiceDescription, StopWay, Verdict } from "@mark1russell7/service";
+import { lint, lintStop } from "@mark1russell7/service";
 import { redisClient } from "@mark1russell7/service/redis";
 import type { KindCell } from "./cell.ts";
 import { compose } from "./compose.ts";
@@ -96,7 +96,7 @@ export const O16: Rule = {
   ],
 };
 
-/** These are the rules of the drain that each kind cell gets. */
+/** These are the rules of the drain. A kind cell gets the rules that guard the way that its plan stops a pod. */
 export const DRAIN_RULES: readonly Rule[] = [O04, O09, O10, O16];
 
 const seconds = (amount: Quantity): number => valueIn(amount, "s");
@@ -122,9 +122,50 @@ export const scenarioOf = (cell: KindCell, propagation: Propagation): Scenario =
 /** A verdict set is the verdict of each drain rule for one declaration, by the identifier of the rule. */
 export type Verdicts = Readonly<Record<string, Verdict>>;
 
-/** This function applies the drain rules to the description of a cell, and gives each finding. */
-export const lintCell = (description: ServiceDescription, cell: KindCell, propagation: Propagation): Finding[] =>
-  lint(description, scenarioOf(cell, propagation), DRAIN_RULES);
+/**
+ * This function gives the way that the fault plan of a cell stops a pod, or null when the plan stops no pod.
+ * - A deletion, a rolling update, a node drain, a scale-in and a rollout delete a pod with its grace.
+ * - In T07 a pause of kube-proxy comes before a deletion. In T18 the pause is on Redis.
+ * - The crash of the lab is SIGKILL from the node. Like a crash, it has no preStop hook and no drain.
+ * - The other faults are on a link, on Redis or on the process. The kubelet can restart a pod after them.
+ */
+export const stopOf = (cell: KindCell): StopWay | null => {
+  switch (cell.trigger.kind) {
+    case "pod-deletion":
+    case "rolling-update":
+    case "node-drain":
+    case "scale-in":
+    case "rollout":
+      return "deletion";
+    case "freeze-process":
+      return cell.template === "T07" ? "deletion" : null;
+    case "crash":
+      return "crash";
+    case "liveness-restart":
+      return "liveness-restart";
+    case "rst":
+    case "blackhole":
+    case "peer-gone-without-close":
+    case "app-stall":
+    case "cpu-throttle":
+    case "authorization-policy":
+    case "idle":
+    case "ztunnel-restart":
+    case "certificate-expiry":
+      return null;
+  }
+};
+
+/**
+ * This function applies the drain rules to the description of a cell, and gives each finding. A cell
+ * whose plan stops a pod gets the rules of that way (`lintStop()`). A plan that stops no pod gets each
+ * drain rule, because a restart by the kubelet or a later deletion can follow its fault.
+ */
+export const lintCell = (description: ServiceDescription, cell: KindCell, propagation: Propagation): Finding[] => {
+  const way = stopOf(cell);
+  const scenario = scenarioOf(cell, propagation);
+  return way === null ? lint(description, scenario, DRAIN_RULES) : lintStop(description, scenario, DRAIN_RULES, way);
+};
 
 /** This function gives the verdict of each drain rule, by its identifier. */
 export const verdictsOf = (findings: readonly Finding[]): Verdicts =>

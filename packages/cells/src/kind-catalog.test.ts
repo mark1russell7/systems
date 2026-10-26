@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { KindCell } from "@mark1russell7/kind";
-import { clientObjects, describeCell, lintCell, namespaceOf, pausedWindow, planOf, serverObjects, verdictsOf } from "@mark1russell7/kind";
+import { clientObjects, describeCell, lintCell, namespaceOf, pausedWindow, planOf, serverObjects, stopOf, verdictsOf } from "@mark1russell7/kind";
+import { STOP_RULE } from "@mark1russell7/service";
 import { valueIn } from "@mark1russell7/quantity";
 import { PROPAGATION, SYN_SENT, afterSync, s } from "./kind.ts";
 import { T07_CELLS } from "./t07.ts";
@@ -42,7 +43,7 @@ describe("the kind catalogs", () => {
   });
 
   it("predicts no failed request exactly where lint() finds that O04 holds", () => {
-    for (const cell of T07_CELLS.filter((each) => each.trigger.kind !== "crash" && each.trigger.kind !== "liveness-restart")) {
+    for (const cell of T07_CELLS.filter((each) => stopOf(each) === "deletion")) {
       const verdicts = verdictsOf(lintCell(describeCell(cell), cell, propagationOf(cell)));
       expect(verdicts["O04"] === "holds", cell.name).toBe(cell.prediction.kind === "none");
     }
@@ -80,11 +81,24 @@ describe("the kind catalogs", () => {
     expect(update.prediction.why).toMatch(/1\.21 s at the most, a sync of up to 0\.105 s at the change, minSyncPeriod/);
   });
 
-  it("fits the drain of each declaration in its grace: O10 and O16 hold", () => {
+  it("fits the drain of each declaration in its grace: O10 and O16 hold, and a crash has no drain to fit", () => {
     for (const cell of ALL) {
       const verdicts = verdictsOf(lintCell(describeCell(cell), cell, PROPAGATION[cell.mode]));
+      if (stopOf(cell) === "crash") {
+        expect([verdicts["O10"], verdicts["O16"], verdicts[STOP_RULE]], cell.name).toEqual([undefined, undefined, "depends"]);
+        continue;
+      }
       expect(verdicts["O10"], cell.name).toBe("holds");
       expect(verdicts["O16"], cell.name).toBe("holds");
+    }
+  });
+
+  it("applies O04 only to a deletion and O09 only to a liveness restart", () => {
+    for (const cell of ALL) {
+      const verdicts = verdictsOf(lintCell(describeCell(cell), cell, PROPAGATION[cell.mode]));
+      const way = stopOf(cell);
+      expect("O04" in verdicts, cell.name).toBe(way === "deletion" || way === null);
+      expect("O09" in verdicts, cell.name).toBe(way === "liveness-restart" || way === null);
     }
   });
 
