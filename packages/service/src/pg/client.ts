@@ -1,5 +1,4 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
-import { valueIn } from "@mark1russell7/quantity";
 import { realClock } from "../clock.ts";
 import type { Attempt, CheckOptions, Client, ClientJoin, ClientKnobs, ClientOptions, ClientSpec, ClientStep, DialFn, SendOptions, Sent } from "../client/core.ts";
 import {
@@ -7,6 +6,7 @@ import {
   clientBounds,
   clientProblems,
   clientRecorder,
+  deadlineProblem,
   dialCheck,
   finiteMs,
   inFlight,
@@ -15,12 +15,16 @@ import {
   ms,
   notSent,
   operationTable,
+  orZero,
+  poolProblems,
   roundTripCheck,
   sendWithReissue,
   socketEnds,
   stepChecks,
   timeProblems,
+  wholeProblems,
   withinBound,
+  zeroProblems,
 } from "../client/core.ts";
 import { helloDial } from "../client/dial.ts";
 import type { Dependency } from "../description.ts";
@@ -105,35 +109,23 @@ export interface PgClient extends Client<PgStep, PgJoin> {
   ): Promise<Sent<PgResult<Row>>>;
 }
 
-const wholeMs = (amount: Extent): boolean => amount.value === "infinite" || Number.isInteger(ms(amount));
-const wholeSeconds = (amount: Extent): boolean =>
-  amount.value === "infinite" || Number.isInteger(valueIn(amount as Quantity, "s"));
-/** This function writes a bound for pg: "infinite" is 0, which pg reads as no timer. */
-const orZero = (amount: Extent): number => finiteMs(amount) ?? 0;
-
 /** This function gives the problems of a spec: the knobs that pg cannot use. */
 export const specProblems = (name: string, spec: PgClientSpec): string[] => {
-  const { knobs, pool } = spec;
-  const problems = timeProblems(name, knobs);
-  // pg reads 0 as no timer, thus a bound of 0 is not a bound
-  for (const knob of ["connect_bound", "request_timeout", "close_bound"] as const) {
-    if (!(ms(knobs[knob]) > 0) || !Number.isFinite(ms(knobs[knob])))
-      problems.push(`${name}'s ${knob} is not a finite time above zero: pg reads 0 as no bound`);
-  }
-  for (const knob of ["statement_timeout", "pool_idle_expiry", "keepalive_idle", "max_connection_age"] as const) {
-    if (knobs[knob].value !== "infinite" && !(ms(knobs[knob]) > 0))
-      problems.push(`${name}'s ${knob} is zero: give "infinite" for no bound`);
-  }
-  for (const knob of ["connect_bound", "request_timeout", "statement_timeout", "pool_idle_expiry"] as const) {
-    if (!wholeMs(knobs[knob])) problems.push(`${name}'s ${knob} is not a whole number of milliseconds`);
-  }
-  // Node truncates the keepalive delay to whole seconds, and pg takes the age in whole seconds
-  if (!wholeSeconds(knobs.keepalive_idle)) problems.push(`${name}'s keepalive_idle is not a whole number of seconds`);
-  if (!wholeSeconds(knobs.max_connection_age)) problems.push(`${name}'s max_connection_age is not a whole number of seconds`);
-  if (!Number.isInteger(pool.max) || pool.max < 1) problems.push(`${name}'s pool has a max of ${pool.max}, not a whole number above zero`);
-  if (!Number.isInteger(pool.min) || pool.min < 0 || pool.min > pool.max)
-    problems.push(`${name}'s pool has a min of ${pool.min}, not a whole number from 0 to its max`);
-  return problems;
+  const { knobs } = spec;
+  return [
+    ...timeProblems(name, knobs),
+    // pg reads 0 as no timer, thus a bound of 0 is not a bound
+    ...zeroProblems(name, "pg", knobs, {
+      bounded: ["connect_bound", "request_timeout", "close_bound"],
+      open: ["statement_timeout", "pool_idle_expiry", "keepalive_idle", "max_connection_age"],
+    }),
+    // Node truncates the keepalive delay to whole seconds, and pg takes the age in whole seconds
+    ...wholeProblems(name, knobs, {
+      millis: ["connect_bound", "request_timeout", "statement_timeout", "pool_idle_expiry"],
+      seconds: ["keepalive_idle", "max_connection_age"],
+    }),
+    ...poolProblems(name, spec.pool),
+  ];
 };
 
 /** This function gives the options of `pg.Pool` from a spec. Each timer of pg comes from the declaration. */
@@ -399,12 +391,9 @@ export const pgClient = (name: string, spec: PgClientSpec, options: PgClientOpti
     checks,
     attach: (svc, checkOptions) => attachClient(svc, name, declaration, handle, checks(checkOptions)),
     problems(description) {
-      const found = clientProblems(name, description, clientBounds(knobs));
-      // O07: the client waits longer than the deadline of the server. Then the server ends a slow
-      // statement with a certain error. Otherwise the client gives up first, and the server goes on
-      if (knobs.statement_timeout.value !== "infinite" && requestTimeout <= ms(knobs.statement_timeout))
-        found.push(`${name}'s request_timeout is not above its statement_timeout: the server goes on with a statement that the client gave up (O07)`);
-      return found;
+      // O07: the server must end a slow statement first, with a certain error
+      const deadline = deadlineProblem(name, knobs.request_timeout, knobs.statement_timeout, "statement");
+      return [...clientProblems(name, description, clientBounds(knobs)), ...(deadline === null ? [] : [deadline])];
     },
   };
 };
