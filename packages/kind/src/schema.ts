@@ -183,7 +183,12 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     }),
     pod: z.object({ replicas: count, grace: time, preStop: time, readiness: probe, liveness: probe, startup: probe.nullable() }),
     declaration: declaration.nullable(),
-    workload: z.object({ every: time, timeout: time, connections: count.optional() }),
+    workload: z.object({
+      every: time,
+      timeout: time,
+      connections: count.optional(),
+      sessionCheck: z.object({ keepalive_time: extent, keepalive_timeout: time }).optional(),
+    }),
     prediction,
     calibrates: z.boolean(),
     runs: count,

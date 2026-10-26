@@ -5,6 +5,7 @@ import { KUBE_PROXY_MODES, learnWindow } from "@mark1russell7/kind";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
+import type { SessionCheckKnobs } from "@mark1russell7/service/http-client";
 import { LINUX_66, given, seconds } from "./catalog.ts";
 import { CHART_READINESS, DESIGN, PROPAGATION, T07_WORKLOAD, WORKERS, kubeDefaults, ms, s, say } from "./kind.ts";
 
@@ -21,6 +22,8 @@ import { CHART_READINESS, DESIGN, PROPAGATION, T07_WORKLOAD, WORKERS, kubeDefaul
  * - `in band on HTTP/2` (C): the same lame duck on an edge of HTTP/2 without TLS (`protocol` h2c).
  *   While the service is not ready, the edge sends GOAWAY on each session. Each client sends its
  *   streams on one session, thus it has fewer connections on the target, and a shorter turn.
+ * - `in band on HTTP/2 with a session check` (D): C, and the client checks each session
+ *   (`SESSION_CHECK`). A stream timeout closes its session, and so does a PING with no ACK.
  *
  * The scenario is the smallest one that can tell the two apart:
  * - The clients keep their connections (`KEEP_ALIVE`). kube-proxy selects a backend only for a new
@@ -52,6 +55,17 @@ export const KEEP_ALIVE: Workload = { ...T07_WORKLOAD, connections: CONNECTIONS 
  * one connection to an origin (RFC 9113, section 9.1).
  */
 export const MULTIPLEXED: Workload = { ...T07_WORKLOAD, connections: 1 };
+
+/**
+ * These are the knobs of the session check of D (`sessionCheck` of the service). A session with no
+ * frame for 0.5 s gets a PING, and it closes with no ACK in 0.5 s. Thus the check closes a session
+ * in 1.5 s at the most, before the stream timeout of 2 s. The round trip of a kind node is 0.1 ms,
+ * thus a peer that answers always sends its ACK in time.
+ */
+export const SESSION_CHECK = { keepalive_time: s(0.5), keepalive_timeout: s(0.5) } as const satisfies SessionCheckKnobs;
+
+/** This workload is the workload of C, with the session check of D on each session. */
+export const CHECKED: Workload = { ...MULTIPLEXED, sessionCheck: SESSION_CHECK };
 
 /** This time is how long the replica cannot serve. It is longer than the latest removal of the lame duck, thus the heal does not end its window. */
 export const CANNOT_SERVE_HOLD = s(30);
@@ -87,14 +101,15 @@ const CHAIN_RISK = 0.001;
 /** This declaration is the design, with the flag check on readiness: the readiness of the service fails while the replica cannot serve. */
 export const CANNOT_SERVE: Declaration = { ...DESIGN, flag: "readiness" };
 
-/** These are the three candidates, by the names of the settings `lameDuck` and `protocol`. */
-export type Candidate = "endpoints only" | "in band (lame duck)" | "in band on HTTP/2 (GOAWAY)";
+/** These are the four candidates, by the names of the settings `lameDuck` and `protocol`, and of the session check of the client. */
+export type Candidate = "endpoints only" | "in band (lame duck)" | "in band on HTTP/2 (GOAWAY)" | "in band on HTTP/2 with a session check";
 
 /**
- * These are the three candidates in their sequence on the page. A is endpoint propagation. B is the
- * in-band signal on HTTP/1.1, and C is the in-band signal on HTTP/2.
+ * These are the four candidates in their sequence on the page. A is endpoint propagation. B is the
+ * in-band signal on HTTP/1.1, and C is the in-band signal on HTTP/2. D is C with the session check
+ * of the client.
  */
-export const CANDIDATES: readonly Candidate[] = ["endpoints only", "in band (lame duck)", "in band on HTTP/2 (GOAWAY)"];
+export const CANDIDATES: readonly Candidate[] = ["endpoints only", "in band (lame duck)", "in band on HTTP/2 (GOAWAY)", "in band on HTTP/2 with a session check"];
 
 /** These are the modes of the S2 cells: each mode of kube-proxy. The type of `PROPAGATION` gives a calibrated propagation to each mode. */
 export const CALLERS_MODES: readonly KubeProxyMode[] = KUBE_PROXY_MODES;
@@ -162,14 +177,21 @@ export const targetConnections = (mode: KubeProxyMode, each: number = CONNECTION
   return { lo: connections(lo), hi: connections(hi), of: connections(total) };
 };
 
+/** This function tells if a candidate operates on HTTP/2: C and D. The session check of D is in the client. Thus the server of D is the server of C. */
+const onHttp2 = (candidate: Candidate): boolean => candidate === "in band on HTTP/2 (GOAWAY)" || candidate === "in band on HTTP/2 with a session check";
+
 /** This function gives the declaration of a candidate: the design, with the lame duck or without it, on HTTP/1.1 or on HTTP/2. */
 const declarationOf = (candidate: Candidate): Declaration => {
   if (candidate === "endpoints only") return { ...CANNOT_SERVE, lameDuck: false };
-  return candidate === "in band on HTTP/2 (GOAWAY)" ? { ...CANNOT_SERVE, protocol: "h2c" } : CANNOT_SERVE;
+  return onHttp2(candidate) ? { ...CANNOT_SERVE, protocol: "h2c" } : CANNOT_SERVE;
 };
 
-/** This function gives the workload of a candidate: one session of HTTP/2 for C, and keep-alive connections of HTTP/1.1 for A and B. */
-const workloadOf = (candidate: Candidate): Workload => (candidate === "in band on HTTP/2 (GOAWAY)" ? MULTIPLEXED : KEEP_ALIVE);
+/**
+ * This function gives the workload of a candidate. A and B have keep-alive connections of HTTP/1.1.
+ * C has one session of HTTP/2, and D has that session with the session check.
+ */
+const workloadOf = (candidate: Candidate): Workload =>
+  candidate === "in band on HTTP/2 with a session check" ? CHECKED : candidate === "in band on HTTP/2 (GOAWAY)" ? MULTIPLEXED : KEEP_ALIVE;
 
 /** This function tells if a candidate is an in-band signal: the lame duck on HTTP/1.1 or on HTTP/2. */
 const inBand = (candidate: Candidate): boolean => candidate !== "endpoints only";
@@ -257,6 +279,65 @@ export const negativeBinomial = (successes: number, p: number): { readonly lo: n
 };
 
 /**
+ * This function gives the longest chain of picks of the target of one connection, at random. A
+ * longer chain over all `total` connections has the chance `CHAIN_RISK` at the most.
+ */
+const chainOf = (total: number): number => {
+  let chain = 1;
+  while (total * (1 / REPLICAS) ** (chain + 1) > CHAIN_RISK) chain += 1;
+  return chain;
+};
+
+/**
+ * This function gives the prediction of D in a partition of the target. The session check closes
+ * each session on the target, and the next request opens a new session. Its pick is the pick of a
+ * new connection of A and B: in turn in IPVS, and at random in the other modes.
+ * - The first session on the target: its last frame comes at the fault, up to one turn before. The
+ *   check sends a PING at the second tick with no frame, and it closes the session one PING timeout
+ *   later. The first stream timeout comes later, thus the PING closes the session.
+ * - Each next session on the target does not connect. The first tick finds no SETTINGS frame, and the
+ *   check closes the session one PING timeout later.
+ * Each stream on a session on the target fails at the close.
+ */
+const checkedPartitionOf = (mode: KubeProxyMode, workload: Workload, start: Band, stays: string): PartitionPrediction => {
+  const quiet = valueIn(SESSION_CHECK.keepalive_time, "s");
+  const answer = valueIn(SESSION_CHECK.keepalive_timeout, "s");
+  const every = valueIn(workload.every, "s");
+  const turn = every * (workload.connections ?? 1);
+  const on = targetConnections(mode, 1);
+  // the first session closes in [Q + P - turn, 2Q + P], and each next session Q + P after its first stream
+  const first = { lo: quiet + answer - turn, hi: 2 * quiet + answer };
+  const next = quiet + answer;
+  // the streams of a session: one at each request until the close, and the stream that the fault caught
+  // a count rounded to six places, thus 1.5 s / 20 ms gives 75, not 74.99999999999999
+  const of = (span: number): number => Math.round((span / every) * 1e6) / 1e6;
+  const streams = { first: { lo: Math.floor(of(first.lo)), hi: Math.ceil(of(first.hi)) + 1 }, next: { lo: Math.floor(of(next)), hi: Math.ceil(of(next)) + 1 } };
+  const check = `${stays}. The client checks its session: a PING after ${say(SESSION_CHECK.keepalive_time)} with no frame, and a close with no ACK in ${say(SESSION_CHECK.keepalive_timeout)}. The first session on the target closes ${say(time(first.lo))}–${say(time(first.hi))} after the fault, before its first stream timeout (${say(workload.timeout)}). Each stream on it fails at the close, ${streams.first.lo}–${streams.first.hi} streams. The next request opens a new session`;
+  if (SELECTION[mode] === "in turn") {
+    const node = inTurn(1);
+    return {
+      expected: { lo: requests(CLIENTS * node.lo * streams.first.lo), hi: requests(CLIENTS * node.hi * streams.first.hi), connections: on },
+      start,
+      end: { lo: s(0), hi: time(first.hi) },
+      why: `${check}. IPVS selects in turn on each node, thus the new session goes to the other replica. ${on.lo.value}–${on.hi.value} of the ${on.of.value} sessions are on the target, thus about ${CLIENTS * node.lo * streams.first.lo}–${CLIENTS * node.hi * streams.first.hi} requests fail`,
+    };
+  }
+  const total = CLIENTS;
+  const picks = negativeBinomial(total, 1 - 1 / REPLICAS);
+  const chain = chainOf(total);
+  // at most one pick of each client is its first session, and each other pick is a next session
+  const firsts = Math.min(picks.hi, total);
+  const hi = firsts * streams.first.hi + (picks.hi - firsts) * streams.next.hi;
+  const lo = Math.min(picks.lo, total) * streams.first.lo + Math.max(picks.lo - total, 0) * streams.next.lo;
+  return {
+    expected: { lo: requests(lo), hi: requests(hi), connections: on },
+    start,
+    end: { lo: s(0), hi: time(first.hi + (chain - 1) * (next + every)) },
+    why: `${check}. It goes to the target at random, and its SYN gets no answer. The check finds no SETTINGS frame, and it closes the session ${say(time(next))} after its first stream, ${streams.next.lo}–${streams.next.hi} streams. The picks of the target of the ${total} clients are negative binomial: ${picks.lo}–${picks.hi} in ${COVER * 100} % of the runs, thus about ${lo}–${hi} requests fail. A chain longer than ${chain} picks has a chance of ${CHAIN_RISK} at the most`,
+  };
+};
+
+/**
  * This function gives the prediction of a candidate in a partition of the target. The readiness
  * and the endpoint of the target stay, thus B is the same as A.
  * - A and B: each connection on the target fails one request at its timeout. Then its next request
@@ -265,6 +346,8 @@ export const negativeBinomial = (successes: number, p: number): { readonly lo: n
  * - C: the session of a client on the target stays open. Each stream fails at its timeout until the
  *   first retransmission after the heal reaches the target. Then the target resets the session,
  *   or it sends GOAWAY.
+ * - D: the session check closes each session on the target before its first stream timeout
+ *   (`checkedPartitionOf`).
  */
 export const partitionOf = (mode: KubeProxyMode, candidate: Candidate): PartitionPrediction => {
   const workload = workloadOf(candidate);
@@ -277,7 +360,8 @@ export const partitionOf = (mode: KubeProxyMode, candidate: Candidate): Partitio
   const start = { lo: s(0), hi: time(turn) };
   const hold = valueIn(PARTITION_HOLD, "s");
   const stays = `The kubelet probes the target from its node, thus its readiness and its endpoint stay for the hold (${say(PARTITION_HOLD)})`;
-  if (candidate !== "in band on HTTP/2 (GOAWAY)") {
+  if (candidate === "in band on HTTP/2 with a session check") return checkedPartitionOf(mode, workload, { lo: s(0), hi: time(valueIn(workload.every, "s")) }, stays);
+  if (!onHttp2(candidate)) {
     const same = candidate === "in band (lame duck)" ? ". The lame duck never starts, thus B is the same as A" : "";
     const picks = `${stays}${same}. Each connection on the target fails one request at its timeout (${say(workload.timeout)}). Then a new connection picks a backend, one turn (${say(window.turn)}) later`;
     if (SELECTION[mode] === "in turn") {
@@ -290,10 +374,8 @@ export const partitionOf = (mode: KubeProxyMode, candidate: Candidate): Partitio
         why: `${picks}. IPVS selects in turn on each node, thus each node fails ${node.lo}–${node.hi} requests in ${node.rounds} turns at the most. About ${CLIENTS * node.lo}–${CLIENTS * node.hi} requests fail`,
       };
     }
-    const p = 1 / REPLICAS;
-    const band = negativeBinomial(total, 1 - p);
-    let chain = 1;
-    while (total * p ** (chain + 1) > CHAIN_RISK) chain += 1;
+    const band = negativeBinomial(total, 1 - 1 / REPLICAS);
+    const chain = chainOf(total);
     return {
       expected: { lo: requests(band.lo), hi: requests(band.hi), connections: on },
       start,
@@ -328,7 +410,12 @@ export const partitionOf = (mode: KubeProxyMode, candidate: Candidate): Partitio
 };
 
 /** These are the parts of the id of each candidate. */
-const SUFFIX: Readonly<Record<Candidate, string>> = { "endpoints only": "endpoints", "in band (lame duck)": "lame-duck", "in band on HTTP/2 (GOAWAY)": "goaway" };
+const SUFFIX: Readonly<Record<Candidate, string>> = {
+  "endpoints only": "endpoints",
+  "in band (lame duck)": "lame-duck",
+  "in band on HTTP/2 (GOAWAY)": "goaway",
+  "in band on HTTP/2 with a session check": "session-check",
+};
 
 /** This function tells the incident of an S2 cell: a partition has the flag `partition` on its black hole. */
 export const callerFaultOf = (cell: KindCell): CallerFault => (cell.trigger.partition === true ? "partition" : "cannot serve");
@@ -368,7 +455,9 @@ const cellOf = (mode: KubeProxyMode, candidate: Candidate, fault: CallerFault): 
   const window = learnWindow(declaration, CHART_READINESS, propagation, workload);
   const expected = expectedFailures(candidate, mode);
   const on = expected.connections;
-  const goaway = candidate === "in band on HTTP/2 (GOAWAY)";
+  const goaway = onHttp2(candidate);
+  // the target answers each stream with 503 at once, thus the session check of D closes no session
+  const checks = candidate === "in band on HTTP/2 with a session check" ? ". The target answers each stream at once, thus the session check closes no session, and D is the same as C" : "";
   const selects =
     SELECTION[mode] === "random"
       ? `The rules select the backend of each connection at random, thus ${on.lo.value}–${on.hi.value} of the ${on.of.value} connections go to the target in ${COVER * 100} % of the runs at the least`
@@ -379,7 +468,7 @@ const cellOf = (mode: KubeProxyMode, candidate: Candidate, fault: CallerFault): 
   // no connection on the target is a run with no failure: 1 in 8 runs at random, thus C is not certain
   const none = on.lo.value === 0 ? ". With no connection on the target, no request fails" : "";
   const why = inBand(candidate)
-    ? `Each request on a connection to the target fails until the readiness latch of the service trips (${say(window.latch.lo)}–${say(window.latch.hi)}). Then each answer closes its connection${goaway ? " with a GOAWAY on its session" : ""}, and the next connection can go to the target until the readiness probe and the propagation (${propagation.from}) remove it, up to ${say(window.end.band.hi)}. ${about}${none}`
+    ? `Each request on a connection to the target fails until the readiness latch of the service trips (${say(window.latch.lo)}–${say(window.latch.hi)}). Then each answer closes its connection${goaway ? " with a GOAWAY on its session" : ""}, and the next connection can go to the target until the readiness probe and the propagation (${propagation.from}) remove it, up to ${say(window.end.band.hi)}. ${about}${none}${checks}`
     : `Each connection to the target stays open, and the rules select a backend only for a new connection. Thus the removal of the endpoint changes nothing, and each request on those connections fails for the hold (${say(CANNOT_SERVE_HOLD)}) and until the readiness of the service recovers, up to ${say(window.end.band.hi)} after the heal. ${about}`;
   return {
     id: `S2.T07.${mode}.${SUFFIX[candidate]}`,
@@ -406,7 +495,7 @@ const cellOf = (mode: KubeProxyMode, candidate: Candidate, fault: CallerFault): 
   };
 };
 
-/** These are the cells of the three candidates in each mode and each incident, from one definition. Their sequence is by incident, by mode, then A, B and C. */
+/** These are the cells of the four candidates in each mode and each incident, from one definition. Their sequence is by incident, by mode, then A, B, C and D. */
 export const CALLERS_CELLS: readonly KindCell[] = CALLER_FAULTS.flatMap((fault) =>
   CALLERS_MODES.flatMap((mode) => CANDIDATES.map((candidate) => cellOf(mode, candidate, fault))),
 );

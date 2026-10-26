@@ -4,9 +4,27 @@ import type { KindCell } from "@mark1russell7/kind";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { clientObjects, describeCell, lintCell, namespaceOf, pausedWindow, planOf, serverObjects, stopOf, verdictsOf } from "@mark1russell7/kind";
 import { STOP_RULE } from "@mark1russell7/service";
+import { sessionCheckDetection, sessionCheckProblems } from "@mark1russell7/service/http-client";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Candidate } from "./callers.ts";
-import { CALLERS_CELLS, CALLERS_MODES, CALLER_FAULTS, CANDIDATES, CANNOT_SERVE_HOLD, KEEP_ALIVE, KIND_TCP, MULTIPLEXED, PARTITION_HOLD, SELECTION, callerFaultOf, expectedFailures, negativeBinomial, targetConnections } from "./callers.ts";
+import {
+  CALLERS_CELLS,
+  CALLERS_MODES,
+  CALLER_FAULTS,
+  CANDIDATES,
+  CANNOT_SERVE_HOLD,
+  CHECKED,
+  KEEP_ALIVE,
+  KIND_TCP,
+  MULTIPLEXED,
+  PARTITION_HOLD,
+  SELECTION,
+  SESSION_CHECK,
+  callerFaultOf,
+  expectedFailures,
+  negativeBinomial,
+  targetConnections,
+} from "./callers.ts";
 import type { CallerFault } from "./callers.ts";
 import { PROPAGATION, SYN_SENT, afterSync, s } from "./kind.ts";
 import { T07_CELLS } from "./t07.ts";
@@ -25,7 +43,7 @@ const propagationOf = (cell: KindCell) => {
 
 describe("the kind catalogs", () => {
   it("names each cell by a cell of the plan, or as a calibration, and each name once", () => {
-    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(iptables|ipvs|nftables)\.(endpoints|lame-duck|goaway)(.partition)?$/);
+    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(iptables|ipvs|nftables)\.(endpoints|lame-duck|goaway|session-check)(.partition)?$/);
     expect(new Set(ALL.map((cell) => cell.name)).size).toBe(ALL.length);
     expect(new Set(ALL.map(namespaceOf)).size).toBe(ALL.length);
   });
@@ -133,17 +151,19 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
     if (cell.prediction.kind !== "window" || cell.prediction.end === null) throw new Error(`${cell.name}: no window`);
     return cell.prediction;
   };
-  const trioOf = (mode: string, fault: CallerFault = "cannot serve"): [KindCell, KindCell, KindCell] => {
+  const trioOf = (mode: string, fault: CallerFault = "cannot serve"): [KindCell, KindCell, KindCell, KindCell] => {
     const trio = CALLERS_CELLS.filter((cell) => cell.mode === mode && callerFaultOf(cell) === fault);
-    if (trio.length !== 3) throw new Error(`${mode}: ${trio.length} cells`);
-    return trio as [KindCell, KindCell, KindCell];
+    if (trio.length !== 4) throw new Error(`${mode}: ${trio.length} cells`);
+    return trio as [KindCell, KindCell, KindCell, KindCell];
   };
 
-  it("has the three candidates in each mode of kube-proxy, from one definition", () => {
+  it("has the four candidates in each mode of kube-proxy, from one definition", () => {
     expect(CALLERS_MODES).toEqual(["iptables", "ipvs", "nftables"]);
     expect(CALLER_FAULTS).toEqual(["cannot serve", "partition"]);
     expect(CALLERS_CELLS.map((cell) => cell.id)).toEqual(
-      ["", ".partition"].flatMap((tail) => CALLERS_MODES.flatMap((mode) => [`S2.T07.${mode}.endpoints${tail}`, `S2.T07.${mode}.lame-duck${tail}`, `S2.T07.${mode}.goaway${tail}`])),
+      ["", ".partition"].flatMap((tail) =>
+        CALLERS_MODES.flatMap((mode) => [`S2.T07.${mode}.endpoints${tail}`, `S2.T07.${mode}.lame-duck${tail}`, `S2.T07.${mode}.goaway${tail}`, `S2.T07.${mode}.session-check${tail}`]),
+      ),
     );
     for (const mode of CALLERS_MODES)
       expect(trioOf(mode).map((cell) => cell.name)).toEqual(CANDIDATES.map((candidate) => `T07 ${mode}, callers learn that a pod cannot serve: ${candidate}`));
@@ -151,7 +171,7 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
 
   it("is one cell with two settings: the lame duck of the edge, and its protocol with the connections of the clients", () => {
     for (const mode of CALLERS_MODES) {
-      const [endpoints, lameDuck, goaway] = trioOf(mode);
+      const [endpoints, lameDuck, goaway, checked] = trioOf(mode);
       const { declaration: a, id: _a, name: _na, prediction: _pa, ...restA } = endpoints;
       const { declaration: b, id: _b, name: _nb, prediction: _pb, ...restB } = lameDuck;
       const { declaration: c, id: _c, name: _nc, prediction: _pc, workload: workloadC, ...restC } = goaway;
@@ -167,6 +187,16 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
       expect(restC).toEqual(restB2);
       expect(workloadC).toEqual(MULTIPLEXED);
       expect(MULTIPLEXED).toEqual({ ...KEEP_ALIVE, connections: 1 });
+      // D is C with the session check of the client: the same server, and the knobs on the workload
+      const { id: _d, name: _nd, prediction: _pd, workload: workloadD, ...restD } = checked;
+      const { id: _c2, name: _nc2, prediction: _pc2, workload: _wc2, ...restC2 } = goaway;
+      expect(restD).toEqual(restC2);
+      expect(workloadD).toEqual(CHECKED);
+      expect(CHECKED).toEqual({ ...MULTIPLEXED, sessionCheck: { keepalive_time: s(0.5), keepalive_timeout: s(0.5) } });
+      // the check closes a session in 1.5 s at the most, before the stream timeout of 2 s
+      expect(sessionCheckDetection(SESSION_CHECK)).toEqual(s(1.5));
+      expect(valueIn(SESSION_CHECK.keepalive_time, "s") * 2 + valueIn(SESSION_CHECK.keepalive_timeout, "s")).toBeLessThan(valueIn(CHECKED.timeout, "s"));
+      expect(sessionCheckProblems("D", SESSION_CHECK)).toEqual([]);
     }
     // the mode changes only the mode and the prediction
     const strip = ({ id: _id, name: _name, mode: _mode, prediction: _prediction, ...rest }: KindCell) => rest;
@@ -178,8 +208,13 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
     // the latch of 8–18 s, the readiness probe of the chart (4–6 s), the propagation of the mode, and one turn of 160 ms
     const removal = { iptables: 24.265, ipvs: 24.469, nftables: 24.239 };
     for (const mode of CALLERS_MODES) {
-      const [a, b, c] = trioOf(mode).map(windowOf) as [Window, Window, Window];
+      const [a, b, c, d] = trioOf(mode).map(windowOf) as [Window, Window, Window, Window];
       expect([a.end!.from, b.end!.from, c.end!.from]).toEqual(["heal", "fault", "fault"]);
+      // D: GOAWAY comes first, thus D has the window of C
+      const { why: whyD, ...windowD } = d;
+      const { why: whyC, ...windowC } = c;
+      expect(windowD).toEqual(windowC);
+      expect(whyD).toBe(`${whyC}. The target answers each stream at once, thus the session check closes no session, and D is the same as C`);
       expect(b.end!.band).toEqual({ lo: s(8), hi: s(removal[mode]) });
       expect(valueIn(b.end!.band.hi, "s")).toBeLessThan(valueIn(CANNOT_SERVE_HOLD, "s"));
       // C: the same latch and removal, and one turn of 20 ms on one session, thus 140 ms earlier at the latest
@@ -214,6 +249,7 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
     expect(counts("in band (lame duck)")).toEqual([band(350, 1913), band(600, 1350), band(350, 1913)]);
     // C: 50 failed requests each second for each session on the target, until the latch (up to 18 s)
     expect(counts("in band on HTTP/2 (GOAWAY)")).toEqual([band(0, 2700), band(0, 2700), band(0, 2700)]);
+    expect(counts("in band on HTTP/2 with a session check")).toEqual(counts("in band on HTTP/2 (GOAWAY)"));
   });
 
   it("partitions the target in each mode with the cells of each candidate: only the trigger, the prediction and the runs change", () => {
@@ -261,6 +297,23 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
       expect(c.why).toMatch(/firing 7 of the timer is the first after the heal: 25\.499 s–26\.988 s after the fault/);
       const { lo, hi } = expectedFailures("in band on HTTP/2 (GOAWAY)", mode, "partition");
       expect({ lo, hi }).toEqual(requests(0, 4048));
+    }
+  });
+
+  it("predicts that D closes each session on the target in 1.5 s at the most, and its next session in 1 s", () => {
+    // the picks of the target of 3 sessions at random: P(k <= 8) = 0.967, P(k <= 9) = 0.981
+    expect(negativeBinomial(3, 0.5)).toEqual({ lo: 0, hi: 9 });
+    const band = (lo: number, hi: number) => ({ lo: s(lo), hi: s(hi) });
+    const requests = (lo: number, hi: number) => ({ lo: { value: lo, unit: "{request}" }, hi: { value: hi, unit: "{request}" } });
+    for (const mode of CALLERS_MODES) {
+      const d = windowOf(trioOf(mode, "partition")[3]);
+      const random = SELECTION[mode] === "random";
+      // in turn, the next session goes to the other replica. At random, a chain of 11 picks: 3 × 2^-12 < 0.001, and 10 next sessions of 1.02 s
+      expect([d.certain, d.start, d.end, d.outcomes]).toEqual([false, { from: "fault", band: band(0, 0.02) }, { from: "fault", band: band(0, random ? 11.7 : 1.5) }, undefined]);
+      expect(d.why).toMatch(/The first session on the target closes 0\.98 s–1\.5 s after the fault, before its first stream timeout \(2 s\)\. Each stream on it fails at the close, 49–76 streams/);
+      // in turn, 3 first sessions of 76 streams at the most. At random, 9 picks: 3 first sessions, and 6 next sessions of 51 streams at the most
+      const { lo, hi } = expectedFailures("in band on HTTP/2 with a session check", mode, "partition");
+      expect({ lo, hi }).toEqual(random ? requests(0, 534) : requests(0, 228));
     }
   });
 });

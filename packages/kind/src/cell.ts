@@ -1,5 +1,6 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import type { Coupling, Gate, Poll, Stage, Timing } from "@mark1russell7/service";
+import type { SessionCheckKnobs } from "@mark1russell7/service/http-client";
 import type { RedisKnobs } from "@mark1russell7/service/redis";
 import type { KubeProxyMode } from "./scenario.ts";
 
@@ -224,6 +225,12 @@ export interface Workload {
    * of HTTP/2 keeps this count of sessions, and it needs the count.
    */
   readonly connections?: number | undefined;
+  /**
+   * These knobs give each session of a client of HTTP/2 the session check of the service
+   * (`sessionCheck` of `@mark1russell7/service/http-client`). A stream timeout or a PING with no ACK
+   * then closes the session, and the next stream opens a new one. Without them, a session has no check.
+   */
+  readonly sessionCheck?: SessionCheckKnobs | undefined;
 }
 
 /**

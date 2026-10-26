@@ -67,4 +67,13 @@ describe("the manifests of cannot-serve", () => {
     const plain: KindCell = { ...base, declaration: { ...base.declaration!, protocol: "http/1.1" } };
     expect(envOf(clientObjects(plain, "lab-ns", "lab:test", "10.96.0.10:8080"), 0).map((entry) => entry.name)).not.toContain("PROTOCOL");
   });
+
+  it("gives each client the knobs of its session check as JSON, or no variable", () => {
+    const base = cellOf("cannot-serve");
+    const sessionCheck = { keepalive_time: { value: 500, unit: "ms" }, keepalive_timeout: { value: 500, unit: "ms" } } as const;
+    const checked: KindCell = { ...base, declaration: { ...base.declaration!, protocol: "h2c" }, workload: { ...base.workload, connections: 1, sessionCheck } };
+    const env = envOf(clientObjects(checked, "lab-ns", "lab:test", "10.96.0.10:8080"), 0);
+    expect(JSON.parse(env.find((entry) => entry.name === "SESSION_CHECK")!.value!)).toEqual(sessionCheck);
+    expect(envOf(clientObjects(base, "lab-ns", "lab:test", "10.96.0.10:8080"), 0).map((entry) => entry.name)).not.toContain("SESSION_CHECK");
+  });
 });
