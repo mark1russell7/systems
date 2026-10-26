@@ -122,7 +122,7 @@ On 2026-10-17, Mark decided the design of the server stack (D1 to D18). These de
 
 [PR #179](https://github.com/mark1russell7/systems/pull/179) keeps apart the four ways that a pod stops (B11). `lintStop()` applies the rules of the drain that guard each way.
 
-The next PR moves the kind cells onto `lintStop()`. `stopOf(cell)` reads the way from the plan of the cell, and the crash cell of T07 gets no drain rule.
+[PR #181](https://github.com/mark1russell7/systems/pull/181) moves the kind cells onto `lintStop()`. `stopOf(cell)` reads the way from the plan of the cell, and the crash cell of T07 gets no drain rule.
 
 ## The server stack in S6
 
