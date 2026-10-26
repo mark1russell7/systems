@@ -103,7 +103,7 @@
   "dependencies": {
     "@mark1russell7/prober": "workspace:^",
     "@mark1russell7/quantity": "workspace:^",
-    "testcontainers": "12.2.0"
+    "testcontainers": "12.2.1"
   },
   "peerDependencies": {
     "zod": "^4.1.0"
