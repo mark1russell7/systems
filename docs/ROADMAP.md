@@ -183,6 +183,17 @@ A component gives its transports, dependencies and checks to the one service of 
 
 `http.yml` starts the conformance kit on real sockets, with the keep-alive and drain times of `./http`, on Node 22.19, 24 and 26. Each job keeps its raw records as an artifact. These timed tests are only for CI. #49 has the workflow.
 
+### CI-2 · The CI calls the reusable workflow of the template
+
+- **Status:** done
+- **Area:** program
+- **Depends on:**
+- **Started:** 2026-10-26
+- **Shipped:** 2026-10-26
+- **Links:** [#169](https://github.com/mark1russell7/systems/pull/169)
+
+`ci.yml` calls `reusable-ci.yml` of the template for the typecheck, the tests, the build and the writing rules. The pack test calls `reusable-release-build.yml` of the template, so `ci.yml` does not use `scripts/release`. The ruleset of main still gets its check `ci`: a job with that name fails when a different job of `ci.yml` fails.
+
 ### SYS-1 · The HTTP listener as a transport
 
 - **Status:** done
