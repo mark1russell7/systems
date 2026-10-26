@@ -4,10 +4,12 @@
 // backend only for a new connection. SIGHUP opens new connections. Each request is one JSON line with
 // its start on CLOCK_MONOTONIC, its duration, its outcome (ok, 503, refused, reset, timeout,
 // unreachable, or another error) and its local port (`lp`). With PROTOCOL h2c, each connection is a
-// session of HTTP/2, and each request is a stream on the next session in turn.
+// session of HTTP/2, and each request is a stream on the next session in turn. With SESSION_CHECK,
+// each session has the session check of the service: a stream timeout or a PING with no ACK closes it.
 import http from "node:http";
 import http2 from "node:http2";
 import net from "node:net";
+import { sessionCheck } from "@mark1russell7/service/http-client";
 
 const [host, port] = (process.env.TARGET ?? "").split(":");
 const every = Number(process.env.EVERY_MS ?? 20);
@@ -18,6 +20,8 @@ const now = () => Number(process.hrtime.bigint()) / 1e6;
 const h2 = process.env.PROTOCOL === "h2c";
 // a client of HTTP/2 needs at least one session
 const connections = process.env.CONNECTIONS === undefined ? (h2 ? 1 : 0) : Number(process.env.CONNECTIONS);
+// the knobs of the session check, or null for a session with no check
+const checkKnobs = h2 && process.env.SESSION_CHECK !== undefined ? JSON.parse(process.env.SESSION_CHECK) : null;
 
 // each agent holds one keep-alive connection. A `Connection: close` of the server ends it after its
 // answer, and the next request on the agent opens a new connection
@@ -27,14 +31,27 @@ let turn = 0;
 
 // each slot of HTTP/2 holds one session on its own socket, thus the client knows its local port. A
 // GOAWAY, a close or an error of the session makes the slot open a new session at its next stream.
-// kube-proxy picks a backend for that new connection. The old session ends the streams that it has
+// kube-proxy picks a backend for that new connection. The old session ends the streams that it has.
+// The check of a session hears each frame of the peer: its SETTINGS, its PINGs, and each response
 const sessionOf = () => {
   const socket = net.connect({ host, port: Number(port) });
   const session = http2.connect(`http://${host}:${port}`, { createConnection: () => socket });
-  const held = { session, socket, usable: true };
+  const held = { session, socket, usable: true, check: null };
   const drop = () => {
     held.usable = false;
+    held.check?.stop();
   };
+  if (checkKnobs !== null) {
+    held.check = sessionCheck(session, {
+      knobs: checkKnobs,
+      onClose: (cause) => {
+        held.usable = false;
+        say({ ev: "client", what: "session-check", t: now(), why: cause, lp: portOf(socket) });
+      },
+    });
+    session.on("remoteSettings", () => held.check.heard());
+    session.on("ping", () => held.check.heard());
+  }
   session.on("goaway", drop);
   session.on("close", drop);
   session.on("error", drop);
@@ -157,10 +174,13 @@ const fireH2 = () => {
   let held = null;
   let stream = null;
   let again = false;
+  // the end of the current stream for the check of its session: one time, at its timeout or otherwise
+  let endStream = null;
   const finish = (o, extra = {}) => {
     if (done) return;
     done = true;
     clearTimeout(timer);
+    endStream?.(false);
     lp ??= portOf(held?.socket);
     say({ ev: "req", t, d: Math.round((now() - t) * 1000) / 1000, o, ...extra, lp, ...(again ? { r: 1 } : {}) });
   };
@@ -169,6 +189,7 @@ const fireH2 = () => {
     if (!again && untaken(error, stream)) {
       again = true;
       held.usable = false;
+      endStream?.(false);
       send();
       return;
     }
@@ -188,13 +209,24 @@ const fireH2 = () => {
       return;
     }
     const mine = stream;
+    const check = held.check;
+    let counted = false;
+    check?.opened();
+    endStream = (timedOut) => {
+      if (counted) return;
+      counted = true;
+      if (timedOut) check?.timedOut();
+      else check?.ended();
+    };
     let status = 0;
     let body = "";
     mine.setEncoding("utf8");
     mine.on("response", (headers) => {
+      check?.heard();
       status = Number(headers[":status"]);
     });
     mine.on("data", (chunk) => {
+      check?.heard();
       body += chunk;
     });
     mine.on("end", () => {
@@ -213,10 +245,12 @@ const fireH2 = () => {
   const timer = setTimeout(() => {
     lp ??= portOf(held?.socket);
     stream?.close(http2.constants.NGHTTP2_CANCEL);
+    // a stream that times out closes its session, when the session has a check
+    endStream?.(true);
     finish("timeout", { e: "LAB_TIMEOUT" });
   }, timeout);
   send();
 };
 
-say({ ev: "client", what: "start", t: now(), target: `${host}:${port}`, every, timeout, connections, protocol: h2 ? "h2c" : "http/1.1" });
+say({ ev: "client", what: "start", t: now(), target: `${host}:${port}`, every, timeout, connections, protocol: h2 ? "h2c" : "http/1.1", ...(checkKnobs !== null ? { sessionCheck: checkKnobs } : {}) });
 setInterval(h2 ? fireH2 : fire, every);
