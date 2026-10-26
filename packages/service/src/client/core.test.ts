@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { HTTP_CLIENT_MACHINE, HTTP_CLIENT_STARTING_KNOBS, HTTP_CLIENT_STARTING_POLL, httpClientMeetings } from "../http-client.ts";
 import { MONGO_CLIENT_MACHINE, MONGO_STARTING_KNOBS, MONGO_STARTING_POLL, mongoMeetings } from "../mongodb.ts";
 import { PG_CLIENT_MACHINE, PG_STARTING_KNOBS, PG_STARTING_POLL, pgMeetings } from "../pg.ts";
 import { RABBIT_CLIENT_MACHINE, RABBIT_STARTING_KNOBS, RABBIT_STARTING_POLL, rabbitMeetings } from "../rabbitmq.ts";
@@ -8,15 +9,20 @@ import { fakeClock } from "../testing.ts";
 import type { Attempt } from "./core.ts";
 import {
   STARTING_POLL,
+  ageProblems,
   deadlineProblem,
+  idleCloseProblem,
   inFlight,
+  keepaliveOnProblems,
   poolProblems,
   readyWait,
   retryBackoff,
   retryProblems,
   timeProblems,
+  trackWithTimer,
   wholeProblems,
   withinBound,
+  wrapperTimerProblems,
   zeroProblems,
 } from "./core.ts";
 import { CLIENT_EVENTS } from "./machine.ts";
@@ -48,6 +54,7 @@ describe("the core of the clients: one vocabulary for each client", () => {
       pgMeetings("db", PG_STARTING_KNOBS),
       mongoMeetings("docs", MONGO_STARTING_KNOBS),
       rabbitMeetings("mq", RABBIT_STARTING_KNOBS),
+      httpClientMeetings("api", HTTP_CLIENT_STARTING_KNOBS),
     ]) {
       expect(meets.map((meeting) => meeting.manifestation)).toEqual([...MANIFESTATIONS]);
       for (const meeting of meets)
@@ -56,14 +63,15 @@ describe("the core of the clients: one vocabulary for each client", () => {
   });
 
   it("declares the events of the core in the machine document of each client", () => {
-    for (const machine of [REDIS_CLIENT_MACHINE, PG_CLIENT_MACHINE, MONGO_CLIENT_MACHINE, RABBIT_CLIENT_MACHINE])
+    for (const machine of [REDIS_CLIENT_MACHINE, PG_CLIENT_MACHINE, MONGO_CLIENT_MACHINE, RABBIT_CLIENT_MACHINE, HTTP_CLIENT_MACHINE])
       for (const event of CLIENT_EVENTS) expect(machine.events, `${machine.id} ${event}`).toHaveProperty([event]);
   });
 
-  it("gives one starting poll, which the pg, mongodb and rabbitmq entries give by their own names too", () => {
+  it("gives one starting poll, which the pg, mongodb, rabbitmq and http-client entries give by their own names too", () => {
     expect(PG_STARTING_POLL).toBe(STARTING_POLL);
     expect(MONGO_STARTING_POLL).toBe(STARTING_POLL);
     expect(RABBIT_STARTING_POLL).toBe(STARTING_POLL);
+    expect(HTTP_CLIENT_STARTING_POLL).toBe(STARTING_POLL);
   });
 
   it("gives the backoff of the tries to connect from retry_base and retry_cap (redis and rabbitmq)", () => {
@@ -91,6 +99,24 @@ describe("the core of the clients: one vocabulary for each client", () => {
     expect(poolProblems("x", { max: 0, min: 1 })).toHaveLength(2);
     expect(deadlineProblem("x", s(5), never, "command")).toBeNull();
     expect(deadlineProblem("x", s(5), s(5), "command")).toMatch(/with a command that the client gave up \(O07\)$/);
+  });
+
+  it("gives the problems of a timer of the wrapper, of an age, of a keepalive that is always on, and O01 (rabbitmq, mongodb and http-client)", () => {
+    expect(wrapperTimerProblems("x", { a: s(1), b: s(0), c: never }, { a: "a call", b: "a call", c: "a connect" })).toEqual([
+      "x's b is not a finite time above zero: the timer of the wrapper is the only bound of a call",
+      "x's c is not a finite time above zero: the timer of the wrapper is the only bound of a connect",
+    ]);
+    expect(ageProblems("x", { max_connection_age: never }, "why")).toEqual([]);
+    expect(ageProblems("x", { max_connection_age: s(60) }, "why")).toEqual(['x\'s max_connection_age is not "infinite": why']);
+    expect(keepaliveOnProblems("x", { keepalive_idle: s(1) }, "the agent")).toEqual([]);
+    for (const idle of [s(0), never])
+      expect(keepaliveOnProblems("x", { keepalive_idle: idle }, "the agent")).toEqual([
+        "x's keepalive_idle is not a finite time above zero: the agent always turns keepalive on",
+      ]);
+    expect(idleCloseProblem("x", s(4), s(6))).toBeNull();
+    expect(idleCloseProblem("x", s(4), never)).toBeNull();
+    expect(idleCloseProblem("x", s(6), s(6))).toMatch(/pool_idle_expiry is not below the idle close of its server.*\(O01\)$/);
+    expect(idleCloseProblem("x", never, s(6))).not.toBeNull();
   });
 });
 
@@ -146,6 +172,43 @@ describe("the calls in flight, and the bound of the close (C10, principle 9)", (
       { outcome: "indeterminate", error: "closed" },
       { outcome: "indeterminate", error: "closed" },
     ]);
+  });
+
+  it("resolves its idle wait when the last call settles, and at once with no call", async () => {
+    const flight = inFlight();
+    let idle = false;
+    await flight.idle();
+    let settle: ((value: Attempt) => void) | undefined;
+    const pending = flight.track(undefined, "abandoned", (given) => (settle = given));
+    void flight.idle().then(() => (idle = true));
+    await Promise.resolve();
+    expect(idle).toBe(false);
+    settle!({ outcome: "ok", value: 1 });
+    await pending;
+    await Promise.resolve();
+    expect(idle).toBe(true);
+  });
+
+  it("ends a call with the timer of the wrapper as indeterminate, and stops the timer when the call settles (rabbitmq and http-client)", async () => {
+    const clock = fakeClock(0);
+    const flight = inFlight();
+    const late = trackWithTimer(flight, clock, 100, undefined, "abandoned", "no reply in the bound", () => {});
+    await clock.advance(100);
+    expect(await late).toEqual({ outcome: "indeterminate", error: "no reply in the bound" });
+    const seen: string[] = [];
+    const quick = trackWithTimer<number>(
+      flight,
+      clock,
+      100,
+      undefined,
+      "abandoned",
+      "late",
+      (settle) => settle({ outcome: "ok", value: 2 }),
+      (value) => seen.push(value.outcome),
+    );
+    expect(await quick).toEqual({ outcome: "ok", value: 2 });
+    expect(seen).toEqual(["ok"]);
+    expect(clock.pending).toBe(0);
   });
 
   it("gives true for work that ends in its bound, a failure too, and false at the bound", async () => {

@@ -561,13 +561,31 @@ const life = await app.run(); // the process exits after SIGTERM, with 0 or 1
 - **The close.** At the shutdown, the client sends `connection.close`, and it destroys the socket at its `close_bound`.
 - **The manifestations and the machine.** `meets` lists the manifestations and their detectors. `RABBIT_CLIENT_MACHINE` is the client as a `mark1russell7.machine/1` document, and the tests replay the client against it.
 
+## The HTTP client
+
+`@mark1russell7/service/http-client` is the HTTP client of the service, over an `http.Agent` of Node with keep-alive. This entry is a part of S6. The entry `./http` is the server edge of a service, thus the client has its own name. `node:http` is a built-in, thus the entry has no peer dependency. The client loads `node:http` only when it connects.
+
+- **The declaration.** `httpClient(name, spec)` declares `connect_bound`, `request_timeout`, `pool_idle_expiry`, `hint_buffer`, `keepalive_idle`, `max_connection_age`, `close_bound` and `retrans_giveup_time`. Keepalive is also the `idle_refresh_interval`, because the agent sends nothing on a free socket.
+- **The idle close of the server.** The knob `server_idle_close` is not in the declaration, because the scenario binds the close of the server. `problems` compares it with `pool_idle_expiry` (O01).
+- **The problems of a spec.** `specProblems` refuses a knob that the agent cannot use. An example is a free socket timer of 0, which the agent reads as no timer. Others are a keepalive that is not a whole number of seconds, and a finite connection age.
+- **The options of the agent.** `agentOptions(spec)` gives `timeout`, `agentKeepAliveTimeoutBuffer`, `keepAliveMsecs`, `maxSockets` and `maxFreeSockets` from the declaration, and `scheduling: "lifo"`.
+- **The starting knobs.** `HTTP_CLIENT_STARTING_KNOBS` and `HTTP_CLIENT_STARTING_POLL` are a declaration from the HTTP cells. Each value has its measured reason in its doc comment.
+- **A call.** A call is one request until the end of the body of its response. The client ends each call at `request_timeout`, and each connect of a new socket at `connect_bound`, because the agent has no timer for them.
+- **Three outcomes.** `request(call)` gives `ok`, `error` or `indeterminate`. Each whole response is `ok`, with its status: RFC 9110 does not say that a 5xx did not apply. A request that did not get a connected socket did not leave the client. A failure after that is not certain.
+- **Idempotency for each method.** The table names each method by RFC 9110. GET, HEAD, OPTIONS, TRACE, PUT and DELETE are idempotent, and POST and PATCH are not. A spec can name a keyed operation, for example a POST with an `Idempotency-Key`.
+- **The keep-alive race.** A server can close a free socket while a request goes on it. The client then sends again only an idempotent operation, one time, on a new socket. It records `reuse.failed`.
+- **The join.** At each new socket, the client records the ends of the socket (`joins`). HTTP gives no id of a connection.
+- **The checks.** `checks({ poll, steps })` gives `local-state`, `round-trip` (the check request through the pool, which fails at a status of 500 or more) and `dial` (`OPTIONS *` on a new connection). The check request is `OPTIONS *`, or the `check` of the spec.
+- **The close.** At the shutdown, the client waits for its calls in flight. At its `close_bound`, it destroys each socket of the agent, and each call that stays is indeterminate.
+- **The manifestations and the machine.** `meets` lists the manifestations and their detectors. `HTTP_CLIENT_MACHINE` is the client as a `mark1russell7.machine/1` document, and the tests replay the client against it.
+
 ## Installation
 
 ```sh
 pnpm add @mark1russell7/service
 ```
 
-For the Redis client, the application also installs `ioredis@6`. For the PostgreSQL client, it installs `pg@8`. For the MongoDB client, it installs `mongodb@7`. For the RabbitMQ client, it installs `amqplib@2`.
+For the Redis client, the application also installs `ioredis@6`. For the PostgreSQL client, it installs `pg@8`. For the MongoDB client, it installs `mongodb@7`. For the RabbitMQ client, it installs `amqplib@2`. The HTTP client needs no other package.
 
 The package uses [`@mark1russell7/quantity`](https://www.npmjs.com/package/@mark1russell7/quantity) for each amount. No entry of the service loads `zod` at run time, thus `zod` is an optional peer dependency. An application that validates amounts with the schemas of `quantity` installs `zod`.
 
@@ -678,6 +696,7 @@ for await (const event of stream) {
 - **The machines.** Each document is valid, consistent and readable by the algebra. Eight scenarios replay against the documents and reach each state. The timers of the documents give the times of the runtime. The ordering law (O16) agrees with the clamp of the cooperative abort.
 - **The contract.** The contract of a sample declaration passes. The contract also finds a blind dependency, a check whose timeout is too short, and a check that names the wrong dependency.
 - **The Redis client.** These tests use a fake ioredis and a fake clock. They cover the declaration, the three outcomes, and the commands that the client sends again or not. They also cover the join, the backoff, the watchdog, the close, the checks and the manifestations. Five scenarios replay against the document of the client.
+- **The HTTP client.** These tests use a fake agent and a fake clock. They cover the declaration, the three outcomes, the methods that the client sends again or not, and the keep-alive race. They also cover the free socket timer, the close, the checks and the manifestations. Five scenarios replay against the document of the client. One test sends requests through the agent of Node to a server of the loopback.
 - **F6 for Redis.** The fault matrix crosses each manifestation (a refusal, a frozen process, a black hole, a death without a close, and an app stall), each gating posture, two timings and two jitters. That is 60 cases on the fake. Each case holds the trip and the release of its policy to `failSpan` and `recoverSpan`. Five more cases shut the service down during each manifestation, and each one exits 0.
 - **The timers.** These tests use a fake clock, and they cover the hooks of the heartbeat and its two kinds of ping. A property test holds the death of a silent peer to `detectionTime` in 300 seeded cases. Another one compares the heartbeat with a WebSocket heartbeat that sends one ping at a time, on 300 schedules of pongs. The backoff gives the delays of three earlier backoffs, number for number, and each delay is in its band.
 - **The entries.** The timer entries reach no other package, no `node:` module and no zod. No entry of the service reaches zod, also through `quantity` and the replay of the algebra. The root reaches no `node:` module. The HTTP edge reaches only `node:http`, `node:net` and `quantity`. The worker loop and the queue drain reach only `quantity`.

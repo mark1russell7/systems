@@ -5,6 +5,7 @@ import type { Cancel } from "../clock.ts";
 import { realClock } from "../clock.ts";
 import type { Attempt, CheckOptions, Client, ClientJoin, ClientKnobs, ClientOptions, ClientSpec, ClientStep, DialFn, RetryKnobs, SendOptions, Sent } from "../client/core.ts";
 import {
+  ageProblems,
   attachClient,
   clientBounds,
   clientProblems,
@@ -25,8 +26,10 @@ import {
   socketEnds,
   stepChecks,
   timeProblems,
+  trackWithTimer,
   wholeProblems,
   withinBound,
+  wrapperTimerProblems,
   zeroProblems,
 } from "../client/core.ts";
 import type { Judge } from "../client/dial.ts";
@@ -149,20 +152,17 @@ export interface RabbitClient extends Client<ClientStep, RabbitJoin> {
 /** This function gives the problems of a spec: the knobs that the client cannot use. */
 export const specProblems = (name: string, spec: RabbitClientSpec): string[] => {
   const { knobs } = spec;
-  const problems = [
+  return [
     ...timeProblems(name, knobs),
     // amqplib reads a socket timeout of 0 as no bound, and a heartbeat of 0 as no heartbeat
     ...zeroProblems(name, "amqplib", knobs, { bounded: ["connect_bound"], open: ["heartbeat_interval", "keepalive_idle"] }),
     // the URL takes the heartbeat in whole seconds, and Node truncates the keepalive delay to whole seconds
     ...wholeProblems(name, knobs, { millis: ["connect_bound"], seconds: ["heartbeat_interval", "keepalive_idle"] }),
     ...retryProblems(name, knobs),
+    // amqplib has no timer of a call
+    ...wrapperTimerProblems(name, knobs, { request_timeout: "a call" }),
+    ...ageProblems(name, knobs, "the client does not replace its connection at an age"),
   ];
-  const request = ms(knobs.request_timeout);
-  if (!(request > 0) || !Number.isFinite(request))
-    problems.push(`${name}'s request_timeout is not a finite time above zero: the timer of the wrapper is the only bound of a call`);
-  if (knobs.max_connection_age.value !== "infinite")
-    problems.push(`${name}'s max_connection_age is not "infinite": the client does not replace its connection at an age`);
-  return problems;
 };
 
 /** This function gives the node of a try: `host`, then each seed, in sequence. */
@@ -425,12 +425,14 @@ export const rabbitClient = (name: string, spec: RabbitClientSpec, options: Rabb
     const ch = usable(signal);
     if ("outcome" in ch) return Promise.resolve(ch);
     const content = typeof sent.content === "string" ? Buffer.from(sent.content, "utf8") : sent.content;
-    let stop: Cancel = () => {};
-    return flight.track<void>(
+    return trackWithTimer<void>(
+      flight,
+      clock,
+      requestTimeout,
       signal,
       "the caller abandoned the publish after it was written",
+      "no confirm in request_timeout: the broker can have the message",
       (settle) => {
-        stop = clock.after(requestTimeout, () => settle({ outcome: "indeterminate", error: "no confirm in request_timeout: the broker can have the message" }));
         try {
           ch.publish(sent.exchange, sent.routingKey, content, sent.properties ?? {}, (error) =>
             settle(error === null ? { outcome: "ok", value: undefined } : failureOutcome(error)),
@@ -439,7 +441,6 @@ export const rabbitClient = (name: string, spec: RabbitClientSpec, options: Rabb
           settle(failureOutcome(error));
         }
       },
-      () => stop(),
     );
   };
 
@@ -456,13 +457,15 @@ export const rabbitClient = (name: string, spec: RabbitClientSpec, options: Rabb
   ): Promise<Attempt<T>> => {
     const ch = usable(signal);
     if ("outcome" in ch) return Promise.resolve(ch);
-    let stop: Cancel = () => {};
     let finished = false;
-    return flight.track<T>(
+    return trackWithTimer<T>(
+      flight,
+      clock,
+      requestTimeout,
       signal,
       `the caller abandoned ${what} after it was sent`,
+      `no reply to ${what} in request_timeout`,
       (settle) => {
-        stop = clock.after(requestTimeout, () => settle({ outcome: "indeterminate", error: `no reply to ${what} in request_timeout` }));
         Promise.resolve()
           .then(() => run(ch))
           .then(
@@ -475,7 +478,6 @@ export const rabbitClient = (name: string, spec: RabbitClientSpec, options: Rabb
       },
       () => {
         finished = true;
-        stop();
       },
     );
   };
