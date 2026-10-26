@@ -1,12 +1,13 @@
 // @mark1russell7/service/testing: the seams of the runtime for tests. A fake clock gives exact,
 // repeatable timing. A seeded random gives the same jitter on each run. A fake process takes
 // signals and keeps the exit codes. A quiet server answers until it goes quiet, and then it holds
-// its connections open without an answer. `contractCases` generates the contract test of a
+// its connections open without an answer. A test logger keeps each log entry. `contractCases` generates the contract test of a
 // declaration, and `transportConformance` generates the conformance test of a transport.
 
 import type { AddressInfo, Server, Socket } from "node:net";
 import { createServer } from "node:net";
 import type { Outcome } from "./latch.ts";
+import type { LogEntry, LogLevel, Logger } from "./logger.ts";
 import type { CheckFn } from "./poller.ts";
 
 export type { FakeClock, FakeProcess, FakeProcessOptions } from "./fakes.ts";
@@ -79,6 +80,31 @@ export const scriptedCheck = (behavior: Behavior = "ok"): ScriptedCheck => {
     },
   };
   return script;
+};
+
+/** A test logger is a logger that keeps each entry, thus a test can examine the log of the runtime. */
+export interface TestLogger extends Logger {
+  /** These are the entries, in the sequence of their calls. */
+  readonly entries: readonly LogEntry[];
+  /** This method gives the message of each entry, or of each entry at one level. */
+  messages(level?: LogLevel): string[];
+  /** This method removes each entry. */
+  clear(): void;
+}
+
+/** This function makes a test logger with no entries. */
+export const testLogger = (): TestLogger => {
+  const entries: LogEntry[] = [];
+  return {
+    entries,
+    log(level, message, fields) {
+      entries.push({ level, message, fields });
+    },
+    messages: (level) => entries.filter((entry) => level === undefined || entry.level === level).map((entry) => entry.message),
+    clear() {
+      entries.length = 0;
+    },
+  };
 };
 
 /** A quiet server is a TCP echo server that can stop its answers and keep its connections open. */

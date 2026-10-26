@@ -662,6 +662,23 @@ A new entry `@mark1russell7/service/host` gives this code one source. It install
 
 It comes as a PATCH before 1.0.0: a new entry and new exports.
 
+### SYS-37 · The service has a logger port
+
+- **Status:** done
+- **Area:** server stack
+- **Depends on:**
+- **Started:** 2026-10-26
+- **Shipped:** 2026-10-26
+- **Links:** [#186](https://github.com/mark1russell7/systems/pull/186)
+
+The server stack found that service 0.5.16 has no logger. With this item, `run({ logger })` and `start({ logger })` take a `Logger`, as they take the clock. The port has one method, `log(level, message, fields)`, thus an adapter to another logger is a few lines.
+
+The logger is not a second set of calls. It is one sink of the stream of lifecycle events that `record` already gets (`logEvents`). Thus each machine writes to the two, and a new event gets its entry with no change to the lifecycle.
+
+`run()` logs each step of the startup, each phase with its cap, its outcome and its duration, and the exit code, at `info`. A phase at its cap is `warn`, each error of the lifecycle is `error`, and the polls are `debug`. `consoleLogger()` writes `info` and above to the console. Without a logger, the runtime writes no log, as before. `testLogger()` of `./testing` keeps each entry for the tests.
+
+It comes as a PATCH before 1.0.0: a new optional option and new exports.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue

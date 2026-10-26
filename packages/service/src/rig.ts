@@ -4,9 +4,9 @@ import { service } from "./builder.ts";
 import type { LifecycleEvent } from "./events.ts";
 import type { FakeClock, FakeProcess } from "./fakes.ts";
 import { fakeClock, fakeProcess, seeded } from "./fakes.ts";
-import type { DependencyHandle, HealthServer, Lifecycle, Stage, TransportImpl } from "./lifecycle.ts";
-import type { ScriptedCheck } from "./testing.ts";
-import { scriptedCheck } from "./testing.ts";
+import type { DependencyHandle, HealthServer, Lifecycle, RunOptions, Stage, TransportImpl } from "./lifecycle.ts";
+import type { ScriptedCheck, TestLogger } from "./testing.ts";
+import { scriptedCheck, testLogger } from "./testing.ts";
 
 /**
  * The rig of the lifecycle tests: one service with two dependencies, one server and a health
@@ -41,6 +41,8 @@ export interface Rig {
   readonly clock: FakeClock;
   readonly process: FakeProcess;
   readonly events: LifecycleEvent[];
+  /** This logger gets each event of the run too, as a log entry. */
+  readonly logger: TestLogger;
   readonly log: string[];
   readonly checks: Readonly<Record<"db" | "cache", ScriptedCheck>>;
 }
@@ -61,6 +63,7 @@ export const rig = (options: RigOptions = {}): Rig => {
   const clock = fakeClock();
   const process = fakeProcess({ clock, flush: options.flush === undefined ? undefined : () => wait(options.flush!) });
   const events: LifecycleEvent[] = [];
+  const logger = testLogger();
   const log: string[] = [];
   const write = (what: string): void => {
     log.push(`${clock.now()} ${what}`);
@@ -132,16 +135,18 @@ export const rig = (options: RigOptions = {}): Rig => {
     });
   const caps = options.caps ?? CAPS;
   for (const [stage, cap] of Object.entries(caps)) if (cap !== undefined) svc.phase(stage, s(cap));
-  return { svc, clock, process, events, log, checks };
+  return { svc, clock, process, events, logger, log, checks };
 };
 
 /**
  * This function starts the lifecycle of a rig, and moves the clock until the startup ends. The
  * function `during` operates at each step of 100 ms of the startup, for example to send a signal.
+ * The options `extra` replace the options of the rig.
  */
 export const run = async (
   rigged: Rig,
   during: (at: number) => void = () => {},
+  extra: RunOptions = {},
 ): Promise<Lifecycle> => {
   let ended = false;
   const life = rigged.svc
@@ -150,6 +155,8 @@ export const run = async (
       random: seeded(1),
       process: rigged.process,
       record: (event) => rigged.events.push(event),
+      logger: rigged.logger,
+      ...extra,
     })
     .finally(() => {
       ended = true;
