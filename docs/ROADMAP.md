@@ -106,6 +106,8 @@ The draft [PR #157](https://github.com/mark1russell7/systems/pull/157) is a prot
 
 [PR #162](https://github.com/mark1russell7/systems/pull/162) adds the RabbitMQ client (`./rabbitmq`) on that core. It moves the ready wait and the backoff of Redis into the core, for both clients.
 
+[PR #163](https://github.com/mark1russell7/systems/pull/163) adds the HTTP client (`./http-client`) over the agent of Node, on that core. It moves the timer of a call and the problems of a wrapper timer, an age and a keepalive into the core.
+
 ## The server stack in S6
 
 These items are the part of the server stack in this repository. The server stack is a plan across repositories: one service runner here, and one procedures server in the client. [Its tracker](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb) has the whole plan, with the same ids.
