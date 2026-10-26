@@ -116,6 +116,8 @@ On 2026-10-17, Mark decided the design of the server stack (D1 to D18). These de
 
 [PR #174](https://github.com/mark1russell7/systems/pull/174) gives the metrics of the health runtime (B18): `health.metrics()` counts the outcomes, the durations, the episodes of failure and the transitions.
 
+[PR #176](https://github.com/mark1russell7/systems/pull/176) gives the marks of the timers (E10). `compressionOf()` tells which verdicts of the law a compression of the timers by k changes.
+
 ## The server stack in S6
 
 These items are the part of the server stack in this repository. The server stack is a plan across repositories: one service runner here, and one procedures server in the client. [Its tracker](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb) has the whole plan, with the same ids.

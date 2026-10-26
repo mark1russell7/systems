@@ -154,3 +154,101 @@ export const verdictOf = (rule: Rule, bind: Binding, evaluated: readonly Evaluat
   const infinite = applicable.some((index) => readsAbsent(all[index]!, bind));
   return infinite ? "unbounded" : "holds";
 };
+
+/**
+ * A mark tells how a timer moves when a compression scales time by k (E10). A "scalable" timer
+ * becomes k times its value. A "fixed" timer keeps its value. A "stepped" timer takes only
+ * multiples of its step, thus it rounds up. A "floored" timer has a floor that a peer sets, for
+ * example the minimum retransmission timeout of the kernel. The step and the floor are in seconds.
+ */
+export type TimerMark =
+  | { readonly kind: "scalable" }
+  | { readonly kind: "fixed" }
+  | { readonly kind: "stepped"; readonly step: number }
+  | { readonly kind: "floored"; readonly floor: number; readonly by: string };
+
+/** The marks map `symbol@hop` to a mark. A bare symbol marks the symbol at each hop. */
+export type TimerMarks = Readonly<Record<string, TimerMark | undefined>>;
+
+/** A compressed binding, and the symbols that have no mark. */
+export interface Compressed {
+  readonly bind: Binding;
+  /** These symbols have no mark. They keep their values, thus the compression proves nothing about them. */
+  readonly unmarked: readonly string[];
+}
+
+/** A change is a rule whose verdict a compression changes. */
+export interface Change {
+  readonly rule: string;
+  readonly before: Verdict;
+  readonly after: Verdict;
+}
+
+/** The result of a compression: the rules whose verdict it changes, and the symbols of the rules that have no mark. */
+export interface Compression {
+  readonly changed: readonly Change[];
+  readonly unmarked: readonly string[];
+}
+
+/** This function gives the mark of a symbol: its mark at its hop, else the mark of the bare symbol. */
+const markOf = (marks: TimerMarks, key: string): TimerMark | undefined =>
+  marks[key] ?? marks[key.split("@")[0] ?? key];
+
+// a step absorbs the error of the float product, thus 0.3 s at k = 10 stays 3 s with a step of 1 s
+const STEP_EPSILON = 1e-9;
+
+const scaled = (seconds: number, k: number, mark: TimerMark): number => {
+  switch (mark.kind) {
+    case "scalable":
+      return seconds * k;
+    case "fixed":
+      return seconds;
+    case "stepped":
+      // Math.max keeps 0 s at 0 s, not at -0
+      return Math.max(Math.ceil((seconds * k) / mark.step - STEP_EPSILON), 0) * mark.step;
+    case "floored":
+      return Math.max(seconds * k, mark.floor);
+  }
+};
+
+/**
+ * This function scales each timer of a binding by k, by its mark (E10). An absent timer ("inf" or
+ * "off") stays absent. A chain scales each value. The margins of the binding and the constants of
+ * the rules do not scale: they are tolerances, not timers. A symbol with no mark keeps its value.
+ */
+export const compress = (bind: Binding, k: number, marks: TimerMarks): Compressed => {
+  if (!Number.isFinite(k) || k <= 0) throw new RangeError(`a compression scales time by a finite factor above 0, not ${k}`);
+  const out: Record<string, Bound | readonly number[] | undefined> = {};
+  const unmarked: string[] = [];
+  for (const [key, bound] of Object.entries(bind)) {
+    if (key === "margin" || key === "margins") continue;
+    const mark = markOf(marks, key);
+    if (mark === undefined) {
+      if (bound !== undefined) unmarked.push(key);
+      out[key] = bound;
+    } else if (typeof bound === "number") out[key] = scaled(bound, k, mark);
+    else if (Array.isArray(bound)) out[key] = bound.map((seconds) => scaled(seconds, k, mark));
+    else out[key] = bound;
+  }
+  const margins = {
+    ...(bind.margin !== undefined ? { margin: bind.margin } : {}),
+    ...(bind.margins !== undefined ? { margins: bind.margins } : {}),
+  };
+  return { bind: { ...out, ...margins }, unmarked };
+};
+
+/**
+ * This function tells which rules a compression by k changes. A compression keeps each ordering
+ * when no verdict changes. A change in either direction counts: a violation that the compression
+ * hides is as wrong as one that it makes. The unmarked symbols are the symbols that the rules read.
+ */
+export const compression = (rules: readonly Rule[], bind: Binding, k: number, marks: TimerMarks): Compression => {
+  const compressed = compress(bind, k, marks);
+  const changed = rules.flatMap((rule): Change[] => {
+    const before = verdictOf(rule, bind, evaluate(rule, bind));
+    const after = verdictOf(rule, compressed.bind, evaluate(rule, compressed.bind));
+    return before === after ? [] : [{ rule: rule.id, before, after }];
+  });
+  const read = new Set(rules.flatMap(symbolsOf));
+  return { changed, unmarked: compressed.unmarked.filter((symbol) => read.has(symbol)) };
+};
