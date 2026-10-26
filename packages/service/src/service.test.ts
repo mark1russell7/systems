@@ -330,4 +330,30 @@ describe("the ordering law's evaluator", () => {
       expect(compressionOf(drained(2), platform(0), [O04], 0.1, PLATFORM_MARKS)).toEqual({ changed: [], unmarked: ["readiness_hold@process"] });
     });
   });
+
+  describe("the values of a scenario as claims for a version (E2)", () => {
+    const probes = { readiness: s(30), liveness: s(30) };
+    it("binds a claim, and each finding names the epoch of each value that its rule reads", () => {
+      const scenario = { platform: { "prestop_sleep@pod": { epoch: "kubernetes@1.34", value: s(2) }, "propagation_bound@cluster": s(1) }, probes };
+      const [finding] = lint(drained(0), scenario, [O04]);
+      expect(finding?.verdict).toBe("holds");
+      expect(finding?.epochs).toEqual({ "prestop_sleep@pod": "kubernetes@1.34", "propagation_bound@cluster": null });
+      expect(serviceBindings(drained(0), scenario).from["prestop_sleep@pod"]).toBe("the scenario, for kubernetes@1.34");
+      // a scenario of plain amounts names no epoch, and its findings stay as they were
+      expect(lint(drained(2), platform(0), [O04])[0]).not.toHaveProperty("epochs");
+    });
+
+    it("binds the p99 of a distribution, and a distribution without a p99 binds nothing", () => {
+      const measured = (distribution: Record<string, { value: number; unit: string }>) => ({
+        platform: { "prestop_sleep@pod": s(2), "propagation_bound@cluster": { epoch: "kind@0.30", distribution } },
+        probes,
+      });
+      // the p50 would hold: 2 s >= 0.3 s, but the p99 does not
+      expect(lint(drained(0), measured({ p50: s(0.3), p99: s(3) }), [O04])[0]?.verdict).toBe("violated");
+      const [unbound] = lint(drained(0), measured({ p50: s(0.3) }), [O04]);
+      expect(unbound?.verdict).toBe("depends");
+      expect(unbound?.unbound).toEqual(["propagation_bound@cluster"]);
+      expect(unbound?.epochs).toEqual({ "prestop_sleep@pod": null, "propagation_bound@cluster": "kind@0.30" });
+    });
+  });
 });

@@ -118,6 +118,8 @@ On 2026-10-17, Mark decided the design of the server stack (D1 to D18). These de
 
 [PR #176](https://github.com/mark1russell7/systems/pull/176) gives the marks of the timers (E10). `compressionOf()` tells which verdicts of the law a compression of the timers by k changes.
 
+[PR #177](https://github.com/mark1russell7/systems/pull/177) makes the values of a scenario claims for a version (E2). Each finding names the epoch of each value that it reads, and a distribution binds its p99.
+
 ## The server stack in S6
 
 These items are the part of the server stack in this repository. The server stack is a plan across repositories: one service runner here, and one procedures server in the client. [Its tracker](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb) has the whole plan, with the same ids.

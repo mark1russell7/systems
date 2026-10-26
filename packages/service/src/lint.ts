@@ -19,10 +19,31 @@ import { failSpan } from "./timing.ts";
  * time for each consumer and each worker. A rule about a limiter applies one time for each limiter.
  */
 
+/** A statistic of a measured distribution. The law binds p99 (`LAW_STATISTIC`). */
+export type Statistic = "p50" | "p90" | "p99" | "p999" | "max";
+
+/** The law binds this statistic of a distribution. */
+export const LAW_STATISTIC: Statistic = "p99";
+
+/**
+ * A claim is a value of the scenario that names its epoch: the component and the version that give
+ * it, for example "node@22" (E2). A default is true only for a version: the keep-alive of Node is
+ * 5 s, but 65 s on main. A claim gives a set value, or a measured distribution by its statistics.
+ */
+export type Claim =
+  | { readonly epoch: string; readonly value: Extent }
+  | { readonly epoch: string; readonly distribution: Readonly<Partial<Record<Statistic, Quantity>>> };
+
+/**
+ * A value of the scenario is an amount, or a claim. An amount names no epoch, thus the finding of
+ * each rule that reads it gives null for its epoch.
+ */
+export type ScenarioValue = Extent | Claim;
+
 /** A scenario gives the values of the platform and of each dependency, by the `symbol@hop` of the law. */
 export interface Scenario {
   /** These are the values of the platform: prestop_sleep@pod, termination_grace@pod, probe_period@pod, propagation_bound@cluster. */
-  readonly platform: Readonly<Record<string, Extent>>;
+  readonly platform: Readonly<Record<string, ScenarioValue>>;
   /**
    * These are the probe windows of the kubelet, period × failure threshold. They add to the
    * windows of the declaration. A probe reads the cached verdict, thus detection is the latch,
@@ -30,17 +51,20 @@ export interface Scenario {
    */
   readonly probes: { readonly readiness: Quantity; readonly liveness: Quantity };
   /** These are the values of each dependency, by its name: failover_time@dependency, server_idle_close@server. */
-  readonly dependencies?: Readonly<Record<string, Readonly<Record<string, Extent>>>> | undefined;
+  readonly dependencies?: Readonly<Record<string, Readonly<Record<string, ScenarioValue>>>> | undefined;
   /** These are the values of the source of each consumer and worker, by its name and by the `symbol@hop` of the law: lease_duration@broker. */
-  readonly transports?: Readonly<Record<string, Readonly<Record<string, Extent>>>> | undefined;
+  readonly transports?: Readonly<Record<string, Readonly<Record<string, ScenarioValue>>>> | undefined;
   /**
    * These are the values of the callers of each limiter, by its name and by the `symbol@hop` of the
    * law: client_retry_window@caller, retry_delay@caller. A symbol without a hop binds at `caller`.
    */
-  readonly limiters?: Readonly<Record<string, Readonly<Record<string, Extent>>>> | undefined;
+  readonly limiters?: Readonly<Record<string, Readonly<Record<string, ScenarioValue>>>> | undefined;
 }
 
-/** A finding is the verdict of one rule for one scope: the service, or the client of a dependency. */
+/** The epochs of a scope map each symbol that the scenario binds to the epoch of its value, or null when the value names none. */
+export type Epochs = Readonly<Record<string, string | null>>;
+
+/** A finding is the verdict of one rule for one scope: the service, or the client of a dependency. When a value of the scenario names an epoch, the finding gives the epoch of each value that the rule reads. */
 export interface Finding {
   readonly rule: string;
   readonly scope: string;
@@ -50,6 +74,8 @@ export interface Finding {
   readonly evaluated: readonly Evaluated[];
   /** These are the symbols that have no bound. A "depends" verdict waits for them. */
   readonly unbound: readonly string[];
+  /** These are the epochs of the symbols of the rule that the scenario binds (E2). Thus a finding is true for these versions. */
+  readonly epochs?: Epochs | undefined;
 }
 
 /** These are the identifiers of the rules that each declaration gets. */
@@ -127,6 +153,31 @@ const secondsOf = (amount: Quantity): number =>
 /** This function gives an amount, or no bound, as the law binds it. */
 const boundOf = (amount: Extent): Bound =>
   amount.value === "infinite" ? "inf" : secondsOf(amount);
+/**
+ * This function gives a value of the scenario as the law binds it, with its epoch. A distribution
+ * binds its p99. A distribution without a p99 binds nothing, thus each rule that reads it depends.
+ */
+const claimOf = (value: ScenarioValue): { readonly bound: Bound | undefined; readonly epoch: string | null } => {
+  if (!("epoch" in value)) return { bound: boundOf(value), epoch: null };
+  if ("value" in value) return { bound: boundOf(value.value), epoch: value.epoch };
+  const statistic = value.distribution[LAW_STATISTIC];
+  return { bound: statistic === undefined ? undefined : secondsOf(statistic), epoch: value.epoch };
+};
+/** This function binds each value of a part of the scenario, at the symbol that `at` gives, and records its epoch. */
+const bindScenario = (
+  values: Readonly<Record<string, ScenarioValue>>,
+  at: (symbol: string) => string,
+  bind: Record<string, Bound>,
+  epochs: Record<string, string | null>,
+): void => {
+  for (const [symbol, value] of Object.entries(values)) {
+    const claim = claimOf(value);
+    const key = at(symbol);
+    epochs[key] = claim.epoch;
+    if (claim.bound !== undefined) bind[key] = claim.bound;
+    else delete bind[key];
+  }
+};
 /** This function tells if a unit is a time. A unit that the package does not know is not a time. */
 const isTime = (unit: string): boolean => {
   try {
@@ -143,9 +194,10 @@ const most = (values: readonly number[]): number | undefined =>
 export const serviceBindings = (
   svc: ServiceDescription,
   scenario: Scenario,
-): { readonly bind: Record<string, Bound>; readonly from: Record<string, string> } => {
+): { readonly bind: Record<string, Bound>; readonly from: Record<string, string>; readonly epochs: Epochs } => {
   const bind: Record<string, Bound> = {};
   const from: Record<string, string> = {};
+  const epochs: Record<string, string | null> = {};
   const set = (symbol: string, bound: Bound | undefined, said: string): void => {
     if (bound === undefined) return;
     bind[symbol] = bound;
@@ -216,20 +268,28 @@ export const serviceBindings = (
       ? "no fail readiness phase: the intake stops at once after the signal"
       : "the cap of the fail readiness phase, which holds while the endpoints update",
   );
-  for (const [symbol, amount] of Object.entries(scenario.platform))
-    set(symbol, boundOf(amount), "the scenario");
-  return { bind, from };
+  bindScenario(scenario.platform, (symbol) => symbol, bind, epochs);
+  for (const [symbol, epoch] of Object.entries(epochs)) {
+    if (bind[symbol] === undefined) delete from[symbol];
+    else from[symbol] = epoch === null ? "the scenario" : `the scenario, for ${epoch}`;
+  }
+  return { bind, from, epochs };
 };
 
+/** A scope binds its symbols, and records the epoch of each value of the scenario. */
+interface Scoped {
+  readonly bind: Record<string, Bound>;
+  readonly epochs: Record<string, string | null>;
+}
+
 /** This function gives the client knobs of a dependency at @client, and the values of the scenario at its own hops. */
-const dependencyBindings = (dependency: Dependency, scenario: Scenario): Record<string, Bound> => {
+const dependencyBindings = (dependency: Dependency, scenario: Scenario): Scoped => {
   const bind: Record<string, Bound> = {};
+  const epochs: Record<string, string | null> = {};
   for (const [knob, amount] of Object.entries(dependency.knobs))
     bind[`${knob}@client`] = boundOf(amount);
-  for (const [symbol, amount] of Object.entries(scenario.dependencies?.[dependency.name] ?? {})) {
-    bind[symbol.includes("@") ? symbol : `${symbol}@dependency`] = boundOf(amount);
-  }
-  return bind;
+  bindScenario(scenario.dependencies?.[dependency.name] ?? {}, (symbol) => (symbol.includes("@") ? symbol : `${symbol}@dependency`), bind, epochs);
+  return { bind, epochs };
 };
 
 /**
@@ -242,14 +302,15 @@ const TRANSPORT_HOPS: Readonly<Record<Transport["kind"], string | null>> = { ser
  * This function gives the time knobs of a transport at the hop of its kind, and the values of the
  * scenario for its source. A knob with a hop in its name binds at that hop. A count binds no symbol.
  */
-const transportBindings = (transport: Transport, hop: string, scenario: Scenario): Record<string, Bound> => {
+const transportBindings = (transport: Transport, hop: string, scenario: Scenario): Scoped => {
   const bind: Record<string, Bound> = {};
+  const epochs: Record<string, string | null> = {};
   for (const [knob, amount] of Object.entries(transport.knobs)) {
     if (!isTime(amount.unit)) continue;
     bind[knob.includes("@") ? knob : `${knob}@${hop}`] = boundOf(amount);
   }
-  for (const [symbol, amount] of Object.entries(scenario.transports?.[transport.name] ?? {})) bind[symbol] = boundOf(amount);
-  return bind;
+  bindScenario(scenario.transports?.[transport.name] ?? {}, (symbol) => symbol, bind, epochs);
+  return { bind, epochs };
 };
 
 /**
@@ -259,14 +320,14 @@ const transportBindings = (transport: Transport, hop: string, scenario: Scenario
  * - `retry_after_at_cap@limiter` is the longest `Retry-After` of a new key at the cap of keys. It is
  *   the idle span, `burst / rate` or one window.
  */
-const limiterBindings = (limiter: Limiter, scenario: Scenario): Record<string, Bound> => {
+const limiterBindings = (limiter: Limiter, scenario: Scenario): Scoped => {
   const bind: Record<string, Bound> = {
     "retry_after@limiter": retryAfterSeconds(longestRetryAfter(limiter.policy)),
     "retry_after_at_cap@limiter": retryAfterSeconds(idleSpan(limiter.policy)),
   };
-  for (const [symbol, amount] of Object.entries(scenario.limiters?.[limiter.name] ?? {}))
-    bind[symbol.includes("@") ? symbol : `${symbol}@caller`] = boundOf(amount);
-  return bind;
+  const epochs: Record<string, string | null> = {};
+  bindScenario(scenario.limiters?.[limiter.name] ?? {}, (symbol) => (symbol.includes("@") ? symbol : `${symbol}@caller`), bind, epochs);
+  return { bind, epochs };
 };
 
 const SCOPED = /@(client|dependency|server)$/;
@@ -425,22 +486,30 @@ const progressFindings = (svc: ServiceDescription): Finding[] => {
 const scopesOf = (
   svc: ServiceDescription,
   scenario: Scenario,
-  service: Binding,
+  service: { readonly bind: Binding; readonly epochs: Epochs },
   symbols: readonly string[],
-): Array<[string, Binding]> =>
-  symbols.some((symbol) => LIMITER_SCOPED.test(symbol))
-    ? (svc.limiters ?? []).map((limiter): [string, Binding] => [limiter.name, { ...service, ...limiterBindings(limiter, scenario) }])
+): Array<[string, Binding, Epochs]> => {
+  const within = (name: string, scoped: Scoped): [string, Binding, Epochs] => {
+    // a value of the scope that binds nothing hides the value of the service, as its epoch does
+    const bind: Record<string, Bound | readonly number[] | undefined> = { ...service.bind, ...scoped.bind };
+    for (const symbol of Object.keys(scoped.epochs)) if (!(symbol in scoped.bind)) delete bind[symbol];
+    return [name, bind, { ...service.epochs, ...scoped.epochs }];
+  };
+  return symbols.some((symbol) => LIMITER_SCOPED.test(symbol))
+    ? (svc.limiters ?? []).map((limiter) => within(limiter.name, limiterBindings(limiter, scenario)))
     : symbols.some((symbol) => TRANSPORT_SCOPED.test(symbol))
-      ? svc.transports.flatMap((transport): Array<[string, Binding]> => {
+      ? svc.transports.flatMap((transport): Array<[string, Binding, Epochs]> => {
           const hop = TRANSPORT_HOPS[transport.kind];
-          return hop === null ? [] : [[transport.name, { ...service, ...transportBindings(transport, hop, scenario) }]];
+          return hop === null ? [] : [within(transport.name, transportBindings(transport, hop, scenario))];
         })
       : symbols.some((symbol) => SCOPED.test(symbol))
-        ? svc.dependencies.map((dependency): [string, Binding] => [
-            dependency.name,
-            { ...service, ...dependencyBindings(dependency, scenario) },
-          ])
-        : [[svc.name, service]];
+        ? svc.dependencies.map((dependency) => within(dependency.name, dependencyBindings(dependency, scenario)))
+        : [[svc.name, service.bind, service.epochs]];
+};
+
+/** This function gives the epochs of the symbols of a rule that the scenario binds. */
+const epochsOf = (symbols: readonly string[], epochs: Epochs): Epochs =>
+  Object.fromEntries(symbols.flatMap((symbol) => (symbol in epochs ? [[symbol, epochs[symbol] ?? null]] : [])));
 
 /**
  * These are the marks of the timers of the platform (E10). Kubernetes takes the probe period, the
@@ -471,7 +540,7 @@ export const compressionOf = (
   k: number,
   marks: TimerMarks,
 ): { readonly changed: readonly ScopedChange[]; readonly unmarked: readonly string[] } => {
-  const service = serviceBindings(svc, scenario).bind;
+  const service = serviceBindings(svc, scenario);
   const changed: ScopedChange[] = [];
   const unmarked = new Set<string>();
   for (const rule of rules) {
@@ -496,13 +565,14 @@ export const lint = (
   scenario: Scenario,
   rules: readonly Rule[],
 ): Finding[] => {
-  const service = serviceBindings(svc, scenario).bind;
+  const service = serviceBindings(svc, scenario);
   const findings: Finding[] = [...declarationFindings(svc), ...progressFindings(svc)];
   for (const rule of rules) {
     if (!SERVICE_RULES.includes(rule.id)) continue;
     const symbols = symbolsOf(rule);
-    for (const [scope, bind] of scopesOf(svc, scenario, service, symbols)) {
+    for (const [scope, bind, all] of scopesOf(svc, scenario, service, symbols)) {
       const evaluated = evaluate(rule, bind);
+      const epochs = epochsOf(symbols, all);
       findings.push({
         rule: rule.id,
         scope,
@@ -511,6 +581,8 @@ export const lint = (
         ...(rule.window !== undefined ? { window: rule.window } : {}),
         evaluated,
         unbound: symbols.filter((symbol) => bind[symbol] === undefined),
+        // a scenario of plain amounts names no epoch, thus its findings stay as they were
+        ...(Object.values(epochs).some((epoch) => epoch !== null) ? { epochs } : {}),
       });
     }
   }
