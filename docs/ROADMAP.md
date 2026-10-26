@@ -52,7 +52,9 @@ H2 was the last system of the set, and its last cell held on 2026-10-25. Thus ea
 
 kube-proxy in each mode, Cilium, Istio, kube-vip, CoreDNS, MetalLB and Pulsar, with drains and the lifecycle of a pod. kind checks each one.
 
-The first step measures how callers learn that a pod cannot serve: endpoint propagation (A) or an in-band `Connection: close` (B), on keep-alive clients (the cells `S2.T07.<mode>.endpoints` and `S2.T07.<mode>.lame-duck`). The next step runs the two candidates in each mode of kube-proxy from one definition, and the kind page shows them side by side. Candidate C sends GOAWAY on HTTP/2 from the same transport of the service (the cells `S2.T07.<mode>.goaway`). Each client has one session, thus fewer connections fail more requests each, and the window ends 140 ms earlier.
+The first step measures how callers learn that a pod cannot serve: endpoint propagation (A) or an in-band `Connection: close` (B), on keep-alive clients (the cells `S2.T07.<mode>.endpoints` and `S2.T07.<mode>.lame-duck`). The next step measures the two candidates in each mode of kube-proxy from one definition, and the kind page shows them side by side. Candidate C sends GOAWAY on HTTP/2 from the same transport of the service (the cells `S2.T07.<mode>.goaway`). Each client has one session, thus fewer connections fail more requests each, and the window ends 140 ms earlier.
+
+Kind run 40358038728 held all 9 cells in 3 of 3 runs. With iptables, the median failed requests for A, B and C were 3044, 813 and 1087. With IPVS they were 2449, 983 and 2133, and with nftables 2562, 1092 and 706.
 
 ### S3 · Outcomes under failure and load
 
