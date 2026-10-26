@@ -307,6 +307,7 @@ const groupOf = (cell: KindCell): string => {
   if (cell.template === "T07") {
     if (cell.trigger.kind === "cannot-serve") return "callers";
     if (cell.trigger.partition === true) return "partition";
+    if (cell.trigger.kind === "app-stall") return "stall";
     if (cell.calibrates) return "calibration";
     if (cell.trigger.kind === "pod-deletion") return "deletion";
     if (cell.trigger.kind === "freeze-process") return "pause";
@@ -327,11 +328,12 @@ const propagationValues = (runs: readonly KindRun[]): number[] =>
 const spread = (value: TimeSpread | null) =>
   value === null ? null : { count: value.count, min: s(value.min), median: s(value.median), p99: s(value.p99), max: s(value.max) };
 
-/** This function gives the copy of a cell: kind for T07 and T18, and t15 for T15. The S2 cells of cannot-serve get s2, and those of a partition get s2-partition. */
-const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" => {
+/** This function gives the copy of a cell: kind for T07 and T18, and t15 for T15. The S2 cells of cannot-serve get s2, those of a partition get s2-partition, and those of a stall get s2-stall. */
+const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" => {
   if (cell.template === "T15") return "t15";
   if (!cell.id.startsWith("S2.")) return "kind";
-  return callerFaultOf(cell) === "partition" ? "s2-partition" : "s2";
+  const fault = callerFaultOf(cell);
+  return fault === "partition" ? "s2-partition" : fault === "stall" ? "s2-stall" : "s2";
 };
 
 /**
@@ -435,7 +437,14 @@ for (const name of names) {
   const mine = cells.filter((cell) => cell.copy === name);
   const out = fileURLToPath(new URL(`../src/data/${name}${tag === null ? "" : `-${tag}`}-${date}.json`, import.meta.url));
   // a copy of S2 has the prediction of each S2 cell of its incident in the catalog, with a run or not
-  const predictions = name === "s2" ? { predictions: callerPredictions() } : name === "s2-partition" ? { predictions: callerPredictions("partition") } : {};
+  const predictions =
+    name === "s2"
+      ? { predictions: callerPredictions() }
+      : name === "s2-partition"
+        ? { predictions: callerPredictions("partition") }
+        : name === "s2-stall"
+          ? { predictions: callerPredictions("stall") }
+          : {};
   writeFileSync(out, stringify({ ...copy, cells: mine.map(({ copy: _copy, ...cell }) => cell), ...predictions }));
   process.stdout.write(`${mine.length} cells, ${mine.reduce((sum, cell) => sum + cell.counted + cell.voided, 0)} runs: ${out}\n`);
 }
