@@ -2,8 +2,8 @@ import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { convertExact, convertible, rationals as r } from "@mark1russell7/quantity";
 import { backoffBand } from "./backoff.ts";
 import type { Check, Dependency, ServiceDescription, Transport } from "./description.ts";
-import type { Binding, Bound, Evaluated, Rule, Verdict } from "./law.ts";
-import { evaluate, symbolsOf, verdictOf } from "./law.ts";
+import type { Binding, Bound, Change, Evaluated, Rule, TimerMarks, Verdict } from "./law.ts";
+import { compression, evaluate, symbolsOf, verdictOf } from "./law.ts";
 import type { Limiter } from "./limiter/policy.ts";
 import { idleSpan, longestRetryAfter, retryAfterSeconds } from "./limiter/policy.ts";
 import { failSpan } from "./timing.ts";
@@ -421,6 +421,70 @@ const progressFindings = (svc: ServiceDescription): Finding[] => {
   return findings;
 };
 
+/** This function gives the scopes of a rule that reads these symbols: the service, each client, each consumer and worker, or each limiter. */
+const scopesOf = (
+  svc: ServiceDescription,
+  scenario: Scenario,
+  service: Binding,
+  symbols: readonly string[],
+): Array<[string, Binding]> =>
+  symbols.some((symbol) => LIMITER_SCOPED.test(symbol))
+    ? (svc.limiters ?? []).map((limiter): [string, Binding] => [limiter.name, { ...service, ...limiterBindings(limiter, scenario) }])
+    : symbols.some((symbol) => TRANSPORT_SCOPED.test(symbol))
+      ? svc.transports.flatMap((transport): Array<[string, Binding]> => {
+          const hop = TRANSPORT_HOPS[transport.kind];
+          return hop === null ? [] : [[transport.name, { ...service, ...transportBindings(transport, hop, scenario) }]];
+        })
+      : symbols.some((symbol) => SCOPED.test(symbol))
+        ? svc.dependencies.map((dependency): [string, Binding] => [
+            dependency.name,
+            { ...service, ...dependencyBindings(dependency, scenario) },
+          ])
+        : [[svc.name, service]];
+
+/**
+ * These are the marks of the timers of the platform (E10). Kubernetes takes the probe period, the
+ * preStop sleep and the termination grace in whole seconds, thus each is stepped by 1 s. The
+ * cluster sets the propagation of the endpoints, thus a compression of the service cannot scale it.
+ */
+export const PLATFORM_MARKS: TimerMarks = {
+  "probe_period@pod": { kind: "stepped", step: 1 },
+  "prestop_sleep@pod": { kind: "stepped", step: 1 },
+  "termination_grace@pod": { kind: "stepped", step: 1 },
+  "propagation_bound@cluster": { kind: "fixed" },
+};
+
+/** A change of a compression of a service: a rule and a scope whose verdict the compression changes. */
+export interface ScopedChange extends Change {
+  readonly scope: string;
+}
+
+/**
+ * This function tells which findings of `lint` a compression by k changes (E10). It scales the
+ * bindings of each scope by the marks. Thus a harness that runs the service k times faster learns
+ * the orderings that its run breaks. The unmarked symbols are the symbols of the rules with no mark.
+ */
+export const compressionOf = (
+  svc: ServiceDescription,
+  scenario: Scenario,
+  rules: readonly Rule[],
+  k: number,
+  marks: TimerMarks,
+): { readonly changed: readonly ScopedChange[]; readonly unmarked: readonly string[] } => {
+  const service = serviceBindings(svc, scenario).bind;
+  const changed: ScopedChange[] = [];
+  const unmarked = new Set<string>();
+  for (const rule of rules) {
+    if (!SERVICE_RULES.includes(rule.id)) continue;
+    for (const [scope, bind] of scopesOf(svc, scenario, service, symbolsOf(rule))) {
+      const result = compression([rule], bind, k, marks);
+      for (const change of result.changed) changed.push({ ...change, scope });
+      for (const symbol of result.unmarked) unmarked.add(symbol);
+    }
+  }
+  return { changed, unmarked: [...unmarked] };
+};
+
 /**
  * This function applies each service rule to a declaration and a scenario. A rule applies one time
  * for the service, for each client, for each consumer and worker, or for each limiter. The function
@@ -437,20 +501,7 @@ export const lint = (
   for (const rule of rules) {
     if (!SERVICE_RULES.includes(rule.id)) continue;
     const symbols = symbolsOf(rule);
-    const scopes: Array<[string, Binding]> = symbols.some((symbol) => LIMITER_SCOPED.test(symbol))
-      ? (svc.limiters ?? []).map((limiter): [string, Binding] => [limiter.name, { ...service, ...limiterBindings(limiter, scenario) }])
-      : symbols.some((symbol) => TRANSPORT_SCOPED.test(symbol))
-      ? svc.transports.flatMap((transport): Array<[string, Binding]> => {
-          const hop = TRANSPORT_HOPS[transport.kind];
-          return hop === null ? [] : [[transport.name, { ...service, ...transportBindings(transport, hop, scenario) }]];
-        })
-      : symbols.some((symbol) => SCOPED.test(symbol))
-        ? svc.dependencies.map((dependency) => [
-            dependency.name,
-            { ...service, ...dependencyBindings(dependency, scenario) },
-          ])
-        : [[svc.name, service]];
-    for (const [scope, bind] of scopes) {
+    for (const [scope, bind] of scopesOf(svc, scenario, service, symbols)) {
       const evaluated = evaluate(rule, bind);
       findings.push({
         rule: rule.id,

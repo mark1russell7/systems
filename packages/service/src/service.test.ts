@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { Check, Rule } from "./index.ts";
+import type { Check, Rule, TimerMarks } from "./index.ts";
 import {
+  PLATFORM_MARKS,
   asDebounce,
   asWindow,
+  compress,
+  compression,
+  compressionOf,
   evaluate,
   failSpan,
   lint,
@@ -276,5 +280,54 @@ describe("the ordering law's evaluator", () => {
     expect(lint(drained(2), platform(0), [O04])[0]?.verdict).toBe("holds");
     expect(lint(drained(0), platform(0), [O04])[0]?.verdict).toBe("violated");
     expect(lint(drained(0), platform(1), [O04])[0]?.verdict).toBe("holds");
+  });
+
+  describe("the marks of the timers, for a compression (E10)", () => {
+    const marks: TimerMarks = {
+      ready: { kind: "scalable" },
+      "live@pod": { kind: "scalable" },
+      "prestop@pod": { kind: "stepped", step: 1 },
+      "propagation@cluster": { kind: "fixed" },
+      rto: { kind: "floored", floor: 0.2, by: "the kernel" },
+    };
+    it("scales each timer by its mark, and keeps absent timers, chains, margins and unmarked symbols apart", () => {
+      const { bind, unmarked } = compress(
+        { "ready@pod": 6, "live@pod": "inf", "prestop@pod": 2, "propagation@cluster": 15, "rto@client": [1, 0.5], "idle@server": 60, margin: 1 },
+        0.1,
+        marks,
+      );
+      expect(bind["ready@pod"]).toBeCloseTo(0.6);
+      expect(bind["live@pod"]).toBe("inf");
+      // a stepped timer rounds up to its step: 0.2 s becomes 1 s
+      expect(bind["prestop@pod"]).toBe(1);
+      expect(bind["propagation@cluster"]).toBe(15);
+      expect(bind["rto@client"]).toEqual([0.2, 0.2]);
+      expect(bind["idle@server"]).toBe(60);
+      expect(bind.margin).toBe(1);
+      expect(unmarked).toEqual(["idle@server"]);
+      expect(compress({ "prestop@pod": 0.3 }, 10, marks).bind["prestop@pod"]).toBe(3);
+      expect(() => compress({}, 0, marks)).toThrow(RangeError);
+      expect(() => compress({}, Infinity, marks)).toThrow(RangeError);
+    });
+
+    it("keeps each ordering when each timer scales, and names the rule whose verdict a fixed timer changes", () => {
+      const bind = { "ready@pod": 6, "propagation@cluster": 15, "live@pod": 30, "prestop@pod": 20 };
+      const all: TimerMarks = { ready: { kind: "scalable" }, live: { kind: "scalable" }, prestop: { kind: "scalable" }, propagation: { kind: "scalable" } };
+      expect(compression([W8], bind, 0.1, all)).toEqual({ changed: [], unmarked: [] });
+      // the cluster does not get faster: 0.6 + 15 > 3 + 1
+      expect(compression([W8], bind, 0.1, marks)).toEqual({ changed: [{ rule: "O09", before: "holds", after: "violated" }], unmarked: [] });
+      expect(compression([W8], bind, 0.1, {}).unmarked).toEqual(["ready@pod", "propagation@cluster", "live@pod", "prestop@pod"]);
+    });
+
+    it("compresses each scope of a service with the marks of the platform", () => {
+      const own: TimerMarks = { ...PLATFORM_MARKS, "readiness_hold@process": { kind: "scalable" } };
+      expect(compressionOf(drained(2), platform(0), [O04], 1, own)).toEqual({ changed: [], unmarked: [] });
+      // the hold scales to 0.2 s, but the propagation of the endpoints stays 1 s
+      expect(compressionOf(drained(2), platform(0), [O04], 0.1, own)).toEqual({
+        changed: [{ rule: "O04", scope: "svc", before: "holds", after: "violated" }],
+        unmarked: [],
+      });
+      expect(compressionOf(drained(2), platform(0), [O04], 0.1, PLATFORM_MARKS)).toEqual({ changed: [], unmarked: ["readiness_hold@process"] });
+    });
   });
 });
