@@ -1,4 +1,11 @@
 # The gates of each change. release.yml calls this workflow before it packs a release.
+#
+#   checks  The shared CI of mark1russell7 (reusable-ci.yml of the template, its CI.md): the
+#           typecheck, the tests, the build of each published package and the writing rules.
+#   pack    The tarballs of a release, packed and tested in an empty project, as release.yml does it
+#           (reusable-release-build.yml of the template, with the release scripts of the template).
+#   site    The site, as pages.yml builds it for GitHub Pages.
+#   ci      The required check of main. It fails when a different job of this file fails.
 name: CI
 
 on:
@@ -14,11 +21,39 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  ci:
+  checks:
+    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@09e110c8cf06cd707c4697fc8f478068d8f45096 # main
+    permissions:
+      contents: read
+    with:
+      # typecheck and test: each package of the workspace.
+      # build: the build that npm gets, for each package that the repository publishes.
+      # lint:ste: the writing rules (ASD-STE100) of the README files and the doc comments.
+      scripts: typecheck test build lint:ste
+
+  # The tarballs of a release, tested in an empty project as release.yml tests them. The commit of a
+  # pull request is not on main, so the job does not do the check of main (require-main).
+  # In a release, release.yml calls this file, and its build job does the same pack and test. Thus
+  # this job runs only in a run of CI itself: two jobs of one run cannot upload the artifact "release".
+  pack:
+    if: github.workflow == 'CI'
+    uses: mark1russell7/template/.github/workflows/reusable-release-build.yml@09e110c8cf06cd707c4697fc8f478068d8f45096 # main
+    permissions:
+      contents: read
+    with:
+      require-main: false
+      after-pack: node scripts/smoke.mjs "$RELEASE_DIR"
+
+  # The site, as pages.yml builds it for GitHub Pages: a page that does not build fails here, before it reaches main
+  site:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       # The pnpm version comes from "packageManager" in package.json
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -26,16 +61,27 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm test
-      # The build that npm gets, for each package that the repository publishes
-      - run: pnpm build
-      # The tarballs of a release, tested in an empty project as release.yml tests them
-      - run: node scripts/release/pack.mjs "$RUNNER_TEMP/release"
-      - run: node scripts/smoke.mjs "$RUNNER_TEMP/release"
-      # The site, as pages.yml builds it for GitHub Pages: a page that does not build fails here, before it reaches main
       - run: pnpm --filter @systems/site run build
         env:
           ASTRO_TELEMETRY_DISABLED: "1"
-      # The writing rules (ASD-STE100) of the README files and the doc comments
-      - run: pnpm lint:ste
+
+  # The required check of main (the ruleset ci-required). Its name stays "ci". It fails when a job
+  # fails or stops. The job pack can be skipped only in a release run.
+  ci:
+    if: always()
+    needs: [checks, pack, site]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - name: All jobs passed
+        env:
+          CHECKS: ${{ needs.checks.result }}
+          PACK: ${{ needs.pack.result }}
+          SITE: ${{ needs.site.result }}
+          WORKFLOW: ${{ github.workflow }}
+        run: |
+          echo "checks: $CHECKS, pack: $PACK, site: $SITE"
+          test "$CHECKS" = success
+          test "$SITE" = success
+          if [ "$WORKFLOW" = CI ]; then test "$PACK" = success; else test "$PACK" = skipped; fi
