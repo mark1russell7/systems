@@ -89,7 +89,7 @@ From the layout of a CMOS cell to the routing fabric of an FPGA, with the real g
 
 ### S6 · The service abstraction
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** program
 - **Depends on:** S1
 - **Started:** 2026-10-08
@@ -99,6 +99,8 @@ From the layout of a CMOS cell to the routing fabric of an FPGA, with the real g
 A service declares its clients, timeouts, retries, checks and state machines as data that the algebra reads. `@mark1russell7/service` has the declaration, the law, the health runtime, the lifecycle and the Redis client. Version 0.5.0 adds the HTTP edge (`./http`), the runner options and the requests as streams.
 
 On 2026-10-17, Mark decided the design of the server stack (D1 to D18). These decisions replace the co-design gate for the runner, its HTTP entry, the composition, the requests, the signals and the profiles. Two parts of S6 still wait on S1. The first is the wrappers of the S1 clients after Redis, which Mark designs with S1. The second is the design of health and routing in the draft, whose candidates the harness of S1 and S2 tests.
+
+The draft [PR #157](https://github.com/mark1russell7/systems/pull/157) is a prototype of the PostgreSQL client (`./pg`) on a shared core of the clients, for Mark's review.
 
 ## The server stack in S6
 

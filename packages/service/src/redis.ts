@@ -3,8 +3,12 @@
 // manifestations that it can meet with their detectors. It gives the health runtime a check for
 // each step of its connection, and the lifecycle its bounded close. `redisLimiterStore` keeps the
 // counts of a keyed limiter in Redis, for the replicas of a service. ioredis is an optional peer
-// dependency: the client loads it only when it connects.
+// dependency: the client loads it only when it connects. The parts that each client has come from
+// the core of the clients (`src/client/`), which the PostgreSQL entry uses too.
 
+export type { Attempt, Client, ClientJoin, ClientKnobs, ClientOptions, ClientSocket, ClientSpec, Factory } from "./client/core.ts";
+export type { Manifestation } from "./client/meets.ts";
+export { MANIFESTATIONS } from "./client/meets.ts";
 export type {
   CheckOptions,
   ClientStep,

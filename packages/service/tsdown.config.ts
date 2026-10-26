@@ -7,9 +7,9 @@ import { defineConfig } from "tsdown";
  */
 export default defineConfig({
   // the runtime, the seams for tests (a fake clock and a quiet server, which uses node:net), the
-  // Redis client, which loads ioredis only when it connects, the timers without node: or zod, and
+  // Redis client and the PostgreSQL client, which load ioredis and pg only when they connect, the timers without node: or zod, and
   // the edge of a service in Node (node:http and node:net only), and the keyed limiter, which loads only quantity
-  entry: ["src/index.ts", "src/testing.ts", "src/redis.ts", "src/clock.ts", "src/heartbeat.ts", "src/backoff.ts", "src/http.ts", "src/limiter.ts"],
+  entry: ["src/index.ts", "src/testing.ts", "src/redis.ts", "src/pg.ts", "src/clock.ts", "src/heartbeat.ts", "src/backoff.ts", "src/http.ts", "src/limiter.ts"],
   outDir: "build",
   format: "esm",
   platform: "neutral",

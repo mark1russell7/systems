@@ -5,8 +5,8 @@
 #   f6   REDIS_F6=1: the F6 matrix in Docker. The probe image installs the packed packages, and the
 #        injector of @mark1russell7/harness makes the network faults.
 #
-# A pull request that changes the Redis client, the timers of the service or this file runs both.
-# Start it with: gh workflow run redis.yml -R mark1russell7/systems
+# A pull request that changes the Redis client, the core of the clients, the timers of the service
+# or this file runs both. Start it with: gh workflow run redis.yml -R mark1russell7/systems
 name: Redis
 
 on:
@@ -15,6 +15,8 @@ on:
     paths:
       - ".github/workflows/redis.yml"
       - "packages/service/src/redis/**"
+      - "packages/service/src/client/**"
+      - "packages/service/src/redis.ts"
       - "packages/service/src/clock.ts"
       - "packages/service/src/heartbeat.ts"
       - "packages/service/src/backoff.ts"

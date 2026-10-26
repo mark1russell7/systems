@@ -33,6 +33,7 @@
     ".": "./src/index.ts",
     "./testing": "./src/testing.ts",
     "./redis": "./src/redis.ts",
+    "./pg": "./src/pg.ts",
     "./clock": "./src/clock.ts",
     "./heartbeat": "./src/heartbeat.ts",
     "./backoff": "./src/backoff.ts",
@@ -61,10 +62,14 @@
   },
   "peerDependencies": {
     "ioredis": "^6.0.0",
+    "pg": "^8.23.1",
     "zod": "^4.1.0"
   },
   "peerDependenciesMeta": {
     "ioredis": {
+      "optional": true
+    },
+    "pg": {
       "optional": true
     },
     "zod": {
@@ -98,6 +103,10 @@
       "./redis": {
         "types": "./build/redis.d.ts",
         "default": "./build/redis.js"
+      },
+      "./pg": {
+        "types": "./build/pg.d.ts",
+        "default": "./build/pg.js"
       },
       "./clock": {
         "types": "./build/clock.d.ts",
