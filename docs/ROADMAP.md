@@ -102,6 +102,8 @@ On 2026-10-17, Mark decided the design of the server stack (D1 to D18). These de
 
 The draft [PR #157](https://github.com/mark1russell7/systems/pull/157) is a prototype of the PostgreSQL client (`./pg`) on a shared core of the clients, for Mark's review.
 
+[PR #161](https://github.com/mark1russell7/systems/pull/161) adds the MongoDB client (`./mongodb`) on that core, and it moves the checks that pg and MongoDB share into the core.
+
 ## The server stack in S6
 
 These items are the part of the server stack in this repository. The server stack is a plan across repositories: one service runner here, and one procedures server in the client. [Its tracker](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb) has the whole plan, with the same ids.
