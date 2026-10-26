@@ -58,7 +58,17 @@ export interface CheckOptions<S extends Step = ClientStep> {
   readonly poll: Poll;
   /** For each step, the policy that its check controls, or null for a check that only reports. A step that is absent has no check. */
   readonly steps: Partial<Record<S, Gate | null>>;
+  /**
+   * With a catalog, the client gives a check for each step that it has (B19). The steps of `steps` are
+   * the nominated checks. Each other step reports only, and polls at the catalog poll. `true` is a poll
+   * of 30 s with the jitter and the timeout of `poll`. A nominated step that the client has no check
+   * for then fails the attach. Without a catalog, the client gives only the steps of `steps`.
+   */
+  readonly catalog?: true | Poll | undefined;
 }
+
+/** This interval is the poll of a catalog check that gates nothing (B19). */
+export const CATALOG_INTERVAL: Quantity = quantity(30, "s");
 
 /** A step check is the function of one step, and if it uses the connection of the application. */
 export interface StepCheck {
@@ -606,19 +616,39 @@ export const sendWithReissue = async <T>(call: Reissue<T>): Promise<Sent<T>> => 
 };
 
 /**
- * This function gives the checks of a client, for `svc.check(check, run)`. It gives a check only for
- * each step that the options name, and only when the client has a function for that step.
+ * This function gives the checks of a client, for `svc.check(check, run)`. Without a catalog, it gives
+ * a check for each step that the options name, when the client has a function for that step. With a
+ * catalog, it gives a check for each step of the client. It then throws for a nominated step that the
+ * client does not have (B19). The name of each check is the pair of the component and the step, a
+ * public contract.
  */
 export const stepChecks = <S extends Step>(
   name: string,
   options: CheckOptions<S>,
   runs: Readonly<Partial<Record<S, StepCheck>>>,
 ): ReadonlyArray<readonly [Check, CheckFn]> => {
+  const has = (Object.entries(runs) as Array<[S, StepCheck | undefined]>).filter(([, run]) => run !== undefined).map(([step]) => step);
+  const catalog = options.catalog === true ? { ...options.poll, interval: CATALOG_INTERVAL } : options.catalog;
+  if (catalog !== undefined) {
+    const missing = Object.keys(options.steps).filter((step) => !has.includes(step as S));
+    if (missing.length > 0) {
+      throw new Error(`${name}: the nominated checks ${missing.join(", ")} are not in the catalog of the client (${has.join(", ")})`);
+    }
+  }
   const made: Array<readonly [Check, CheckFn]> = [];
-  for (const [step, run] of Object.entries(runs) as Array<[S, StepCheck | undefined]>) {
-    if (run === undefined || !(step in options.steps)) continue;
+  for (const step of has) {
+    const run = runs[step] as StepCheck;
+    const nominated = step in options.steps;
+    if (!nominated && catalog === undefined) continue;
     made.push([
-      { name: `${name}.${step}`, dependency: name, step, ownConnection: run.ownConnection, gates: options.steps[step] ?? null, poll: options.poll },
+      {
+        name: `${name}.${step}`,
+        dependency: name,
+        step,
+        ownConnection: run.ownConnection,
+        gates: nominated ? (options.steps[step] ?? null) : null,
+        poll: nominated || catalog === undefined ? options.poll : catalog,
+      },
       run.run,
     ]);
   }
