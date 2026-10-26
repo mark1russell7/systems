@@ -71,7 +71,7 @@ export {
   stallRemovalBand,
 } from "./predict.ts";
 export type { Verdicts } from "./rules.ts";
-export { DRAIN_RULES, O04, O09, O10, O16, describeCell, lintCell, scenarioOf, verdictsOf } from "./rules.ts";
+export { DRAIN_RULES, O04, O09, O10, O16, describeCell, lintCell, scenarioOf, stopOf, verdictsOf } from "./rules.ts";
 export type { RunOptions } from "./run.ts";
 export { RULES_EVERY, estimatedTime, runKindCells, shardOf, writeResult } from "./run.ts";
 export type { KindConfig, KindScenario, NodeImage } from "./scenario.ts";
