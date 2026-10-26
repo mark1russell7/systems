@@ -104,6 +104,8 @@ The draft [PR #157](https://github.com/mark1russell7/systems/pull/157) is a prot
 
 [PR #161](https://github.com/mark1russell7/systems/pull/161) adds the MongoDB client (`./mongodb`) on that core, and it moves the checks that pg and MongoDB share into the core.
 
+[PR #162](https://github.com/mark1russell7/systems/pull/162) adds the RabbitMQ client (`./rabbitmq`) on that core. It moves the ready wait and the backoff of Redis into the core, for both clients.
+
 ## The server stack in S6
 
 These items are the part of the server stack in this repository. The server stack is a plan across repositories: one service runner here, and one procedures server in the client. [Its tracker](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb) has the whole plan, with the same ids.
