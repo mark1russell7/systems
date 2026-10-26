@@ -128,6 +128,8 @@ On 2026-10-17, Mark decided the design of the server stack (D1 to D18). These de
 
 [PR #181](https://github.com/mark1russell7/systems/pull/181) moves the kind cells onto `lintStop()`. `stopOf(cell)` reads the way from the plan of the cell, and the crash cell of T07 gets no drain rule.
 
+[PR #PRNUM](https://github.com/mark1russell7/systems/pull/PRNUM) starts the scores of health and routing (`scoreCallers` of the cells, and the table "How callers learn" of the kind page). Each candidate of each mode gets a score on each criterion, with its run, its cell and its prediction. Kind run 40358038728 gives the failed requests, and it bounds the time until callers know. The other criteria and the other six incidents are not measured, each with its reason. B and C each beat A in each mode, and neither one wins in each mode. Thus the service keeps one rule: while it is not ready, it closes each connection on the channel of its protocol. A stays an opt-in ([S6.md](S6.md#unified-or-separate-how-callers-learn)).
+
 ## The server stack in S6
 
 These items are the part of the server stack in this repository. The server stack is a plan across repositories: one service runner here, and one procedures server in the client. [Its tracker](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb) has the whole plan, with the same ids.

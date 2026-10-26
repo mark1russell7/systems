@@ -1,6 +1,6 @@
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import RunResults, { CallersTable, KindResults, ModeTable, Propagation, RaceBorder, WritesTable } from "./RunResults.tsx";
+import RunResults, { CallersScores, CallersTable, KindResults, ModeTable, Propagation, RaceBorder, WritesTable } from "./RunResults.tsx";
 
 describe("the components of the CI runs", () => {
   it("render each group that the pages of the CI runs name", () => {
@@ -83,5 +83,20 @@ describe("the components of the CI runs", () => {
     const frames = renderToString(<KindResults template="T07" group="callers" />);
     expect(frames.split('class="sy-frame').length - 1).toBe(9);
     expect(frames).toContain("Each failed request ends with an answer of 503.");
+  });
+
+  it("render the scores of S6 side by side, with the run of the evidence and the reason for each criterion with no number", () => {
+    const table = renderToString(<CallersScores />);
+    expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40358038728");
+    expect(table).toContain("S2.T07.nftables.goaway");
+    expect(table).toContain("3,044 failed requests in the median run");
+    expect(table).toContain("The prediction: 1,313 to 3,842. The counted runs: 3,044, 3,333, 2,104.");
+    expect(table).toContain("The prediction: the last failure 8 s to 24.265 s after the fault.");
+    // the fewest in each mode: B in iptables and IPVS, C in nftables
+    expect(table.split("The fewest in this mode.").length - 1).toBe(3);
+    // five criteria have no number, each with its reason, and the six other incidents have no cell yet
+    expect(table.split("Not measured.").length - 1).toBe(7);
+    expect(table).toContain("T07 has no blip");
+    expect(table).toContain("Not measured yet: a black-holed shared dependency, a partitioned pod, a lost zone");
   });
 });

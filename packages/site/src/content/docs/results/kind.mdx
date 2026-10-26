@@ -5,7 +5,7 @@ sidebar:
 description: The T07, T18 and S2 cells in kind on the runners of GitHub, with the service of this repository behind a Service. Of 31 cells of T07 and T18, 26 hold, 3 are calibrations and 2 are measurements only.
 ---
 
-import { CallersTable, KindResults, ModeTable, Propagation } from "../../../components/RunResults.tsx";
+import { CallersScores, CallersTable, KindResults, ModeTable, Propagation } from "../../../components/RunResults.tsx";
 import { Summary } from "../../../components/Ledger.tsx";
 
 <Summary of="kind" />
@@ -105,6 +105,14 @@ In the random modes, the mean of C is about that of B: 983 against 930 failed re
 <CallersTable />
 
 <KindResults template="T07" group="callers" client:visible />
+
+### How callers learn
+
+S6 scores each candidate of health and routing on seven criteria, for each incident of its design. This run scores one incident: a pod that cannot serve. The table puts the measure of each criterion next to its prediction, and each cell links to its run. A criterion that the run cannot support has no number, only the reason.
+
+B and C each have fewer failed requests than A in each mode, by the median run. B has the fewest in iptables and IPVS, and C has the fewest in nftables. Thus the service keeps one rule: while it is not ready, it closes each connection on the channel of its protocol. HTTP/1.1 gets `Connection: close`, and HTTP/2 gets GOAWAY. A is an opt-in of the transport.
+
+<CallersScores />
 
 ## Where the data comes from
 
