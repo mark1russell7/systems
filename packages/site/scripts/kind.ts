@@ -1,12 +1,15 @@
 // The export of the kind cells for the site: src/data/kind-<date>.json, src/data/t15-<date>.json for
 // the cells of T15, or src/data/s2-<date>.json for the S2 cells.
 //
-//   pnpm exec tsx packages/site/scripts/kind.ts <folder>...
+//   pnpm exec tsx packages/site/scripts/kind.ts [--tag <word>] <folder>...
+//
+// One run can hold the S2 cells of both incidents. Then the script writes one copy for each
+// incident. The tag goes in the name of each copy, for example s2-session-check-<date>.json.
 //
 // T07 is the endpoint lifecycle of a Service in kind, and T18 is a fleet whose readiness needs
 // Redis. T15 is gRPC through two hops of an Istio mesh in kind. The S2 cells are T07 with a replica
-// that cannot serve, for three candidates in each mode: A (endpoints only), B (lame duck) and C
-// (GOAWAY on HTTP/2). The copy of S2 also has the prediction of each S2 cell of the catalog
+// that cannot serve, for four candidates in each mode: A (endpoints only), B (lame duck), C
+// (GOAWAY on HTTP/2) and D (C with the session check of the client). The copy of S2 also has the prediction of each S2 cell of the catalog
 // (`predictions`), thus the page shows a candidate with no run. Each folder is the output of one shard of the workflow Kind on a runner of GitHub: the raw
 // record of each cell, summary.ndjson and runner.txt. A record of the format /1 is read through
 // `upgrade`. The script judges each record again with the cell of the catalog of the same name
@@ -34,9 +37,13 @@ import { dateOf, only, readFolders, runnerOf, round, stringify, time, timeAt } f
 /** This function writes a time of a cell of T15 to the ms: its bands are minutes long and their edges are milliseconds apart. */
 const fine = timeAt(3);
 
-const folders = process.argv.slice(2);
-if (folders.length === 0) {
-  process.stderr.write("usage: pnpm exec tsx packages/site/scripts/kind.ts <folder>...\n");
+// `--tag <word>` puts the word in the name of each copy, thus a later run of the same date has its own file
+const args = process.argv.slice(2);
+const tagAt = args.indexOf("--tag");
+const tag = tagAt === -1 ? null : (args[tagAt + 1] ?? "");
+const folders = tagAt === -1 ? args : args.filter((_, at) => at !== tagAt && at !== tagAt + 1);
+if (folders.length === 0 || (tag !== null && !/^[a-z0-9-]+$/.test(tag))) {
+  process.stderr.write("usage: pnpm exec tsx packages/site/scripts/kind.ts [--tag <word>] <folder>...\n");
   process.exit(2);
 }
 
@@ -420,9 +427,15 @@ const copy = {
   propagation,
   cells,
 };
-const name = only("the copy of their cells (the cells of T15 and of S2 each have their own copy)", cells.map((cell) => cell.copy));
-const out = fileURLToPath(new URL(`../src/data/${name}-${date}.json`, import.meta.url));
-// a copy of S2 has the prediction of each S2 cell of its incident in the catalog, with a run or not
-const predictions = name === "s2" ? { predictions: callerPredictions() } : name === "s2-partition" ? { predictions: callerPredictions("partition") } : {};
-writeFileSync(out, stringify({ ...copy, cells: cells.map(({ copy: _copy, ...cell }) => cell), ...predictions }));
-process.stdout.write(`${cells.length} cells, ${cells.reduce((sum, cell) => sum + cell.counted + cell.voided, 0)} runs: ${out}\n`);
+// the S2 cells of the two incidents can come from one run: each incident gets its own copy
+const names = [...new Set(cells.map((cell) => cell.copy))];
+if (names.length > 1 && names.some((name) => !name.startsWith("s2")))
+  throw new Error(`the cells of one export have one copy, or each copy is of S2: ${names.join(", ")}`);
+for (const name of names) {
+  const mine = cells.filter((cell) => cell.copy === name);
+  const out = fileURLToPath(new URL(`../src/data/${name}${tag === null ? "" : `-${tag}`}-${date}.json`, import.meta.url));
+  // a copy of S2 has the prediction of each S2 cell of its incident in the catalog, with a run or not
+  const predictions = name === "s2" ? { predictions: callerPredictions() } : name === "s2-partition" ? { predictions: callerPredictions("partition") } : {};
+  writeFileSync(out, stringify({ ...copy, cells: mine.map(({ copy: _copy, ...cell }) => cell), ...predictions }));
+  process.stdout.write(`${mine.length} cells, ${mine.reduce((sum, cell) => sum + cell.counted + cell.voided, 0)} runs: ${out}\n`);
+}

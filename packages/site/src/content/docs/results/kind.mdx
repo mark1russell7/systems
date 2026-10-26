@@ -88,19 +88,22 @@ The round trip of the Redis client of each replica gates its readiness, unless t
 
 ## S2: how callers learn that a pod cannot serve
 
-One replica of 2 cannot serve for 30 s. A flag file fails its route with 503, and the same flag fails its readiness check. The clients keep 8 keep-alive connections each, and kube-proxy selects a backend only for a new connection. The S2 cells come from the run [40358038728](https://github.com/mark1russell7/systems/actions/runs/40358038728), with 3 counted runs of each cell in each mode.
+One replica of 2 cannot serve for 30 s. A flag file fails its route with 503, and the same flag fails its readiness check. The clients keep 8 keep-alive connections each, and kube-proxy selects a backend only for a new connection. The S2 cells come from the run [40358038728](https://github.com/mark1russell7/systems/actions/runs/40358038728), with 3 counted runs of each cell in each mode. The cells of D come from the run [40394320219](https://github.com/mark1russell7/systems/actions/runs/40394320219). The judge counted 3 runs of each cell of D in each mode.
 
 - **A: endpoints only.** The edge keeps each connection open. The removal of the endpoint changes nothing for an open connection, thus its requests fail until the heal.
 - **B: in band (lame duck).** While the service is not ready, each answer has `Connection: close`. Each caller then opens a new connection, and the rules send it to the other replica after the removal.
 - **C: in band on HTTP/2 (GOAWAY).** The same lame duck on an edge of HTTP/2 without TLS. While the service is not ready, the edge sends GOAWAY on each session. Each client sends its requests as streams on one session, thus it opens a new connection through the rules after the GOAWAY.
+- **D: in band on HTTP/2 with a session check.** C, and each client checks its session. A stream timeout closes its session. After 0.5 s with no frame from the peer, the client sends a PING, and with no ACK in 0.5 s, it closes the session.
 
-A and B differ only in the field `lameDuck` of the declaration. C is B with the field `protocol` set to `h2c`, and one session for each client. The mode of kube-proxy gives the propagation of the removal, thus the end of the window of the lame duck. The table gives the verdict, the failed requests of the median run, and the prediction of each candidate.
+A and B differ only in the field `lameDuck` of the declaration. C is B with the field `protocol` set to `h2c`, and one session for each client. D is C with the field `sessionCheck` of the workload. The mode of kube-proxy gives the propagation of the removal, thus the end of the window of the lame duck. The table gives the verdict, the failed requests of the median run, and the prediction of each candidate.
 
 Each connection on the target fails one request in each turn of 160 ms. Thus the count of failed requests follows the connections on the target at the fault. IPVS selects the backends in turn, thus 12 of the 24 connections go to the target. The rules of iptables and nftables select at random, thus the count is binomial. It is 7 to 17 in 95 % of the runs at the least. The runs had 8 to 16.
 
 C has fewer connections, thus each connection carries more requests. Each session on the target fails one request in each turn of 20 ms, thus its window ends 140 ms earlier than B at the latest. The 3 sessions give the same mean count as the 24 connections of B, but a wider band. From 0 to 3 sessions go to the target, and a run with none has no failure.
 
 In the random modes, the mean of C is about that of B: 983 against 930 failed requests. But C spreads wider, 0 to 1,893 against 540 to 1,128, and its medians in iptables, ipvs and nftables are 1,087, 2,133 and 706. IPVS put all 3 sessions on the target in each run, and one run of iptables had none and no failure.
+
+The target answers each stream of D at once, thus the session check closed no session. Thus D has the prediction of C, and each counted run of D is in it. The medians of D in iptables, ipvs and nftables were 580, 1,608 and 572 failed requests. The count follows the sessions on the target and the end of the window. One run of nftables had no session on the target, and no failure.
 
 <CallersTable />
 
@@ -116,17 +119,21 @@ C learns only from TCP. Its session on the target gets no answer, and each strea
 
 IPVS put all 3 sessions on the target in each run. One run of nftables had no session on the target, thus it had no failure and no time.
 
+D learns from its session check. A session on the target hears no frame, and its PING gets no ACK. Thus the check closes the session before the first stream timeout of 2 s. The record gives "no PING answer" as the cause of each close. The last failure started 1.04 s to 3.06 s after the fault, with the medians 1.07 s to 1.46 s, in the prediction.
+
+The medians of D were 73, 158 and 107 failed requests. That is more than A and B, but C had 12 to 25 times as many. One session carries each stream of its client, thus each close fails approximately 50 streams. A later session can pick the target again at random. Thus one run of iptables had 173, and one run of nftables had 305.
+
 <CallersTable incident="partition" />
 
 <KindResults template="T07" group="partition" client:visible />
 
 ### How callers learn
 
-S6 scores each candidate of health and routing on seven criteria, for each incident of its design. Two runs score two incidents: a pod that cannot serve, and a partitioned pod. The table puts the measure of each criterion next to its prediction, and each cell links to its run. A criterion that the run cannot support has no number, only the reason.
+S6 scores each candidate of health and routing on seven criteria, for each incident of its design. Three runs score two incidents: a pod that cannot serve, and a partitioned pod. The third run adds D to each incident. The table puts the measure of each criterion next to its prediction, and each cell links to its run. A criterion that the run cannot support has no number, only the reason.
 
-B and C each have fewer failed requests than A in each mode, by the median run. B has the fewest in iptables and IPVS, and C has the fewest in nftables. Thus the service keeps one rule: while it is not ready, it closes each connection on the channel of its protocol. HTTP/1.1 gets `Connection: close`, and HTTP/2 gets GOAWAY. A is an opt-in of the transport.
+B, C and D each have fewer failed requests than A in each mode, by the median run. B has the fewest in IPVS, and D has the fewest in iptables and nftables. D has the band of C, thus the two are equal for a pod that cannot serve. Thus the service keeps one rule: while it is not ready, it closes each connection on the channel of its protocol. HTTP/1.1 gets `Connection: close`, and HTTP/2 gets GOAWAY. A is an opt-in of the transport.
 
-In a partition, the service is ready, thus no candidate gets a signal in band. Each caller learns from its own timeouts. A and B learned in 1.4 s at the most, and C in approximately 26 s, after the heal. Thus the rule stays, and the client of HTTP/2 needs its own check of the session. The scores of the partition measure the time until callers know from the fault.
+In a partition, the service is ready, thus no candidate gets a signal in band. Each caller learns from its own timeouts. A and B learned in 1.4 s at the most, and C in approximately 26 s, after the heal. D learned in 1.07 s to 1.46 s by the median run, from the PING of its session check. Thus the rule stays, and the client of HTTP/2 also checks its session (D). The scores of the partition measure the time until callers know from the fault.
 
 <CallersScores />
 

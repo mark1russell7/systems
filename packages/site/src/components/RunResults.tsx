@@ -17,6 +17,8 @@ import r3 from "../data/r3-2026-10-17.json";
 import rabbitmq from "../data/rabbitmq-2026-10-19.json";
 import S2 from "../data/s2-2026-10-26.json";
 import s2Partition from "../data/s2-partition-2026-10-26.json";
+import s2PartitionChecked from "../data/s2-partition-session-check-2026-10-26.json";
+import s2Checked from "../data/s2-session-check-2026-10-26.json";
 import s6 from "../data/s6-2026-10-26.json";
 import t15 from "../data/t15-2026-10-25.json";
 import sentinel from "../data/sentinel-2026-10-17.json";
@@ -436,8 +438,8 @@ export function RaceBorder(): ReactElement {
 // the kind cells
 // ---------------------------------------------------------------------------------------------
 
-/** The kind cells of each copy: T07 and T18, T15 over gRPC through Istio, and the S2 cells of each incident. */
-const KIND_CELLS = [...kind.cells, ...t15.cells, ...S2.cells, ...s2Partition.cells];
+/** The kind cells of each copy: T07 and T18, T15 over gRPC through Istio, and the S2 cells of each incident. The later run of D adds its cells. */
+const KIND_CELLS = [...kind.cells, ...t15.cells, ...S2.cells, ...s2Checked.cells, ...s2Partition.cells, ...s2PartitionChecked.cells];
 type KindCell = (typeof KIND_CELLS)[number];
 
 /** This function writes the main value of a kind cell: a count of failed requests, of replicas, or a time. */
@@ -543,7 +545,10 @@ const S2_FROM: Readonly<Record<string, string>> = { fault: "the fault", heal: "t
  * incident `partition` shows the copy of the partitioned pod.
  */
 export function CallersTable(props: { readonly incident?: "cannot serve" | "partition" }): ReactElement {
-  const s2: typeof S2 = props.incident === "partition" ? s2Partition : S2;
+  // the copies of an incident: the first run of A, B and C, then the run of D. The latest copy has the prediction of each candidate
+  const copies = (props.incident === "partition" ? [s2Partition, s2PartitionChecked] : [S2, s2Checked]) as unknown as readonly (typeof S2)[];
+  const latest = copies.at(-1)!;
+  const s2 = { predictions: latest.predictions, cells: copies.flatMap((copy) => copy.cells) };
   const candidates = [...new Set(s2.predictions.map((each) => each.candidate.name))];
   const modes = MODES.filter((mode) => s2.predictions.some((each) => each.mode === mode));
   const predicted = (mode: string, name: string) => {
@@ -580,6 +585,7 @@ export function CallersTable(props: { readonly incident?: "cannot serve" | "part
                     ) : (
                       <Verdict decision={cell.decision} text={cell.median === null ? "" : `${count(cell.median, "failed request")} in the median run`} />
                     )}
+                    {cell === undefined ? null : <RunOf cell={cell.id} />}
                     <br />
                     <span className="sy-muted">
                       {`The prediction: ${digits(expected.low)} to ${digits(expected.high)} failed requests, with ${on} of the ${connections.of} connections on the target. The last one starts ${fine(end.low)} to ${fine(end.high)} after ${S2_FROM[end.from] ?? end.from}.`}
@@ -629,6 +635,32 @@ const SCORES = s6 as unknown as ScorecardCopy;
 
 /** This function gives the link of a CI run of the repository. */
 const runLink = (run: number): string => `https://github.com/mark1russell7/systems/actions/runs/${run}`;
+
+/** This function gives the CI run of the evidence of an S2 cell in the scorecard of S6, or null. */
+const runOfCell = (cell: string): number | null => {
+  for (const incident of SCORES.incidents) {
+    if (incident.kind !== "scored") continue;
+    for (const mode of incident.modes)
+      for (const each of mode.candidates) {
+        if (each.cell !== cell) continue;
+        const score = each.scores.find((one) => one.kind !== "not measured");
+        if (score !== undefined) return score.evidence.run;
+      }
+  }
+  return null;
+};
+
+/** This component is the link of the CI run of an S2 cell, from the scorecard of S6. */
+function RunOf(props: { readonly cell: string }): ReactElement | null {
+  const run = runOfCell(props.cell);
+  if (run === null) return null;
+  return (
+    <>
+      {" "}
+      <a href={runLink(run)}>{`Run ${run}`}</a>
+    </>
+  );
+}
 
 /** This function writes a criterion as the head of a row: its first letter in capitals. */
 const headOf = (criterion: string): string => `${criterion.charAt(0).toUpperCase()}${criterion.slice(1)}`;
@@ -709,11 +741,24 @@ function IncidentScoresTable(props: { readonly scored: ScoredCopy }): ReactEleme
   }))))];
   // a note that another note holds is not shown twice
   const shown = notes.filter((note) => !notes.some((other) => other !== note && other.includes(note)));
+  // the run of the incident first, then each later run that adds a candidate
+  const runs = [
+    scored.run,
+    ...new Set(
+      modes.flatMap((mode) => mode.candidates.flatMap((each) => each.scores.flatMap((score) => (score.kind === "not measured" || score.evidence.run === scored.run ? [] : [score.evidence.run])))),
+    ),
+  ];
   return (
     <>
       <p>
-        {`The scores of ${scored.incident}, from the run `}
-        <a href={runLink(scored.run)}>{scored.run}</a>.
+        {`The scores of ${scored.incident}, from the ${runs.length === 1 ? "run" : "runs"} `}
+        {runs.map((run, at) => (
+          <span key={run}>
+            {at === 0 ? "" : at === runs.length - 1 ? " and " : ", "}
+            <a href={runLink(run)}>{run}</a>
+          </span>
+        ))}
+        .
       </p>
       <div className="sy-scroll">
         <table className="sy-table">

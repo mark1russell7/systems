@@ -8,7 +8,7 @@ import { heartbeat } from "../heartbeat.ts";
 
 /**
  * These are the knobs of the session check of an HTTP/2 client. They have the names and the units of
- * the gRPC client, because the check is the same PING. grpc-js ends its transport at the first PING with no ACK.
+ * the gRPC client, because the check is the same PING. The grpc-js driver ends its transport at the first PING with no ACK.
  */
 export interface SessionCheckKnobs {
   /**

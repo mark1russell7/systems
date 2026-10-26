@@ -125,7 +125,7 @@ export interface Scorecard {
   readonly dimension: "how callers learn";
   /** This is the kind run of the first copy: the run of a pod that cannot serve. */
   readonly run: number;
-  /** These are the ids of the CI run of each copy, one for each incident with cells. */
+  /** These are the ids of the CI run of each copy, with each id one time, in the order of the copies. */
   readonly runs: readonly number[];
   readonly criteria: readonly Criterion[];
   readonly incidents: readonly IncidentScores[];
@@ -188,7 +188,7 @@ const INCIDENT_OF: Readonly<Record<CallerFault, { readonly incident: Incident; r
 };
 
 /** This text is the reason for each incident of the design that has no cell of the candidates yet. */
-const NO_CELL = "No cell measures the candidates A, B and C in this incident yet.";
+const NO_CELL = "No cell measures the candidates A, B, C and D in this incident yet.";
 
 /** This text is the reason for an incident with cells, when no copy has a result of them. */
 const NO_RUN = "No copy of a kind run has a result of the cells of this incident yet.";
@@ -274,12 +274,17 @@ const fewestOf = (candidates: readonly CandidateScores[]): string | null => {
   return medians.reduce((best, each) => (each.median < best.median ? each : best)).label;
 };
 
-/** This function gives the scores of each candidate in each mode for an incident, from the copy of its kind run. */
-const modesOf = (fault: CallerFault, copy: CallerRun): readonly ModeScores[] =>
+/**
+ * This function gives the scores of each candidate in each mode for an incident, from the copies of
+ * its kind runs. Each cell gets its result from the first copy that has one, and that run is its
+ * evidence. Thus a later run can add a candidate, and the scores of the earlier cells stay.
+ */
+const modesOf = (fault: CallerFault, copies: readonly [CallerRun, ...CallerRun[]]): readonly ModeScores[] =>
   CALLERS_MODES.map((mode): ModeScores => {
     const candidates = CANDIDATES.map((candidate, at): CandidateScores => {
       const cell = CALLERS_CELLS.find((each) => each.mode === mode && callerFaultOf(each) === fault && each.name.endsWith(`: ${candidate}`));
       if (cell === undefined) throw new Error(`${mode}, ${candidate}: no S2 cell of the catalog for ${fault}`);
+      const copy = copies.find((each) => each.cells.some((result) => result.id === cell.id)) ?? copies[0];
       const result = copy.cells.find((each) => each.id === cell.id);
       const scores = CRITERIA.map((criterion): Score =>
         result === undefined ? { criterion, kind: "not measured", why: `The copy of the run ${copy.run} has no result of this cell.` } : scoreOf(criterion, candidate, mode, fault, result, copy.run),
@@ -290,8 +295,9 @@ const modesOf = (fault: CallerFault, copy: CallerRun): readonly ModeScores[] =>
   });
 
 /**
- * This function gives the scorecard of the S2 cells, from one copy of a kind run for each incident.
- * The copy of an incident is the first copy with a result of its cells. Each candidate of each mode
+ * This function gives the scorecard of the S2 cells, from the copies of the kind runs. The run of an
+ * incident is the run of its first copy with a result of its cells. Each cell gets its result from
+ * the first copy that has one (`modesOf`). Each candidate of each mode
  * gets a score on each criterion. A cell with no result in the copy gets "not measured" on each
  * criterion. An incident with no copy, and each incident with no cell, gets "not measured".
  */
@@ -301,12 +307,12 @@ export const scoreCallers = (...copies: readonly CallerRun[]): Scorecard => {
   const scored = new Map(
     CALLER_FAULTS.map((fault) => {
       const ids = new Set(CALLERS_CELLS.filter((cell) => callerFaultOf(cell) === fault).map((cell) => cell.id));
-      const copy = copies.find((each) => each.cells.some((result) => ids.has(result.id)));
+      const [copy, ...later] = copies.filter((each) => each.cells.some((result) => ids.has(result.id)));
       const { incident, trigger } = INCIDENT_OF[fault];
-      const scores: IncidentScores = copy === undefined ? { incident, kind: "not measured", why: NO_RUN } : { incident, kind: "scored", trigger, run: copy.run, modes: modesOf(fault, copy) };
+      const scores: IncidentScores = copy === undefined ? { incident, kind: "not measured", why: NO_RUN } : { incident, kind: "scored", trigger, run: copy.run, modes: modesOf(fault, [copy, ...later]) };
       return [incident, scores] as const;
     }),
   );
   const incidents = INCIDENTS.map((incident): IncidentScores => scored.get(incident) ?? { incident, kind: "not measured", why: NO_CELL });
-  return { dimension: "how callers learn", run: first.run, runs: copies.map((copy) => copy.run), criteria: CRITERIA, incidents };
+  return { dimension: "how callers learn", run: first.run, runs: [...new Set(copies.map((copy) => copy.run))], criteria: CRITERIA, incidents };
 };

@@ -2,7 +2,7 @@
   "ranAt": "2026-10-26",
   "dimension": "how callers learn",
   "run": 40358038728,
-  "runs": [40358038728, 40380943331],
+  "runs": [40358038728, 40380943331, 40394320219],
   "criteria": [
     "time until callers know",
     "failed requests",
@@ -309,9 +309,120 @@
                   "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
                 }
               ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.iptables.session-check",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 11.6523023,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 10.25234,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.6523023,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 15.3878906,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 8,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.125,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40394320219,
+                    "cell": "S2.T07.iptables.session-check",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 580,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 510,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1531,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 580,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 2700,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40394320219,
+                    "cell": "S2.T07.iptables.session-check",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "T07 has no blip: the replica cannot serve for the whole hold of 30 s. No cell gives a short fault to the candidates yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "T07 has one route, and the flag fails it only on the target. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
             }
           ],
-          "fewest": "B"
+          "fewest": "D"
         },
         {
           "mode": "ipvs",
@@ -601,6 +712,117 @@
                   "criterion": "complexity",
                   "kind": "not measured",
                   "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.ipvs.session-check",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 10.8098663,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 10.7532296,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.8098663,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 13.6949655,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 8,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.329,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40394320219,
+                    "cell": "S2.T07.ipvs.session-check",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 1608,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 2039,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1608,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1605,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 2700,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40394320219,
+                    "cell": "S2.T07.ipvs.session-check",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "T07 has no blip: the replica cannot serve for the whole hold of 30 s. No cell gives a short fault to the candidates yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "T07 has one route, and the flag fails it only on the target. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
                 }
               ]
             }
@@ -897,9 +1119,116 @@
                   "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
                 }
               ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.nftables.session-check",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 13.20424905,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 11.5084731,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 14.900025,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 8,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.099,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40394320219,
+                    "cell": "S2.T07.nftables.session-check",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 572,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 572,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1479,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 2700,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40394320219,
+                    "cell": "S2.T07.nftables.session-check",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "T07 has no blip: the replica cannot serve for the whole hold of 30 s. No cell gives a short fault to the candidates yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "T07 has one route, and the flag fails it only on the target. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
             }
           ],
-          "fewest": "C"
+          "fewest": "D"
         }
       ]
     },
@@ -1244,6 +1573,117 @@
                   "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
                 }
               ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.iptables.session-check.partition",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 1.4565606,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 1.425124,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.4565606,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.4860483,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.7,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40394320219,
+                    "cell": "S2.T07.iptables.session-check.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 73,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 173,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 71,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 73,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 534,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40394320219,
+                    "cell": "S2.T07.iptables.session-check.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The partition holds for 22 s, and no candidate removes the replica: its readiness stays. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the clients use the replica again after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The partition stops each route of the target for the clients. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
             }
           ],
           "fewest": "B"
@@ -1583,6 +2023,117 @@
                   "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
                 }
               ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.ipvs.session-check.partition",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 1.070919,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 1.0359425,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.070919,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.1020859,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 1.5,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40394320219,
+                    "cell": "S2.T07.ipvs.session-check.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 158,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 158,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 162,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 153,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 228,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40394320219,
+                    "cell": "S2.T07.ipvs.session-check.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The partition holds for 22 s, and no candidate removes the replica: its readiness stays. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the clients use the replica again after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The partition stops each route of the target for the clients. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
             }
           ],
           "fewest": "A"
@@ -1918,6 +2469,117 @@
                   "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
                 }
               ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.nftables.session-check.partition",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 1.0706753,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 1.0600223,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.0706753,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.064673,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.7,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40394320219,
+                    "cell": "S2.T07.nftables.session-check.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 107,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 305,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 107,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 53,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 534,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40394320219,
+                    "cell": "S2.T07.nftables.session-check.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The partition holds for 22 s, and no candidate removes the replica: its readiness stays. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the clients use the replica again after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The partition stops each route of the target for the clients. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
             }
           ],
           "fewest": "A"
@@ -1927,27 +2589,27 @@
     {
       "incident": "a black-holed shared dependency",
       "kind": "not measured",
-      "why": "No cell measures the candidates A, B and C in this incident yet."
+      "why": "No cell measures the candidates A, B, C and D in this incident yet."
     },
     {
       "incident": "a lost zone",
       "kind": "not measured",
-      "why": "No cell measures the candidates A, B and C in this incident yet."
+      "why": "No cell measures the candidates A, B, C and D in this incident yet."
     },
     {
       "incident": "a slow dependency (gray failure)",
       "kind": "not measured",
-      "why": "No cell measures the candidates A, B and C in this incident yet."
+      "why": "No cell measures the candidates A, B, C and D in this incident yet."
     },
     {
       "incident": "a flapping dependency",
       "kind": "not measured",
-      "why": "No cell measures the candidates A, B and C in this incident yet."
+      "why": "No cell measures the candidates A, B, C and D in this incident yet."
     },
     {
       "incident": "a failed prober",
       "kind": "not measured",
-      "why": "No cell measures the candidates A, B and C in this incident yet."
+      "why": "No cell measures the candidates A, B, C and D in this incident yet."
     }
   ]
 }

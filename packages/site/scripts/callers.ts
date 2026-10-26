@@ -10,7 +10,7 @@ import { CALLERS_CELLS, CANDIDATES, callerFaultOf, expectedFailures } from "../.
 
 const s = (value: Quantity): number => valueIn(value, "s");
 
-/** These are the labels of the candidates, in the sequence of `CANDIDATES`: A, B and C. */
+/** These are the labels of the candidates, in the sequence of `CANDIDATES`: A, B, C and D. */
 const LABELS = "ABCDEFGH";
 
 /** This function gives the candidate of an S2 cell, by the end of its name. */
