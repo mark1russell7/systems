@@ -26,7 +26,7 @@ import { FORMAT, FORMAT_V1, calibrationOf, judgeKind, propagationOf, referenceOf
 import { T07_CELLS } from "../../cells/src/t07.ts";
 import { T18_CELLS } from "../../cells/src/t18.ts";
 import { T15_GRPC } from "../../cells/src/grpc/t15.ts";
-import { CALLERS_CELLS } from "../../cells/src/callers.ts";
+import { CALLERS_CELLS, callerFaultOf } from "../../cells/src/callers.ts";
 import { callerPredictions, candidateOf } from "./callers.ts";
 import type { Found } from "./records.ts";
 import { dateOf, only, readFolders, runnerOf, round, stringify, time, timeAt } from "./records.ts";
@@ -299,6 +299,7 @@ const groupOf = (cell: KindCell): string => {
   }
   if (cell.template === "T07") {
     if (cell.trigger.kind === "cannot-serve") return "callers";
+    if (cell.trigger.partition === true) return "partition";
     if (cell.calibrates) return "calibration";
     if (cell.trigger.kind === "pod-deletion") return "deletion";
     if (cell.trigger.kind === "freeze-process") return "pause";
@@ -319,8 +320,25 @@ const propagationValues = (runs: readonly KindRun[]): number[] =>
 const spread = (value: TimeSpread | null) =>
   value === null ? null : { count: value.count, min: s(value.min), median: s(value.median), p99: s(value.p99), max: s(value.max) };
 
-/** This function gives the copy of a cell: kind for T07 and T18, t15 for T15, and s2 for the S2 cells. */
-const copyOf = (cell: KindCell): "kind" | "t15" | "s2" => (cell.template === "T15" ? "t15" : cell.id.startsWith("S2.") ? "s2" : "kind");
+/** This function gives the copy of a cell: kind for T07 and T18, and t15 for T15. The S2 cells of cannot-serve get s2, and those of a partition get s2-partition. */
+const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" => {
+  if (cell.template === "T15") return "t15";
+  if (!cell.id.startsWith("S2.")) return "kind";
+  return callerFaultOf(cell) === "partition" ? "s2-partition" : "s2";
+};
+
+/**
+ * This function gives the time from the fault to the start of the last failed request of each counted run, in seconds. A run with no
+ * failed request gives null. The scores of S6 read it as the time until the callers know.
+ */
+const lastsOf = (runs: readonly KindRun[], verdict: KindVerdict): Array<number | null> => {
+  const counted = runs.filter((run) => !run.warmup && run.void === null);
+  if (counted.length !== verdict.checks.length) throw new Error(`${counted.length} counted runs and ${verdict.checks.length} checks`);
+  return verdict.checks.map((check, at) => {
+    const fault = referenceOf(counted[at]!, "fault");
+    return check.facts.last === null || fault === null ? null : round((check.facts.last - fault) / 1000);
+  });
+};
 
 const propagation: Record<string, unknown> = {};
 const cells = CATALOG.flatMap((cell) => {
@@ -379,7 +397,7 @@ const cells = CATALOG.flatMap((cell) => {
       values,
       why: whyOf(cell, verdict, values, measured),
       first: entry.first,
-      ...(copyOf(cell) === "s2" ? { candidate: candidateOf(cell) } : {}),
+      ...(copyOf(cell).startsWith("s2") ? { candidate: candidateOf(cell), lasts: lastsOf(record.runs, verdict) } : {}),
     },
   ];
 });
@@ -404,7 +422,7 @@ const copy = {
 };
 const name = only("the copy of their cells (the cells of T15 and of S2 each have their own copy)", cells.map((cell) => cell.copy));
 const out = fileURLToPath(new URL(`../src/data/${name}-${date}.json`, import.meta.url));
-// the copy of S2 has the prediction of each S2 cell of the catalog, with a run or not
-const predictions = name === "s2" ? { predictions: callerPredictions() } : {};
+// a copy of S2 has the prediction of each S2 cell of its incident in the catalog, with a run or not
+const predictions = name === "s2" ? { predictions: callerPredictions() } : name === "s2-partition" ? { predictions: callerPredictions("partition") } : {};
 writeFileSync(out, stringify({ ...copy, cells: cells.map(({ copy: _copy, ...cell }) => cell), ...predictions }));
 process.stdout.write(`${cells.length} cells, ${cells.reduce((sum, cell) => sum + cell.counted + cell.voided, 0)} runs: ${out}\n`);

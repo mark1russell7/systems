@@ -15,7 +15,8 @@ import mongodb from "../data/mongodb-2026-10-18.json";
 import pg from "../data/pg-2026-10-19.json";
 import r3 from "../data/r3-2026-10-17.json";
 import rabbitmq from "../data/rabbitmq-2026-10-19.json";
-import s2 from "../data/s2-2026-10-26.json";
+import S2 from "../data/s2-2026-10-26.json";
+import s2Partition from "../data/s2-partition-2026-10-26.json";
 import s6 from "../data/s6-2026-10-26.json";
 import t15 from "../data/t15-2026-10-25.json";
 import sentinel from "../data/sentinel-2026-10-17.json";
@@ -435,8 +436,8 @@ export function RaceBorder(): ReactElement {
 // the kind cells
 // ---------------------------------------------------------------------------------------------
 
-/** The kind cells of each copy: T07 and T18, T15 over gRPC through Istio, and the S2 cells. */
-const KIND_CELLS = [...kind.cells, ...t15.cells, ...s2.cells];
+/** The kind cells of each copy: T07 and T18, T15 over gRPC through Istio, and the S2 cells of each incident. */
+const KIND_CELLS = [...kind.cells, ...t15.cells, ...S2.cells, ...s2Partition.cells];
 type KindCell = (typeof KIND_CELLS)[number];
 
 /** This function writes the main value of a kind cell: a count of failed requests, of replicas, or a time. */
@@ -538,9 +539,11 @@ const S2_FROM: Readonly<Record<string, string>> = { fault: "the fault", heal: "t
  * This table shows the candidates of S2 side by side, in each mode of kube-proxy of the catalog. The
  * columns come from the predictions of the copy, thus a candidate with no run has a column too.
  * Each cell gives the verdict and the failed requests of the median run. Then it gives the
- * prediction: the expected count of failed requests, and the band of the end of the window.
+ * prediction: the expected count of failed requests, and the band of the end of the window. The
+ * incident `partition` shows the copy of the partitioned pod.
  */
-export function CallersTable(): ReactElement {
+export function CallersTable(props: { readonly incident?: "cannot serve" | "partition" }): ReactElement {
+  const s2: typeof S2 = props.incident === "partition" ? s2Partition : S2;
   const candidates = [...new Set(s2.predictions.map((each) => each.candidate.name))];
   const modes = MODES.filter((mode) => s2.predictions.some((each) => each.mode === mode));
   const predicted = (mode: string, name: string) => {
@@ -600,7 +603,7 @@ interface Amount {
 }
 /** A score of the scorecard of S6, as `scoreCallers` of the cells writes it. */
 type ScoreCopy =
-  | { readonly criterion: string; readonly kind: "measured"; readonly median: Amount; readonly values: readonly Amount[]; readonly prediction: { readonly lo: Amount; readonly hi: Amount }; readonly holds: boolean; readonly evidence: { readonly run: number; readonly cell: string } }
+  | { readonly criterion: string; readonly kind: "measured"; readonly median: Amount; readonly values: readonly Amount[]; readonly prediction: { readonly lo: Amount; readonly hi: Amount }; readonly from?: string; readonly holds: boolean; readonly evidence: { readonly run: number; readonly cell: string } }
   | { readonly criterion: string; readonly kind: "bounded"; readonly prediction: { readonly from: string; readonly band: { readonly lo: Amount; readonly hi: Amount } }; readonly holds: boolean; readonly evidence: { readonly run: number; readonly cell: string }; readonly why: string }
   | { readonly criterion: string; readonly kind: "not measured"; readonly why: string };
 /** The scores of one mode of the scorecard: each candidate, and the label of the candidate with the fewest failed requests. */
@@ -609,11 +612,18 @@ interface ModeCopy {
   readonly candidates: ReadonlyArray<{ readonly candidate: string; readonly label: string; readonly cell: string; readonly scores: readonly ScoreCopy[] }>;
   readonly fewest: string | null;
 }
-/** The scorecard of S6: the run, the criteria, and the scores of each incident. */
+/** The scores of one incident of the scorecard: its kind run, and the scores of each mode. */
+interface ScoredCopy {
+  readonly incident: string;
+  readonly kind: "scored";
+  readonly run: number;
+  readonly modes: readonly ModeCopy[];
+}
+/** The scorecard of S6: the runs, the criteria, and the scores of each incident. */
 interface ScorecardCopy {
   readonly run: number;
   readonly criteria: readonly string[];
-  readonly incidents: ReadonlyArray<{ readonly incident: string; readonly kind: "scored"; readonly modes: readonly ModeCopy[] } | { readonly incident: string; readonly kind: "not measured"; readonly why: string }>;
+  readonly incidents: ReadonlyArray<ScoredCopy | { readonly incident: string; readonly kind: "not measured"; readonly why: string }>;
 }
 const SCORES = s6 as unknown as ScorecardCopy;
 
@@ -634,17 +644,15 @@ const reasonsOf = (modes: readonly ModeCopy[], criterion: string): readonly stri
 };
 
 /**
- * This table shows the scores of S6 for "how callers learn", side by side in each mode of kube-proxy.
- * A row gives each criterion that has a score from the run, with the prediction next to the measure.
- * Each cell links to the run of its evidence. A criterion that the data cannot support gives its reason,
- * and no number. The incidents with no cell of the candidates follow the table.
+ * This table shows the scores of S6 for "how callers learn" of one incident, side by side in each
+ * mode of kube-proxy. A row gives each criterion that has a score from the run, with the prediction
+ * next to the measure. Each cell links to the run of its evidence. A criterion that the data cannot
+ * support gives its reason, and no number.
  */
-export function CallersScores(): ReactElement {
-  const scored = SCORES.incidents.find((each) => each.kind === "scored");
-  if (scored === undefined || scored.kind !== "scored") throw new Error("the scorecard of S6 has no incident with scores");
+function IncidentScoresTable(props: { readonly scored: ScoredCopy }): ReactElement {
+  const { scored } = props;
   const modes = scored.modes;
   const heads = modes[0]?.candidates ?? [];
-  const rest = SCORES.incidents.flatMap((each) => (each.kind === "not measured" ? [each] : []));
   const scoreAt = (mode: ModeCopy, label: string, criterion: string): ScoreCopy => {
     const score = mode.candidates.find((each) => each.label === label)?.scores.find((each) => each.criterion === criterion);
     if (score === undefined) throw new Error(`no score of S6 for ${mode.mode}, ${label}, ${criterion}`);
@@ -658,6 +666,17 @@ export function CallersScores(): ReactElement {
         <code>{score.evidence.cell}</code>
       </a>
     );
+    if (score.kind === "measured" && score.from !== undefined)
+      return (
+        <>
+          <Verdict decision={score.holds ? "holds" : "fails"} text={`the last failure ${fine(score.median.value)} after ${S2_FROM[score.from] ?? score.from} in the median run`} />
+          <br />
+          <span className="sy-muted">
+            {`The prediction: ${fine(score.prediction.lo.value)} to ${fine(score.prediction.hi.value)}. The counted runs: ${score.values.map((each) => fine(each.value)).join(", ")}. `}
+            {evidence}
+          </span>
+        </>
+      );
     if (score.kind === "measured")
       return (
         <>
@@ -691,10 +710,10 @@ export function CallersScores(): ReactElement {
   // a note that another note holds is not shown twice
   const shown = notes.filter((note) => !notes.some((other) => other !== note && other.includes(note)));
   return (
-    <div className="not-content">
+    <>
       <p>
         {`The scores of ${scored.incident}, from the run `}
-        <a href={runLink(SCORES.run)}>{SCORES.run}</a>.
+        <a href={runLink(scored.run)}>{scored.run}</a>.
       </p>
       <div className="sy-scroll">
         <table className="sy-table">
@@ -756,6 +775,23 @@ export function CallersScores(): ReactElement {
         <p key={note} className="sy-muted">
           {note}
         </p>
+      ))}
+    </>
+  );
+}
+
+/**
+ * These tables show the scores of S6 for "how callers learn": one table for each incident with
+ * cells, each with the link of its run. The incidents with no cell of the candidates follow them.
+ */
+export function CallersScores(): ReactElement {
+  const scored = SCORES.incidents.flatMap((each) => (each.kind === "scored" ? [each] : []));
+  if (scored.length === 0) throw new Error("the scorecard of S6 has no incident with scores");
+  const rest = SCORES.incidents.flatMap((each) => (each.kind === "not measured" ? [each] : []));
+  return (
+    <div className="not-content">
+      {scored.map((each) => (
+        <IncidentScoresTable key={each.incident} scored={each} />
       ))}
       <p className="sy-muted">
         {`Not measured yet: ${rest.map((each) => each.incident).join(", ")}. ${rest[0]?.why ?? ""}`}

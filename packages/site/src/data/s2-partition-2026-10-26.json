@@ -1,0 +1,672 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-10-26",
+  "units": "s",
+  "runs": 3,
+  "kernel": "6.17.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.iptables.endpoints.partition",
+      "template": "T07",
+      "name": "iptables, callers learn that a pod is partitioned: endpoints only",
+      "mode": "iptables",
+      "trigger": "blackhole",
+      "group": "partition",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 2.24 s after the fault. At least one request fails. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 27,
+      "values": [23, 35, 27],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 27 failed requests. The counted runs had 23 to 35 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      },
+      "lasts": [0.5943365, 1.2476351, 0.5642068]
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck.partition",
+      "template": "T07",
+      "name": "iptables, callers learn that a pod is partitioned: in band (lame duck)",
+      "mode": "iptables",
+      "trigger": "blackhole",
+      "group": "partition",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 2.24 s after the fault. At least one request fails. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 18,
+      "values": [37, 18, 14],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 18 failed requests. The counted runs had 14 to 37 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      },
+      "lasts": [1.3827999, 0.4206206, 0.3715314]
+    },
+    {
+      "id": "S2.T07.iptables.goaway.partition",
+      "template": "T07",
+      "name": "iptables, callers learn that a pod is partitioned: in band on HTTP/2 (GOAWAY)",
+      "mode": "iptables",
+      "trigger": "blackhole",
+      "group": "partition",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 23.479 s to 26.988 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 1325,
+      "values": [1325, 2630, 1313],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 1,325 failed requests. The counted runs had 1,313 to 2,630 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 23.479,
+          "high": 26.988
+        },
+        "expected": {
+          "low": 0,
+          "high": 4048
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      },
+      "lasts": [26.6288181, 26.4390479, 26.3880594]
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints.partition",
+      "template": "T07",
+      "name": "ipvs, callers learn that a pod is partitioned: endpoints only",
+      "mode": "ipvs",
+      "trigger": "blackhole",
+      "group": "partition",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 640 ms after the fault. At least one request fails. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 24,
+      "values": [24, 24, 24],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 24 failed requests. The counted runs had 24 to 24 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.64
+        },
+        "expected": {
+          "low": 21,
+          "high": 24
+        },
+        "connections": {
+          "low": 12,
+          "high": 12,
+          "of": 24
+        }
+      },
+      "lasts": [0.5160337, 0.5031658, 0.5232086]
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck.partition",
+      "template": "T07",
+      "name": "ipvs, callers learn that a pod is partitioned: in band (lame duck)",
+      "mode": "ipvs",
+      "trigger": "blackhole",
+      "group": "partition",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 640 ms after the fault. At least one request fails. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 24,
+      "values": [24, 24, 24],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 24 failed requests. The counted runs had 24 to 24 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.64
+        },
+        "expected": {
+          "low": 21,
+          "high": 24
+        },
+        "connections": {
+          "low": 12,
+          "high": 12,
+          "of": 24
+        }
+      },
+      "lasts": [0.5057167, 0.5034381, 0.5020412]
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.partition",
+      "template": "T07",
+      "name": "ipvs, callers learn that a pod is partitioned: in band on HTTP/2 (GOAWAY)",
+      "mode": "ipvs",
+      "trigger": "blackhole",
+      "group": "partition",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 23.479 s to 26.988 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 3953,
+      "values": [3901, 3954, 3953],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 3,953 failed requests. The counted runs had 3,901 to 3,954 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 23.479,
+          "high": 26.988
+        },
+        "expected": {
+          "low": 0,
+          "high": 4048
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      },
+      "lasts": [26.1366706, 26.4904504, 26.4805468]
+    },
+    {
+      "id": "S2.T07.nftables.endpoints.partition",
+      "template": "T07",
+      "name": "nftables, callers learn that a pod is partitioned: endpoints only",
+      "mode": "nftables",
+      "trigger": "blackhole",
+      "group": "partition",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 2.24 s after the fault. At least one request fails. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 19,
+      "values": [14, 19, 34],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 19 failed requests. The counted runs had 14 to 34 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      },
+      "lasts": [0.2660061, 0.5279229, 1.1001161]
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck.partition",
+      "template": "T07",
+      "name": "nftables, callers learn that a pod is partitioned: in band (lame duck)",
+      "mode": "nftables",
+      "trigger": "blackhole",
+      "group": "partition",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 2.24 s after the fault. At least one request fails. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 26,
+      "values": [26, 32, 24],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 26 failed requests. The counted runs had 24 to 32 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      },
+      "lasts": [0.7735282, 0.7735897, 1.0761749]
+    },
+    {
+      "id": "S2.T07.nftables.goaway.partition",
+      "template": "T07",
+      "name": "nftables, callers learn that a pod is partitioned: in band on HTTP/2 (GOAWAY)",
+      "mode": "nftables",
+      "trigger": "blackhole",
+      "group": "partition",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 23.479 s to 26.988 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 1304,
+      "values": [1304, 0, 2618],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 1,304 failed requests. The counted runs had 0 to 2,618 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 23.479,
+          "high": 26.988
+        },
+        "expected": {
+          "low": 0,
+          "high": 4048
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      },
+      "lasts": [26.222634, null, 26.314664]
+    }
+  ],
+  "predictions": [
+    {
+      "id": "S2.T07.iptables.endpoints.partition",
+      "mode": "iptables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck.partition",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.goaway.partition",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 23.479,
+          "high": 26.988
+        },
+        "expected": {
+          "low": 0,
+          "high": 4048
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints.partition",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.64
+        },
+        "expected": {
+          "low": 21,
+          "high": 24
+        },
+        "connections": {
+          "low": 12,
+          "high": 12,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck.partition",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.64
+        },
+        "expected": {
+          "low": 21,
+          "high": 24
+        },
+        "connections": {
+          "low": 12,
+          "high": 12,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.partition",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 23.479,
+          "high": 26.988
+        },
+        "expected": {
+          "low": 0,
+          "high": 4048
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.endpoints.partition",
+      "mode": "nftables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck.partition",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.goaway.partition",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 23.479,
+          "high": 26.988
+        },
+        "expected": {
+          "low": 0,
+          "high": 4048
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    }
+  ]
+}
