@@ -1,9 +1,8 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
-import type { Backoff } from "../backoff.ts";
 import { backoffDelay } from "../backoff.ts";
 import type { Cancel } from "../clock.ts";
 import { realClock } from "../clock.ts";
-import type { Attempt, CheckOptions, Client, ClientJoin, ClientKnobs, ClientOptions, ClientSpec, ClientStep, DialFn, SendOptions, Sent } from "../client/core.ts";
+import type { Attempt, CheckOptions, Client, ClientJoin, ClientKnobs, ClientOptions, ClientSpec, ClientStep, DialFn, RetryKnobs, SendOptions, Sent } from "../client/core.ts";
 import {
   attachClient,
   clientBounds,
@@ -17,6 +16,9 @@ import {
   ms,
   notSent,
   operationTable,
+  readyWait,
+  retryBackoff,
+  retryProblems,
   roundTripCheck,
   sendWithReissue,
   socketEnds,
@@ -37,13 +39,15 @@ import { REDIS_OPERATIONS, commandName } from "./operations.ts";
 
 // the three outcomes, the send options and the checks moved to the core of the clients: this entry keeps them for the users of 0.5
 export type { CheckOptions, ClientStep, DialFn, SendOptions, Sent } from "../client/core.ts";
+// the backoff of the tries to connect moved to the core, for RabbitMQ too: this entry keeps it for the users of 0.5
+export { retryBackoff } from "../client/core.ts";
 
 /**
  * These are the knobs of the client, each a time, by the names of the ordering law where the law
  * has them. The runtime has no defaults, thus each knob is necessary, and a bound that nobody gives
  * is "infinite", not zero. The knobs that each client has come from the core.
  */
-export interface RedisKnobs extends ClientKnobs {
+export interface RedisKnobs extends ClientKnobs, RetryKnobs {
   /** This time bounds a try to connect, until the TCP connection exists (`connectTimeout`). */
   readonly connect_bound: Quantity;
   /** This time bounds each command, the handshake commands too (`commandTimeout`). */
@@ -107,17 +111,6 @@ export interface RedisClient extends Client<ClientStep, Join> {
   send<T = unknown>(command: string, args?: ReadonlyArray<string | number>, options?: SendOptions): Promise<Sent<T>>;
 }
 
-/**
- * This function gives the backoff of the tries to connect: from `retry_base`, doubling to
- * `retry_cap`, each with a jitter up to the base. The client rounds each delay to a whole millisecond.
- */
-export const retryBackoff = (knobs: RedisKnobs): Backoff => ({
-  base: ms(knobs.retry_base),
-  factor: 2,
-  cap: ms(knobs.retry_cap),
-  jitter: { kind: "add", amount: ms(knobs.retry_base) },
-});
-
 /** This function gives the problems of a spec: the knobs that the client cannot use. */
 export const specProblems = (name: string, spec: RedisClientSpec): string[] => {
   const problems: string[] = [];
@@ -129,7 +122,7 @@ export const specProblems = (name: string, spec: RedisClientSpec): string[] => {
   problems.push(...timeProblems(name, knobs));
   if (ms(knobs.request_timeout) <= 0) problems.push(`${name}'s request_timeout is not above zero: each command must have a bound`);
   if (ms(knobs.heartbeat_timeout) <= 0) problems.push(`${name}'s heartbeat_timeout is not above zero`);
-  if (ms(knobs.retry_cap) < ms(knobs.retry_base)) problems.push(`${name}'s retry_cap is below its retry_base`);
+  problems.push(...retryProblems(name, knobs));
   return problems;
 };
 
@@ -173,7 +166,8 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
   const joins: Join[] = [];
   // the commands that the client wrote while the connection was ready: a close settles each one
   const flight = inFlight();
-  const readyWaiters = new Set<() => void>();
+  // the commands that wait for a ready connection before their second try
+  const readied = readyWait(clock, () => connection?.status === "ready");
   const listeners: Array<[string, (...args: unknown[]) => void]> = [];
 
   const record = clientRecorder(options.record, clock, name);
@@ -238,7 +232,7 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
     if (connection !== c || c.status !== "ready") return;
     joins.push({ generation, at, clientId, ...socketEnds(socket) });
     record("ready", "ready", "join", `generation ${generation}, client id ${clientId ?? "unknown"}`);
-    for (const wake of [...readyWaiters]) wake();
+    readied.wake();
   };
 
   const onStatus = (to: string) => (): void => {
@@ -262,27 +256,6 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
     listeners.push(["error", onError]);
   };
 
-  /** This function waits until the connection is ready, for `within` milliseconds at most. It gives true when it is ready. */
-  const waitReady = (within: number, signal?: AbortSignal): Promise<boolean> =>
-    new Promise((resolve) => {
-      if (connection?.status === "ready") {
-        resolve(true);
-        return;
-      }
-      let cancel: Cancel = () => {};
-      const done = (value: boolean): void => {
-        readyWaiters.delete(wake);
-        cancel();
-        signal?.removeEventListener("abort", aborted);
-        resolve(value);
-      };
-      const wake = (): void => done(true);
-      const aborted = (): void => done(false);
-      readyWaiters.add(wake);
-      cancel = clock.after(within, () => done(connection?.status === "ready"));
-      signal?.addEventListener("abort", aborted, { once: true });
-    });
-
   const attempt = (command: string, args: ReadonlyArray<string | number>, signal?: AbortSignal): Promise<Attempt> => {
     const c = connection;
     if (c === null) return Promise.resolve(notSent(`${name} has not connected`));
@@ -305,7 +278,7 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
       options: sendOptions,
       attempt: (signal) => attempt(command, args, signal) as Promise<Attempt<T>>,
       // ioredis connects again by itself: the second try waits for a ready connection, in the time that is left
-      beforeAgain: (left, signal) => waitReady(left, signal),
+      beforeAgain: (left, signal) => readied.wait(left, signal),
       onReissue: () => record(status, status, "command.reissue", commandName(command, args)),
     });
 

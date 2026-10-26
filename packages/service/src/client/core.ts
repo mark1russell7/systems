@@ -7,6 +7,7 @@
 
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
+import type { Backoff } from "../backoff.ts";
 import type { ServiceBuilder } from "../builder.ts";
 import type { Cancel, Clock } from "../clock.ts";
 import type { Check, Dependency, Gate, ServiceDescription, Step } from "../description.ts";
@@ -288,6 +289,69 @@ export const withinBound = (clock: Clock, bound: number, work: Promise<unknown>)
     return ended;
   });
 };
+
+/**
+ * A ready wait holds the calls that wait for a ready connection before their second try. A client
+ * that connects again by itself uses it: Redis and RabbitMQ.
+ */
+export interface ReadyWait {
+  /** This method waits until the client is ready, for `within` milliseconds at most. It gives true when the client is ready. */
+  wait(within: number, signal?: AbortSignal): Promise<boolean>;
+  /** This method ends each wait with true. The client uses it when its connection is ready. */
+  wake(): void;
+}
+
+/** This function makes the ready wait of a client. The function `ready` tells if the client is ready. */
+export const readyWait = (clock: Clock, ready: () => boolean): ReadyWait => {
+  const waiters = new Set<() => void>();
+  return {
+    wait: (within, signal) =>
+      new Promise((resolve) => {
+        if (ready()) {
+          resolve(true);
+          return;
+        }
+        let cancel: Cancel = () => {};
+        const done = (value: boolean): void => {
+          waiters.delete(wake);
+          cancel();
+          signal?.removeEventListener("abort", aborted);
+          resolve(value);
+        };
+        const wake = (): void => done(true);
+        const aborted = (): void => done(false);
+        waiters.add(wake);
+        cancel = clock.after(within, () => done(ready()));
+        signal?.addEventListener("abort", aborted, { once: true });
+      }),
+    wake() {
+      for (const wake of [...waiters]) wake();
+    },
+  };
+};
+
+/** These are the knobs of a client that connects again by itself, after a delay that doubles. */
+export interface RetryKnobs {
+  /** This time is the first delay before a new try to connect. The delay doubles after each try. */
+  readonly retry_base: Quantity;
+  /** This time is the most that one delay can be, before its jitter. */
+  readonly retry_cap: Quantity;
+}
+
+/**
+ * This function gives the backoff of the tries to connect: from `retry_base`, doubling to
+ * `retry_cap`, each with a jitter up to the base. The client rounds each delay to a whole millisecond.
+ */
+export const retryBackoff = (knobs: RetryKnobs): Backoff => ({
+  base: ms(knobs.retry_base),
+  factor: 2,
+  cap: ms(knobs.retry_cap),
+  jitter: { kind: "add", amount: ms(knobs.retry_base) },
+});
+
+/** This function gives the problems of the retry knobs: the cap must not be below the base. */
+export const retryProblems = (name: string, knobs: RetryKnobs): string[] =>
+  ms(knobs.retry_cap) < ms(knobs.retry_base) ? [`${name}'s retry_cap is below its retry_base`] : [];
 
 /** This function gives the problems of the knobs of a spec that each client has: each knob must be a time of zero or more. */
 export const timeProblems = (name: string, knobs: object): string[] => {
