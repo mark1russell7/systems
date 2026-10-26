@@ -309,7 +309,8 @@ export const handle = <T>(controller: string, route: HandledRoute, work: Handled
     const life = context.life;
     const written: OutcomeOptions<T> = {
       ...options,
-      keepAlive: () => life?.keepAlive() ?? false,
+      // the transport decides, with its option keepAlive. Before the start, no response keeps its connection
+      keepAlive: () => life !== null && (context.keepAlive?.() ?? life.keepAlive()),
       retryAfter: context.retryAfter,
     };
     if (life === null) {

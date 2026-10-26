@@ -96,9 +96,11 @@ const fire = () => {
     // connect() comes in the tick before this event, thus the handle has the port here, a refused
     // connection's too: in 200 refusals, each port was here and none at setImmediate
     lp = portOf(opened);
-    opened.once("connect", () => {
-      lp ??= portOf(opened);
-    });
+    // a kept connection is already connected: a listener on it does not fire, and stays
+    if (opened.connecting)
+      opened.once("connect", () => {
+        lp ??= portOf(opened);
+      });
   });
   req.end();
 };
