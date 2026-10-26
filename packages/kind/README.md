@@ -150,6 +150,9 @@ A new member of the union `Template` breaks a reader that switches on it. That i
 
 The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`, its clients, the agent and the watcher, on Node 24.21.0. Its base is pinned by digest, and `npm-lock.json` pins the packages from npm. `stageLabImage()` stages its context, and `labImage()` gives the tag of the image.
 
+- **The keep-alive clients.** A workload with `connections` gives each HTTP client that count of keep-alive connections. Each request goes on the next connection in turn. kube-proxy selects a backend only for a new connection. SIGHUP gives the client new connections, and its old connections close after the timeout. With no `connections`, each request has a new connection, as before.
+- **The lame duck.** The declaration has the optional field `lameDuck`. With true or no value, the edge sends `Connection: close` while the service is not ready (`httpTransport` as it is). With false, the app gives the transport `keepAlive: () => true`, thus each connection stays open and a caller learns only from the endpoints.
+
 - **The resolver.** From 0.10.1, the lab image is a `build` source of the harness (`labSource()`). The resolver of the harness plans it and builds it, as it does each other image (`planOf`, `imageOf`). Thus its tag comes from its content, and each `FROM` has a digest. Each manifest of packages has a lockfile, and a failed build tries again after each wait. The build goes through the CLI of Docker, not through Testcontainers.
 
 - **In the workspace** of this repository, the stage builds `@mark1russell7/quantity`, `@mark1russell7/algebra` and `@mark1russell7/service`, and packs each one as npm gets it.
@@ -186,6 +189,7 @@ The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`
 | `authorization-policy` | `kubectl apply` of a DENY AuthorizationPolicy on the server pods for the principal of an account (`account`, the account `default` of the clients when not given), then `kubectl delete` after the hold |
 | `idle` | SIGUSR1 to the gRPC client of each client pod, and SIGUSR2 after the hold: a gap of the calls (the target `clients`). The restore sends SIGUSR2 again. With `middlebox`, a stateful middlebox in each replica from before the gap to the restore. With `close`, a new channel at the fault for 5 s: SIGHUP before the fault, then SIGUSR2, a wait and SIGHUP |
 | `ztunnel-restart` | `kubectl delete pod` of the ztunnel pod of each node, with its grace (`ZTUNNEL_PODS`). The flow of each client crosses the ztunnel of its own node. The restore waits for the rollout of the DaemonSet |
+| `cannot-serve` | SIGHUP to each client before the fault, thus the keep-alive connections spread over the replicas again in each run (`SPREAD_LEAD`, 3 s). Then the flag file of the first replica for the hold. While the flag is there, the route of the replica fails with 503, and the flag check of the declaration fails. The heal and the restore remove the flag |
 | `certificate-expiry` | No act on a connection: the calls of each client go on for the hold. At the fault and at the heal, istioctl reads the leaf certificates of the ztunnel pod of each node (`ztunnelCertificates`). A line `certificates` keeps their validity, the evidence of their lifetime |
 
 A cgroup path that is not the scope of one container is refused. A write to the root of the node throttles or freezes each pod of the node.
@@ -209,6 +213,7 @@ The plan's `event:clock-jump` has no trigger. A step of CLOCK_REALTIME in the VM
 - **A reset from a leaving pod** leaves the conntrack entry of its flow in CLOSE for 10 s, with the NAT to that pod. From 0.1.6, a window can give that life (`afterReset`). Then a request outside the window can fail with the outcome of the rule (`reusesReset`). The condition is a reset of the same client on the same port, up to that life before the request. The catalog gives it to a deletion without a hold, in the modes with the NAT in conntrack.
 - **A fault of a shared dependency** trips the readiness latch of each replica (`failSpan`). Then the kubelet needs its threshold of probes, and the rules need one propagation.
 - **A restart through a coupling** adds the liveness probes of the kubelet and the preStop sleep to the latch.
+- **A replica that cannot serve** (`learnWindow`) fails each request on a connection to it from the fault. A turn is the time between two requests on one connection. With the lame duck, the latch closes each connection, and the rules select the replica until its removal. Thus the window ends from the fault, in the latch to the removal and one turn. Without the lame duck, no connection opens again, thus the removal changes nothing. The window ends from the heal, in the recovery of the readiness and one turn.
 
 `verdict.ts` judges each run, and each cell on its counted runs. Each time lands in its band ± 100 ms: the poll of the rules and the delay of the watcher. A median in a band gets the test of the harness: its order-statistic interval in the band, made 5 % wider.
 
@@ -255,6 +260,8 @@ From 0.8.0, a prediction `ends` can be the end of the tunnel of each client (`of
 - The tunnel of a client goes from the address of its pod (`la` of a `sock` line) to that replica at port 15008. Its first change out of ESTABLISHED after the reference must be in the band ± δ. It must be to FIN_WAIT1: the side of the client closes it, and the peer does not close first.
 - The first request of each client after the heal must be `ok`, on a new tunnel. The main value is the middle of the ends, in `s`.
 - From 0.8.1, `ends` has the optional band `answer`. A change to CLOSE_WAIT in that band ± δ also agrees: the peer answers the close of the client, and its FIN comes first. Before the band, the peer closed first.
+
+A new member of the union `TriggerKind`, `cannot-serve`, breaks a reader that switches on it. That is a breaking change before 1.0.0, thus the next version is 0.11.0. The record format stays `/2`, with the optional fields `connections` of a workload and `lameDuck` of a declaration. The line `client` of the reconnect is a new line of a run.
 
 A new member of the union `TriggerKind`, `certificate-expiry`, and a new member of the union `Step`, `certificates`, break a reader that switches on them. `KindLab` also has a new method, `record`. Each is a breaking change before 1.0.0, thus the version is 0.9.0. The record format stays `/2`: the lines `certificates` are new lines of a run.
 

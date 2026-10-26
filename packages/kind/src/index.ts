@@ -22,6 +22,7 @@ export {
   NETNS_DEFAULTS,
   POLICY,
   QUIET_LEAD,
+  SPREAD_LEAD,
   SYSCTL,
   ZTUNNEL_PODS,
   deletes,
@@ -57,7 +58,7 @@ export type { ListenerCounts } from "./lds.ts";
 export { LDS_FILTER, listenerCountsOf } from "./lds.ts";
 export { KEPT_KERNEL, keptKernel, localPin, openKindLab } from "./lab.ts";
 export { REDIS_IMAGE, clientObjects, namespaceObject, namespaceOf, probeOf, redisObjects, serverObjects, stackOf } from "./manifests.ts";
-export type { DeletionWindow, Propagation } from "./predict.ts";
+export type { DeletionWindow, LearnWindow, Propagation } from "./predict.ts";
 export {
   DOCUMENTED,
   capOf,
@@ -65,6 +66,7 @@ export {
   intakeAfter,
   kubeletBand,
   latchBand,
+  learnWindow,
   pausedWindow,
   removalBand,
   restartBand,

@@ -152,6 +152,7 @@ export const stopOf = (cell: KindCell): StopWay | null => {
     case "idle":
     case "ztunnel-restart":
     case "certificate-expiry":
+    case "cannot-serve":
       return null;
   }
 };

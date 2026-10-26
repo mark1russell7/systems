@@ -1,9 +1,9 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Poll, Stage, Timing } from "@mark1russell7/service";
-import { failSpan } from "@mark1russell7/service";
+import { failSpan, recoverSpan } from "@mark1russell7/service";
 import { bandOf, seconds, secondsOf } from "./bands.ts";
-import type { Band, Declaration, KubeletProbe } from "./cell.ts";
+import type { Band, Declaration, KubeletProbe, Reference, Workload } from "./cell.ts";
 
 /**
  * This module is the arithmetic of the predictions. Each band is a range of times after a
@@ -141,6 +141,41 @@ export const pausedWindow = (
   const resume = us(s(hold) - s(lead));
   const spread = secondsOf(propagation);
   return { empty: s(intake) >= resume + spread.hi, end: band(spread.lo, spread.hi), intake, resume: seconds(resume) };
+};
+
+/**
+ * A learn window is what `cannot-serve` predicts: when the callers stop getting errors from a
+ * replica that cannot serve. The window starts at the fault, and its end comes from `end.from`.
+ */
+export interface LearnWindow {
+  /** This time is the interval between two requests on one connection of a client: `every` times the connections. */
+  readonly turn: Quantity;
+  /** This band is the trip of the readiness latch of the service after the fault. */
+  readonly latch: Band;
+  /** This band is the first failed request after the fault: within one turn. */
+  readonly start: Band;
+  readonly end: { readonly from: Reference; readonly band: Band };
+}
+
+/**
+ * This function gives the learn window of a declaration, its readiness probe, a propagation and a
+ * workload of keep-alive connections. A caller selects a replica only when it opens a connection:
+ * - The lame duck (`lameDuck` true or no value): after the latch, each answer has `Connection: close`,
+ *   thus each connection of the replica gets one more failure and opens again. The rules select the
+ *   replica until the removal, thus the last failure comes in one turn after it.
+ * - No lame duck: no connection opens again, thus the rules do not matter. The failures end only
+ *   when the readiness of the service recovers after the heal, and one turn after it.
+ */
+export const learnWindow = (declaration: Declaration, readiness: KubeletProbe, propagation: Propagation, workload: Workload): LearnWindow => {
+  const turn = us(s(workload.every) * (workload.connections ?? 1));
+  const latch = latchBand(declaration.readiness, declaration.poll, "refuses");
+  const start = band(0, turn);
+  if (declaration.lameDuck === false) {
+    const recover = recoverSpan(declaration.readiness, declaration.poll);
+    return { turn: seconds(turn), latch, start, end: { from: "heal", band: band(0, s(recover.max) + turn) } };
+  }
+  const removal = secondsOf(removalBand(latch, readiness, propagation));
+  return { turn: seconds(turn), latch, start, end: { from: "fault", band: band(secondsOf(latch).lo, removal.hi + turn) } };
 };
 
 export { showBand } from "./bands.ts";

@@ -44,6 +44,7 @@ const TRIGGERS = [
   "idle",
   "ztunnel-restart",
   "certificate-expiry",
+  "cannot-serve",
 ] as const satisfies readonly TriggerKind[];
 const MODES = ["iptables", "ipvs", "nftables"] as const satisfies readonly KubeProxyMode[];
 
@@ -83,6 +84,7 @@ const declaration = z.object({
   redis: z.object({ gates: gate.nullable(), knobs, misses: count }).nullable(),
   flag: gate.nullable(),
   watchdog: z.object({ tick: time, threshold: time }).nullable(),
+  lameDuck: z.boolean().optional(),
 });
 
 const replica = z.object({ pod: z.string(), node: z.string(), ip: z.string(), version: z.string() });
@@ -179,7 +181,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     }),
     pod: z.object({ replicas: count, grace: time, preStop: time, readiness: probe, liveness: probe, startup: probe.nullable() }),
     declaration: declaration.nullable(),
-    workload: z.object({ every: time, timeout: time }),
+    workload: z.object({ every: time, timeout: time, connections: count.optional() }),
     prediction,
     calibrates: z.boolean(),
     runs: count,

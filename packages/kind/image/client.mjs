@@ -1,6 +1,8 @@
 // A client of a kind cell: an open loop of requests to the ClusterIP of the service, each on a new
-// connection, thus kube-proxy picks a backend for each one. Each request is one JSON line with its
-// start on CLOCK_MONOTONIC, its duration, its outcome (ok, 503, refused, reset, timeout,
+// connection, thus kube-proxy picks a backend for each one. With CONNECTIONS, the client keeps that
+// count of keep-alive connections, and each request goes on the next one in turn. kube-proxy picks a
+// backend only for a new connection. SIGHUP opens new connections. Each request is one JSON line with
+// its start on CLOCK_MONOTONIC, its duration, its outcome (ok, 503, refused, reset, timeout,
 // unreachable, or another error) and its local port (`lp`).
 import http from "node:http";
 
@@ -10,6 +12,23 @@ const timeout = Number(process.env.TIMEOUT_MS ?? 1000);
 const pod = process.env.POD_NAME ?? "client";
 const node = process.env.NODE_NAME ?? "";
 const now = () => Number(process.hrtime.bigint()) / 1e6;
+const connections = process.env.CONNECTIONS === undefined ? 0 : Number(process.env.CONNECTIONS);
+
+// each agent holds one keep-alive connection. A `Connection: close` of the server ends it after its
+// answer, and the next request on the agent opens a new connection
+const agentsOf = () => Array.from({ length: connections }, () => new http.Agent({ keepAlive: true, maxSockets: 1 }));
+let agents = agentsOf();
+let turn = 0;
+// SIGHUP: new agents for the next requests. The old agents go after the timeout, thus each request
+// on them ends first
+process.on("SIGHUP", () => {
+  const old = agents;
+  agents = agentsOf();
+  say({ ev: "client", what: "reconnect", t: now() });
+  setTimeout(() => {
+    for (const agent of old) agent.destroy();
+  }, timeout + 100);
+});
 
 let pending = [];
 const flush = () => {
@@ -51,7 +70,11 @@ const fire = () => {
     lp ??= portOf(socket);
     say({ ev: "req", t, d: Math.round((now() - t) * 1000) / 1000, o, ...extra, lp });
   };
-  const req = http.request({ host, port: Number(port), path: "/work", agent: false, headers: { connection: "close" } }, (res) => {
+  const options =
+    connections === 0
+      ? { agent: false, headers: { connection: "close" } }
+      : { agent: agents[turn++ % connections] };
+  const req = http.request({ host, port: Number(port), path: "/work", ...options }, (res) => {
     let body = "";
     res.setEncoding("utf8");
     res.on("data", (chunk) => {
@@ -80,5 +103,5 @@ const fire = () => {
   req.end();
 };
 
-say({ ev: "client", what: "start", t: now(), target: `${host}:${port}`, every, timeout });
+say({ ev: "client", what: "start", t: now(), target: `${host}:${port}`, every, timeout, connections });
 setInterval(fire, every);

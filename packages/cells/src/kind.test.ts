@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import type { Judged, KindCell, KindCellRecord, KindCellRecordV1 } from "@mark1russell7/kind";
 import { FORMAT, FORMAT_V1, calibrationOf, cellsTable, judgeKind, runKindCells, shardOf, upgrade } from "@mark1russell7/kind";
 import { describe, expect, it } from "vitest";
+import { CALLERS_CELLS } from "./callers.ts";
 import { T07_GRPC } from "./grpc/t07.ts";
 import { T15_GRPC } from "./grpc/t15.ts";
 import { T07_CELLS } from "./t07.ts";
@@ -38,7 +39,7 @@ const RUNS = process.env["KIND_RUNS"] === undefined || process.env["KIND_RUNS"] 
 const MODES = (process.env["KIND_MODES"] ?? "iptables,ipvs,nftables").split(",").filter((mode) => mode !== "");
 const [shard, of] = (process.env["KIND_SHARD"] ?? "0/1").split("/").map(Number) as [number, number];
 
-const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T07_GRPC, ...T15_GRPC];
+const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T07_GRPC, ...T15_GRPC, ...CALLERS_CELLS];
 const chosen: KindCell[] = shardOf(
   CATALOG.filter((cell) => ONLY.test(cell.name)),
   shard,

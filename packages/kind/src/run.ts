@@ -799,6 +799,7 @@ const estimate = (cell: KindCell, environments = 2): number => {
     "ztunnel-restart": 40,
     // the hold, and a read of the certificates of each ztunnel pod at the fault and at the heal
     "certificate-expiry": hold + 20,
+    "cannot-serve": hold + 20,
   };
   // a window can need a longer observation: from the end of the hold, until each request that started in it ended
   const after = observationAfter(cell);

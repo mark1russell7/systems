@@ -3,11 +3,12 @@ import type { KindCell } from "@mark1russell7/kind";
 import { clientObjects, describeCell, lintCell, namespaceOf, pausedWindow, planOf, serverObjects, stopOf, verdictsOf } from "@mark1russell7/kind";
 import { STOP_RULE } from "@mark1russell7/service";
 import { valueIn } from "@mark1russell7/quantity";
+import { CALLERS_CELLS, CANNOT_SERVE_HOLD, KEEP_ALIVE } from "./callers.ts";
 import { PROPAGATION, SYN_SENT, afterSync, s } from "./kind.ts";
 import { T07_CELLS } from "./t07.ts";
 import { T18_CELLS } from "./t18.ts";
 
-const ALL: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS];
+const ALL: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...CALLERS_CELLS];
 
 /** the propagation that a cell meets: the pause of kube-proxy on one node, the wait after a sync in a rolling update, or the calibration of its mode */
 const propagationOf = (cell: KindCell) => {
@@ -20,7 +21,7 @@ const propagationOf = (cell: KindCell) => {
 
 describe("the kind catalogs", () => {
   it("names each cell by a cell of the plan, or as a calibration, and each name once", () => {
-    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$/);
+    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(endpoints|lame-duck)$/);
     expect(new Set(ALL.map((cell) => cell.name)).size).toBe(ALL.length);
     expect(new Set(ALL.map(namespaceOf)).size).toBe(ALL.length);
   });
@@ -119,5 +120,31 @@ describe("the kind catalogs", () => {
       if (b !== null && cell.trigger.kind !== "app-stall") expect(valueIn(cell.trigger.hold!, "s"), cell.name).toBeGreaterThan(valueIn(b.hi, "s"));
     }
     expect(T18_CELLS.find((cell) => cell.trigger.kind === "app-stall")!.trigger.hold).toEqual(s(40));
+  });
+});
+
+describe("the S2 cells: how callers learn that a pod cannot serve", () => {
+  const [endpoints, lameDuck] = CALLERS_CELLS as [KindCell, KindCell];
+
+  it("is one cell with one setting: the lame duck of the edge", () => {
+    const { declaration: a, id: _a, name: _na, prediction: _pa, ...restA } = endpoints;
+    const { declaration: b, id: _b, name: _nb, prediction: _pb, ...restB } = lameDuck;
+    expect(restA).toEqual(restB);
+    expect(a).toEqual({ ...b, lameDuck: false });
+    expect(b.lameDuck).toBeUndefined();
+    expect(b.flag).toBe("readiness");
+    expect(endpoints.workload).toEqual(KEEP_ALIVE);
+  });
+
+  it("ends the window of the lame duck before the heal, and the window of the endpoints only after it", () => {
+    for (const cell of CALLERS_CELLS) if (cell.prediction.kind !== "window" || cell.prediction.end === null) throw new Error(`${cell.name}: no window`);
+    const [a, b] = CALLERS_CELLS.map((cell) => cell.prediction) as Array<Extract<KindCell["prediction"], { kind: "window" }>>;
+    expect([a!.end!.from, b!.end!.from]).toEqual(["heal", "fault"]);
+    // the latch of 8–18 s, the readiness probe of the chart (4–6 s), the propagation of iptables, and one turn of 160 ms
+    expect(b!.end!.band).toEqual({ lo: s(8), hi: s(24.265) });
+    expect(valueIn(b!.end!.band.hi, "s")).toBeLessThan(valueIn(CANNOT_SERVE_HOLD, "s"));
+    // the recovery of the readiness (up to 6 s) and one turn
+    expect(a!.end!.band).toEqual({ lo: s(0), hi: s(6.16) });
+    for (const prediction of [a!, b!]) expect([prediction.certain, prediction.start.from, prediction.outcomes]).toEqual([true, "fault", ["503"]]);
   });
 });
