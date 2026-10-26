@@ -33,6 +33,8 @@ export type { ControllerBuilder, ServiceBuilder } from "./builder.ts";
 export { service } from "./builder.ts";
 export type { Binding, Bound, Change, Compressed, Compression, Evaluated, Inequality, Rule, Side, Term, TimerMark, TimerMarks, Verdict } from "./law.ts";
 export { compress, compression, evaluate, inequalities, symbolsOf, verdictOf } from "./law.ts";
+export type { Stop, StopWay } from "./stops.ts";
+export { DRAIN_RULE_IDS, STOP_RULE, STOPS, lintStop } from "./stops.ts";
 export type { Claim, Epochs, Finding, Scenario, ScenarioValue, ScopedChange, Statistic } from "./lint.ts";
 export { DECLARATION_RULE, LAW_STATISTIC, LIMITER_RULES, PLATFORM_MARKS, PROGRESS_RULE, SERVICE_RULES, compressionOf, lint, serviceBindings } from "./lint.ts";
 export type { Cancel, Clock, PlatformClockOptions } from "./clock.ts";

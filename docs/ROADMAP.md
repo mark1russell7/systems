@@ -120,6 +120,8 @@ On 2026-10-17, Mark decided the design of the server stack (D1 to D18). These de
 
 [PR #177](https://github.com/mark1russell7/systems/pull/177) makes the values of a scenario claims for a version (E2). Each finding names the epoch of each value that it reads, and a distribution binds its p99.
 
+[PR #179](https://github.com/mark1russell7/systems/pull/179) keeps apart the four ways that a pod stops (B11). `lintStop()` applies the rules of the drain that guard each way.
+
 ## The server stack in S6
 
 These items are the part of the server stack in this repository. The server stack is a plan across repositories: one service runner here, and one procedures server in the client. [Its tracker](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb) has the whole plan, with the same ids.
