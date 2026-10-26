@@ -5,6 +5,8 @@ import type { Check, Gate, ServiceDescription } from "./description.ts";
 import type { MachineName, Recorder } from "./events.ts";
 import type { Latch, Result, Trace } from "./latch.ts";
 import { latch } from "./latch.ts";
+import type { HealthMetrics } from "./metrics.ts";
+import { meter } from "./metrics.ts";
 import type { CheckFn, Poller } from "./poller.ts";
 import { poller } from "./poller.ts";
 
@@ -76,6 +78,11 @@ export interface Health {
    * readiness probe with a controller asks about that controller. The report always answers 200.
    */
   probe(kind: ProbeKind, controller?: string): ProbeAnswer;
+  /**
+   * This method gives the counts of the runtime (B18). They are the outcomes, the durations and the
+   * episodes of failure of each check, and the transitions of its machines. It starts no check.
+   */
+  metrics(): HealthMetrics;
   /** This method gives each change of the verdict to `listener`, and gives the function that stops it. */
   subscribe(listener: (verdict: HealthVerdict) => void): () => void;
   /** This method adds a name to the force-fail list, or removes it. */
@@ -132,15 +139,21 @@ export const healthRuntime = (
   // the startup gate: closed, starting (components start), sweeping (the warm-up), open or failed
   let gate = "closed";
 
+  const counts = meter();
+  // each transition goes to the meter, and then to the recorder of the options
+  const record: Recorder = (event) => {
+    counts.event(event);
+    options.record?.(event);
+  };
   const tracer =
     (machine: MachineName, instance: string): Trace =>
     (from, to, on) =>
-      options.record?.({ at: clock.now(), machine, instance, from, to, on });
+      record({ at: clock.now(), machine, instance, from, to, on });
   const gateTrace = tracer("gate", description.name);
   const moveGate = (to: string, on: string, detail?: string): void => {
     const from = gate;
     gate = to;
-    options.record?.({
+    record({
       at: clock.now(),
       machine: "gate",
       instance: description.name,
@@ -190,6 +203,7 @@ export const healthRuntime = (
         forced: () =>
           forced.has(check.name) || (check.dependency !== null && forced.has(check.dependency)),
         record: (result) => {
+          counts.poll(check, result);
           made?.record(result);
           // a late dependency is released by the first pass of a check on it
           if (result.outcome === "ok" && check.dependency !== null)
@@ -199,6 +213,7 @@ export const healthRuntime = (
       }),
     };
     entries.set(check.name, entry);
+    counts.add(check);
     if (late && !stopped) {
       // a late registration pulls readiness until its first pass: it polls at once, then on its loop
       void entry.poller.pollNow();
@@ -276,6 +291,7 @@ export const healthRuntime = (
 
   return {
     verdict,
+    metrics: counts.metrics,
     probe(kind, controller) {
       const now = verdict();
       if (kind === "startup") return answer(kind, now.started);

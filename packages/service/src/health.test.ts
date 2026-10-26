@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Check, Coupling, Poll, ServiceBuilder, Timing } from "./index.ts";
-import { service } from "./index.ts";
+import { redact, service } from "./index.ts";
 import type { FakeClock, ScriptedCheck } from "./testing.ts";
 import { fakeClock, scriptedCheck, seeded } from "./testing.ts";
 
@@ -370,5 +370,64 @@ describe("the edges", () => {
     // the jitter moves the gaps: they are not all the same
     expect(new Set(gaps.map((gap) => Math.round(gap))).size).toBeGreaterThan(5);
     health.stop();
+  });
+});
+
+describe("the metrics of the runtime (B18)", () => {
+  it("counts each outcome, puts each duration in a bucket, and marks the timeouts", async () => {
+    const clock = fakeClock();
+    const { health, each } = await started(clock);
+    const db = () => health.metrics().checks["db.round-trip"]!;
+    expect(db().outcomes).toEqual({ ok: 1, error: 0, indeterminate: 0 });
+    expect(db().durations.le).toEqual([200, 400, 1000, 2000, 3000, 4000]);
+    expect(db().durations.counts).toEqual([1, 0, 0, 0, 0, 0]);
+    each["db"]!.behavior = "timeout";
+    await clock.advance(10_000);
+    each["db"]!.behavior = "throw";
+    await clock.advance(10_000);
+    const now = db();
+    expect(now.outcomes.error).toBeGreaterThanOrEqual(2);
+    expect(now.durations.timedOut).toBeGreaterThanOrEqual(1);
+    expect(now.thrown).toBeGreaterThanOrEqual(1);
+    const bucketed = now.durations.counts.reduce((a, b) => a + b, 0) + now.durations.timedOut;
+    expect(now.outcomes.ok + now.outcomes.error + now.outcomes.indeterminate).toBe(bucketed);
+    health.stop();
+  });
+
+  it("logs an episode from the first error to the next pass, with the cause of the first error", async () => {
+    const clock = fakeClock();
+    const { health, each } = await started(clock);
+    each["cache"]!.behavior = "throw";
+    await clock.advance(20_000);
+    const open = health.metrics().checks["cache.round-trip"]!.episodes;
+    expect(open).toHaveLength(1);
+    expect(open[0]).toMatchObject({ end: null, cause: "the scripted check threw" });
+    expect(open[0]!.failures).toBeGreaterThanOrEqual(3);
+    each["cache"]!.behavior = "ok";
+    await clock.advance(10_000);
+    const closed = health.metrics().checks["cache.round-trip"]!.episodes;
+    expect(closed).toHaveLength(1);
+    expect(closed[0]!.end).not.toBeNull();
+    expect(closed[0]!.end! > closed[0]!.start).toBe(true);
+    health.stop();
+  });
+
+  it("counts the transitions of the machines of the runtime, and still gives each one to the recorder", async () => {
+    const clock = fakeClock();
+    const seen: string[] = [];
+    const health = await app(scripts()).start({ clock, random: seeded(42), record: (event) => seen.push(event.machine) });
+    const { transitions } = health.metrics();
+    expect(transitions["gate app sweeping -> open"]).toBe(1);
+    expect(Object.values(transitions).reduce((a, b) => a + b, 0)).toBe(seen.length);
+    health.stop();
+  });
+});
+
+describe("the redaction of a cause (B18)", () => {
+  it("removes the user and the password of a URL, and the value of a secret key", () => {
+    expect(redact("connect to postgres://app:hunter2@db:5432/shop failed")).toBe("connect to postgres://***@db:5432/shop failed");
+    expect(redact("auth failed: password=hunter2; host=db")).toBe("auth failed: password=***; host=db");
+    expect(redact('token: "abc def" refused')).toBe("token: *** refused");
+    expect(redact("ECONNREFUSED 10.0.0.1:6379")).toBe("ECONNREFUSED 10.0.0.1:6379");
   });
 });

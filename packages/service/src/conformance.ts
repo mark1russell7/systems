@@ -38,7 +38,7 @@ export const detachedLifecycle = (): Lifecycle => {
   const none = (): never => {
     throw new Error("a detached lifecycle has no service: give the transport the lifecycle of a service");
   };
-  const health = { verdict: none, probe: none, subscribe: none, forceFail: none, drain: none, stop: none } as Health;
+  const health = { verdict: none, probe: none, metrics: none, subscribe: none, forceFail: none, drain: none, stop: none } as Health;
   return {
     health,
     state: "running",

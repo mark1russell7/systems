@@ -114,6 +114,8 @@ On 2026-10-17, Mark decided the design of the server stack (D1 to D18). These de
 
 [PR #171](https://github.com/mark1russell7/systems/pull/171) gives the catalog of the checks of a client (B19), in the shared core. With `catalog`, each other step of a client is a check that gates nothing.
 
+The next PR gives the metrics of the health runtime (B18): `health.metrics()` counts the outcomes, the durations, the episodes of failure and the transitions.
+
 ## The server stack in S6
 
 These items are the part of the server stack in this repository. The server stack is a plan across repositories: one service runner here, and one procedures server in the client. [Its tracker](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb) has the whole plan, with the same ids.
