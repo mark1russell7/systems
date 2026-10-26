@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { Check, Rule, TimerMarks } from "./index.ts";
+import type { Check, Rule, StopWay, TimerMarks } from "./index.ts";
 import {
   PLATFORM_MARKS,
+  STOP_RULE,
+  STOPS,
+  lintStop,
   asDebounce,
   asWindow,
   compress,
@@ -328,6 +331,26 @@ describe("the ordering law's evaluator", () => {
         unmarked: [],
       });
       expect(compressionOf(drained(2), platform(0), [O04], 0.1, PLATFORM_MARKS)).toEqual({ changed: [], unmarked: ["readiness_hold@process"] });
+    });
+  });
+
+  describe("the four ways that a pod stops (B11)", () => {
+    // a rule that is not a rule of the drain applies to each way
+    const other: Rule = { ...O04, id: "O11" };
+    const rulesOf = (way: StopWay) => lintStop(drained(0), platform(0), [O04, W8, other], way).map((finding) => [finding.rule, finding.verdict]);
+    it("applies O04 to a deletion and O09 to a liveness restart, each with the other rules", () => {
+      expect(rulesOf("deletion")).toEqual([["O04", "violated"], ["O11", "violated"]]);
+      expect(rulesOf("liveness-restart")).toEqual([["O09", "depends"], ["O11", "violated"]]);
+    });
+
+    it("gives a crash and an OOM kill no rule of the drain, and a finding that depends on the time to find the exit", () => {
+      for (const way of ["crash", "oom"] as const) {
+        expect(rulesOf(way)).toEqual([["O11", "violated"], [STOP_RULE, "depends"]]);
+        expect(STOPS[way]).toMatchObject({ preStop: false, drain: false, leaves: "exit" });
+      }
+      expect(lintStop(drained(0), platform(0), [], "oom").at(-1)?.unbound).toEqual(["exit_detection@pod"]);
+      expect(STOPS.deletion.leaves).toBe("deletion");
+      expect(STOPS["liveness-restart"].leaves).toBe("readiness");
     });
   });
 
