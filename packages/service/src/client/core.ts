@@ -528,11 +528,12 @@ export const deadlineProblem = (name: string, request: Quantity, deadline: Exten
 /**
  * This function gives the problem O01 of a client pool, or null. The pool must close an idle
  * connection before its server does. Otherwise a request can go on a connection that the server
- * closed. A server that keeps an idle connection with no bound gives no problem.
+ * closed. A server that keeps an idle connection with no bound gives no problem. `knob` names the
+ * idle time of the client: `pool_idle_expiry` of a pool, or `client_idle_timeout` of a gRPC channel.
  */
-export const idleCloseProblem = (name: string, expiry: Extent, close: Extent): string | null =>
+export const idleCloseProblem = (name: string, expiry: Extent, close: Extent, knob = "pool_idle_expiry"): string | null =>
   close.value !== "infinite" && !(ms(expiry) < ms(close))
-    ? `${name}'s pool_idle_expiry is not below the idle close of its server: a request can go on a connection that the server closed (O01)`
+    ? `${name}'s ${knob} is not below the idle close of its server: a request can go on a connection that the server closed (O01)`
     : null;
 
 /**

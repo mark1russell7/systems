@@ -9,7 +9,7 @@ export default defineConfig({
   // the runtime, the seams for tests (a fake clock and a quiet server, which uses node:net), the
   // Redis, PostgreSQL, MongoDB and RabbitMQ clients, which load ioredis, pg, mongodb and amqplib only when they connect,
   // the HTTP client, which loads node:http only when it connects, the WebSocket client, which loads ws
-  // only when it connects, the timers without node: or zod,
+  // only when it connects, the gRPC client, which loads @grpc/grpc-js only when it connects, the timers without node: or zod,
   // the edge of a service in Node (node:http and node:net only), and the keyed limiter, which loads only quantity
   entry: [
     "src/index.ts",
@@ -20,6 +20,7 @@ export default defineConfig({
     "src/rabbitmq.ts",
     "src/http-client.ts",
     "src/websocket.ts",
+    "src/grpc.ts",
     "src/clock.ts",
     "src/heartbeat.ts",
     "src/backoff.ts",

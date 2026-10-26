@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { GRPC_CLIENT_MACHINE, GRPC_CLIENT_STARTING_KNOBS, GRPC_CLIENT_STARTING_POLL, grpcMeetings } from "../grpc.ts";
 import { HTTP_CLIENT_MACHINE, HTTP_CLIENT_STARTING_KNOBS, HTTP_CLIENT_STARTING_POLL, httpClientMeetings } from "../http-client.ts";
 import { MONGO_CLIENT_MACHINE, MONGO_STARTING_KNOBS, MONGO_STARTING_POLL, mongoMeetings } from "../mongodb.ts";
 import { PG_CLIENT_MACHINE, PG_STARTING_KNOBS, PG_STARTING_POLL, pgMeetings } from "../pg.ts";
@@ -60,6 +61,7 @@ describe("the core of the clients: one vocabulary for each client", () => {
       rabbitMeetings("mq", RABBIT_STARTING_KNOBS),
       httpClientMeetings("api", HTTP_CLIENT_STARTING_KNOBS),
       wsMeetings("feed", WS_CLIENT_STARTING_KNOBS, WS_CLIENT_STARTING_MISSES),
+      grpcMeetings("rpc", GRPC_CLIENT_STARTING_KNOBS, false),
     ]) {
       expect(meets.map((meeting) => meeting.manifestation)).toEqual([...MANIFESTATIONS]);
       for (const meeting of meets)
@@ -68,16 +70,17 @@ describe("the core of the clients: one vocabulary for each client", () => {
   });
 
   it("declares the events of the core in the machine document of each client", () => {
-    for (const machine of [REDIS_CLIENT_MACHINE, PG_CLIENT_MACHINE, MONGO_CLIENT_MACHINE, RABBIT_CLIENT_MACHINE, HTTP_CLIENT_MACHINE, WS_CLIENT_MACHINE])
+    for (const machine of [REDIS_CLIENT_MACHINE, PG_CLIENT_MACHINE, MONGO_CLIENT_MACHINE, RABBIT_CLIENT_MACHINE, HTTP_CLIENT_MACHINE, WS_CLIENT_MACHINE, GRPC_CLIENT_MACHINE])
       for (const event of CLIENT_EVENTS) expect(machine.events, `${machine.id} ${event}`).toHaveProperty([event]);
   });
 
-  it("gives one starting poll, which the pg, mongodb, rabbitmq, http-client and websocket entries give by their own names too", () => {
+  it("gives one starting poll, which the pg, mongodb, rabbitmq, http-client, websocket and grpc entries give by their own names too", () => {
     expect(PG_STARTING_POLL).toBe(STARTING_POLL);
     expect(MONGO_STARTING_POLL).toBe(STARTING_POLL);
     expect(RABBIT_STARTING_POLL).toBe(STARTING_POLL);
     expect(HTTP_CLIENT_STARTING_POLL).toBe(STARTING_POLL);
     expect(WS_CLIENT_STARTING_POLL).toBe(STARTING_POLL);
+    expect(GRPC_CLIENT_STARTING_POLL).toBe(STARTING_POLL);
   });
 
   it("gives the backoff of the tries to connect from retry_base and retry_cap (redis and rabbitmq)", () => {

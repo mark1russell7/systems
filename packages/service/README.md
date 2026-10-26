@@ -597,13 +597,33 @@ const life = await app.run(); // the process exits after SIGTERM, with 0 or 1
 - **The close.** At the shutdown, the client waits for its calls in flight, then it sends a close frame. At its `close_bound`, `terminate()` destroys the socket, and each call that stays is indeterminate.
 - **The manifestations and the machine.** `meets` lists the manifestations and their detectors. `WS_CLIENT_MACHINE` is the client as a `mark1russell7.machine/1` document, and the tests replay the client against it.
 
+## The gRPC client
+
+`@mark1russell7/service/grpc` is the gRPC client of the service, over grpc-js 1.14. This entry is a part of S6. The peer dependency `@grpc/grpc-js` is optional. The client loads it only when it connects.
+
+- **The declaration.** `grpcClient(name, spec)` declares `connect_bound`, `request_timeout`, `keepalive_time`, `keepalive_timeout`, `client_idle_timeout`, `retry_base`, `retry_cap`, `keepalive_idle`, `max_connection_age`, `close_bound` and `retrans_giveup_time`. The client derives `heartbeat_detection_time` (the PING) and `idle_refresh_interval`.
+- **The facts of the server.** The knobs `server_keepalive_min_time` and `server_idle_close` are not in the declaration. `problems` compares them with `keepalive_time` (O26) and `client_idle_timeout` (O01).
+- **The problems of a spec.** `specProblems` refuses a knob that grpc-js cannot use. Examples are a zero keepalive, a timer that is not a whole number of milliseconds, and an idle timeout below 1 s. A timer above the longest timer of Node is a problem too. It also refuses a TCP keepalive and a password: give the credentials in `metadata`.
+- **The options of the channel.** `grpcOptions(spec)` gives the target and each timer of grpc-js from the declaration. It also turns the retries of grpc-js off, and the service config of the resolver.
+- **The starting knobs.** `GRPC_CLIENT_STARTING_KNOBS`, `GRPC_CLIENT_STARTING_WITHOUT_CALLS` and `GRPC_CLIENT_STARTING_POLL` are a declaration from the gRPC cells. Each value has its measured reason in its doc comment.
+- **A call.** A call is one unary call until its status. `request` and the response are the bytes of the messages, thus the caller encodes them. A stream is not a call. The deadline of a call is the time that is left in `request_timeout`, and grpc-js sends it as `grpc-timeout`.
+- **Three outcomes.** `call(method, request)` gives `ok`, `error` or `indeterminate` from the status code (`grpcOutcome`). A code that tells a refusal is certain. A status that tells that the call did not leave the client is not sent. Each other status is not certain.
+- **Idempotency for each method.** `grpcOperations` makes the table from the `idempotency_level` of each method in its proto. The client sends again only an idempotent method, one time, after it is ready again. `GRPC_OPERATIONS` names the Check of the health service.
+- **One channel.** The client has one channel for its life, and each READY is one generation. The grpc-js driver connects again by itself after its backoff. The client connects an IDLE channel again at once.
+- **The join.** At each generation, the client records the target (`joins`). The grpc-js driver gives no socket, thus the ends of the socket are null.
+- **The checks.** `checks({ poll, steps })` gives `local-state`, `round-trip` (a Check of the health service on the channel of the application, which passes only for SERVING) and `dial` (the HTTP/2 preface on a new connection, which must get a SETTINGS frame).
+- **The close.** At the shutdown, the client waits for its calls in flight. At its `close_bound`, it cancels each call that stays, which is then indeterminate. Then it closes the channel.
+- **The manifestations and the machine.** `meets` lists the manifestations and their detectors. `GRPC_CLIENT_MACHINE` is the client as a `mark1russell7.machine/1` document, and the tests replay the client against it.
+
 ## Installation
 
 ```sh
 pnpm add @mark1russell7/service
 ```
 
-For the Redis client, the application also installs `ioredis@6`. For the PostgreSQL client, it installs `pg@8`. For the MongoDB client, it installs `mongodb@7`. For the RabbitMQ client, it installs `amqplib@2`. For the WebSocket client, it installs `ws@8`. The HTTP client needs no other package.
+For the Redis client, the application also installs `ioredis@6`. For the PostgreSQL client, it installs `pg@8`. For the MongoDB client, it installs `mongodb@7`. For the RabbitMQ client, it installs `amqplib@2`. For the WebSocket client, it installs `ws@8`.
+
+For the gRPC client, it installs `@grpc/grpc-js@1`. The HTTP client needs no other package.
 
 The package uses [`@mark1russell7/quantity`](https://www.npmjs.com/package/@mark1russell7/quantity) for each amount. No entry of the service loads `zod` at run time, thus `zod` is an optional peer dependency. An application that validates amounts with the schemas of `quantity` installs `zod`.
 
@@ -715,6 +735,7 @@ for await (const event of stream) {
 - **The contract.** The contract of a sample declaration passes. The contract also finds a blind dependency, a check whose timeout is too short, and a check that names the wrong dependency.
 - **The Redis client.** These tests use a fake ioredis and a fake clock. They cover the declaration, the three outcomes, and the commands that the client sends again or not. They also cover the join, the backoff, the watchdog, the close, the checks and the manifestations. Five scenarios replay against the document of the client.
 - **The HTTP client.** These tests use a fake agent and a fake clock. They cover the declaration, the three outcomes, the methods that the client sends again or not, and the keep-alive race. They also cover the free socket timer, the close, the checks and the manifestations. Five scenarios replay against the document of the client. One test sends requests through the agent of Node to a server of the loopback.
+- **The gRPC client.** These tests use a fake channel and a fake clock. They cover the declaration, the outcome of each status code, the methods that the client sends again or not, the keepalive and the IDLE channel. They also cover a GOAWAY, the close, the checks and the manifestations. Seven scenarios replay against the document of the client. One test sends calls through grpc-js to a server of the loopback.
 - **F6 for Redis.** The fault matrix crosses each manifestation (a refusal, a frozen process, a black hole, a death without a close, and an app stall), each gating posture, two timings and two jitters. That is 60 cases on the fake. Each case holds the trip and the release of its policy to `failSpan` and `recoverSpan`. Five more cases shut the service down during each manifestation, and each one exits 0.
 - **The timers.** These tests use a fake clock, and they cover the hooks of the heartbeat and its two kinds of ping. A property test holds the death of a silent peer to `detectionTime` in 300 seeded cases. Another one compares the heartbeat with a WebSocket heartbeat that sends one ping at a time, on 300 schedules of pongs. The backoff gives the delays of three earlier backoffs, number for number, and each delay is in its band.
 - **The entries.** The timer entries reach no other package, no `node:` module and no zod. No entry of the service reaches zod, also through `quantity` and the replay of the algebra. The root reaches no `node:` module. The HTTP edge reaches only `node:http`, `node:net` and `quantity`. The worker loop and the queue drain reach only `quantity`.
