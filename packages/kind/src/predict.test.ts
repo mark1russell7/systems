@@ -10,6 +10,7 @@ import {
   intakeAfter,
   kubeletBand,
   latchBand,
+  learnWindow,
   pausedWindow,
   removalBand,
   restartBand,
@@ -40,6 +41,17 @@ describe("the arithmetic of the predictions", () => {
     expect(removalBand(b(8, 20), PROBE, E)).toEqual(b(28.05, 50.4));
     expect(restartBand(b(8, 20), PROBE, s(0))).toEqual(b(28, 50));
     expect(stallRemovalBand(PROBE, E)).toEqual(b(21.05, 31.4));
+  });
+
+  it("ends the failures of a replica that cannot serve at the removal with the lame duck, and at the recovery after the heal without it", () => {
+    const chart = { period: s(2), threshold: 3, timeout: s(1) };
+    const keeps = { every: { value: 20, unit: "ms" }, timeout: s(2), connections: 8 };
+    // the lame duck: the latch closes each connection, then the rules select the replica until the removal, and one turn of 160 ms follows
+    expect(learnWindow(DESIGN, chart, E, keeps)).toEqual({ turn: s(0.16), latch: b(8, 18), start: b(0, 0.16), end: { from: "fault", band: b(8, 24.56) } });
+    // no lame duck: the connections stay, thus the failures end one turn after the readiness recovers (up to 6 s after the heal)
+    expect(learnWindow({ ...DESIGN, lameDuck: false }, chart, E, keeps).end).toEqual({ from: "heal", band: b(0, 6.16) });
+    // a new connection for each request: one turn is one interval
+    expect(learnWindow(DESIGN, chart, E, { every: keeps.every, timeout: s(2) }).turn).toEqual(s(0.02));
   });
 
   it("opens a deletion window only when the preStop sleep and the hold end before the propagation", () => {
@@ -114,6 +126,14 @@ describe("the fault mapping", () => {
     expect(planOf(cellOf("cpu-throttle")).heal).toEqual([{ do: "cpu", target: "server", max: "max 1000000" }]);
     expect(planOf(cellOf("app-stall")).inject).toEqual([{ do: "stall", target: "server", time: s(5) }]);
     expect(planOf(cellOf("liveness-restart")).inject).toEqual([{ do: "flag", target: "server", on: true }]);
+    const cannot = planOf(cellOf("cannot-serve"));
+    expect(cannot.prepare).toEqual([{ do: "signal", target: "clients", signal: "SIGHUP" }, { do: "wait", time: s(3) }]);
+    expect([cannot.inject, cannot.hold, cannot.heal, cannot.restore]).toEqual([
+      [{ do: "flag", target: "server", on: true }],
+      s(5),
+      [{ do: "flag", target: "server", on: false }],
+      [{ do: "flag", target: "server", on: false }],
+    ]);
     expect(planOf(cellOf("rollout", DESIGN, "T18")).heal).toEqual([{ do: "kubectl", args: ["-n", "{namespace}", "scale", "deployment/redis", "--replicas=1"] }]);
     expect(deletes(cellOf("rolling-update"))).toBe(true);
     expect(deletes(cellOf("crash"))).toBe(false);

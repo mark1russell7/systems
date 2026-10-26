@@ -66,9 +66,21 @@ export const probeOf = (path: string | null, probe: KubeletProbe, service?: stri
 /** This variable is the name of the pod, from the API: the service and grpc-go put it in their lines. */
 const POD_ENV = { name: "POD_NAME", valueFrom: { fieldRef: { fieldPath: "metadata.name" } } };
 
-/** This function gives the environment of the app: its config as JSON, and the name of its pod. */
+/**
+ * This function gives the environment of the app: its config as JSON, and the name of its pod. With
+ * `failsRoute`, the route fails while the flag file is there (`cannot-serve`).
+ */
 const appEnv = (cell: KindCell): Array<Record<string, unknown>> => [
-  { name: "CONFIG", value: JSON.stringify({ name: SERVER, port: PORT, healthPort: HEALTH_PORT, declaration: cell.declaration }) },
+  {
+    name: "CONFIG",
+    value: JSON.stringify({
+      name: SERVER,
+      port: PORT,
+      healthPort: HEALTH_PORT,
+      declaration: cell.declaration,
+      ...(cell.trigger.kind === "cannot-serve" ? { failsRoute: true } : {}),
+    }),
+  },
   POD_ENV,
 ];
 
@@ -234,6 +246,7 @@ export const clientObjects = (cell: KindCell, namespace: string, image: string, 
                 { name: "TARGET", value: target },
                 { name: "EVERY_MS", value: String(valueIn(cell.workload.every, "ms")) },
                 { name: "TIMEOUT_MS", value: String(valueIn(cell.workload.timeout, "ms")) },
+                ...(cell.workload.connections === undefined ? [] : [{ name: "CONNECTIONS", value: String(cell.workload.connections) }]),
                 { name: "POD_NAME", valueFrom: { fieldRef: { fieldPath: "metadata.name" } } },
                 { name: "NODE_NAME", valueFrom: { fieldRef: { fieldPath: "spec.nodeName" } } },
               ],

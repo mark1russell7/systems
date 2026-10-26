@@ -365,6 +365,15 @@ T18 is a health-gated fleet in kind (`src/t18.ts`): 3 replicas behind a Service,
 
 Kubernetes keeps its timers in real time, thus these cells are not compressed.
 
+## The S2 cells: how callers learn that a pod cannot serve
+
+The S2 cells (`src/callers.ts`, `CALLERS_CELLS`) measure the dimension "how callers learn that a pod cannot serve". One replica of 2 cannot serve for 30 s: a flag file fails its route with 503 and its readiness check (`cannot-serve`). The cells measure when the callers stop getting errors, and how many requests fail.
+
+- **Two candidates, one cell.** `S2.T07.endpoints` (A) keeps each connection open, thus the endpoints alone tell the callers. `S2.T07.lame-duck` (B) is the service as it is: its edge sends `Connection: close` while it is not ready. The cells differ only in the field `lameDuck` of the declaration.
+- **Keep-alive clients** (`KEEP_ALIVE`, 8 connections for each client). kube-proxy selects a backend only for a new connection, and an established flow keeps its conntrack NAT. Thus a client with a new connection for each request cannot tell the candidates apart.
+- **The smallest scenario.** T07 in iptables only, 2 workers, 2 replicas, and the readiness probe of the chart (2 s, 3 times). The question is about the edge of the service, not about the mode.
+- **The predictions** (`learnWindow` of `@mark1russell7/kind`). B ends 8 s to 24.265 s after the fault: the latch, the probe, the propagation and one turn of 160 ms. A ends up to 6.16 s after the heal: the recovery of the readiness and one turn. Each why text gives the expected count of failed requests.
+
 ## The runner
 
 `CELLS=1 pnpm --filter @systems/cells test` starts the catalogs on `@mark1russell7/harness`. It needs Docker and privileged containers. The names of the cells start with their catalog: `T01`, `T03`, `T02`, `TOX`, `T12`, `CAL`, `WS` or `WST`. The name of a MongoDB cell starts with its cell of the plan, for example `T11.defaults.9`, and it names `mongodb-node-7.7`.

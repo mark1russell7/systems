@@ -56,6 +56,12 @@ export interface MountContext {
   readonly life: Lifecycle | null;
   /** This time is the knob `server_retry_after`: the `Retry-After` of each 503 of the handlers. */
   readonly retryAfter: Quantity;
+  /**
+   * This function tells if a response of a handler can keep its connection open, as the transport
+   * decides it. The decision is the option `keepAlive` or `life.keepAlive()`, while the intake is
+   * open. Without this function, a handler reads `life.keepAlive()`.
+   */
+  readonly keepAlive?: (() => boolean) | undefined;
 }
 
 /**
@@ -265,6 +271,8 @@ export const httpTransport = (server: Server, knobs: HttpKnobs, options: HttpTra
       return life;
     },
     retryAfter: knobs.server_retry_after,
+    // the option keepAlive decides for each handler too, thus a handled route does not close by itself
+    keepAlive: () => keepsAlive(),
   };
   let intakeOpen = true;
   let listenerOpen = server.listening;

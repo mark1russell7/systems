@@ -63,6 +63,9 @@ export type Stack = "service" | "grpc";
  * - `ztunnel-restart` deletes the ztunnel pod of each node with its grace. The DaemonSet makes a new pod on each node (T15).
  * - `certificate-expiry` keeps the calls of each client going for the hold. No act of the lab touches a
  *   connection. The lab reads the workload certificates of ztunnel at the fault and at the heal (T15).
+ * - `cannot-serve` makes the route of one replica fail while a flag file is there, for the hold. The
+ *   flag also fails the readiness check of the replica (`flag` of the declaration). Before the
+ *   fault, each client opens its connections again with SIGHUP, thus they spread over the replicas.
  * - `none` injects nothing: a calibration measures the path itself.
  */
 export type TriggerKind =
@@ -82,7 +85,8 @@ export type TriggerKind =
   | "authorization-policy"
   | "idle"
   | "ztunnel-restart"
-  | "certificate-expiry";
+  | "certificate-expiry"
+  | "cannot-serve";
 
 /**
  * A trigger is its kind and the settings of its fault. The parameter `A` is the form of an amount:
@@ -174,11 +178,18 @@ export interface Declaration {
   readonly flag: Gate | null;
   /** This watchdog of the event loop gates liveness: a tick later than the threshold fails it. Null declares no watchdog. */
   readonly watchdog: { readonly tick: Quantity; readonly threshold: Quantity } | null;
+  /**
+   * This flag is the lame-duck state of the HTTP edge. With true or no value, the edge sends
+   * `Connection: close` while the service is not ready, thus each caller opens a new connection.
+   * With false, the edge keeps each connection open, thus a caller learns only from the endpoints.
+   */
+  readonly lameDuck?: boolean | undefined;
 }
 
 /**
  * A workload is the clients: one pod on each node, each with requests to the ClusterIP. The HTTP client
- * opens a new connection for each request. The gRPC client sends each call on its one channel.
+ * opens a new connection for each request, or it keeps `connections` open. The gRPC client sends each
+ * call on its one channel.
  */
 export interface Workload {
   /** This time is the interval between two requests of one client. The clients do not wait for an answer. */
@@ -188,6 +199,11 @@ export interface Workload {
    * gRPC has no deadline at the defaults of grpc-js, thus the client cancels it at this time.
    */
   readonly timeout: Quantity;
+  /**
+   * This count is the keep-alive connections of each HTTP client. Each request goes on the next
+   * connection in turn. With no value, the client opens a new connection for each request.
+   */
+  readonly connections?: number | undefined;
 }
 
 /**

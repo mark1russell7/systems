@@ -149,6 +149,12 @@ export const CLOSE_LEAD: Quantity = { value: 2, unit: "s" };
 /** This time is how long each client calls on its new channel at the fault of a gap with `close`, before it closes it. */
 export const CHANNEL_USE: Quantity = { value: 5, unit: "s" };
 
+/**
+ * This time is between the SIGHUP of `cannot-serve` and its fault. Each client opens new connections
+ * at the signal, and the requests on its old connections end in this time (the timeout and 100 ms).
+ */
+export const SPREAD_LEAD: Quantity = { value: 3, unit: "s" };
+
 const IPV4 = /^(25[0-5]|2[0-4]\d|1?\d?\d)(\.(25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
 
 /**
@@ -392,6 +398,16 @@ export const planOf = (cell: KindCell): FaultPlan => {
         hold: needs(trigger.hold, "a hold, the time past the lifetime of the certificates"),
         heal: [{ do: "certificates" }],
         restore: [],
+      };
+    case "cannot-serve":
+      // each client opens its connections again before the fault, thus they spread over the replicas
+      // in each run. The flag fails the route and the readiness of the target. The heal removes it
+      return {
+        prepare: [{ do: "signal", target: "clients", signal: "SIGHUP" }, { do: "wait", time: SPREAD_LEAD }],
+        inject: [{ do: "flag", target: "server", on: true }],
+        hold: needs(trigger.hold, "a hold, the time that the replica cannot serve"),
+        heal: [{ do: "flag", target: "server", on: false }],
+        restore: [{ do: "flag", target: "server", on: false }],
       };
   }
 };

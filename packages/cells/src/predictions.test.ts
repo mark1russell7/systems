@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ALL } from "./all.ts";
+import { CALLERS_CELLS } from "./callers.ts";
 import { HZ } from "./catalog.ts";
 import { T07_GRPC } from "./grpc/t07.ts";
 import { T15_GRPC } from "./grpc/t15.ts";
@@ -22,6 +23,7 @@ const CATALOGS: Readonly<Record<string, ReadonlyArray<{ readonly name: string; r
   T18_CELLS,
   T07_GRPC,
   T15_GRPC,
+  CALLERS_CELLS,
 };
 
 /** one line for each cell, its catalog and name, then its prediction: a change of one prediction is a change of one line */

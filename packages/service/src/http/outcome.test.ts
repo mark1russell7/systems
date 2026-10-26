@@ -312,6 +312,15 @@ describe("handle: a request of node:http through life.request", () => {
     expect([answer.status, answer.headers.get("retry-after"), answer.headers.get("connection")]).toEqual([503, "3", "close"]);
   });
 
+  it("keeps the connection of a refusal while the option keepAlive of the transport keeps it", async () => {
+    const server = new FakeServer();
+    const transport = httpTransport(server.asServer, KNOBS, { listen: { port: 1 }, keepAlive: () => true });
+    transport.mount(handle("api", "GET /work", () => "x"));
+    await transport.start(new AbortController().signal, lifeOf(() => "the service is not ready", false));
+    const answer = await server.request("/work");
+    expect([answer.status, answer.headers.get("retry-after"), answer.headers.get("connection")]).toEqual([503, "3", undefined]);
+  });
+
   it("refuses each request before the start of the transport, with 503 and Retry-After", async () => {
     const res = new FakeResponse(new FakeSocket());
     const handler = handle("api", "GET /work", () => "x");

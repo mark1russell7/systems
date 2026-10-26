@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { KindCell } from "./cell.ts";
 import { KUBE_PROBE, cellOf } from "./cells.fixture.ts";
-import { probeOf, serverObjects } from "./manifests.ts";
+import { clientObjects, probeOf, serverObjects } from "./manifests.ts";
 
 /** This function gives the container of the server of a cell. */
 const containerOf = (cell: KindCell): Record<string, unknown> => {
@@ -35,5 +35,26 @@ describe("the manifests of the stack grpc", () => {
       expect(container["livenessProbe"], kind).toMatchObject({ grpc: { port: 8080 } });
       expect((container["livenessProbe"] as { grpc: object }).grpc, kind).not.toHaveProperty("service");
     }
+  });
+});
+
+describe("the manifests of cannot-serve", () => {
+  type Env = Array<{ name: string; value?: string }>;
+  const envOf = (objects: unknown[], index: number): Env =>
+    (objects[index] as { spec: { template: { spec: { containers: Array<{ env: Env }> } } } }).spec.template.spec.containers[0]!.env;
+  const configOf = (cell: KindCell): Record<string, unknown> =>
+    JSON.parse(envOf(serverObjects(cell, "lab-ns", "lab:test"), 1).find((entry) => entry.name === "CONFIG")!.value!) as Record<string, unknown>;
+
+  it("tells the app to fail its route at the flag, and gives the lame duck of the declaration", () => {
+    const cell = cellOf("cannot-serve", { ...cellOf("cannot-serve").declaration!, lameDuck: false });
+    expect(configOf(cell)).toMatchObject({ failsRoute: true, declaration: { lameDuck: false } });
+    // each other trigger keeps its config as it was
+    expect(configOf(cellOf("liveness-restart"))).not.toHaveProperty("failsRoute");
+  });
+
+  it("gives each client its count of keep-alive connections, or no count", () => {
+    const keeps: KindCell = { ...cellOf("cannot-serve"), workload: { ...cellOf("cannot-serve").workload, connections: 8 } };
+    expect(envOf(clientObjects(keeps, "lab-ns", "lab:test", "10.96.0.10:8080"), 0)).toContainEqual({ name: "CONNECTIONS", value: "8" });
+    expect(envOf(clientObjects(cellOf("cannot-serve"), "lab-ns", "lab:test", "10.96.0.10:8080"), 0).map((entry) => entry.name)).not.toContain("CONNECTIONS");
   });
 });

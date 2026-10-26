@@ -53,7 +53,8 @@ const redis =
         { clock, record },
       );
 
-// the flag file fails the check of the liveness restart: the agent writes it in the root of the container
+// the flag file fails the check of the liveness restart: the agent writes it in the root of the container.
+// With failsRoute of the config (cannot-serve), the flag also fails the route
 const FLAG = process.env.LAB_FLAG ?? "/tmp/lab-fail";
 const flag = () => (existsSync(FLAG) ? "error" : "ok");
 
@@ -68,7 +69,10 @@ const KNOBS = { server_idle_close: s(6), server_idle_sweep_interval: s(1), serve
 // service is not ready
 const server = http.createServer();
 server.on("listening", () => say({ ev: "app", what: "listening", port: config.port }));
-const transport = httpTransport(server, KNOBS, { listen: { port: config.port }, clock });
+// lameDuck false of the declaration keeps each connection open while the service is not ready: then a
+// caller learns only from the endpoints (the candidate A of S2). The default is the lame duck
+const edge = declaration.lameDuck === false ? { keepAlive: () => true } : {};
+const transport = httpTransport(server, KNOBS, { listen: { port: config.port }, clock, ...edge });
 // each request of the port is the one route. A failure of the route answers 503, as the lab always
 // did: the T07 and T18 cells count the 503s, and T18 predicts them while Redis is down. Each 503 gets
 // Retry-After from the rule of the transport
@@ -77,6 +81,7 @@ transport.mount(
     CONTROLLER,
     () => ROUTE,
     async (_req, signal) => {
+      if (config.failsRoute === true && existsSync(FLAG)) throw new Error("the replica cannot serve");
       if (redis !== undefined) {
         const sent = await redis.send("GET", ["lab"], { signal });
         if (sent.outcome !== "ok") throw new Error(`redis ${sent.outcome}: ${sent.error}`);
