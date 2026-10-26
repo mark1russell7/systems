@@ -10,6 +10,7 @@ import { fakeClock } from "../testing.ts";
 import { WS_CLIENT_MACHINE, WS_CLIENT_STARTING_KNOBS, WS_CLIENT_STARTING_MISSES, WS_CLIENT_STARTING_POLL, wsMeetings } from "../websocket.ts";
 import type { Attempt } from "./core.ts";
 import {
+  CATALOG_INTERVAL,
   STARTING_POLL,
   ageProblems,
   deadlineProblem,
@@ -22,6 +23,7 @@ import {
   retryBackoff,
   retryProblems,
   retrySchedule,
+  stepChecks,
   timeProblems,
   trackWithTimer,
   wholeProblems,
@@ -273,5 +275,41 @@ describe("the calls in flight, and the bound of the close (C10, principle 9)", (
     const stuck = withinBound(clock, 100, new Promise(() => {}));
     await clock.advance(100);
     expect(await stuck).toBe(false);
+  });
+});
+
+describe("the catalog of the checks of a client (B19)", () => {
+  const runs = {
+    "local-state": { ownConnection: true, run: () => "ok" as const },
+    "round-trip": { ownConnection: true, run: () => "ok" as const },
+    dial: { ownConnection: false, run: () => "ok" as const },
+  };
+  const named = (made: ReturnType<typeof stepChecks>) => made.map(([check]) => [check.name, check.gates, check.poll.interval.value]);
+
+  it("gives only the nominated steps without a catalog", () => {
+    expect(named(stepChecks("db", { poll: STARTING_POLL, steps: { "round-trip": "readiness" } }, runs))).toEqual([["db.round-trip", "readiness", 5]]);
+  });
+
+  it("gives each other step of the client as a check that gates nothing and polls each 30 s", () => {
+    const made = stepChecks("db", { poll: STARTING_POLL, steps: { "round-trip": "readiness" }, catalog: true }, runs);
+    expect(named(made)).toEqual([
+      ["db.local-state", null, 30],
+      ["db.round-trip", "readiness", 5],
+      ["db.dial", null, 30],
+    ]);
+    const other = made.find(([check]) => check.name === "db.dial")?.[0];
+    expect(other?.poll).toEqual({ ...STARTING_POLL, interval: CATALOG_INTERVAL });
+  });
+
+  it("uses a catalog poll that the options give", () => {
+    const poll = { interval: s(60), jitter: 0.1, timeout: s(4) };
+    const made = stepChecks("db", { poll: STARTING_POLL, steps: { dial: "liveness" }, catalog: poll }, runs);
+    expect(made.find(([check]) => check.name === "db.local-state")?.[0].poll).toEqual(poll);
+  });
+
+  it("fails for a nominated step that the client does not have", () => {
+    const options = { poll: STARTING_POLL, steps: { checkout: "readiness" as const }, catalog: true as const };
+    expect(() => stepChecks<"checkout" | "dial">("db", options, { dial: runs.dial })).toThrow("db: the nominated checks checkout are not in the catalog of the client (dial)");
+    expect(stepChecks<"checkout" | "dial">("db", { poll: STARTING_POLL, steps: { checkout: "readiness" } }, { dial: runs.dial })).toEqual([]);
   });
 });
