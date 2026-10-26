@@ -30,7 +30,7 @@ import {
   zeroProblems,
 } from "../client/core.ts";
 import type { Judge } from "../client/dial.ts";
-import { helloDial } from "../client/dial.ts";
+import { authority, helloDial, statusLineJudge } from "../client/dial.ts";
 import type { Dependency } from "../description.ts";
 import type { DependencyHandle } from "../lifecycle.ts";
 import type { Operation } from "../operation.ts";
@@ -170,19 +170,11 @@ export const agentOptions = (spec: HttpClientSpec): HttpAgentOptions => {
   };
 };
 
-/** This function gives the authority of a host and a port for a Host header. An IPv6 address goes in brackets. */
-const authority = (host: string, port: number): string => `${host.includes(":") ? `[${host}]` : host}:${port}`;
-
 /** This function gives the bytes of the dial: `OPTIONS *` with the Host header, and a close after the answer. */
 export const optionsRequest = (host: string, port: number): string => `OPTIONS * HTTP/1.1\r\nHost: ${authority(host, port)}\r\nConnection: close\r\n\r\n`;
 
 /** This judge reads the status line of the answer. Any status passes, because it tells that an HTTP server answered. */
-export const statusJudge: Judge = (received) => {
-  const end = received.indexOf("\r\n");
-  if (end < 0) return received.length > 8192 ? new Error("the answer has no status line in its first 8 KiB") : "more";
-  const line = received.toString("latin1", 0, end);
-  return /^HTTP\/1\.[01] \d{3}/.test(line) ? null : new Error(`the answer ${JSON.stringify(line)} is not an HTTP/1.1 status line`);
-};
+export const statusJudge: Judge = statusLineJudge(() => null);
 
 /** This dial function opens a TCP connection, sends `OPTIONS *`, and waits for the status line. It changes no state on the server. */
 export const httpDial: DialFn = (host, port, signal) => helloDial(optionsRequest(host, port), statusJudge)(host, port, signal);

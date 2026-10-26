@@ -13,6 +13,7 @@ import {
   inFlight,
   localStateCheck,
   message,
+  missesProblems,
   ms,
   notSent,
   operationTable,
@@ -115,8 +116,7 @@ export interface RedisClient extends Client<ClientStep, Join> {
 export const specProblems = (name: string, spec: RedisClientSpec): string[] => {
   const problems: string[] = [];
   const { knobs } = spec;
-  if (!Number.isInteger(spec.heartbeatMisses) || spec.heartbeatMisses < 1)
-    problems.push(`${name}'s watchdog closes the connection after ${spec.heartbeatMisses} misses, not a whole number above zero`);
+  problems.push(...missesProblems(name, spec.heartbeatMisses, "watchdog"));
   if (knobs.max_connection_age.value !== "infinite")
     problems.push(`${name} cannot replace its connection at an age: max_connection_age must be "infinite"`);
   problems.push(...timeProblems(name, knobs));

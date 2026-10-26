@@ -4,6 +4,8 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import * as backoffEntry from "./backoff.ts";
+import { retrySchedule } from "./client/core.ts";
+import { statusLineJudge } from "./client/dial.ts";
 import * as clockEntry from "./clock.ts";
 import * as heartbeatEntry from "./heartbeat.ts";
 import * as httpEntry from "./http.ts";
@@ -12,6 +14,7 @@ import * as root from "./index.ts";
 import * as limiterEntry from "./limiter.ts";
 import * as rabbitEntry from "./rabbitmq.ts";
 import * as redisEntry from "./redis.ts";
+import * as wsEntry from "./websocket.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -77,7 +80,7 @@ const reachAll = (entry: string, from = here): string[] => {
 
 describe("zod is an optional peer: no entry of the service loads it (SYS-12)", () => {
   it("reaches no zod from any entry, through quantity and the replay of the algebra too", () => {
-    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "clock.ts", "heartbeat.ts", "backoff.ts", "limiter.ts"])
+    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "websocket.ts", "clock.ts", "heartbeat.ts", "backoff.ts", "limiter.ts"])
       expect(reachAll(entry), entry).not.toContain("zod");
     // the root loads no other package and no node: module at run time
     expect(reachAll("index.ts")).toEqual([]);
@@ -86,17 +89,18 @@ describe("zod is an optional peer: no entry of the service loads it (SYS-12)", (
     expect(reachAll(schema.slice(dirname(schema).length + 1), dirname(schema))).toContain("zod");
   });
 
-  it("marks zod optional in the manifest, beside amqplib, ioredis, pg and mongodb", () => {
+  it("marks zod optional in the manifest, beside amqplib, ioredis, pg, mongodb and ws", () => {
     const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
       peerDependencies: Record<string, string>;
       peerDependenciesMeta: Record<string, { optional?: boolean }>;
     };
-    expect(Object.keys(manifest.peerDependencies).sort()).toEqual(["amqplib", "ioredis", "mongodb", "pg", "zod"]);
+    expect(Object.keys(manifest.peerDependencies).sort()).toEqual(["amqplib", "ioredis", "mongodb", "pg", "ws", "zod"]);
     expect(manifest.peerDependenciesMeta).toEqual({
       amqplib: { optional: true },
       ioredis: { optional: true },
       mongodb: { optional: true },
       pg: { optional: true },
+      ws: { optional: true },
       zod: { optional: true },
     });
   });
@@ -201,6 +205,34 @@ describe("the http-client entry: node:http is a built-in, loaded only at the con
   it("gives no function of the server edge, and the server edge gives none of the client", () => {
     for (const name of Object.keys(httpEntry)) expect(httpClientEntry, name).not.toHaveProperty(name);
     expect(httpEntry).not.toHaveProperty("httpClient");
+  });
+});
+
+describe("the websocket entry: ws is an optional peer, loaded only at the connect", () => {
+  it("loads no ws at its import, and no node: module other than node:net", () => {
+    const { packages } = reach("websocket.ts");
+    expect(packages).not.toContain("ws");
+    expect(packages.filter((name) => name.startsWith("node:"))).toEqual(["node:net"]);
+    expect(packages.filter((name) => !name.startsWith("node:"))).toEqual(["@mark1russell7/quantity"]);
+  });
+
+  it("does not load the fakes of its tests", () => {
+    expect(reach("websocket.ts").files.filter((file) => file.includes("fake"))).toEqual([]);
+  });
+
+  it("is in the manifest, for the source and for npm", () => {
+    const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
+      exports: Record<string, string>;
+      publishConfig: { exports: Record<string, { types: string; default: string }> };
+    };
+    expect(manifest.exports["./websocket"]).toBe("./src/websocket.ts");
+    expect(manifest.publishConfig.exports["./websocket"]).toEqual({ types: "./build/websocket.d.ts", default: "./build/websocket.js" });
+  });
+
+  it("shares the backoff of the core with the rabbitmq entry, and the judge of a status line with the http-client entry", () => {
+    expect(wsEntry.retryBackoff).toBe(rabbitEntry.retryBackoff);
+    expect(wsEntry.retrySchedule).toBe(retrySchedule);
+    expect(wsEntry.statusLineJudge).toBe(statusLineJudge);
   });
 });
 

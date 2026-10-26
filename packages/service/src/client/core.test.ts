@@ -6,6 +6,7 @@ import { RABBIT_CLIENT_MACHINE, RABBIT_STARTING_KNOBS, RABBIT_STARTING_POLL, rab
 import type { RedisKnobs } from "../redis.ts";
 import { REDIS_CLIENT_MACHINE, meetings } from "../redis.ts";
 import { fakeClock } from "../testing.ts";
+import { WS_CLIENT_MACHINE, WS_CLIENT_STARTING_KNOBS, WS_CLIENT_STARTING_MISSES, WS_CLIENT_STARTING_POLL, wsMeetings } from "../websocket.ts";
 import type { Attempt } from "./core.ts";
 import {
   STARTING_POLL,
@@ -14,10 +15,12 @@ import {
   idleCloseProblem,
   inFlight,
   keepaliveOnProblems,
+  missesProblems,
   poolProblems,
   readyWait,
   retryBackoff,
   retryProblems,
+  retrySchedule,
   timeProblems,
   trackWithTimer,
   wholeProblems,
@@ -25,6 +28,7 @@ import {
   wrapperTimerProblems,
   zeroProblems,
 } from "./core.ts";
+import { authority, statusLineJudge } from "./dial.ts";
 import { CLIENT_EVENTS } from "./machine.ts";
 import { MANIFESTATIONS, WHAT } from "./meets.ts";
 
@@ -55,6 +59,7 @@ describe("the core of the clients: one vocabulary for each client", () => {
       mongoMeetings("docs", MONGO_STARTING_KNOBS),
       rabbitMeetings("mq", RABBIT_STARTING_KNOBS),
       httpClientMeetings("api", HTTP_CLIENT_STARTING_KNOBS),
+      wsMeetings("feed", WS_CLIENT_STARTING_KNOBS, WS_CLIENT_STARTING_MISSES),
     ]) {
       expect(meets.map((meeting) => meeting.manifestation)).toEqual([...MANIFESTATIONS]);
       for (const meeting of meets)
@@ -63,15 +68,16 @@ describe("the core of the clients: one vocabulary for each client", () => {
   });
 
   it("declares the events of the core in the machine document of each client", () => {
-    for (const machine of [REDIS_CLIENT_MACHINE, PG_CLIENT_MACHINE, MONGO_CLIENT_MACHINE, RABBIT_CLIENT_MACHINE, HTTP_CLIENT_MACHINE])
+    for (const machine of [REDIS_CLIENT_MACHINE, PG_CLIENT_MACHINE, MONGO_CLIENT_MACHINE, RABBIT_CLIENT_MACHINE, HTTP_CLIENT_MACHINE, WS_CLIENT_MACHINE])
       for (const event of CLIENT_EVENTS) expect(machine.events, `${machine.id} ${event}`).toHaveProperty([event]);
   });
 
-  it("gives one starting poll, which the pg, mongodb, rabbitmq and http-client entries give by their own names too", () => {
+  it("gives one starting poll, which the pg, mongodb, rabbitmq, http-client and websocket entries give by their own names too", () => {
     expect(PG_STARTING_POLL).toBe(STARTING_POLL);
     expect(MONGO_STARTING_POLL).toBe(STARTING_POLL);
     expect(RABBIT_STARTING_POLL).toBe(STARTING_POLL);
     expect(HTTP_CLIENT_STARTING_POLL).toBe(STARTING_POLL);
+    expect(WS_CLIENT_STARTING_POLL).toBe(STARTING_POLL);
   });
 
   it("gives the backoff of the tries to connect from retry_base and retry_cap (redis and rabbitmq)", () => {
@@ -117,6 +123,53 @@ describe("the core of the clients: one vocabulary for each client", () => {
     expect(idleCloseProblem("x", s(4), never)).toBeNull();
     expect(idleCloseProblem("x", s(6), s(6))).toMatch(/pool_idle_expiry is not below the idle close of its server.*\(O01\)$/);
     expect(idleCloseProblem("x", never, s(6))).not.toBeNull();
+  });
+});
+
+describe("the schedule of the tries to connect (rabbitmq and websocket)", () => {
+  it("counts each try, waits for its delay, stops a try that waits, and starts again at a reset", async () => {
+    const clock = fakeClock(0);
+    const retries = retrySchedule(clock, retryBackoff({ retry_base: ms(100), retry_cap: ms(400) }), () => 0.5);
+    const due: Array<[number, number]> = [];
+    const schedule = (): void => retries.schedule(() => due.push([clock.now(), retries.tries]));
+    schedule();
+    await clock.advance(150);
+    schedule();
+    await clock.advance(250);
+    // a second schedule stops the try that waits
+    schedule();
+    schedule();
+    await clock.advance(1000);
+    expect(due).toEqual([
+      [150, 1],
+      [400, 2],
+      [850, 4],
+    ]);
+    retries.reset();
+    schedule();
+    retries.cancel();
+    await clock.advance(1000);
+    expect(due).toHaveLength(3);
+    expect(retries.tries).toBe(1);
+  });
+});
+
+describe("the problems and the dial parts that more than one client shares", () => {
+  it("refuses a count of misses that is not a whole number above zero (redis and websocket)", () => {
+    expect(missesProblems("x", 1, "watchdog")).toEqual([]);
+    expect(missesProblems("x", 0, "watchdog")).toEqual(["x's watchdog closes the connection after 0 misses, not a whole number above zero"]);
+    expect(missesProblems("x", 1.5, "heartbeat")).toEqual(["x's heartbeat closes the connection after 1.5 misses, not a whole number above zero"]);
+  });
+
+  it("judges an HTTP/1.1 status line, and gives the status to the rule of the client (http-client and websocket)", () => {
+    const only101 = statusLineJudge((status) => (status === 101 ? null : new Error(`status ${status}`)));
+    expect(only101(Buffer.from("HTTP/1.1 101 Switching Protocols\r\n"))).toBeNull();
+    expect(String(only101(Buffer.from("HTTP/1.0 200 OK\r\n")))).toBe("Error: status 200");
+    expect(only101(Buffer.from("HTTP/1.1"))).toBe("more");
+    expect(String(only101(Buffer.alloc(8193, 65)))).toBe("Error: the answer has no status line in its first 8 KiB");
+    expect(String(only101(Buffer.from("SSH-2.0\r\n")))).toBe('Error: the answer "SSH-2.0" is not an HTTP/1.1 status line');
+    expect(authority("::1", 80)).toBe("[::1]:80");
+    expect(authority("api", 8080)).toBe("api:8080");
   });
 });
 

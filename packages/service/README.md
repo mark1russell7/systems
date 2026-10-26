@@ -579,13 +579,31 @@ const life = await app.run(); // the process exits after SIGTERM, with 0 or 1
 - **The close.** At the shutdown, the client waits for its calls in flight. At its `close_bound`, it destroys each socket of the agent, and each call that stays is indeterminate.
 - **The manifestations and the machine.** `meets` lists the manifestations and their detectors. `HTTP_CLIENT_MACHINE` is the client as a `mark1russell7.machine/1` document, and the tests replay the client against it.
 
+## The WebSocket client
+
+`@mark1russell7/service/websocket` is the WebSocket client of the service, over ws 8. This entry is a part of S6. The peer dependency ws is optional. The client loads it only when it connects.
+
+- **The declaration.** `wsClient(name, spec)` declares `connect_bound`, `request_timeout`, `heartbeat_interval`, `heartbeat_timeout`, `retry_base`, `retry_cap`, `keepalive_idle`, `max_connection_age`, `close_bound` and `retrans_giveup_time`. The client derives `heartbeat_detection_time` and `idle_refresh_interval` (the heartbeat).
+- **The problems of a spec.** `specProblems` refuses a knob that ws cannot use. Examples are a zero heartbeat, a keepalive that is not a whole number of seconds, and a finite connection age. It also refuses a password: give the credentials in `headers`.
+- **The starting knobs.** `WS_CLIENT_STARTING_KNOBS`, `WS_CLIENT_STARTING_MISSES` and `WS_CLIENT_STARTING_POLL` are a declaration from the WS cells. Each value has its measured reason in its doc comment.
+- **A call.** A call is a request message until its reply, or a ping frame until its pong. WebSocket has no reply of its own, thus `replies` of the spec reads the id of a reply in a message. The client ends each call at `request_timeout`.
+- **Three outcomes.** `request(operation, { id, data })` and `ping()` give `ok`, `error` or `indeterminate`. A reply that carries an error is certain. A failed write, a timeout and the end of the generation are not certain. A call while the client is not ready did not leave the client.
+- **Messages with no reply.** `send(data)` writes a message, and it is not a call. `onMessage(listener)` gets each message that answers no request.
+- **Idempotency for each operation.** A message does not tell its idempotency. Thus the client sends again only an idempotent operation that its table names. `WS_OPERATIONS` names `ping`. The second send waits for a ready client.
+- **The heartbeat.** The client sends a ping frame at each `heartbeat_interval`, one at a time. After `heartbeatMisses` pings with no pong in `heartbeat_timeout`, `terminate()` destroys the socket.
+- **One generation.** The generation is one connection after its upgrade. At its end, the client connects again by itself, after a backoff from `retry_base` to `retry_cap`.
+- **The join.** At each generation, the client records the URL, the subprotocol and the ends of the socket (`joins`). WebSocket gives no id of a connection.
+- **The checks.** `checks({ poll, steps })` gives `local-state`, `round-trip` (a ping on the connection of the application) and `dial` (the upgrade GET on a new connection, which must get 101).
+- **The close.** At the shutdown, the client waits for its calls in flight, then it sends a close frame. At its `close_bound`, `terminate()` destroys the socket, and each call that stays is indeterminate.
+- **The manifestations and the machine.** `meets` lists the manifestations and their detectors. `WS_CLIENT_MACHINE` is the client as a `mark1russell7.machine/1` document, and the tests replay the client against it.
+
 ## Installation
 
 ```sh
 pnpm add @mark1russell7/service
 ```
 
-For the Redis client, the application also installs `ioredis@6`. For the PostgreSQL client, it installs `pg@8`. For the MongoDB client, it installs `mongodb@7`. For the RabbitMQ client, it installs `amqplib@2`. The HTTP client needs no other package.
+For the Redis client, the application also installs `ioredis@6`. For the PostgreSQL client, it installs `pg@8`. For the MongoDB client, it installs `mongodb@7`. For the RabbitMQ client, it installs `amqplib@2`. For the WebSocket client, it installs `ws@8`. The HTTP client needs no other package.
 
 The package uses [`@mark1russell7/quantity`](https://www.npmjs.com/package/@mark1russell7/quantity) for each amount. No entry of the service loads `zod` at run time, thus `zod` is an optional peer dependency. An application that validates amounts with the schemas of `quantity` installs `zod`.
 

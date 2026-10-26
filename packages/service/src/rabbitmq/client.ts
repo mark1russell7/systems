@@ -1,7 +1,5 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { quantity } from "@mark1russell7/quantity";
-import { backoffDelay } from "../backoff.ts";
-import type { Cancel } from "../clock.ts";
 import { realClock } from "../clock.ts";
 import type { Attempt, CheckOptions, Client, ClientJoin, ClientKnobs, ClientOptions, ClientSpec, ClientStep, DialFn, RetryKnobs, SendOptions, Sent } from "../client/core.ts";
 import {
@@ -21,6 +19,7 @@ import {
   readyWait,
   retryBackoff,
   retryProblems,
+  retrySchedule,
   roundTripCheck,
   sendWithReissue,
   socketEnds,
@@ -273,10 +272,9 @@ export const rabbitClient = (name: string, spec: RabbitClientSpec, options: Rabb
   // the generation of the channel that is open now, and the token of the open that is current
   let generation = 0;
   let token = 0;
-  // the index of the node of the next try, and the count of the tries since the last join
+  // the index of the node of the next try, and the tries since the last join
   let next = 0;
-  let tries = 0;
-  let retry: Cancel | null = null;
+  const retries = retrySchedule(clock, backoff, random);
   const joins: RabbitJoin[] = [];
   const flight = inFlight();
   const readied = readyWait(clock, () => status === "ready");
@@ -301,17 +299,12 @@ export const rabbitClient = (name: string, spec: RabbitClientSpec, options: Rabb
   };
 
   /** This function waits for the backoff of the next try, then opens a new generation on the next node. */
-  const scheduleRetry = (): void => {
-    tries += 1;
-    const delay = Math.round(backoffDelay(backoff, tries, random));
-    retry?.();
-    retry = clock.after(delay, () => {
-      retry = null;
+  const scheduleRetry = (): void =>
+    retries.schedule(() => {
       if (closing()) return;
-      record("retry.connect", "connecting", `try ${tries}, ${nodeOf(spec, next).host}:${nodeOf(spec, next).port}`);
+      record("retry.connect", "connecting", `try ${retries.tries}, ${nodeOf(spec, next).host}:${nodeOf(spec, next).port}`);
       void open();
     });
-  };
 
   /** This function ends the generation that is open. The calls in flight learn it after the rejections of amqplib, which can hold a reply code. */
   const lose = (on: string, detail: string): void => {
@@ -347,7 +340,7 @@ export const rabbitClient = (name: string, spec: RabbitClientSpec, options: Rabb
   const join = (c: RabbitConnection, ch: RabbitChannel, address: string): void => {
     connection = c;
     channel = ch;
-    tries = 0;
+    retries.reset();
     const ends = socketEnds(c.connection.stream);
     generation = joins.length + 1;
     const connectionName =
@@ -557,8 +550,7 @@ export const rabbitClient = (name: string, spec: RabbitClientSpec, options: Rabb
     async close() {
       if (status === "none" || closing()) return;
       record("close.request", "closing");
-      retry?.();
-      retry = null;
+      retries.cancel();
       // an open in flight is stale now: its connection is closed when it arrives
       token += 1;
       const c = connection;
