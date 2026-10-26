@@ -20,6 +20,7 @@ import type { Health, Runtime, StartOptions } from "./health.ts";
 import type { Limiter, LimiterSpec } from "./limiter/policy.ts";
 import { limiterProblems } from "./limiter/policy.ts";
 import { healthRuntime } from "./health.ts";
+import { logEvents } from "./logger.ts";
 import type {
   Components,
   DependencyHandle,
@@ -221,6 +222,23 @@ const shutdownProblems = (
   return problems;
 };
 
+/**
+ * This function gives the options with one recorder for the recorder and the logger of the options.
+ * Without a logger, it gives the same options.
+ */
+const withLogger = <O extends StartOptions>(options: O, description: ServiceDescription): O => {
+  if (options.logger === undefined) return options;
+  const given = options.record;
+  const log = logEvents(options.logger, description);
+  return {
+    ...options,
+    record: (event) => {
+      given?.(event);
+      log(event);
+    },
+  };
+};
+
 /** This function starts the composition of a service. */
 export const service = (name: string): ServiceBuilder => {
   if (name.trim().length === 0) throw new Error("a service needs a name");
@@ -279,10 +297,12 @@ export const service = (name: string): ServiceBuilder => {
     };
 
   /** This function makes the runtime of the declaration: its checks, and a watchdog for each spec. */
-  const makeRuntime = (
-    options: StartOptions,
-  ): { runtime: Runtime; description: ServiceDescription; stopPollers: () => void } => {
+  const makeRuntime = <O extends StartOptions>(
+    given: O,
+  ): { runtime: Runtime; description: ServiceDescription; stopPollers: () => void; options: O } => {
     const description = builder.describe();
+    // the logger is one sink of the stream of the recorder: each machine writes to both
+    const options = withLogger(given, description);
     const clock = options.clock ?? realClock;
     const dogs: Watchdog[] = [];
     const all = new Map(runs);
@@ -311,7 +331,7 @@ export const service = (name: string): ServiceBuilder => {
         stopPollers();
       },
     };
-    return { runtime, description, stopPollers };
+    return { runtime, description, stopPollers, options };
   };
 
   const builder: ServiceBuilder = {
@@ -664,7 +684,7 @@ export const service = (name: string): ServiceBuilder => {
         started = true;
         live = made.runtime;
         // the builder holds the lifecycle before the first transport starts
-        const ran = lifecycle(made.description, made.runtime, { ...components, stopPollers: made.stopPollers }, options, (given) => {
+        const ran = lifecycle(made.description, made.runtime, { ...components, stopPollers: made.stopPollers }, made.options, (given) => {
           life = given;
         });
         running = ran.started.then(() => ran);

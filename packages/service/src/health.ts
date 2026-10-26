@@ -4,6 +4,7 @@ import { realClock } from "./clock.ts";
 import type { Check, Gate, ServiceDescription } from "./description.ts";
 import type { MachineName, Recorder } from "./events.ts";
 import type { Latch, Result, Trace } from "./latch.ts";
+import type { Logger } from "./logger.ts";
 import { latch } from "./latch.ts";
 import type { HealthMetrics } from "./metrics.ts";
 import { meter } from "./metrics.ts";
@@ -19,6 +20,11 @@ export interface StartOptions {
   readonly forceFail?: readonly string[] | undefined;
   /** This function receives each transition of each machine of the runtime. */
   readonly record?: Recorder | undefined;
+  /**
+   * This logger receives each transition too, as a log entry with a level and fields (`logEvents`).
+   * Without it, the runtime writes no log, as before. For the console, give `consoleLogger()`.
+   */
+  readonly logger?: Logger | undefined;
   /**
    * This function can replace the function of a check, for example to add a delay to each call
    * (a seam for tests: a degraded dependency). It gives the function to use.

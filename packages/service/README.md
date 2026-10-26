@@ -81,6 +81,10 @@ The format of a description is `mark1russell7.service/1`.
 - **The hold.** The lifecycle holds its process from its start to its exit, through `ProcessPort.hold`, as a listening socket does. The hold is one timer of the event loop, and the exit releases it. The other timers of the runtime still do not keep the process alive (A14).
 - **Why the hold lasts to the exit.** A drain can wait on a timer that does not keep the process alive. Without the hold, Node then ends the process with the code 0 in the drain. The teardown and the declared exit code are then lost. Thus the hold does not end at the stop of the intake, and it is not a knob.
 - **The watchdog.** `svc.watchdog(spec)` declares a check on the event loop. A blocked loop delays each timer, thus a tick that comes late by more than the threshold fails the check. A liveness window then reads the wedge of the process.
+- **The logger.** `run({ logger })` and `start({ logger })` give each transition of the machines to a logger, as an entry with a level and fields. The logger is one sink of the same stream as `record` (`logEvents`).
+- **The levels.** Each step of the startup, each phase with its cap, its outcome and its duration, and the exit code are `info`. A phase at its cap is `warn`, and an error of the lifecycle is `error`. The polls are `debug`.
+- **The logger port.** A `Logger` has one method, `log(level, message, fields)`, thus an adapter to another logger is a few lines. `consoleLogger({ level })` writes to the console at `info` and above by default.
+- **No logger.** Without a logger, the runtime writes no log, as before. `testLogger()` of `@mark1russell7/service/testing` keeps each entry, thus a test can examine the log.
 
 ## The machines
 

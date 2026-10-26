@@ -223,11 +223,14 @@ try {
         .phase("drain", s(2))
         .onRepeatSignal("ignore")
         .cooperativeWindow(s(1));
-      const life = await exits.run({ clock: runClock, random: testing.seeded(1), process });
+      const logger = testing.testLogger();
+      const life = await exits.run({ clock: runClock, random: testing.seeded(1), process, logger });
       check(life.state === "running", "service runs its lifecycle");
       process.signal("SIGTERM");
       await runClock.advance(5000);
       check(process.exits.length === 1 && process.exits[0] === 0, "service shuts down in its phases on SIGTERM, and exits 0 one time");
+      check(logger.messages("info").at(-1) === "exits exited with the code 0", "service logs each stage of its lifecycle through its logger port");
+      check(typeof module.consoleLogger().log === "function", "service gives a console logger");
       check(module.MACHINES.gate.format === "mark1russell7.machine/1", "service gives its machines as documents");
       // the Redis client: ioredis is an optional peer, absent here, thus the subpath must import without it
       const redis = await load("@mark1russell7/service/redis");
