@@ -1,13 +1,5 @@
-import type { Machine, TransitionDef } from "@mark1russell7/algebra";
-
-const t = (id: string, from: string | readonly string[], on: string | readonly string[], to: string, extra: Partial<TransitionDef> = {}): TransitionDef => ({
-  id,
-  from,
-  on,
-  to,
-  ...extra,
-});
-const knob = (key: string) => ({ key, scope: "client", unit: "s", default: null }) as const;
+import type { Machine } from "@mark1russell7/algebra";
+import { clientKnob as knob, closeTimer, transition as t } from "../client/machine.ts";
 
 /** The states where the connection exists or tries to exist, thus where it can close. */
 const LIVE = ["connecting", "connect", "ready", "reconnecting"] as const;
@@ -89,12 +81,7 @@ export const REDIS_CLIENT_MACHINE: Machine = {
       fires: "heartbeat",
       note: "a PING on the connection of the application",
     },
-    close: {
-      duration: { knob: "close_bound", unit: "s" },
-      arms: ["close.request"],
-      cancels: ["status.end"],
-      fires: "close.bound",
-    },
+    close: closeTimer(),
   },
   transitions: [
     t("connect", ["none", "reconnecting", "end", "close"], "status.connecting", "connecting"),

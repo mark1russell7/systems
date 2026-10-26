@@ -2,11 +2,27 @@
 // It declares its knobs by the names of the ordering law, its queries with their idempotency, and
 // the manifestations that it can meet with their detectors. It gives the health runtime a check
 // for each step of its connection, and the lifecycle its bounded close. pg is an optional peer
-// dependency: the client loads it only when it connects.
+// dependency: the client loads it only when it connects. The parts that each client has come from
+// the core of the clients (`src/client/`), which the Redis entry uses too.
 
-export type { Attempt, CheckOptions, ClientStep, DialFn, SendOptions, Sent } from "./client/core.ts";
-export type { Detector, Meeting, Situation } from "./client/meets.ts";
-export { firstDetector, unwatched } from "./client/meets.ts";
+export type {
+  Attempt,
+  CheckOptions,
+  Client,
+  ClientJoin,
+  ClientKnobs,
+  ClientOptions,
+  ClientSocket,
+  ClientSpec,
+  ClientStep,
+  DialFn,
+  Factory,
+  SendOptions,
+  Sent,
+} from "./client/core.ts";
+export { STARTING_POLL } from "./client/core.ts";
+export type { Detector, Manifestation, Meeting, Situation } from "./client/meets.ts";
+export { MANIFESTATIONS, firstDetector, unwatched } from "./client/meets.ts";
 export type { PgClient, PgClientOptions, PgClientSpec, PgJoin, PgKnobs, PgStep } from "./pg/client.ts";
 export { pgClient, poolOptions, specProblems, sslRequestDial } from "./pg/client.ts";
 export type { PgPool, PgPoolClient, PgPoolOptions, PgResult, PgSocket, PoolFactory } from "./pg/connection.ts";

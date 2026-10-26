@@ -1,13 +1,5 @@
-import type { Machine, TransitionDef } from "@mark1russell7/algebra";
-
-const t = (id: string, from: string | readonly string[], on: string | readonly string[], to: string, extra: Partial<TransitionDef> = {}): TransitionDef => ({
-  id,
-  from,
-  on,
-  to,
-  ...extra,
-});
-const knob = (key: string) => ({ key, scope: "client", unit: "s", default: null }) as const;
+import type { Machine } from "@mark1russell7/algebra";
+import { clientKnob as knob, closeTimer, transition as t } from "../client/machine.ts";
 
 /** The states where the pool exists and serves. */
 const SERVING = ["connecting", "ready", "failing"] as const;
@@ -64,12 +56,7 @@ export const PG_CLIENT_MACHINE: Machine = {
       fires: "connect.failed",
       note: "pg-pool destroys the socket of the attempt: 'Connection terminated due to connection timeout'",
     },
-    close: {
-      duration: { knob: "close_bound", unit: "s" },
-      arms: ["close.request"],
-      cancels: ["status.end"],
-      fires: "close.bound",
-    },
+    close: closeTimer(),
   },
   transitions: [
     t("connect", "none", "status.connecting", "connecting"),

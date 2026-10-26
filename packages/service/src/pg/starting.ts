@@ -1,11 +1,12 @@
+import { STARTING_POLL } from "../client/core.ts";
 import type { Poll } from "../timing.ts";
 import type { PgKnobs } from "./client.ts";
 
 /**
- * This poll is the poll of the checks that `PG_STARTING_KNOBS` fits: each 5 s with a jitter of 20 %,
- * and a timeout of 4 s (B6, O12). Its slowest poll is 4 s + 5 s × 1.2 = 10 s, the slowest poll of the cells of O13.
+ * This poll is the poll of the checks that `PG_STARTING_KNOBS` fits. It is `STARTING_POLL` of the
+ * core: each 5 s with a jitter of 20 %, and a timeout of 4 s (B6, O12). The poll does not depend on the driver.
  */
-export const PG_STARTING_POLL: Poll = { interval: { value: 5, unit: "s" }, jitter: 0.2, timeout: { value: 4, unit: "s" } };
+export const PG_STARTING_POLL: Poll = STARTING_POLL;
 
 /**
  * These knobs are a declaration to start from, from what the cells of S1 measured on node-postgres

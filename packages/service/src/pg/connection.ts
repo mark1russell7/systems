@@ -1,12 +1,7 @@
-/** A pg socket is the part of the socket of a pg client that the join of the prober and the bounded close read. */
-export interface PgSocket {
-  readonly localAddress?: string | undefined;
-  readonly localPort?: number | undefined;
-  readonly remoteAddress?: string | undefined;
-  readonly remotePort?: number | undefined;
-  /** This method closes the socket at once. The end of a pg client only half-closes it, and a silent peer does not answer that. */
-  destroy?(): void;
-}
+import type { ClientSocket, Factory } from "../client/core.ts";
+
+/** A pg socket is the socket of a client in the core: the join of the prober and the bounded close read it. */
+export type PgSocket = ClientSocket;
 
 /** A query result is the part of a result of pg that the wrapper gives back. */
 export interface PgResult<Row = Record<string, unknown>> {
@@ -76,7 +71,7 @@ export interface PgPoolOptions {
 }
 
 /** A pool factory makes the pool of the client from its options. */
-export type PoolFactory = (options: PgPoolOptions) => PgPool | Promise<PgPool>;
+export type PoolFactory = Factory<PgPoolOptions, PgPool>;
 
 /**
  * This factory makes a `pg.Pool`. It loads pg only when a client connects, thus a service that does

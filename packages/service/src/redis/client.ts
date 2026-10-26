@@ -1,25 +1,37 @@
-import { connect as dialTcp } from "node:net";
 import type { Extent, Quantity } from "@mark1russell7/quantity";
-import { quantity, valueIn } from "@mark1russell7/quantity";
 import type { Backoff } from "../backoff.ts";
 import { backoffDelay } from "../backoff.ts";
-import type { ServiceBuilder } from "../builder.ts";
-import type { Cancel, Clock } from "../clock.ts";
+import type { Cancel } from "../clock.ts";
 import { realClock } from "../clock.ts";
-import type { CheckOptions, ClientStep, DialFn, SendOptions, Sent } from "../client/core.ts";
-import type { Check, Dependency, ServiceDescription } from "../description.ts";
-import type { Recorder } from "../events.ts";
+import type { Attempt, CheckOptions, Client, ClientJoin, ClientKnobs, ClientOptions, ClientSpec, ClientStep, DialFn, SendOptions, Sent } from "../client/core.ts";
+import {
+  attachClient,
+  clientBounds,
+  clientProblems,
+  clientRecorder,
+  dialCheck,
+  finiteMs,
+  inFlight,
+  localStateCheck,
+  message,
+  ms,
+  notSent,
+  operationTable,
+  roundTripCheck,
+  sendWithReissue,
+  socketEnds,
+  stepChecks,
+  timeProblems,
+  withinBound,
+} from "../client/core.ts";
+import { helloDial } from "../client/dial.ts";
+import type { Dependency } from "../description.ts";
 import type { Heartbeat } from "../heartbeat.ts";
 import { heartbeat } from "../heartbeat.ts";
-import type { Outcome } from "../latch.ts";
 import type { DependencyHandle } from "../lifecycle.ts";
-import type { Operation } from "../operation.ts";
-import { mayReissue } from "../operation.ts";
-import type { CheckFn } from "../poller.ts";
 import { heartbeatDetection } from "../timing.ts";
 import type { ConnectionFactory, RedisConnection, RedisConnectionOptions } from "./connection.ts";
 import { ioredis } from "./connection.ts";
-import type { Meeting } from "./meets.ts";
 import { meetings } from "./meets.ts";
 import { REDIS_OPERATIONS, commandName } from "./operations.ts";
 
@@ -29,17 +41,15 @@ export type { CheckOptions, ClientStep, DialFn, SendOptions, Sent } from "../cli
 /**
  * These are the knobs of the client, each a time, by the names of the ordering law where the law
  * has them. The runtime has no defaults, thus each knob is necessary, and a bound that nobody gives
- * is "infinite", not zero.
+ * is "infinite", not zero. The knobs that each client has come from the core.
  */
-export interface RedisKnobs {
+export interface RedisKnobs extends ClientKnobs {
   /** This time bounds a try to connect, until the TCP connection exists (`connectTimeout`). */
   readonly connect_bound: Quantity;
   /** This time bounds each command, the handshake commands too (`commandTimeout`). */
   readonly request_timeout: Quantity;
   /** This time destroys a socket that gives no data while a command waits (`socketTimeout`). */
   readonly driver_writeoff_time: Extent;
-  /** This time is the idle time of TCP keepalive. Node then sends 10 probes 1 s apart. */
-  readonly keepalive_idle: Extent;
   /** This time is the interval of the in-band watchdog: a PING on the connection of the application. */
   readonly heartbeat_interval: Extent;
   /** This time bounds each PING of the watchdog. */
@@ -54,37 +64,19 @@ export interface RedisKnobs {
   readonly close_bound: Quantity;
   /** This time is the age at which the client replaces its connection. The client supports only "infinite". */
   readonly max_connection_age: Extent;
-  /**
-   * This time is when the kernel gives up a segment that it retransmits. Node cannot set it, thus
-   * the declaration states it for the ordering law (O17), from the platform.
-   */
-  readonly retrans_giveup_time: Extent;
 }
 
 /** A Redis client spec is the declaration of one Redis client: where it connects, and its knobs. */
-export interface RedisClientSpec {
-  readonly host: string;
-  readonly port: number;
+export interface RedisClientSpec extends ClientSpec<RedisKnobs> {
   readonly db?: number | undefined;
   readonly username?: string | undefined;
-  readonly password?: string | undefined;
-  /** This identifier is the component in the corpus (`systems.component.redis`), or null. */
-  readonly system: string | null;
-  readonly knobs: RedisKnobs;
   /** This count is the number of PINGs in sequence without an answer that make the watchdog connect again. */
   readonly heartbeatMisses: number;
-  /** These operations add to the table of the client, or change it. */
-  readonly operations?: Readonly<Record<string, Operation>> | undefined;
 }
 
 /** These options make a client. Without them, it uses ioredis, the real clock and `Math.random`. */
-export interface RedisClientOptions {
-  readonly create?: ConnectionFactory | undefined;
-  readonly clock?: Clock | undefined;
+export interface RedisClientOptions extends ClientOptions<ConnectionFactory> {
   readonly random?: (() => number) | undefined;
-  /** This function receives each transition of the client, for the prober (D3). */
-  readonly record?: Recorder | undefined;
-  readonly dial?: DialFn | undefined;
   /**
    * This function waits one turn of the event loop. The watchdog waits it before it counts a miss,
    * thus a reply that is in the socket is read first. Without it, the client uses `setImmediate`.
@@ -97,35 +89,15 @@ export interface RedisClientOptions {
  * records to the server's view of the connection through it. A join holds the server's id of the
  * connection, and the local address and port of the socket.
  */
-export interface Join {
-  readonly generation: number;
-  /** This time is when the connection became ready, in milliseconds on the monotonic clock. */
-  readonly at: number;
+export interface Join extends ClientJoin {
   /** This number is the reply of CLIENT ID, or null when the server gave none. */
   readonly clientId: number | null;
-  readonly localAddress: string | null;
-  readonly localPort: number | null;
-  readonly remoteAddress: string | null;
-  readonly remotePort: number | null;
 }
 
-type Attempt =
-  | { readonly outcome: "ok"; readonly value: unknown }
-  | { readonly outcome: "error"; readonly error: string; readonly reply: boolean }
-  | { readonly outcome: "indeterminate"; readonly error: string };
-
 /** A Redis client is a dependency of a service: its declaration, its handle, its checks and its commands. */
-export interface RedisClient {
-  readonly name: string;
-  /** This declaration goes to `svc.dependency(name, declaration, handle)`. */
-  readonly declaration: Omit<Dependency, "name">;
-  readonly handle: DependencyHandle;
-  /** These are the manifestations that the client can meet, and the detector of each (E9). */
-  readonly meets: readonly Meeting[];
+export interface RedisClient extends Client<ClientStep, Join> {
   /** This text is the state of the connection, as ioredis names it, or "none" before the connect. */
   readonly status: string;
-  /** These are the generations of the connection, the latest last. */
-  readonly joins: readonly Join[];
   /**
    * This method sends a command, and gives its outcome in three values. The client sends again
    * only an idempotent operation, one time at most, after an outcome that is not certain. The
@@ -133,21 +105,7 @@ export interface RedisClient {
    * the table does not name.
    */
   send<T = unknown>(command: string, args?: ReadonlyArray<string | number>, options?: SendOptions): Promise<Sent<T>>;
-  /** This method gives the checks of the client and their functions, for `svc.check(check, run)`. */
-  checks(options: CheckOptions): ReadonlyArray<readonly [Check, CheckFn]>;
-  /** This method declares the client in a service: its dependency, its handle and its checks. */
-  attach(svc: ServiceBuilder, options: CheckOptions): ServiceBuilder;
-  /** This method gives the problems of the client in a description: a close that does not fit in its phase, for example. */
-  problems(description: ServiceDescription): string[];
 }
-
-const ms = (amount: Extent): number =>
-  amount.value === "infinite" ? Number.POSITIVE_INFINITY : valueIn(amount as Quantity, "ms");
-const finite = (amount: Extent): number | undefined => {
-  const value = ms(amount);
-  return Number.isFinite(value) ? value : undefined;
-};
-const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
 
 /**
  * This function gives the backoff of the tries to connect: from `retry_base`, doubling to
@@ -168,10 +126,7 @@ export const specProblems = (name: string, spec: RedisClientSpec): string[] => {
     problems.push(`${name}'s watchdog closes the connection after ${spec.heartbeatMisses} misses, not a whole number above zero`);
   if (knobs.max_connection_age.value !== "infinite")
     problems.push(`${name} cannot replace its connection at an age: max_connection_age must be "infinite"`);
-  for (const [knob, amount] of Object.entries(knobs) as Array<[string, Extent]>) {
-    if (amount.value !== "infinite" && !(ms(amount) >= 0))
-      problems.push(`${name}'s ${knob} is not a time of zero or more`);
-  }
+  problems.push(...timeProblems(name, knobs));
   if (ms(knobs.request_timeout) <= 0) problems.push(`${name}'s request_timeout is not above zero: each command must have a bound`);
   if (ms(knobs.heartbeat_timeout) <= 0) problems.push(`${name}'s heartbeat_timeout is not above zero`);
   if (ms(knobs.retry_cap) < ms(knobs.retry_base)) problems.push(`${name}'s retry_cap is below its retry_base`);
@@ -179,30 +134,11 @@ export const specProblems = (name: string, spec: RedisClientSpec): string[] => {
 };
 
 /** This dial function opens a TCP connection, sends an inline PING, and waits for +PONG. */
-export const tcpDial: DialFn = (host, port, signal) =>
-  new Promise((resolve, reject) => {
-    if (signal.aborted) {
-      reject(new Error("the dial was aborted"));
-      return;
-    }
-    const socket = dialTcp({ host, port });
-    let reply = "";
-    const end = (error?: Error): void => {
-      signal.removeEventListener("abort", onAbort);
-      socket.destroy();
-      if (error === undefined) resolve();
-      else reject(error);
-    };
-    const onAbort = (): void => end(new Error("the dial was aborted"));
-    signal.addEventListener("abort", onAbort, { once: true });
-    socket.once("connect", () => socket.write("PING\r\n"));
-    socket.on("data", (chunk) => {
-      reply += chunk.toString();
-      if (reply.includes("\r\n")) end(reply.startsWith("+PONG") ? undefined : new Error(`the reply was ${reply.trim()}`));
-    });
-    socket.once("error", (error) => end(error));
-    socket.once("close", () => end(new Error("the server closed the dial")));
-  });
+export const tcpDial: DialFn = helloDial("PING\r\n", (received) => {
+  const reply = received.toString();
+  if (!reply.includes("\r\n")) return "more";
+  return reply.startsWith("+PONG") ? null : new Error(`the reply was ${reply.trim()}`);
+});
 
 /**
  * This function makes a Redis client. It is a dependency of a service, with ioredis under it:
@@ -213,6 +149,9 @@ export const tcpDial: DialFn = (host, port, signal) =>
  * - It records the server's id of each connection at `ready` (D1).
  * - A watchdog sends a PING in the band of the connection, and it connects again after the misses
  *   of the declaration. It also starts a client that stopped (principle 19).
+ *
+ * The outcomes, the second try, the commands in flight, the bounded close and the checks come
+ * from the core of the clients. This entry gives what ioredis does in its own way.
  */
 export const redisClient = (name: string, spec: RedisClientSpec, options: RedisClientOptions = {}): RedisClient => {
   const problems = specProblems(name, spec);
@@ -223,7 +162,7 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
   const create = options.create ?? ioredis;
   const dial = options.dial ?? tcpDial;
   const turn = options.turn ?? (() => new Promise<void>((resolve) => setImmediate(resolve)));
-  const operations: Readonly<Record<string, Operation>> = { ...REDIS_OPERATIONS, ...spec.operations };
+  const operations = operationTable(REDIS_OPERATIONS, spec.operations);
   const requestTimeout = ms(knobs.request_timeout);
   const detection = heartbeatDetection(knobs.heartbeat_interval, knobs.heartbeat_timeout, spec.heartbeatMisses);
   const backoff = retryBackoff(knobs);
@@ -233,12 +172,11 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
   let closing = false;
   const joins: Join[] = [];
   // the commands that the client wrote while the connection was ready: a close settles each one
-  const inFlight = new Set<(attempt: Attempt) => void>();
+  const flight = inFlight();
   const readyWaiters = new Set<() => void>();
   const listeners: Array<[string, (...args: unknown[]) => void]> = [];
 
-  const record = (from: string, to: string, on: string, detail?: string): void =>
-    options.record?.({ at: clock.now(), machine: "client", instance: name, from, to, on, ...(detail === undefined ? {} : { detail }) });
+  const record = clientRecorder(options.record, clock, name);
 
   // the delays of the tries to connect (`retryBackoff`), and none after the retry window. The
   // watchdog starts the client again after that
@@ -262,8 +200,9 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
     lazyConnect: true,
     connectTimeout: ms(knobs.connect_bound),
     commandTimeout: requestTimeout,
-    socketTimeout: finite(knobs.driver_writeoff_time),
-    keepAlive: finite(knobs.keepalive_idle) ?? false,
+    // ioredis reads undefined as no socket timeout, and false as no keepalive
+    socketTimeout: finiteMs(knobs.driver_writeoff_time),
+    keepAlive: finiteMs(knobs.keepalive_idle) ?? false,
     enableOfflineQueue: false,
     autoResendUnfulfilledCommands: false,
     maxRetriesPerRequest: null,
@@ -276,7 +215,7 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
   const failed = (error: unknown): Attempt => {
     const text = message(error);
     if (error instanceof Error && error.name === "ReplyError") return { outcome: "error", error: text, reply: true };
-    if (/isn't writeable|enableOfflineQueue/i.test(text)) return { outcome: "error", error: text, reply: false };
+    if (/isn't writeable|enableOfflineQueue/i.test(text)) return notSent(text);
     return { outcome: "indeterminate", error: text };
   };
 
@@ -297,15 +236,7 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
     }
     // a connection that closed before its reply is a generation that never served
     if (connection !== c || c.status !== "ready") return;
-    joins.push({
-      generation,
-      at,
-      clientId,
-      localAddress: socket?.localAddress ?? null,
-      localPort: socket?.localPort ?? null,
-      remoteAddress: socket?.remoteAddress ?? null,
-      remotePort: socket?.remotePort ?? null,
-    });
+    joins.push({ generation, at, clientId, ...socketEnds(socket) });
     record("ready", "ready", "join", `generation ${generation}, client id ${clientId ?? "unknown"}`);
     for (const wake of [...readyWaiters]) wake();
   };
@@ -314,10 +245,8 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
     const from = status;
     status = to;
     record(from, to, `status.${to}`);
-    if (to === "close" || to === "end") {
-      // the lower layer gave up the connection: each command in flight learns it now (C10)
-      for (const settle of [...inFlight]) settle({ outcome: "indeterminate", error: `the connection closed with the command in flight (${from})` });
-    }
+    // the lower layer gave up the connection: each command in flight learns it now (C10)
+    if (to === "close" || to === "end") flight.settleAll(`the connection closed with the command in flight (${from})`);
     if (to === "ready") void onReady();
   };
 
@@ -356,22 +285,11 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
 
   const attempt = (command: string, args: ReadonlyArray<string | number>, signal?: AbortSignal): Promise<Attempt> => {
     const c = connection;
-    if (c === null) return Promise.resolve({ outcome: "error", error: `${name} has not connected`, reply: false });
-    if (c.status !== "ready") return Promise.resolve({ outcome: "error", error: `${name} is ${c.status}, not ready: the command did not leave the client`, reply: false });
-    if (signal?.aborted) return Promise.resolve({ outcome: "error", error: "the caller aborted the command before it left the client", reply: false });
-    return new Promise<Attempt>((resolve) => {
-      let settled = false;
-      const settle = (value: Attempt): void => {
-        if (settled) return;
-        settled = true;
-        inFlight.delete(settle);
-        signal?.removeEventListener("abort", aborted);
-        resolve(value);
-      };
-      // a sent command cannot be cancelled: the caller abandons it, and its outcome is not known (principle 9)
-      const aborted = (): void => settle({ outcome: "indeterminate", error: "the caller abandoned the command after it was sent" });
-      inFlight.add(settle);
-      signal?.addEventListener("abort", aborted, { once: true });
+    if (c === null) return Promise.resolve(notSent(`${name} has not connected`));
+    // ioredis has no offline queue here: a command while the client is not ready fails at once, before it leaves the client
+    if (c.status !== "ready") return Promise.resolve(notSent(`${name} is ${c.status}, not ready: the command did not leave the client`));
+    if (signal?.aborted) return Promise.resolve(notSent("the caller aborted the command before it left the client"));
+    return flight.track(signal, "the caller abandoned the command after it was sent", (settle) => {
       c.call(command, ...args).then(
         (value) => settle({ outcome: "ok", value }),
         (error: unknown) => settle(failed(error)),
@@ -379,31 +297,17 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
     });
   };
 
-  const send = async <T>(command: string, args: ReadonlyArray<string | number> = [], sendOptions: SendOptions = {}): Promise<Sent<T>> => {
-    const { signal } = sendOptions;
-    const operation = sendOptions.reissue === false ? undefined : operations[commandName(command, args)];
-    const started = clock.now();
-    const first = await attempt(command, args, signal);
-    if (first.outcome === "ok") return { outcome: "ok", value: first.value as T, attempts: 1 };
-    // a reply of the server is final, and an operation that the table does not name is never sent again
-    const again =
-      !(first.outcome === "error" && first.reply) &&
-      operation !== undefined &&
-      signal?.aborted !== true &&
-      mayReissue(operation, quantity((clock.now() - started) / 1000, "s"));
-    const left = requestTimeout - (clock.now() - started);
-    if (!again || left <= 0 || !(await waitReady(left, signal))) return { ...first, attempts: 1 };
-    record(status, status, "command.reissue", commandName(command, args));
-    // the second attempt ends at the bound of the request, not one command timeout after it starts
-    const bound = new AbortController();
-    const end = clock.after(Math.max(0, requestTimeout - (clock.now() - started)), () => bound.abort());
-    const forward = (): void => bound.abort();
-    signal?.addEventListener("abort", forward, { once: true });
-    const second = await attempt(command, args, bound.signal);
-    end();
-    signal?.removeEventListener("abort", forward);
-    return second.outcome === "ok" ? { outcome: "ok", value: second.value as T, attempts: 2 } : { ...second, attempts: 2 };
-  };
+  const send = <T>(command: string, args: ReadonlyArray<string | number> = [], sendOptions: SendOptions = {}): Promise<Sent<T>> =>
+    sendWithReissue({
+      clock,
+      bound: requestTimeout,
+      operation: operations[commandName(command, args)],
+      options: sendOptions,
+      attempt: (signal) => attempt(command, args, signal) as Promise<Attempt<T>>,
+      // ioredis connects again by itself: the second try waits for a ready connection, in the time that is left
+      beforeAgain: (left, signal) => waitReady(left, signal),
+      onReissue: () => record(status, status, "command.reissue", commandName(command, args)),
+    });
 
   // the watchdog: a heartbeat of PINGs on the connection of the application, each interval from the
   // start of the one before. A reply, an error reply too, is an answer. It waits one turn of the
@@ -461,18 +365,8 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
       const c = connection;
       if (c === null) return;
       // a QUIT lets the replies in flight arrive. A silent server never answers it, thus the close has its bound
-      const quit = c.quit().then(
-        () => "quit" as const,
-        () => "quit" as const,
-      );
-      let cancel: Cancel = () => {};
-      const bound = new Promise<"bound">((resolve) => {
-        cancel = clock.after(ms(knobs.close_bound), () => resolve("bound"));
-      });
       const startedClose = clock.now();
-      const first = await Promise.race([quit, bound]);
-      cancel();
-      if (first === "bound") record(status, status, "close.bound");
+      if (!(await withinBound(clock, ms(knobs.close_bound), c.quit()))) record(status, status, "close.bound");
       // a client that is not ready refuses the QUIT at once, and it would connect again: the close stops it
       if (c.status !== "end") c.disconnect(false);
       // ioredis is at `end` when its socket closes, a moment after the reply: the close waits for it, in its bound
@@ -498,7 +392,7 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
       }
       for (const [event, listener] of listeners) c.off(event, listener);
       listeners.length = 0;
-      for (const settle of [...inFlight]) settle({ outcome: "indeterminate", error: "the client closed with the command in flight" });
+      flight.settleAll("the client closed with the command in flight");
       status = "end";
     },
   };
@@ -523,30 +417,15 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
     operations,
   };
 
-  const checks = (checkOptions: CheckOptions): ReadonlyArray<readonly [Check, CheckFn]> => {
-    const made: Array<readonly [Check, CheckFn]> = [];
-    const declare = (step: ClientStep, ownConnection: boolean, run: CheckFn): void => {
-      if (!(step in checkOptions.steps)) return;
-      made.push([
-        { name: `${name}.${step}`, dependency: name, step, ownConnection, gates: checkOptions.steps[step] ?? null, poll: checkOptions.poll },
-        run,
-      ]);
-    };
-    // the state of the client, without a round trip
-    declare("local-state", true, () => (connection?.status === "ready" ? "ok" : "error"));
-    // a PING on the connection of the application: blind to nothing that the application meets
-    declare("round-trip", true, async (signal): Promise<Outcome> => {
-      // a check measures the step now: it does not wait for a new connection, and it sends nothing again
-      const result = await send("PING", [], { signal, reissue: false });
-      return result.outcome === "ok" ? "ok" : "error";
+  const checks = (checkOptions: CheckOptions) =>
+    stepChecks<ClientStep>(name, checkOptions, {
+      // the state of the client, without a round trip
+      "local-state": localStateCheck(() => connection?.status === "ready"),
+      // a PING on the connection of the application: blind to nothing that the application meets
+      "round-trip": roundTripCheck((sendOptions) => send("PING", [], sendOptions)),
+      // a new connection each time: it finds a server that refuses connections, but not a stalled connection of the application
+      dial: dialCheck(dial, spec.host, spec.port),
     });
-    // a new connection each time: it finds a server that refuses connections, but not a stalled connection of the application
-    declare("dial", false, async (signal): Promise<Outcome> => {
-      await dial(spec.host, spec.port, signal);
-      return "ok";
-    });
-    return made;
-  };
 
   return {
     name,
@@ -559,24 +438,7 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
     joins,
     send,
     checks,
-    attach(svc, checkOptions) {
-      svc.dependency(name, declaration, handle);
-      for (const [check, run] of checks(checkOptions)) svc.check(check, run);
-      return svc;
-    },
-    problems(description) {
-      const found: string[] = [];
-      const teardown = description.shutdown.phases.find((phase) => phase.name === "tear down dependencies");
-      if (teardown === undefined) found.push(`${name} needs the phase "tear down dependencies" to close`);
-      else if (ms(knobs.close_bound) >= valueIn(teardown.cap, "ms"))
-        found.push(`${name}'s close_bound of ${ms(knobs.close_bound)} ms does not fit in the cap of "tear down dependencies"`);
-      for (const check of description.checks) {
-        if (check.dependency !== name) continue;
-        const slowest = valueIn(check.poll.timeout, "ms");
-        if (check.step === "round-trip" && requestTimeout > slowest + valueIn(check.poll.interval, "ms") * (1 + check.poll.jitter))
-          found.push(`${name}'s request_timeout outlives one jittered poll of ${check.name} (B7, O13)`);
-      }
-      return found;
-    },
+    attach: (svc, checkOptions) => attachClient(svc, name, declaration, handle, checks(checkOptions)),
+    problems: (description) => clientProblems(name, description, clientBounds(knobs)),
   };
 };

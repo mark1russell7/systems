@@ -1,17 +1,23 @@
-// The parts of a client wrapper that do not change from one client to the next. A client entry
-// (`./pg`, and later each other client of S1) fills them in with its driver. The core gives the
-// outcome of a call in three values, the rule that sends a call again, the checks of the steps of
-// a connection, and the problems of a client in a description. It loads only quantity.
+// The parts of a client wrapper that do not change from one client to the next. Each client entry
+// (`./redis`, `./pg`, and each later client of S1) fills them in with its driver. The core gives
+// the shapes of a client, the outcome of a call in three values, the rule that sends a call again,
+// the record of the calls in flight, the bounded close, the checks of the steps of a connection,
+// and the problems of a spec and of a client in a description. It loads only quantity.
+// The section "Unified or separate" of docs/S6.md gives each part, and the reason for each part that stays in a driver.
 
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
-import type { Clock } from "../clock.ts";
-import type { Check, Gate, ServiceDescription, Step } from "../description.ts";
+import type { ServiceBuilder } from "../builder.ts";
+import type { Cancel, Clock } from "../clock.ts";
+import type { Check, Dependency, Gate, ServiceDescription, Step } from "../description.ts";
+import type { Recorder } from "../events.ts";
 import type { Outcome } from "../latch.ts";
+import type { DependencyHandle } from "../lifecycle.ts";
 import type { Operation } from "../operation.ts";
 import { mayReissue } from "../operation.ts";
 import type { CheckFn } from "../poller.ts";
 import type { Poll } from "../timing.ts";
+import type { Meeting } from "./meets.ts";
 
 /**
  * A sent result is the outcome of a call, in three values (C8):
@@ -62,8 +68,235 @@ export interface StepCheck {
 export const ms = (amount: Extent): number =>
   amount.value === "infinite" ? Number.POSITIVE_INFINITY : valueIn(amount as Quantity, "ms");
 
+/** This function gives an amount in milliseconds, or undefined for "infinite". Each driver then writes its own form of "no timer". */
+export const finiteMs = (amount: Extent): number | undefined => {
+  const value = ms(amount);
+  return Number.isFinite(value) ? value : undefined;
+};
+
 /** This function gives the text of an error. */
 export const message = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+
+/**
+ * These are the knobs that each client has, by the names of the ordering law. Each driver adds its
+ * own knobs. The comments of each driver tell which option of the driver a knob sets.
+ */
+export interface ClientKnobs {
+  /** This time bounds a new connection. */
+  readonly connect_bound: Quantity;
+  /** This time bounds each call on the connection of the application. */
+  readonly request_timeout: Quantity;
+  /** This time is the idle time of TCP keepalive. Node then sends 10 probes 1 s apart. */
+  readonly keepalive_idle: Extent;
+  /** This time is the age at which the client replaces a connection. */
+  readonly max_connection_age: Extent;
+  /** This time bounds the close of the client at the shutdown. */
+  readonly close_bound: Quantity;
+  /**
+   * This time is when the kernel gives up a segment that it retransmits. Node cannot set it, thus
+   * the declaration states it for the ordering law (O17), from the platform.
+   */
+  readonly retrans_giveup_time: Extent;
+}
+
+/** A client spec is the declaration of one client: where it connects, and its knobs. Each driver adds its own fields. */
+export interface ClientSpec<K extends ClientKnobs = ClientKnobs> {
+  readonly host: string;
+  readonly port: number;
+  readonly password?: string | undefined;
+  /** This identifier is the component in the corpus, for example `systems.component.redis`, or null. */
+  readonly system: string | null;
+  readonly knobs: K;
+  /** These operations add to the table of the client, or change it. */
+  readonly operations?: Readonly<Record<string, Operation>> | undefined;
+}
+
+/** A factory makes the connection or the pool of a client from the options of its driver. */
+export type Factory<O, C> = (options: O) => C | Promise<C>;
+
+/** These options make a client. Without them, a client uses its driver, the real clock, and the dial of its protocol. */
+export interface ClientOptions<F> {
+  readonly create?: F | undefined;
+  readonly clock?: Clock | undefined;
+  /** This function receives each transition of the client, for the prober (D3). */
+  readonly record?: Recorder | undefined;
+  readonly dial?: DialFn | undefined;
+}
+
+/** A client socket is the part of the socket of a connection that the join of the prober and the bounded close read. */
+export interface ClientSocket {
+  readonly localAddress?: string | undefined;
+  readonly localPort?: number | undefined;
+  readonly remoteAddress?: string | undefined;
+  readonly remotePort?: number | undefined;
+  /** This method closes the socket at once. A close of the driver only half-closes it, and a silent peer does not answer that. */
+  destroy?(): void;
+}
+
+/**
+ * A client join is one connection, at the time when it can serve (D1, D2). The prober joins its
+ * kernel records to the server's view of the connection through it. Each driver adds the server's id of the connection.
+ */
+export interface ClientJoin {
+  readonly generation: number;
+  /** This time is when the connection became ready, in milliseconds on the monotonic clock. */
+  readonly at: number;
+  readonly localAddress: string | null;
+  readonly localPort: number | null;
+  readonly remoteAddress: string | null;
+  readonly remotePort: number | null;
+}
+
+/** This function gives the addresses and the ports of a socket for a join. Each one is null when the socket does not give it. */
+export const socketEnds = (
+  socket: ClientSocket | undefined,
+): Pick<ClientJoin, "localAddress" | "localPort" | "remoteAddress" | "remotePort"> => ({
+  localAddress: socket?.localAddress ?? null,
+  localPort: socket?.localPort ?? null,
+  remoteAddress: socket?.remoteAddress ?? null,
+  remotePort: socket?.remotePort ?? null,
+});
+
+/** A client is a dependency of a service: its declaration, its handle and its checks. Each driver adds the method that sends a call. */
+export interface Client<S extends Step = ClientStep, J extends ClientJoin = ClientJoin> {
+  readonly name: string;
+  /** This declaration goes to `svc.dependency(name, declaration, handle)`. */
+  readonly declaration: Omit<Dependency, "name">;
+  readonly handle: DependencyHandle;
+  /** These are the manifestations that the client can meet, and the detectors of each (E9). */
+  readonly meets: readonly Meeting[];
+  /** This text is the state of the client, as the machine document of the client names it. */
+  readonly status: string;
+  /** These are the connections of the client, the latest last. */
+  readonly joins: readonly J[];
+  /** This method gives the checks of the client and their functions, for `svc.check(check, run)`. */
+  checks(options: CheckOptions<S>): ReadonlyArray<readonly [Check, CheckFn]>;
+  /** This method declares the client in a service: its dependency, its handle and its checks. */
+  attach(svc: ServiceBuilder, options: CheckOptions<S>): ServiceBuilder;
+  /** This method gives the problems of the client in a description: a close that does not fit in its phase, for example. */
+  problems(description: ServiceDescription): string[];
+}
+
+/** This function declares a client in a service: its dependency, its handle, and each of its checks. */
+export const attachClient = (
+  svc: ServiceBuilder,
+  name: string,
+  declaration: Omit<Dependency, "name">,
+  handle: DependencyHandle,
+  checks: ReadonlyArray<readonly [Check, CheckFn]>,
+): ServiceBuilder => {
+  svc.dependency(name, declaration, handle);
+  for (const [check, run] of checks) svc.check(check, run);
+  return svc;
+};
+
+/** This function gives the table of operations of a client: the defaults of its driver, then the operations of its spec. */
+export const operationTable = (
+  defaults: Readonly<Record<string, Operation>>,
+  more: Readonly<Record<string, Operation>> | undefined,
+): Readonly<Record<string, Operation>> => ({ ...defaults, ...more });
+
+/** A client recorder gives one transition of a client to the recorder of the options, for the prober (D3). */
+export type ClientRecorder = (from: string, to: string, on: string, detail?: string) => void;
+
+/** This function makes the recorder of a client. Each event has the machine "client", and the name of the client as its instance. */
+export const clientRecorder =
+  (record: Recorder | undefined, clock: Clock, name: string): ClientRecorder =>
+  (from, to, on, detail) =>
+    record?.({ at: clock.now(), machine: "client", instance: name, from, to, on, ...(detail === undefined ? {} : { detail }) });
+
+/** This function gives the outcome of a call that did not leave the client. It is certain: the call did not apply. */
+export const notSent = (error: string): Attempt<never> => ({ outcome: "error", error, reply: false });
+
+/** A settle function gives the outcome of a call in flight. A driver can give a cause, for example the error that ends a client of a pool. */
+export type Settle<T = unknown> = (value: Attempt<T>, cause?: Error) => void;
+
+/**
+ * This record holds the calls in flight of a client. Each call settles one time. A call that the
+ * caller abandons after it left the client is indeterminate, because a sent call cannot be
+ * cancelled (principle 9). The close and a closed connection settle each call that stays (C10).
+ */
+export interface InFlight {
+  /** This number is the count of the calls in flight. */
+  readonly size: number;
+  /**
+   * This method sends one call, and records it until it settles. `start` sends the call, and gives
+   * its outcome to `settle`. `after` operates one time, after the call settles and before its promise resolves.
+   */
+  track<T>(
+    signal: AbortSignal | undefined,
+    abandoned: string,
+    start: (settle: Settle<T>) => void,
+    after?: (value: Attempt<T>, cause: Error | undefined) => void,
+  ): Promise<Attempt<T>>;
+  /** This method settles each call in flight as indeterminate, with this error. */
+  settleAll(error: string): void;
+}
+
+/** This function makes the record of the calls in flight of a client. */
+export const inFlight = (): InFlight => {
+  const closes = new Set<(error: string) => void>();
+  return {
+    get size() {
+      return closes.size;
+    },
+    track<T>(
+      signal: AbortSignal | undefined,
+      abandoned: string,
+      start: (settle: Settle<T>) => void,
+      after?: (value: Attempt<T>, cause: Error | undefined) => void,
+    ): Promise<Attempt<T>> {
+      return new Promise<Attempt<T>>((resolve) => {
+        let settled = false;
+        const settle: Settle<T> = (value, cause) => {
+          if (settled) return;
+          settled = true;
+          closes.delete(close);
+          signal?.removeEventListener("abort", aborted);
+          after?.(value, cause);
+          resolve(value);
+        };
+        const close = (error: string): void => settle({ outcome: "indeterminate", error }, new Error(error));
+        const aborted = (): void => close(abandoned);
+        closes.add(close);
+        signal?.addEventListener("abort", aborted, { once: true });
+        start(settle);
+      });
+    },
+    settleAll(error) {
+      for (const close of [...closes]) close(error);
+    },
+  };
+};
+
+/**
+ * This function waits for the work of a close, for `bound` milliseconds at most. It gives true when
+ * the work ended in its bound, with a success or a failure. It gives false at the bound. The driver
+ * then destroys each socket that stays, because a silent server does not close its half.
+ */
+export const withinBound = (clock: Clock, bound: number, work: Promise<unknown>): Promise<boolean> => {
+  const done = work.then(
+    () => true,
+    () => true,
+  );
+  let cancel: Cancel = () => {};
+  const timer = new Promise<boolean>((resolve) => {
+    cancel = clock.after(bound, () => resolve(false));
+  });
+  return Promise.race([done, timer]).then((ended) => {
+    cancel();
+    return ended;
+  });
+};
+
+/** This function gives the problems of the knobs of a spec that each client has: each knob must be a time of zero or more. */
+export const timeProblems = (name: string, knobs: object): string[] => {
+  const problems: string[] = [];
+  for (const [knob, amount] of Object.entries(knobs) as Array<[string, Extent]>) {
+    if (amount.value !== "infinite" && !(ms(amount) >= 0)) problems.push(`${name}'s ${knob} is not a time of zero or more`);
+  }
+  return problems;
+};
 
 /** These are the parts of one call that the core uses to send it, and to send it again. */
 export interface Reissue<T> {
@@ -135,6 +368,30 @@ export const stepChecks = <S extends Step>(
 /** This function makes a check outcome from a sent result: only `ok` passes. */
 export const passes = (sent: Sent<unknown>): Outcome => (sent.outcome === "ok" ? "ok" : "error");
 
+/** This check gives the state of the client, without a round trip. */
+export const localStateCheck = (ready: () => boolean): StepCheck => ({ ownConnection: true, run: () => (ready() ? "ok" : "error") });
+
+/**
+ * This check sends one call on the connection of the application. A check measures the step at this time.
+ * Thus it does not send the call again, and only `ok` passes.
+ */
+export const roundTripCheck = (send: (options: SendOptions) => Promise<Sent<unknown>>): StepCheck => ({
+  ownConnection: true,
+  run: async (signal) => passes(await send({ signal, reissue: false })),
+});
+
+/**
+ * This check opens a new connection each time. It finds a server that refuses connections, but not
+ * a stalled connection of the application. A failed dial throws, and the poller counts the throw as an error.
+ */
+export const dialCheck = (dial: DialFn, host: string, port: number): StepCheck => ({
+  ownConnection: false,
+  run: async (signal) => {
+    await dial(host, port, signal);
+    return "ok" as const;
+  },
+});
+
 /** These are the bounds of a client that the core examines in a description. */
 export interface ClientBounds {
   /** This time bounds the close of the client, in milliseconds. */
@@ -142,6 +399,9 @@ export interface ClientBounds {
   /** This time bounds a call on the connection of the application, in milliseconds. */
   readonly request: number;
 }
+
+/** This function gives the bounds of a client that `clientProblems` examines, from its knobs. */
+export const clientBounds = (knobs: ClientKnobs): ClientBounds => ({ close: ms(knobs.close_bound), request: ms(knobs.request_timeout) });
 
 /**
  * This function gives the problems of a client in a description:
@@ -161,3 +421,10 @@ export const clientProblems = (name: string, description: ServiceDescription, bo
   }
   return found;
 };
+
+/**
+ * This poll is a poll of the checks to start from: each 5 s with a jitter of 20 %, and a timeout of
+ * 4 s (B6, O12). Its slowest poll is 4 s + 5 s × 1.2 = 10 s, the slowest poll of the cells of O13.
+ * It does not depend on a driver. The starting knobs of each driver fit it.
+ */
+export const STARTING_POLL: Poll = { interval: { value: 5, unit: "s" }, jitter: 0.2, timeout: { value: 4, unit: "s" } };

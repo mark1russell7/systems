@@ -1,17 +1,6 @@
-import type { Extent, Quantity } from "@mark1russell7/quantity";
-import { quantity, valueIn } from "@mark1russell7/quantity";
-import type { Detector, Meeting, Situation } from "../client/meets.ts";
+import type { Detector, Meeting } from "../client/meets.ts";
+import { WHAT, immediate, keepaliveAnswered, keepaliveReset, keepaliveSilent, kernelGiveUp } from "../client/meets.ts";
 import type { PgKnobs } from "./client.ts";
-
-const never: Extent = { value: "infinite", unit: "s" };
-const s = (value: number): Quantity => quantity(Math.round(value * 1e6) / 1e6, "s");
-const seconds = (amount: Extent): number =>
-  amount.value === "infinite" ? Number.POSITIVE_INFINITY : valueIn(amount as Quantity, "s");
-const plus = (amount: Extent, more: number): Extent => (amount.value === "infinite" ? never : s(seconds(amount) + more));
-
-/** Node gives keepalive 10 probes, 1 s apart, after its idle time: a silent peer is found 10 s after the idle time. */
-const NODE_PROBES = 10;
-const NODE_INTERVAL = 1;
 
 /**
  * This function gives the manifestations that a pg client can meet, and the detectors of each, from
@@ -25,7 +14,6 @@ const NODE_INTERVAL = 1;
  * idle client at its idle timer. A later checkout then opens a new connection, which `connect_bound` bounds.
  */
 export const pgMeetings = (name: string, knobs: PgKnobs): Meeting[] => {
-  const keepalive = plus(knobs.keepalive_idle, NODE_PROBES * NODE_INTERVAL);
   const query: Detector = {
     by: "request_timeout",
     within: knobs.request_timeout,
@@ -38,51 +26,36 @@ export const pgMeetings = (name: string, knobs: PgKnobs): Meeting[] => {
     situation: "idle",
     effect: "the pool ends the idle client, thus no checkout gets the dead connection",
   };
-  const giveUp: Detector = {
-    by: "retrans_giveup_time",
-    within: knobs.retrans_giveup_time,
-    situation: "in flight",
-    effect: "the kernel gives up the retransmissions and closes the socket, and the query fails with its error",
-  };
-  const immediate = (situation: Situation, effect: string): Detector => ({ by: "the next segment", within: s(0), situation, effect });
-  const silent = (manifestation: string, what: string): Meeting => ({
+  const giveUp = kernelGiveUp(knobs.retrans_giveup_time, "the query fails with its error");
+  const silent = (manifestation: "blackhole" | "freeze-host"): Meeting => ({
     manifestation,
-    what,
-    detectors: [
-      query,
-      giveUp,
-      idleExpiry,
-      { by: "keepalive_idle", within: keepalive, situation: "idle", effect: "TCP keepalive gives up, and the socket closes" },
-    ],
+    what: WHAT[manifestation],
+    detectors: [query, giveUp, idleExpiry, keepaliveSilent(knobs.keepalive_idle)],
   });
   return [
     {
       manifestation: "rst",
-      what: "the server answers each segment with a reset, and refuses each new connection",
+      what: WHAT.rst,
       detectors: [
         immediate("in flight", "the query fails with ECONNRESET, and each new connect is refused"),
         idleExpiry,
-        { by: "keepalive_idle", within: knobs.keepalive_idle, situation: "idle", effect: "the first probe gets a reset" },
+        keepaliveReset(knobs.keepalive_idle),
       ],
     },
     {
       manifestation: "fin",
-      what: "the process of the server ends, and its kernel closes the connection",
+      what: WHAT.fin,
       detectors: [
         immediate("in flight", "the query fails: 'Connection terminated unexpectedly'"),
         immediate("idle", "the pool removes the idle client, and emits error"),
       ],
     },
-    silent("blackhole", "the network drops each segment in the two directions"),
-    silent("freeze-host", "the host of the server stops, without a close: the death without a close"),
+    silent("blackhole"),
+    silent("freeze-host"),
     {
       manifestation: "freeze-process",
-      what: "the process of the server stops, and its kernel stays up",
-      detectors: [
-        query,
-        idleExpiry,
-        { by: "keepalive_idle", within: never, situation: "idle", effect: "the kernel of the server answers each probe" },
-      ],
+      what: WHAT["freeze-process"],
+      detectors: [query, idleExpiry, keepaliveAnswered()],
     },
     {
       manifestation: "app-stall",
@@ -96,7 +69,7 @@ export const pgMeetings = (name: string, knobs: PgKnobs): Meeting[] => {
         },
         query,
         idleExpiry,
-        { by: "keepalive_idle", within: never, situation: "idle", effect: "the kernel of the server answers each probe" },
+        keepaliveAnswered(),
       ],
     },
   ];

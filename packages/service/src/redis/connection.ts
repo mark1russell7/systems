@@ -1,3 +1,5 @@
+import type { ClientSocket, Factory } from "../client/core.ts";
+
 /**
  * A Redis connection is the part of an ioredis client that the wrapper uses. An ioredis 6 client has
  * each part. A fake for tests has them too. Thus the package depends on no type of ioredis.
@@ -17,15 +19,8 @@ export interface RedisConnection {
   off(event: string, listener: (...args: unknown[]) => void): unknown;
 }
 
-/** A Redis socket is the part of the socket of a connection that the join of the prober reads. */
-export interface RedisSocket {
-  readonly localAddress?: string | undefined;
-  readonly localPort?: number | undefined;
-  readonly remoteAddress?: string | undefined;
-  readonly remotePort?: number | undefined;
-  /** This method closes the socket at once. A disconnect only half-closes it, and a silent peer does not answer that. */
-  destroy?(): void;
-}
+/** A Redis socket is the socket of a client in the core: the join of the prober and the bounded close read it. */
+export type RedisSocket = ClientSocket;
 
 /**
  * These are the options that the wrapper gives ioredis. Each one comes from the declaration. The
@@ -58,7 +53,7 @@ export interface RedisConnectionOptions {
 }
 
 /** A connection factory makes the connection of the client from its options. */
-export type ConnectionFactory = (options: RedisConnectionOptions) => RedisConnection | Promise<RedisConnection>;
+export type ConnectionFactory = Factory<RedisConnectionOptions, RedisConnection>;
 
 /**
  * This factory makes an ioredis client. It loads ioredis only when a client connects, thus a
