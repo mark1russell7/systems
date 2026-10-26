@@ -527,13 +527,29 @@ const life = await app.run(); // the process exits after SIGTERM, with 0 or 1
 - **The close.** At the shutdown, the client ends the pool, and it destroys each socket that stays at its `close_bound`.
 - **The manifestations and the machine.** `meets` lists the manifestations and their detectors. `PG_CLIENT_MACHINE` is the client as a `mark1russell7.machine/1` document, and the tests replay the client against it.
 
+## The MongoDB client
+
+`@mark1russell7/service/mongodb` is the MongoDB client of the service, over a `MongoClient` of the driver 7. This entry is a part of S6. mongodb is an optional peer dependency. The client loads it only when it connects.
+
+- **The declaration.** `mongoClient(name, spec)` declares `connect_bound`, `request_timeout`, `statement_timeout`, `heartbeat_interval`, `client_retry_window`, `checkout_timeout`, `pool_idle_expiry`, `keepalive_idle`, `max_connection_age`, `close_bound` and `retrans_giveup_time`. The client derives `driver_writeoff_time` from the connect bound and the heartbeat.
+- **The problems of a spec.** `specProblems` refuses a knob that the driver cannot use. Examples are a zero, which the driver reads as no timer, a heartbeat below 500 ms, and a finite connection age.
+- **The starting knobs.** `MONGO_STARTING_KNOBS` and `MONGO_STARTING_POLL` are a declaration from the cells of S1. Each value has its measured reason in its doc comment.
+- **The settings of the driver.** The client turns off the retries of the driver, thus the core decides each second send. The client also writes `maxTimeMS` in each command, because `db.command` does not add it.
+- **Three outcomes.** `command(operation, document)` gives `ok`, `error` or `indeterminate`. A server error is certain, except an interruption and a write concern error. A failed selection or a closed pool did not send the command.
+- **Idempotency for each operation.** A command document does not tell if it changes a state. Thus the client sends again only an idempotent operation that its table names. The second send waits for a writable server in `client_retry_window`.
+- **The join.** At each new connection, the client records the connection id of the server (`joins`). The driver gives no local socket, thus the local end is null.
+- **No unheard error.** The client listens to the error event of the driver. In Node, an error with no listener ends the process.
+- **The checks.** `checks({ poll, steps })` gives `local-state` (the view of the topology), `round-trip` (a `ping` on the connection of the application) and `dial` (a hello on a new connection).
+- **The close.** At the shutdown, the client closes the driver, and it records `close.bound` at its `close_bound`. The driver gives no socket to destroy, thus its close goes on in the background.
+- **The manifestations and the machine.** `meets` lists the manifestations and their detectors. `MONGO_CLIENT_MACHINE` is the client as a `mark1russell7.machine/1` document, and the tests replay the client against it.
+
 ## Installation
 
 ```sh
 pnpm add @mark1russell7/service
 ```
 
-For the Redis client, the application also installs `ioredis@6`. For the PostgreSQL client, it installs `pg@8`.
+For the Redis client, the application also installs `ioredis@6`. For the PostgreSQL client, it installs `pg@8`. For the MongoDB client, it installs `mongodb@7`.
 
 The package uses [`@mark1russell7/quantity`](https://www.npmjs.com/package/@mark1russell7/quantity) for each amount. No entry of the service loads `zod` at run time, thus `zod` is an optional peer dependency. An application that validates amounts with the schemas of `quantity` installs `zod`.
 

@@ -75,7 +75,7 @@ const reachAll = (entry: string, from = here): string[] => {
 
 describe("zod is an optional peer: no entry of the service loads it (SYS-12)", () => {
   it("reaches no zod from any entry, through quantity and the replay of the algebra too", () => {
-    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "clock.ts", "heartbeat.ts", "backoff.ts", "limiter.ts"])
+    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "clock.ts", "heartbeat.ts", "backoff.ts", "limiter.ts"])
       expect(reachAll(entry), entry).not.toContain("zod");
     // the root loads no other package and no node: module at run time
     expect(reachAll("index.ts")).toEqual([]);
@@ -84,13 +84,18 @@ describe("zod is an optional peer: no entry of the service loads it (SYS-12)", (
     expect(reachAll(schema.slice(dirname(schema).length + 1), dirname(schema))).toContain("zod");
   });
 
-  it("marks zod optional in the manifest, beside ioredis and pg", () => {
+  it("marks zod optional in the manifest, beside ioredis, pg and mongodb", () => {
     const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
       peerDependencies: Record<string, string>;
       peerDependenciesMeta: Record<string, { optional?: boolean }>;
     };
-    expect(Object.keys(manifest.peerDependencies).sort()).toEqual(["ioredis", "pg", "zod"]);
-    expect(manifest.peerDependenciesMeta).toEqual({ ioredis: { optional: true }, pg: { optional: true }, zod: { optional: true } });
+    expect(Object.keys(manifest.peerDependencies).sort()).toEqual(["ioredis", "mongodb", "pg", "zod"]);
+    expect(manifest.peerDependenciesMeta).toEqual({
+      ioredis: { optional: true },
+      mongodb: { optional: true },
+      pg: { optional: true },
+      zod: { optional: true },
+    });
   });
 });
 
@@ -120,6 +125,27 @@ describe("the pg entry: pg is an optional peer, loaded only at the connect", () 
     const { packages } = reach("pg.ts");
     expect(packages).not.toContain("pg");
     expect(packages.filter((name) => name.startsWith("node:"))).toEqual(["node:net"]);
+  });
+});
+
+describe("the mongodb entry: mongodb is an optional peer, loaded only at the connect", () => {
+  it("loads no mongodb at its import, and no node: module other than node:net", () => {
+    const { packages } = reach("mongodb.ts");
+    expect(packages).not.toContain("mongodb");
+    expect(packages.filter((name) => name.startsWith("node:"))).toEqual(["node:net"]);
+  });
+
+  it("does not load the fakes of its tests", () => {
+    expect(reach("mongodb.ts").files.filter((file) => file.includes("fake"))).toEqual([]);
+  });
+
+  it("is in the manifest, for the source and for npm", () => {
+    const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
+      exports: Record<string, string>;
+      publishConfig: { exports: Record<string, { types: string; default: string }> };
+    };
+    expect(manifest.exports["./mongodb"]).toBe("./src/mongodb.ts");
+    expect(manifest.publishConfig.exports["./mongodb"]).toEqual({ types: "./build/mongodb.d.ts", default: "./build/mongodb.js" });
   });
 });
 

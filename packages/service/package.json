@@ -34,6 +34,7 @@
     "./testing": "./src/testing.ts",
     "./redis": "./src/redis.ts",
     "./pg": "./src/pg.ts",
+    "./mongodb": "./src/mongodb.ts",
     "./clock": "./src/clock.ts",
     "./heartbeat": "./src/heartbeat.ts",
     "./backoff": "./src/backoff.ts",
@@ -62,11 +63,15 @@
   },
   "peerDependencies": {
     "ioredis": "^6.0.0",
+    "mongodb": "^7.7.0",
     "pg": "^8.23.1",
     "zod": "^4.1.0"
   },
   "peerDependenciesMeta": {
     "ioredis": {
+      "optional": true
+    },
+    "mongodb": {
       "optional": true
     },
     "pg": {
@@ -107,6 +112,10 @@
       "./pg": {
         "types": "./build/pg.d.ts",
         "default": "./build/pg.js"
+      },
+      "./mongodb": {
+        "types": "./build/mongodb.d.ts",
+        "default": "./build/mongodb.js"
       },
       "./clock": {
         "types": "./build/clock.d.ts",

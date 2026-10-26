@@ -298,6 +298,74 @@ export const timeProblems = (name: string, knobs: object): string[] => {
   return problems;
 };
 
+/** This function writes a bound for a driver that reads 0 as no timer: "infinite" is 0. */
+export const orZero = (amount: Extent): number => finiteMs(amount) ?? 0;
+
+/** This function tells if an amount is a whole number of milliseconds. "infinite" is whole. */
+export const wholeMs = (amount: Extent): boolean => amount.value === "infinite" || Number.isInteger(ms(amount));
+
+/** This function tells if an amount is a whole number of seconds. "infinite" is whole. */
+export const wholeSeconds = (amount: Extent): boolean =>
+  amount.value === "infinite" || Number.isInteger(valueIn(amount as Quantity, "s"));
+
+/** These are the knobs of a spec that `zeroProblems` and `wholeProblems` examine, by their kind. */
+export interface KnobKinds {
+  /** These knobs must be a finite time above zero, because the driver reads 0 as no bound. */
+  readonly bounded?: readonly string[] | undefined;
+  /** These knobs can be "infinite", which the driver writes as 0. Thus 0 itself is not a bound. */
+  readonly open?: readonly string[] | undefined;
+  /** These knobs go to the driver in whole milliseconds. */
+  readonly millis?: readonly string[] | undefined;
+  /** These knobs go to the driver or to Node in whole seconds. */
+  readonly seconds?: readonly string[] | undefined;
+}
+
+const knobOf = (knobs: object, knob: string): Extent => (knobs as Record<string, Extent>)[knob]!;
+
+/**
+ * This function gives the problems of the knobs of a driver that reads 0 as no timer. pg and the
+ * MongoDB driver read 0 so. A bounded knob must be a finite time above zero. An open knob can be
+ * "infinite", and 0 is then a mistake.
+ */
+export const zeroProblems = (name: string, driver: string, knobs: object, kinds: KnobKinds): string[] => {
+  const problems: string[] = [];
+  for (const knob of kinds.bounded ?? []) {
+    const value = ms(knobOf(knobs, knob));
+    if (!(value > 0) || !Number.isFinite(value)) problems.push(`${name}'s ${knob} is not a finite time above zero: ${driver} reads 0 as no bound`);
+  }
+  for (const knob of kinds.open ?? []) {
+    const amount = knobOf(knobs, knob);
+    if (amount.value !== "infinite" && !(ms(amount) > 0)) problems.push(`${name}'s ${knob} is zero: give "infinite" for no bound`);
+  }
+  return problems;
+};
+
+/** This function gives the problems of the knobs that a driver takes in whole milliseconds or in whole seconds. */
+export const wholeProblems = (name: string, knobs: object, kinds: KnobKinds): string[] => [
+  ...(kinds.millis ?? []).filter((knob) => !wholeMs(knobOf(knobs, knob))).map((knob) => `${name}'s ${knob} is not a whole number of milliseconds`),
+  ...(kinds.seconds ?? []).filter((knob) => !wholeSeconds(knobOf(knobs, knob))).map((knob) => `${name}'s ${knob} is not a whole number of seconds`),
+];
+
+/** This function gives the problems of the sizes of a pool: at most `max` connections, and `min` from 0 to `max`. */
+export const poolProblems = (name: string, pool: { readonly max: number; readonly min: number }): string[] => {
+  const problems: string[] = [];
+  if (!Number.isInteger(pool.max) || pool.max < 1) problems.push(`${name}'s pool has a max of ${pool.max}, not a whole number above zero`);
+  if (!Number.isInteger(pool.min) || pool.min < 0 || pool.min > pool.max)
+    problems.push(`${name}'s pool has a min of ${pool.min}, not a whole number from 0 to its max`);
+  return problems;
+};
+
+/**
+ * This function gives the problem O07 of a client whose server has a deadline, or null. The client
+ * must wait longer than the deadline of the server. Then the server ends a slow call with an error
+ * first. Otherwise the client gives up first, and the server goes on with the call. `call` names
+ * the call of the server, for example a statement.
+ */
+export const deadlineProblem = (name: string, request: Quantity, deadline: Extent, call: string): string | null =>
+  deadline.value !== "infinite" && ms(request) <= ms(deadline)
+    ? `${name}'s request_timeout is not above its statement_timeout: the server goes on with a ${call} that the client gave up (O07)`
+    : null;
+
 /** These are the parts of one call that the core uses to send it, and to send it again. */
 export interface Reissue<T> {
   readonly clock: Clock;
