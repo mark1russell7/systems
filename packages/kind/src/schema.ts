@@ -179,6 +179,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
       retries: count.optional(),
       quiet: z.boolean().optional(),
       close: z.boolean().optional(),
+      partition: z.boolean().optional(),
     }),
     pod: z.object({ replicas: count, grace: time, preStop: time, readiness: probe, liveness: probe, startup: probe.nullable() }),
     declaration: declaration.nullable(),

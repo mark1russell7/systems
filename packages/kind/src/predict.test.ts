@@ -141,6 +141,15 @@ describe("the fault mapping", () => {
       [{ do: "flag", target: "server", on: false }],
       [{ do: "flag", target: "server", on: false }],
     ]);
+    // a partition: new connections first, then a black hole in the namespace of the target replica
+    const partition = planOf({ ...cellOf("blackhole"), trigger: { kind: "blackhole", hold: s(22), partition: true } });
+    expect(partition).toEqual({
+      prepare: [{ do: "signal", target: "clients", signal: "SIGHUP" }, { do: "wait", time: s(3) }],
+      inject: [{ do: "inject", target: "server", action: "blackhole" }],
+      hold: s(22),
+      heal: [{ do: "inject", target: "server", action: "clear" }],
+      restore: [],
+    });
     expect(planOf(cellOf("rollout", DESIGN, "T18")).heal).toEqual([{ do: "kubectl", args: ["-n", "{namespace}", "scale", "deployment/redis", "--replicas=1"] }]);
     expect(deletes(cellOf("rolling-update"))).toBe(true);
     expect(deletes(cellOf("crash"))).toBe(false);
