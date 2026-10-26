@@ -1,10 +1,11 @@
-// The export of the kind cells for the site: src/data/kind-<date>.json, or src/data/t15-<date>.json for
-// the cells of T15.
+// The export of the kind cells for the site: src/data/kind-<date>.json, src/data/t15-<date>.json for
+// the cells of T15, or src/data/s2-<date>.json for the S2 cells.
 //
 //   pnpm exec tsx packages/site/scripts/kind.ts <folder>...
 //
 // T07 is the endpoint lifecycle of a Service in kind, and T18 is a fleet whose readiness needs
-// Redis. T15 is gRPC through two hops of an Istio mesh in kind. Each folder is the output of one shard of the workflow Kind on a runner of GitHub: the raw
+// Redis. T15 is gRPC through two hops of an Istio mesh in kind. The S2 cells are T07 with a replica
+// that cannot serve, for two candidates in each mode: A (endpoints only) and B (lame duck). Each folder is the output of one shard of the workflow Kind on a runner of GitHub: the raw
 // record of each cell, summary.ndjson and runner.txt. A record of the format /1 is read through
 // `upgrade`. The script judges each record again with the cell of the catalog of the same name
 // (`judgeKind`), as KIND_JUDGE does. The calibration of the
@@ -23,6 +24,8 @@ import { FORMAT, FORMAT_V1, calibrationOf, judgeKind, propagationOf, referenceOf
 import { T07_CELLS } from "../../cells/src/t07.ts";
 import { T18_CELLS } from "../../cells/src/t18.ts";
 import { T15_GRPC } from "../../cells/src/grpc/t15.ts";
+import type { Candidate } from "../../cells/src/callers.ts";
+import { CALLERS_CELLS, CANDIDATES, expectedFailures } from "../../cells/src/callers.ts";
 import type { Found } from "./records.ts";
 import { dateOf, only, readFolders, runnerOf, round, stringify, time, timeAt } from "./records.ts";
 
@@ -47,7 +50,7 @@ interface Summary {
   readonly median: number | Quantity | null;
 }
 
-const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T15_GRPC];
+const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T15_GRPC, ...CALLERS_CELLS];
 // A later folder replaces the run of each cell of the same id, also when the cell has a new name.
 const found = new Map<string, Found<KindRecord, Summary>>();
 for (const folder of folders)
@@ -139,6 +142,7 @@ const predictionOf = (cell: KindCell) => {
       const parts = [`The algebra predicts that each failed request starts in a window. The window opens ${opens}${closes}.`];
       if (p.nodes === "paused") parts.push("Only the clients of the paused node fail.");
       if (p.certain) parts.push("At least one request fails.");
+      if (p.outcomes !== undefined) parts.push(`Each failed request ends with ${listed(p.outcomes.map(outcome))}.`);
       if (p.afterReset !== undefined)
         parts.push(
           `A request after the window can also fail with a ${p.afterReset.outcome}, on a port that a reset of the same client closed up to ${time(s(p.afterReset.life))} before it: the CLOSE entry of that reset keeps its NAT to the pod.`,
@@ -292,6 +296,7 @@ const groupOf = (cell: KindCell): string => {
     return cell.id.startsWith("T15.defaults.") ? "hbone" : "borders";
   }
   if (cell.template === "T07") {
+    if (cell.trigger.kind === "cannot-serve") return "callers";
     if (cell.calibrates) return "calibration";
     if (cell.trigger.kind === "pod-deletion") return "deletion";
     if (cell.trigger.kind === "freeze-process") return "pause";
@@ -311,6 +316,33 @@ const propagationValues = (runs: readonly KindRun[]): number[] =>
 
 const spread = (value: TimeSpread | null) =>
   value === null ? null : { count: value.count, min: s(value.min), median: s(value.median), p99: s(value.p99), max: s(value.max) };
+
+/** This function gives the candidate of an S2 cell, by the end of its name. */
+const candidateName = (cell: KindCell): Candidate => {
+  const name = CANDIDATES.find((each) => cell.name.endsWith(`: ${each}`));
+  if (name === undefined) throw new Error(`${cell.name}: no candidate of S2`);
+  return name;
+};
+
+/** This function gives the candidate of an S2 cell for the side-by-side table: its window and its expected count of failed requests. */
+const candidateOf = (cell: KindCell) => {
+  if (cell.trigger.kind !== "cannot-serve") return null;
+  const p = cell.prediction;
+  if (p.kind !== "window" || p.end === null) throw new Error(`${cell.name}: an S2 cell has a window that ends`);
+  const name = candidateName(cell);
+  const expected = expectedFailures(name, cell.mode);
+  return {
+    name,
+    label: name === "endpoints only" ? "A" : "B",
+    start: { from: p.start.from, low: s(p.start.band.lo), high: s(p.start.band.hi) },
+    end: { from: p.end.from, low: s(p.end.band.lo), high: s(p.end.band.hi) },
+    expected: { low: expected.lo.value, high: expected.hi.value },
+    connections: { low: expected.connections.lo.value, high: expected.connections.hi.value, of: expected.connections.of.value },
+  };
+};
+
+/** This function gives the copy of a cell: kind for T07 and T18, t15 for T15, and s2 for the S2 cells. */
+const copyOf = (cell: KindCell): "kind" | "t15" | "s2" => (cell.template === "T15" ? "t15" : cell.id.startsWith("S2.") ? "s2" : "kind");
 
 const propagation: Record<string, unknown> = {};
 const cells = CATALOG.flatMap((cell) => {
@@ -353,6 +385,7 @@ const cells = CATALOG.flatMap((cell) => {
   return [
     {
       id,
+      copy: copyOf(cell),
       template: cell.template,
       name: cell.name.slice(cell.template.length + 1),
       mode: cell.mode,
@@ -368,6 +401,7 @@ const cells = CATALOG.flatMap((cell) => {
       values,
       why: whyOf(cell, verdict, values, measured),
       first: entry.first,
+      ...(copyOf(cell) === "s2" ? { candidate: candidateOf(cell) } : {}),
     },
   ];
 });
@@ -390,8 +424,7 @@ const copy = {
   propagation,
   cells,
 };
-const t15 = cells.filter((cell) => cell.template === "T15").length;
-if (t15 !== 0 && t15 !== cells.length) throw new Error("the cells of T15 have their own copy: export them from their own folders");
-const out = fileURLToPath(new URL(`../src/data/${t15 === 0 ? "kind" : "t15"}-${date}.json`, import.meta.url));
-writeFileSync(out, stringify(copy));
+const name = only("the copy of their cells (the cells of T15 and of S2 each have their own copy)", cells.map((cell) => cell.copy));
+const out = fileURLToPath(new URL(`../src/data/${name}-${date}.json`, import.meta.url));
+writeFileSync(out, stringify({ ...copy, cells: cells.map(({ copy: _copy, ...cell }) => cell) }));
 process.stdout.write(`${cells.length} cells, ${cells.reduce((sum, cell) => sum + cell.counted + cell.voided, 0)} runs: ${out}\n`);

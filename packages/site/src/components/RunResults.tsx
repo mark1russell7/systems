@@ -3,7 +3,7 @@
  * keep-alive race, MongoDB, PostgreSQL, RabbitMQ, gRPC and kind. Each harness cell has a frame with a strip chart,
  * its prediction and its verdict. The chart has a dot for each counted run, against the band. A frame
  * of a group also has the stages of the failover. A kind cell has a frame with its verdict, and a
- * strip chart when its main value is a time. The cells of T15 in kind have their own copy.
+ * strip chart when its main value is a time. The cells of T15 in kind and the S2 cells have their own copy.
  */
 import type { ReactElement } from "react";
 import grpc from "../data/grpc-2026-10-20.json";
@@ -13,6 +13,7 @@ import mongodb from "../data/mongodb-2026-10-18.json";
 import pg from "../data/pg-2026-10-19.json";
 import r3 from "../data/r3-2026-10-17.json";
 import rabbitmq from "../data/rabbitmq-2026-10-19.json";
+import s2 from "../data/s2-2026-10-26.json";
 import t15 from "../data/t15-2026-10-25.json";
 import sentinel from "../data/sentinel-2026-10-17.json";
 import { count as digits, duration, reading } from "../lib/format.ts";
@@ -431,8 +432,8 @@ export function RaceBorder(): ReactElement {
 // the kind cells
 // ---------------------------------------------------------------------------------------------
 
-/** The kind cells of each copy: T07 and T18, and T15 over gRPC through Istio. */
-const KIND_CELLS = [...kind.cells, ...t15.cells];
+/** The kind cells of each copy: T07 and T18, T15 over gRPC through Istio, and the S2 cells. */
+const KIND_CELLS = [...kind.cells, ...t15.cells, ...s2.cells];
 type KindCell = (typeof KIND_CELLS)[number];
 
 /** This function writes the main value of a kind cell: a count of failed requests, of replicas, or a time. */
@@ -524,6 +525,68 @@ export function KindResults(props: { readonly template: "T07" | "T18" | "T15"; r
   );
 }
 
+/** These are the modes of kube-proxy, in the sequence of the catalog. */
+const MODES = ["iptables", "ipvs", "nftables"] as const;
+
+/** These phrases name the reference event of the end of a window of S2. */
+const S2_FROM: Readonly<Record<string, string>> = { fault: "the fault", heal: "the heal" };
+
+/**
+ * This table shows the two candidates of S2 side by side, in each mode of kube-proxy of the copy.
+ * Each cell gives the verdict and the failed requests of the median run. Then it gives the
+ * prediction: the expected count of failed requests, and the band of the end of the window.
+ */
+export function CallersTable(): ReactElement {
+  const candidates = [...new Set(s2.cells.map((cell) => cell.candidate.name))];
+  const modes = MODES.filter((mode) => s2.cells.some((cell) => cell.mode === mode));
+  const missing = MODES.filter((mode) => !modes.includes(mode));
+  const find = (mode: string, name: string) => {
+    const cell = s2.cells.find((each) => each.mode === mode && each.candidate.name === name);
+    if (cell === undefined) throw new Error(`no S2 cell ${mode}, ${name}`);
+    return cell;
+  };
+  return (
+    <div className="not-content sy-scroll">
+      <table className="sy-table">
+        <thead>
+          <tr>
+            <th>Mode</th>
+            {candidates.map((name) => {
+              const label = s2.cells.find((cell) => cell.candidate.name === name)?.candidate.label ?? "";
+              return (
+                <th key={name}>{`${label}: ${name}`}</th>
+              );
+            })}
+          </tr>
+        </thead>
+        <tbody>
+          {modes.map((mode) => (
+            <tr key={mode}>
+              <td>{code(mode)}</td>
+              {candidates.map((name) => {
+                const cell = find(mode, name);
+                const { expected, end, connections } = cell.candidate;
+                const on = connections.low === connections.high ? `${connections.low}` : `${connections.low} to ${connections.high}`;
+                return (
+                  <td key={name}>
+                    <Verdict decision={cell.decision} text={cell.median === null ? "" : `${count(cell.median, "failed request")} in the median run`} />
+                    <br />
+                    <span className="sy-muted">
+                      {`The prediction: ${digits(expected.low)} to ${digits(expected.high)} failed requests, with ${on} of the ${connections.of} connections on the target. The last one starts ${fine(end.low)} to ${fine(end.high)} after ${S2_FROM[end.from] ?? end.from}.`}
+                      {cell.failed === 0 ? "" : ` ${cell.failed} of ${cell.counted} runs ${cell.failed === 1 ? "disagrees" : "disagree"}.`}
+                    </span>
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {missing.length === 0 ? null : <p className="sy-muted">{`The copy has no run of ${missing.join(" or ")} yet.`}</p>}
+    </div>
+  );
+}
+
 /** These are the rows of the table of the modes: each pair of T07 that operates in each mode of kube-proxy. */
 const PAIRS: ReadonlyArray<readonly [string, string]> = [
   ["pod deletion, the design's hold of 2 s", "A deletion, the hold of 2 s"],
@@ -531,7 +594,6 @@ const PAIRS: ReadonlyArray<readonly [string, string]> = [
   ["pod deletion while kube-proxy pauses 5 s on one node, the design's hold of 2 s", "A pause of kube-proxy, the hold of 2 s"],
   ["pod deletion while kube-proxy pauses 5 s on one node, a hold of 8 s", "A pause of kube-proxy, a hold of 8 s"],
 ];
-const MODES = ["iptables", "ipvs", "nftables"] as const;
 
 /** The table of the deletion pair and the pause pair of T07 in each mode of kube-proxy, with the failed requests of the median run. */
 export function ModeTable(): ReactElement {

@@ -369,10 +369,15 @@ Kubernetes keeps its timers in real time, thus these cells are not compressed.
 
 The S2 cells (`src/callers.ts`, `CALLERS_CELLS`) measure the dimension "how callers learn that a pod cannot serve". One replica of 2 cannot serve for 30 s: a flag file fails its route with 503 and its readiness check (`cannot-serve`). The cells measure when the callers stop getting errors, and how many requests fail.
 
-- **Two candidates, one cell.** `S2.T07.endpoints` (A) keeps each connection open, thus the endpoints alone tell the callers. `S2.T07.lame-duck` (B) is the service as it is: its edge sends `Connection: close` while it is not ready. The cells differ only in the field `lameDuck` of the declaration.
-- **Keep-alive clients** (`KEEP_ALIVE`, 8 connections for each client). kube-proxy selects a backend only for a new connection, and an established flow keeps its conntrack NAT. Thus a client with a new connection for each request cannot tell the candidates apart.
-- **The smallest scenario.** T07 in iptables only, 2 workers, 2 replicas, and the readiness probe of the chart (2 s, 3 times). The question is about the edge of the service, not about the mode.
-- **The predictions** (`learnWindow` of `@mark1russell7/kind`). B ends 8 s to 24.265 s after the fault: the latch, the probe, the propagation and one turn of 160 ms. A ends up to 6.16 s after the heal: the recovery of the readiness and one turn. Each why text gives the expected count of failed requests.
+- **Two candidates, one cell.** `S2.T07.<mode>.endpoints` (A) keeps each connection open, thus the endpoints alone tell the callers. `S2.T07.<mode>.lame-duck` (B) is the service as it is: its edge sends `Connection: close` while it is not ready. The cells differ only in the field `lameDuck` of the declaration.
+- **Keep-alive clients** (`KEEP_ALIVE`, 8 connections for each client). kube-proxy selects a backend only for a new connection, and an established flow keeps its conntrack NAT. Thus a client with a new connection for each request cannot tell the candidates apart. In `ipvs`, a graceful delete sets the weight of the backend to 0, and its open connections stay.
+- **Each mode from one definition** (`CALLERS_MODES`). The mode is only a parameter of the cell: `iptables`, `ipvs` and `nftables`, each with its calibrated propagation (`PROPAGATION`). The mode changes only the end of the window of the lame duck.
+- **The smallest scenario.** T07 with 2 workers, 2 replicas, and the readiness probe of the chart (2 s, 3 times).
+- **The predictions** (`learnWindow` of `@mark1russell7/kind`). B ends 8 s after the fault at the earliest: the latch, the probe, the propagation and one turn of 160 ms. Its latest end is 24.265 s in `iptables`, 24.469 s in `ipvs` and 24.239 s in `nftables`. A ends up to 6.16 s after the heal in each mode: the recovery of the readiness and one turn.
+- **The expected failed requests** (`expectedFailures`). Each connection on the target fails one request in each turn of 160 ms. Thus the count follows the connections on the target at the fault (`targetConnections`).
+  - IPVS selects the backends in turn (`SELECTION`), thus 12 of the 24 connections go to the target. A expects 2,250 to 2,712, and the lame duck 600 to 1,350.
+  - The rules of iptables and nftables select at random, thus the count of connections is binomial. The band of 7 to 17 has a chance of 95 % at the least. A expects 1,313 to 3,842, and the lame duck 350 to 1,913.
+  - The run 40345515219 had 9 to 14 connections on the target in these two modes. Each why text and the site give the expected count.
 
 ## The runner
 
