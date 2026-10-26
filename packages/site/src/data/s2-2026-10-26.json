@@ -1,0 +1,93 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-10-26",
+  "units": "s",
+  "runs": 3,
+  "kernel": "6.17.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.iptables.endpoints",
+      "template": "T07",
+      "name": "iptables, callers learn that a pod cannot serve: endpoints only",
+      "mode": "iptables",
+      "trigger": "cannot-serve",
+      "group": "callers",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 6.16 s after the end of the fault. At least one request fails. Each failed request ends with an answer of 503."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 2542,
+      "values": [2033, 2542, 2689],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 2,542 failed requests. The counted runs had 2,033 to 2,689 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 6.16
+        },
+        "expected": {
+          "low": 2250,
+          "high": 2712
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck",
+      "template": "T07",
+      "name": "iptables, callers learn that a pod cannot serve: in band (lame duck)",
+      "mode": "iptables",
+      "trigger": "cannot-serve",
+      "group": "callers",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 8 s to 24.265 s after the fault. At least one request fails. Each failed request ends with an answer of 503."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 1095,
+      "values": [1095, 987, 1329],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 1,095 failed requests. The counted runs had 987 to 1,329 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 24.265
+        },
+        "expected": {
+          "low": 600,
+          "high": 1350
+        }
+      }
+    }
+  ]
+}

@@ -2,10 +2,10 @@
 title: Kubernetes endpoints in kind
 sidebar:
   label: Kubernetes in kind
-description: The T07 and T18 cells in kind on the runners of GitHub, with the service of this repository behind a Service. Of 31 cells, 26 hold, 3 are calibrations and 2 are measurements only.
+description: The T07, T18 and S2 cells in kind on the runners of GitHub, with the service of this repository behind a Service. Of 31 cells of T07 and T18, 26 hold, 3 are calibrations and 2 are measurements only.
 ---
 
-import { KindResults, ModeTable, Propagation } from "../../../components/RunResults.tsx";
+import { CallersTable, KindResults, ModeTable, Propagation } from "../../../components/RunResults.tsx";
 import { Summary } from "../../../components/Ledger.tsx";
 
 <Summary of="kind" />
@@ -85,6 +85,19 @@ The round trip of the Redis client of each replica gates its readiness, unless t
 ### A stall, a rollout and a throttle
 
 <KindResults template="T18" group="other" client:visible />
+
+## S2: how callers learn that a pod cannot serve
+
+One replica of 2 cannot serve for 30 s. A flag file fails its route with 503, and the same flag fails its readiness check. The clients keep 8 keep-alive connections each, and kube-proxy selects a backend only for a new connection. The S2 cells come from the run [40337740256](https://github.com/mark1russell7/systems/actions/runs/40337740256), with 3 counted runs of each cell.
+
+- **A: endpoints only.** The edge keeps each connection open. The removal of the endpoint changes nothing for an open connection, thus its requests fail until the heal.
+- **B: in band (lame duck).** While the service is not ready, each answer has `Connection: close`. Each caller then opens a new connection, and the rules send it to the other replica after the removal.
+
+The two candidates differ only in the field `lameDuck` of the declaration. The mode of kube-proxy gives the propagation of the removal, thus the end of the window of the lame duck. The table gives the verdict, the failed requests of the median run, and the prediction of each candidate.
+
+<CallersTable />
+
+<KindResults template="T07" group="callers" client:visible />
 
 ## Where the data comes from
 

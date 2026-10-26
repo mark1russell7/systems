@@ -1,6 +1,6 @@
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import RunResults, { KindResults, ModeTable, Propagation, RaceBorder, WritesTable } from "./RunResults.tsx";
+import RunResults, { CallersTable, KindResults, ModeTable, Propagation, RaceBorder, WritesTable } from "./RunResults.tsx";
 
 describe("the components of the CI runs", () => {
   it("render each group that the pages of the CI runs name", () => {
@@ -62,5 +62,21 @@ describe("the components of the CI runs", () => {
     // the mode table: each cell gives its median run, and no run of the copy disagrees
     expect(html[22]).toContain("in the median run");
     expect(html[22]).not.toContain("disagree");
+  });
+
+  it("render the S2 candidates side by side, with the frame of each cell", () => {
+    const table = renderToString(<CallersTable />);
+    // the iptables run: the median of each candidate and its prediction
+    expect(table).toContain("A: endpoints only");
+    expect(table).toContain("B: in band (lame duck)");
+    expect(table).toContain("2,542 failed requests in the median run");
+    expect(table).toContain("1,095 failed requests in the median run");
+    expect(table).toContain("The prediction: 2,250 to 2,712 failed requests.");
+    expect(table).toContain("The prediction: 600 to 1,350 failed requests.");
+    expect(table).not.toContain("disagree");
+    expect(table).toContain("The copy has no run of ipvs or nftables yet.");
+    const frames = renderToString(<KindResults template="T07" group="callers" />);
+    expect(frames.split('class="sy-frame').length - 1).toBe(2);
+    expect(frames).toContain("Each failed request ends with an answer of 503.");
   });
 });
