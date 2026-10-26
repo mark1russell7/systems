@@ -55,7 +55,7 @@ export type Stack = "service" | "grpc";
  *   clients before the fault (`quiet`). It can also set `tcp_retries2` of each client pod (`retries`).
  *   A black hole with `partition` is in the namespace of the target replica only, with the client pods as peers.
  * - `peer-gone-without-close` drops the segments of Redis, and then Redis goes away.
- * - `app-stall` blocks the event loop of one replica.
+ * - `app-stall` blocks the event loop of one replica. In T07, each client opens new connections before the fault.
  * - `rollout` is a rolling update while Redis is down.
  * - `cpu-throttle` sets `cpu.max` in the cgroup of one replica.
  * - `authorization-policy` applies an AuthorizationPolicy of Istio that denies the clients, for the hold (T15).

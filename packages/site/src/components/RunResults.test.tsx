@@ -107,6 +107,22 @@ describe("the components of the CI runs", () => {
     expect(frames.split('class="sy-frame').length - 1).toBe(12);
   });
 
+  it("render the S2 candidates of a stalled pod side by side, with the frame of each cell", () => {
+    const table = renderToString(<CallersTable incident="stall" />);
+    expect(table).toContain("22 failed requests in the median run");
+    expect(table).toContain("1,498 failed requests in the median run");
+    expect(table).toContain("The prediction: 12 to 39 failed requests, with 7 to 17 of the 24 connections on the target.");
+    expect(table).toContain("The prediction: 0 to 1,503 failed requests, with 0 to 3 of the 3 connections on the target.");
+    expect(table).not.toContain("disagree");
+    expect(table).not.toContain("No run in the copy yet.");
+    // D: the removal ends each chain of the session check
+    expect(table).toContain("191 failed requests in the median run");
+    expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40406199754");
+    expect(table.split("<tr>").length - 1).toBe(4);
+    const frames = renderToString(<KindResults template="T07" group="stall" />);
+    expect(frames.split('class="sy-frame').length - 1).toBe(12);
+  });
+
   it("render the scores of S6 side by side, with the run of the evidence and the reason for each criterion with no number", () => {
     const table = renderToString(<CallersScores />);
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40358038728");
@@ -114,19 +130,24 @@ describe("the components of the CI runs", () => {
     expect(table).toContain("3,044 failed requests in the median run");
     expect(table).toContain("The prediction: 1,313 to 3,842. The counted runs: 3,044, 3,333, 2,104.");
     expect(table).toContain("The prediction: the last failure 8 s to 24.265 s after the fault.");
-    // the fewest in each mode: D in iptables and nftables, B in IPVS; in the partition, B in iptables and A in IPVS (a tie) and nftables
-    expect(table.split("The fewest in this mode.").length - 1).toBe(6);
-    // in each of the two incidents, four criteria have no number in each mode, and the complexity has its own reason for each of the 4 candidates
-    expect(table.split("Not measured.").length - 1).toBe(16);
+    // the fewest in each mode: D in iptables and nftables, B in IPVS; in the partition, B in iptables and A in IPVS (a tie) and nftables;
+    // in the stall, B in iptables and nftables, and A in IPVS (a tie)
+    expect(table.split("The fewest in this mode.").length - 1).toBe(9);
+    // in each of the three incidents, four criteria have no number in each mode, and the complexity has its own reason for each of the 4 candidates
+    expect(table.split("Not measured.").length - 1).toBe(24);
     expect(table).toContain("T07 has no blip");
     // the partitioned pod: its own run, and the time until callers know is measured from the fault
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40380943331");
     expect(table).toContain("S2.T07.ipvs.goaway.partition");
-    // the copies of D have the time of the last failure in each incident: 3 of a pod that cannot serve, and 12 of the partition
-    expect(table.match(/the last failure [\d.]+ (?:ms|s) after the fault in the median run/g)?.length).toBe(15);
+    // the copies of D have the time of the last failure in each incident: 3 of a pod that cannot serve, 12 of the partition and 12 of the stall
+    expect(table.match(/the last failure [\d.]+ (?:ms|s) after the fault in the median run/g)?.length).toBe(27);
     expect(table).toContain("the last failure 26.4");
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40394320219");
     expect(table).toContain("S2.T07.ipvs.session-check.partition");
+    // the stalled pod: its own run for each candidate, and C learns only at the resume
+    expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40406199754");
+    expect(table).toContain("S2.T07.ipvs.session-check.stall");
+    expect(table).toMatch(/the last failure 10\.0\d* s after the fault in the median run/);
     expect(table).toContain("Not measured yet: a black-holed shared dependency, a lost zone");
   });
 });

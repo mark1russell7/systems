@@ -2,7 +2,7 @@ import type { Band, KubeProxyMode, Reference, TriggerKind } from "@mark1russell7
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { CallerFault, Candidate } from "./callers.ts";
-import { CALLERS_CELLS, CALLERS_MODES, CALLER_FAULTS, CANDIDATES, CANNOT_SERVE_HOLD, PARTITION_HOLD, callerFaultOf, expectedFailures } from "./callers.ts";
+import { CALLERS_CELLS, CALLERS_MODES, CALLER_FAULTS, CANDIDATES, CANNOT_SERVE_HOLD, PARTITION_HOLD, STALL_HOLD, callerFaultOf, expectedFailures } from "./callers.ts";
 
 /**
  * The scores of the S6 candidates of health and routing, for the dimension "how callers learn". A
@@ -10,8 +10,9 @@ import { CALLERS_CELLS, CALLERS_MODES, CALLER_FAULTS, CANDIDATES, CANNOT_SERVE_H
  * The evidence is the CI run and the cell. A criterion that the data cannot support is "not measured",
  * with the reason. No score fills a gap with an estimate.
  *
- * Two incidents have cells: a pod that cannot serve (`cannot-serve`, the S2 cells of T07), and a
- * partitioned pod (a black hole between the clients and the target). Each one has its own kind run.
+ * Three incidents have cells: a pod that cannot serve (`cannot-serve`, the S2 cells of T07), a
+ * partitioned pod (a black hole between the clients and the target), and a stalled pod (`app-stall`).
+ * Each one has its own kind run.
  * The other incidents of the design have no cell of the candidates yet, thus each one is "not measured".
  */
 
@@ -41,6 +42,7 @@ export type Incident =
   | "a pod that cannot serve"
   | "a black-holed shared dependency"
   | "a partitioned pod"
+  | "a stalled pod (gray failure)"
   | "a lost zone"
   | "a slow dependency (gray failure)"
   | "a flapping dependency"
@@ -50,6 +52,7 @@ export type Incident =
 export const INCIDENTS: readonly Incident[] = [
   "a pod that cannot serve",
   "a partitioned pod",
+  "a stalled pod (gray failure)",
   "a black-holed shared dependency",
   "a lost zone",
   "a slow dependency (gray failure)",
@@ -179,16 +182,32 @@ const NOT_MEASURED: Readonly<Record<CallerFault, Partial<Record<Criterion, strin
     "probe load": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe.",
     "routes down": "The partition stops each route of the target for the clients. The cell does not count the routes.",
   },
+  stall: {
+    "false removals on a blip": `The stall holds for ${valueIn(STALL_HOLD, "s")} s, and the readiness probe removes the replica in it: a true removal. No cell gives a short stall yet.`,
+    "time to recover": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the stall.",
+    "probe load": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe.",
+    "routes down": "The stall stops each route of the target, because its event loop is blocked. The cell does not count the routes.",
+  },
 };
 
 /** These are the incidents of the design that the S2 cells measure, and the trigger of their cells. */
 const INCIDENT_OF: Readonly<Record<CallerFault, { readonly incident: Incident; readonly trigger: TriggerKind }>> = {
   "cannot serve": { incident: "a pod that cannot serve", trigger: "cannot-serve" },
   partition: { incident: "a partitioned pod", trigger: "blackhole" },
+  stall: { incident: "a stalled pod (gray failure)", trigger: "app-stall" },
 };
 
 /** This text is the reason for each incident of the design that has no cell of the candidates yet. */
 const NO_CELL = "No cell measures the candidates A, B, C and D in this incident yet.";
+
+/**
+ * These texts are the reasons of an incident with no cell, when the reason is more than `NO_CELL`. A
+ * slow shared dependency slows each replica at once, thus no routing candidate can go around it.
+ */
+const NO_CELL_OF: Readonly<Partial<Record<Incident, string>>> = {
+  "a slow dependency (gray failure)":
+    "No cell measures the candidates in this incident yet. The S2 cells have no shared dependency, and a slow dependency slows each replica at once. Thus no routing candidate can go around it. The stalled pod is the gray failure of one replica.",
+};
 
 /** This text is the reason for an incident with cells, when no copy has a result of them. */
 const NO_RUN = "No copy of a kind run has a result of the cells of this incident yet.";
@@ -313,6 +332,6 @@ export const scoreCallers = (...copies: readonly CallerRun[]): Scorecard => {
       return [incident, scores] as const;
     }),
   );
-  const incidents = INCIDENTS.map((incident): IncidentScores => scored.get(incident) ?? { incident, kind: "not measured", why: NO_CELL });
+  const incidents = INCIDENTS.map((incident): IncidentScores => scored.get(incident) ?? { incident, kind: "not measured", why: NO_CELL_OF[incident] ?? NO_CELL });
   return { dimension: "how callers learn", run: first.run, runs: [...new Set(copies.map((copy) => copy.run))], criteria: CRITERIA, incidents };
 };

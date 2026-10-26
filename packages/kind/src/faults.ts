@@ -335,8 +335,17 @@ export const planOf = (cell: KindCell): FaultPlan => {
         heal: [{ do: "kubectl", args: [...ns, "scale", `deployment/${REDIS}`, "--replicas=1"] }],
         restore: [],
       };
-    case "app-stall":
-      return { inject: [{ do: "stall", target: "server", time: needs(trigger.hold, "a hold") }], hold: null, heal: [], restore: [] };
+    case "app-stall": {
+      // in T07, each client opens new connections first, as a partition does. Thus they spread over the replicas in each run
+      const spread: Step[] = cell.template === "T07" ? [{ do: "signal", target: "clients", signal: "SIGHUP" }, { do: "wait", time: SPREAD_LEAD }] : [];
+      return {
+        ...(spread.length === 0 ? {} : { prepare: spread }),
+        inject: [{ do: "stall", target: "server", time: needs(trigger.hold, "a hold") }],
+        hold: null,
+        heal: [],
+        restore: [],
+      };
+    }
     case "rollout":
       // Redis is down for each pod, a new one too: the Service of Redis has no endpoint
       return {

@@ -132,6 +132,9 @@ describe("the fault mapping", () => {
     expect(planOf(cellOf("cpu-throttle")).inject).toEqual([{ do: "cpu", target: "server", max: "1000 1000000" }]);
     expect(planOf(cellOf("cpu-throttle")).heal).toEqual([{ do: "cpu", target: "server", max: "max 1000000" }]);
     expect(planOf(cellOf("app-stall")).inject).toEqual([{ do: "stall", target: "server", time: s(5) }]);
+    // a stall in T07 gives each client new connections first, as a partition does. T18 has no such step
+    expect(planOf(cellOf("app-stall")).prepare).toEqual([{ do: "signal", target: "clients", signal: "SIGHUP" }, { do: "wait", time: s(3) }]);
+    expect(planOf(cellOf("app-stall", DESIGN, "T18"))).toEqual({ inject: [{ do: "stall", target: "server", time: s(5) }], hold: null, heal: [], restore: [] });
     expect(planOf(cellOf("liveness-restart")).inject).toEqual([{ do: "flag", target: "server", on: true }]);
     const cannot = planOf(cellOf("cannot-serve"));
     expect(cannot.prepare).toEqual([{ do: "signal", target: "clients", signal: "SIGHUP" }, { do: "wait", time: s(3) }]);

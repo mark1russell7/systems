@@ -22,7 +22,7 @@ export const candidateName = (cell: KindCell): Candidate => {
 
 /** This function gives the candidate of an S2 cell for the side-by-side table: its window and its expected count of failed requests. */
 export const candidateOf = (cell: KindCell) => {
-  if (cell.trigger.kind !== "cannot-serve" && cell.trigger.partition !== true) return null;
+  if (cell.trigger.kind !== "cannot-serve" && cell.trigger.kind !== "app-stall" && cell.trigger.partition !== true) return null;
   const p = cell.prediction;
   if (p.kind !== "window" || p.end === null) throw new Error(`${cell.name}: an S2 cell has a window that ends`);
   const name = candidateName(cell);
@@ -41,6 +41,6 @@ export const candidateOf = (cell: KindCell) => {
 export const callerPredictions = (fault: CallerFault = "cannot serve") =>
   CALLERS_CELLS.filter((cell) => callerFaultOf(cell) === fault).map((cell) => {
     const candidate = candidateOf(cell);
-    if (candidate === null) throw new Error(`${cell.name}: an S2 cell has the trigger cannot-serve or a partition`);
+    if (candidate === null) throw new Error(`${cell.name}: an S2 cell has the trigger cannot-serve, a partition or a stall`);
     return { id: cell.id, mode: cell.mode, candidate };
   });

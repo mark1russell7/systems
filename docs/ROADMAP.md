@@ -134,6 +134,8 @@ On 2026-10-17, Mark decided the design of the server stack (D1 to D18). These de
 
 [PR #199](https://github.com/mark1russell7/systems/pull/199) adds that check: `sessionCheck` of `./http-client`, an opt-in with the heartbeat of the service. Candidate D is C with the check. Kind run [40394320219](https://github.com/mark1russell7/systems/actions/runs/40394320219) held each of the 6 cells of D in 3 of 3 runs, and the prediction of commit f066a10 held. For a pod that cannot serve, the check closed no session, and D and C had one band. In a partition, D learned in 1.07 s to 1.46 s by the median run, and C needed approximately 26 s. Thus the session check is part of the default rule of the client of HTTP/2, with `keepalive_time` 0.5 s and `keepalive_timeout` 0.5 s.
 
+[PR #202](https://github.com/mark1russell7/systems/pull/202) scores a third incident: a stalled pod, a gray failure. The event loop of the target stops for 12 s, and its readiness probe removes it 5 s to 7.3 s after the fault. Kind run [40406199754](https://github.com/mark1russell7/systems/actions/runs/40406199754) held each of the 12 cells in 3 of 3 runs, and the prediction of commit bd3697f held each count. A and B learned in 1.15 s at the most, D in 1.28 s to 3.3 s by the median run, and C only at the resume. The last failure of C was up to 72 ms after its band, in the noise of the judge, thus its time score shows a failure. The decision of S6 does not change.
+
 ## The server stack in S6
 
 These items are the part of the server stack in this repository. The server stack is a plan across repositories: one service runner here, and one procedures server in the client. [Its tracker](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb) has the whole plan, with the same ids.

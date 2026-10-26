@@ -1,0 +1,891 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-10-26",
+  "units": "s",
+  "runs": 3,
+  "kernel": "6.17.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.iptables.endpoints.stall",
+      "template": "T07",
+      "name": "iptables, callers learn that a pod is stalled: endpoints only",
+      "mode": "iptables",
+      "trigger": "app-stall",
+      "group": "stall",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 2.24 s after the fault. At least one request fails. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 22,
+      "values": [27, 17, 22],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 22 failed requests. The counted runs had 17 to 27 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      },
+      "lasts": [1.0133271, 0.4761518, 0.5968662]
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck.stall",
+      "template": "T07",
+      "name": "iptables, callers learn that a pod is stalled: in band (lame duck)",
+      "mode": "iptables",
+      "trigger": "app-stall",
+      "group": "stall",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 2.24 s after the fault. At least one request fails. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 18,
+      "values": [13, 18, 20],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 18 failed requests. The counted runs had 13 to 20 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      },
+      "lasts": [0.2569769, 0.4676739, 1.0058436]
+    },
+    {
+      "id": "S2.T07.iptables.goaway.stall",
+      "template": "T07",
+      "name": "iptables, callers learn that a pod is stalled: in band on HTTP/2 (GOAWAY)",
+      "mode": "iptables",
+      "trigger": "app-stall",
+      "group": "stall",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 9.98 s to 10 s after the fault. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 498,
+      "values": [498, 0, 499],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 498 failed requests. The counted runs had 0 to 499 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10
+        },
+        "expected": {
+          "low": 0,
+          "high": 1503
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      },
+      "lasts": [9.9993782, null, 10.0164164]
+    },
+    {
+      "id": "S2.T07.iptables.session-check.stall",
+      "template": "T07",
+      "name": "iptables, callers learn that a pod is stalled: in band on HTTP/2 with a session check",
+      "mode": "iptables",
+      "trigger": "app-stall",
+      "group": "stall",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 8.105 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 280,
+      "values": [280, 164, 280],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 280 failed requests. The counted runs had 164 to 280 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 8.105
+        },
+        "expected": {
+          "low": 0,
+          "high": 534
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      },
+      "lasts": [4.3132993, 3.2884631, 3.3018742]
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints.stall",
+      "template": "T07",
+      "name": "ipvs, callers learn that a pod is stalled: endpoints only",
+      "mode": "ipvs",
+      "trigger": "app-stall",
+      "group": "stall",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 640 ms after the fault. At least one request fails. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 24,
+      "values": [24, 24, 24],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 24 failed requests. The counted runs had 24 to 24 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.64
+        },
+        "expected": {
+          "low": 21,
+          "high": 24
+        },
+        "connections": {
+          "low": 12,
+          "high": 12,
+          "of": 24
+        }
+      },
+      "lasts": [0.5041805, 0.5107103, 0.5182802]
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck.stall",
+      "template": "T07",
+      "name": "ipvs, callers learn that a pod is stalled: in band (lame duck)",
+      "mode": "ipvs",
+      "trigger": "app-stall",
+      "group": "stall",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 640 ms after the fault. At least one request fails. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 24,
+      "values": [24, 24, 24],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 24 failed requests. The counted runs had 24 to 24 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.64
+        },
+        "expected": {
+          "low": 21,
+          "high": 24
+        },
+        "connections": {
+          "low": 12,
+          "high": 12,
+          "of": 24
+        }
+      },
+      "lasts": [0.5228342, 0.5205351, 0.5070038]
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.stall",
+      "template": "T07",
+      "name": "ipvs, callers learn that a pod is stalled: in band on HTTP/2 (GOAWAY)",
+      "mode": "ipvs",
+      "trigger": "app-stall",
+      "group": "stall",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 9.98 s to 10 s after the fault. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 1498,
+      "values": [1502, 1497, 1498],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 1,498 failed requests. The counted runs had 1,497 to 1,502 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10
+        },
+        "expected": {
+          "low": 0,
+          "high": 1503
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      },
+      "lasts": [10.0723121, 10.0339178, 10.0470399]
+    },
+    {
+      "id": "S2.T07.ipvs.session-check.stall",
+      "template": "T07",
+      "name": "ipvs, callers learn that a pod is stalled: in band on HTTP/2 with a session check",
+      "mode": "ipvs",
+      "trigger": "app-stall",
+      "group": "stall",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 1.5 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 191,
+      "values": [190, 192, 191],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 191 failed requests. The counted runs had 190 to 192 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 1.5
+        },
+        "expected": {
+          "low": 0,
+          "high": 228
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      },
+      "lasts": [1.2748507, 1.2923157, 1.2825351]
+    },
+    {
+      "id": "S2.T07.nftables.endpoints.stall",
+      "template": "T07",
+      "name": "nftables, callers learn that a pod is stalled: endpoints only",
+      "mode": "nftables",
+      "trigger": "app-stall",
+      "group": "stall",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 2.24 s after the fault. At least one request fails. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 25,
+      "values": [20, 25, 28],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 25 failed requests. The counted runs had 20 to 28 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      },
+      "lasts": [0.4816915, 1.0353348, 0.9343731]
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck.stall",
+      "template": "T07",
+      "name": "nftables, callers learn that a pod is stalled: in band (lame duck)",
+      "mode": "nftables",
+      "trigger": "app-stall",
+      "group": "stall",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 2.24 s after the fault. At least one request fails. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 21,
+      "values": [21, 19, 32],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 21 failed requests. The counted runs had 19 to 32 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      },
+      "lasts": [0.8001885, 0.5835641, 1.1472699]
+    },
+    {
+      "id": "S2.T07.nftables.goaway.stall",
+      "template": "T07",
+      "name": "nftables, callers learn that a pod is stalled: in band on HTTP/2 (GOAWAY)",
+      "mode": "nftables",
+      "trigger": "app-stall",
+      "group": "stall",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 9.98 s to 10 s after the fault. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 498,
+      "values": [497, 498, 996],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 498 failed requests. The counted runs had 497 to 996 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10
+        },
+        "expected": {
+          "low": 0,
+          "high": 1503
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      },
+      "lasts": [10.0246077, 10.0351065, 10.0273493]
+    },
+    {
+      "id": "S2.T07.nftables.session-check.stall",
+      "template": "T07",
+      "name": "nftables, callers learn that a pod is stalled: in band on HTTP/2 with a session check",
+      "mode": "nftables",
+      "trigger": "app-stall",
+      "group": "stall",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 8.079 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 274,
+      "values": [474, 274, 115],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 274 failed requests. The counted runs had 115 to 474 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 8.079
+        },
+        "expected": {
+          "low": 0,
+          "high": 534
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      },
+      "lasts": [7.2586296, 3.2038023, 2.2921442]
+    }
+  ],
+  "predictions": [
+    {
+      "id": "S2.T07.iptables.endpoints.stall",
+      "mode": "iptables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck.stall",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.goaway.stall",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10
+        },
+        "expected": {
+          "low": 0,
+          "high": 1503
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.session-check.stall",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 8.105
+        },
+        "expected": {
+          "low": 0,
+          "high": 534
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints.stall",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.64
+        },
+        "expected": {
+          "low": 21,
+          "high": 24
+        },
+        "connections": {
+          "low": 12,
+          "high": 12,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck.stall",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.64
+        },
+        "expected": {
+          "low": 21,
+          "high": 24
+        },
+        "connections": {
+          "low": 12,
+          "high": 12,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.stall",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10
+        },
+        "expected": {
+          "low": 0,
+          "high": 1503
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.session-check.stall",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 1.5
+        },
+        "expected": {
+          "low": 0,
+          "high": 228
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.endpoints.stall",
+      "mode": "nftables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck.stall",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.goaway.stall",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10
+        },
+        "expected": {
+          "low": 0,
+          "high": 1503
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.session-check.stall",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 8.079
+        },
+        "expected": {
+          "low": 0,
+          "high": 534
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    }
+  ]
+}

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { timerOf } from "@mark1russell7/algebra";
 import type { KindCell } from "@mark1russell7/kind";
 import { LINUX_TCP } from "@mark1russell7/machines";
-import { clientObjects, describeCell, lintCell, namespaceOf, pausedWindow, planOf, serverObjects, stopOf, verdictsOf } from "@mark1russell7/kind";
+import { clientObjects, describeCell, kubeletBand, lintCell, namespaceOf, pausedWindow, planOf, serverObjects, stallRemovalBand, stopOf, verdictsOf } from "@mark1russell7/kind";
 import { STOP_RULE } from "@mark1russell7/service";
 import { sessionCheckDetection, sessionCheckProblems } from "@mark1russell7/service/http-client";
 import { valueIn } from "@mark1russell7/quantity";
@@ -20,13 +20,14 @@ import {
   PARTITION_HOLD,
   SELECTION,
   SESSION_CHECK,
+  STALL_HOLD,
   callerFaultOf,
   expectedFailures,
   negativeBinomial,
   targetConnections,
 } from "./callers.ts";
 import type { CallerFault } from "./callers.ts";
-import { PROPAGATION, SYN_SENT, afterSync, s } from "./kind.ts";
+import { CHART_READINESS, KUBE_PROBE, PROPAGATION, SYN_SENT, afterSync, s } from "./kind.ts";
 import { T07_CELLS } from "./t07.ts";
 import { T18_CELLS } from "./t18.ts";
 
@@ -43,7 +44,7 @@ const propagationOf = (cell: KindCell) => {
 
 describe("the kind catalogs", () => {
   it("names each cell by a cell of the plan, or as a calibration, and each name once", () => {
-    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(iptables|ipvs|nftables)\.(endpoints|lame-duck|goaway|session-check)(.partition)?$/);
+    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(iptables|ipvs|nftables)\.(endpoints|lame-duck|goaway|session-check)(\.partition|\.stall)?$/);
     expect(new Set(ALL.map((cell) => cell.name)).size).toBe(ALL.length);
     expect(new Set(ALL.map(namespaceOf)).size).toBe(ALL.length);
   });
@@ -159,9 +160,9 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
 
   it("has the four candidates in each mode of kube-proxy, from one definition", () => {
     expect(CALLERS_MODES).toEqual(["iptables", "ipvs", "nftables"]);
-    expect(CALLER_FAULTS).toEqual(["cannot serve", "partition"]);
+    expect(CALLER_FAULTS).toEqual(["cannot serve", "partition", "stall"]);
     expect(CALLERS_CELLS.map((cell) => cell.id)).toEqual(
-      ["", ".partition"].flatMap((tail) =>
+      ["", ".partition", ".stall"].flatMap((tail) =>
         CALLERS_MODES.flatMap((mode) => [`S2.T07.${mode}.endpoints${tail}`, `S2.T07.${mode}.lame-duck${tail}`, `S2.T07.${mode}.goaway${tail}`, `S2.T07.${mode}.session-check${tail}`]),
       ),
     );
@@ -313,6 +314,69 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
       expect(d.why).toMatch(/The first session on the target closes 0\.98 s–1\.5 s after the fault, before its first stream timeout \(2 s\)\. Each stream on it fails at the close, 49–76 streams/);
       // in turn, 3 first sessions of 76 streams at the most. At random, 9 picks: 3 first sessions, and 6 next sessions of 51 streams at the most
       const { lo, hi } = expectedFailures("in band on HTTP/2 with a session check", mode, "partition");
+      expect({ lo, hi }).toEqual(random ? requests(0, 534) : requests(0, 228));
+    }
+  });
+
+  it("stalls the target in each mode with the cells of each candidate: only the trigger, the prediction and the runs change", () => {
+    for (const mode of CALLERS_MODES) {
+      const serve = trioOf(mode);
+      const stall = trioOf(mode, "stall");
+      expect(stall.map((cell) => cell.name)).toEqual(CANDIDATES.map((candidate) => `T07 ${mode}, callers learn that a pod is stalled: ${candidate}`));
+      for (const [at, cell] of stall.entries()) {
+        const { id, name: _n, trigger, prediction: _p, runs, ...rest } = cell;
+        const { id: twin, name: _tn, trigger: _tt, prediction: _tp, runs: _tr, ...restTwin } = serve[at]!;
+        expect(id).toBe(`${twin}.stall`);
+        expect(rest).toEqual(restTwin);
+        expect(trigger).toEqual({ kind: "app-stall", hold: STALL_HOLD });
+        expect(runs).toBe(3);
+        // each client opens new connections before the stall, as in a partition
+        expect(planOf(cell).prepare).toEqual([{ do: "signal", target: "clients", signal: "SIGHUP" }, { do: "wait", time: s(3) }]);
+      }
+    }
+  });
+
+  it("holds the stall past the removal by the readiness probe and the idle close of the server, and short of the liveness restart", () => {
+    const removals = CALLERS_MODES.map((mode) => valueIn(stallRemovalBand(CHART_READINESS, PROPAGATION[mode]).hi, "s"));
+    expect(removals).toEqual([7.105, 7.309, 7.079]);
+    const hold = valueIn(STALL_HOLD, "s");
+    expect(hold).toBeGreaterThan(Math.max(...removals));
+    // the idle close of the server is 6 s (server_idle_close of the image)
+    expect(hold).toBeGreaterThan(6);
+    // the third failed liveness probe comes 21 s after the start of the stall at the earliest
+    expect(valueIn(kubeletBand(KUBE_PROBE, true).lo, "s")).toBe(21);
+    expect(hold).toBeLessThan(21);
+  });
+
+  it("predicts that A, B and D of a stall fail as in a partition, D until the removal, and C until one timeout before the resume", () => {
+    const band = (lo: number, hi: number) => ({ lo: s(lo), hi: s(hi) });
+    const requests = (lo: number, hi: number) => ({ lo: { value: lo, unit: "{request}" }, hi: { value: hi, unit: "{request}" } });
+    // the latest removal, then one check of the last session on the target
+    const dEnd = { iptables: 8.105, ipvs: 1.5, nftables: 8.079 };
+    for (const mode of CALLERS_MODES) {
+      const [a, b, c, d] = trioOf(mode, "stall").map(windowOf) as [Window, Window, Window, Window];
+      const random = SELECTION[mode] === "random";
+      for (const prediction of [a, b])
+        expect([prediction.certain, prediction.start, prediction.end, prediction.outcomes]).toEqual([
+          true,
+          { from: "fault", band: band(0, 0.16) },
+          { from: "fault", band: band(0, random ? 2.24 : 0.64) },
+          ["timeout"],
+        ]);
+      expect(a.why).toBe(b.why.replace(". The lame duck never starts, thus B is the same as A", ""));
+      // the last pick of a chain: one turn before the last failure, plus the timeout
+      expect(a.why).toMatch(random ? /The last pick of a chain comes 4\.08 s after the fault at the latest, before the removal/ : /The last pick of a chain comes 2\.48 s after the fault at the latest, before the removal/);
+      for (const candidate of ["endpoints only", "in band (lame duck)"] as const) {
+        const { lo, hi } = expectedFailures(candidate, mode, "stall");
+        expect({ lo, hi }).toEqual(random ? requests(12, 39) : requests(21, 24));
+      }
+      // C: the resume 12 s after the fault, less the timeout of 2 s and up to one request
+      expect([c.certain, c.start, c.end, c.outcomes]).toEqual([false, { from: "fault", band: band(0, 0.02) }, { from: "fault", band: band(9.98, 10) }, ["timeout"]]);
+      expect(expectedFailures("in band on HTTP/2 (GOAWAY)", mode, "stall")).toMatchObject(requests(0, 1503));
+      // D: the arithmetic of the partition, and the removal ends the chains at random
+      expect([d.certain, d.start, d.end, d.outcomes]).toEqual([false, { from: "fault", band: band(0, 0.02) }, { from: "fault", band: band(0, dEnd[mode]) }, undefined]);
+      expect(d.why).toMatch(/its TCP connects, but the blocked loop sends no SETTINGS frame\. The check sends a PING, which gets no ACK, and it closes the session 1 s after its first stream|IPVS selects in turn/);
+      const { lo, hi } = expectedFailures("in band on HTTP/2 with a session check", mode, "stall");
       expect({ lo, hi }).toEqual(random ? requests(0, 534) : requests(0, 228));
     }
   });
