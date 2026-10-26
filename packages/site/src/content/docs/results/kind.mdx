@@ -127,13 +127,33 @@ The medians of D were 73, 158 and 107 failed requests. That is more than A and B
 
 <KindResults template="T07" group="partition" client:visible />
 
+### A stalled pod
+
+The same cells, with the event loop of one replica of 2 blocked for 12 s. This is a gray failure. The kernel of the target accepts each connection and acknowledges each segment, but the app and its probes do not answer. The cells come from the run [40406199754](https://github.com/mark1russell7/systems/actions/runs/40406199754). The judge counted 3 runs of each cell in each mode, and each cell held in 3 of 3 runs.
+
+Each readiness probe fails at its timeout, thus the target leaves the rules 5 s to 7.3 s after the fault. The watchdog of the service fails only one check, thus the service stays ready. No candidate gets a signal in band, and B is the same as A.
+
+A and B fail one request on each connection that picks the target, at its timeout. The rules of iptables and nftables gave 13 to 32 failed requests, and IPVS gave 24 in each run. The last failure started 0.26 s to 1.15 s after the fault, before the removal.
+
+C learns only when the loop resumes. Its session on the target stays open, and each stream fails at its timeout of 2 s. At the resume, the server closes the session with GOAWAY, and the client sends each stream in flight again. The medians of C were 498, 1,498 and 498 failed requests.
+
+The last failure of C started 9.999 s to 10.072 s after the fault. The band of the prediction was 9.98 s to 10 s, thus the score of the time shows a failure. The close reaches the client approximately 70 ms after the resume at the most, in the noise of the judge (100 ms).
+
+D learns from its session check. A next session on the target connects, but its PING gets no ACK, and the removal ends each chain. The last failure started 1.27 s to 7.26 s after the fault, with the medians 1.28 s to 3.3 s. The medians of D were 280, 191 and 274 failed requests.
+
+<CallersTable incident="stall" />
+
+<KindResults template="T07" group="stall" client:visible />
+
 ### How callers learn
 
-S6 scores each candidate of health and routing on seven criteria, for each incident of its design. Three runs score two incidents: a pod that cannot serve, and a partitioned pod. The third run adds D to each incident. The table puts the measure of each criterion next to its prediction, and each cell links to its run. A criterion that the run cannot support has no number, only the reason.
+S6 scores each candidate of health and routing on seven criteria, for each incident of its design. Four runs score three incidents: a pod that cannot serve, a partitioned pod and a stalled pod. The third run adds D to the first two incidents, and the fourth run has each candidate of the stall. The table puts the measure of each criterion next to its prediction, and each cell links to its run. A criterion that the run cannot support has no number, only the reason.
 
 B, C and D each have fewer failed requests than A in each mode, by the median run. B has the fewest in IPVS, and D has the fewest in iptables and nftables. D has the band of C, thus the two are equal for a pod that cannot serve. Thus the service keeps one rule: while it is not ready, it closes each connection on the channel of its protocol. HTTP/1.1 gets `Connection: close`, and HTTP/2 gets GOAWAY. A is an opt-in of the transport.
 
 In a partition, the service is ready, thus no candidate gets a signal in band. Each caller learns from its own timeouts. A and B learned in 1.4 s at the most, and C in approximately 26 s, after the heal. D learned in 1.07 s to 1.46 s by the median run, from the PING of its session check. Thus the rule stays, and the client of HTTP/2 also checks its session (D). The scores of the partition measure the time until callers know from the fault.
+
+A stall gives the same result. The service stays ready, and A and B learned in 1.15 s at the most. C learned only at the resume, approximately 10 s after the fault. D learned in 1.28 s to 3.3 s by the median run. Thus the stall changes no part of the rule.
 
 <CallersScores />
 

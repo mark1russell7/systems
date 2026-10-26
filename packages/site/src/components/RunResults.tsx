@@ -18,6 +18,7 @@ import rabbitmq from "../data/rabbitmq-2026-10-19.json";
 import S2 from "../data/s2-2026-10-26.json";
 import s2Partition from "../data/s2-partition-2026-10-26.json";
 import s2PartitionChecked from "../data/s2-partition-session-check-2026-10-26.json";
+import s2Stall from "../data/s2-stall-2026-10-26.json";
 import s2Checked from "../data/s2-session-check-2026-10-26.json";
 import s6 from "../data/s6-2026-10-26.json";
 import t15 from "../data/t15-2026-10-25.json";
@@ -439,7 +440,7 @@ export function RaceBorder(): ReactElement {
 // ---------------------------------------------------------------------------------------------
 
 /** The kind cells of each copy: T07 and T18, T15 over gRPC through Istio, and the S2 cells of each incident. The later run of D adds its cells. */
-const KIND_CELLS = [...kind.cells, ...t15.cells, ...S2.cells, ...s2Checked.cells, ...s2Partition.cells, ...s2PartitionChecked.cells];
+const KIND_CELLS = [...kind.cells, ...t15.cells, ...S2.cells, ...s2Checked.cells, ...s2Partition.cells, ...s2PartitionChecked.cells, ...s2Stall.cells];
 type KindCell = (typeof KIND_CELLS)[number];
 
 /** This function writes the main value of a kind cell: a count of failed requests, of replicas, or a time. */
@@ -542,11 +543,11 @@ const S2_FROM: Readonly<Record<string, string>> = { fault: "the fault", heal: "t
  * columns come from the predictions of the copy, thus a candidate with no run has a column too.
  * Each cell gives the verdict and the failed requests of the median run. Then it gives the
  * prediction: the expected count of failed requests, and the band of the end of the window. The
- * incident `partition` shows the copy of the partitioned pod.
+ * incident `partition` shows the copies of the partitioned pod, and `stall` the copy of the stalled pod.
  */
-export function CallersTable(props: { readonly incident?: "cannot serve" | "partition" }): ReactElement {
-  // the copies of an incident: the first run of A, B and C, then the run of D. The latest copy has the prediction of each candidate
-  const copies = (props.incident === "partition" ? [s2Partition, s2PartitionChecked] : [S2, s2Checked]) as unknown as readonly (typeof S2)[];
+export function CallersTable(props: { readonly incident?: "cannot serve" | "partition" | "stall" }): ReactElement {
+  // the copies of an incident: the first run of A, B and C, then the run of D. One run of the stall has each candidate. The latest copy has the prediction of each candidate
+  const copies = (props.incident === "partition" ? [s2Partition, s2PartitionChecked] : props.incident === "stall" ? [s2Stall] : [S2, s2Checked]) as unknown as readonly (typeof S2)[];
   const latest = copies.at(-1)!;
   const s2 = { predictions: latest.predictions, cells: copies.flatMap((copy) => copy.cells) };
   const candidates = [...new Set(s2.predictions.map((each) => each.candidate.name))];

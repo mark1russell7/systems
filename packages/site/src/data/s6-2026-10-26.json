@@ -2,7 +2,7 @@
   "ranAt": "2026-10-26",
   "dimension": "how callers learn",
   "run": 40358038728,
-  "runs": [40358038728, 40380943331, 40394320219],
+  "runs": [40358038728, 40380943331, 40394320219, 40406199754],
   "criteria": [
     "time until callers know",
     "failed requests",
@@ -2587,6 +2587,1360 @@
       ]
     },
     {
+      "incident": "a stalled pod (gray failure)",
+      "kind": "scored",
+      "trigger": "app-stall",
+      "run": 40406199754,
+      "modes": [
+        {
+          "mode": "iptables",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.iptables.endpoints.stall",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.5968662,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.4761518,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.5968662,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.0133271,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 2.24,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.iptables.endpoints.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 22,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 27,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 17,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 22,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 39,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.iptables.endpoints.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The stall holds for 12 s, and the readiness probe removes the replica in it: a true removal. No cell gives a short stall yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the stall."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The stall stops each route of the target, because its event loop is blocked. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.iptables.lame-duck.stall",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.4676739,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.2569769,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.4676739,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.0058436,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 2.24,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.iptables.lame-duck.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 18,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 13,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 18,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 20,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 39,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.iptables.lame-duck.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The stall holds for 12 s, and the readiness probe removes the replica in it: a true removal. No cell gives a short stall yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the stall."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The stall stops each route of the target, because its event loop is blocked. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.iptables.goaway.stall",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 10.0078973,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 9.9993782,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.0164164,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 9.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 10,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.iptables.goaway.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 498,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 498,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 499,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 1503,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.iptables.goaway.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The stall holds for 12 s, and the readiness probe removes the replica in it: a true removal. No cell gives a short stall yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the stall."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The stall stops each route of the target, because its event loop is blocked. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.iptables.session-check.stall",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3.3018742,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 3.2884631,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.3018742,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.3132993,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 8.105,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.iptables.session-check.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 280,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 280,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 164,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 280,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 534,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.iptables.session-check.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The stall holds for 12 s, and the readiness probe removes the replica in it: a true removal. No cell gives a short stall yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the stall."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The stall stops each route of the target, because its event loop is blocked. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "B"
+        },
+        {
+          "mode": "ipvs",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.ipvs.endpoints.stall",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.5107103,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.5041805,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.5107103,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.5182802,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 0.64,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.ipvs.endpoints.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 24,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 24,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 24,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 24,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 21,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 24,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.ipvs.endpoints.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The stall holds for 12 s, and the readiness probe removes the replica in it: a true removal. No cell gives a short stall yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the stall."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The stall stops each route of the target, because its event loop is blocked. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.ipvs.lame-duck.stall",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.5205351,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.5070038,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.5205351,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.5228342,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 0.64,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.ipvs.lame-duck.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 24,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 24,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 24,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 24,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 21,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 24,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.ipvs.lame-duck.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The stall holds for 12 s, and the readiness probe removes the replica in it: a true removal. No cell gives a short stall yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the stall."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The stall stops each route of the target, because its event loop is blocked. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.ipvs.goaway.stall",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 10.0470399,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 10.0339178,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.0470399,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.0723121,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 9.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 10,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.ipvs.goaway.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 1498,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 1502,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1497,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1498,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 1503,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.ipvs.goaway.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The stall holds for 12 s, and the readiness probe removes the replica in it: a true removal. No cell gives a short stall yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the stall."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The stall stops each route of the target, because its event loop is blocked. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.ipvs.session-check.stall",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 1.2825351,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 1.2748507,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.2825351,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.2923157,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 1.5,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.ipvs.session-check.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 191,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 190,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 192,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 191,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 228,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.ipvs.session-check.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The stall holds for 12 s, and the readiness probe removes the replica in it: a true removal. No cell gives a short stall yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the stall."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The stall stops each route of the target, because its event loop is blocked. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "A"
+        },
+        {
+          "mode": "nftables",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.nftables.endpoints.stall",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.9343731,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.4816915,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.9343731,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.0353348,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 2.24,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.nftables.endpoints.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 25,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 20,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 25,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 28,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 39,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.nftables.endpoints.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The stall holds for 12 s, and the readiness probe removes the replica in it: a true removal. No cell gives a short stall yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the stall."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The stall stops each route of the target, because its event loop is blocked. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.nftables.lame-duck.stall",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.8001885,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.5835641,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.8001885,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.1472699,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 2.24,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.nftables.lame-duck.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 21,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 21,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 19,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 32,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 39,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.nftables.lame-duck.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The stall holds for 12 s, and the readiness probe removes the replica in it: a true removal. No cell gives a short stall yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the stall."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The stall stops each route of the target, because its event loop is blocked. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.nftables.goaway.stall",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 10.0273493,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 10.0246077,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.0273493,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.0351065,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 9.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 10,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.nftables.goaway.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 498,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 497,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 498,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 996,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 1503,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.nftables.goaway.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The stall holds for 12 s, and the readiness probe removes the replica in it: a true removal. No cell gives a short stall yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the stall."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The stall stops each route of the target, because its event loop is blocked. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.nftables.session-check.stall",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3.2038023,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 2.2921442,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.2038023,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 7.2586296,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 8.079,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.nftables.session-check.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 274,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 474,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 274,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 115,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 534,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40406199754,
+                    "cell": "S2.T07.nftables.session-check.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The stall holds for 12 s, and the readiness probe removes the replica in it: a true removal. No cell gives a short stall yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the stall."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The stall stops each route of the target, because its event loop is blocked. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "B"
+        }
+      ]
+    },
+    {
       "incident": "a black-holed shared dependency",
       "kind": "not measured",
       "why": "No cell measures the candidates A, B, C and D in this incident yet."
@@ -2599,7 +3953,7 @@
     {
       "incident": "a slow dependency (gray failure)",
       "kind": "not measured",
-      "why": "No cell measures the candidates A, B, C and D in this incident yet."
+      "why": "No cell measures the candidates in this incident yet. The S2 cells have no shared dependency, and a slow dependency slows each replica at once. Thus no routing candidate can go around it. The stalled pod is the gray failure of one replica."
     },
     {
       "incident": "a flapping dependency",

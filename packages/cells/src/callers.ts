@@ -85,8 +85,8 @@ export const CALLER_FAULTS: readonly CallerFault[] = ["cannot serve", "partition
  * This time is how long the event loop of the target stays blocked in a stall. It has three bounds:
  * - It is longer than the latest removal by the readiness probe (7.309 s in IPVS), thus the probe removes
  *   the target in the stall.
- * - It is longer than the idle close of the server (6 s), thus the server closes each session that
- *   the stall kept quiet when its loop resumes.
+ * - It is longer than the idle close of the server (6 s). Thus at the resume, the server closes each
+ *   session that the stall kept quiet.
  * - It is shorter than the earliest restart by the liveness probe (21 s), thus the pod stays.
  */
 export const STALL_HOLD = s(12);

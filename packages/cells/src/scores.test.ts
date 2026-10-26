@@ -9,15 +9,18 @@ const s2 = read<{ readonly cells: readonly CallerResult[] }>("s2-2026-10-26.json
 const partition = read<{ readonly cells: readonly CallerResult[] }>("s2-partition-2026-10-26.json");
 const checked = read<{ readonly cells: readonly CallerResult[] }>("s2-session-check-2026-10-26.json");
 const checkedPartition = read<{ readonly cells: readonly CallerResult[] }>("s2-partition-session-check-2026-10-26.json");
+const stall = read<{ readonly cells: readonly CallerResult[] }>("s2-stall-2026-10-26.json");
 const s6 = read<Scorecard & { readonly ranAt: string }>("s6-2026-10-26.json");
 const RUN = 40358038728;
 const PARTITION_RUN = 40380943331;
 const CHECK_RUN = 40394320219;
+const STALL_RUN = 40406199754;
 const card = scoreCallers(
   { run: RUN, cells: s2.cells },
   { run: PARTITION_RUN, cells: partition.cells },
   { run: CHECK_RUN, cells: checked.cells },
   { run: CHECK_RUN, cells: checkedPartition.cells },
+  { run: STALL_RUN, cells: stall.cells },
 );
 
 const scoredOf = (scorecard: Scorecard, name: Incident): readonly ModeScores[] => {
@@ -27,6 +30,7 @@ const scoredOf = (scorecard: Scorecard, name: Incident): readonly ModeScores[] =
 };
 const scored = (scorecard: Scorecard): readonly ModeScores[] => scoredOf(scorecard, "a pod that cannot serve");
 const partitioned = (scorecard: Scorecard): readonly ModeScores[] => scoredOf(scorecard, "a partitioned pod");
+const stalled = (scorecard: Scorecard): readonly ModeScores[] => scoredOf(scorecard, "a stalled pod (gray failure)");
 const scoreOf = (candidate: CandidateScores, criterion: Score["criterion"]): Score => {
   const found = candidate.scores.find((each) => each.criterion === criterion);
   if (found === undefined) throw new Error(`${candidate.cell}: no score of ${criterion}`);
@@ -38,7 +42,7 @@ const median = (candidate: CandidateScores, criterion: Score["criterion"] = "fai
   return score.median.value;
 };
 
-describe("the scores of how callers learn, from the copies of kind runs 40358038728, 40380943331 and 40394320219", () => {
+describe("the scores of how callers learn, from the copies of kind runs 40358038728, 40380943331, 40394320219 and 40406199754", () => {
   it("are the scorecard that the site shows", () => {
     const { ranAt, ...shown } = s6;
     expect(ranAt).toBe("2026-10-26");
@@ -47,11 +51,12 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
 
   it("give each candidate of each mode a score on each criterion, with the run and the cell as evidence", () => {
     // the copies of run 40394320219 add D to each incident, and A, B and C keep the evidence of their own runs
-    expect([card.run, card.runs]).toEqual([RUN, [RUN, PARTITION_RUN, CHECK_RUN]]);
+    expect([card.run, card.runs]).toEqual([RUN, [RUN, PARTITION_RUN, CHECK_RUN, STALL_RUN]]);
     expect(card.incidents.map((each) => each.incident)).toEqual(INCIDENTS);
     for (const [modes, run, tail] of [
       [scored(card), RUN, ""],
       [partitioned(card), PARTITION_RUN, ".partition"],
+      [stalled(card), STALL_RUN, ".stall"],
     ] as const) {
       expect(modes.map((each) => each.mode)).toEqual(["iptables", "ipvs", "nftables"]);
       for (const mode of modes) {
@@ -60,13 +65,15 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
         );
         for (const candidate of mode.candidates) {
           expect(candidate.scores.map((each) => each.criterion)).toEqual(CRITERIA);
-          const evidence = candidate.label === "D" ? CHECK_RUN : run;
+          // the run of the stall has each candidate, D too
+          const evidence = candidate.label === "D" && run !== STALL_RUN ? CHECK_RUN : run;
           for (const score of candidate.scores)
             if (score.kind !== "not measured") expect(score.evidence, candidate.cell).toEqual({ run: evidence, cell: candidate.cell, decision: "holds", counted: 3 });
         }
       }
     }
-    for (const incident of card.incidents.slice(0, 2)) expect(incident.kind === "scored" ? incident.run : null).toBe(incident.incident === "a partitioned pod" ? PARTITION_RUN : RUN);
+    const runOf: Partial<Record<Incident, number>> = { "a pod that cannot serve": RUN, "a partitioned pod": PARTITION_RUN, "a stalled pod (gray failure)": STALL_RUN };
+    for (const incident of card.incidents.slice(0, 3)) expect(incident.kind === "scored" ? incident.run : null).toBe(runOf[incident.incident]);
   });
 
   it("put the measure of the failed requests next to the prediction, and each counted run is in the prediction", () => {
@@ -82,7 +89,7 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
       [3044, 3333, 2104],
       true,
     ]);
-    for (const modes of [scored(card), partitioned(card)])
+    for (const modes of [scored(card), partitioned(card), stalled(card)])
       for (const mode of modes) for (const candidate of mode.candidates) expect(scoreOf(candidate, "failed requests"), candidate.cell).toMatchObject({ kind: "measured", holds: true });
   });
 
@@ -153,9 +160,35 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
     }
   });
 
+  it("measure the time until callers know of a stalled pod from the fault: C learns only at the resume", () => {
+    const times = stalled(card).map((mode) => mode.candidates.map((each) => Math.round(median(each, "time until callers know") * 1e6) / 1e6));
+    expect(times).toEqual([
+      [0.596866, 0.467674, 10.007897, 3.301874],
+      [0.51071, 0.520535, 10.04704, 1.282535],
+      [0.934373, 0.800189, 10.027349, 3.203802],
+    ]);
+    const counts = stalled(card).map((mode) => mode.candidates.map((each) => median(each)));
+    expect(counts).toEqual([
+      [22, 18, 498, 280],
+      [24, 24, 1498, 191],
+      [25, 21, 498, 274],
+    ]);
+    for (const mode of stalled(card)) {
+      const [a, b, c, d] = mode.candidates.map((each) => median(each, "time until callers know"));
+      expect(c, mode.mode).toBeGreaterThan(Math.max(a!, b!, d!));
+      expect(d, mode.mode).toBeLessThan(c! / 2);
+      for (const candidate of mode.candidates) {
+        const score = scoreOf(candidate, "time until callers know");
+        // the close of the session of C reaches its client about 70 ms after the resume at the most, thus its time is over the band of the prediction, in the noise of the judge (100 ms)
+        expect(score, candidate.cell).toMatchObject({ kind: "measured", from: "fault", holds: candidate.label !== "C" });
+        if (score.kind === "measured" && !score.holds) expect(Math.max(...score.values.map((each) => each.value)) - score.prediction.hi.value, candidate.cell).toBeLessThan(0.1);
+      }
+    }
+  });
+
   it("give no number for a criterion that the data cannot support, and give the reason", () => {
     const unmeasured = ["false removals on a blip", "time to recover", "probe load", "routes down", "complexity"] as const;
-    for (const modes of [scored(card), partitioned(card)])
+    for (const modes of [scored(card), partitioned(card), stalled(card)])
       for (const mode of modes)
         for (const candidate of mode.candidates)
           for (const criterion of unmeasured) {
@@ -165,7 +198,7 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
           }
     // the incidents of the design with no cell of the candidates
     const rest = card.incidents.filter((each) => each.kind === "not measured").map((each) => each.incident);
-    expect(rest).toEqual(INCIDENTS.slice(2));
+    expect(rest).toEqual(INCIDENTS.slice(3));
   });
 
   it("give the step 1 scores unchanged with one copy, and an incident with cells but no copy as not measured", () => {
