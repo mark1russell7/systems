@@ -30,7 +30,7 @@ export {
   policyObject,
   sysctlCommand,
 } from "./faults.ts";
-export { labImage, stageLabImage } from "./image.ts";
+export { labImage, labSource, stageLabImage } from "./image.ts";
 export type { LeafCertificate, MeshImages } from "./istio.ts";
 export {
   ACCESS_LOG_FORMAT,

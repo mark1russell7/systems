@@ -463,14 +463,16 @@ A run pairs each event of a program with its record of the kernel in δ_abs, 1 m
 
 ### SYS-26 · The image of the kind lab goes through the resolver of images
 
-- **Status:** later
+- **Status:** done
 - **Area:** engines
 - **Depends on:** SYS-17
-- **Started:**
-- **Shipped:**
+- **Started:** 2026-10-26
+- **Shipped:** 2026-10-26
 - **Links:**
 
 The kind lab builds its image with its own code. As a `build` source of SYS-17, it goes through `planOf` and `imageOf`. Then their rules apply: each FROM has a digest, and each manifest of packages has a lockfile.
+
+- The kind lab still stages its context, because the stage builds and packs packages of the workspace. `labSource()` gives that context as a `build` source, and `labImage()` resolves it with `imageOf`. Thus the build goes through the CLI of Docker, with the waits of the harness between its tries. It comes in kind 0.10.1, a PATCH: one new export.
 
 ### SYS-27 · A process port for a service in a process that another part owns
 

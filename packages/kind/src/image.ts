@@ -1,10 +1,10 @@
 import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { imageOf, type BuildImage } from "@mark1russell7/harness";
 
 /** This folder is the root of the package, and its `image/` folder has the files of the image. */
 const PACKAGE = fileURLToPath(new URL("../", import.meta.url));
@@ -12,6 +12,8 @@ const PACKAGE = fileURLToPath(new URL("../", import.meta.url));
 const REPO = fileURLToPath(new URL("../../../", import.meta.url));
 /** These are the packages of this repository that the image holds, in the sequence of their dependencies. */
 export const WORKSPACE_PACKAGES: readonly ["quantity", "algebra", "service"] = ["quantity", "algebra", "service"];
+/** This folder of a staged context holds the tarball of each package of the workspace. */
+const PACKED = "workspace";
 /** These are the files of the image, by their name in the context and their source in the package. */
 const FILES: ReadonlyArray<readonly [string, string]> = [
   ["Dockerfile", "image/Dockerfile"],
@@ -32,22 +34,6 @@ const FILES: ReadonlyArray<readonly [string, string]> = [
 ];
 
 const shell = process.platform === "win32";
-
-/** This function gives each file of a staged context, with its path in the context, in a stable sequence. */
-const filesOf = (root: string, at = ""): string[] =>
-  readdirSync(join(root, at), { withFileTypes: true })
-    .flatMap((entry) => (entry.isDirectory() ? filesOf(root, join(at, entry.name)) : [join(at, entry.name)]))
-    .sort();
-
-/** This function gives the tag of a staged context from its content: the name, then 12 digits of a sha256. */
-export const contentTag = (name: string, root: string): string => {
-  const hash = createHash("sha256");
-  for (const file of filesOf(root)) {
-    hash.update(file.replaceAll("\\", "/"));
-    hash.update(readFileSync(join(root, file)));
-  }
-  return `${name}:${hash.digest("hex").slice(0, 12)}`;
-};
 
 /** This function tells if the package is in the workspace of its repository. From npm, it is not. */
 const inWorkspace = (): boolean =>
@@ -81,7 +67,7 @@ const installedFolders = (): Map<string, string> => {
  */
 export const stageLabImage = (): string => {
   const context = mkdtempSync(join(tmpdir(), "systems-kind-lab-"));
-  const packed = join(context, "workspace");
+  const packed = join(context, PACKED);
   mkdirSync(packed);
   if (inWorkspace()) {
     const filters = WORKSPACE_PACKAGES.flatMap((name) => ["--filter", `@mark1russell7/${name}`]);
@@ -96,22 +82,33 @@ export const stageLabImage = (): string => {
   return context;
 };
 
+/**
+ * This function gives the source of the lab image from a staged context, as a `build` source of
+ * the harness. The resolver of the harness plans it and builds it, as it does each other image.
+ * Thus each `FROM` has a digest, and each manifest of packages has a lockfile.
+ */
+export const labSource = (context: string): BuildImage => ({
+  kind: "build",
+  name: "systems-kind-lab",
+  context,
+  files: [...FILES.map(([at]) => at), PACKED],
+});
+
 let built: Promise<string> | null = null;
 
 /**
- * This function builds the lab image one time for each process, and gives its tag. Docker keeps its
- * layers between builds. A build that fails leaves the cache. Thus a later call builds again after a
- * fault of Docker or of the network.
+ * This function gives the tag of the lab image, one time for each process. It stages the context,
+ * and the resolver of the harness builds it with a tag from its content (`imageOf`). The stage
+ * builds and packs packages, thus a tag that passed stays. A stage or a build that fails leaves
+ * the cache. Thus a later call stages and builds again after a fault of Docker or of the network.
  */
 export const labImage = (): Promise<string> => {
   if (built !== null) return built;
   const building = (async () => {
     const context = stageLabImage();
     try {
-      const tag = contentTag("systems-kind-lab", context);
-      const { GenericContainer } = await import("testcontainers");
-      await GenericContainer.fromDockerfile(context).build(tag, { deleteOnExit: false });
-      return tag;
+      // the resolver copies the files into a context of its own before it builds
+      return await imageOf(labSource(context));
     } finally {
       rmSync(context, { recursive: true, force: true });
     }
