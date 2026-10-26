@@ -152,7 +152,7 @@ export interface CallerRun {
 }
 
 /** These are the labels of the candidates, in the sequence of `CANDIDATES`. */
-const LABELS = "ABC";
+const LABELS = "ABCD";
 
 const requests = (value: number): Quantity => ({ value, unit: "{request}" });
 
@@ -161,6 +161,8 @@ const SETTINGS: Readonly<Record<Candidate, string>> = {
   "endpoints only": "A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open.",
   "in band (lame duck)": "B needs no setting: it is the default of the transport on HTTP/1.1.",
   "in band on HTTP/2 (GOAWAY)": "C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each.",
+  "in band on HTTP/2 with a session check":
+    "D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout).",
 };
 
 /** These texts give the reason for each criterion that the S2 cells of an incident cannot support. */
