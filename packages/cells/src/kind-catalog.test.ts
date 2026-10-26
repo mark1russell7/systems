@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
+import { timerOf } from "@mark1russell7/algebra";
 import type { KindCell } from "@mark1russell7/kind";
+import { LINUX_TCP } from "@mark1russell7/machines";
 import { clientObjects, describeCell, lintCell, namespaceOf, pausedWindow, planOf, serverObjects, stopOf, verdictsOf } from "@mark1russell7/kind";
 import { STOP_RULE } from "@mark1russell7/service";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Candidate } from "./callers.ts";
-import { CALLERS_CELLS, CALLERS_MODES, CANDIDATES, CANNOT_SERVE_HOLD, KEEP_ALIVE, MULTIPLEXED, SELECTION, expectedFailures, targetConnections } from "./callers.ts";
+import { CALLERS_CELLS, CALLERS_MODES, CALLER_FAULTS, CANDIDATES, CANNOT_SERVE_HOLD, KEEP_ALIVE, KIND_TCP, MULTIPLEXED, PARTITION_HOLD, SELECTION, callerFaultOf, expectedFailures, negativeBinomial, targetConnections } from "./callers.ts";
+import type { CallerFault } from "./callers.ts";
 import { PROPAGATION, SYN_SENT, afterSync, s } from "./kind.ts";
 import { T07_CELLS } from "./t07.ts";
 import { T18_CELLS } from "./t18.ts";
@@ -22,7 +25,7 @@ const propagationOf = (cell: KindCell) => {
 
 describe("the kind catalogs", () => {
   it("names each cell by a cell of the plan, or as a calibration, and each name once", () => {
-    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(iptables|ipvs|nftables)\.(endpoints|lame-duck|goaway)$/);
+    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(iptables|ipvs|nftables)\.(endpoints|lame-duck|goaway)(.partition)?$/);
     expect(new Set(ALL.map((cell) => cell.name)).size).toBe(ALL.length);
     expect(new Set(ALL.map(namespaceOf)).size).toBe(ALL.length);
   });
@@ -130,16 +133,17 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
     if (cell.prediction.kind !== "window" || cell.prediction.end === null) throw new Error(`${cell.name}: no window`);
     return cell.prediction;
   };
-  const trioOf = (mode: string): [KindCell, KindCell, KindCell] => {
-    const trio = CALLERS_CELLS.filter((cell) => cell.mode === mode);
+  const trioOf = (mode: string, fault: CallerFault = "cannot serve"): [KindCell, KindCell, KindCell] => {
+    const trio = CALLERS_CELLS.filter((cell) => cell.mode === mode && callerFaultOf(cell) === fault);
     if (trio.length !== 3) throw new Error(`${mode}: ${trio.length} cells`);
     return trio as [KindCell, KindCell, KindCell];
   };
 
   it("has the three candidates in each mode of kube-proxy, from one definition", () => {
     expect(CALLERS_MODES).toEqual(["iptables", "ipvs", "nftables"]);
+    expect(CALLER_FAULTS).toEqual(["cannot serve", "partition"]);
     expect(CALLERS_CELLS.map((cell) => cell.id)).toEqual(
-      CALLERS_MODES.flatMap((mode) => [`S2.T07.${mode}.endpoints`, `S2.T07.${mode}.lame-duck`, `S2.T07.${mode}.goaway`]),
+      ["", ".partition"].flatMap((tail) => CALLERS_MODES.flatMap((mode) => [`S2.T07.${mode}.endpoints${tail}`, `S2.T07.${mode}.lame-duck${tail}`, `S2.T07.${mode}.goaway${tail}`])),
     );
     for (const mode of CALLERS_MODES)
       expect(trioOf(mode).map((cell) => cell.name)).toEqual(CANDIDATES.map((candidate) => `T07 ${mode}, callers learn that a pod cannot serve: ${candidate}`));
@@ -166,7 +170,7 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
     }
     // the mode changes only the mode and the prediction
     const strip = ({ id: _id, name: _name, mode: _mode, prediction: _prediction, ...rest }: KindCell) => rest;
-    const candidateOf = (cell: KindCell): string => cell.id.slice(cell.id.lastIndexOf("."));
+    const candidateOf = (cell: KindCell): string => `${callerFaultOf(cell)} ${cell.id.split(".")[3]}`;
     for (const cell of CALLERS_CELLS) expect(strip(cell)).toEqual(strip(CALLERS_CELLS.find((each) => candidateOf(each) === candidateOf(cell))!));
   });
 
@@ -210,5 +214,53 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
     expect(counts("in band (lame duck)")).toEqual([band(350, 1913), band(600, 1350), band(350, 1913)]);
     // C: 50 failed requests each second for each session on the target, until the latch (up to 18 s)
     expect(counts("in band on HTTP/2 (GOAWAY)")).toEqual([band(0, 2700), band(0, 2700), band(0, 2700)]);
+  });
+
+  it("partitions the target in each mode with the cells of each candidate: only the trigger, the prediction and the runs change", () => {
+    for (const mode of CALLERS_MODES) {
+      const serve = trioOf(mode);
+      const partition = trioOf(mode, "partition");
+      expect(partition.map((cell) => cell.name)).toEqual(CANDIDATES.map((candidate) => `T07 ${mode}, callers learn that a pod is partitioned: ${candidate}`));
+      for (const [at, cell] of partition.entries()) {
+        const { id, name: _n, trigger, prediction: _p, runs, ...rest } = cell;
+        const { id: twin, name: _tn, trigger: _tt, prediction: _tp, runs: _tr, ...restTwin } = serve[at]!;
+        expect(id).toBe(`${twin}.partition`);
+        expect(rest).toEqual(restTwin);
+        expect(trigger).toEqual({ kind: "blackhole", hold: PARTITION_HOLD, partition: true });
+        expect(runs).toBe(3);
+      }
+    }
+  });
+
+  it("predicts that A and B fail on new connections for a few turns, and C until the first retransmission after the heal", () => {
+    // the RTO of a kind node: 200 ms and one jiffy at HZ 1000
+    expect(timerOf(LINUX_TCP, "retransmit", KIND_TCP, 0).duration).toEqual(s(0.201));
+    // the failures of 24 connections, each on the target with a chance of 1/2: P(k <= 11) = 0.021, P(k >= 40) = 0.022
+    expect(negativeBinomial(24, 0.5)).toEqual({ lo: 12, hi: 39 });
+    const band = (lo: number, hi: number) => ({ lo: s(lo), hi: s(hi) });
+    const requests = (lo: number, hi: number) => ({ lo: { value: lo, unit: "{request}" }, hi: { value: hi, unit: "{request}" } });
+    for (const mode of CALLERS_MODES) {
+      const [a, b, c] = trioOf(mode, "partition").map(windowOf) as [Window, Window, Window];
+      const random = SELECTION[mode] === "random";
+      // A and B: 14 picks of 160 ms at random (24 × 2^-15 < 0.001), 4 rounds in turn
+      for (const prediction of [a, b]) {
+        expect([prediction.certain, prediction.start, prediction.end, prediction.outcomes]).toEqual([
+          true,
+          { from: "fault", band: band(0, 0.16) },
+          { from: "fault", band: band(0, random ? 2.24 : 0.64) },
+          ["timeout"],
+        ]);
+      }
+      expect(a.why).toBe(b.why.replace(". The lame duck never starts, thus B is the same as A", ""));
+      for (const candidate of ["endpoints only", "in band (lame duck)"] as const) {
+        const { lo, hi } = expectedFailures(candidate, mode, "partition");
+        expect({ lo, hi }).toEqual(random ? requests(12, 39) : requests(21, 24));
+      }
+      // C: firing 7 crosses 25.72–26.968 s after its start, which is 0.221 s before the fault to 0.02 s after it
+      expect([c.certain, c.start, c.end, c.outcomes]).toEqual([false, { from: "fault", band: band(0, 0.02) }, { from: "fault", band: band(23.479, 26.988) }, undefined]);
+      expect(c.why).toMatch(/firing 7 of the timer is the first after the heal: 25\.499 s–26\.988 s after the fault/);
+      const { lo, hi } = expectedFailures("in band on HTTP/2 (GOAWAY)", mode, "partition");
+      expect({ lo, hi }).toEqual(requests(0, 4048));
+    }
   });
 });

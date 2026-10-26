@@ -1,8 +1,12 @@
+import type { Recovery } from "@mark1russell7/algebra";
+import { recovery, timerOf } from "@mark1russell7/algebra";
 import type { Declaration, KindCell, KubeProxyMode, Workload } from "@mark1russell7/kind";
 import { KUBE_PROXY_MODES, learnWindow } from "@mark1russell7/kind";
+import { LINUX_TCP } from "@mark1russell7/machines";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
-import { CHART_READINESS, DESIGN, PROPAGATION, T07_WORKLOAD, WORKERS, kubeDefaults, s, say } from "./kind.ts";
+import { LINUX_66, given, seconds } from "./catalog.ts";
+import { CHART_READINESS, DESIGN, PROPAGATION, T07_WORKLOAD, WORKERS, kubeDefaults, ms, s, say } from "./kind.ts";
 
 /**
  * The S2 cells of the dimension "how callers learn that a pod cannot serve". Clients send requests
@@ -29,6 +33,11 @@ import { CHART_READINESS, DESIGN, PROPAGATION, T07_WORKLOAD, WORKERS, kubeDefaul
  *   the backend to 0, and the connection stays.
  * - Two replicas: the fewest with a replica that can serve.
  * - The readiness probe of the chart (2 s, 3 times): short runs, and the same probe as T18.
+ *
+ * The same cells also measure a second incident: a partitioned pod. A black hole comes between
+ * the clients and the target replica for `PARTITION_HOLD`. The kubelet probes the replica from its
+ * node, thus the readiness and the endpoint of the replica stay. No candidate gets a signal from
+ * the replica, and each caller learns only from its own timeouts and its own TCP.
  */
 
 /** This count is the keep-alive connections of each client. Eight spread over two replicas, thus each client has some on the target in almost each run. */
@@ -46,6 +55,34 @@ export const MULTIPLEXED: Workload = { ...T07_WORKLOAD, connections: 1 };
 
 /** This time is how long the replica cannot serve. It is longer than the latest removal of the lame duck, thus the heal does not end its window. */
 export const CANNOT_SERVE_HOLD = s(30);
+
+/** These are the incidents of the S2 cells: the target cannot serve, or a black hole partitions it from the clients. */
+export type CallerFault = "cannot serve" | "partition";
+
+/** These are the incidents in their sequence: the cells of "cannot serve" come first. */
+export const CALLER_FAULTS: readonly CallerFault[] = ["cannot serve", "partition"];
+
+/**
+ * This time is how long the partition stays. The first retransmission of HTTP/2 after the heal is
+ * then the eighth firing of the timer, with a margin on each side. Thus the end of C has one band.
+ */
+export const PARTITION_HOLD = s(22);
+
+/**
+ * This band is the heal after the hold, from the fault. The runner sleeps for the hold from the
+ * fault, then the injector commits the heal 0.7 s later (`INJECT_LEAD_MS`). The commands before the
+ * commit take up to 1.3 s more.
+ */
+export const HEAL_LEAD = { lo: s(0.7), hi: s(2) };
+
+/** These are the TCP knobs of a kind node: Linux 6.6 with HZ 1000, and a round trip of 0.1 ms in one VM. */
+export const KIND_TCP = given({ ...LINUX_66, hz: { value: 1000, unit: "Hz" }, rtt: ms(0.1) });
+
+/**
+ * This chance is the most for a chain of failed picks longer than the end band of A and B lets.
+ * It is over all connections. A chain is a sequence of new connections to the target.
+ */
+const CHAIN_RISK = 0.001;
 
 /** This declaration is the design, with the flag check on readiness: the readiness of the service fails while the replica cannot serve. */
 export const CANNOT_SERVE: Declaration = { ...DESIGN, flag: "readiness" };
@@ -98,6 +135,8 @@ export interface Connections {
 
 const requests = (value: number): Quantity => ({ value: Math.round(value), unit: "{request}" });
 const connections = (value: number): Quantity => ({ value, unit: "{connection}" });
+/** This function gives a time in seconds to the microsecond, thus the sums of the bands print clean. */
+const time = (value: number): Quantity => s(Math.round(value * 1e6) / 1e6);
 
 /**
  * This function gives the band of the connections of all clients on the target at the fault, for a
@@ -144,7 +183,8 @@ const inBand = (candidate: Candidate): boolean => candidate !== "endpoints only"
  * connection. A client on the target fails each of its requests, and a client on the other replica
  * fails none.
  */
-export const expectedFailures = (candidate: Candidate, mode: KubeProxyMode): Expected => {
+export const expectedFailures = (candidate: Candidate, mode: KubeProxyMode, fault: CallerFault = "cannot serve"): Expected => {
+  if (fault === "partition") return partitionOf(mode, candidate).expected;
   const workload = workloadOf(candidate);
   const window = learnWindow(declarationOf(candidate), CHART_READINESS, PROPAGATION[mode], workload);
   const turn = valueIn(window.turn, "s");
@@ -156,13 +196,174 @@ export const expectedFailures = (candidate: Candidate, mode: KubeProxyMode): Exp
   return { lo: requests(few * hold), hi: requests(many * (hold + valueIn(window.end.band.hi, "s"))), connections: on };
 };
 
+/** This band is a time from the fault, as quantities in seconds. */
+interface Band {
+  readonly lo: Quantity;
+  readonly hi: Quantity;
+}
+
+/** This is the prediction of a candidate in a partition: the expected failures, the window from the fault, and the reason. */
+export interface PartitionPrediction {
+  readonly expected: Expected;
+  readonly start: Band;
+  readonly end: Band;
+  readonly outcomes?: readonly string[];
+  readonly why: string;
+}
+
+/**
+ * This function gives the failed picks of the new connections of one node, when IPVS selects in
+ * turn. Each failed connection opens a new one, and the picks of one round come within one turn.
+ * Thus they are consecutive on the node. The first pick of the node is not known.
+ */
+const inTurn = (each: number): { readonly lo: number; readonly hi: number; readonly rounds: number } => {
+  const outcomes = Array.from({ length: REPLICAS }, (_, first) => {
+    // the target is the backend 0, and the pointer of the node goes to the next backend at each pick
+    let pick = first;
+    let open = each;
+    let failures = 0;
+    let rounds = 0;
+    while (open > 0) {
+      let onTarget = 0;
+      for (let at = 0; at < open; at += 1) {
+        if (pick === 0) onTarget += 1;
+        pick = (pick + 1) % REPLICAS;
+      }
+      if (onTarget > 0) rounds += 1;
+      failures += onTarget;
+      open = onTarget;
+    }
+    return { failures, rounds };
+  });
+  const failures = outcomes.map((outcome) => outcome.failures);
+  return { lo: Math.min(...failures), hi: Math.max(...failures), rounds: Math.max(...outcomes.map((outcome) => outcome.rounds)) };
+};
+
+/**
+ * This function gives the central band of a negative binomial count, with the chance `COVER` at
+ * the least. The count is the failures before `successes` successes, with the chance `p` of each.
+ */
+export const negativeBinomial = (successes: number, p: number): { readonly lo: number; readonly hi: number } => {
+  const tail = (1 - COVER) / 2;
+  let chance = p ** successes;
+  let below = 0;
+  let lo = 0;
+  for (let k = 0; ; k += 1) {
+    if (below <= tail) lo = k;
+    if (below + chance >= 1 - tail) return { lo, hi: k };
+    below += chance;
+    chance *= ((k + successes) / (k + 1)) * (1 - p);
+  }
+};
+
+/**
+ * This function gives the prediction of a candidate in a partition of the target. The readiness
+ * and the endpoint of the target stay, thus B is the same as A.
+ * - A and B: each connection on the target fails one request at its timeout. Then its next request
+ *   opens a new connection, and the next pick comes one turn later. A chain of picks of the target
+ *   ends at the first pick of the other replica.
+ * - C: the session of a client on the target stays open. Each stream fails at its timeout until the
+ *   first retransmission after the heal reaches the target. Then the target resets the session,
+ *   or it sends GOAWAY.
+ */
+export const partitionOf = (mode: KubeProxyMode, candidate: Candidate): PartitionPrediction => {
+  const workload = workloadOf(candidate);
+  const window = learnWindow(declarationOf(candidate), CHART_READINESS, PROPAGATION[mode], workload);
+  const turn = valueIn(window.turn, "s");
+  const timeout = valueIn(workload.timeout, "s");
+  const each = workload.connections ?? 1;
+  const on = targetConnections(mode, each);
+  const total = CLIENTS * each;
+  const start = { lo: s(0), hi: time(turn) };
+  const hold = valueIn(PARTITION_HOLD, "s");
+  const stays = `The kubelet probes the target from its node, thus its readiness and its endpoint stay for the hold (${say(PARTITION_HOLD)})`;
+  if (candidate !== "in band on HTTP/2 (GOAWAY)") {
+    const same = candidate === "in band (lame duck)" ? ". The lame duck never starts, thus B is the same as A" : "";
+    const picks = `${stays}${same}. Each connection on the target fails one request at its timeout (${say(workload.timeout)}). Then a new connection picks a backend, one turn (${say(window.turn)}) later`;
+    if (SELECTION[mode] === "in turn") {
+      const node = inTurn(each);
+      return {
+        expected: { lo: requests(CLIENTS * node.lo), hi: requests(CLIENTS * node.hi), connections: on },
+        start,
+        end: { lo: s(0), hi: time(node.rounds * turn) },
+        outcomes: ["timeout"],
+        why: `${picks}. IPVS selects in turn on each node, thus each node fails ${node.lo}–${node.hi} requests in ${node.rounds} turns at the most. About ${CLIENTS * node.lo}–${CLIENTS * node.hi} requests fail`,
+      };
+    }
+    const p = 1 / REPLICAS;
+    const band = negativeBinomial(total, 1 - p);
+    let chain = 1;
+    while (total * p ** (chain + 1) > CHAIN_RISK) chain += 1;
+    return {
+      expected: { lo: requests(band.lo), hi: requests(band.hi), connections: on },
+      start,
+      end: { lo: s(0), hi: time(chain * turn) },
+      outcomes: ["timeout"],
+      why: `${picks}. Each pick goes to the target at random, thus the failures of the ${total} connections are negative binomial: ${band.lo}–${band.hi} in ${COVER * 100} % of the runs. A chain longer than ${chain} picks has a chance of ${CHAIN_RISK} at the most`,
+    };
+  }
+  // the chain of the server starts at its last answer, and the chain of the client one RTO before its first stream after the fault
+  const rto = seconds(timerOf(LINUX_TCP, "retransmit", KIND_TCP, 0).duration, "the RTO of a kind node");
+  const through = (end: number): Recovery => {
+    const after = recovery(LINUX_TCP, "retransmit", KIND_TCP, s(end));
+    if ("unknown" in after) throw new Error(`the retransmissions through a stall of ${end} s: ${after.unknown}`);
+    return after;
+  };
+  // the stall of each chain is from its start to the heal
+  const early = through(hold + valueIn(HEAL_LEAD.lo, "s") - turn);
+  const late = through(hold + valueIn(HEAL_LEAD.hi, "s") + turn + rto);
+  const firing = early.first[0];
+  if (early.first.length !== 1 || late.first.length !== 1 || firing !== late.first[0])
+    throw new Error(`the hold ${say(PARTITION_HOLD)} lets more than one firing be the first after the heal: ${early.first.join(", ")} and ${late.first.join(", ")}`);
+  const crosses = { lo: valueIn(early.low, "s") - turn - rto, hi: valueIn(late.high, "s") + turn };
+  const end = { lo: time(crosses.lo - timeout - turn), hi: time(crosses.hi) };
+  const every = valueIn(workload.every, "s");
+  const expected = { lo: requests((on.lo.value * valueIn(end.lo, "s")) / every), hi: requests((on.hi.value * crosses.hi) / every), connections: on };
+  return {
+    expected,
+    start: { lo: s(0), hi: time(every) },
+    end,
+    why: `${stays}. A client with its session on the target gets no answer, and each stream fails at its timeout (${say(workload.timeout)}). TCP retransmits with a backoff, and firing ${firing} of the timer is the first after the heal: ${say(time(crosses.lo))}–${say(time(crosses.hi))} after the fault. Then the target resets the session, or it sends GOAWAY, and the client opens a new session. The last failure starts up to one timeout before. ${on.lo.value}–${on.hi.value} of the ${on.of.value} sessions are on the target, thus about ${expected.lo.value}–${expected.hi.value} requests fail`,
+  };
+};
+
 /** These are the parts of the id of each candidate. */
 const SUFFIX: Readonly<Record<Candidate, string>> = { "endpoints only": "endpoints", "in band (lame duck)": "lame-duck", "in band on HTTP/2 (GOAWAY)": "goaway" };
 
-const cellOf = (mode: KubeProxyMode, candidate: Candidate): KindCell => {
+/** This function tells the incident of an S2 cell: a partition has the flag `partition` on its black hole. */
+export const callerFaultOf = (cell: KindCell): CallerFault => (cell.trigger.partition === true ? "partition" : "cannot serve");
+
+/** This function gives the cell of a candidate in a mode, for an incident. The cells of an incident share each setting but the trigger and the prediction. */
+const cellOf = (mode: KubeProxyMode, candidate: Candidate, fault: CallerFault): KindCell => {
   const declaration = declarationOf(candidate);
   const workload = workloadOf(candidate);
   const pod = { ...kubeDefaults(2), readiness: CHART_READINESS };
+  if (fault === "partition") {
+    const partition = partitionOf(mode, candidate);
+    return {
+      id: `S2.T07.${mode}.${SUFFIX[candidate]}.partition`,
+      name: `T07 ${mode}, callers learn that a pod is partitioned: ${candidate}`,
+      template: "T07",
+      substitutes: null,
+      mode,
+      workers: WORKERS,
+      trigger: { kind: "blackhole", hold: PARTITION_HOLD, partition: true },
+      pod,
+      declaration,
+      workload,
+      prediction: {
+        kind: "window",
+        nodes: "all",
+        start: { from: "fault", band: partition.start },
+        end: { from: "fault", band: partition.end },
+        certain: partition.expected.connections.lo.value > 0,
+        ...(partition.outcomes !== undefined ? { outcomes: partition.outcomes } : {}),
+        why: partition.why,
+      },
+      calibrates: false,
+      runs: 3,
+    };
+  }
   const propagation = PROPAGATION[mode];
   const window = learnWindow(declaration, CHART_READINESS, propagation, workload);
   const expected = expectedFailures(candidate, mode);
@@ -205,5 +406,7 @@ const cellOf = (mode: KubeProxyMode, candidate: Candidate): KindCell => {
   };
 };
 
-/** These are the cells of the three candidates in each mode, from one definition: by mode, then A, B and C. */
-export const CALLERS_CELLS: readonly KindCell[] = CALLERS_MODES.flatMap((mode) => CANDIDATES.map((candidate) => cellOf(mode, candidate)));
+/** These are the cells of the three candidates in each mode and each incident, from one definition. Their sequence is by incident, by mode, then A, B and C. */
+export const CALLERS_CELLS: readonly KindCell[] = CALLER_FAULTS.flatMap((fault) =>
+  CALLERS_MODES.flatMap((mode) => CANDIDATES.map((candidate) => cellOf(mode, candidate, fault))),
+);

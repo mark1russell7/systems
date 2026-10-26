@@ -288,7 +288,8 @@ const INJECT_LEAD_MS = 700;
 
 /**
  * This function puts the rules of an action in the network namespace of each replica, with each
- * client pod as a peer: the target `servers`. The rules of all replicas commit at one instant on
+ * client pod as a peer. The target `servers` gives all replicas, and `server` the target replica alone.
+ * The rules of all replicas commit at one instant on
  * CLOCK_MONOTONIC (`--at`). Thus no client meets one replica with the rule and one without it. The
  * replicas of one node go one after the other, and the nodes at the same time.
  *
@@ -441,6 +442,8 @@ const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], ba
     }
     case "inject": {
       if (step.target === "servers") return injectServers(ctx, step.action, replicas);
+      // the partition of the target: its namespace only, with each client pod as a peer
+      if (step.target === "server") return injectServers(ctx, step.action, [target]);
       const at = await where(step.target);
       let first: Stamp | null = null;
       for (const replica of replicas) {

@@ -85,6 +85,19 @@ describe("the components of the CI runs", () => {
     expect(frames).toContain("Each failed request ends with an answer of 503.");
   });
 
+  it("render the S2 candidates of a partitioned pod side by side, with the frame of each cell", () => {
+    const table = renderToString(<CallersTable incident="partition" />);
+    expect(table).toContain("27 failed requests in the median run");
+    expect(table).toContain("3,953 failed requests in the median run");
+    expect(table).toContain("The prediction: 12 to 39 failed requests, with 7 to 17 of the 24 connections on the target.");
+    expect(table).toContain("The prediction: 0 to 4,048 failed requests, with 0 to 3 of the 3 connections on the target.");
+    expect(table).not.toContain("disagree");
+    expect(table).not.toContain("No run in the copy yet.");
+    expect(table.split("<tr>").length - 1).toBe(4);
+    const frames = renderToString(<KindResults template="T07" group="partition" />);
+    expect(frames.split('class="sy-frame').length - 1).toBe(9);
+  });
+
   it("render the scores of S6 side by side, with the run of the evidence and the reason for each criterion with no number", () => {
     const table = renderToString(<CallersScores />);
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40358038728");
@@ -92,11 +105,16 @@ describe("the components of the CI runs", () => {
     expect(table).toContain("3,044 failed requests in the median run");
     expect(table).toContain("The prediction: 1,313 to 3,842. The counted runs: 3,044, 3,333, 2,104.");
     expect(table).toContain("The prediction: the last failure 8 s to 24.265 s after the fault.");
-    // the fewest in each mode: B in iptables and IPVS, C in nftables
-    expect(table.split("The fewest in this mode.").length - 1).toBe(3);
-    // five criteria have no number, each with its reason, and the six other incidents have no cell yet
-    expect(table.split("Not measured.").length - 1).toBe(7);
+    // the fewest in each mode: B in iptables and IPVS, C in nftables; in the partition, B in iptables and A in IPVS (a tie) and nftables
+    expect(table.split("The fewest in this mode.").length - 1).toBe(6);
+    // in each of the two incidents, five criteria have no number, each with its reason; the five other incidents have no cell yet
+    expect(table.split("Not measured.").length - 1).toBe(14);
     expect(table).toContain("T07 has no blip");
-    expect(table).toContain("Not measured yet: a black-holed shared dependency, a partitioned pod, a lost zone");
+    // the partitioned pod: its own run, and the time until callers know is measured from the fault
+    expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40380943331");
+    expect(table).toContain("S2.T07.ipvs.goaway.partition");
+    expect(table.match(/the last failure [\d.]+ (?:ms|s) after the fault in the median run/g)?.length).toBe(9);
+    expect(table).toContain("the last failure 26.4");
+    expect(table).toContain("Not measured yet: a black-holed shared dependency, a lost zone");
   });
 });

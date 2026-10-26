@@ -12,7 +12,8 @@ import { HBONE_PORT } from "./observe.ts";
 
 /**
  * A target is a process or a pod of the cell:
- * - `server` is the first replica of the service, in the sequence of its name.
+ * - `server` is the first replica of the service, in the sequence of its name. The injector acts in
+ *   its network namespace only, with each client pod as a peer: the partition of one replica.
  * - `redis` is the Redis pod.
  * - `kube-proxy` is kube-proxy on the first worker.
  * - `servers` is each replica of the service. Only the injector, a middlebox and a sysctl take it.
@@ -38,7 +39,8 @@ export type Step =
   /**
    * This step starts the injector of the harness in the namespace of the target, with each replica of
    * the service as a peer. For the target `servers`, it starts it in the namespace of each replica,
-   * with each client pod as a peer. The rules of all replicas commit at one instant.
+   * with each client pod as a peer. The rules of all replicas commit at one instant. For the target
+   * `server`, it starts it in the namespace of the target replica only, with each client pod as a peer.
    */
   | { readonly do: "inject"; readonly target: Target; readonly action: "blackhole" | "clear" | "rst" | "clear-rst" }
   | { readonly do: "flag"; readonly target: Target; readonly on: boolean }
@@ -221,9 +223,10 @@ export const middleboxCommands = (peers: readonly string[], idle: Quantity | nul
 /**
  * This function gives the target of a reset or a black hole of a cell. In T07 and T18 it is Redis,
  * with the replicas as peers. In T15 the fault is on the mesh leg between the client pods and the
- * replicas. It is a rule in each replica, with the client pods as peers.
+ * replicas. It is a rule in each replica, with the client pods as peers. A partition (`partition`)
+ * is a rule in the target replica only, with the client pods as peers.
  */
-const linkOf = (cell: KindCell): Target => (cell.template === "T15" ? "servers" : "redis");
+const linkOf = (cell: KindCell): Target => (cell.trigger.partition === true ? "server" : cell.template === "T15" ? "servers" : "redis");
 
 /** This function gives the fault plan of a cell. */
 export const planOf = (cell: KindCell): FaultPlan => {
@@ -306,7 +309,10 @@ export const planOf = (cell: KindCell): FaultPlan => {
       const retries = trigger.retries;
       if (retries !== undefined && !(Number.isInteger(retries) && retries >= 1 && retries <= 255)) throw new Error(`tcp_retries2 is a count from 1 to 255, not ${retries}`);
       const start: Step[] = quiet ? [{ do: "signal", target: "clients", signal: "SIGUSR2" }] : [];
+      // a partition gives each client new connections first, as cannot-serve does
+      const spread: Step[] = trigger.partition === true ? [{ do: "signal", target: "clients", signal: "SIGHUP" }, { do: "wait", time: SPREAD_LEAD }] : [];
       const prepare: Step[] = [
+        ...spread,
         ...(retries === undefined ? [] : [{ do: "sysctl" as const, target: "clients" as const, key: SYSCTL.retries, value: String(retries) }]),
         ...(quiet ? [{ do: "signal" as const, target: "clients" as const, signal: "SIGUSR1" as const }, { do: "wait" as const, time: QUIET_LEAD }] : []),
       ];

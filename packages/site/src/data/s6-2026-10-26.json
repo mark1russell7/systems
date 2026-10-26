@@ -2,6 +2,7 @@
   "ranAt": "2026-10-26",
   "dimension": "how callers learn",
   "run": 40358038728,
+  "runs": [40358038728, 40380943331],
   "criteria": [
     "time until callers know",
     "failed requests",
@@ -16,6 +17,7 @@
       "incident": "a pod that cannot serve",
       "kind": "scored",
       "trigger": "cannot-serve",
+      "run": 40358038728,
       "modes": [
         {
           "mode": "iptables",
@@ -902,12 +904,1028 @@
       ]
     },
     {
-      "incident": "a black-holed shared dependency",
-      "kind": "not measured",
-      "why": "No cell measures the candidates A, B and C in this incident yet."
+      "incident": "a partitioned pod",
+      "kind": "scored",
+      "trigger": "blackhole",
+      "run": 40380943331,
+      "modes": [
+        {
+          "mode": "iptables",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.iptables.endpoints.partition",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.5943365,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.5642068,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.5943365,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.2476351,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 2.24,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40380943331,
+                    "cell": "S2.T07.iptables.endpoints.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 27,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 23,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 35,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 27,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 39,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40380943331,
+                    "cell": "S2.T07.iptables.endpoints.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The partition holds for 22 s, and no candidate removes the replica: its readiness stays. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the clients use the replica again after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The partition stops each route of the target for the clients. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.iptables.lame-duck.partition",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.4206206,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.3715314,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.4206206,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.3827999,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 2.24,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40380943331,
+                    "cell": "S2.T07.iptables.lame-duck.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 18,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 37,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 18,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 14,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 39,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40380943331,
+                    "cell": "S2.T07.iptables.lame-duck.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The partition holds for 22 s, and no candidate removes the replica: its readiness stays. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the clients use the replica again after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The partition stops each route of the target for the clients. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.iptables.goaway.partition",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 26.4390479,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 26.3880594,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.4390479,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.6288181,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 23.479,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.988,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40380943331,
+                    "cell": "S2.T07.iptables.goaway.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 1325,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 1325,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 2630,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1313,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 4048,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40380943331,
+                    "cell": "S2.T07.iptables.goaway.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The partition holds for 22 s, and no candidate removes the replica: its readiness stays. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the clients use the replica again after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The partition stops each route of the target for the clients. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            }
+          ],
+          "fewest": "B"
+        },
+        {
+          "mode": "ipvs",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.ipvs.endpoints.partition",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.5160337,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.5031658,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.5160337,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.5232086,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 0.64,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40380943331,
+                    "cell": "S2.T07.ipvs.endpoints.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 24,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 24,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 24,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 24,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 21,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 24,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40380943331,
+                    "cell": "S2.T07.ipvs.endpoints.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The partition holds for 22 s, and no candidate removes the replica: its readiness stays. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the clients use the replica again after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The partition stops each route of the target for the clients. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.ipvs.lame-duck.partition",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.5034381,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.5020412,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.5034381,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.5057167,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 0.64,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40380943331,
+                    "cell": "S2.T07.ipvs.lame-duck.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 24,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 24,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 24,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 24,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 21,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 24,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40380943331,
+                    "cell": "S2.T07.ipvs.lame-duck.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The partition holds for 22 s, and no candidate removes the replica: its readiness stays. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the clients use the replica again after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The partition stops each route of the target for the clients. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.ipvs.goaway.partition",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 26.4805468,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 26.1366706,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.4805468,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.4904504,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 23.479,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.988,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40380943331,
+                    "cell": "S2.T07.ipvs.goaway.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3953,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 3901,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3954,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3953,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 4048,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40380943331,
+                    "cell": "S2.T07.ipvs.goaway.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The partition holds for 22 s, and no candidate removes the replica: its readiness stays. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the clients use the replica again after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The partition stops each route of the target for the clients. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            }
+          ],
+          "fewest": "A"
+        },
+        {
+          "mode": "nftables",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.nftables.endpoints.partition",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.5279229,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.2660061,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.5279229,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.1001161,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 2.24,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40380943331,
+                    "cell": "S2.T07.nftables.endpoints.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 19,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 14,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 19,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 34,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 39,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40380943331,
+                    "cell": "S2.T07.nftables.endpoints.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The partition holds for 22 s, and no candidate removes the replica: its readiness stays. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the clients use the replica again after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The partition stops each route of the target for the clients. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.nftables.lame-duck.partition",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.7735897,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.7735282,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.7735897,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.0761749,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 2.24,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40380943331,
+                    "cell": "S2.T07.nftables.lame-duck.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 26,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 26,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 32,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 24,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 39,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40380943331,
+                    "cell": "S2.T07.nftables.lame-duck.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The partition holds for 22 s, and no candidate removes the replica: its readiness stays. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the clients use the replica again after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The partition stops each route of the target for the clients. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.nftables.goaway.partition",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 26.268649,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 26.222634,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.314664,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 23.479,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.988,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40380943331,
+                    "cell": "S2.T07.nftables.goaway.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 1304,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 1304,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 2618,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 4048,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40380943331,
+                    "cell": "S2.T07.nftables.goaway.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The partition holds for 22 s, and no candidate removes the replica: its readiness stays. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the clients use the replica again after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The partition stops each route of the target for the clients. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            }
+          ],
+          "fewest": "A"
+        }
+      ]
     },
     {
-      "incident": "a partitioned pod",
+      "incident": "a black-holed shared dependency",
       "kind": "not measured",
       "why": "No cell measures the candidates A, B and C in this incident yet."
     },

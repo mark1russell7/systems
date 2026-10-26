@@ -5,8 +5,8 @@
 import type { KindCell } from "../../kind/src/index.ts";
 import type { Quantity } from "../../quantity/src/index.ts";
 import { valueIn } from "../../quantity/src/index.ts";
-import type { Candidate } from "../../cells/src/callers.ts";
-import { CALLERS_CELLS, CANDIDATES, expectedFailures } from "../../cells/src/callers.ts";
+import type { Candidate, CallerFault } from "../../cells/src/callers.ts";
+import { CALLERS_CELLS, CANDIDATES, callerFaultOf, expectedFailures } from "../../cells/src/callers.ts";
 
 const s = (value: Quantity): number => valueIn(value, "s");
 
@@ -22,11 +22,11 @@ export const candidateName = (cell: KindCell): Candidate => {
 
 /** This function gives the candidate of an S2 cell for the side-by-side table: its window and its expected count of failed requests. */
 export const candidateOf = (cell: KindCell) => {
-  if (cell.trigger.kind !== "cannot-serve") return null;
+  if (cell.trigger.kind !== "cannot-serve" && cell.trigger.partition !== true) return null;
   const p = cell.prediction;
   if (p.kind !== "window" || p.end === null) throw new Error(`${cell.name}: an S2 cell has a window that ends`);
   const name = candidateName(cell);
-  const expected = expectedFailures(name, cell.mode);
+  const expected = expectedFailures(name, cell.mode, callerFaultOf(cell));
   return {
     name,
     label: LABELS[CANDIDATES.indexOf(name)] ?? "",
@@ -37,10 +37,10 @@ export const candidateOf = (cell: KindCell) => {
   };
 };
 
-/** This function gives the prediction of each S2 cell of the catalog, a cell with no run too: by mode, then by candidate. */
-export const callerPredictions = () =>
-  CALLERS_CELLS.map((cell) => {
+/** This function gives the prediction of each S2 cell of an incident in the catalog, by mode, then by candidate. A cell with no run has one too. */
+export const callerPredictions = (fault: CallerFault = "cannot serve") =>
+  CALLERS_CELLS.filter((cell) => callerFaultOf(cell) === fault).map((cell) => {
     const candidate = candidateOf(cell);
-    if (candidate === null) throw new Error(`${cell.name}: an S2 cell has the trigger cannot-serve`);
+    if (candidate === null) throw new Error(`${cell.name}: an S2 cell has the trigger cannot-serve or a partition`);
     return { id: cell.id, mode: cell.mode, candidate };
   });

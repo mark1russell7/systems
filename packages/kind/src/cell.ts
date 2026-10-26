@@ -52,6 +52,7 @@ export type Stack = "service" | "grpc";
  * - `rst` and `blackhole` are the rules of the injector of the harness in the namespace of Redis. In
  *   T15 they are in the namespace of each replica. A black hole of T15 can stop the calls of the
  *   clients before the fault (`quiet`). It can also set `tcp_retries2` of each client pod (`retries`).
+ *   A black hole with `partition` is in the namespace of the target replica only, with the client pods as peers.
  * - `peer-gone-without-close` drops the segments of Redis, and then Redis goes away.
  * - `app-stall` blocks the event loop of one replica.
  * - `rollout` is a rolling update while Redis is down.
@@ -129,6 +130,13 @@ export interface Trigger<A = Quantity> {
    * last use is at the fault. The heal opens a new channel again.
    */
   readonly close?: boolean | undefined;
+  /**
+   * This flag puts a black hole between the clients and the target replica (T07 `blackhole` of S2).
+   * The rules go in the namespace of the target only, with each client pod as a peer. The kubelet
+   * still reaches the replica from its node, thus its readiness and its endpoint stay. The prepare
+   * gives each client new connections first, as `cannot-serve` does.
+   */
+  readonly partition?: boolean | undefined;
 }
 
 /** A kubelet probe is the period, the failure threshold and the timeout of one probe of the pod. */

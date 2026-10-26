@@ -106,11 +106,27 @@ In the random modes, the mean of C is about that of B: 983 against 930 failed re
 
 <KindResults template="T07" group="callers" client:visible />
 
+### A partitioned pod
+
+The same cells, with a black hole between the clients and one replica of 2 for 22 s. The agent puts the black hole in the namespace of the target, with the pods of the clients as peers. The kubelet probes from the node, thus the readiness and the endpoint of the target stay. Thus B is the same as A: the service stays ready, and it sends no `Connection: close`. The cells come from the run [40380943331](https://github.com/mark1russell7/systems/actions/runs/40380943331). The judge counted 3 runs of each cell in each mode.
+
+Each cell held in 3 of 3 runs, in each mode, and each counted run is in its prediction. A and B fail one request on each connection that picks the target, at its timeout. Then a new connection picks again. The rules of iptables and nftables gave 14 to 37 failed requests, and IPVS gave 24 in each run. The last failure started 0.27 s to 1.38 s after the fault, and the prediction was up to 2.24 s.
+
+C learns only from TCP. Its session on the target gets no answer, and each stream fails at its timeout. The session ends only at the first retransmission after the heal. Thus the last failure started 26.14 s to 26.63 s after the fault, in the band of 23.479 s to 26.988 s. The medians of C were 1,325, 3,953 and 1,304 failed requests, against 18 to 27 for A and B.
+
+IPVS put all 3 sessions on the target in each run. One run of nftables had no session on the target, thus it had no failure and no time.
+
+<CallersTable incident="partition" />
+
+<KindResults template="T07" group="partition" client:visible />
+
 ### How callers learn
 
-S6 scores each candidate of health and routing on seven criteria, for each incident of its design. This run scores one incident: a pod that cannot serve. The table puts the measure of each criterion next to its prediction, and each cell links to its run. A criterion that the run cannot support has no number, only the reason.
+S6 scores each candidate of health and routing on seven criteria, for each incident of its design. Two runs score two incidents: a pod that cannot serve, and a partitioned pod. The table puts the measure of each criterion next to its prediction, and each cell links to its run. A criterion that the run cannot support has no number, only the reason.
 
 B and C each have fewer failed requests than A in each mode, by the median run. B has the fewest in iptables and IPVS, and C has the fewest in nftables. Thus the service keeps one rule: while it is not ready, it closes each connection on the channel of its protocol. HTTP/1.1 gets `Connection: close`, and HTTP/2 gets GOAWAY. A is an opt-in of the transport.
+
+In a partition, the service is ready, thus no candidate gets a signal in band. Each caller learns from its own timeouts. A and B learned in 1.4 s at the most, and C in approximately 26 s, after the heal. Thus the rule stays, and the client of HTTP/2 needs its own check of the session. The scores of the partition measure the time until callers know from the fault.
 
 <CallersScores />
 
