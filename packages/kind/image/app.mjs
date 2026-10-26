@@ -6,6 +6,7 @@
 // service: the lab has no transport of its own.
 import { existsSync, readFileSync } from "node:fs";
 import http from "node:http";
+import http2 from "node:http2";
 import { handle, httpTransport, pathOf, probeServer } from "@mark1russell7/service/http";
 import { redisClient } from "@mark1russell7/service/redis";
 import { CONTROLLER, ROUTE, compose } from "./compose.ts";
@@ -66,8 +67,9 @@ const KNOBS = { server_idle_close: s(6), server_idle_sweep_interval: s(1), serve
 
 // the server transport: the transport gets the lifecycle at its start, thus a request before the end
 // of the startup gets the refusal of the service (503, retryable), and Connection: close while the
-// service is not ready
-const server = http.createServer();
+// service is not ready. With the protocol h2c of the declaration, the edge is a server of HTTP/2
+// without TLS, and the close of a connection is a GOAWAY on its session (the candidate C of S2)
+const server = declaration.protocol === "h2c" ? http2.createServer() : http.createServer();
 server.on("listening", () => say({ ev: "app", what: "listening", port: config.port }));
 // lameDuck false of the declaration keeps each connection open while the service is not ready: then a
 // caller learns only from the endpoints (the candidate A of S2). The default is the lame duck

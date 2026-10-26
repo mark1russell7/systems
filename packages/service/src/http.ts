@@ -1,6 +1,7 @@
-// @mark1russell7/service/http: the edge of a service in Node, on node:http and node:net only. A server
-// of node:http becomes a transport of the lifecycle: its count of work in flight, the stop of its
-// intake, its drain and its close. A short list of mounts shares its port among request handlers and
+// @mark1russell7/service/http: the edge of a service in Node, on node:http, node:http2 and node:net only.
+// A server of node:http, or a server of node:http2 without TLS (h2c), becomes a transport of the
+// lifecycle: its count of work in flight, the stop of its intake, its drain and its close. On HTTP/2,
+// a close of a connection is a GOAWAY on its session. A short list of mounts shares its port among request handlers and
 // upgrade handlers. The probes answer on a port of their own, or on the port of the application, and
 // the option `kinds` names the probes that answer there (`PROBE_KINDS` by default).
 // `handle` binds a request to `life.request`, and the stream of the request becomes a status, a
@@ -9,6 +10,7 @@
 // routing language, no body parser and no middleware.
 
 export type {
+  EdgeServer,
   HttpKnobs,
   HttpTransport,
   HttpTransportKnobs,

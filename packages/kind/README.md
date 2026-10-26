@@ -152,6 +152,10 @@ The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`
 
 - **The keep-alive clients.** A workload with `connections` gives each HTTP client that count of keep-alive connections. Each request goes on the next connection in turn. kube-proxy selects a backend only for a new connection. SIGHUP gives the client new connections, and its old connections close after the timeout. With no `connections`, each request has a new connection, as before.
 - **The lame duck.** The declaration has the optional field `lameDuck`. With true or no value, the edge sends `Connection: close` while the service is not ready (`httpTransport` as it is). With false, the app gives the transport `keepAlive: () => true`, thus each connection stays open and a caller learns only from the endpoints.
+- **HTTP/2.** The declaration has the optional field `protocol` (`EdgeProtocol`). With `h2c`, the app listens with `node:http2` through the same `httpTransport`, and the lame duck is a GOAWAY on each session. The manifests give each client `PROTOCOL=h2c`. The client then keeps `connections` sessions, and sends each request as a stream on the next session in turn.
+  - A GOAWAY, a close or an error of a session makes its slot open a new session at the next stream. Then kube-proxy selects a backend for that new connection.
+  - The client sends a stream that the server did not take again, once, on a new session (RFC 9113, section 8.7). Its line has `r: 1`.
+  - Each stream writes the same `req` line as a request of HTTP/1.1, with the local port of the socket of its session.
 
 - **The resolver.** From 0.10.1, the lab image is a `build` source of the harness (`labSource()`). The resolver of the harness plans it and builds it, as it does each other image (`planOf`, `imageOf`). Thus its tag comes from its content, and each `FROM` has a digest. Each manifest of packages has a lockfile, and a failed build tries again after each wait. The build goes through the CLI of Docker, not through Testcontainers.
 
@@ -213,7 +217,7 @@ The plan's `event:clock-jump` has no trigger. A step of CLOCK_REALTIME in the VM
 - **A reset from a leaving pod** leaves the conntrack entry of its flow in CLOSE for 10 s, with the NAT to that pod. From 0.1.6, a window can give that life (`afterReset`). Then a request outside the window can fail with the outcome of the rule (`reusesReset`). The condition is a reset of the same client on the same port, up to that life before the request. The catalog gives it to a deletion without a hold, in the modes with the NAT in conntrack.
 - **A fault of a shared dependency** trips the readiness latch of each replica (`failSpan`). Then the kubelet needs its threshold of probes, and the rules need one propagation.
 - **A restart through a coupling** adds the liveness probes of the kubelet and the preStop sleep to the latch.
-- **A replica that cannot serve** (`learnWindow`) fails each request on a connection to it from the fault. A turn is the time between two requests on one connection. With the lame duck, the latch closes each connection, and the rules select the replica until its removal. Thus the window ends from the fault, in the latch to the removal and one turn. Without the lame duck, no connection opens again, thus the removal changes nothing. The window ends from the heal, in the recovery of the readiness and one turn.
+- **A replica that cannot serve** (`learnWindow`) fails each request on a connection to it from the fault. A turn is the time between two requests on one connection. With the lame duck, the latch closes each connection (`Connection: close`, or GOAWAY on HTTP/2), and the rules select the replica until its removal. Thus the window ends from the fault, in the latch to the removal and one turn. Without the lame duck, no connection opens again, thus the removal changes nothing. The window ends from the heal, in the recovery of the readiness and one turn.
 
 `verdict.ts` judges each run, and each cell on its counted runs. Each time lands in its band ± 100 ms: the poll of the rules and the delay of the watcher. A median in a band gets the test of the harness: its order-statistic interval in the band, made 5 % wider.
 
@@ -260,6 +264,8 @@ From 0.8.0, a prediction `ends` can be the end of the tunnel of each client (`of
 - The tunnel of a client goes from the address of its pod (`la` of a `sock` line) to that replica at port 15008. Its first change out of ESTABLISHED after the reference must be in the band ± δ. It must be to FIN_WAIT1: the side of the client closes it, and the peer does not close first.
 - The first request of each client after the heal must be `ok`, on a new tunnel. The main value is the middle of the ends, in `s`.
 - From 0.8.1, `ends` has the optional band `answer`. A change to CLOSE_WAIT in that band ± δ also agrees: the peer answers the close of the client, and its FIN comes first. Before the band, the peer closed first.
+
+The optional field `protocol` of a declaration, the type `EdgeProtocol` and the mode h2c of the lab image are new features. They keep the old behavior. Before `1.0.0`, a feature is a patch, thus the next version is `0.11.1`. The record format stays `/2`.
 
 A new member of the union `TriggerKind`, `cannot-serve`, breaks a reader that switches on it. That is a breaking change before 1.0.0, thus the next version is 0.11.0. The record format stays `/2`, with the optional fields `connections` of a workload and `lameDuck` of a declaration. The line `client` of the reconnect is a new line of a run.
 

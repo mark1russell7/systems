@@ -69,15 +69,19 @@ describe("the components of the CI runs", () => {
     // the median of each candidate in each mode, and its prediction
     expect(table).toContain("A: endpoints only");
     expect(table).toContain("B: in band (lame duck)");
-    expect(table).toContain("2,119 failed requests in the median run");
-    expect(table).toContain("900 failed requests in the median run");
+    expect(table).toContain("3,044 failed requests in the median run");
+    expect(table).toContain("983 failed requests in the median run");
     expect(table).toContain("The prediction: 1,313 to 3,842 failed requests, with 7 to 17 of the 24 connections on the target.");
     expect(table).toContain("The prediction: 600 to 1,350 failed requests, with 12 of the 24 connections on the target.");
     expect(table).not.toContain("disagree");
-    expect(table).not.toContain("no run");
+    // C has a column with its median run in each mode
+    expect(table).toContain("C: in band on HTTP/2 (GOAWAY)");
+    expect(table).toContain("1,087 failed requests in the median run");
+    expect(table).not.toContain("No run in the copy yet.");
+    expect(table).toContain("The prediction: 0 to 2,700 failed requests, with 0 to 3 of the 3 connections on the target.");
     expect(table.split("<tr>").length - 1).toBe(4);
     const frames = renderToString(<KindResults template="T07" group="callers" />);
-    expect(frames.split('class="sy-frame').length - 1).toBe(6);
+    expect(frames.split('class="sy-frame').length - 1).toBe(9);
     expect(frames).toContain("Each failed request ends with an answer of 503.");
   });
 });

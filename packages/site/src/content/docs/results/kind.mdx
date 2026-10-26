@@ -88,14 +88,19 @@ The round trip of the Redis client of each replica gates its readiness, unless t
 
 ## S2: how callers learn that a pod cannot serve
 
-One replica of 2 cannot serve for 30 s. A flag file fails its route with 503, and the same flag fails its readiness check. The clients keep 8 keep-alive connections each, and kube-proxy selects a backend only for a new connection. The S2 cells come from the run [40345515219](https://github.com/mark1russell7/systems/actions/runs/40345515219), with 3 counted runs of each cell in each mode.
+One replica of 2 cannot serve for 30 s. A flag file fails its route with 503, and the same flag fails its readiness check. The clients keep 8 keep-alive connections each, and kube-proxy selects a backend only for a new connection. The S2 cells come from the run [40358038728](https://github.com/mark1russell7/systems/actions/runs/40358038728), with 3 counted runs of each cell in each mode.
 
 - **A: endpoints only.** The edge keeps each connection open. The removal of the endpoint changes nothing for an open connection, thus its requests fail until the heal.
 - **B: in band (lame duck).** While the service is not ready, each answer has `Connection: close`. Each caller then opens a new connection, and the rules send it to the other replica after the removal.
+- **C: in band on HTTP/2 (GOAWAY).** The same lame duck on an edge of HTTP/2 without TLS. While the service is not ready, the edge sends GOAWAY on each session. Each client sends its requests as streams on one session, thus it opens a new connection through the rules after the GOAWAY.
 
-The two candidates differ only in the field `lameDuck` of the declaration. The mode of kube-proxy gives the propagation of the removal, thus the end of the window of the lame duck. The table gives the verdict, the failed requests of the median run, and the prediction of each candidate.
+A and B differ only in the field `lameDuck` of the declaration. C is B with the field `protocol` set to `h2c`, and one session for each client. The mode of kube-proxy gives the propagation of the removal, thus the end of the window of the lame duck. The table gives the verdict, the failed requests of the median run, and the prediction of each candidate.
 
-Each connection on the target fails one request in each turn of 160 ms. Thus the count of failed requests follows the connections on the target at the fault. IPVS selects the backends in turn, thus 12 of the 24 connections go to the target. The rules of iptables and nftables select at random, thus the count is binomial. It is 7 to 17 in 95 % of the runs at the least. The runs had 9 to 14.
+Each connection on the target fails one request in each turn of 160 ms. Thus the count of failed requests follows the connections on the target at the fault. IPVS selects the backends in turn, thus 12 of the 24 connections go to the target. The rules of iptables and nftables select at random, thus the count is binomial. It is 7 to 17 in 95 % of the runs at the least. The runs had 8 to 16.
+
+C has fewer connections, thus each connection carries more requests. Each session on the target fails one request in each turn of 20 ms, thus its window ends 140 ms earlier than B at the latest. The 3 sessions give the same mean count as the 24 connections of B, but a wider band. From 0 to 3 sessions go to the target, and a run with none has no failure.
+
+In the random modes, the mean of C is about that of B: 983 against 930 failed requests. But C spreads wider, 0 to 1,893 against 540 to 1,128, and its medians in iptables, ipvs and nftables are 1,087, 2,133 and 706. IPVS put all 3 sessions on the target in each run, and one run of iptables had none and no failure.
 
 <CallersTable />
 

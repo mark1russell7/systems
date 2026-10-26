@@ -532,18 +532,18 @@ const MODES = ["iptables", "ipvs", "nftables"] as const;
 const S2_FROM: Readonly<Record<string, string>> = { fault: "the fault", heal: "the heal" };
 
 /**
- * This table shows the two candidates of S2 side by side, in each mode of kube-proxy of the copy.
+ * This table shows the candidates of S2 side by side, in each mode of kube-proxy of the catalog. The
+ * columns come from the predictions of the copy, thus a candidate with no run has a column too.
  * Each cell gives the verdict and the failed requests of the median run. Then it gives the
  * prediction: the expected count of failed requests, and the band of the end of the window.
  */
 export function CallersTable(): ReactElement {
-  const candidates = [...new Set(s2.cells.map((cell) => cell.candidate.name))];
-  const modes = MODES.filter((mode) => s2.cells.some((cell) => cell.mode === mode));
-  const missing = MODES.filter((mode) => !modes.includes(mode));
-  const find = (mode: string, name: string) => {
-    const cell = s2.cells.find((each) => each.mode === mode && each.candidate.name === name);
-    if (cell === undefined) throw new Error(`no S2 cell ${mode}, ${name}`);
-    return cell;
+  const candidates = [...new Set(s2.predictions.map((each) => each.candidate.name))];
+  const modes = MODES.filter((mode) => s2.predictions.some((each) => each.mode === mode));
+  const predicted = (mode: string, name: string) => {
+    const found = s2.predictions.find((each) => each.mode === mode && each.candidate.name === name);
+    if (found === undefined) throw new Error(`no S2 prediction ${mode}, ${name}`);
+    return found.candidate;
   };
   return (
     <div className="not-content sy-scroll">
@@ -552,7 +552,7 @@ export function CallersTable(): ReactElement {
           <tr>
             <th>Mode</th>
             {candidates.map((name) => {
-              const label = s2.cells.find((cell) => cell.candidate.name === name)?.candidate.label ?? "";
+              const label = s2.predictions.find((each) => each.candidate.name === name)?.candidate.label ?? "";
               return (
                 <th key={name}>{`${label}: ${name}`}</th>
               );
@@ -564,16 +564,20 @@ export function CallersTable(): ReactElement {
             <tr key={mode}>
               <td>{code(mode)}</td>
               {candidates.map((name) => {
-                const cell = find(mode, name);
-                const { expected, end, connections } = cell.candidate;
+                const cell = s2.cells.find((each) => each.mode === mode && each.candidate.name === name);
+                const { expected, end, connections } = predicted(mode, name);
                 const on = connections.low === connections.high ? `${connections.low}` : `${connections.low} to ${connections.high}`;
                 return (
                   <td key={name}>
-                    <Verdict decision={cell.decision} text={cell.median === null ? "" : `${count(cell.median, "failed request")} in the median run`} />
+                    {cell === undefined ? (
+                      <span>No run in the copy yet.</span>
+                    ) : (
+                      <Verdict decision={cell.decision} text={cell.median === null ? "" : `${count(cell.median, "failed request")} in the median run`} />
+                    )}
                     <br />
                     <span className="sy-muted">
                       {`The prediction: ${digits(expected.low)} to ${digits(expected.high)} failed requests, with ${on} of the ${connections.of} connections on the target. The last one starts ${fine(end.low)} to ${fine(end.high)} after ${S2_FROM[end.from] ?? end.from}.`}
-                      {cell.failed === 0 ? "" : ` ${cell.failed} of ${cell.counted} runs ${cell.failed === 1 ? "disagrees" : "disagree"}.`}
+                      {cell === undefined || cell.failed === 0 ? "" : ` ${cell.failed} of ${cell.counted} runs ${cell.failed === 1 ? "disagrees" : "disagree"}.`}
                     </span>
                   </td>
                 );
@@ -582,7 +586,6 @@ export function CallersTable(): ReactElement {
           ))}
         </tbody>
       </table>
-      {missing.length === 0 ? null : <p className="sy-muted">{`The copy has no run of ${missing.join(" or ")} yet.`}</p>}
     </div>
   );
 }

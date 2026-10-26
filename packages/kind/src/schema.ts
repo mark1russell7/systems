@@ -2,7 +2,7 @@ import type { Quantity } from "@mark1russell7/quantity";
 import { extentSchema, quantitySchema } from "@mark1russell7/quantity/schema";
 import type { Stage } from "@mark1russell7/service";
 import { z } from "zod";
-import type { KindRun, TriggerKind } from "./cell.ts";
+import type { EdgeProtocol, KindRun, TriggerKind } from "./cell.ts";
 import type { KindCellRecord, KindCellRecordV1 } from "./record.ts";
 import { FORMAT, FORMAT_V1, upgrade } from "./record.ts";
 import type { KubeProxyMode } from "./scenario.ts";
@@ -85,6 +85,7 @@ const declaration = z.object({
   flag: gate.nullable(),
   watchdog: z.object({ tick: time, threshold: time }).nullable(),
   lameDuck: z.boolean().optional(),
+  protocol: z.enum(["http/1.1", "h2c"] as const satisfies readonly EdgeProtocol[]).optional(),
 });
 
 const replica = z.object({ pod: z.string(), node: z.string(), ip: z.string(), version: z.string() });

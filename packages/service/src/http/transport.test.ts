@@ -1,3 +1,4 @@
+import { createServer as createHttp2Server } from "node:http2";
 import { describe, expect, it, vi } from "vitest";
 import type { Controller } from "../description.ts";
 import { lateHolds, takeOutside } from "../drains.ts";
@@ -109,6 +110,33 @@ describe("the knobs of the transport", () => {
     const transport = httpTransport(later.asServer, KNOBS, { listen: { port: 1 } });
     later.on("upgrade", () => {});
     await expect(transport.start(new AbortController().signal, detachedLifecycle())).rejects.toThrow(/mount it as a handler/);
+  });
+});
+
+describe("the knobs of a transport on a server of HTTP/2", () => {
+  // the types of node:http2 do not declare the timeout that setTimeout sets
+  const timeoutOf = (server: object): number | undefined => (server as { timeout?: number }).timeout;
+  it("makes server_idle_close the timeout of each session, with no hint and no buffer", () => {
+    const server = createHttp2Server();
+    const transport = httpTransport(server, KNOBS);
+    expect(timeoutOf(server)).toBe(65_000);
+    expect(transport.server).toBe(server);
+    expect(transport.knobs).toEqual({ ...KNOBS, server_idle_close_hint: { value: "infinite", unit: "s" }, server_idle_close_buffer: { value: 0, unit: "ms" } });
+  });
+
+  it("stops the timeout for a time without a bound, and refuses a time of zero", () => {
+    const server = createHttp2Server();
+    server.setTimeout(10_000);
+    httpTransport(server, { ...KNOBS, server_idle_close: { value: "infinite", unit: "s" } });
+    expect(timeoutOf(server)).toBe(0);
+    expect(() => httpTransport(createHttp2Server(), { ...KNOBS, server_idle_close: s(0) })).toThrow(/a session of HTTP\/2 needs a time above zero/);
+    // a time at or below the buffer of node:http is a time of HTTP/2, which has no buffer
+    expect(() => httpTransport(createHttp2Server(), { ...KNOBS, server_idle_close: s(0.5) })).not.toThrow();
+  });
+
+  it("refuses an upgrade handler: HTTP/2 has no upgrade", () => {
+    const transport = httpTransport(createHttp2Server(), KNOBS);
+    expect(() => transport.upgrade("/ws", () => {})).toThrow("a server of HTTP/2 has no upgrade: mount a request handler");
   });
 });
 

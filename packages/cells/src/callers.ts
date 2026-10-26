@@ -9,11 +9,14 @@ import { CHART_READINESS, DESIGN, PROPAGATION, T07_WORKLOAD, WORKERS, kubeDefaul
  * through a Service to two replicas, and one replica loses the ability to serve for the hold. A
  * flag file fails its route, and the same flag fails its readiness check: the flag stands for a
  * dependency of the replica. The cells measure when the callers stop getting errors, and how many
- * requests fail. Two candidates operate on one trigger, one judge and one cell, with one setting:
+ * requests fail. Three candidates operate on one trigger, one judge and one cell, with two settings:
  * - `endpoints only` (A): the edge keeps each connection open. Readiness fails, then the
  *   EndpointSlice and kube-proxy remove the replica.
  * - `in band` (B): the lame duck of the service. While the service is not ready, each answer of its
  *   edge has `Connection: close`, thus each caller opens a new connection.
+ * - `in band on HTTP/2` (C): the same lame duck on an edge of HTTP/2 without TLS (`protocol` h2c).
+ *   While the service is not ready, the edge sends GOAWAY on each session. Each client sends its
+ *   streams on one session, thus it has fewer connections on the target, and a shorter turn.
  *
  * The scenario is the smallest one that can tell the two apart:
  * - The clients keep their connections (`KEEP_ALIVE`). kube-proxy selects a backend only for a new
@@ -34,17 +37,27 @@ export const CONNECTIONS = 8;
 /** This workload is the T07 workload on keep-alive connections: 20 ms between two requests, thus 160 ms between two requests on one connection. */
 export const KEEP_ALIVE: Workload = { ...T07_WORKLOAD, connections: CONNECTIONS };
 
+/**
+ * This workload is the T07 workload on one session of HTTP/2 for each client. Each request is a
+ * stream on it, thus 20 ms come between two requests on one connection. A client of HTTP/2 opens
+ * one connection to an origin (RFC 9113, section 9.1).
+ */
+export const MULTIPLEXED: Workload = { ...T07_WORKLOAD, connections: 1 };
+
 /** This time is how long the replica cannot serve. It is longer than the latest removal of the lame duck, thus the heal does not end its window. */
 export const CANNOT_SERVE_HOLD = s(30);
 
 /** This declaration is the design, with the flag check on readiness: the readiness of the service fails while the replica cannot serve. */
 export const CANNOT_SERVE: Declaration = { ...DESIGN, flag: "readiness" };
 
-/** These are the two candidates, by the name of the setting `lameDuck`. */
-export type Candidate = "endpoints only" | "in band (lame duck)";
+/** These are the three candidates, by the names of the settings `lameDuck` and `protocol`. */
+export type Candidate = "endpoints only" | "in band (lame duck)" | "in band on HTTP/2 (GOAWAY)";
 
-/** These are the two candidates in their sequence on the page: endpoint propagation (A), then the in-band signal (B). */
-export const CANDIDATES: readonly Candidate[] = ["endpoints only", "in band (lame duck)"];
+/**
+ * These are the three candidates in their sequence on the page. A is endpoint propagation. B is the
+ * in-band signal on HTTP/1.1, and C is the in-band signal on HTTP/2.
+ */
+export const CANDIDATES: readonly Candidate[] = ["endpoints only", "in band (lame duck)", "in band on HTTP/2 (GOAWAY)"];
 
 /** These are the modes of the S2 cells: each mode of kube-proxy. The type of `PROPAGATION` gives a calibrated propagation to each mode. */
 export const CALLERS_MODES: readonly KubeProxyMode[] = KUBE_PROXY_MODES;
@@ -87,14 +100,16 @@ const requests = (value: number): Quantity => ({ value: Math.round(value), unit:
 const connections = (value: number): Quantity => ({ value, unit: "{connection}" });
 
 /**
- * This function gives the band of the connections of all clients on the target at the fault. In
- * turn, each client puts half of its connections on each replica. At random, the count is binomial,
- * and the band is the central band that has the chance `COVER` at the least.
+ * This function gives the band of the connections of all clients on the target at the fault, for a
+ * count of connections of each client. In turn, each client puts half of its connections on each
+ * replica. The first pick of each node is not known, thus an odd count gives the floor to the
+ * ceiling of the half. At random, the count is binomial, and the band is the central band that has
+ * the chance `COVER` at the least.
  */
-export const targetConnections = (mode: KubeProxyMode): Connections => {
-  const total = CLIENTS * CONNECTIONS;
+export const targetConnections = (mode: KubeProxyMode, each: number = CONNECTIONS): Connections => {
+  const total = CLIENTS * each;
   if (SELECTION[mode] === "in turn")
-    return { lo: connections(CLIENTS * Math.floor(CONNECTIONS / REPLICAS)), hi: connections(CLIENTS * Math.ceil(CONNECTIONS / REPLICAS)), of: connections(total) };
+    return { lo: connections(CLIENTS * Math.floor(each / REPLICAS)), hi: connections(CLIENTS * Math.ceil(each / REPLICAS)), of: connections(total) };
   const p = 1 / REPLICAS;
   const choose = (k: number): number => (k === 0 ? 1 : (choose(k - 1) * (total - k + 1)) / k);
   const chance = Array.from({ length: total + 1 }, (_, k) => choose(k) * p ** k * (1 - p) ** (total - k));
@@ -108,43 +123,65 @@ export const targetConnections = (mode: KubeProxyMode): Connections => {
   return { lo: connections(lo), hi: connections(hi), of: connections(total) };
 };
 
-/** This function gives the declaration of a candidate: the design, with the lame duck or without it. */
-const declarationOf = (candidate: Candidate): Declaration => (candidate === "in band (lame duck)" ? CANNOT_SERVE : { ...CANNOT_SERVE, lameDuck: false });
+/** This function gives the declaration of a candidate: the design, with the lame duck or without it, on HTTP/1.1 or on HTTP/2. */
+const declarationOf = (candidate: Candidate): Declaration => {
+  if (candidate === "endpoints only") return { ...CANNOT_SERVE, lameDuck: false };
+  return candidate === "in band on HTTP/2 (GOAWAY)" ? { ...CANNOT_SERVE, protocol: "h2c" } : CANNOT_SERVE;
+};
+
+/** This function gives the workload of a candidate: one session of HTTP/2 for C, and keep-alive connections of HTTP/1.1 for A and B. */
+const workloadOf = (candidate: Candidate): Workload => (candidate === "in band on HTTP/2 (GOAWAY)" ? MULTIPLEXED : KEEP_ALIVE);
+
+/** This function tells if a candidate is an in-band signal: the lame duck on HTTP/1.1 or on HTTP/2. */
+const inBand = (candidate: Candidate): boolean => candidate !== "endpoints only";
 
 /**
  * This function gives the expected count of failed requests of a candidate in a mode. Each
  * connection on the target fails one request in each turn. The lame duck fails until the latch
  * trips. A fails for the hold and until the readiness recovers.
+ *
+ * C has the mean of B: an eighth of the connections, each with 8 times the requests. Its band is wider, because each client has one
+ * connection. A client on the target fails each of its requests, and a client on the other replica
+ * fails none.
  */
 export const expectedFailures = (candidate: Candidate, mode: KubeProxyMode): Expected => {
-  const window = learnWindow(declarationOf(candidate), CHART_READINESS, PROPAGATION[mode], KEEP_ALIVE);
+  const workload = workloadOf(candidate);
+  const window = learnWindow(declarationOf(candidate), CHART_READINESS, PROPAGATION[mode], workload);
   const turn = valueIn(window.turn, "s");
-  const on = targetConnections(mode);
+  const on = targetConnections(mode, workload.connections);
   const [few, many] = [on.lo.value / turn, on.hi.value / turn];
-  if (candidate === "in band (lame duck)")
+  if (inBand(candidate))
     return { lo: requests(few * valueIn(window.latch.lo, "s")), hi: requests(many * valueIn(window.latch.hi, "s")), connections: on };
   const hold = valueIn(CANNOT_SERVE_HOLD, "s");
   return { lo: requests(few * hold), hi: requests(many * (hold + valueIn(window.end.band.hi, "s"))), connections: on };
 };
 
+/** These are the parts of the id of each candidate. */
+const SUFFIX: Readonly<Record<Candidate, string>> = { "endpoints only": "endpoints", "in band (lame duck)": "lame-duck", "in band on HTTP/2 (GOAWAY)": "goaway" };
+
 const cellOf = (mode: KubeProxyMode, candidate: Candidate): KindCell => {
-  const lameDuck = candidate === "in band (lame duck)";
   const declaration = declarationOf(candidate);
+  const workload = workloadOf(candidate);
   const pod = { ...kubeDefaults(2), readiness: CHART_READINESS };
   const propagation = PROPAGATION[mode];
-  const window = learnWindow(declaration, CHART_READINESS, propagation, KEEP_ALIVE);
+  const window = learnWindow(declaration, CHART_READINESS, propagation, workload);
   const expected = expectedFailures(candidate, mode);
   const on = expected.connections;
+  const goaway = candidate === "in band on HTTP/2 (GOAWAY)";
   const selects =
     SELECTION[mode] === "random"
       ? `The rules select the backend of each connection at random, thus ${on.lo.value}–${on.hi.value} of the ${on.of.value} connections go to the target in ${COVER * 100} % of the runs at the least`
-      : `IPVS selects the backends in turn, thus ${on.lo.value} of the ${on.of.value} connections go to the target`;
+      : on.lo.value === on.hi.value
+        ? `IPVS selects the backends in turn, thus ${on.lo.value} of the ${on.of.value} connections go to the target`
+        : `IPVS selects the backends in turn on each node, and the first pick of a node is not known. Thus ${on.lo.value}–${on.hi.value} of the ${on.of.value} connections go to the target`;
   const about = `${selects}. About ${expected.lo.value}–${expected.hi.value} requests fail`;
-  const why = lameDuck
-    ? `Each request on a connection to the target fails until the readiness latch of the service trips (${say(window.latch.lo)}–${say(window.latch.hi)}). Then each answer closes its connection, and the next connection can go to the target until the readiness probe and the propagation (${propagation.from}) remove it, up to ${say(window.end.band.hi)}. ${about}`
+  // no connection on the target is a run with no failure: 1 in 8 runs at random, thus C is not certain
+  const none = on.lo.value === 0 ? ". With no connection on the target, no request fails" : "";
+  const why = inBand(candidate)
+    ? `Each request on a connection to the target fails until the readiness latch of the service trips (${say(window.latch.lo)}–${say(window.latch.hi)}). Then each answer closes its connection${goaway ? " with a GOAWAY on its session" : ""}, and the next connection can go to the target until the readiness probe and the propagation (${propagation.from}) remove it, up to ${say(window.end.band.hi)}. ${about}${none}`
     : `Each connection to the target stays open, and the rules select a backend only for a new connection. Thus the removal of the endpoint changes nothing, and each request on those connections fails for the hold (${say(CANNOT_SERVE_HOLD)}) and until the readiness of the service recovers, up to ${say(window.end.band.hi)} after the heal. ${about}`;
   return {
-    id: `S2.T07.${mode}.${lameDuck ? "lame-duck" : "endpoints"}`,
+    id: `S2.T07.${mode}.${SUFFIX[candidate]}`,
     name: `T07 ${mode}, callers learn that a pod cannot serve: ${candidate}`,
     template: "T07",
     substitutes: null,
@@ -153,13 +190,13 @@ const cellOf = (mode: KubeProxyMode, candidate: Candidate): KindCell => {
     trigger: { kind: "cannot-serve", hold: CANNOT_SERVE_HOLD },
     pod,
     declaration,
-    workload: KEEP_ALIVE,
+    workload,
     prediction: {
       kind: "window",
       nodes: "all",
       start: { from: "fault", band: window.start },
       end: window.end,
-      certain: true,
+      certain: on.lo.value > 0,
       outcomes: ["503"],
       why,
     },
@@ -168,5 +205,5 @@ const cellOf = (mode: KubeProxyMode, candidate: Candidate): KindCell => {
   };
 };
 
-/** These are the cells of the two candidates in each mode, from one definition: by mode, then A before B. */
+/** These are the cells of the three candidates in each mode, from one definition: by mode, then A, B and C. */
 export const CALLERS_CELLS: readonly KindCell[] = CALLERS_MODES.flatMap((mode) => CANDIDATES.map((candidate) => cellOf(mode, candidate)));
