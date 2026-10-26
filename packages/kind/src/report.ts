@@ -55,7 +55,7 @@ export const predictionText = (prediction: Prediction): string => {
     case "removal":
       return `Service empty in ${showBand(prediction.band)}`;
     case "leaves":
-      return `the replica leaves in ${showBand(prediction.band)}`;
+      return `the replica leaves in ${showBand(prediction.band)}${prediction.window === undefined ? "" : `; ${predictionText(prediction.window)}`}`;
     case "restarts":
       return prediction.band === null ? "no restart" : `each replica SIGTERM in ${showBand(prediction.band)}`;
     case "stays":

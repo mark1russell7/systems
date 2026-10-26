@@ -3941,14 +3941,19 @@
       ]
     },
     {
+      "incident": "a failed prober",
+      "kind": "not measured",
+      "why": "No copy of a kind run has a result of the cells of this incident yet."
+    },
+    {
       "incident": "a black-holed shared dependency",
       "kind": "not measured",
-      "why": "No cell measures the candidates A, B, C and D in this incident yet."
+      "why": "No cell measures the candidates in this incident yet. The server of the S2 cells has no dependency: its Redis is off. A shared dependency fails the readiness of each replica at once. T18 has Redis, but no cell of the candidates."
     },
     {
       "incident": "a lost zone",
       "kind": "not measured",
-      "why": "No cell measures the candidates A, B, C and D in this incident yet."
+      "why": "No cell measures the candidates in this incident yet. The kind cluster of T07 has no zones, and no step of the lab stops a node and its kubelet at once. A drain is not a loss: it evicts each pod with its grace."
     },
     {
       "incident": "a slow dependency (gray failure)",
@@ -3958,12 +3963,7 @@
     {
       "incident": "a flapping dependency",
       "kind": "not measured",
-      "why": "No cell measures the candidates A, B, C and D in this incident yet."
-    },
-    {
-      "incident": "a failed prober",
-      "kind": "not measured",
-      "why": "No cell measures the candidates A, B, C and D in this incident yet."
+      "why": "No cell measures the candidates in this incident yet. Each trigger of the lab has one fault and one heal, thus no fault comes again in a run. The server of T07 has no dependency that can flap."
     }
   ]
 }

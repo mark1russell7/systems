@@ -134,6 +134,27 @@ describe("the judgement of a kind run", () => {
     expect(checkRun(removal, late).ok).toBe(false);
   });
 
+  it("times the departure of the target from the fault, and with a window it holds the failed requests to that window too", () => {
+    const window = { kind: "window", nodes: "all", start: { from: "fault", band: b(8, 18.16) }, end: { from: "fault", band: b(8, 20.24) }, certain: true, outcomes: ["503"], why: "a test" } as const;
+    const leaves = cell({ kind: "leaves", band: b(12, 24.105), window, why: "a test" });
+    const lines: Line[] = [
+      { ev: "slice", t: 20_000, type: "MODIFIED", name: "lab-x", svc: "lab", eps: [{ ip: TARGET.ip, r: false }, { ip: OTHER.ip, r: true }] },
+      { ev: "rules", t: 20_200, prev: 20_150, node: "w1", b: ["10.244.2.4:8080"] },
+      { ev: "rules", t: 20_100, prev: 20_050, node: "w2", b: ["10.244.2.4:8080"] },
+    ];
+    const run = (extra: Line[]): KindRun => ({ ...runWith([]), lines: [...lines, ...extra], acts: { fault: 5000, heal: 35_000, resume: null } });
+    const check = checkRun(leaves, run([request(6000, "ok"), request(13_000, "503"), request(14_000, "503")]));
+    expect(check).toMatchObject({ ok: true, value: s(15), facts: { left: s(15), failures: 2 } });
+    expect(check.why).toBe("lab-a left at 15 s; 2 failed requests, all in the window (span 1 s)");
+    // a refusal before the latch can trip, or another outcome, is a finding of the window
+    expect(checkRun(leaves, run([request(6000, "503")])).ok).toBe(false);
+    expect(checkRun(leaves, run([request(13_000, "timeout")])).ok).toBe(false);
+    // a certain window with no failure, and the same departure without a window holds
+    expect(checkRun(leaves, run([])).ok).toBe(false);
+    expect(checkRun(cell({ kind: "leaves", band: b(12, 24.105), why: "a test" }), run([])).ok).toBe(true);
+    expect(predictionText(leaves.prediction)).toBe("the replica leaves in [12, 24.105] s; failures only from the fault + [8, 18.16] s to the fault + [8, 20.24] s, at least one, each one 503");
+  });
+
   it("decides a cell on its counted runs: a disagreeing run fails it, and a warm-up does not count", () => {
     const none = cell({ kind: "none", why: "a test" });
     const good = runWith([request(2000, "ok")]);

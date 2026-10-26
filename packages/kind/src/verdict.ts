@@ -273,7 +273,7 @@ interface Span {
 
 /** This function gives the window of the failed requests of a prediction: a window, the window of `ends`, or null. */
 const windowOf = (prediction: Prediction): WindowPrediction | null =>
-  prediction.kind === "window" ? prediction : prediction.kind === "ends" ? (prediction.window ?? null) : null;
+  prediction.kind === "window" ? prediction : prediction.kind === "ends" || prediction.kind === "leaves" ? (prediction.window ?? null) : null;
 
 /**
  * This function gives how long a run observes after the end reference of its last window, or null
@@ -543,7 +543,12 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
         if (by === null) problems.push(`the rules of ${node} kept ${run.target.pod}`);
         else if (!inBand(by, { lo: band.lo, hi: band.hi + 0.05 })) problems.push(`the rules of ${node} dropped it at ${by} s`);
       }
-      return done(problems.length === 0, problems.length === 0 ? `${run.target.pod} left at ${value} s` : problems.join("; "), value, { left: seconds(value), propagation });
+      // with a window, the failed requests of the run must also agree with it, as with `ends`
+      const inner = prediction.window === undefined ? null : checkRun({ ...cell, prediction: prediction.window }, run);
+      if (inner !== null && !inner.ok) problems.push(inner.why);
+      const left = inner === null ? `${run.target.pod} left at ${value} s` : `${run.target.pod} left at ${value} s; ${inner.why}`;
+      const checked = done(problems.length === 0, problems.length === 0 ? left : problems.join("; "), value, { ...(inner === null ? {} : inner.facts), left: seconds(value), propagation });
+      return inner?.tail === undefined ? checked : { ...checked, tail: inner.tail };
     }
     case "restarts": {
       const fault = run.acts.fault;

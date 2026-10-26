@@ -1,7 +1,7 @@
 import type { Recovery } from "@mark1russell7/algebra";
 import { recovery, timerOf } from "@mark1russell7/algebra";
 import type { Declaration, KindCell, KubeProxyMode, Workload } from "@mark1russell7/kind";
-import { KUBE_PROXY_MODES, learnWindow, stallRemovalBand } from "@mark1russell7/kind";
+import { KUBE_PROXY_MODES, learnWindow, removalBand, stallRemovalBand } from "@mark1russell7/kind";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
@@ -46,6 +46,10 @@ import { CHART_READINESS, DESIGN, PROPAGATION, T07_WORKLOAD, WORKERS, kubeDefaul
  * `STALL_HOLD`. The kernel still accepts each connection and acknowledges each segment, but the app
  * and its probes do not answer. The readiness probe removes the target in the stall, and no
  * candidate gets a signal from the replica.
+ *
+ * The fourth incident is a failed prober, as a false failure. The flag fails only the readiness
+ * check of the target, and its route still serves (`serves` of the trigger). The cells measure the
+ * false removal of a replica that can serve, and the requests that fail because of it.
  */
 
 /** This count is the keep-alive connections of each client. Eight spread over two replicas, thus each client has some on the target in almost each run. */
@@ -75,11 +79,14 @@ export const CHECKED: Workload = { ...MULTIPLEXED, sessionCheck: SESSION_CHECK }
 /** This time is how long the replica cannot serve. It is longer than the latest removal of the lame duck, thus the heal does not end its window. */
 export const CANNOT_SERVE_HOLD = s(30);
 
-/** These are the incidents of the S2 cells: the target cannot serve, a black hole partitions it from the clients, or its event loop stalls. */
-export type CallerFault = "cannot serve" | "partition" | "stall";
+/**
+ * These are the incidents of the S2 cells. The target cannot serve, a black hole partitions it from
+ * the clients, or its event loop stalls. In a false failure, its readiness check fails while it can serve.
+ */
+export type CallerFault = "cannot serve" | "partition" | "stall" | "false failure";
 
 /** These are the incidents in their sequence: the cells of "cannot serve" come first. */
-export const CALLER_FAULTS: readonly CallerFault[] = ["cannot serve", "partition", "stall"];
+export const CALLER_FAULTS: readonly CallerFault[] = ["cannot serve", "partition", "stall", "false failure"];
 
 /**
  * This time is how long the event loop of the target stays blocked in a stall. It has three bounds:
@@ -223,6 +230,7 @@ const inBand = (candidate: Candidate): boolean => candidate !== "endpoints only"
 export const expectedFailures = (candidate: Candidate, mode: KubeProxyMode, fault: CallerFault = "cannot serve"): Expected => {
   if (fault === "partition") return partitionOf(mode, candidate).expected;
   if (fault === "stall") return stallOf(mode, candidate).expected;
+  if (fault === "false failure") return falseOf(mode, candidate).expected;
   const workload = workloadOf(candidate);
   const window = learnWindow(declarationOf(candidate), CHART_READINESS, PROPAGATION[mode], workload);
   const turn = valueIn(window.turn, "s");
@@ -508,8 +516,84 @@ export const stallOf = (mode: KubeProxyMode, candidate: Candidate): PartitionPre
   };
 };
 
+/** This is the prediction of a candidate in a false failure: the expected failures, their window, the false removal, and the reason. */
+export interface FalsePrediction {
+  readonly expected: Expected;
+  /** This band is the first failed request, from the fault. */
+  readonly start: Band;
+  /** This band is the last failed request, from its reference: the fault, or the heal for A. */
+  readonly end: { readonly from: "fault" | "heal"; readonly band: Band };
+  /** This band is the false removal of the target from the EndpointSlice and the rules, from the fault. */
+  readonly removal: Band;
+  readonly why: string;
+}
+
+/**
+ * This function gives the prediction of a candidate in a false failure of the target. The flag fails
+ * only the readiness check, and the route still serves. Thus no request fails before the latch of
+ * the check trips. Then the controller of the service is not ready, and the service refuses each
+ * request with a 503. The kubelet and the propagation remove the target (`removalBand`): a false removal.
+ * - A: each connection on the target stays open. Thus each request on it fails from the trip until
+ *   the readiness of the service recovers after the heal.
+ * - B, C and D: each refusal closes its connection, and the next connection picks a backend. A chain
+ *   of picks of the target ends at the first pick of the other replica, as in a partition. The
+ *   target answers at once, thus the session check of D closes no session, and D is the same as C.
+ */
+export const falseOf = (mode: KubeProxyMode, candidate: Candidate): FalsePrediction => {
+  const workload = workloadOf(candidate);
+  const propagation = PROPAGATION[mode];
+  const window = learnWindow(declarationOf(candidate), CHART_READINESS, propagation, workload);
+  const turn = valueIn(window.turn, "s");
+  const latch = { lo: valueIn(window.latch.lo, "s"), hi: valueIn(window.latch.hi, "s") };
+  const removal = removalBand(window.latch, CHART_READINESS, propagation);
+  const removed = { lo: valueIn(removal.lo, "s"), hi: valueIn(removal.hi, "s") };
+  const each = workload.connections ?? 1;
+  const on = targetConnections(mode, each);
+  const start = { lo: time(latch.lo), hi: time(latch.hi + turn) };
+  const leaves = { lo: time(removed.lo), hi: time(removed.hi) };
+  const serves = `The readiness check of the target fails for the hold (${say(CANNOT_SERVE_HOLD)}), but its route still serves. Its latch trips ${say(window.latch.lo)}–${say(window.latch.hi)} after the fault. Then the controller of the service is not ready, thus the service refuses each request with a 503. The kubelet and the propagation (${propagation.from}) remove the target ${say(leaves.lo)}–${say(leaves.hi)} after the fault: a false removal`;
+  if (!inBand(candidate)) {
+    const hold = valueIn(CANNOT_SERVE_HOLD, "s");
+    const [few, many] = [on.lo.value / turn, on.hi.value / turn];
+    const expected = { lo: requests(few * (hold - latch.hi)), hi: requests(many * (hold - latch.lo + valueIn(window.end.band.hi, "s"))), connections: on };
+    return {
+      expected,
+      start,
+      end: { from: "heal", band: window.end.band },
+      removal: leaves,
+      why: `${serves}. Each connection to the target stays open, and the rules select a backend only for a new connection. Thus each request on those connections fails from the trip until the readiness of the service recovers, up to ${say(window.end.band.hi)} after the heal. ${on.lo.value}–${on.hi.value} of the ${on.of.value} connections are on the target, thus about ${expected.lo.value}–${expected.hi.value} requests fail`,
+    };
+  }
+  const checks = candidate === "in band on HTTP/2 with a session check" ? ". The target answers each stream at once, thus the session check closes no session, and D is the same as C" : "";
+  const closes = `${serves}. Each refusal closes its connection${onHttp2(candidate) ? " with a GOAWAY on its session" : ""}, and the next request opens a new connection one turn (${say(window.turn)}) later. A chain of picks of the target ends at the first pick of the other replica${checks}`;
+  // the last failure of a chain starts one turn after its last pick, and the removal ends each chain
+  const ends = (rounds: number): Band => ({ lo: time(latch.lo), hi: time(Math.min(latch.hi + rounds * turn, removed.hi + turn)) });
+  if (SELECTION[mode] === "in turn") {
+    const node = inTurn(each);
+    const expected = { lo: requests(CLIENTS * node.lo), hi: requests(CLIENTS * node.hi), connections: on };
+    return {
+      expected,
+      start,
+      end: { from: "fault", band: ends(node.rounds) },
+      removal: leaves,
+      why: `${closes}. IPVS selects in turn on each node, thus each node fails ${node.lo}–${node.hi} requests in ${node.rounds} turns at the most. About ${expected.lo.value}–${expected.hi.value} requests fail`,
+    };
+  }
+  const total = CLIENTS * each;
+  const picks = negativeBinomial(total, 1 - 1 / REPLICAS);
+  const chain = chainOf(total);
+  const expected = { lo: requests(picks.lo), hi: requests(picks.hi), connections: on };
+  return {
+    expected,
+    start,
+    end: { from: "fault", band: ends(chain) },
+    removal: leaves,
+    why: `${closes}. Each pick goes to the target at random, thus the failures of the ${total} connections are negative binomial: ${picks.lo}–${picks.hi} in ${COVER * 100} % of the runs. A chain longer than ${chain} picks has a chance of ${CHAIN_RISK} at the most`,
+  };
+};
+
 /** These are the incidents of a silent target: the words of the name of each cell, and its trigger. */
-const SILENT: Readonly<Record<Exclude<CallerFault, "cannot serve">, { readonly what: string; readonly trigger: KindCell["trigger"]; readonly predict: typeof partitionOf }>> = {
+const SILENT: Readonly<Record<Exclude<CallerFault, "cannot serve" | "false failure">, { readonly what: string; readonly trigger: KindCell["trigger"]; readonly predict: typeof partitionOf }>> = {
   partition: { what: "a pod is partitioned", trigger: { kind: "blackhole", hold: PARTITION_HOLD, partition: true }, predict: partitionOf },
   stall: { what: "a pod is stalled", trigger: { kind: "app-stall", hold: STALL_HOLD }, predict: stallOf },
 };
@@ -522,15 +606,49 @@ const SUFFIX: Readonly<Record<Candidate, string>> = {
   "in band on HTTP/2 with a session check": "session-check",
 };
 
-/** This function tells the incident of an S2 cell: a partition has the flag `partition` on its black hole, and a stall is an `app-stall`. */
+/**
+ * This function tells the incident of an S2 cell. A partition has the flag `partition` on its black
+ * hole, and a stall is an `app-stall`. A false failure has the flag `serves` on its `cannot-serve`.
+ */
 export const callerFaultOf = (cell: KindCell): CallerFault =>
-  cell.trigger.partition === true ? "partition" : cell.trigger.kind === "app-stall" ? "stall" : "cannot serve";
+  cell.trigger.partition === true ? "partition" : cell.trigger.kind === "app-stall" ? "stall" : cell.trigger.serves === true ? "false failure" : "cannot serve";
 
 /** This function gives the cell of a candidate in a mode, for an incident. The cells of an incident share each setting but the trigger and the prediction. */
 const cellOf = (mode: KubeProxyMode, candidate: Candidate, fault: CallerFault): KindCell => {
   const declaration = declarationOf(candidate);
   const workload = workloadOf(candidate);
   const pod = { ...kubeDefaults(2), readiness: CHART_READINESS };
+  if (fault === "false failure") {
+    const predicted = falseOf(mode, candidate);
+    return {
+      id: `S2.T07.${mode}.${SUFFIX[candidate]}.prober`,
+      name: `T07 ${mode}, callers learn that a prober fails while the pod can serve: ${candidate}`,
+      template: "T07",
+      substitutes: null,
+      mode,
+      workers: WORKERS,
+      trigger: { kind: "cannot-serve", hold: CANNOT_SERVE_HOLD, serves: true },
+      pod,
+      declaration,
+      workload,
+      prediction: {
+        kind: "leaves",
+        band: predicted.removal,
+        window: {
+          kind: "window",
+          nodes: "all",
+          start: { from: "fault", band: predicted.start },
+          end: predicted.end,
+          certain: predicted.expected.connections.lo.value > 0,
+          outcomes: ["503"],
+          why: predicted.why,
+        },
+        why: `The readiness check fails while the target can serve. The kubelet removes it ${say(predicted.removal.lo)}–${say(predicted.removal.hi)} after the fault: a false removal of each candidate`,
+      },
+      calibrates: false,
+      runs: 3,
+    };
+  }
   if (fault !== "cannot serve") {
     const silent = SILENT[fault];
     const predicted = silent.predict(mode, candidate);

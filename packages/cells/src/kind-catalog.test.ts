@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { timerOf } from "@mark1russell7/algebra";
 import type { KindCell } from "@mark1russell7/kind";
 import { LINUX_TCP } from "@mark1russell7/machines";
-import { clientObjects, describeCell, kubeletBand, lintCell, namespaceOf, pausedWindow, planOf, serverObjects, stallRemovalBand, stopOf, verdictsOf } from "@mark1russell7/kind";
+import { clientObjects, describeCell, kubeletBand, lintCell, namespaceOf, pausedWindow, planOf, removalBand, serverObjects, stallRemovalBand, stopOf, verdictsOf } from "@mark1russell7/kind";
 import { STOP_RULE } from "@mark1russell7/service";
 import { sessionCheckDetection, sessionCheckProblems } from "@mark1russell7/service/http-client";
 import { valueIn } from "@mark1russell7/quantity";
@@ -23,6 +23,7 @@ import {
   STALL_HOLD,
   callerFaultOf,
   expectedFailures,
+  falseOf,
   negativeBinomial,
   targetConnections,
 } from "./callers.ts";
@@ -44,7 +45,7 @@ const propagationOf = (cell: KindCell) => {
 
 describe("the kind catalogs", () => {
   it("names each cell by a cell of the plan, or as a calibration, and each name once", () => {
-    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(iptables|ipvs|nftables)\.(endpoints|lame-duck|goaway|session-check)(\.partition|\.stall)?$/);
+    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(iptables|ipvs|nftables)\.(endpoints|lame-duck|goaway|session-check)(\.partition|\.stall|\.prober)?$/);
     expect(new Set(ALL.map((cell) => cell.name)).size).toBe(ALL.length);
     expect(new Set(ALL.map(namespaceOf)).size).toBe(ALL.length);
   });
@@ -160,9 +161,9 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
 
   it("has the four candidates in each mode of kube-proxy, from one definition", () => {
     expect(CALLERS_MODES).toEqual(["iptables", "ipvs", "nftables"]);
-    expect(CALLER_FAULTS).toEqual(["cannot serve", "partition", "stall"]);
+    expect(CALLER_FAULTS).toEqual(["cannot serve", "partition", "stall", "false failure"]);
     expect(CALLERS_CELLS.map((cell) => cell.id)).toEqual(
-      ["", ".partition", ".stall"].flatMap((tail) =>
+      ["", ".partition", ".stall", ".prober"].flatMap((tail) =>
         CALLERS_MODES.flatMap((mode) => [`S2.T07.${mode}.endpoints${tail}`, `S2.T07.${mode}.lame-duck${tail}`, `S2.T07.${mode}.goaway${tail}`, `S2.T07.${mode}.session-check${tail}`]),
       ),
     );
@@ -378,6 +379,60 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
       expect(d.why).toMatch(/its TCP connects, but the blocked loop sends no SETTINGS frame\. The check sends a PING, which gets no ACK, and it closes the session 1 s after its first stream|IPVS selects in turn/);
       const { lo, hi } = expectedFailures("in band on HTTP/2 with a session check", mode, "stall");
       expect({ lo, hi }).toEqual(random ? requests(0, 534) : requests(0, 228));
+    }
+  });
+
+  it("fails the prober of the target while it can serve, with the cells of each candidate: only the trigger, the prediction and the runs change", () => {
+    for (const mode of CALLERS_MODES) {
+      const serve = trioOf(mode);
+      const prober = trioOf(mode, "false failure");
+      expect(prober.map((cell) => cell.name)).toEqual(CANDIDATES.map((candidate) => `T07 ${mode}, callers learn that a prober fails while the pod can serve: ${candidate}`));
+      for (const [at, cell] of prober.entries()) {
+        const { id, name: _n, trigger, prediction: _p, runs, ...rest } = cell;
+        const { id: twin, name: _tn, trigger: twinTrigger, prediction: _tp, runs: _tr, ...restTwin } = serve[at]!;
+        expect(id).toBe(`${twin}.prober`);
+        expect(rest).toEqual(restTwin);
+        // the trigger of "cannot serve", with the flag that keeps the route
+        expect(trigger).toEqual({ ...twinTrigger, serves: true });
+        expect(runs).toBe(3);
+        expect(planOf(cell)).toEqual(planOf(serve[at]!));
+      }
+    }
+  });
+
+  it("predicts the false removal of each candidate by the latch, the probe and the propagation, and the refusals after the latch", () => {
+    const band = (lo: number, hi: number) => ({ lo: s(lo), hi: s(hi) });
+    const requests = (lo: number, hi: number) => ({ lo: { value: lo, unit: "{request}" }, hi: { value: hi, unit: "{request}" } });
+    // the latch of 8–18 s, the readiness probe of the chart (4–6 s), and the propagation of the mode
+    const removal = { iptables: band(12, 24.105), ipvs: band(12.073, 24.309), nftables: band(12, 24.079) };
+    for (const mode of CALLERS_MODES) {
+      const random = SELECTION[mode] === "random";
+      const cells = trioOf(mode, "false failure");
+      for (const cell of cells) {
+        if (cell.prediction.kind !== "leaves" || cell.prediction.window === undefined) throw new Error(`${cell.name}: no departure with a window`);
+        expect(cell.prediction.band).toEqual(removal[mode]);
+        expect(cell.prediction.band).toEqual(removalBand({ lo: s(8), hi: s(18) }, CHART_READINESS, PROPAGATION[mode]));
+        expect(valueIn(cell.prediction.band.hi, "s")).toBeLessThan(valueIn(CANNOT_SERVE_HOLD, "s"));
+      }
+      const [a, b, c, d] = cells.map((cell) => (cell.prediction.kind === "leaves" ? cell.prediction.window! : null)) as [Window, Window, Window, Window];
+      // no request fails before the latch: the first refusal comes in one turn after it
+      expect([a.certain, a.start, a.end, a.outcomes]).toEqual([true, { from: "fault", band: band(8, 18.16) }, { from: "heal", band: band(0, 6.16) }, ["503"]]);
+      // B: the chains of new connections after the latch, 14 picks at random and 4 rounds in turn
+      expect([b.certain, b.start, b.end, b.outcomes]).toEqual([true, { from: "fault", band: band(8, 18.16) }, { from: "fault", band: band(8, random ? 20.24 : 18.64) }, ["503"]]);
+      // C: one session for each client, 11 picks of 20 ms at random, and 1 round in turn
+      expect([c.certain, c.start, c.end, c.outcomes]).toEqual([false, { from: "fault", band: band(8, 18.02) }, { from: "fault", band: band(8, random ? 18.22 : 18.02) }, ["503"]]);
+      // D: the target answers at once, thus D has the window of C
+      const { why: whyD, ...windowD } = d;
+      const { why: whyC, ...windowC } = c;
+      expect(windowD).toEqual(windowC);
+      expect(whyD).toBe(`${whyC.replace(/\. Each pick goes|\. IPVS selects/, (found) => `. The target answers each stream at once, thus the session check closes no session, and D is the same as C${found}`)}`);
+      const counts = (candidate: Candidate) => { const { lo, hi } = falseOf(mode, candidate).expected; return { lo, hi }; };
+      // A: 6.25 requests each second on each connection on the target, from the latch to the recovery after the heal
+      expect(counts("endpoints only")).toEqual(random ? requests(525, 2992) : requests(900, 2112));
+      expect(counts("in band (lame duck)")).toEqual(random ? requests(12, 39) : requests(21, 24));
+      expect(counts("in band on HTTP/2 (GOAWAY)")).toEqual(random ? requests(0, 9) : requests(0, 3));
+      expect(counts("in band on HTTP/2 with a session check")).toEqual(counts("in band on HTTP/2 (GOAWAY)"));
+      for (const candidate of CANDIDATES) expect(expectedFailures(candidate, mode, "false failure")).toEqual(falseOf(mode, candidate).expected);
     }
   });
 });
