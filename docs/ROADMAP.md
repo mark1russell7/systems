@@ -404,14 +404,16 @@ After CLI-33, the client owns the image of its procedures subject. Then the harn
 
 ### SYS-24 · The progress check names the loops that mark it
 
-- **Status:** later
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** SYS-14
-- **Started:**
-- **Shipped:**
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Started:** 2026-10-25
+- **Shipped:** 2026-10-25
+- **Links:** [#158](https://github.com/mark1russell7/systems/pull/158), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 A check of the kind `progress` fires when no loop marks progress in its stall time. Today each app gives that time by hand: jarvis gives 370 s for its weather poll (JAR-4). With a field `marks`, the check names its loops. Then `lint()` finds a stall time that is shorter than the interval of the slowest loop, with its jitter and its timeout. It is a PATCH: an optional field and a new finding.
+
+#158 adds `marks: { loops, stall }` to a check, and `lint()` gives a `progress` finding for a short stall time or an unknown loop.
 
 ### SYS-25 · The pairing window from the jitter of the runner
 
