@@ -1,0 +1,1059 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-10-26",
+  "units": "s",
+  "runs": 3,
+  "kernel": "6.17.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.iptables.endpoints.prober",
+      "template": "T07",
+      "name": "iptables, callers learn that a prober fails while the pod can serve: endpoints only",
+      "mode": "iptables",
+      "trigger": "cannot-serve",
+      "group": "prober",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 12,
+          "high": 24.105
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 12 s to 24.105 s after the fault. The readiness check of the target fails for the hold (30 s), but its route still serves. Its latch trips 8 s–18 s after the fault. Then the controller of the service is not ready, thus the service refuses each request with a 503. The kubelet and the propagation (CAL.T07.iptables: median 0.059 s, 33 times) remove the target 12 s–24.105 s after the fault: a false removal. Each connection to the target stays open, and the rules select a backend only for a new connection. Thus each request on those connections fails from the trip until the readiness of the service recovers, up to 6.16 s after the heal. 7–17 of the 24 connections are on the target, thus about 525–2992 requests fail."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 16.855,
+      "values": [16.855, 13.839, 19.751],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 16.855 s. The counted runs measured 13.839 s to 19.751 s.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 6.16
+        },
+        "expected": {
+          "low": 525,
+          "high": 2992
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.105
+        }
+      },
+      "lasts": [31.2505543, 34.1614156, 33.8380877],
+      "failures": [1649, 1690, 1720]
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck.prober",
+      "template": "T07",
+      "name": "iptables, callers learn that a prober fails while the pod can serve: in band (lame duck)",
+      "mode": "iptables",
+      "trigger": "cannot-serve",
+      "group": "prober",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 12,
+          "high": 24.105
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 12 s to 24.105 s after the fault. The readiness check of the target fails for the hold (30 s), but its route still serves. Its latch trips 8 s–18 s after the fault. Then the controller of the service is not ready, thus the service refuses each request with a 503. The kubelet and the propagation (CAL.T07.iptables: median 0.059 s, 33 times) remove the target 12 s–24.105 s after the fault: a false removal. Each refusal closes its connection, and the next request opens a new connection one turn (0.16 s) later. A chain of picks of the target ends at the first pick of the other replica. Each pick goes to the target at random, thus the failures of the 24 connections are negative binomial: 12–39 in 95 % of the runs. A chain longer than 14 picks has a chance of 0.001 at the most."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 18.913,
+      "values": [18.913, 19.203, 17.206],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 18.913 s. The counted runs measured 17.206 s to 19.203 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 20.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.105
+        }
+      },
+      "lasts": [15.7164494, 15.3455701, 12.3276288],
+      "failures": [34, 25, 16]
+    },
+    {
+      "id": "S2.T07.iptables.goaway.prober",
+      "template": "T07",
+      "name": "iptables, callers learn that a prober fails while the pod can serve: in band on HTTP/2 (GOAWAY)",
+      "mode": "iptables",
+      "trigger": "cannot-serve",
+      "group": "prober",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 12,
+          "high": 24.105
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 12 s to 24.105 s after the fault. The readiness check of the target fails for the hold (30 s), but its route still serves. Its latch trips 8 s–18 s after the fault. Then the controller of the service is not ready, thus the service refuses each request with a 503. The kubelet and the propagation (CAL.T07.iptables: median 0.059 s, 33 times) remove the target 12 s–24.105 s after the fault: a false removal. Each refusal closes its connection with a GOAWAY on its session, and the next request opens a new connection one turn (0.02 s) later. A chain of picks of the target ends at the first pick of the other replica. Each pick goes to the target at random, thus the failures of the 3 connections are negative binomial: 0–9 in 95 % of the runs. A chain longer than 11 picks has a chance of 0.001 at the most."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 17.843,
+      "values": [17.843, 15.166, 20.545],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 17.843 s. The counted runs measured 15.166 s to 20.545 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.22
+        },
+        "expected": {
+          "low": 0,
+          "high": 9
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.105
+        }
+      },
+      "lasts": [13.8793899, null, 15.1182826],
+      "failures": [7, 0, 5]
+    },
+    {
+      "id": "S2.T07.iptables.session-check.prober",
+      "template": "T07",
+      "name": "iptables, callers learn that a prober fails while the pod can serve: in band on HTTP/2 with a session check",
+      "mode": "iptables",
+      "trigger": "cannot-serve",
+      "group": "prober",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 12,
+          "high": 24.105
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 12 s to 24.105 s after the fault. The readiness check of the target fails for the hold (30 s), but its route still serves. Its latch trips 8 s–18 s after the fault. Then the controller of the service is not ready, thus the service refuses each request with a 503. The kubelet and the propagation (CAL.T07.iptables: median 0.059 s, 33 times) remove the target 12 s–24.105 s after the fault: a false removal. Each refusal closes its connection with a GOAWAY on its session, and the next request opens a new connection one turn (0.02 s) later. A chain of picks of the target ends at the first pick of the other replica. The target answers each stream at once, thus the session check closes no session, and D is the same as C. Each pick goes to the target at random, thus the failures of the 3 connections are negative binomial: 0–9 in 95 % of the runs. A chain longer than 11 picks has a chance of 0.001 at the most."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 15.136,
+      "values": [15.136, 13.156, 15.27],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 15.136 s. The counted runs measured 13.156 s to 15.27 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.22
+        },
+        "expected": {
+          "low": 0,
+          "high": 9
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.105
+        }
+      },
+      "lasts": [10.9272664, 8.4943701, 10.4049531],
+      "failures": [2, 4, 6]
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints.prober",
+      "template": "T07",
+      "name": "ipvs, callers learn that a prober fails while the pod can serve: endpoints only",
+      "mode": "ipvs",
+      "trigger": "cannot-serve",
+      "group": "prober",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 12.073,
+          "high": 24.309
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 12.073 s to 24.309 s after the fault. The readiness check of the target fails for the hold (30 s), but its route still serves. Its latch trips 8 s–18 s after the fault. Then the controller of the service is not ready, thus the service refuses each request with a 503. The kubelet and the propagation (CAL.T07.ipvs: median 0.192 s, 33 times) remove the target 12.073 s–24.309 s after the fault: a false removal. Each connection to the target stays open, and the rules select a backend only for a new connection. Thus each request on those connections fails from the trip until the readiness of the service recovers, up to 6.16 s after the heal. 12–12 of the 24 connections are on the target, thus about 900–2112 requests fail."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 16.249,
+      "values": [15.331, 20.256, 16.249],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 16.249 s. The counted runs measured 15.331 s to 20.256 s.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 6.16
+        },
+        "expected": {
+          "low": 900,
+          "high": 2112
+        },
+        "connections": {
+          "low": 12,
+          "high": 12,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 24.309
+        }
+      },
+      "lasts": [34.547165, 33.4595457, 31.6451585],
+      "failures": [1743, 1421, 1529]
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck.prober",
+      "template": "T07",
+      "name": "ipvs, callers learn that a prober fails while the pod can serve: in band (lame duck)",
+      "mode": "ipvs",
+      "trigger": "cannot-serve",
+      "group": "prober",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 12.073,
+          "high": 24.309
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 12.073 s to 24.309 s after the fault. The readiness check of the target fails for the hold (30 s), but its route still serves. Its latch trips 8 s–18 s after the fault. Then the controller of the service is not ready, thus the service refuses each request with a 503. The kubelet and the propagation (CAL.T07.ipvs: median 0.192 s, 33 times) remove the target 12.073 s–24.309 s after the fault: a false removal. Each refusal closes its connection, and the next request opens a new connection one turn (0.16 s) later. A chain of picks of the target ends at the first pick of the other replica. IPVS selects in turn on each node, thus each node fails 7–8 requests in 4 turns at the most. About 21–24 requests fail."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 19.087,
+      "values": [17.118, 19.273, 19.087],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 19.087 s. The counted runs measured 17.118 s to 19.273 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.64
+        },
+        "expected": {
+          "low": 21,
+          "high": 24
+        },
+        "connections": {
+          "low": 12,
+          "high": 12,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 24.309
+        }
+      },
+      "lasts": [13.14408, 14.6303333, 13.9703853],
+      "failures": [24, 24, 24]
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.prober",
+      "template": "T07",
+      "name": "ipvs, callers learn that a prober fails while the pod can serve: in band on HTTP/2 (GOAWAY)",
+      "mode": "ipvs",
+      "trigger": "cannot-serve",
+      "group": "prober",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 12.073,
+          "high": 24.309
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 12.073 s to 24.309 s after the fault. The readiness check of the target fails for the hold (30 s), but its route still serves. Its latch trips 8 s–18 s after the fault. Then the controller of the service is not ready, thus the service refuses each request with a 503. The kubelet and the propagation (CAL.T07.ipvs: median 0.192 s, 33 times) remove the target 12.073 s–24.309 s after the fault: a false removal. Each refusal closes its connection with a GOAWAY on its session, and the next request opens a new connection one turn (0.02 s) later. A chain of picks of the target ends at the first pick of the other replica. IPVS selects in turn on each node, thus each node fails 0–1 requests in 1 turns at the most. About 0–3 requests fail."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 19.059,
+      "values": [15.229, 19.059, 19.187],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 19.059 s. The counted runs measured 15.229 s to 19.187 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "expected": {
+          "low": 0,
+          "high": 3
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 24.309
+        }
+      },
+      "lasts": [10.4854326, 13.6155906, 14.0586815],
+      "failures": [3, 3, 3]
+    },
+    {
+      "id": "S2.T07.ipvs.session-check.prober",
+      "template": "T07",
+      "name": "ipvs, callers learn that a prober fails while the pod can serve: in band on HTTP/2 with a session check",
+      "mode": "ipvs",
+      "trigger": "cannot-serve",
+      "group": "prober",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 12.073,
+          "high": 24.309
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 12.073 s to 24.309 s after the fault. The readiness check of the target fails for the hold (30 s), but its route still serves. Its latch trips 8 s–18 s after the fault. Then the controller of the service is not ready, thus the service refuses each request with a 503. The kubelet and the propagation (CAL.T07.ipvs: median 0.192 s, 33 times) remove the target 12.073 s–24.309 s after the fault: a false removal. Each refusal closes its connection with a GOAWAY on its session, and the next request opens a new connection one turn (0.02 s) later. A chain of picks of the target ends at the first pick of the other replica. The target answers each stream at once, thus the session check closes no session, and D is the same as C. IPVS selects in turn on each node, thus each node fails 0–1 requests in 1 turns at the most. About 0–3 requests fail."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 17.232,
+      "values": [18.178, 15.008, 17.232],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 17.232 s. The counted runs measured 15.008 s to 18.178 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "expected": {
+          "low": 0,
+          "high": 3
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 24.309
+        }
+      },
+      "lasts": [12.6841762, 10.3727851, 13.1670706],
+      "failures": [3, 3, 3]
+    },
+    {
+      "id": "S2.T07.nftables.endpoints.prober",
+      "template": "T07",
+      "name": "nftables, callers learn that a prober fails while the pod can serve: endpoints only",
+      "mode": "nftables",
+      "trigger": "cannot-serve",
+      "group": "prober",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 12,
+          "high": 24.079
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 12 s to 24.079 s after the fault. The readiness check of the target fails for the hold (30 s), but its route still serves. Its latch trips 8 s–18 s after the fault. Then the controller of the service is not ready, thus the service refuses each request with a 503. The kubelet and the propagation (CAL.T07.nftables: median 0.045 s, 33 times) remove the target 12 s–24.079 s after the fault: a false removal. Each connection to the target stays open, and the rules select a backend only for a new connection. Thus each request on those connections fails from the trip until the readiness of the service recovers, up to 6.16 s after the heal. 7–17 of the 24 connections are on the target, thus about 525–2992 requests fail."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 15.014,
+      "values": [14.242, 15.014, 15.963],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 15.014 s. The counted runs measured 14.242 s to 15.963 s.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 6.16
+        },
+        "expected": {
+          "low": 525,
+          "high": 2992
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.079
+        }
+      },
+      "lasts": [34.4858591, 34.7614825, 30.9223123],
+      "failures": [2045, 1679, 1662]
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck.prober",
+      "template": "T07",
+      "name": "nftables, callers learn that a prober fails while the pod can serve: in band (lame duck)",
+      "mode": "nftables",
+      "trigger": "cannot-serve",
+      "group": "prober",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 12,
+          "high": 24.079
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 12 s to 24.079 s after the fault. The readiness check of the target fails for the hold (30 s), but its route still serves. Its latch trips 8 s–18 s after the fault. Then the controller of the service is not ready, thus the service refuses each request with a 503. The kubelet and the propagation (CAL.T07.nftables: median 0.045 s, 33 times) remove the target 12 s–24.079 s after the fault: a false removal. Each refusal closes its connection, and the next request opens a new connection one turn (0.16 s) later. A chain of picks of the target ends at the first pick of the other replica. Each pick goes to the target at random, thus the failures of the 24 connections are negative binomial: 12–39 in 95 % of the runs. A chain longer than 14 picks has a chance of 0.001 at the most."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 20.947,
+      "values": [19.125, 20.977, 20.947],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 20.947 s. The counted runs measured 19.125 s to 20.977 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 20.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.079
+        }
+      },
+      "lasts": [16.1868728, 16.8274127, 16.2262178],
+      "failures": [31, 17, 25]
+    },
+    {
+      "id": "S2.T07.nftables.goaway.prober",
+      "template": "T07",
+      "name": "nftables, callers learn that a prober fails while the pod can serve: in band on HTTP/2 (GOAWAY)",
+      "mode": "nftables",
+      "trigger": "cannot-serve",
+      "group": "prober",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 12,
+          "high": 24.079
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 12 s to 24.079 s after the fault. The readiness check of the target fails for the hold (30 s), but its route still serves. Its latch trips 8 s–18 s after the fault. Then the controller of the service is not ready, thus the service refuses each request with a 503. The kubelet and the propagation (CAL.T07.nftables: median 0.045 s, 33 times) remove the target 12 s–24.079 s after the fault: a false removal. Each refusal closes its connection with a GOAWAY on its session, and the next request opens a new connection one turn (0.02 s) later. A chain of picks of the target ends at the first pick of the other replica. Each pick goes to the target at random, thus the failures of the 3 connections are negative binomial: 0–9 in 95 % of the runs. A chain longer than 11 picks has a chance of 0.001 at the most."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 16.488,
+      "values": [16.488, 18.815, 15.049],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 16.488 s. The counted runs measured 15.049 s to 18.815 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.22
+        },
+        "expected": {
+          "low": 0,
+          "high": 9
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.079
+        }
+      },
+      "lasts": [11.7105415, 13.2365471, 10.5153669],
+      "failures": [3, 3, 12]
+    },
+    {
+      "id": "S2.T07.nftables.session-check.prober",
+      "template": "T07",
+      "name": "nftables, callers learn that a prober fails while the pod can serve: in band on HTTP/2 with a session check",
+      "mode": "nftables",
+      "trigger": "cannot-serve",
+      "group": "prober",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 12,
+          "high": 24.079
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 12 s to 24.079 s after the fault. The readiness check of the target fails for the hold (30 s), but its route still serves. Its latch trips 8 s–18 s after the fault. Then the controller of the service is not ready, thus the service refuses each request with a 503. The kubelet and the propagation (CAL.T07.nftables: median 0.045 s, 33 times) remove the target 12 s–24.079 s after the fault: a false removal. Each refusal closes its connection with a GOAWAY on its session, and the next request opens a new connection one turn (0.02 s) later. A chain of picks of the target ends at the first pick of the other replica. The target answers each stream at once, thus the session check closes no session, and D is the same as C. Each pick goes to the target at random, thus the failures of the 3 connections are negative binomial: 0–9 in 95 % of the runs. A chain longer than 11 picks has a chance of 0.001 at the most."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 18.422,
+      "values": [18.422, 16.798, 21.052],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 18.422 s. The counted runs measured 16.798 s to 21.052 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.22
+        },
+        "expected": {
+          "low": 0,
+          "high": 9
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.079
+        }
+      },
+      "lasts": [13.5326452, 12.6231496, 15.5621862],
+      "failures": [2, 6, 6]
+    }
+  ],
+  "predictions": [
+    {
+      "id": "S2.T07.iptables.endpoints.prober",
+      "mode": "iptables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 6.16
+        },
+        "expected": {
+          "low": 525,
+          "high": 2992
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.105
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck.prober",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 20.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.105
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.goaway.prober",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.22
+        },
+        "expected": {
+          "low": 0,
+          "high": 9
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.105
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.session-check.prober",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.22
+        },
+        "expected": {
+          "low": 0,
+          "high": 9
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.105
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints.prober",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 6.16
+        },
+        "expected": {
+          "low": 900,
+          "high": 2112
+        },
+        "connections": {
+          "low": 12,
+          "high": 12,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 24.309
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck.prober",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.64
+        },
+        "expected": {
+          "low": 21,
+          "high": 24
+        },
+        "connections": {
+          "low": 12,
+          "high": 12,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 24.309
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.prober",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "expected": {
+          "low": 0,
+          "high": 3
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 24.309
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.session-check.prober",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "expected": {
+          "low": 0,
+          "high": 3
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 24.309
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.endpoints.prober",
+      "mode": "nftables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 6.16
+        },
+        "expected": {
+          "low": 525,
+          "high": 2992
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.079
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck.prober",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 20.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.079
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.goaway.prober",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.22
+        },
+        "expected": {
+          "low": 0,
+          "high": 9
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.079
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.session-check.prober",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.22
+        },
+        "expected": {
+          "low": 0,
+          "high": 9
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.079
+        }
+      }
+    }
+  ]
+}

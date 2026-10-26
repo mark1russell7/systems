@@ -145,15 +145,33 @@ D learns from its session check. A next session on the target connects, but its 
 
 <KindResults template="T07" group="stall" client:visible />
 
+### A failed prober
+
+The same cells, with a false failure of the readiness check of one replica of 2 for 30 s. The flag file fails only the readiness check, and the route of the target still serves (`serves` of the trigger). The cells come from the run [40419289511](https://github.com/mark1russell7/systems/actions/runs/40419289511). The judge counted 3 runs of each cell in each mode, and each cell held in 3 of 3 runs.
+
+The latch of the check trips 8 s to 18 s after the fault. Then the controller of the service is not ready, and the service refuses each request with a 503. Thus a false failure of the prober gives real failed requests. The kubelet removed the target 13.16 s to 21.05 s after the fault, in the band of 12 s to 24.31 s. Each candidate has this false removal.
+
+A keeps each connection on the target, thus its requests fail until the readiness of the service recovers after the heal. The medians of A were 1,690, 1,529 and 1,679 failed requests. The last failure started 30.9 s to 34.8 s after the fault, after the heal at 30 s.
+
+B, C and D close each refused connection, and the next connection picks a backend again. B had 16 to 34 failed requests, and IPVS gave 24 in each run. C had 0 to 12, and D had 2 to 6. The last failure of B, C and D started 8.49 s to 16.83 s after the fault, before the heal.
+
+One run of C in nftables had 12 failed requests. The prediction was 0 to 9, a band for 95 % of the runs, thus the score of this count shows a failure. The judge examines only the window of each failure, thus the cell held. The band stays as the commit before the run gave it.
+
+<CallersTable incident="prober" />
+
+<KindResults template="T07" group="prober" client:visible />
+
 ### How callers learn
 
-S6 scores each candidate of health and routing on seven criteria, for each incident of its design. Four runs score three incidents: a pod that cannot serve, a partitioned pod and a stalled pod. The third run adds D to the first two incidents, and the fourth run has each candidate of the stall. The table puts the measure of each criterion next to its prediction, and each cell links to its run. A criterion that the run cannot support has no number, only the reason.
+S6 scores each candidate of health and routing on seven criteria, for each incident of its design. Five runs score four incidents: a pod that cannot serve, a partitioned pod, a stalled pod and a failed prober. The third run adds D to the first two incidents. The fourth run has each candidate of the stall, and the fifth run has each candidate of the failed prober. The table puts the measure of each criterion next to its prediction, and each cell links to its run. A criterion that the run cannot support has no number, only the reason.
 
 B, C and D each have fewer failed requests than A in each mode, by the median run. B has the fewest in IPVS, and D has the fewest in iptables and nftables. D has the band of C, thus the two are equal for a pod that cannot serve. Thus the service keeps one rule: while it is not ready, it closes each connection on the channel of its protocol. HTTP/1.1 gets `Connection: close`, and HTTP/2 gets GOAWAY. A is an opt-in of the transport.
 
 In a partition, the service is ready, thus no candidate gets a signal in band. Each caller learns from its own timeouts. A and B learned in 1.4 s at the most, and C in approximately 26 s, after the heal. D learned in 1.07 s to 1.46 s by the median run, from the PING of its session check. Thus the rule stays, and the client of HTTP/2 also checks its session (D). The scores of the partition measure the time until callers know from the fault.
 
 A stall gives the same result. The service stays ready, and A and B learned in 1.15 s at the most. C learned only at the resume, approximately 10 s after the fault. D learned in 1.28 s to 3.3 s by the median run. Thus the stall changes no part of the rule.
+
+A failed prober does not change the rule either. Each candidate removes the target falsely, because the kubelet reads the same readiness check. A failed 1,529 to 1,690 requests by the median run, and B, C and D failed 3 to 25. B, C and D learned 10.4 s to 16.23 s after the fault by the median run, and A only after the heal. The scores of the failed prober also measure the time of the false removal.
 
 <CallersScores />
 
