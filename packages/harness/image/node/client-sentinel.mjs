@@ -49,7 +49,7 @@ emit("start", {
 });
 
 const redis = new Redis({ ...options, sentinels, name, lazyConnect: true });
-/** the server that the connection is on now, or null between connections */
+/** This function gives the server that the connection is on at this time, or null between connections. */
 const remote = () => {
   const stream = redis.stream;
   return stream?.remoteAddress === undefined ? null : `${stream.remoteAddress}:${stream.remotePort}`;

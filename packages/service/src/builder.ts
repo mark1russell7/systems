@@ -44,7 +44,7 @@ import type { Watchdog, WatchdogSpec } from "./watchdog.ts";
 import { watchdog } from "./watchdog.ts";
 
 /**
- * A service is composed with plain method uses before it starts. The builder is imperative, and
+ * The caller composes a service with plain method uses before it starts. The builder is imperative, and
  * it holds static knowledge. The service does not use an `init` function that gives registrations.
  *
  *     const svc = service("app");

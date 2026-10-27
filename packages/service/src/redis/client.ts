@@ -340,7 +340,7 @@ export const redisClient = (name: string, spec: RedisClientSpec, options: RedisC
       // a QUIT lets the replies in flight arrive. A silent server never answers it, thus the close has its bound
       const startedClose = clock.now();
       if (!(await withinBound(clock, ms(knobs.close_bound), c.quit()))) record(status, status, "close.bound");
-      // a client that is not ready refuses the QUIT at once, and it would connect again: the close stops it
+      // a client that is not ready refuses the QUIT at once, and then it connects again: the close stops it
       if (c.status !== "end") c.disconnect(false);
       // ioredis is at `end` when its socket closes, a moment after the reply: the close waits for it, in its bound
       const ended = (within: number): Promise<void> =>

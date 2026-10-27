@@ -6,14 +6,15 @@
  * Its core was built and verified first: the state changes, the owner at
  * connect and accept, retransmissions, resets, error reports, destruction, TIME_WAIT and request
  * socks, with the socket cookie, the namespace and the cgroup. The harness adds five things:
- * - each probe tcp_write_wakeup sends, as keepalive or zero-window;
- * - every segment received on an established socket, so a frozen peer's ACKs show;
- * - the connection's retransmit-timer state on each retransmission, so the tail loss probe (its
- *   pending event is the loss probe) parts from the RTO timer's retransmissions, which alone
- *   count toward tcp_retries2; with it the SACK scoreboard and the reordering state;
- * - each run of a socket's keepalive or retransmit timer, with how far behind its wheel slot it
- *   ran, so a run that a stalled vCPU delayed tells itself apart from the kernel's own timing;
- * - each write of the owner, so a proxy's own time shows between its two sockets. */
+ * - Each probe that tcp_write_wakeup sends, as keepalive or zero-window.
+ * - Each segment that an established socket receives, so the ACKs of a frozen peer show.
+ * - The retransmit-timer state of the connection on each retransmission. Thus the tail loss
+ *   probe (its pending event is the loss probe) parts from the retransmissions of the RTO timer,
+ *   which alone count toward tcp_retries2. The SACK scoreboard and the reordering state come too.
+ * - Each expiry of the keepalive or retransmit timer of a socket, with how far behind its wheel
+ *   slot the timer started. Thus a stalled vCPU that delays a timer is different from the
+ *   timing of the kernel itself.
+ * - Each write of the owner, so the time of a proxy shows between its two sockets. */
 #include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
@@ -81,7 +82,7 @@ static __always_inline void fill_sk(struct ev *e, const struct sock *sk)
 	e->err = BPF_CORE_READ(sk, sk_err);
 }
 
-/* the retransmit timer's state and the sequence space, as the kernel holds them now */
+/* the retransmit timer's state and the sequence space, as the kernel holds them at this time */
 static __always_inline void fill_tcp(struct ev *e, const struct sock *sk)
 {
 	const struct inet_connection_sock *icsk = (const struct inet_connection_sock *)sk;
@@ -169,7 +170,7 @@ int on_accept_exit(struct trace_event_raw_sys_exit *ctx) { return accept_exit(ct
 
 static __always_inline struct ev *sk_record(const struct sock *sk, __u32 kind, __u32 extra)
 {
-	/* a reset to a packet with no socket has no sk: newer kernels mark the argument nullable,
+	/* a reset to a packet with no socket has no sk. Newer kernels mark the argument nullable,
 	 * and their verifier refuses arithmetic on it before this check (6.17's does) */
 	if (!sk) return 0;
 	if (!ok_ns(BPF_CORE_READ(sk, __sk_common.skc_net.net, ns.inum)))
@@ -203,9 +204,10 @@ int BPF_PROG(on_retrans, const struct sock *sk, const struct sk_buff *skb)
 	return 0;
 }
 
-/* keepalive's probes and the zero-window ones both go out through tcp_write_wakeup. The SNMP
- * counters are an anonymous enum, which CO-RE cannot relocate by name; the image's build takes
- * vmlinux.h from the kernel it runs on, so these constants are that kernel's own. */
+/* The probes of keepalive and the zero-window probes both go out through tcp_write_wakeup. The
+ * SNMP counters are an anonymous enum, which CO-RE cannot relocate by name. The build of the
+ * image takes vmlinux.h from the kernel that it operates on, so these constants are the
+ * constants of that kernel. */
 SEC("fentry/tcp_write_wakeup")
 int BPF_PROG(on_probe, struct sock *sk, int mib)
 {
@@ -219,9 +221,9 @@ int BPF_PROG(on_probe, struct sock *sk, int mib)
 	return 0;
 }
 
-/* The timer each CPU's wheel is running now, and the wheel slot it is running it from.
- * call_timer_fn traces timer_expire_entry and then calls the timer's own function, on the same
- * CPU, so a socket's timer function finds its own wheel slot here. */
+/* This map holds the timer that the wheel of each CPU expires at this time, and the wheel slot
+ * of that timer. call_timer_fn traces timer_expire_entry and then calls the function of the
+ * timer, on the same CPU. Thus the timer function of a socket finds its wheel slot here. */
 struct expiring { __u64 timer, baseclk, now; };
 struct { __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY); __uint(max_entries, 1); __type(key, __u32); __type(value, struct expiring); } expiring SEC(".maps");
 
@@ -234,12 +236,13 @@ int BPF_PROG(on_timer_expire, struct timer_list *timer, unsigned long baseclk)
 	return 0;
 }
 
-/* A socket's own timer, run from the wheel. `behind` is how many jiffies after its slot the CPU
- * ran it: the wheel runs a slot in the tick it falls due, so any lag is the CPU's or the VM's, a
- * vCPU the host descheduled, which no timer's rounding explains. `late` is how many after the
- * expiry its owner asked for, the rounding included. Whether the socket's owner held it says
- * whether the keepalive timer will put itself off by HZ/20. The socket is the timer's container,
- * read through CO-RE like any probe read, its cookie as accept's is. */
+/* This function records a timer of a socket that the wheel started. `behind` is how many
+ * jiffies after its slot the CPU started the timer. The wheel starts a slot in the tick that the
+ * slot falls due. Thus each lag comes from the CPU or the VM, for example a vCPU that the host
+ * descheduled, and no rounding of a timer explains it. `late` is how many jiffies after the
+ * expiry that its owner asked for, the rounding included. If the owner of the socket held it,
+ * the keepalive timer puts itself off by HZ/20. The socket is the container of the timer. The
+ * function reads it through CO-RE as each probe reads, and it reads its cookie as accept does. */
 static __always_inline int timer_fired(__u64 skaddr, const struct timer_list *t, __u32 what)
 {
 	__u32 k = 0;
@@ -253,7 +256,7 @@ static __always_inline int timer_fired(__u64 skaddr, const struct timer_list *t,
 	e->cookie = BPF_CORE_READ(sk, __sk_common.skc_cookie.counter);
 	fill_sk(e, sk);
 	fill_tcp(e, sk);
-	/* a socket its owner holds as the timer runs: keepalive tries again HZ/20 later */
+	/* a socket that its owner holds when the timer starts: keepalive tries again HZ/20 later */
 	e->extra = what | (BPF_CORE_READ(sk, sk_lock.owned) ? TIMER_OWNED : 0);
 	__u64 expires = BPF_CORE_READ(t, expires);
 	e->behind = (__u32)(x->now - x->baseclk);

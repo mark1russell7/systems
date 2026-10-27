@@ -4,7 +4,7 @@
  * collectors watch. Each connection connects, sends 64 bytes, reads them echoed back and closes,
  * so the kernel writes every kind of record a connection's life has: state changes, the request
  * sock and the accept, segments received, the close into TIME_WAIT, and destruction. THREADS
- * clients and as many servers run at once. It prints how many connections it made, and in how
+ * clients and as many servers operate at the same time. It prints how many connections it made, and in how
  * long, as one JSON line.
  */
 #include <arpa/inet.h>

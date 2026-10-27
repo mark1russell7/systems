@@ -6,10 +6,10 @@
 
 import { existsSync, readFileSync } from "node:fs";
 
-/** This function gives the time now, in nanoseconds on CLOCK_MONOTONIC. */
+/** This function gives the current time, in nanoseconds on CLOCK_MONOTONIC. */
 export const now = () => process.hrtime.bigint();
 
-/** This function writes one line, with the time `at` (the time now when none is given). */
+/** This function writes one line, with the time `at` (the current time when none is given). */
 export const emit = (ev, fields = {}, at = now()) =>
   process.stdout.write(`${JSON.stringify({ ev, t: Number(at), ...fields })}\n`);
 

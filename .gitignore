@@ -5,10 +5,9 @@
 # Local data
 _db/
 
-# Project-root MD files. Only intentional ones are allowlisted below; everything else
-# (e.g. scratch dumps from Explore agents during research) is ignored so they don't
-# accidentally get committed via `git add .`. If a future doc legitimately belongs at
-# repo root, add an explicit allowlist line here.
+# Markdown files at the root. Git ignores each one that is not on the allowlist below,
+# for example the notes of a research session. Thus `git add .` does not commit them by
+# accident. To keep a new document at the root, add a line for it to the allowlist.
 /*.md
 !/CLAUDE.md
 !/README.md

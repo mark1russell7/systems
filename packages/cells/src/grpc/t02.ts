@@ -308,7 +308,7 @@ export const t02Prediction = (spec: T02Spec): Prediction => {
     if (spec.proxy !== "envoy" || spec.toward !== undefined || spec.mode !== "inflight") throw new Error(`${spec.plan}: this catalog resets a call in flight at the server behind Envoy only`);
     // the server answers the request of Envoy with a reset: the upstream connection ends while the call
     // waits, and Envoy sends its local reply, before any header of a response. A reset at the hop toward
-    // the target would reset the server instead, and Envoy would wait for the timeout of its route
+    // the target resets the server instead, and then Envoy waits for the timeout of its route
     const reply = transition("env.upstream-reset");
     const ends = { ev: "error", name: "errno" } as const;
     return { detects: true, timer: "the local reply of Envoy to the reset of its upstream", errno: reply.errno!, from: "request-sent", low: s(0), high: s(hops + steps), rtt, driver: { socket: "connection", ends } };

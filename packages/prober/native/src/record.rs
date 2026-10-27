@@ -201,7 +201,7 @@ impl Ev {
     }
 
     /// What a retransmission was: the tail loss probe, the RTO timer's, or one from ACK
-    /// processing. Only the RTO timer's count toward tcp_retries2; the first of them starts the
+    /// processing. Only the RTO timer's count toward tcp_retries2. The first of them starts the
     /// give-up's budget.
     pub fn retransmission(&self) -> Option<&'static str> {
         let tcp = self.tcp.as_ref()?;
@@ -281,7 +281,7 @@ pub struct Record<'a> {
     pub new: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub old: Option<i32>,
-    /// a timer: whether the socket's owner held the socket as it ran
+    /// a timer: whether the socket's owner held the socket when the timer started
     #[serde(skip_serializing_if = "Option::is_none")]
     pub owned: Option<bool>,
     pub pid: i32,
@@ -293,7 +293,7 @@ pub struct Record<'a> {
     pub tai: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tcp: Option<TcpOut>,
-    /// a probe: keepalive, window or other; a timer: keepalive, retransmit or other
+    /// a probe: keepalive, window or other. A timer: keepalive, retransmit or other
     #[serde(skip_serializing_if = "Option::is_none")]
     pub what: Option<&'static str>,
     /// a retransmission: tlp, rto or fast
@@ -417,8 +417,8 @@ fn push_escaped(out: &mut Vec<u8>, c: u8) {
 }
 
 /// Raw bytes as a JSON string, decoded as `String::from_utf8_lossy` decodes them: each maximal
-/// prefix of a would-be UTF-8 sequence that cannot complete becomes one U+FFFD, and decoding
-/// resumes at the byte that broke it. The Go and C collectors run this same loop.
+/// prefix of a UTF-8 sequence that cannot complete becomes one U+FFFD, and decoding
+/// resumes at the byte that broke it. The Go and C collectors use this same loop.
 fn push_lossy_quoted(out: &mut Vec<u8>, b: &[u8]) {
     const REPLACEMENT: &[u8] = "\u{FFFD}".as_bytes();
     out.push(b'"');

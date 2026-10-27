@@ -48,7 +48,7 @@
     "reconnecting": {},
     "end": {
       "final": true,
-      "note": "connect() may still start a new attempt from end"
+      "note": "a call of connect() from end starts a new attempt"
     }
   },
   "events": {
