@@ -71,14 +71,30 @@ Histories of operations and their checkers, load, exhaustion, retry storms and m
 
 - **Status:** later
 - **Area:** program
-- **Depends on:** S1
+- **Depends on:** S1, HW-1
 - **Started:**
 - **Shipped:**
 - **Links:**
 
 VMs with a kernel for each node, the failover of a host, block storage and shared fate. The cloud adds managed load balancers and real zones.
 
-Mark's decision of 2026-10-19: the VM tier runs on the hosted Linux runners of GitHub. Their KVM lets QEMU start one VM for each node. systems is public, thus its CI is free. The tier needs no hardware from Mark. The SR-IOV NIC and a cloud account wait until S4 starts.
+Mark's decision of 2026-10-19: the VM tier runs on the hosted Linux runners of GitHub. Their KVM lets QEMU start one VM for each node. systems is public, thus its CI is free. The tier needs no hardware from Mark. The SR-IOV NIC and a cloud account wait until S4 starts. HW-1 holds that choice.
+
+### HW-1 · The lab for the NIC and the cloud parts of S4
+
+- **Status:** waiting
+- **Area:** program
+- **Depends on:**
+- **Waiting on:** Mark, with no hurry, because S4 has not started. Pick one: (1) an SR-IOV NIC in a box of yours, (2) a cloud account with VMs, or (3) the two. If you want, Claude first researches which used cards fit.
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+The NIC part of S4 tests the virtual functions of SR-IOV, their failover, and a firmware upgrade of the card. The hosted runners of GitHub cannot test these. Their VM has no physical NIC, thus it cannot make virtual functions, fail them over or change firmware.
+
+A cloud account gives the managed load balancers and the real zones of S4. It does not give the NIC tests: the provider keeps the physical function and the firmware. Thus option (1) covers the NIC, option (2) covers the cloud, and the two are separate choices.
+
+The research for option (1) names cards that support SR-IOV and the failover of a virtual function under Linux. It also names the cards whose firmware a Linux tool can upgrade. It checks first if a box of yours already has such a card.
 
 ### S5 · Silicon
 
