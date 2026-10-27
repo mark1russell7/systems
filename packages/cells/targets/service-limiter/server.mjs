@@ -11,11 +11,19 @@
 // and its Retry-After, and the end of each response. The server keeps the defaults of Node for its
 // own timers. Thus its keep-alive timer closes an idle connection after 5 s, as a server at its
 // defaults does.
+//
+// Before it listens, the server checks its declaration with lint() (declaration.mjs). A problem
+// stops the server before its line "listening", thus the cell fails. The line "listening" gives
+// the version of the service and the findings of lint(), thus each record of a cell has them.
+// With --lint off, the server does not load declaration.mjs, and the line gives "lint": "off".
+// The control of a pair of versions uses it, because an older version can lack that lint().
 
 import http from "node:http";
 import { limitedResponse } from "@mark1russell7/service/http";
 import { keyedLimiter, memoryStore } from "@mark1russell7/service/limiter";
 import { realClock } from "@mark1russell7/service/clock";
+import manifest from "@mark1russell7/service/package.json" with { type: "json" };
+import { LIMITER, specOf } from "./spec.mjs";
 
 /** This function writes one line, with `t` from process.hrtime: CLOCK_MONOTONIC, the clock of the prober. */
 const emit = (ev, fields = {}) =>
@@ -35,13 +43,16 @@ const number = (name) => {
   return Number(value);
 };
 const port = Number(flag("--port") ?? 8080);
-const count = (value) => ({ value, unit: "count" });
-const policy =
+const spec =
   flag("--policy") === "token-bucket"
-    ? { type: "token-bucket", rate: { value: number("--rate-per-s"), unit: "count/s" }, burst: count(number("--burst")) }
-    : { type: "sliding-window", limit: count(number("--limit")), window: { value: number("--window-ms"), unit: "ms" } };
-const spec = { key: "x-limiter-key", policy, store: { kind: "local" }, evict: { maxKeys: count(number("--max-keys")) } };
-const limiter = keyedLimiter("calls", spec, memoryStore(realClock));
+    ? specOf({ policy: "token-bucket", ratePerS: number("--rate-per-s"), burst: number("--burst"), maxKeys: number("--max-keys") })
+    : specOf({ policy: "sliding-window", limit: number("--limit"), windowMs: number("--window-ms"), maxKeys: number("--max-keys") });
+const checked = flag("--lint") === "off" ? { findings: "off", problems: [] } : (await import("./declaration.mjs")).lintTarget(spec);
+if (checked.problems.length > 0) {
+  emit("fail", { why: checked.problems.join("; "), service: manifest.version, lint: checked.findings });
+  process.exit(1);
+}
+const limiter = keyedLimiter(LIMITER, spec, memoryStore(realClock));
 
 const peerOf = (socket) => `${socket.remoteAddress}:${socket.remotePort}`;
 
@@ -69,4 +80,4 @@ server.on("connection", (socket) => {
   emit("connection", { peer });
   socket.on("close", () => emit("closed", { peer }));
 });
-server.listen(port, () => emit("listening", { port, policy, max_keys: spec.evict.maxKeys }));
+server.listen(port, () => emit("listening", { port, policy: spec.policy, max_keys: spec.evict.maxKeys, service: manifest.version, lint: checked.findings }));

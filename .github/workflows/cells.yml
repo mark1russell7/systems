@@ -11,8 +11,14 @@
 #           the job checks that repository out at CLIENT_REF and builds the subject of the checkout.
 #           With `subject`, a subject as JSON (the harness's Subject) replaces it, for example a
 #           pinned image of another release.
+#           With `pair`, two versions of @mark1russell7/service, for example 0.5.6,0.6.0, the
+#           cells of the keyed limiter on the control, then on the candidate, replace the catalogs.
+#           The job copies the target of the limiter for each version and makes its lockfile. The
+#           count of shards must divide the count of selected limiter specs. Then the two cells of
+#           a spec operate on the same runner, one after the other.
 #
 # Start it with: gh workflow run cells.yml -R mark1russell7/systems -f only='^T12' -f shards=4
+# A pair: gh workflow run cells.yml -R mark1russell7/systems -f pair=0.5.6,0.6.0 -f only='^O(29|30)[.]' -f shards=6
 # A pull request that changes this file runs the probe only. Each night, the schedule runs the WS
 # cells on 4 shards: the heartbeat and the reconnect of @procedures/client under real faults.
 name: Cells
@@ -31,6 +37,9 @@ on:
         default: ""
       subject:
         description: A subject as JSON, in place of the subject of its name in the catalogs (empty for the procedures subject of mark1russell7/client at CLIENT_REF)
+        default: ""
+      pair:
+        description: Two versions of @mark1russell7/service, the control and the candidate, for example 0.5.6,0.6.0 (empty for the catalogs)
         default: ""
   schedule:
     - cron: "40 3 * * *"
@@ -122,7 +131,11 @@ jobs:
     timeout-minutes: 5
     outputs:
       shards: ${{ steps.shards.outputs.list }}
+      # each shard makes the lockfiles of a pair from the npm registry as it was at this time
+      at: ${{ steps.at.outputs.at }}
     steps:
+      - id: at
+        run: echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
       - id: shards
         env:
           SHARDS: ${{ inputs.shards || '4' }}
@@ -210,6 +223,26 @@ jobs:
             jq --arg context "$GITHUB_WORKSPACE/client" '.image.context = $context' client/harness/procedures-subject/subject.json > "$RUNNER_TEMP/subject.json"
           fi
           echo "subject: $(jq -c . "$RUNNER_TEMP/subject.json")" | tee -a "$RUNNER_TEMP/cells/runner.txt"
+      # the input pair: a copy of the target of the limiter for each version, with its version of the
+      # service in package.json, and a lockfile from the registry at the time of the plan job
+      - name: The targets of the limiter pair
+        if: inputs.pair != ''
+        env:
+          PAIR: ${{ inputs.pair }}
+          AT: ${{ needs.plan.outputs.at }}
+        run: |
+          target=packages/cells/targets/service-limiter
+          for version in $(printf '%s' "$PAIR" | tr ',' ' '); do
+            if ! printf '%s' "$version" | grep -Eq '^[0-9]+[.][0-9]+[.][0-9]+$'; then
+              echo "::error::the pair takes two versions, for example 0.5.6,0.6.0"; exit 1
+            fi
+            dir="$RUNNER_TEMP/limiter-pair/$version"
+            mkdir -p "$dir"
+            cp "$target/Dockerfile" "$target/server.mjs" "$target/spec.mjs" "$target/declaration.mjs" "$dir/"
+            jq --arg version "$version" '.dependencies["@mark1russell7/service"] = $version' "$target/package.json" > "$dir/package.json"
+            (cd "$dir" && npm install --package-lock-only --ignore-scripts --no-audit --no-fund --before "$AT" && mv package-lock.json npm-lock.json)
+            echo "pair $version: $(jq -c '[.packages | to_entries[] | select(.key != "") | {key: (.key | sub("^node_modules/"; "")), value: .value.version}] | from_entries' "$dir/npm-lock.json")" | tee -a "$RUNNER_TEMP/cells/runner.txt"
+          done
       - name: The cells
         env:
           CELLS: "1"
@@ -218,6 +251,8 @@ jobs:
           CELLS_SHARD: ${{ matrix.shard }}/${{ inputs.shards || '4' }}
           CELLS_OUT: ${{ runner.temp }}/cells
           CELLS_FILE_AT: ${{ inputs.file }}
+          CELLS_PAIR: ${{ inputs.pair }}
+          CELLS_PAIR_DIR: ${{ runner.temp }}/limiter-pair
         run: |
           if [ -n "$CELLS_FILE_AT" ]; then export CELLS_FILE="$GITHUB_WORKSPACE/$CELLS_FILE_AT"; fi
           CELLS_SUBJECT="$(cat "$RUNNER_TEMP/subject.json")"

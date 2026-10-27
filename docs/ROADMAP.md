@@ -538,7 +538,7 @@ Some entries start a service in a process that they do not own. Examples are a s
 - **Depends on:**
 - **Started:** 2026-10-19
 - **Shipped:** 2026-10-20
-- **Links:** [#106](https://github.com/mark1russell7/systems/pull/106), [#119](https://github.com/mark1russell7/systems/pull/119), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#106](https://github.com/mark1russell7/systems/pull/106), [#119](https://github.com/mark1russell7/systems/pull/119), [#229](https://github.com/mark1russell7/systems/pull/229), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 No package of systems or of the client had a rate limit for each tenant or principal. Graph limits its writes for each tenant with a sliding window of its own. With SYS-28, `svc.limiter(name, { key, policy, store, evict })` declares a keyed limiter as data, with no defaults, and `describe()` shows it. `keyedLimiter` makes its runtime: a token bucket or a sliding window for each key, on the injected monotonic clock. A refusal gives `retryAfter` as a `Quantity`, and the HTTP edge gives 429 with `Retry-After` in whole seconds.
 
@@ -559,6 +559,25 @@ Six cells put a real client against the 429 of the limiter of service 0.5.6 from
 - The machine document of the agent is `UNDICI_RETRY` (machines 0.3.19), from its source. The harness counts each retry from the refusal before it (`last-reply`, harness 0.11.23), on a new connection too.
 
 The corpus of the law gets O29 and O30 with these pairs and the family `K-rate-limit`.
+
+With #229, the target moves to service 0.6.0, and its server checks its declaration with `lint()` before it listens. The first run of 0.6.0 held each cell, but its runners were not the runners of the run of 0.5.6. Against that unpaired control, the median of O29.1 moved by −1.282 ms, over its tolerance of 1 ms. Thus a paired run compared the two versions on the same runners.
+
+In the paired run 40471731235, each of six shards started the cell of 0.5.6 and then the cell of 0.6.0, for each spec. Each runner had the image ubuntu24 20261023.334.3, 4 CPUs and HZ 1000. Each of the 12 cells holds in 11 of 11 runs. In the table, d is the median of 0.6.0 less the median of 0.5.6. Its 95% interval comes from a percentile bootstrap, with 10,000 resamples of each version and the seed 20261027.
+
+| Cell  | d (ms) | 95% interval (ms) | Tolerance (ms) | Unpaired d (ms) | Runs needed |
+| ----- | -----: | ----------------- | -------------: | --------------: | ----------: |
+| O30.1 | −0.818 | −2.870 to 0.104   |              1 |          −0.392 |        1399 |
+| O30.2 | −0.006 | −0.686 to 1.430   |              1 |          −0.308 |          23 |
+| O29.1 |  0.287 | −0.371 to 1.063   |              1 |          −1.282 |          14 |
+| O29.2 |  0.148 | −0.797 to 1.004   |              1 |          −0.041 |          12 |
+| O29.3 | −0.056 | −0.312 to 0.096   |            0.5 |           0.078 |           4 |
+| O29.4 | −0.025 | −0.195 to 0.404   |            0.5 |          −0.410 |           8 |
+
+The result is no detectable shift, not equivalence. Each d is in its tolerance, and each interval contains 0. But the intervals of O30.1, O30.2, O29.1 and O29.2 each cross their tolerance on one side. Thus 11 runs cannot rule out a shift of approximately 1 to 3 ms in those cells.
+
+The column "Runs needed" gives the runs of each version that put the interval inside ± tolerance at this d. With the interval [lo, hi] of 11 runs, n = ⌈11 × max(((hi − d) / (tol − d))², ((d − lo) / (tol + d))²)⌉. If a margin is 0 or less, no count of runs is sufficient at this d. The record is `packages/site/src/data/limiter-pair-2026-10-27.json`, with each value, the summaries and the CPU of each runner.
+
+The standing catalog is the six cells of 0.6.0. The input `pair` of `cells.yml` starts a paired run of two versions on demand. The cells README tells how. #229 has no release, because the cells and the site are private packages.
 
 ### SYS-29 · The drain of httpTransport waits for the answers of the cut calls
 

@@ -6,14 +6,14 @@
     "": {
       "name": "loom-cells-service-limiter",
       "dependencies": {
-        "@mark1russell7/service": "0.5.6",
+        "@mark1russell7/service": "0.6.0",
         "zod": "4.6.6"
       }
     },
     "node_modules/@mark1russell7/algebra": {
-      "version": "0.7.2",
-      "resolved": "https://registry.npmjs.org/@mark1russell7/algebra/-/algebra-0.7.2.tgz",
-      "integrity": "sha512-O1gaRMeyI2gYA9I/Hi9WazKwoQXNgTP/IOkP/qsTN3LdtUjAmNrGUzuNAF9+SgA9atJ+85HF1iBeCivRcdbFsg==",
+      "version": "0.7.4",
+      "resolved": "https://registry.npmjs.org/@mark1russell7/algebra/-/algebra-0.7.4.tgz",
+      "integrity": "sha512-psN2ZMxvbOnz7j/u9CiekyJLZtWwcuGtJ2pETTQ4x6Q9WaTQ7QxFK2Q473TWejhbqwrCloEo9CFJhdGUCZWCtQ==",
       "license": "MIT",
       "dependencies": {
         "@mark1russell7/quantity": "^0.2.0"
@@ -43,23 +43,43 @@
       }
     },
     "node_modules/@mark1russell7/service": {
-      "version": "0.5.6",
-      "resolved": "https://registry.npmjs.org/@mark1russell7/service/-/service-0.5.6.tgz",
-      "integrity": "sha512-BUfKioLLcEIOhByF1929oZa0eFHAhu9t6y/WcWo29YWCj+ZMS3UzcNR6JU7I3+N2aMEti4rSugJ4IRaRRLMaYw==",
+      "version": "0.6.0",
+      "resolved": "https://registry.npmjs.org/@mark1russell7/service/-/service-0.6.0.tgz",
+      "integrity": "sha512-0ffqtr+aaC/KKfaIb+GguBUHlsJLEALuPQqzdPnIAbRCc22klWadm0tZx70SBtLDNe5g9CnodetvQPjfvYrjPg==",
       "license": "MIT",
       "dependencies": {
-        "@mark1russell7/algebra": "^0.7.2",
+        "@mark1russell7/algebra": "^0.7.4",
         "@mark1russell7/quantity": "^0.2.0"
       },
       "engines": {
         "node": ">=22.19"
       },
       "peerDependencies": {
+        "@grpc/grpc-js": "^1.14.6",
+        "amqplib": "^2.2.0",
         "ioredis": "^6.0.0",
+        "mongodb": "^7.7.0",
+        "pg": "^8.23.1",
+        "ws": "^8.22.0",
         "zod": "^4.1.0"
       },
       "peerDependenciesMeta": {
+        "@grpc/grpc-js": {
+          "optional": true
+        },
+        "amqplib": {
+          "optional": true
+        },
         "ioredis": {
+          "optional": true
+        },
+        "mongodb": {
+          "optional": true
+        },
+        "pg": {
+          "optional": true
+        },
+        "ws": {
           "optional": true
         },
         "zod": {
