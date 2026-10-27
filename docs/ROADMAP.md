@@ -812,6 +812,24 @@ The review of SYS-23 found that `compressionOf` read only the rules that the cal
 
 The review of SYS-22 found that a server transport and a dependency with one name give findings with one scope. Then a reader cannot tell them apart. With this item, `lint()` gives a `violated` finding of `NAME_RULE` (`unique-names`) for two parts with one name in a set of scopes. The sets are the dependencies and the server transports, the consumers and the workers, and the limiters. A description that was correct before can get this finding, thus it comes in the MINOR 0.6.0.
 
+### SYS-40 · The backlog after a resume, from the sessions on the target
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** S2, KIND
+- **Started:** 2026-10-27
+- **Links:** [#246](https://github.com/mark1russell7/systems/pull/246), [The Cilium run](https://github.com/mark1russell7/systems/actions/runs/40558968382)
+
+The Cilium cells of #246 found a term that the bands do not have. In each of 3 runs, C of the stall had failed requests after the band end of 10 s. After the resume, the target drains a backlog from each of its sessions. Thus the backlog grows with the sessions on the target. The kube-proxy cells of C overshot the same band by up to 72 ms, thus the term is not specific to Cilium.
+
+The record gives 3 pairs. With 499 failed requests, the last failure came 45 ms after the band end. With 1,001, it came 94 ms after it, and with 1,507, 166 ms after it. The band gives approximately 501 failed requests for each connection, thus these runs had 1, 2 and 3 connections on the target. The record does not give the sessions of each run, thus this mapping is not verified.
+
+The term: with n sessions on the target, the window of a stall closes up to n × d after the band end. The value d is the drain time of one session after the resume. The failed requests can grow by up to n × r. The value r is the requests of one session that fail in the drain time. The next band of a stall carries this term for each candidate that keeps its sessions through the stall.
+
+The first test is a cell of C of the stall with 1, 2, 3 and 6 sessions on the target. It records the sessions on the target in each run. The prediction: the value d is 40 ms to 70 ms, and the value r is 0 to 3 requests. Thus with 1 session, the last failure comes 40 ms to 70 ms after the band end. With 6 sessions, it comes 240 ms to 420 ms after it. The decision rule: if the overshoot with 6 sessions is more than 420 ms, the term is not linear in n. Then the next band adds a new term.
+
+The bands of the test and its fleet entry are committed before the dispatch. The old bands stay as committed.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue
