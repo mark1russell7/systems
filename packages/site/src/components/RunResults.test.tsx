@@ -173,6 +173,19 @@ describe("the components of the CI runs", () => {
     expect(frames.split('class="sy-frame').length - 1).toBe(12);
   });
 
+  it("render the S2 candidates of a slow dependency side by side, with the last failure of A and B before the heal", () => {
+    const table = renderToString(<CallersTable incident="slow" />);
+    expect(table).toContain("3,487 failed requests in the median run");
+    expect(table).toContain("The prediction: 3,240 to 3,744 failed requests, with 24 of the 24 connections on the target. The last one starts 1.74 s to 2.02 s before the heal.");
+    // C and D fail no request, thus their prediction has no window
+    expect(table.split("The prediction: no failed request.").length - 1).toBe(6);
+    expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40521784305");
+    expect(table).not.toContain("No run in the copy yet.");
+    expect(table.split("<tr>").length - 1).toBe(4);
+    const frames = renderToString(<KindResults template="T07" group="slow" />);
+    expect(frames.split('class="sy-frame').length - 1).toBe(12);
+  });
+
   it("render the scores of S6 side by side, with the run of the evidence and the reason for each criterion with no number", () => {
     const table = renderToString(<CallersScores />);
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40358038728");
@@ -182,15 +195,17 @@ describe("the components of the CI runs", () => {
     expect(table).toContain("The prediction: the last failure 8 s to 24.265 s after the fault.");
     // the fewest in each mode: D in iptables and nftables, B in IPVS; in the partition, B in iptables and A in IPVS (a tie) and nftables;
     // in the stall, B in iptables and nftables, and A in IPVS (a tie); for the failed prober, D in iptables and C in IPVS (a tie) and nftables.
-    // In the shared dependency and in the flapping one, B has the fewest in each mode. In the lost zone, D in iptables, C in IPVS and A in nftables
-    expect(table.split("The fewest in this mode.").length - 1).toBe(21);
+    // In the shared dependency and in the flapping one, B has the fewest in each mode. In the lost zone, D in iptables, C in IPVS and A in nftables.
+    // In the slow dependency, C and D tie at 0 in each mode, and C is the first
+    expect(table.split("The fewest in this mode.").length - 1).toBe(24);
     // in each of the three incidents, three criteria have no number in each mode, and the complexity has its own reason for each of the 4 candidates.
     // The failed prober measures its false removals, thus it has one criterion with no number less.
     // The shared dependency, the flapping one and the lost zone each have one criterion with no number, and the complexity of each of the 4 candidates
-    expect(table.split("Not measured.").length - 1).toBe(42);
+    // The slow dependency has three criteria with no number, the complexity of each of the 4 candidates, and the time to recover of C and D in each mode
+    expect(table.split("Not measured.").length - 1).toBe(55);
     expect(table).toContain("T07 has no blip");
-    // A, B and C send no PING by their code, and the run 40440516571 counts the PINGs of D in each mode of each incident. The flapping run and the lost zone count their own
-    expect(table.split("0 PINGs, by the code").length - 1).toBe(63);
+    // A, B and C send no PING by their code, and the run 40440516571 counts the PINGs of D in each mode of each incident. The flapping run, the lost zone and the slow dependency count their own
+    expect(table.split("0 PINGs, by the code").length - 1).toBe(72);
     expect(table).toContain("123 PINGs in the median run");
     expect(table.match(/The prediction: 9 to 378\. The counted runs: \d+, \d+, \d+\./g)?.length).toBe(3);
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40440516571");
@@ -229,7 +244,11 @@ describe("the components of the CI runs", () => {
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40500297695");
     expect(table).toContain("S2.T07.nftables.session-check.zone");
     expect(table).not.toContain("a lost zone: No copy");
-    // each incident with no cell gives its own reason
-    expect(table).toContain("a slow dependency (gray failure): No cell measures the candidates in this incident yet.");
+    // the slow dependency: its own run, and the last failure of A and B before the heal, after its band
+    expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40521784305");
+    expect(table).toContain("S2.T07.nftables.session-check.slow");
+    expect(table).not.toContain("a slow dependency (gray failure): No copy");
+    expect(table.match(/the last failure [\d.]+ s before the heal in the median run/g)?.length).toBe(6);
+    expect(table).toContain("The prediction: 1.74 s to 2.02 s before the heal.");
   });
 });

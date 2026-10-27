@@ -13,6 +13,8 @@ import {
   FLAP_HOLD,
   PARTITION_HOLD,
   STALL_HOLD,
+  SLOW_DELAY,
+  SLOW_HOLD,
   ZONE_HOLD,
   callerFaultOf,
   dependencyOf,
@@ -20,6 +22,7 @@ import {
   flappingOf,
   lostZoneOf,
   pingsOf,
+  slowOf,
 } from "./callers.ts";
 
 /**
@@ -28,15 +31,14 @@ import {
  * The evidence is the CI run and the cell. A criterion that the data cannot support is "not measured",
  * with the reason. No score fills a gap with an estimate.
  *
- * Seven incidents have cells. The first three are a pod that cannot serve (`cannot-serve`, the S2
+ * Eight incidents have cells. The first three are a pod that cannot serve (`cannot-serve`, the S2
  * cells of T07), a partitioned pod (a black hole between the clients and the target), and a stalled
  * pod (`app-stall`). The fourth is a failed prober (`cannot-serve` with `serves`: a false failure of
  * the readiness check). The fifth is a black-holed shared dependency (a black hole between Redis and
  * each replica). The sixth is a flapping dependency: that black hole, three times in one run. The
  * seventh is a lost zone (`zone-loss`): the node of the target loses its link, and its kubelet is frozen.
  *
- * Each incident has its own kind run.
- * The other incidents of the design have no cell of the candidates yet, thus each one is "not measured".
+ * The eighth is a slow dependency (`latency`): each packet that Redis sends waits for a delay. Each incident has its own kind run. An incident with no copy of a run is "not measured".
  *
  * The probe load is the PINGs that the clients add to the readiness probe, which each candidate shares.
  * A, B and C send no PING by their code (`derived`). The PINGs of D come from a later kind run, whose
@@ -184,6 +186,10 @@ export interface Scorecard {
  * the kept nodes. Its copy also has `failures`, `lasts`, and `returns`: the time from the heal
  * to the target ready again in its EndpointSlice, in seconds.
  *
+ * In a slow dependency, the main value is the failed requests. Its copy also has `lasts`, and
+ * `recovers`: the time from the heal to the start of the last failed request, in seconds. It is
+ * below zero when that request starts before the heal.
+ *
  * A copy of a run whose clients count each PING also has `pings` and `acks`. They are the PINGs of the
  * session checks of the clients in each counted run, and the ACKs of those PINGs. A run with no
  * line of the count gives null. `seconds` is the length of each counted run.
@@ -255,7 +261,15 @@ const NOT_MEASURED: Readonly<Record<CallerFault, Partial<Record<Criterion, strin
   "lost zone": {
     "false removals on a blip": `The zone stays lost for ${valueIn(ZONE_HOLD, "s")} s, thus each removal is true. A loss shorter than the grace of the node lifecycle controller (50 s) removes no pod. No cell gives a short loss yet.`,
   },
+  "slow dependency": {
+    "time until callers know": `No candidate learns: each check of Redis passes in the delay of ${valueIn(SLOW_DELAY, "s")} s, thus no replica leaves, and no signal tells the callers. A slow dependency slows each replica at once, thus no routing candidate can go around it.`,
+    "false removals on a blip": `Redis stays slow for ${valueIn(SLOW_HOLD, "s")} s, and no replica leaves the Service. No cell gives a delay that trips a check.`,
+    "routes down": "Each route of each replica is slow, and none fails. The cell does not count the routes.",
+  },
 };
+
+/** This text is the reason that a candidate with no failed request in a slow dependency has no time to recover. */
+const NO_SLOW_FAILURE = "No request fails in the delay, thus the callers have nothing to recover from.";
 
 /** These are the incidents of the design that the S2 cells measure, and the trigger of their cells. */
 const INCIDENT_OF: Readonly<Record<CallerFault, { readonly incident: Incident; readonly trigger: TriggerKind }>> = {
@@ -266,19 +280,11 @@ const INCIDENT_OF: Readonly<Record<CallerFault, { readonly incident: Incident; r
   "shared dependency": { incident: "a black-holed shared dependency", trigger: "blackhole" },
   "flapping dependency": { incident: "a flapping dependency", trigger: "blackhole" },
   "lost zone": { incident: "a lost zone", trigger: "zone-loss" },
+  "slow dependency": { incident: "a slow dependency (gray failure)", trigger: "latency" },
 };
 
 /** This text is the reason for each incident of the design that has no cell of the candidates yet. */
 const NO_CELL = "No cell measures the candidates A, B, C and D in this incident yet.";
-
-/**
- * These texts are the reasons of an incident with no cell. Each one tells what T07 cannot do for that
- * incident: T07 slows no dependency.
- */
-const NO_CELL_OF: Readonly<Partial<Record<Incident, string>>> = {
-  "a slow dependency (gray failure)":
-    "No cell measures the candidates in this incident yet. The trigger of the S2 cells black-holes Redis, and no trigger slows it. A slow dependency slows each replica at once, thus no routing candidate can go around it. The stalled pod is the gray failure of one replica.",
-};
 
 /** This text is the reason for an incident with cells, when no copy has a result of them. */
 const NO_RUN = "No copy of a kind run has a result of the cells of this incident yet.";
@@ -427,7 +433,13 @@ const scoreOf = (criterion: Criterion, candidate: Candidate, mode: KubeProxyMode
     const what = criterion === "time to recover" ? "the return of the target after the heal" : "the departure of the target";
     return scored ?? { criterion, kind: "not measured", why: `The copy has no time of ${what} of this cell.` };
   }
-  if (criterion === "time until callers know") {
+  if (fault === "slow dependency" && criterion === "time to recover") {
+    // each replica stays: the callers recover when the delay ends, and the last failure starts before the heal
+    const end = slowOf(mode, candidate).end;
+    if (end === null) return { criterion, kind: "not measured", why: NO_SLOW_FAILURE };
+    return timesOf(criterion, result.recovers, end, "heal", result.counted, evidence) ?? { criterion, kind: "not measured", why: "The copy has no time of the last failure of this cell." };
+  }
+  if (criterion === "time until callers know" && NOT_MEASURED[fault][criterion] === undefined) {
     const prediction = windowOf(result.id);
     // a time from the fault: the copy gives the start of the last failed request of each run with one
     const lasts = (result.lasts ?? []).flatMap((each) => (each === null ? [] : [each])).sort((a, b) => a - b);
@@ -520,6 +532,6 @@ export const scoreCallers = (...copies: readonly CallerRun[]): Scorecard => {
       return [incident, scores] as const;
     }),
   );
-  const incidents = INCIDENTS.map((incident): IncidentScores => scored.get(incident) ?? { incident, kind: "not measured", why: NO_CELL_OF[incident] ?? NO_CELL });
+  const incidents = INCIDENTS.map((incident): IncidentScores => scored.get(incident) ?? { incident, kind: "not measured", why: NO_CELL });
   return { dimension: "how callers learn", run: first.run, runs: [...new Set(copies.map((copy) => copy.run))], criteria: CRITERIA, incidents };
 };

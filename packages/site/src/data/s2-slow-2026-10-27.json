@@ -1,0 +1,843 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-10-27",
+  "units": "s",
+  "runs": 3,
+  "kernel": "6.17.0 and 7.0.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.iptables.endpoints.slow",
+      "template": "T07",
+      "name": "iptables, callers learn that a shared dependency is slow: endpoints only",
+      "mode": "iptables",
+      "trigger": "latency",
+      "group": "slow",
+      "prediction": {
+        "kind": "stays",
+        "band": null,
+        "text": "The algebra predicts that each replica stays in the Service, and that no request is refused. Each failed request starts 960 ms after the fault or later, and the last one starts 1.74 s to 2.02 s before the end of the fault. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 3487,
+      "values": [3487, 3490, 3481],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 3,487 failed requests. The counted runs had 3,481 to 3,490 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0.96,
+          "high": 2.24
+        },
+        "end": {
+          "from": "heal",
+          "low": -2.02,
+          "high": -1.74
+        },
+        "expected": {
+          "low": 3240,
+          "high": 3744
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        }
+      },
+      "lasts": [25.4689032, 25.4834731, 25.4473322],
+      "recovers": [-1.7111396, -1.712342, -1.7152972],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [31.8256417, 31.7878003, 31.7492014]
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck.slow",
+      "template": "T07",
+      "name": "iptables, callers learn that a shared dependency is slow: in band (lame duck)",
+      "mode": "iptables",
+      "trigger": "latency",
+      "group": "slow",
+      "prediction": {
+        "kind": "stays",
+        "band": null,
+        "text": "The algebra predicts that each replica stays in the Service, and that no request is refused. Each failed request starts 960 ms after the fault or later, and the last one starts 1.74 s to 2.02 s before the end of the fault. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 3483,
+      "values": [3486, 3483, 3482],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 3,483 failed requests. The counted runs had 3,482 to 3,486 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0.96,
+          "high": 2.24
+        },
+        "end": {
+          "from": "heal",
+          "low": -2.02,
+          "high": -1.74
+        },
+        "expected": {
+          "low": 3240,
+          "high": 3744
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        }
+      },
+      "lasts": [25.4439813, 25.4408757, 25.4330156],
+      "recovers": [-1.7039086, -1.7079808, -1.7122042],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [31.6843462, 31.6650909, 31.6757083]
+    },
+    {
+      "id": "S2.T07.iptables.goaway.slow",
+      "template": "T07",
+      "name": "iptables, callers learn that a shared dependency is slow: in band on HTTP/2 (GOAWAY)",
+      "mode": "iptables",
+      "trigger": "latency",
+      "group": "slow",
+      "prediction": {
+        "kind": "stays",
+        "band": null,
+        "text": "The algebra predicts that each replica stays in the Service, and that no request fails."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 0 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": null,
+        "end": null,
+        "expected": {
+          "low": 0,
+          "high": 0
+        },
+        "connections": {
+          "low": 0,
+          "high": 0,
+          "of": 3
+        }
+      },
+      "lasts": [null, null, null],
+      "recovers": [null, null, null],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [31.65555, 31.6660167, 31.6030026]
+    },
+    {
+      "id": "S2.T07.iptables.session-check.slow",
+      "template": "T07",
+      "name": "iptables, callers learn that a shared dependency is slow: in band on HTTP/2 with a session check",
+      "mode": "iptables",
+      "trigger": "latency",
+      "group": "slow",
+      "prediction": {
+        "kind": "stays",
+        "band": null,
+        "text": "The algebra predicts that each replica stays in the Service, and that no request fails."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 0 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": null,
+        "end": null,
+        "expected": {
+          "low": 0,
+          "high": 0
+        },
+        "connections": {
+          "low": 0,
+          "high": 0,
+          "of": 3
+        }
+      },
+      "lasts": [null, null, null],
+      "recovers": [null, null, null],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [31.6058414, 31.6346665, 31.6198032]
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints.slow",
+      "template": "T07",
+      "name": "ipvs, callers learn that a shared dependency is slow: endpoints only",
+      "mode": "ipvs",
+      "trigger": "latency",
+      "group": "slow",
+      "prediction": {
+        "kind": "stays",
+        "band": null,
+        "text": "The algebra predicts that each replica stays in the Service, and that no request is refused. Each failed request starts 960 ms after the fault or later, and the last one starts 1.74 s to 2.02 s before the end of the fault. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 3486,
+      "values": [3486, 3488, 3483],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 3,486 failed requests. The counted runs had 3,483 to 3,488 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0.96,
+          "high": 2.24
+        },
+        "end": {
+          "from": "heal",
+          "low": -2.02,
+          "high": -1.74
+        },
+        "expected": {
+          "low": 3240,
+          "high": 3744
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        }
+      },
+      "lasts": [25.4565452, 25.4852243, 25.428792],
+      "recovers": [-1.7058181, -1.7158457, -1.7249315],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [31.7232941, 31.7831991, 31.7216202]
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck.slow",
+      "template": "T07",
+      "name": "ipvs, callers learn that a shared dependency is slow: in band (lame duck)",
+      "mode": "ipvs",
+      "trigger": "latency",
+      "group": "slow",
+      "prediction": {
+        "kind": "stays",
+        "band": null,
+        "text": "The algebra predicts that each replica stays in the Service, and that no request is refused. Each failed request starts 960 ms after the fault or later, and the last one starts 1.74 s to 2.02 s before the end of the fault. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 3487,
+      "values": [3487, 3484, 3487],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 3,487 failed requests. The counted runs had 3,484 to 3,487 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0.96,
+          "high": 2.24
+        },
+        "end": {
+          "from": "heal",
+          "low": -2.02,
+          "high": -1.74
+        },
+        "expected": {
+          "low": 3240,
+          "high": 3744
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        }
+      },
+      "lasts": [25.4227201, 25.4408994, 25.4348348],
+      "recovers": [-1.7167432, -1.7093016, -1.7106291],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [31.5768355, 31.6312903, 31.5706058]
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.slow",
+      "template": "T07",
+      "name": "ipvs, callers learn that a shared dependency is slow: in band on HTTP/2 (GOAWAY)",
+      "mode": "ipvs",
+      "trigger": "latency",
+      "group": "slow",
+      "prediction": {
+        "kind": "stays",
+        "band": null,
+        "text": "The algebra predicts that each replica stays in the Service, and that no request fails."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 0 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": null,
+        "end": null,
+        "expected": {
+          "low": 0,
+          "high": 0
+        },
+        "connections": {
+          "low": 0,
+          "high": 0,
+          "of": 3
+        }
+      },
+      "lasts": [null, null, null],
+      "recovers": [null, null, null],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [31.6380025, 31.6394042, 31.6204873]
+    },
+    {
+      "id": "S2.T07.ipvs.session-check.slow",
+      "template": "T07",
+      "name": "ipvs, callers learn that a shared dependency is slow: in band on HTTP/2 with a session check",
+      "mode": "ipvs",
+      "trigger": "latency",
+      "group": "slow",
+      "prediction": {
+        "kind": "stays",
+        "band": null,
+        "text": "The algebra predicts that each replica stays in the Service, and that no request fails."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 0 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": null,
+        "end": null,
+        "expected": {
+          "low": 0,
+          "high": 0
+        },
+        "connections": {
+          "low": 0,
+          "high": 0,
+          "of": 3
+        }
+      },
+      "lasts": [null, null, null],
+      "recovers": [null, null, null],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [31.6243597, 31.6061577, 31.6125434]
+    },
+    {
+      "id": "S2.T07.nftables.endpoints.slow",
+      "template": "T07",
+      "name": "nftables, callers learn that a shared dependency is slow: endpoints only",
+      "mode": "nftables",
+      "trigger": "latency",
+      "group": "slow",
+      "prediction": {
+        "kind": "stays",
+        "band": null,
+        "text": "The algebra predicts that each replica stays in the Service, and that no request is refused. Each failed request starts 960 ms after the fault or later, and the last one starts 1.74 s to 2.02 s before the end of the fault. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 3487,
+      "values": [3487, 3486, 3487],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 3,487 failed requests. The counted runs had 3,486 to 3,487 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0.96,
+          "high": 2.24
+        },
+        "end": {
+          "from": "heal",
+          "low": -2.02,
+          "high": -1.74
+        },
+        "expected": {
+          "low": 3240,
+          "high": 3744
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        }
+      },
+      "lasts": [25.4694262, 25.45877, 25.4540179],
+      "recovers": [-1.7019487, -1.7134404, -1.7110821],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [31.8531332, 31.803289, 31.810958]
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck.slow",
+      "template": "T07",
+      "name": "nftables, callers learn that a shared dependency is slow: in band (lame duck)",
+      "mode": "nftables",
+      "trigger": "latency",
+      "group": "slow",
+      "prediction": {
+        "kind": "stays",
+        "band": null,
+        "text": "The algebra predicts that each replica stays in the Service, and that no request is refused. Each failed request starts 960 ms after the fault or later, and the last one starts 1.74 s to 2.02 s before the end of the fault. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 3482,
+      "values": [3482, 3487, 3482],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 3,482 failed requests. The counted runs had 3,482 to 3,487 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0.96,
+          "high": 2.24
+        },
+        "end": {
+          "from": "heal",
+          "low": -2.02,
+          "high": -1.74
+        },
+        "expected": {
+          "low": 3240,
+          "high": 3744
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        }
+      },
+      "lasts": [25.4351479, 25.4558982, 25.4286651],
+      "recovers": [-1.7147807, -1.7046013, -1.7108847],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [31.6002342, 31.6223448, 31.5682574]
+    },
+    {
+      "id": "S2.T07.nftables.goaway.slow",
+      "template": "T07",
+      "name": "nftables, callers learn that a shared dependency is slow: in band on HTTP/2 (GOAWAY)",
+      "mode": "nftables",
+      "trigger": "latency",
+      "group": "slow",
+      "prediction": {
+        "kind": "stays",
+        "band": null,
+        "text": "The algebra predicts that each replica stays in the Service, and that no request fails."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 0 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": null,
+        "end": null,
+        "expected": {
+          "low": 0,
+          "high": 0
+        },
+        "connections": {
+          "low": 0,
+          "high": 0,
+          "of": 3
+        }
+      },
+      "lasts": [null, null, null],
+      "recovers": [null, null, null],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [31.6928976, 31.681244, 31.6949002]
+    },
+    {
+      "id": "S2.T07.nftables.session-check.slow",
+      "template": "T07",
+      "name": "nftables, callers learn that a shared dependency is slow: in band on HTTP/2 with a session check",
+      "mode": "nftables",
+      "trigger": "latency",
+      "group": "slow",
+      "prediction": {
+        "kind": "stays",
+        "band": null,
+        "text": "The algebra predicts that each replica stays in the Service, and that no request fails."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 0 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": null,
+        "end": null,
+        "expected": {
+          "low": 0,
+          "high": 0
+        },
+        "connections": {
+          "low": 0,
+          "high": 0,
+          "of": 3
+        }
+      },
+      "lasts": [null, null, null],
+      "recovers": [null, null, null],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [31.51461, 31.483771, 31.4724495]
+    }
+  ],
+  "predictions": [
+    {
+      "id": "S2.T07.iptables.endpoints.slow",
+      "mode": "iptables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0.96,
+          "high": 2.24
+        },
+        "end": {
+          "from": "heal",
+          "low": -2.02,
+          "high": -1.74
+        },
+        "expected": {
+          "low": 3240,
+          "high": 3744
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck.slow",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0.96,
+          "high": 2.24
+        },
+        "end": {
+          "from": "heal",
+          "low": -2.02,
+          "high": -1.74
+        },
+        "expected": {
+          "low": 3240,
+          "high": 3744
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.goaway.slow",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": null,
+        "end": null,
+        "expected": {
+          "low": 0,
+          "high": 0
+        },
+        "connections": {
+          "low": 0,
+          "high": 0,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.session-check.slow",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": null,
+        "end": null,
+        "expected": {
+          "low": 0,
+          "high": 0
+        },
+        "connections": {
+          "low": 0,
+          "high": 0,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints.slow",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0.96,
+          "high": 2.24
+        },
+        "end": {
+          "from": "heal",
+          "low": -2.02,
+          "high": -1.74
+        },
+        "expected": {
+          "low": 3240,
+          "high": 3744
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck.slow",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0.96,
+          "high": 2.24
+        },
+        "end": {
+          "from": "heal",
+          "low": -2.02,
+          "high": -1.74
+        },
+        "expected": {
+          "low": 3240,
+          "high": 3744
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.slow",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": null,
+        "end": null,
+        "expected": {
+          "low": 0,
+          "high": 0
+        },
+        "connections": {
+          "low": 0,
+          "high": 0,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.session-check.slow",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": null,
+        "end": null,
+        "expected": {
+          "low": 0,
+          "high": 0
+        },
+        "connections": {
+          "low": 0,
+          "high": 0,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.endpoints.slow",
+      "mode": "nftables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0.96,
+          "high": 2.24
+        },
+        "end": {
+          "from": "heal",
+          "low": -2.02,
+          "high": -1.74
+        },
+        "expected": {
+          "low": 3240,
+          "high": 3744
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck.slow",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0.96,
+          "high": 2.24
+        },
+        "end": {
+          "from": "heal",
+          "low": -2.02,
+          "high": -1.74
+        },
+        "expected": {
+          "low": 3240,
+          "high": 3744
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.goaway.slow",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": null,
+        "end": null,
+        "expected": {
+          "low": 0,
+          "high": 0
+        },
+        "connections": {
+          "low": 0,
+          "high": 0,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.session-check.slow",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": null,
+        "end": null,
+        "expected": {
+          "low": 0,
+          "high": 0
+        },
+        "connections": {
+          "low": 0,
+          "high": 0,
+          "of": 3
+        }
+      }
+    }
+  ]
+}

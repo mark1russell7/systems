@@ -23,6 +23,7 @@ import s2Dependency from "../data/s2-dependency-2026-10-27.json";
 import s2Flapping from "../data/s2-flapping-2026-10-27.json";
 import s2Prober from "../data/s2-prober-2026-10-26.json";
 import s2Zone from "../data/s2-zone-2026-10-27.json";
+import s2Slow from "../data/s2-slow-2026-10-27.json";
 import s2Checked from "../data/s2-session-check-2026-10-26.json";
 import s6 from "../data/s6-2026-10-27.json";
 import t15 from "../data/t15-2026-10-25.json";
@@ -444,7 +445,7 @@ export function RaceBorder(): ReactElement {
 // ---------------------------------------------------------------------------------------------
 
 /** The kind cells of each copy: T07 and T18, T15 over gRPC through Istio, and the S2 cells of each incident. The later run of D adds its cells. */
-const KIND_CELLS = [...kind.cells, ...t15.cells, ...S2.cells, ...s2Checked.cells, ...s2Partition.cells, ...s2PartitionChecked.cells, ...s2Stall.cells, ...s2Prober.cells, ...s2Dependency.cells, ...s2Flapping.cells, ...s2Zone.cells];
+const KIND_CELLS = [...kind.cells, ...t15.cells, ...S2.cells, ...s2Checked.cells, ...s2Partition.cells, ...s2PartitionChecked.cells, ...s2Stall.cells, ...s2Prober.cells, ...s2Dependency.cells, ...s2Flapping.cells, ...s2Zone.cells, ...s2Slow.cells];
 type KindCell = (typeof KIND_CELLS)[number];
 
 /** This function writes the main value of a kind cell: a count of failed requests, of replicas, or a time. */
@@ -560,8 +561,11 @@ const S2_FROM: Readonly<Record<string, string>> = { fault: "the fault", heal: "t
  *
  * The incident `zone` shows the copy of the lost zone. Its main value is the time of the removal of
  * the target, thus each cell also gives its failed requests apart.
+ *
+ * The incident `slow` shows the copy of the slow dependency. Its main value is the count of failed
+ * requests. The last failure of A and B comes before the heal, and C and D have no window.
  */
-export function CallersTable(props: { readonly incident?: "cannot serve" | "partition" | "stall" | "prober" | "dependency" | "flapping" | "zone" }): ReactElement {
+export function CallersTable(props: { readonly incident?: "cannot serve" | "partition" | "stall" | "prober" | "dependency" | "flapping" | "zone" | "slow" }): ReactElement {
   // the copies of an incident: the first run of A, B and C, then the run of D. One run of the stall, and one of the prober, has each candidate. The latest copy has the prediction of each candidate
   const copies = (
     props.incident === "partition"
@@ -576,7 +580,9 @@ export function CallersTable(props: { readonly incident?: "cannot serve" | "part
               ? [s2Flapping]
               : props.incident === "zone"
                 ? [s2Zone]
-                : [S2, s2Checked]
+                : props.incident === "slow"
+                  ? [s2Slow]
+                  : [S2, s2Checked]
   ) as unknown as readonly (typeof S2)[];
   const prober = props.incident === "prober";
   const zone = props.incident === "zone";
@@ -621,8 +627,16 @@ export function CallersTable(props: { readonly incident?: "cannot serve" | "part
               {candidates.map((name) => {
                 const cell = s2.cells.find((each) => each.mode === mode && each.candidate.name === name);
                 const candidate = predicted(mode, name);
-                const { expected, end, connections } = candidate;
-                const on = connections.low === connections.high ? `${connections.low}` : `${connections.low} to ${connections.high}`;
+                const { expected, connections } = candidate;
+                // a candidate of the slow dependency with no failed request has no window, thus no end
+                const end = candidate.end as { readonly from: string; readonly low: number; readonly high: number } | null;
+                const ends =
+                  end === null
+                    ? ""
+                    : end.high <= 0
+                      ? ` The last one starts ${fine(-end.high)} to ${fine(-end.low)} before ${S2_FROM[end.from] ?? end.from}.`
+                      : ` The last one starts ${fine(end.low)} to ${fine(end.high)} after ${S2_FROM[end.from] ?? end.from}.`;
+                const on =connections.low === connections.high ? `${connections.low}` : `${connections.low} to ${connections.high}`;
                 const leaves = (candidate as { readonly leaves?: { readonly from: string; readonly low: number; readonly high: number } }).leaves;
                 const removal = (candidate as { readonly removal?: { readonly from: string; readonly low: number; readonly high: number } }).removal;
                 const each = (candidate as { readonly each?: { readonly low: number; readonly high: number } }).each;
@@ -644,7 +658,9 @@ export function CallersTable(props: { readonly incident?: "cannot serve" | "part
                     {cell === undefined ? null : <RunOf cell={cell.id} />}
                     <br />
                     <span className="sy-muted">
-                      {`The prediction: ${digits(expected.low)} to ${digits(expected.high)} failed requests, with ${on} of the ${connections.of} connections on the target. The last one starts ${fine(end.low)} to ${fine(end.high)} after ${S2_FROM[end.from] ?? end.from}.`}
+                      {end === null && expected.high === 0
+                        ? "The prediction: no failed request."
+                        : `The prediction: ${digits(expected.low)} to ${digits(expected.high)} failed requests, with ${on} of the ${connections.of} connections on the target.${ends}`}
                       {leaves === undefined ? "" : ` The ${zone ? "removal" : "false removal"} comes ${fine(leaves.low)} to ${fine(leaves.high)} after ${S2_FROM[leaves.from] ?? leaves.from}.`}
                       {returns === undefined ? "" : ` The target is ready again ${fine(returns.low)} to ${fine(returns.high)} after ${S2_FROM[returns.from] ?? returns.from}.`}
                       {removal === undefined ? "" : ` The Service is empty ${fine(removal.low)} to ${fine(removal.high)} after ${S2_FROM[removal.from] ?? removal.from}${flapping ? ", for each fault" : ""}.`}
@@ -786,13 +802,20 @@ function IncidentScoresTable(props: { readonly scored: ScoredCopy }): ReactEleme
         <code>{score.evidence.cell}</code>
       </a>
     );
+    // in a slow dependency, the last failure comes before the heal, thus a time before it is not negative
+    const before = scored.incident === "a slow dependency (gray failure)" && score.kind === "measured" && score.median.value < 0;
     if (score.kind === "measured" && score.from !== undefined)
       return (
         <>
-          <Verdict decision={score.holds ? "holds" : "fails"} text={`${measureOf(scored.incident, criterion)} ${fine(score.median.value)} after ${S2_FROM[score.from] ?? score.from} in the median run`} />
+          <Verdict
+            decision={score.holds ? "holds" : "fails"}
+            text={`${measureOf(scored.incident, criterion)} ${fine(before ? -score.median.value : score.median.value)} ${before ? "before" : "after"} ${S2_FROM[score.from] ?? score.from} in the median run`}
+          />
           <br />
           <span className="sy-muted">
-            {`The prediction: ${fine(score.prediction.lo.value)} to ${fine(score.prediction.hi.value)}. The counted runs: ${score.values.map((each) => fine(each.value)).join(", ")}. `}
+            {before && score.prediction.hi.value <= 0
+              ? `The prediction: ${fine(-score.prediction.hi.value)} to ${fine(-score.prediction.lo.value)} before ${S2_FROM[score.from] ?? score.from}. The counted runs: ${score.values.map((each) => (each.value <= 0 ? `${fine(-each.value)} before` : `${fine(each.value)} after`)).join(", ")}. `
+              : `The prediction: ${fine(score.prediction.lo.value)} to ${fine(score.prediction.hi.value)}. The counted runs: ${score.values.map((each) => fine(each.value)).join(", ")}. `}
             {evidence}
           </span>
         </>

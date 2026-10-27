@@ -235,6 +235,31 @@ describe("the judgement of a kind run", () => {
     expect(checkRun(cell(prediction), run).why).toBe("the rules of w1 kept lab-a");
   });
 
+  it("keeps each replica in a slow dependency, and holds its failed requests to the window or to none", () => {
+    const window = { kind: "window", nodes: "all", start: { from: "fault", band: b(0.96, 2.24) }, end: { from: "heal", band: b(-2.02, -1.74) }, certain: true, outcomes: ["timeout"], why: "a test" } as const;
+    const slow: KindCell = { ...cellOf("latency"), prediction: { kind: "stays", failures: window, why: "a test" } };
+    const run = (extra: Line[]): KindRun => ({ ...runWith([]), target: null, lines: [...runWith([]).lines, ...extra], acts: { fault: 5000, heal: 32_000, resume: null } });
+    const check = checkRun(slow, run([request(7000, "timeout"), request(30_100, "timeout"), request(31_000, "ok")]));
+    expect(check).toMatchObject({ ok: true, value: { value: 2, unit: "{request}" } });
+    expect(check.why).toBe("the replicas stayed ready, 2 requests failed by their dependency; 2 failed requests, all in the window (span 23.1 s)");
+    // a failure before the queue can reach the timeout, a 503, a failure after the heal, or a run with no failure
+    expect(checkRun(slow, run([request(5500, "timeout"), request(30_100, "timeout")])).ok).toBe(false);
+    expect(checkRun(slow, run([request(7000, "503"), request(30_100, "timeout")])).ok).toBe(false);
+    expect(checkRun(slow, run([request(7000, "timeout"), request(30_500, "timeout")])).ok).toBe(false);
+    expect(checkRun(slow, run([])).ok).toBe(false);
+    // a replica that leaves the EndpointSlice fails the run, with no failed request too
+    const left: Line = { ev: "slice", t: 20_000, type: "MODIFIED", name: "lab-x", svc: "lab", eps: [{ ip: TARGET.ip, r: false }, { ip: OTHER.ip, r: true }] };
+    expect(checkRun(slow, run([left, request(7000, "timeout"), request(30_100, "timeout")])).why).toBe("1 replicas left the EndpointSlice");
+    // with none, each failed request fails the run
+    const none: KindCell = { ...slow, prediction: { kind: "stays", failures: { kind: "none", why: "a test" }, why: "a test" } };
+    expect(checkRun(none, run([])).ok).toBe(true);
+    expect(checkRun(none, run([request(7000, "timeout")])).why).toBe('1 requests failed: {"timeout":1}');
+    expect(predictionText(slow.prediction)).toBe("stays ready, no refusal; failures only from the fault + [0.96, 2.24] s to the heal + [-2.02, -1.74] s, at least one, each one timeout");
+    expect(predictionText(none.prediction)).toBe("stays ready, no refusal; no failure");
+    // the run observes until the window can close: its end after the heal, the timeout and δ
+    expect(observationAfter(slow)).not.toBeNull();
+  });
+
   it("decides a cell on its counted runs: a disagreeing run fails it, and a warm-up does not count", () => {
     const none = cell({ kind: "none", why: "a test" });
     const good = runWith([request(2000, "ok")]);

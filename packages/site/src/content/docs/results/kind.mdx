@@ -217,9 +217,23 @@ An earlier run, [40494462562](https://github.com/mark1russell7/systems/actions/r
 
 <KindResults template="T07" group="zone" client:visible />
 
+### A slow dependency
+
+Each packet that Redis sends waits 300 ms for 27 s, through `tc netem` on the link of the Redis pod. The delay is shorter than each check of Redis and each probe, thus no replica leaves the Service. It is longer than the turn of a connection of HTTP/1.1, 160 ms. The cells come from the run [40521784305](https://github.com/mark1russell7/systems/actions/runs/40521784305). Each of the 12 cells held in 3 of 3 runs.
+
+A connection of HTTP/1.1 carries one request at a time. Thus each next request waits behind the earlier ones, and the queue grows until each request times out. Each run of A and B failed 3,481 to 3,490 requests, each one a timeout. The first failure started 2.09 s to 2.11 s after the fault, in the band of 0.96 s to 2.24 s.
+
+The last failure of A and B started 1.70 s to 1.73 s before the heal. That is up to 38 ms after the band of 1.74 s to 2.02 s before the heal. The judge has a noise of 100 ms, thus each cell held, and the score of the time to recover shows the miss.
+
+C and D carry each stream on its own, thus no stream waits for another one. They failed no request in each run. D heard a frame in each tick of its session check, thus it sent 0 PINGs.
+
+<CallersTable incident="slow" />
+
+<KindResults template="T07" group="slow" client:visible />
+
 ### How callers learn
 
-S6 scores each candidate of health and routing on seven criteria, for each incident of its design. Eight runs score seven incidents. They are a pod that cannot serve, a partitioned pod, a stalled pod and a failed prober. A black-holed shared dependency, a flapping dependency and a lost zone are the other three. The third run adds D to the first two incidents. Each of the next five incidents has its own run, with each candidate.
+S6 scores each candidate of health and routing on seven criteria, for each incident of its design. Nine runs score eight incidents. They are a pod that cannot serve, a partitioned pod, a stalled pod and a failed prober. A black-holed shared dependency, a flapping dependency, a lost zone and a slow dependency are the other four. The third run adds D to the first two incidents. Each of the next six incidents has its own run, with each candidate.
 
 The table puts the measure of each criterion next to its prediction, and each cell links to its run. A criterion that the run cannot support has no number, only the reason.
 
@@ -238,6 +252,8 @@ The cost is the time until callers know. The callers of A got a fast 503 after a
 A flapping dependency changes no part of the rule. Each fault of the run gave the result of one shared failure, and the readiness of the service followed each fault and each heal. B had the fewest failed requests in each mode again, and it recovered first. The scores of the flapping dependency have one value for each fault of each counted run, thus 9 values for each cell.
 
 A lost zone changes no part of the rule. The frozen service sends no signal, thus the rule gives none. A and B learned from their timeouts in 1.06 s at the most. The node lifecycle controller removed the target 45.4 s to 50.7 s after the fault by the median run. C failed until the 9th retransmission, after the heal, and D bounded it by its session check. The scores of the lost zone measure the removal of the target and the time until it is ready again after the heal.
+
+A slow dependency changes no part of the rule. Each check passes, thus the service stays ready, and the rule gives no signal. No candidate learns. The failures come from the protocol: A and B queue their requests on HTTP/1.1 and fail 3,482 to 3,487 by the median run. C and D fail none on HTTP/2. The scores of the slow dependency measure the failed requests and the last failure before the heal.
 
 <CallersScores />
 

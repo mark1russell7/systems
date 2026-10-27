@@ -424,6 +424,11 @@ The S2 cells (`src/callers.ts`, `CALLERS_CELLS`) measure the dimension "how call
   - C: a session on the target fails each stream until the first retransmission after the heal (`crossingOf`). The heal comes between the 8th retransmission (51 s) and the 9th (102.2 s).
   - D: the session check of a partition (`checkedOf`), on 2 clients.
   - Each run starts only when the lost node is ready for the node lifecycle controller, with no taint of the last loss.
+- **A slow dependency** (`S2.T07.<mode>.<candidate>.slow`). The twin of the black-holed shared dependency, with the same rest and hold (`SLOW_HOLD`, 27 s). The trigger `latency` delays each packet that Redis sends by 300 ms (`SLOW_DELAY`), with `tc netem` on the link of the Redis pod. The heal sets the delay to 0 ms, waits `NETEM_DRAIN`, then removes the qdisc. `slowOf` gives each prediction, as `stays` with a window of the failed requests or `none`:
+  - The delay is longer than the turn of a connection of HTTP/1.1 (160 ms), and shorter than each bound of a check. Thus no replica leaves the Service, and no request is refused.
+  - A and B: the queue of each connection grows, thus each request fails at its timeout from 0.96 s to 2.24 s after the fault. The last failure starts 1.74 s to 2.02 s before the heal.
+  - C and D: each stream waits for Redis on its own, thus no request fails. D hears a frame in each tick and sends no PING.
+  - Kind run 40521784305 held each of the 12 cells in 3 of 3 runs. The last failure of A and B started 1.70 s to 1.73 s before the heal, in the noise of the judge but after its band.
 - **The scores of S6** (`src/scores.ts`, `scoreCallers`). The function gives each candidate of each mode a score on each criterion of S6, from one copy of a kind run for each incident. A score is `measured`, `bounded`, `derived` (a value of the code, for example 0 PINGs) or `not measured`. A measured score has the prediction next to the values, and each score names its run and its cell. A criterion that the copy cannot support gives its reason and no number. The script `packages/site/scripts/scores.ts` writes the scorecard that the kind page shows.
 
 ## The runner

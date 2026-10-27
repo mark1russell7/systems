@@ -9,7 +9,7 @@ import type { Cycle, KindCell, KindRun, Replica } from "./cell.ts";
 import type { Cluster } from "./cluster.ts";
 import { command, createCluster } from "./cluster.ts";
 import type { Step, Target } from "./faults.ts";
-import { NODE, POD, VERSION, deletes as deletesAPod, faultSpan, middleboxCommands, planOf, sysctlCommand } from "./faults.ts";
+import { NODE, POD, POD_LINK, VERSION, deletes as deletesAPod, faultSpan, middleboxCommands, planOf, sysctlCommand } from "./faults.ts";
 import { labImage } from "./image.ts";
 import type { MeshImages } from "./istio.ts";
 import { EDS_EVERY, ISTIO_IMAGES, LDS_EVERY, MESH_IMAGES, followsZtunnel, installMesh, meshKey, pollsListeners, serverCluster, setZtunnelEnv, ztunnelCertificates } from "./istio.ts";
@@ -537,6 +537,13 @@ const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], ba
     case "zone":
       // the agent of the lost node is in its own container, thus the freeze of the node does not stop it
       return lab.act(lostNodeOf(cluster), { op: "zone", lost: step.lost });
+    case "netem": {
+      if (step.target !== "redis") throw new Error(`a netem takes the target redis, not ${step.target}`);
+      // one qdisc on the link of the Redis pod delays each reply to each replica
+      const at = await where(step.target);
+      const spec = step.delay === null ? ["clear-netem", POD_LINK] : ["netem", POD_LINK, "delay", `${Math.round(valueIn(step.delay, "ms"))}ms`];
+      return lab.inject(at.node, at.pid, spec);
+    }
   }
 };
 
@@ -601,7 +608,7 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
   const replicas = zoneLoss ? lostFirst(replicasOf(ctx), lostNodeOf(cluster)) : replicasOf(ctx);
   if (zoneLoss && replicas[0]?.node !== lostNodeOf(cluster)) return empty(`no replica is on the node of the lost zone, ${lostNodeOf(cluster)}`, await lab.now());
   const restarts = new Map(ctx.tracker.servers().map((pod) => [pod.name, pod.cs.reduce((sum, status) => sum + status.rc, 0)]));
-  const target = hasRedis(cell) && ["rst", "blackhole", "freeze-process", "peer-gone-without-close", "rollout"].includes(cell.trigger.kind) ? null : replicas[0]!;
+  const target = hasRedis(cell) && ["rst", "blackhole", "freeze-process", "peer-gone-without-close", "rollout", "latency"].includes(cell.trigger.kind) ? null : replicas[0]!;
   // the paused node is the node of kube-proxy that a freeze stops, or the node of the lost zone
   const paused = cell.template === "T07" && cell.trigger.kind === "freeze-process" ? (cluster.nodes[1] ?? cluster.nodes[0]!) : zoneLoss ? lostNodeOf(cluster) : null;
   // A SYN with no answer before the run keeps its NAT for 120 s (SYN_SENT). A client that takes its

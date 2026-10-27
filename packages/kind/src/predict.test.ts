@@ -184,6 +184,14 @@ describe("the fault mapping", () => {
       restore: [{ do: "zone", lost: false }],
     });
     expect(deletes(cellOf("zone-loss"))).toBe(false);
+    // a slow dependency: a netem on the link of Redis. The heal sets the delay to zero, waits for the queue, then removes the qdisc
+    const base = cellOf("latency");
+    const latency = { ...base, trigger: { ...base.trigger, delay: { value: 300, unit: "ms" } } };
+    const back = [{ do: "netem", target: "redis", delay: s(0) }, { do: "wait", time: s(1) }, { do: "netem", target: "redis", delay: null }];
+    expect(planOf(latency)).toEqual({ inject: [{ do: "netem", target: "redis", delay: { value: 300, unit: "ms" } }], hold: s(5), heal: back, restore: back });
+    expect(deletes(latency)).toBe(false);
+    expect(() => planOf(base)).toThrow("the trigger needs a delay, the time that each packet of Redis waits");
+    expect(() => planOf({ ...base, trigger: { ...base.trigger, delay: s(1) } })).toThrow("the delay of latency is above zero and below 1 s");
     expect(planOf(cellOf("rollout", DESIGN, "T18")).heal).toEqual([{ do: "kubectl", args: ["-n", "{namespace}", "scale", "deployment/redis", "--replicas=1"] }]);
     expect(deletes(cellOf("rolling-update"))).toBe(true);
     expect(deletes(cellOf("crash"))).toBe(false);

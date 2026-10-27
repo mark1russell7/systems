@@ -72,7 +72,14 @@ export type Step =
    * cgroup of the node. Thus each pod of the node and its kubelet stop at one instant. The step with `lost`
    * false thaws the cgroup, and then it removes the drops. It does nothing to a zone that is not lost.
    */
-  | { readonly do: "zone"; readonly lost: boolean };
+  | { readonly do: "zone"; readonly lost: boolean }
+  /**
+   * This step puts a qdisc netem on the link of the target, in its network namespace: each packet
+   * that the target sends waits `delay`. A step on a link with a netem changes its delay, and the
+   * packets in the queue keep their time. With `delay` null, the step removes the qdisc and each
+   * packet in it. Only the target `redis` takes it.
+   */
+  | { readonly do: "netem"; readonly target: Target; readonly delay: Quantity | null };
 
 /**
  * A fault plan is the steps of a run:
@@ -263,6 +270,16 @@ export const faultSpan = (trigger: Pick<KindCell["trigger"], "hold" | "flaps">):
   const flaps = (trigger.flaps ?? []).reduce((sum, flap) => sum + valueIn(flap.rest, "s") + valueIn(flap.hold, "s"), 0);
   return { value: Math.round((hold + flaps) * 1e6) / 1e6, unit: "s" };
 };
+
+/** This device is the link of a pod: the end of its veth pair in its network namespace. */
+export const POD_LINK = "eth0";
+
+/**
+ * This time is how long the heal of a delay waits from the delay of zero to the removal of the
+ * qdisc. Each packet in the queue leaves in it, because each one waits the delay at the most. A delay
+ * of a cell must be shorter than it.
+ */
+export const NETEM_DRAIN: Quantity = { value: 1, unit: "s" };
 
 /** This function gives the steps of the fault plan of a cell, with no flaps. */
 const stepsOf = (cell: KindCell): FaultPlan => {
@@ -471,6 +488,20 @@ const stepsOf = (cell: KindCell): FaultPlan => {
         heal: [{ do: "zone", lost: false }],
         restore: [{ do: "zone", lost: false }],
       };
+    case "latency": {
+      // the heal sets the delay to zero first: a removal of the qdisc drops each reply in its queue.
+      // The restore removes a qdisc that a failed heal left, and it does nothing to a link without one
+      const delay = needs(trigger.delay, "a delay, the time that each packet of Redis waits");
+      if (valueIn(delay, "ms") <= 0 || valueIn(delay, "ms") >= valueIn(NETEM_DRAIN, "ms")) throw new Error(`the delay of latency is above zero and below ${valueIn(NETEM_DRAIN, "s")} s`);
+      const zero: Step = { do: "netem", target: "redis", delay: { value: 0, unit: "s" } };
+      const back: readonly Step[] = [zero, { do: "wait", time: NETEM_DRAIN }, { do: "netem", target: "redis", delay: null }];
+      return {
+        inject: [{ do: "netem", target: "redis", delay }],
+        hold: needs(trigger.hold, "a hold, the time that Redis is slow"),
+        heal: back,
+        restore: back,
+      };
+    }
   }
 };
 

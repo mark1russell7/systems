@@ -59,7 +59,7 @@ export const predictionText = (prediction: Prediction): string => {
     case "restarts":
       return prediction.band === null ? "no restart" : `each replica SIGTERM in ${showBand(prediction.band)}`;
     case "stays":
-      return "stays ready, no refusal";
+      return `stays ready, no refusal${prediction.failures === undefined ? "" : `; ${predictionText(prediction.failures)}`}`;
     case "stalls":
       return "the rollout waits for Redis";
     case "ends": {

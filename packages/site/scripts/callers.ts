@@ -25,14 +25,19 @@ export const candidateName = (cell: KindCell): Candidate => {
  * expected count of failed requests. A shared dependency also has the empty Service and the time
  * until the callers know. A flapping dependency has them for each fault, and `each`: the expected
  * failed requests of one fault. A lost zone has `returns`: the band of the time from the heal until
- * the target is ready again.
+ * the target is ready again. A slow dependency predicts no window for a candidate with no failure,
+ * thus its `start` and `end` are null.
  */
 export const candidateOf = (cell: KindCell) => {
-  const kinds: readonly string[] = ["cannot-serve", "app-stall", "blackhole", "zone-loss"];
+  const kinds: readonly string[] = ["cannot-serve", "app-stall", "blackhole", "zone-loss", "latency"];
   if (!kinds.includes(cell.trigger.kind)) return null;
   // a false failure predicts the departure of the target, and a shared dependency the empty Service, each with the window of its failed requests
-  const p = cell.prediction.kind === "leaves" || cell.prediction.kind === "removal" ? cell.prediction.window : cell.prediction;
-  if (p === undefined || p.kind !== "window" || p.end === null) throw new Error(`${cell.name}: an S2 cell has a window that ends`);
+  const p =
+    cell.prediction.kind === "leaves" || cell.prediction.kind === "removal" ? cell.prediction.window : cell.prediction.kind === "stays" ? cell.prediction.failures : cell.prediction;
+  // a slow dependency: each replica stays, and a candidate with no failure has no window
+  const none = cell.prediction.kind === "stays" && p?.kind === "none";
+  if (!none && (p === undefined || p.kind !== "window" || p.end === null)) throw new Error(`${cell.name}: an S2 cell has a window that ends`);
+  const window = p?.kind === "window" && p.end !== null ? { start: p.start, end: p.end } : null;
   const leaves = cell.prediction.kind === "leaves" ? { leaves: { from: "fault", low: s(cell.prediction.band.lo), high: s(cell.prediction.band.hi) } } : {};
   const name = candidateName(cell);
   const flapping = callerFaultOf(cell) === "flapping dependency" ? flappingOf(cell.mode, name) : null;
@@ -49,8 +54,8 @@ export const candidateOf = (cell: KindCell) => {
   return {
     name,
     label: LABELS[CANDIDATES.indexOf(name)] ?? "",
-    start: { from: p.start.from, low: s(p.start.band.lo), high: s(p.start.band.hi) },
-    end: { from: p.end.from, low: s(p.end.band.lo), high: s(p.end.band.hi) },
+    start: window === null ? null : { from: window.start.from, low: s(window.start.band.lo), high: s(window.start.band.hi) },
+    end: window === null ? null : { from: window.end.from, low: s(window.end.band.lo), high: s(window.end.band.hi) },
     expected: { low: expected.lo.value, high: expected.hi.value },
     connections: { low: expected.connections.lo.value, high: expected.connections.hi.value, of: expected.connections.of.value },
     ...leaves,
@@ -64,6 +69,6 @@ export const candidateOf = (cell: KindCell) => {
 export const callerPredictions = (fault: CallerFault = "cannot serve") =>
   CALLERS_CELLS.filter((cell) => callerFaultOf(cell) === fault).map((cell) => {
     const candidate = candidateOf(cell);
-    if (candidate === null) throw new Error(`${cell.name}: an S2 cell has the trigger cannot-serve, a black hole, a stall or a zone loss`);
+    if (candidate === null) throw new Error(`${cell.name}: an S2 cell has the trigger cannot-serve, a black hole, a stall, a zone loss or a latency`);
     return { id: cell.id, mode: cell.mode, candidate };
   });
