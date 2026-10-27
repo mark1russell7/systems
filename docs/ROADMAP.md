@@ -357,7 +357,7 @@ The root of the service does not use zod at run time. Thus zod becomes an option
 - **Depends on:** SYS-12
 - **Started:** 2026-10-27
 - **Shipped:** 2026-10-27
-- **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#225](https://github.com/mark1russell7/systems/pull/225), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 The zod schemas of `@mark1russell7/algebra` move into a new entry, `./schema`, as in `quantity`. Then zod becomes an optional peer of the algebra too. The root of the algebra no longer gives the schemas, thus the change breaks its API and comes in algebra 0.8.0.
 
