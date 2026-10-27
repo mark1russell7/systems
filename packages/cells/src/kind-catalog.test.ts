@@ -78,7 +78,7 @@ const propagationOf = (cell: KindCell) => {
 
 describe("the kind catalogs", () => {
   it("names each cell by a cell of the plan, or as a calibration, and each name once", () => {
-    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(iptables|ipvs|nftables)\.(endpoints|lame-duck|goaway|session-check|shared-gate)(\.partition|\.stall|\.prober|\.dependency|\.flapping|\.zone|\.slow)?$/);
+    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(iptables|ipvs|nftables|cilium)\.(endpoints|lame-duck|goaway|session-check|shared-gate)(\.partition|\.stall|\.prober|\.dependency|\.flapping|\.zone|\.slow)?$/);
     expect(new Set(ALL.map((cell) => cell.name)).size).toBe(ALL.length);
     expect(new Set(ALL.map(namespaceOf)).size).toBe(ALL.length);
   });
@@ -199,8 +199,8 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
     return trio as [KindCell, KindCell, KindCell, KindCell];
   };
 
-  it("has the four candidates in each mode of kube-proxy, from one definition", () => {
-    expect(CALLERS_MODES).toEqual(["iptables", "ipvs", "nftables"]);
+  it("has the four candidates in each mode of kube-proxy and in Cilium, from one definition", () => {
+    expect(CALLERS_MODES).toEqual(["iptables", "ipvs", "nftables", "cilium"]);
     expect(CALLER_FAULTS).toEqual(["cannot serve", "partition", "stall", "false failure", "shared dependency", "flapping dependency", "lost zone", "slow dependency"]);
     expect(CALLERS_CELLS.map((cell) => cell.id)).toEqual(
       ["", ".partition", ".stall", ".prober", ".dependency", ".flapping", ".zone", ".slow"].flatMap((tail) =>
@@ -248,7 +248,7 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
 
   it("ends the window of the lame duck before the heal by the propagation of each mode, and the window of the endpoints only after it", () => {
     // the latch of 8–18 s, the readiness probe of the chart (4–6 s), the propagation of the mode, and one turn of 160 ms
-    const removal = { iptables: 24.265, ipvs: 24.469, nftables: 24.239 };
+    const removal = { iptables: 24.265, ipvs: 24.469, nftables: 24.239, cilium: 24.766 };
     for (const mode of CALLERS_MODES) {
       const [a, b, c, d] = trioOf(mode).map(windowOf) as [Window, Window, Window, Window];
       expect([a.end!.from, b.end!.from, c.end!.from]).toEqual(["heal", "fault", "fault"]);
@@ -274,23 +274,23 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
     const band = (lo: number, hi: number) => ({ lo: { value: lo, unit: "{connection}" }, hi: { value: hi, unit: "{connection}" }, of: { value: 24, unit: "{connection}" } });
     expect(SELECTION).toEqual({ iptables: "random", ipvs: "in turn", nftables: "random", cilium: "random" });
     // the binomial count of 24 connections with a chance of 1/2: P(k <= 6) = P(k >= 18) = 0.011, P(k <= 7) = 0.032
-    expect(CALLERS_MODES.map((mode) => targetConnections(mode))).toEqual([band(7, 17), band(12, 12), band(7, 17)]);
+    expect(CALLERS_MODES.map((mode) => targetConnections(mode))).toEqual([band(7, 17), band(12, 12), band(7, 17), band(7, 17)]);
   });
 
   it("puts 0 to 3 of the 3 sessions of HTTP/2 on the target in each mode", () => {
     const band = (lo: number, hi: number) => ({ lo: { value: lo, unit: "{connection}" }, hi: { value: hi, unit: "{connection}" }, of: { value: 3, unit: "{connection}" } });
     // at random, P(k = 0) = 1/8 is above the tail of 0.025. In turn, the first pick of each node is not known
-    expect(CALLERS_MODES.map((mode) => targetConnections(mode, 1))).toEqual([band(0, 3), band(0, 3), band(0, 3)]);
+    expect(CALLERS_MODES.map((mode) => targetConnections(mode, 1))).toEqual([band(0, 3), band(0, 3), band(0, 3), band(0, 3)]);
   });
 
   it("expects 6.25 failed requests each second for each connection on the target", () => {
     const band = (lo: number, hi: number) => ({ lo: { value: lo, unit: "{request}" }, hi: { value: hi, unit: "{request}" } });
     const counts = (candidate: Candidate) => CALLERS_MODES.map((mode) => { const { lo, hi } = expectedFailures(candidate, mode); return { lo, hi }; });
     // A: the hold of 30 s, then up to 6.16 s of recovery. B: the latch of 8 to 18 s
-    expect(counts("endpoints only")).toEqual([band(1313, 3842), band(2250, 2712), band(1313, 3842)]);
-    expect(counts("in band (lame duck)")).toEqual([band(350, 1913), band(600, 1350), band(350, 1913)]);
+    expect(counts("endpoints only")).toEqual([band(1313, 3842), band(2250, 2712), band(1313, 3842), band(1313, 3842)]);
+    expect(counts("in band (lame duck)")).toEqual([band(350, 1913), band(600, 1350), band(350, 1913), band(350, 1913)]);
     // C: 50 failed requests each second for each session on the target, until the latch (up to 18 s)
-    expect(counts("in band on HTTP/2 (GOAWAY)")).toEqual([band(0, 2700), band(0, 2700), band(0, 2700)]);
+    expect(counts("in band on HTTP/2 (GOAWAY)")).toEqual([band(0, 2700), band(0, 2700), band(0, 2700), band(0, 2700)]);
     expect(counts("in band on HTTP/2 with a session check")).toEqual(counts("in band on HTTP/2 (GOAWAY)"));
   });
 
@@ -379,7 +379,7 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
 
   it("holds the stall past the removal by the readiness probe and the idle close of the server, and short of the liveness restart", () => {
     const removals = CALLERS_MODES.map((mode) => valueIn(stallRemovalBand(CHART_READINESS, PROPAGATION[mode]).hi, "s"));
-    expect(removals).toEqual([7.105, 7.309, 7.079]);
+    expect(removals).toEqual([7.105, 7.309, 7.079, 7.606]);
     const hold = valueIn(STALL_HOLD, "s");
     expect(hold).toBeGreaterThan(Math.max(...removals));
     // the idle close of the server is 6 s (server_idle_close of the image)
@@ -393,7 +393,7 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
     const band = (lo: number, hi: number) => ({ lo: s(lo), hi: s(hi) });
     const requests = (lo: number, hi: number) => ({ lo: { value: lo, unit: "{request}" }, hi: { value: hi, unit: "{request}" } });
     // the latest removal, then one check of the last session on the target
-    const dEnd = { iptables: 8.105, ipvs: 1.5, nftables: 8.079 };
+    const dEnd = { iptables: 8.105, ipvs: 1.5, nftables: 8.079, cilium: 8.606 };
     for (const mode of CALLERS_MODES) {
       const [a, b, c, d] = trioOf(mode, "stall").map(windowOf) as [Window, Window, Window, Window];
       const random = SELECTION[mode] === "random";
@@ -444,7 +444,7 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
     const band = (lo: number, hi: number) => ({ lo: s(lo), hi: s(hi) });
     const requests = (lo: number, hi: number) => ({ lo: { value: lo, unit: "{request}" }, hi: { value: hi, unit: "{request}" } });
     // the latch of 8–18 s, the readiness probe of the chart (4–6 s), and the propagation of the mode
-    const removal = { iptables: band(12, 24.105), ipvs: band(12.073, 24.309), nftables: band(12, 24.079) };
+    const removal = { iptables: band(12, 24.105), ipvs: band(12.073, 24.309), nftables: band(12, 24.079), cilium: band(12, 24.606) };
     for (const mode of CALLERS_MODES) {
       const random = SELECTION[mode] === "random";
       const cells = trioOf(mode, "false failure");
@@ -500,14 +500,15 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
   it("predicts the empty Service of each candidate, the failed requests from the fault to the recovery, and the recovery after the heal", () => {
     const band = (lo: number, hi: number) => ({ lo: s(lo), hi: s(hi) });
     // the silent latch of 8–20 s, the readiness probe of the chart (4–6 s), and the propagation of the mode
-    const removal = { iptables: band(12, 26.105), ipvs: band(12.073, 26.309), nftables: band(12, 26.079) };
+    const removal = { iptables: band(12, 26.105), ipvs: band(12.073, 26.309), nftables: band(12, 26.079), cilium: band(12, 26.606) };
     // the reconnect (3.1 s), the recovery of the readiness (6 s), then for B, C and D the kubelet (2 s) and the propagation, and one turn
     const ends = {
       iptables: [9.26, 11.365, 11.225, 11.225],
       ipvs: [9.26, 11.569, 11.429, 11.429],
       nftables: [9.26, 11.339, 11.199, 11.199],
+      cilium: [9.26, 11.866, 11.726, 11.726],
     };
-    const counts = { iptables: [5742, 6060, 6039, 6039], ipvs: [5742, 6090, 6069, 6069], nftables: [5742, 6054, 6033, 6033] };
+    const counts = { iptables: [5742, 6060, 6039, 6039], ipvs: [5742, 6090, 6069, 6069], nftables: [5742, 6054, 6033, 6033], cilium: [5742, 6135, 6114, 6114] };
     for (const mode of CALLERS_MODES) {
       for (const [at, cell] of trioOf(mode, "shared dependency").entries()) {
         if (cell.prediction.kind !== "removal" || cell.prediction.window === undefined) throw new Error(`${cell.name}: no removal with a window`);
@@ -556,7 +557,7 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
   it("predicts each fault of a flapping dependency: the empty Service, the window of each cycle, and the failed requests", () => {
     const band = (lo: number, hi: number) => ({ lo: s(lo), hi: s(hi) });
     // per fault: A from the fault to its recovery. B, C and D: their last failure can start one timeout before the heal
-    const each = { iptables: [5517, 5835, 5814, 5814], ipvs: [5517, 5865, 5844, 5844], nftables: [5517, 5829, 5808, 5808] };
+    const each = { iptables: [5517, 5835, 5814, 5814], ipvs: [5517, 5865, 5844, 5844], nftables: [5517, 5829, 5808, 5808], cilium: [5517, 5910, 5889, 5889] };
     for (const mode of CALLERS_MODES) {
       for (const [at, cell] of trioOf(mode, "flapping dependency").entries()) {
         const candidate = CANDIDATES[at]!;
@@ -611,10 +612,10 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
 
   it("predicts a lost zone: the removal by the node lifecycle controller, the window of each candidate, and the return", () => {
     const band = (lo: number, hi: number) => ({ lo: s(lo), hi: s(hi) });
-    const removal = { iptables: band(39.6, 55.355), ipvs: band(39.6, 55.559), nftables: band(39.6, 55.329) };
+    const removal = { iptables: band(39.6, 55.355), ipvs: band(39.6, 55.559), nftables: band(39.6, 55.329), cilium: band(39.6, 55.856) };
     // A and B: the chains of a partition on 16 connections. C: firing 9 crosses the heal. D: the session check
-    const ends = { iptables: [2.08, 2.08, 108.78, 10.68], ipvs: [0.64, 0.64, 108.78, 1.5], nftables: [2.08, 2.08, 108.78, 10.68] };
-    const counts = { iptables: [[6, 28], [6, 28], [0, 10878], [0, 407]], ipvs: [[14, 16], [14, 16], [0, 10878], [0, 152]], nftables: [[6, 28], [6, 28], [0, 10878], [0, 407]] };
+    const ends = { iptables: [2.08, 2.08, 108.78, 10.68], ipvs: [0.64, 0.64, 108.78, 1.5], nftables: [2.08, 2.08, 108.78, 10.68], cilium: [2.08, 2.08, 108.78, 10.68] };
+    const counts = { iptables: [[6, 28], [6, 28], [0, 10878], [0, 407]], ipvs: [[14, 16], [14, 16], [0, 10878], [0, 152]], nftables: [[6, 28], [6, 28], [0, 10878], [0, 407]], cilium: [[6, 28], [6, 28], [0, 10878], [0, 407]] };
     for (const mode of CALLERS_MODES) {
       for (const [at, cell] of trioOf(mode, "lost zone").entries()) {
         const candidate = CANDIDATES[at]!;
