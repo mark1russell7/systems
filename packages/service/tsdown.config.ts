@@ -10,7 +10,8 @@ export default defineConfig({
   // Redis, PostgreSQL, MongoDB and RabbitMQ clients, which load ioredis, pg, mongodb and amqplib only when they connect,
   // the HTTP client, which loads node:http only when it connects, the WebSocket client, which loads ws
   // only when it connects, the gRPC client, which loads @grpc/grpc-js only when it connects, the timers without node: or zod,
-  // the edge of a service in Node (node:http and node:net only), and the keyed limiter, which loads only quantity
+  // the edge of a service in Node (node:http and node:net only), the keyed limiter, which loads only quantity,
+  // and the drain rules as data, which load no module
   entry: [
     "src/index.ts",
     "src/testing.ts",
@@ -26,6 +27,7 @@ export default defineConfig({
     "src/backoff.ts",
     "src/http.ts",
     "src/limiter.ts",
+    "src/rules.ts",
   ],
   outDir: "build",
   format: "esm",

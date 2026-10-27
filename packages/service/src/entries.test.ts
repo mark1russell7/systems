@@ -15,6 +15,7 @@ import * as root from "./index.ts";
 import * as limiterEntry from "./limiter.ts";
 import * as rabbitEntry from "./rabbitmq.ts";
 import * as redisEntry from "./redis.ts";
+import * as rulesEntry from "./rules.ts";
 import * as wsEntry from "./websocket.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -81,7 +82,7 @@ const reachAll = (entry: string, from = here): string[] => {
 
 describe("zod is an optional peer: no entry of the service loads it (SYS-12)", () => {
   it("reaches no zod from any entry, through quantity and the replay of the algebra too", () => {
-    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "websocket.ts", "grpc.ts", "clock.ts", "heartbeat.ts", "backoff.ts", "limiter.ts"])
+    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "websocket.ts", "grpc.ts", "clock.ts", "heartbeat.ts", "backoff.ts", "limiter.ts", "rules.ts"])
       expect(reachAll(entry), entry).not.toContain("zod");
     // the root loads no other package and no node: module at run time
     expect(reachAll("index.ts")).toEqual([]);
@@ -329,6 +330,30 @@ describe("the limiter entry: a client in a browser can import it (SYS-28)", () =
     };
     expect(manifest.exports["./limiter"]).toBe("./src/limiter.ts");
     expect(manifest.publishConfig.exports["./limiter"]).toEqual({ types: "./build/limiter.d.ts", default: "./build/limiter.js" });
+  });
+});
+
+describe("the rules entry: the drain rules as data, without kind and its Testcontainers (SYS-32)", () => {
+  it("loads no module at run time: no Testcontainers, no node: module and no zod", () => {
+    expect(reach("rules.ts")).toEqual({ files: ["rules.ts"], packages: [] });
+    expect(reachAll("rules.ts")).toEqual([]);
+  });
+
+  it("gives the four drain rules, and the root gives them too", () => {
+    expect(Object.keys(rulesEntry).sort()).toEqual(["DRAIN_RULES", "O04", "O09", "O10", "O16"]);
+    expect(rulesEntry.DRAIN_RULES).toEqual([rulesEntry.O04, rulesEntry.O09, rulesEntry.O10, rulesEntry.O16]);
+    for (const name of Object.keys(rulesEntry)) expect(root[name as keyof typeof root], name).toBe(rulesEntry[name as keyof typeof rulesEntry]);
+    // the identifiers of the drain rules come from the same data
+    expect(root.DRAIN_RULE_IDS).toEqual(rulesEntry.DRAIN_RULES.map((rule) => rule.id));
+  });
+
+  it("is in the manifest, for the source and for npm", () => {
+    const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
+      exports: Record<string, string>;
+      publishConfig: { exports: Record<string, { types: string; default: string }> };
+    };
+    expect(manifest.exports["./rules"]).toBe("./src/rules.ts");
+    expect(manifest.publishConfig.exports["./rules"]).toEqual({ types: "./build/rules.d.ts", default: "./build/rules.js" });
   });
 });
 

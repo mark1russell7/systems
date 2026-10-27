@@ -35,6 +35,7 @@ export type { Binding, Bound, Change, Compressed, Compression, Evaluated, Inequa
 export { compress, compression, evaluate, inequalities, symbolsOf, verdictOf } from "./law.ts";
 export type { Stop, StopWay } from "./stops.ts";
 export { DRAIN_RULE_IDS, STOP_RULE, STOPS, lintStop } from "./stops.ts";
+export { DRAIN_RULES, O04, O09, O10, O16 } from "./rules.ts";
 export type { Claim, Epochs, Finding, Scenario, ScenarioValue, ScopedChange, Statistic } from "./lint.ts";
 export { BOUND_RULES, CLOSE_BOUND_RULE, DECLARATION_RULE, LAW_STATISTIC, LIMITER_RULES, NAME_RULE, PLATFORM_MARKS, PROGRESS_RULE, SERVICE_RULES, UNIT_BOUND_RULE, compressionOf, lint, serviceBindings } from "./lint.ts";
 export type { Cancel, Clock, PlatformClockOptions } from "./clock.ts";

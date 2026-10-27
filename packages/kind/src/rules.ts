@@ -1,103 +1,20 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
-import type { Finding, Rule, Scenario, ServiceDescription, StopWay, Verdict } from "@mark1russell7/service";
+import type { Finding, Scenario, ServiceDescription, StopWay, Verdict } from "@mark1russell7/service";
 import { lint, lintStop } from "@mark1russell7/service";
 import { redisClient } from "@mark1russell7/service/redis";
+import { DRAIN_RULES } from "@mark1russell7/service/rules";
 import type { KindCell } from "./cell.ts";
 import { compose } from "./compose.ts";
 import type { Propagation } from "./predict.ts";
 
 /**
- * These are the rules of the ordering law that a drain in Kubernetes meets, as data. The caller of
- * `lint()` gives the rules, thus they are here and not in the service.
+ * The rules of the ordering law that a drain in Kubernetes meets are data in the entry
+ * `@mark1russell7/service/rules` (SYS-32). That entry loads no Testcontainers, thus a service can
+ * import the rules without kind. This module gives them again, thus the exports of kind stay the
+ * same. A kind cell gets the rules that guard the way that its plan stops a pod.
  */
-
-/**
- * O04 with the hold of the service. The listener of a pod stays open through the preStop sleep and
- * then through the hold of `fail readiness`. Thus the sum of the two must cover the propagation of
- * the endpoints. The rule of the research is the case without a hold.
- */
-export const O04: Rule = {
-  id: "O04",
-  rule: "the preStop sleep plus the hold of fail readiness is at least the endpoint propagation",
-  window: "new connections reach a pod whose listener is closed",
-  expr: {
-    lhs: {
-      terms: [
-        { knob: "prestop_sleep", coef: 1, at: "pod" },
-        { knob: "readiness_hold", coef: 1, at: "process" },
-      ],
-    },
-    op: ">=",
-    rhs: { terms: [{ knob: "propagation_bound", coef: 1, at: "cluster" }] },
-  },
-};
-
-/** O09 is W8: readiness detection plus propagation is no longer than liveness detection plus the preStop sleep. */
-export const O09: Rule = {
-  id: "O09",
-  rule: "readiness detection plus endpoint propagation is no longer than liveness detection plus the preStop sleep",
-  window: "traffic reaches a container that its liveness probe kills",
-  expr: {
-    lhs: {
-      terms: [
-        { knob: "readiness_detection_window", coef: 1, at: "pod" },
-        { knob: "propagation_bound", coef: 1, at: "cluster" },
-      ],
-    },
-    op: "<=",
-    rhs: {
-      terms: [
-        { knob: "liveness_detection_window", coef: 1, at: "pod" },
-        { knob: "prestop_sleep", coef: 1, at: "pod" },
-      ],
-    },
-  },
-};
-
-/** O10: the preStop sleep plus the drain of the process fits in the grace period. */
-export const O10: Rule = {
-  id: "O10",
-  rule: "the preStop sleep plus the shutdown of the process fits in the grace period",
-  window: "work in flight at SIGKILL is cut, and each connection closes at once",
-  expr: {
-    lhs: {
-      terms: [
-        { knob: "prestop_sleep", coef: 1, at: "pod" },
-        { knob: "process_drain_time", coef: 1, at: "process" },
-      ],
-    },
-    op: "<=",
-    rhs: { terms: [{ knob: "termination_grace", coef: 1, at: "pod" }] },
-  },
-};
-
-/** O16: the cooperative window is shorter than the drain, which is shorter than the grace less the preStop sleep. */
-export const O16: Rule = {
-  id: "O16",
-  rule: "the cooperative window is shorter than the drain, which is shorter than the grace less the preStop sleep",
-  window: "handlers are cut before they answer, or the drain itself gets SIGKILL",
-  expr: {
-    lhs: { terms: [{ knob: "cooperative_window", coef: 1, at: "process" }] },
-    op: "<",
-    rhs: { terms: [{ knob: "process_drain_time", coef: 1, at: "process" }] },
-  },
-  expr_more: [
-    {
-      lhs: { terms: [{ knob: "process_drain_time", coef: 1, at: "process" }] },
-      op: "<",
-      rhs: {
-        terms: [
-          { knob: "termination_grace", coef: 1, at: "pod" },
-          { knob: "prestop_sleep", coef: -1, at: "pod" },
-        ],
-      },
-    },
-  ],
-};
-
-/** These are the rules of the drain. A kind cell gets the rules that guard the way that its plan stops a pod. */
-export const DRAIN_RULES: readonly Rule[] = [O04, O09, O10, O16];
+export { DRAIN_RULES, O04, O09, O10, O16 } from "@mark1russell7/service/rules";
 
 const seconds = (amount: Quantity): number => valueIn(amount, "s");
 const s = (value: number): Quantity => ({ value, unit: "s" });

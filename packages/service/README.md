@@ -286,6 +286,22 @@ await life.shutdown("the command ended", { code: end.kind === "done" ? items[0] 
 - **The output.** The stage `flush the output` waits for stdout and stderr. Thus the last lines of a command are not cut.
 - **The dependencies.** The phase `tear down dependencies` caps the close of the dependencies at 2 s.
 
+## The drain rules
+
+The caller of `lint()` and `lintStop()` gives the rules. `@mark1russell7/service/rules` gives the rules of the drain as data: `O04`, `O09`, `O10`, `O16` and the list `DRAIN_RULES`. The entry loads no module at run time. Thus it loads no Testcontainers, no `node:` module and no zod, and a service can import it in its tests. The root of the package also gives each rule, and `@mark1russell7/kind` gives the same objects.
+
+- **O04.** The preStop sleep plus the hold of `fail readiness` is at least the propagation of the endpoints.
+- **O09.** Readiness detection plus the propagation is no longer than liveness detection plus the preStop sleep.
+- **O10.** The preStop sleep plus the drain of the process fits in the grace period.
+- **O16.** The cooperative window is shorter than the drain, and the drain is shorter than the grace less the preStop sleep.
+
+```ts
+import { lint } from "@mark1russell7/service";
+import { DRAIN_RULES } from "@mark1russell7/service/rules";
+
+const findings = lint(svc.describe(), scenario, DRAIN_RULES);
+```
+
 ## The timers
 
 The clock, the heartbeat and the backoff have their own entries. Each entry imports no `node:` module, no zod and no other package. Thus a client in a browser can use them. Each entry is less than 1 kB of gzip. The root of the package also gives each function.
