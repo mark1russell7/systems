@@ -174,6 +174,37 @@ const steady = async (ctx: Context, within: number): Promise<string | null> => {
   return why;
 };
 
+/** These taints of the node lifecycle controller mark a node that it does not see as ready. */
+const NODE_LOSS_TAINTS: readonly string[] = ["node.kubernetes.io/unreachable", "node.kubernetes.io/not-ready"];
+
+/**
+ * This function tells why a node is not at rest for the node lifecycle controller, or gives null. A
+ * ready pod is not sufficient after a zone loss. The controller can still see the node as lost, and
+ * then it does not mark the pods again at the next loss. The controller removes its taints only after
+ * it sees the node ready.
+ */
+const nodeUnsteady = async (cluster: Cluster, name: string): Promise<string | null> => {
+  const node = JSON.parse(await cluster.kubectl(["get", "node", name, "-o", "json"])) as {
+    readonly spec?: { readonly taints?: ReadonlyArray<{ readonly key: string }> };
+    readonly status?: { readonly conditions?: ReadonlyArray<{ readonly type: string; readonly status: string }> };
+  };
+  const ready = node.status?.conditions?.find((condition) => condition.type === "Ready")?.status;
+  if (ready !== "True") return `the node ${name} has the Ready condition ${ready ?? "none"}`;
+  const taints = (node.spec?.taints ?? []).map((taint) => taint.key).filter((key) => NODE_LOSS_TAINTS.includes(key));
+  return taints.length === 0 ? null : `the node ${name} has the taints ${taints.join(", ")}`;
+};
+
+/** This function waits until a node is at rest for the node lifecycle controller. It gives null, or the reason when the node is not at rest in time. */
+const nodeSteady = async (cluster: Cluster, name: string, within: number): Promise<string | null> => {
+  const end = Date.now() + within;
+  let why = await nodeUnsteady(cluster, name);
+  while (why !== null && Date.now() < end) {
+    await sleep(1000);
+    why = await nodeUnsteady(cluster, name);
+  }
+  return why;
+};
+
 /** This function samples the load of the VM for 4 s, and names the lab containers that are not of this run. */
 const sample = async (ctx: Context, ours: ReadonlySet<string>): Promise<LoadSample> => {
   const result = await ctx.loader.exec(["top", "-b", "-n", "2", "-d", "4"]);
@@ -561,8 +592,11 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
   await probeThePods(ctx);
   await pollListeners(ctx);
   await quiet(ctx, ours);
-  if ((await steady(ctx, 300_000)) !== null) return empty("the cell was not at rest after the wait for a quiet VM", await lab.now());
   const zoneLoss = cell.trigger.kind === "zone-loss";
+  // the node of a zone loss must be ready for the node lifecycle controller too, with no taint of the last loss
+  const lost = zoneLoss ? await nodeSteady(cluster, lostNodeOf(cluster), 300_000) : null;
+  if (lost !== null) return empty(`the node of the lost zone was not at rest: ${lost}`, await lab.now());
+  if ((await steady(ctx, 300_000)) !== null) return empty("the cell was not at rest after the wait for a quiet VM", await lab.now());
   // the target of a zone loss is the replica of the lost node: the zone spread puts one there
   const replicas = zoneLoss ? lostFirst(replicasOf(ctx), lostNodeOf(cluster)) : replicasOf(ctx);
   if (zoneLoss && replicas[0]?.node !== lostNodeOf(cluster)) return empty(`no replica is on the node of the lost zone, ${lostNodeOf(cluster)}`, await lab.now());
