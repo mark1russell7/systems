@@ -266,7 +266,9 @@ From 0.8.0, a prediction `ends` can be the end of the tunnel of each client (`of
 - The first request of each client after the heal must be `ok`, on a new tunnel. The main value is the middle of the ends, in `s`.
 - From 0.8.1, `ends` has the optional band `answer`. A change to CLOSE_WAIT in that band ± δ also agrees: the peer answers the close of the client, and its FIN comes first. Before the band, the peer closed first.
 
-The optional field `protocol` of a declaration, the type `EdgeProtocol` and the mode h2c of the lab image are new features. They keep the old behavior. Before `1.0.0`, a feature is a patch, thus the next version is `0.11.1`. The record format stays `/2`.
+The optional field `protocol` of a declaration, the type `EdgeProtocol` and the mode h2c of the lab image are new features. The optional field `sharedGate` of a declaration and the function `sharedGate` are new features. They keep the old behavior, thus their release is a patch. The record format stays `/2`.
+
+They keep the old behavior. Before `1.0.0`, a feature is a patch, thus the next version is `0.11.1`. The record format stays `/2`.
 
 A new member of the union `TriggerKind`, `cannot-serve`, breaks a reader that switches on it. That is a breaking change before 1.0.0, thus the next version is 0.11.0. The record format stays `/2`, with the optional fields `connections` of a workload and `lameDuck` of a declaration. The line `client` of the reconnect is a new line of a run.
 
