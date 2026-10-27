@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The source of each fact below is github.com/caddyserver/caddy at the tag v2.11.7 (commit 72dd0fb067f6),
 // with go.mod at go 1.26.0. Its HTTP/2 server and client are golang.org/x/net v0.59.0 http2 (commit

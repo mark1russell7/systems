@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The source of each fact below is aten 0.6.0, the failure detector between the nodes that ra
 // 3.1.10 locks (rebar.lock of ra), as RabbitMQ 4.3.6 ships it in deps/aten. Each line number is a line

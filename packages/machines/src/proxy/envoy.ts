@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The source of each fact below is github.com/envoyproxy/envoy at the tag v1.39.4 (commit 72315c132d46),
 // with its HTTP/2 codec on nghttp2 1.66.0. Each line number is a line of that file at the tag. The short

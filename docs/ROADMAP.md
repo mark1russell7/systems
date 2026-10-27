@@ -352,14 +352,16 @@ The root of the service does not use zod at run time. Thus zod becomes an option
 
 ### SYS-19 · The zod schemas of the algebra in an entry of their own
 
-- **Status:** later
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** SYS-12
-- **Started:**
-- **Shipped:**
+- **Started:** 2026-10-27
+- **Shipped:** 2026-10-27
 - **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 The zod schemas of `@mark1russell7/algebra` move into a new entry, `./schema`, as in `quantity`. Then zod becomes an optional peer of the algebra too. The root of the algebra no longer gives the schemas, thus the change breaks its API and comes in algebra 0.8.0.
+
+`machineSchema` is in `@mark1russell7/algebra/schema`, and a test fails if the root entry imports zod. The machines, the service tests and the cells tests import the schema from that entry.
 
 ### SYS-20 · The OpenTelemetry preload of an ESM service
 

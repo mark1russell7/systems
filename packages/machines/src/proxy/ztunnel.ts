@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The source of each fact below is github.com/istio/ztunnel at the tag 1.31.3, and
 // github.com/istio/istio at the tag 1.31.3 for the node agent of istio-cni and the chart. Each line

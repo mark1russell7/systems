@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The source of each fact below is the source of PostgreSQL at the tag REL_17_11. Each line number
 // is a line of that file at that tag. A ref under doc/ is the documentation at the same tag.

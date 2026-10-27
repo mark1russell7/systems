@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The source of each fact below is the JavaScript source of the npm packages pg at 8.23.1 (under
 // lib/), pg-pool at 3.14.0 and pg-protocol at 1.16.1 (under dist/), as npm publishes them. Each

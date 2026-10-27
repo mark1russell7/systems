@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
-import { machineProblems, machineSchema } from "@mark1russell7/algebra";
+import { machineProblems } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 import { describe, expect, it } from "vitest";
 import type { LifecycleEvent } from "../index.ts";
 import { replay, service } from "../index.ts";

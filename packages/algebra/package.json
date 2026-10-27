@@ -31,6 +31,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./replay": "./src/replay.ts",
+    "./schema": "./src/schema.ts",
     "./package.json": "./package.json"
   },
   "files": [
@@ -54,6 +55,11 @@
   "peerDependencies": {
     "zod": "^4.1.0"
   },
+  "peerDependenciesMeta": {
+    "zod": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@mark1russell7/cue": "github:mark1russell7/cue",
     "@types/node": "^26.6.4",
@@ -74,6 +80,10 @@
       "./replay": {
         "types": "./build/replay.d.ts",
         "default": "./build/replay.js"
+      },
+      "./schema": {
+        "types": "./build/schema.d.ts",
+        "default": "./build/schema.js"
       },
       "./package.json": "./package.json"
     }

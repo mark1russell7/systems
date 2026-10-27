@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Machine } from "./machine.ts";
-import { exprKnobs, fromStates, machineProblems, machineSchema, readsFired } from "./machine.ts";
+import { exprKnobs, fromStates, machineProblems, readsFired } from "./machine.ts";
+import { machineSchema } from "./schema.ts";
 
 // The schema and the consistency checks on a small machine that this file writes. The real
 // documents, and their checks, are in @mark1russell7/machines.

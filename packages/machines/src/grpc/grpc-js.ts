@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The source of each fact below is the TypeScript source of the npm package @grpc/grpc-js at 1.14.6,
 // as its tarball gives it (under src/). Each line number is a line of that file in the tarball. 1.14.6

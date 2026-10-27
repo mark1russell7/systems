@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The source of each fact below is github.com/nginx/nginx at the tag release-1.29.6. Each line number is a
 // line of that file at that tag. The tag release-1.29.7 has the same src/http/v2, ngx_http_upstream.c,

@@ -1,4 +1,5 @@
-import { machineProblems, machineSchema } from "@mark1russell7/algebra";
+import { machineProblems } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 import { describe, expect, it } from "vitest";
 import type { JobSettle, JobSource, LifecycleEvent } from "../index.ts";
 import { replay, service } from "../index.ts";

@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The source of each fact below is github.com/traefik/traefik at the tag v3.7.15 (commit 351a5ab1e884),
 // with fsnotify v1.10.1 and paerser v0.2.2 from its go.mod. h2 is src/net/http/h2_bundle.go of go1.26.9,

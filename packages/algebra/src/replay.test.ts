@@ -4,9 +4,10 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import * as root from "./index.ts";
 import type { Machine } from "./machine.ts";
-import { machineProblems, machineSchema } from "./machine.ts";
+import { machineProblems } from "./machine.ts";
 import type { Transition } from "./replay.ts";
 import { replay } from "./replay.ts";
+import { machineSchema } from "./schema.ts";
 
 /** A machine of another program, with its own names: a door, with "*" for each state that is not final. */
 const DOOR: Machine = {
@@ -104,6 +105,12 @@ const packagesOf = (entry: string): string[] => {
 describe("the entry @mark1russell7/algebra/replay", () => {
   it("loads no other package: no zod, no quantity", () => {
     expect(packagesOf("replay.ts")).toEqual([]);
-    expect(packagesOf("index.ts")).toContain("zod");
+  });
+});
+
+describe("the entries of the package", () => {
+  it("load zod only from the entry @mark1russell7/algebra/schema", () => {
+    expect(packagesOf("index.ts")).toEqual(["@mark1russell7/quantity"]);
+    expect(packagesOf("schema.ts")).toEqual(["@mark1russell7/quantity/schema", "zod"]);
   });
 });

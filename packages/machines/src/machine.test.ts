@@ -1,5 +1,6 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { algebraProblems, detection, machineProblems, machineSchema, realizationOf, timerOf, transitionOn } from "@mark1russell7/algebra";
+import { algebraProblems, detection, machineProblems, realizationOf, timerOf, transitionOn } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 import { describe, expect, it } from "vitest";
 import * as root from "./index.ts";
 import {

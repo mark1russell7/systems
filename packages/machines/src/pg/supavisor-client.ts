@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The source of each fact below is the Elixir source of Supavisor at the tag v2.9.13 of
 // github.com/supabase/supavisor. Each line number is a line of that file at the tag. A fact of the

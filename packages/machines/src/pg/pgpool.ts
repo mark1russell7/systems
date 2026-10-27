@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The source of each fact below is the C source of Pgpool-II at the tag V4_7_3 (commit
 // 07d24655e42dfdbfe2e7549df6166e057b99b622, the tarball of GitHub with SHA-256 e48ff26f...e2acd2).

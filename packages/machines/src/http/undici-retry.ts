@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 import { NODE_TIMER_EARLY, nodeTimerLateness } from "./timers.ts";
 
 const AT = "undici 8.12.2 lib/handler/retry-handler.js";

@@ -281,7 +281,7 @@ In this repository, a snapshot of the predictions of the cells (`packages/cells/
 pnpm add @mark1russell7/machines @mark1russell7/algebra zod
 ```
 
-The package uses `@mark1russell7/algebra` for the type `Machine` and the schema `machineSchema`. The algebra does not use this package. Both packages use `zod` as a peer dependency.
+The package uses `@mark1russell7/algebra` for the type `Machine`, and its entry `@mark1russell7/algebra/schema` for the schema `machineSchema`. The algebra does not use this package. This package reads each document with the schema, thus it needs `zod` as a peer dependency. For the algebra, `zod` is an optional peer dependency.
 
 ## Tests
 

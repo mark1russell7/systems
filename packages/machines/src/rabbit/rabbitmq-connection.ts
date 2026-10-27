@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The source of each fact below is the Erlang source of RabbitMQ at the tag v4.3.6 of
 // github.com/rabbitmq/rabbitmq-server, and of ranch at 2.3.0, the version that RabbitMQ locks

@@ -311,8 +311,10 @@ try {
     if (name === "@mark1russell7/algebra") {
       const node = module.parseExpr("idle + interval * probes");
       check(typeof node === "object" && node !== null, "algebra parses an expression of a timer");
-      const old = module.machineSchema.safeParse({ format: "jarvis.machine/1" });
-      check(old.success === false, "algebra refuses a machine document of another format");
+      // the schema is in an entry of its own, and the root does not give it
+      const schemaEntry = await load("@mark1russell7/algebra/schema");
+      const old = schemaEntry.machineSchema.safeParse({ format: "jarvis.machine/1" });
+      check(old.success === false && !("machineSchema" in module), "algebra/schema refuses a machine document of another format");
       // a window that nothing bounds: the cap less it is no bound below, which a max discards
       const doc = { title: "t", knobs: { cap: { unit: "s" }, open: { unit: "s" } } };
       const cap = module.evaluate(doc, { expr: "max(cap - open, cap / 2)", unit: "s" }, (knob) => (knob === "cap" ? s(120) : { value: "infinite", unit: "s" }));
@@ -329,10 +331,11 @@ try {
     if (name === "@mark1russell7/machines") {
       // the documents, read by the algebra as an application installs both
       const algebra = await load("@mark1russell7/algebra");
+      const { machineSchema } = await load("@mark1russell7/algebra/schema");
       const documents = Object.values(module.MACHINES);
       check(documents.length === 42 && module.MACHINES["haproxy-tcp"] === module.HAPROXY_TCP && module.MACHINES["ztunnel-hbone"] === module.ZTUNNEL_HBONE && module.MACHINES["istio-sidecar-outbound"] === module.ISTIO_SIDECAR_OUTBOUND &&module.MACHINES["istio-sidecar-inbound"] === module.ISTIO_SIDECAR_INBOUND && module.MACHINES["pilot-agent"] === module.PILOT_AGENT && module.MACHINES["traefik-http2"] === module.TRAEFIK_HTTP2 && module.MACHINES["nginx-grpc"] === module.NGINX_GRPC && module.MACHINES["undici-retry-agent"] === module.UNDICI_RETRY && module.MACHINES["caddy-http2"] === module.CADDY_HTTP2 && module.MACHINES["envoy-http2"] === module.ENVOY_HTTP2 && module.MACHINES["toxiproxy-link"] === module.TOXIPROXY_LINK && module.MACHINES["docker-proxy-link"] === module.DOCKER_PROXY_LINK && module.MACHINES["grpc-js"] === module.GRPC_JS && module.MACHINES["grpc-go-server"] === module.GRPC_GO_SERVER && module.MACHINES["etcd-server"] === module.ETCD_SERVER && module.MACHINES["amqplib"] === module.AMQPLIB &&module.MACHINES["rabbitmq-connection"] === module.RABBITMQ_CONNECTION && module.MACHINES["aten"] === module.ATEN_DETECTOR && module.MACHINES["ra-member"] === module.RA_MEMBER && module.MACHINES["linux-tcp"] === module.LINUX_TCP && module.MACHINES["postgres-session"] === module.POSTGRES_SESSION && module.MACHINES["pgbouncer-client"] === module.PGBOUNCER_CLIENT && module.MACHINES["pgbouncer-server"] === module.PGBOUNCER_SERVER && module.MACHINES["pgpool-session"] === module.PGPOOL_SESSION && module.MACHINES["supavisor-client"] === module.SUPAVISOR_CLIENT && module.MACHINES["supavisor-server"] === module.SUPAVISOR_SERVER, "machines gives each document by its identifier");
       check(
-        documents.every((doc) => algebra.machineSchema.safeParse(doc).success && algebra.machineProblems(doc).length === 0),
+        documents.every((doc) => machineSchema.safeParse(doc).success && algebra.machineProblems(doc).length === 0),
         "machines holds only documents that the algebra accepts",
       );
       const linux = (knob) => ({ keepidle: s(7200), keepintvl: s(75), keepcnt: { value: 9, unit: "count" } })[knob];
