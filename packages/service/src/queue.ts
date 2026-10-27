@@ -126,7 +126,7 @@ export interface QueueDrain extends TransportImpl {
   readonly knobs: QueueKnobs;
   /** This method ends the wait of a poll at once, for example when a job comes. It gives false after the intake stops. */
   wake(): boolean;
-  /** This method gives the problems of the knobs in a declaration: the close bound and the bound of a job against the caps. */
+  /** This method gives the problems of a declaration: each phase that the drain needs and that it does not give. `lint()` compares the bounds with the caps. */
   problems(description: ServiceDescription): string[];
 }
 
@@ -423,7 +423,7 @@ export const queueDrain = <J>(knobs: QueueKnobs, options: QueueDrainOptions<J>):
       return closing;
     },
     problems(description) {
-      return boundProblems(OWNER, closeBound, bound, description);
+      return boundProblems(OWNER, description);
     },
   };
 };

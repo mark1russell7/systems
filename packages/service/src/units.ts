@@ -2,7 +2,6 @@
 // drain to a deadline with the cooperative abort, the sleeps on the clock, the bound of each unit,
 // and the request tracking of the service for each unit.
 
-import { valueIn } from "@mark1russell7/quantity";
 import type { Backoff } from "./backoff.ts";
 import { backoffProblems } from "./backoff.ts";
 import type { Cancel, Clock } from "./clock.ts";
@@ -302,24 +301,14 @@ export const retryOf = (knobs: KnobRecord, owner: string): Backoff => {
 };
 
 /**
- * This function gives the problems of the bounds of a loop in a declaration. The close bound fits
- * in the cap of `close transports`. The bound of a unit fits in the cap of `drain`, or the drain can cut a unit (S6 A10).
+ * This function gives the problems of a loop in a declaration: each phase that the loop needs and
+ * that the declaration does not give. A loop closes in `close transports`, and it ends its units in
+ * `drain`. `lint()` compares the bounds with the caps of the phases (`BOUND_RULES`, S6 A10).
  */
-export const boundProblems = (owner: string, closeBound: number, unitBound: number, description: ServiceDescription): string[] => {
-  const capOf = (name: string): number | undefined => {
-    const phase = description.shutdown.phases.find((each) => each.name === name);
-    return phase === undefined ? undefined : valueIn(phase.cap, "ms");
-  };
-  const found: string[] = [];
-  const close = capOf("close transports");
-  if (close === undefined) found.push(`${owner} needs the phase "close transports" to close`);
-  else if (closeBound >= close)
-    found.push(`the close_bound of ${owner}, ${closeBound} ms, does not fit in the cap of "close transports", ${close} ms`);
-  const drain = capOf("drain");
-  if (drain === undefined) found.push(`${owner} needs the phase "drain" to end its units`);
-  else if (!Number.isFinite(unitBound))
-    found.push(`the unit_processing_time of ${owner} has no bound, thus the drain can cut a unit at its cap of ${drain} ms`);
-  else if (unitBound >= drain)
-    found.push(`the unit_processing_time of ${owner}, ${unitBound} ms, does not fit in the cap of "drain", ${drain} ms`);
-  return found;
+export const boundProblems = (owner: string, description: ServiceDescription): string[] => {
+  const has = (name: string): boolean => description.shutdown.phases.some((each) => each.name === name);
+  return [
+    ...(has("close transports") ? [] : [`${owner} needs the phase "close transports" to close`]),
+    ...(has("drain") ? [] : [`${owner} needs the phase "drain" to end its units`]),
+  ];
 };

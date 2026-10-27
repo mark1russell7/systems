@@ -5,7 +5,7 @@ import { runInNewContext } from "node:vm";
 import { afterAll, describe, expect, it } from "vitest";
 import type { Clock } from "./clock.ts";
 import type { JobSettle, Lifecycle, QueueKnobs, ServiceBuilder } from "./index.ts";
-import { lint, queueDrain, redeliverOnce, service } from "./index.ts";
+import { CLOSE_BOUND_RULE, UNIT_BOUND_RULE, lint, queueDrain, redeliverOnce, service } from "./index.ts";
 import type { Rule } from "./law.ts";
 import type { ConformanceRecord, FakeClock, HeldWork, TransportSubject } from "./testing.ts";
 import { detachedLifecycle, fakeClock, fakeProcess, transportConformance } from "./testing.ts";
@@ -524,7 +524,7 @@ describe("queueDrain: the jobs of a source (S6 A11)", () => {
 });
 
 describe("queueDrain in a service: the declaration, the law and the request tracking", () => {
-  it("gives its knobs to describe(), lint() applies O20 to each consumer, and problems() reads the caps", () => {
+  it("gives its knobs to describe(), and lint() applies O20 and the rules of the bounds to each consumer", () => {
     const O20: Rule = {
       id: "O20",
       rule: "Progress-liveness and lease windows exceed the legitimate processing time of one unit, with margin",
@@ -545,9 +545,17 @@ describe("queueDrain in a service: the declaration, the law and the request trac
     expect(description.transports).toEqual([{ name: "jobs", kind: "consumer", knobs: { ...KNOBS, unit_processing_time: s(20) } }]);
     // the visibility timeout of SQS at its default, 30 s, against a job of 20 s
     const findings = lint(description, { platform: {}, probes: { readiness: s(10), liveness: s(30) }, transports: { jobs: { "lease_duration@broker": s(30) } } }, [O20]);
-    expect(findings.map((finding) => [finding.rule, finding.scope, finding.verdict])).toEqual([["O20", "jobs", "holds"]]);
-    // a job of 20 s does not fit in a drain of 10 s
-    expect(drain.problems(description)).toEqual(['the unit_processing_time of queueDrain, 20000 ms, does not fit in the cap of "drain", 10000 ms']);
+    // a job of 20 s does not fit in a drain of 10 s, and a close of 2 s fits in a phase of 3 s
+    expect(findings.map((finding) => [finding.rule, finding.scope, finding.verdict])).toEqual([
+      ["O20", "jobs", "holds"],
+      [UNIT_BOUND_RULE, "jobs", "violated"],
+      [CLOSE_BOUND_RULE, "jobs", "holds"],
+    ]);
+    expect(findings.find((finding) => finding.rule === UNIT_BOUND_RULE)?.evaluated).toEqual([{ lhs: 20, rhs: 10, margin: 0, holds: false }]);
+    // problems() gives only the phases that the drain needs, and the declaration gives each one
+    expect(drain.problems(description)).toEqual([]);
+    const bare = { ...description, shutdown: { ...description.shutdown, phases: [] } };
+    expect(drain.problems(bare)).toEqual(['queueDrain needs the phase "close transports" to close', 'queueDrain needs the phase "drain" to end its units']);
   });
 
   it("puts each job through life.request: a cut job of an idempotent route goes back, and another gets reject", async () => {

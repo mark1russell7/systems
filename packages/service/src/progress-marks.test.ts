@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Check, Finding, Poll, ServiceBuilder, ServiceDescription, WorkerKnobs } from "./index.ts";
-import { PROGRESS_RULE, lint, service, workerLoop } from "./index.ts";
+import { BOUND_RULES, PROGRESS_RULE, lint, service, workerLoop } from "./index.ts";
 import type { Result } from "./latch.ts";
 import { poller } from "./poller.ts";
 import { detachedLifecycle, fakeClock } from "./testing.ts";
@@ -128,7 +128,8 @@ describe("lint() compares the stall time of a progress check with its loops (SYS
     const description = declared().describe();
     expect(description.checks.find((check) => check.name === "process.progress")).not.toHaveProperty("marks");
     expect(progressOf(description)).toEqual([]);
-    expect(lint(description, SCENARIO, [])).toEqual([]);
+    // the findings of the bounds of each loop (SYS-23) come from the knobs, not from the marks
+    expect(lint(description, SCENARIO, []).filter((finding) => !BOUND_RULES.some((rule) => rule.id === finding.rule))).toEqual([]);
   });
 
   it("exports the marks as data, and describe() refuses marks that cannot apply", () => {

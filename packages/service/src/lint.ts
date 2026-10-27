@@ -268,6 +268,13 @@ export const serviceBindings = (
       ? "no fail readiness phase: the intake stops at once after the signal"
       : "the cap of the fail readiness phase, which holds while the endpoints update",
   );
+  // the rules of the bounds read the cap of one phase, and `process_drain_time@process` is the sum of all the caps
+  const capOf = (name: string): number | undefined => {
+    const phase = svc.shutdown.phases.find((each) => each.name === name);
+    return phase === undefined ? undefined : secondsOf(phase.cap);
+  };
+  set("drain_phase_cap@process", capOf("drain"), "the cap of the drain phase alone");
+  set("close_phase_cap@process", capOf("close transports"), "the cap of the close transports phase alone");
   bindScenario(scenario.platform, (symbol) => symbol, bind, epochs);
   for (const [symbol, epoch] of Object.entries(epochs)) {
     if (bind[symbol] === undefined) delete from[symbol];
@@ -482,6 +489,50 @@ const progressFindings = (svc: ServiceDescription): Finding[] => {
   return findings;
 };
 
+/** This identifier is the rule of the findings about the bound of a unit against the cap of the `drain` phase. */
+export const UNIT_BOUND_RULE = "unit-bound";
+
+/** This identifier is the rule of the findings about the close bound against the cap of the `close transports` phase. */
+export const CLOSE_BOUND_RULE = "close-bound";
+
+/**
+ * These are the rules of the bounds of a loop. Each one applies one time for each consumer and
+ * each worker (S6 A10, A11). `lint()` gives them, as it gives `PROGRESS_RULE`.
+ * - unit-bound: `unit_processing_time` is less than the cap of the `drain` phase. Otherwise the
+ *   drain can cut a unit that ends in its bound. A unit without a bound violates the rule.
+ * - close-bound: `close_bound` is less than the cap of the `close transports` phase. Otherwise the
+ *   phase can end before the loop closes.
+ *
+ * The corpus of the law (R3) does not have these rules, thus they have identifiers of the service,
+ * not O-numbers. The symbols `drain_phase_cap@process` and `close_phase_cap@process` are the caps of
+ * one phase. `process_drain_time@process` is the sum of the caps of all the phases. A phase that the
+ * declaration does not give binds no symbol, thus its finding is `depends`.
+ */
+export const BOUND_RULES: readonly Rule[] = [
+  {
+    id: UNIT_BOUND_RULE,
+    rule: "the bound of one unit of a consumer or a worker is less than the cap of the drain phase",
+    window: "the drain can cut a unit that ends in its bound",
+    expr: {
+      lhs: { terms: [{ knob: "unit_processing_time", coef: 1, at: "consumer" }] },
+      op: "<",
+      rhs: { terms: [{ knob: "drain_phase_cap", coef: 1, at: "process" }] },
+      margin: 0,
+    },
+  },
+  {
+    id: CLOSE_BOUND_RULE,
+    rule: "the close bound of a consumer or a worker is less than the cap of the close transports phase",
+    window: "the phase can end before the loop closes",
+    expr: {
+      lhs: { terms: [{ knob: "close_bound", coef: 1, at: "consumer" }] },
+      op: "<",
+      rhs: { terms: [{ knob: "close_phase_cap", coef: 1, at: "process" }] },
+      margin: 0,
+    },
+  },
+];
+
 /** This function gives the scopes of a rule that reads these symbols: the service, each client, each consumer and worker, or each limiter. */
 const scopesOf = (
   svc: ServiceDescription,
@@ -554,11 +605,37 @@ export const compressionOf = (
   return { changed, unmarked: [...unmarked] };
 };
 
+/** This function gives the findings of one rule, one for each scope of the rule. */
+const findingsOf = (
+  svc: ServiceDescription,
+  scenario: Scenario,
+  service: { readonly bind: Binding; readonly epochs: Epochs },
+  rule: Rule,
+): Finding[] => {
+  const symbols = symbolsOf(rule);
+  return scopesOf(svc, scenario, service, symbols).map(([scope, bind, all]) => {
+    const evaluated = evaluate(rule, bind);
+    const epochs = epochsOf(symbols, all);
+    return {
+      rule: rule.id,
+      scope,
+      verdict: verdictOf(rule, bind, evaluated),
+      statement: rule.rule,
+      ...(rule.window !== undefined ? { window: rule.window } : {}),
+      evaluated,
+      unbound: symbols.filter((symbol) => bind[symbol] === undefined),
+      // a scenario of plain amounts names no epoch, thus its findings stay as they were
+      ...(Object.values(epochs).some((epoch) => epoch !== null) ? { epochs } : {}),
+    };
+  });
+};
+
 /**
  * This function applies each service rule to a declaration and a scenario. A rule applies one time
  * for the service, for each client, for each consumer and worker, or for each limiter. The function
  * also gives a finding for each necessary field that the description does not give (`DECLARATION_RULE`).
- * Each progress check that names its loops also gets its findings (`PROGRESS_RULE`).
+ * Each progress check that names its loops also gets its findings (`PROGRESS_RULE`). The findings
+ * of the bounds of each consumer and each worker come last (`BOUND_RULES`).
  */
 export const lint = (
   svc: ServiceDescription,
@@ -566,25 +643,10 @@ export const lint = (
   rules: readonly Rule[],
 ): Finding[] => {
   const service = serviceBindings(svc, scenario);
-  const findings: Finding[] = [...declarationFindings(svc), ...progressFindings(svc)];
-  for (const rule of rules) {
-    if (!SERVICE_RULES.includes(rule.id)) continue;
-    const symbols = symbolsOf(rule);
-    for (const [scope, bind, all] of scopesOf(svc, scenario, service, symbols)) {
-      const evaluated = evaluate(rule, bind);
-      const epochs = epochsOf(symbols, all);
-      findings.push({
-        rule: rule.id,
-        scope,
-        verdict: verdictOf(rule, bind, evaluated),
-        statement: rule.rule,
-        ...(rule.window !== undefined ? { window: rule.window } : {}),
-        evaluated,
-        unbound: symbols.filter((symbol) => bind[symbol] === undefined),
-        // a scenario of plain amounts names no epoch, thus its findings stay as they were
-        ...(Object.values(epochs).some((epoch) => epoch !== null) ? { epochs } : {}),
-      });
-    }
-  }
-  return findings;
+  return [
+    ...declarationFindings(svc),
+    ...progressFindings(svc),
+    ...rules.filter((rule) => SERVICE_RULES.includes(rule.id)).flatMap((rule) => findingsOf(svc, scenario, service, rule)),
+    ...BOUND_RULES.flatMap((rule) => findingsOf(svc, scenario, service, rule)),
+  ];
 };

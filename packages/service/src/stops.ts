@@ -1,7 +1,7 @@
 import type { ServiceDescription } from "./description.ts";
 import type { Rule } from "./law.ts";
 import type { Finding, Scenario } from "./lint.ts";
-import { lint } from "./lint.ts";
+import { BOUND_RULES, lint } from "./lint.ts";
 
 /**
  * This module keeps apart the four ways that a pod stops (B11). Each way runs a different part of
@@ -55,7 +55,8 @@ export const STOP_RULE = "stop";
  * This function applies the rules to a declaration for one way of stopping. A rule of the drain
  * applies only when it guards that way. The other rules apply as `lint()` applies them. A way with
  * no drain also gets a finding of `STOP_RULE` that depends. No rule bounds the time until the
- * kubelet finds the exit, and the work in flight is lost.
+ * kubelet finds the exit, and the work in flight is lost. Such a way starts no phase, thus it gets no
+ * finding of `BOUND_RULES`.
  */
 export const lintStop = (svc: ServiceDescription, scenario: Scenario, rules: readonly Rule[], way: StopWay): Finding[] => {
   const stop = STOPS[way];
@@ -63,7 +64,7 @@ export const lintStop = (svc: ServiceDescription, scenario: Scenario, rules: rea
   const findings = lint(svc, scenario, applies);
   if (stop.drain) return findings;
   return [
-    ...findings,
+    ...findings.filter((finding) => !BOUND_RULES.some((rule) => rule.id === finding.rule)),
     {
       rule: STOP_RULE,
       scope: svc.name,
