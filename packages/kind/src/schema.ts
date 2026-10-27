@@ -233,6 +233,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     cycles: z.array(z.object({ empty: a.nullable(), ready: a.nullable() })).optional(),
     sessions: z.object({ onTarget: count, of: count, byClient: z.record(z.string(), count) }).optional(),
     stall: z.object({ start: a.nullable(), held: a.nullable() }).optional(),
+    period: z.object({ median: a, mean: a, low: a, high: a, intervals: count, byClient: z.record(z.string(), a) }).optional(),
   });
   const verdict = z.object({
     decision: z.enum(["holds", "fails", "extend", "measured", "calibration", "void"]),

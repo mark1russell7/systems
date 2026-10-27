@@ -3,7 +3,7 @@ import { valueIn } from "@mark1russell7/quantity";
 import { seconds, secondsOf } from "./bands.ts";
 import type { Cycle, KindCell, KindRun, Prediction, Reference, ResetReuse, WindowPrediction } from "./cell.ts";
 import { PORT, SERVER } from "./names.ts";
-import type { Line, PropagationSource, Request, Sessions } from "./observe.ts";
+import type { Line, Period, PropagationSource, Request, Sessions } from "./observe.ts";
 import {
   HBONE_PORT,
   backendsAt,
@@ -15,6 +15,7 @@ import {
   failuresOf,
   intakeOf,
   outcomesOf,
+  periodOf,
   podsOf,
   requestsOf,
   restartOf,
@@ -105,6 +106,12 @@ export interface RunFacts<A = Quantity> {
    * stayed blocked. The app writes a line at each end of the stall. A run with no such line gives null.
    */
   readonly stall?: { readonly start: A | null; readonly held: A | null } | undefined;
+  /**
+   * This is the measured period of the clients (`periodOf`): the interval between two requests in
+   * sequence of one client. It comes from the request lines of the counted span of the run. A run
+   * with fewer than 2 requests of each client does not have it. A record before SYS-41 does not have it.
+   */
+  readonly period?: Period<A> | undefined;
 }
 
 /** A deleted replica is a replica of a run that got a deletion. It gives its pod, and the stamps of its intake (or null) and of its deletion. */
@@ -362,6 +369,7 @@ export const factsOf = (cell: KindCell, run: KindRun): RunFacts => {
   const intake = referenceOf(run, "intake");
   const crash = cell.trigger.kind === "crash" ? run.acts.fault : null;
   const from = deletion ?? crash;
+  const period = periodOf(lines, run.start, run.end);
   return {
     failures: failures.length,
     outcomes: outcomesOf(failures),
@@ -381,8 +389,22 @@ export const factsOf = (cell: KindCell, run: KindRun): RunFacts => {
       ? { sessions: sessionsAt(lines, run.acts.fault, run.target.pod, cell.workload.connections) }
       : {}),
     ...(cell.trigger.kind === "app-stall" ? { stall: stallFactOf(run) } : {}),
+    ...(period === null ? {} : { period: periodFact(period) }),
   };
 };
+
+/** This function gives a time in milliseconds in seconds, to the microsecond. A period of a client is approximately 10 ms, thus a whole millisecond is too coarse. */
+const fine = (ms: number): Quantity => seconds(Math.round(ms * 1000) / 1e6);
+
+/** This function gives the period of the clients (`periodOf`) with each time in seconds. */
+const periodFact =(period: Period): Period<Quantity> => ({
+  median: fine(period.median),
+  mean: fine(period.mean),
+  low: fine(period.low),
+  high: fine(period.high),
+  intervals: period.intervals,
+  byClient: Object.fromEntries(Object.entries(period.byClient).map(([client, ms]) => [client, fine(ms)])),
+});
 
 /**
  * This function gives the stall of the target in a run. It is the start of its line `stall` after the
