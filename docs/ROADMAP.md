@@ -616,7 +616,7 @@ It comes in machines as a PATCH: a new export before 1.0.0.
 - **Depends on:**
 - **Started:** 2026-10-27
 - **Shipped:** 2026-10-27
-- **Links:** [template #26](https://github.com/mark1russell7/template/pull/26), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Links:** [#228](https://github.com/mark1russell7/systems/pull/228), [template #26](https://github.com/mark1russell7/template/pull/26), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 The entry `@mark1russell7/service/rules` gives O04, O09, O10, O16 and `DRAIN_RULES` as data, and it loads no module at run time. Kind imports the rules from the entry and gives them again, thus the exports of kind do not change.
 
