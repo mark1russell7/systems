@@ -1,7 +1,7 @@
 // The composition of the service of a kind cell. The app of the image and `lint()` compose the same
 // service from the same declaration: the image copies this file, and Node strips its types. Thus
 // this file imports only packages and types.
-import type { CheckFn, HealthServer, ServiceBuilder, TransportImpl } from "@mark1russell7/service";
+import type { CheckFn, Coupling, Health, HealthServer, ProbeAnswer, ServiceBuilder, TransportImpl } from "@mark1russell7/service";
 import { service } from "@mark1russell7/service";
 import type { RedisClient } from "@mark1russell7/service/redis";
 import type { Declaration } from "./cell.ts";
@@ -21,6 +21,38 @@ export const ROUTE = "GET /work";
 export const FLAG_CHECK = "self.flag";
 /** This name is the watchdog of the event loop. */
 export const WATCHDOG = "self.event-loop";
+
+/**
+ * This function gives the health server of the shared gate (S6, candidate E). Its readiness probe
+ * leaves out each check of `dependency`, a dependency that each replica shares. The controller still
+ * reads each check, thus the service still refuses each request at once with a 503. The other
+ * probes, and the readiness of a controller, answer as before.
+ *
+ * The probe passes when the service is started and not in the drain, and liveness does not fail
+ * readiness through a coupling. Each readiness check of another dependency, or of no dependency,
+ * must also be released.
+ */
+export const sharedGate = (server: HealthServer, dependency: string, couplings: readonly Coupling[]): HealthServer => {
+  const gated = (health: Health): Health => ({
+    verdict: () => health.verdict(),
+    metrics: () => health.metrics(),
+    subscribe: (listener) => health.subscribe(listener),
+    forceFail: (name, on) => health.forceFail(name, on),
+    drain: () => health.drain(),
+    stop: () => health.stop(),
+    probe(kind, controller): ProbeAnswer {
+      const answer = health.probe(kind, controller);
+      if (kind !== "readiness" || controller !== undefined) return answer;
+      const verdict = health.verdict();
+      const coupled = couplings.some((coupling) => coupling.from === "liveness" && coupling.to === "readiness") && !verdict.alive;
+      const checks = Object.values(verdict.checks).every((check) => check.gates !== "readiness" || check.dependency === dependency || check.tripped !== true);
+      const dependencies = Object.entries(verdict.dependencies).every(([name, up]) => name === dependency || up);
+      const pass = verdict.started && !verdict.draining && !coupled && checks && dependencies;
+      return { ...answer, status: pass ? 200 : 503, body: { ...answer.body, status: pass ? "pass" : "fail" } };
+    },
+  });
+  return { listen: (health) => server.listen(gated(health)), close: () => server.close() };
+};
 
 /**
  * This function composes the service of a declaration: its policies, its couplings, its checks,
@@ -64,7 +96,10 @@ export const compose = (name: string, declaration: Declaration, parts: Parts = {
   const controller = svc.controller(CONTROLLER);
   if (declaration.redis !== null) controller.requires(parts.redis!.name);
   controller.route(ROUTE, { idempotent: true });
-  if (parts.health !== undefined) svc.healthServer(parts.health);
+  // the shared gate keeps the checks of Redis out of the readiness that the kubelet reads
+  if (declaration.sharedGate === true && declaration.redis === null) throw new Error(`${name} has the shared gate, but it declares no Redis`);
+  if (parts.health !== undefined)
+    svc.healthServer(declaration.sharedGate === true ? sharedGate(parts.health, parts.redis!.name, declaration.couplings) : parts.health);
   for (const [stage, cap] of declaration.phases) svc.phase(stage, cap);
   return svc;
 };

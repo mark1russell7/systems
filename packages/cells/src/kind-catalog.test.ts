@@ -60,11 +60,12 @@ import {
   targetConnections,
 } from "./callers.ts";
 import type { CallerFault } from "./callers.ts";
+import { FAULT_LAG, GATE, GATE_CELLS, GATE_FAULTS, gateCannotServeOf, gateDependencyOf } from "./gate.ts";
 import { CHART_READINESS, DESIGN_REDIS, KUBE_PROBE, PROPAGATION, SYN_SENT, afterSync, s } from "./kind.ts";
 import { T07_CELLS } from "./t07.ts";
 import { T18_CELLS } from "./t18.ts";
 
-const ALL: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...CALLERS_CELLS];
+const ALL: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...CALLERS_CELLS, ...GATE_CELLS];
 
 /** This function gives the propagation that a cell meets. It is the pause of kube-proxy on one node, the wait after a sync in a rolling update, or the calibration of its mode. */
 const propagationOf = (cell: KindCell) => {
@@ -77,7 +78,7 @@ const propagationOf = (cell: KindCell) => {
 
 describe("the kind catalogs", () => {
   it("names each cell by a cell of the plan, or as a calibration, and each name once", () => {
-    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(iptables|ipvs|nftables)\.(endpoints|lame-duck|goaway|session-check)(\.partition|\.stall|\.prober|\.dependency|\.flapping|\.zone|\.slow)?$/);
+    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(iptables|ipvs|nftables)\.(endpoints|lame-duck|goaway|session-check|shared-gate)(\.partition|\.stall|\.prober|\.dependency|\.flapping|\.zone|\.slow)?$/);
     expect(new Set(ALL.map((cell) => cell.name)).size).toBe(ALL.length);
     expect(new Set(ALL.map(namespaceOf)).size).toBe(ALL.length);
   });
@@ -692,3 +693,55 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
 
 /** This function tells if a candidate is C or D: one session of HTTP/2 for each client. */
 const inBandOnHttp2 = (candidate: Candidate): boolean => candidate === "in band on HTTP/2 (GOAWAY)" || candidate === "in band on HTTP/2 with a session check";
+
+describe("the S6 cells of the shared gate (E)", () => {
+  const b = (mode: (typeof CALLERS_MODES)[number], fault: CallerFault): KindCell =>
+    CALLERS_CELLS.find((cell) => cell.mode === mode && callerFaultOf(cell) === fault && cell.name.endsWith(": in band (lame duck)"))!;
+
+  it("has one cell of E for each incident and each mode, and each cell is B with the gate", () => {
+    expect(GATE_CELLS.map((cell) => cell.id)).toEqual(
+      GATE_FAULTS.flatMap((fault) =>
+        CALLERS_MODES.map((mode) => `S2.T07.${mode}.shared-gate${fault === "cannot serve" ? "" : fault === "shared dependency" ? ".dependency" : ".flapping"}`),
+      ),
+    );
+    for (const cell of GATE_CELLS) {
+      const fault = callerFaultOf(cell);
+      const same = b(cell.mode, fault);
+      expect(cell.name.endsWith(`: ${GATE}`), cell.name).toBe(true);
+      expect(cell.declaration?.sharedGate, cell.name).toBe(true);
+      expect(cell.declaration?.redis, cell.name).toEqual(DESIGN_REDIS.redis);
+      expect({ ...cell.declaration, sharedGate: undefined, redis: same.declaration?.redis }, cell.name).toEqual({ ...same.declaration, sharedGate: undefined });
+      expect(cell.trigger, cell.name).toEqual(same.trigger);
+      expect(cell.workload, cell.name).toEqual(same.workload);
+      expect(cell.pod, cell.name).toEqual(same.pod);
+    }
+  });
+
+  it("predicts that no replica leaves in a shared dependency, with the failed requests of A", () => {
+    for (const mode of CALLERS_MODES) {
+      const one = gateDependencyOf(mode, 1);
+      const flaps = gateDependencyOf(mode, FLAP_FAULTS);
+      const a = flappingOf(mode, "endpoints only");
+      expect(one.expected).toEqual(a.each);
+      expect(flaps.expected).toEqual(a.expected);
+      expect(one.end).toEqual({ lo: s(0), hi: a.end.hi });
+      expect(valueIn(one.start.hi, "s")).toBeCloseTo(0.02 + valueIn(FAULT_LAG, "s"), 6);
+      // the gate cannot cut the failed requests by half: each request in the hold fails
+      expect(one.expected.lo.value).toBeGreaterThan(valueIn(DEPENDENCY_HOLD, "s") * 3 * 45);
+      for (const cell of GATE_CELLS.filter((each) => each.mode === mode && callerFaultOf(each) !== "cannot serve")) expect(cell.prediction.kind).toBe("stays");
+    }
+  });
+
+  it("predicts each band of B in a pod that cannot serve, and the removal of the target", () => {
+    for (const mode of CALLERS_MODES) {
+      const predicted = gateCannotServeOf(mode);
+      expect(predicted.expected).toEqual(expectedFailures("in band (lame duck)", mode));
+      expect(predicted.removal).toEqual(falseOf(mode, "in band (lame duck)").removal);
+      const cell = GATE_CELLS.find((each) => each.mode === mode && callerFaultOf(each) === "cannot serve")!;
+      const window = b(mode, "cannot serve").prediction;
+      expect(cell.prediction.kind).toBe("leaves");
+      if (cell.prediction.kind !== "leaves" || window.kind !== "window") throw new Error("the prediction of a pod that cannot serve is a window");
+      expect({ ...cell.prediction.window, why: "" }).toEqual({ ...window, why: "" });
+    }
+  });
+});

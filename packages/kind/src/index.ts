@@ -10,7 +10,7 @@ export { backendsOf } from "./backends.ts";
 export type { Cluster, Credentials } from "./cluster.ts";
 export { createCluster } from "./cluster.ts";
 export type { Parts } from "./compose.ts";
-export { CONTROLLER, FLAG_CHECK, ROUTE, WATCHDOG, compose } from "./compose.ts";
+export { CONTROLLER, FLAG_CHECK, ROUTE, WATCHDOG, compose, sharedGate } from "./compose.ts";
 export type { ClusterHosts } from "./eds.ts";
 export { clusterFilter, hostsOf, outboundCluster } from "./eds.ts";
 export type { FaultPlan, Step, Target } from "./faults.ts";

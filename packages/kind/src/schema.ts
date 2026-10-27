@@ -88,6 +88,7 @@ const declaration = z.object({
   watchdog: z.object({ tick: time, threshold: time }).nullable(),
   lameDuck: z.boolean().optional(),
   protocol: z.enum(["http/1.1", "h2c"] as const satisfies readonly EdgeProtocol[]).optional(),
+  sharedGate: z.boolean().optional(),
 });
 
 const replica = z.object({ pod: z.string(), node: z.string(), ip: z.string(), version: z.string() });
