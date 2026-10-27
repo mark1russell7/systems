@@ -484,14 +484,20 @@ A check of the kind `progress` fires when no loop marks progress in its stall ti
 
 ### SYS-25 · The pairing window from the jitter of the runner
 
-- **Status:** later
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
-- **Started:**
-- **Shipped:**
+- **Started:** 2026-10-27
+- **Shipped:** 2026-10-27
 - **Links:**
 
-A run pairs each event of a program with its record of the kernel in δ_abs, 1 ms. On a runner of GitHub the jitter of a program is 1.06 to 1.74 ms, thus a single run can fail on it. The harness measures that jitter in each run and records it, and δ_abs is the larger of 1 ms and the measured bound. A verdict that fails a cell only when its miss repeats changes how a verdict counts. Mark ruled the void threshold on 2026-10-16, thus that part is the decision D19 of the server stack, for Mark.
+A run pairs each event of a program with its record of the kernel in δ_abs, 1 ms. On a runner of GitHub the jitter of a program is 1.06 to 1.74 ms, thus a single run can fail on it. Thus the harness measures that jitter in each run and records it (`Run.jitter`). The pairing window of the run is the larger of δ_abs and the measured bound (`pairingOf`).
+
+- The decision of 2026-10-19 keeps the rule of one miss. A verdict does not wait for a miss to repeat. Only the window changes.
+- The bound is the longest delay from an act of the program to the first write of data on its socket. An act is a `write` line or a `ping` line before the fault. That write must come before the next act and before the fault.
+- The acts that a cell judges come after the fault, thus a late act cannot widen its own window.
+- Each measurement gives its bound and its window (`Measured.pairing`), and each line of `summary.ndjson` gives `pairing`. A record from before SYS-25 has no bound, thus its window is δ_abs, 1 ms.
+- In the 33 records of the nightly run 40446582383, only the cells of the `ws` class got a longer window: 1.009 ms to 1.519 ms. Each decision stayed the same.
 
 - Stage 0 calibrated the runner image `ubuntu24 20261023.334.3` on 2026-10-24 (runs 40128274924 and 40129876394). The worst of 90 resets took 0.316 ms, thus δ_abs stays 1 ms and the cap stays 4.
 

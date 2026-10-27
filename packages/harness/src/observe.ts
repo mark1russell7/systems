@@ -9,18 +9,20 @@ import {
   exitOf,
   firstUnanswered,
   leftAfter,
+  jitterOfLines,
   pingsOf,
   programLines,
   reconnectFinding,
   reconnectOf,
 } from "./application.ts";
-import type { Cell, KernelRecord, ProbeEvent, Reference, Run } from "./cell.ts";
+import type { Cell, Jitter, KernelRecord, ProbeEvent, Reference, Run } from "./cell.ts";
 import { requestFirst } from "./cell.ts";
 import type { DriverStepTime } from "./driver.ts";
 import { measureDriver, proxiedClose } from "./driver.ts";
 import type { GroupMeasured } from "./timeline.ts";
 import { measureGroup } from "./timeline.ts";
-import { INJECT, delayVoids, noiseOf, requestWords } from "./verdict.ts";
+import type { Pairing } from "./verdict.ts";
+import { INJECT, delayVoids, noiseOf, pairingOf, requestWords } from "./verdict.ts";
 
 /**
  * An outcome tells how the wait of a run ended. The socket failed with an errno, or it read the
@@ -116,6 +118,12 @@ export interface Measured {
    * it when it stayed open until that end. The kernel closed it then, not the program (`exits`).
    */
   readonly exited?: Quantity;
+  /**
+   * This record is the pairing window of the run: the jitter bound that it measured, and the
+   * window that its pairings used (`pairingOf`). A run that has a jitter record gets it. Thus a
+   * reader can check each pairing of the run again.
+   */
+  readonly pairing?: Pairing;
   /** This text is the reason that the run cannot count, or null. A void run is not a pass and not a finding. */
   readonly void: string | null;
   /** This text tells what in the run disagrees with the prediction, other than its timing, or null. */
@@ -384,7 +392,9 @@ export const crossingsOf = (
  *   than the one that the prediction gives is a finding.
  */
 export const measure = (cell: Cell, run: Run): Measured => {
-  const read = measureSocket(cell, run);
+  const socketRead = measureSocket(cell, run);
+  // a run with a jitter record says the window of its pairings. A record from before SYS-25 has none
+  const read: Measured = run.jitter === undefined ? socketRead : { ...socketRead, pairing: pairingOf(cell, run) };
   const expected = cell.prediction.request;
   if (cell.probe.http === undefined && expected === undefined) return read;
   const request = requestOf(run.events);
@@ -392,6 +402,23 @@ export const measure = (cell: Cell, run: Run): Measured => {
   const differs = requestFinding(expected, request);
   const finding = read.finding === null ? differs : differs === null ? read.finding : `${read.finding}. ${differs}`;
   return { ...read, request, finding };
+};
+
+/**
+ * This function measures the jitter of the program of the observer in a run, from its records
+ * (`Jitter`). The acts count up to the start of the fault, or up to the reply of the client when
+ * the fault has no stamp. A run with no lines of a program, or no socket of the observer, has no act.
+ */
+export const jitterOf = (cell: Cell, run: Run): Jitter => {
+  const lines = programLines(cell, run);
+  const ready = run.events.find((event) => event.ev === "ready");
+  const place = lines.length === 0 || ready === undefined ? undefined : socketOf(cell, run);
+  if (ready === undefined || place === undefined) return { acts: 0, bound: null };
+  const socket = run.kernel.filter((record) => record.netns === place.netns && record.cookie === place.cookie);
+  const local = run.events.find((event) => event.ev === "connected")?.["local"];
+  // a line of a server names its connection by its peer: the peer of the socket of the server
+  const named = cell.observer === "server" ? (socket.find((record) => record.dst !== undefined)?.dst ?? local) : local;
+  return jitterOfLines(lines, socket, named, run.fault?.t0 ?? ready.t);
 };
 
 /** This function tells how a request reading differs from its prediction, or gives null. */
@@ -602,7 +629,9 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
   // peer. That peer is the peer of the socket of the server: the last hop of a topology
   const named = server ? (socket.find((record) => record.dst !== undefined)?.dst ?? local) : local;
   const kernelEnded = reported?.mono ?? closeWait?.mono ?? own?.mono ?? seen?.t;
-  const first = dropOf(lines, socket, named, noiseOf(cell));
+  // the window of each pairing of a line with its act: δ_abs, or the jitter of the program in this run
+  const paired = pairingOf(cell, run).delta;
+  const first = dropOf(lines, socket, named, paired);
   const drop = first !== undefined && (kernelEnded === undefined || first.at <= kernelEnded) ? first : undefined;
   const dropped = drop !== undefined;
   const outcome: Outcome = dropped
@@ -621,7 +650,7 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     reported !== undefined && seen !== undefined && !dropped ? between(reported.mono, seen.t) : null;
   const { prediction } = cell;
   // the pings of a heartbeat of the program, at the kernel's stamps of their writes
-  const pings = pingsOf(lines, socket, named, noiseOf(cell));
+  const pings = pingsOf(lines, socket, named, paired);
   // keepalive counts from the last segment received before the fault. The budget of the give-up
   // counts from the first retransmission of the RTO timer after the fault holds, not from the tail
   // loss probe before it. A retransmission before the fault is of an earlier segment, for example
@@ -914,7 +943,7 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     closed === undefined || drop === undefined || prediction.exits !== true
       ? { left: closed, exited: undefined }
       : closeOrExit(drop.line, closed, exitOf(run, cookie), noiseOf(cell));
-  const how = prediction.drop === undefined || drop === undefined || left === undefined ? null : dropFinding(prediction.drop, drop, left, noiseOf(cell), exited);
+  const how = prediction.drop === undefined || drop === undefined || left === undefined ? null : dropFinding(prediction.drop, drop, left, paired, exited);
   const found = [matches ? null : `it ended with ${words}, not ${prediction.errno}`, late, how].filter((each) => each !== null);
   const finding = found.length === 0 ? null : found.join(". ");
   // the timer of an HTTP client or server is a timer of the program, not of the kernel: the kernel
