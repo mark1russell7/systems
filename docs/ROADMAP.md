@@ -860,6 +860,23 @@ The 3 test records of 2026-10-16 give the fact for 33 runs, with a setting of 20
 
 A record from before this item does not have the fact, and it stays valid. The format of the record stays `/2`. This item changes no band and no committed record.
 
+### SYS-42 · The stall band carries the backlog term and the measured period
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** SYS-40, SYS-41
+- **Started:** 2026-10-27
+
+SYS-40 found two biases of the first backlog band. The value d of 40 ms to 70 ms was too large, and the count of failed requests came from the setting of the period. This item gives a new band version for the stall of each candidate that keeps its sessions through the stall. Of the candidates of S2, only C does. D does not keep its sessions.
+
+The term has the name `BacklogTerm`, and it is in the kind judge. Thus each later cell can use it. A window carries it in its optional `backlog` field. With n sessions on the target, the window closes from the band end plus n × d.lo to the band end plus n × d.hi. The value d is 10 ms to 45 ms. The judge gets n from `sessions` of the facts of each run.
+
+The judge counts the failed requests from `period` of the facts (SYS-41), at the mean period of the run. Each session gets a request each c periods, with c kept connections for each client. The count band is n × (floor(T / (c × p)) − 1 + r.lo) to n × (ceil(T / (c × p)) + 1 + r.hi). The value T is the span of the window, p is the mean period, and r is 0 to 3.
+
+The test cells are `BACKLOG_BAND_CELLS` in `packages/cells/src/backlog.ts`. They are the cells of SYS-40 with new ids and names. Thus each record of SYS-40 is judged with its first band. The old bands and records stay as committed.
+
+The decision rule: the new band hits if every counted run of each n falls in its window band and in its count band. A miss with the same sign in each run is a bias. Then the result names the missing term, and the old band stays as committed.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue

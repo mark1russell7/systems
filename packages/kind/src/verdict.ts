@@ -1,7 +1,7 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
-import { seconds, secondsOf } from "./bands.ts";
-import type { Cycle, KindCell, KindRun, Prediction, Reference, ResetReuse, WindowPrediction } from "./cell.ts";
+import { backlogEnd, requestBand, seconds, secondsOf } from "./bands.ts";
+import type { BacklogTerm, Cycle, KindCell, KindRun, Prediction, Reference, ResetReuse, WindowPrediction } from "./cell.ts";
 import { PORT, SERVER } from "./names.ts";
 import type { Line, Period, PropagationSource, Request, Sessions } from "./observe.ts";
 import {
@@ -327,7 +327,9 @@ const windowOf = (prediction: Prediction): WindowPrediction | null =>
 export const observationAfter = (cell: Pick<KindCell, "prediction" | "workload">): Quantity | null => {
   const window = windowOf(cell.prediction);
   if (window === null || window.end === null) return null;
-  return seconds(sec(valueIn(window.end.band.hi, "ms") + valueIn(cell.workload.timeout, "ms") + NOISE));
+  // the backlog term closes the window up to n × d later, with n the most sessions on the target
+  const drained = window.backlog === undefined ? 0 : window.backlog.most * valueIn(window.backlog.drain.hi, "ms");
+  return seconds(sec(valueIn(window.end.band.hi, "ms") + drained + valueIn(cell.workload.timeout, "ms") + NOISE));
 };
 
 /**
@@ -478,8 +480,28 @@ const removalOfCycles = (cell: KindCell, run: KindRun, prediction: Extract<Predi
   return inner?.tail === undefined ? checked : { ...checked, tail: inner.tail };
 };
 
+/**
+ * This function counts the failed requests of a run with the backlog term (`requestBand`). The span
+ * is from the start of the window to the end band without the term. The turn of a session comes
+ * from the measured mean period of the clients. A run with no measured period cannot be counted.
+ */
+const countOf = (
+  cell: KindCell,
+  window: WindowPrediction,
+  term: BacklogTerm,
+  onTarget: number,
+  period: Period<Quantity> | undefined,
+  failed: number,
+): { readonly ok: boolean; readonly why: string } => {
+  if (period === undefined) return { ok: false, why: "the run has no measured period, thus the backlog term cannot count its failed requests" };
+  const span = seconds(Math.round((valueIn(window.end!.band.hi, "s") - valueIn(window.start.band.lo, "s")) * 1e6) / 1e6);
+  const band = requestBand(term, span, period.mean, cell.workload.connections ?? 1, onTarget);
+  const at = `the count [${band.lo}, ${band.hi}] of ${onTarget} session${onTarget === 1 ? "" : "s"} on the target at a mean period of ${Math.round(valueIn(period.mean, "ms") * 1000) / 1000} ms`;
+  return failed >= band.lo && failed <= band.hi ? { ok: true, why: `in ${at}` } : { ok: false, why: `${failed} failed requests, outside ${at}` };
+};
+
 /** This function judges one run against the prediction of its cell. */
-export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
+export const checkRun =(cell: KindCell, run: KindRun): RunCheck => {
   const lines = run.lines as readonly Line[];
   const facts = factsOf(cell, run);
   const failures = failuresOf(lines).filter((request) => request.t >= run.start && request.t <= run.end);
@@ -501,7 +523,16 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
     case "window": {
       const each = prediction.each === true;
       const opens = secondsOf(prediction.start.band);
-      const closes = prediction.end === null ? null : secondsOf(prediction.end.band);
+      // the backlog term: n × d more at each end of the end band, with n the sessions on the target at the fault
+      const backlog = prediction.backlog;
+      const onTarget = facts.sessions?.onTarget;
+      if (backlog !== undefined && (prediction.end === null || prediction.end.from !== prediction.start.from || onTarget === undefined))
+        return done(
+          false,
+          onTarget === undefined ? "the run has no sessions on the target at the fault, thus the backlog term has no n" : "a window with the backlog term has an end with the reference of its start",
+          null,
+        );
+      const closes = prediction.end === null ? null : secondsOf(backlog === undefined ? prediction.end.band : backlogEnd(prediction.end.band, backlog, onTarget!));
       // a request after a window that started before the rules of its node dropped the replica of that
       // window agrees with the law: only the calibrated band is short (D-EXTEND). A request after the drop is still late
       const droppedAfter = (origin: number | null, propagation: RunFacts["propagation"]) => (node: string): number | null => {
@@ -612,6 +643,9 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
       if (others.length > 0) problems.push(`${others.length} failed requests on nodes whose kube-proxy did not pause`);
       if (wrong.length > 0) problems.push(`${wrong.length} failed requests in the window ended ${JSON.stringify(outcomesOf(wrong))}, not ${allowed!.join(", ")}`);
       if (prediction.certain && relevant.length === 0) problems.push("no request failed in a window that the law opens");
+      // the backlog term counts the failed requests of the n sessions from the measured period of the clients
+      const counted = backlog === undefined ? null : countOf(cell, prediction, backlog, onTarget!, facts.period, relevant.length);
+      if (counted !== null && !counted.ok) problems.push(counted.why);
       // the window that ends last: the last failed request comes near its end
       const final = windows.reduce((a, b) => ((b.end ?? Number.NEGATIVE_INFINITY) > (a.end ?? Number.NEGATIVE_INFINITY) ? b : a));
       // with flaps, each cycle has a failed request, and its last one comes near the end of its window
@@ -634,9 +668,9 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
       const span = inside.length === 0 ? 0 : sec(inside.at(-1)!.t - inside[0]!.t);
       const where = each ? `the windows of ${windows.length} deleted replicas` : flaps ? `the windows of ${windows.length} cycles` : "the window";
       const agrees =
-        reused.length === 0
+        (reused.length === 0
           ? `${relevant.length} failed requests, all in ${where} (span ${span} s)`
-          : `${inside.length} failed requests in ${where} (span ${span} s), and ${reused.length} on a port that a reset closed`;
+          : `${inside.length} failed requests in ${where} (span ${span} s), and ${reused.length} on a port that a reset closed`) + (counted === null ? "" : `, ${counted.why}`);
       const checked = done(problems.length === 0, problems.length === 0 ? agrees : problems.join("; "), relevant.length);
       if (problems.length > 0) return checked;
       const notes: string[] = [];

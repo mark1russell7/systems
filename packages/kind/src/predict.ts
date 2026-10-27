@@ -258,4 +258,10 @@ export const learnWindow = (declaration: Declaration, readiness: KubeletProbe, p
   return { turn: seconds(turn), latch, start, end: { from: "fault", band: band(secondsOf(latch).lo, removal.hi + turn) } };
 };
 
-export { showBand } from "./bands.ts";
+/**
+ * The backlog term of a stall (SYS-42) is in `bands.ts`, thus the judge reads it with no other
+ * import. `backlogEnd` adds n × d to the end band. `requestBand` counts the failed requests from
+ * the measured period. A window carries the term in `backlog` (`BacklogTerm`).
+ */
+export type { CountBand } from "./bands.ts";
+export { backlogEnd, requestBand, showBand } from "./bands.ts";

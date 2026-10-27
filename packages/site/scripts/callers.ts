@@ -7,7 +7,7 @@ import type { Quantity } from "../../quantity/src/index.ts";
 import { valueIn } from "../../quantity/src/index.ts";
 import type { Candidate, CallerFault } from "../../cells/src/callers.ts";
 import { CALLERS_CELLS, CANDIDATES, callerFaultOf, dependencyOf, expectedFailures, flappingOf, lostZoneOf } from "../../cells/src/callers.ts";
-import { BACKLOG_CELLS, backlogOf } from "../../cells/src/backlog.ts";
+import { BACKLOG_CELLS, backlogBandOf, backlogOf } from "../../cells/src/backlog.ts";
 
 const s = (value: Quantity): number => valueIn(value, "s");
 
@@ -49,8 +49,8 @@ export const candidateOf = (cell: KindCell) => {
       ? { removal: { from: "fault", low: s(cell.prediction.band.lo), high: s(cell.prediction.band.hi) }, knows: { from: "fault", low: s(knows.lo), high: s(knows.hi) } }
       : {};
   // a cell of the backlog (SYS-40) places its sessions, thus its band has the term of the sessions on the target
-  const onTarget = cell.workload.onTarget;
-  const expected = onTarget === undefined ? expectedFailures(name, cell.mode, callerFaultOf(cell)) : backlogOf(cell.mode, onTarget).expected;
+  const backlog = backlogPredictionOf(cell);
+  const expected = backlog === null ? expectedFailures(name, cell.mode, callerFaultOf(cell)) : backlog.expected;
   // a lost zone: the time from the heal until the target is ready again in its EndpointSlice
   const zone = callerFaultOf(cell) === "lost zone" ? lostZoneOf(cell.mode, name).returns : null;
   const returns = zone === null ? {} : { returns: { from: "heal", low: s(zone.lo), high: s(zone.hi) } };
@@ -77,14 +77,25 @@ export const callerPredictions = (fault: CallerFault = "cannot serve") =>
   });
 
 /**
- * This function gives the prediction of each cell of the backlog (SYS-40), in seconds. It has the
- * candidate, the sessions on the target, the band end of the stall without the term, and the term (`overshoot`).
+ * This function gives the prediction of a cell of the backlog, or null for a cell with no placement.
+ * A window with the term (`backlog`) is a cell of the backlog band (SYS-42). The others are of the first band (SYS-40).
  */
-export const backlogPredictions = () =>
-  BACKLOG_CELLS.map((cell) => {
+export const backlogPredictionOf = (cell: KindCell) => {
+  const onTarget = cell.workload.onTarget;
+  if (onTarget === undefined) return null;
+  return cell.prediction.kind === "window" && cell.prediction.backlog !== undefined ? backlogBandOf(cell.mode, onTarget) : backlogOf(cell.mode, onTarget);
+};
+
+/**
+ * This function gives the prediction of each cell of the backlog (SYS-40, or SYS-42 for the cells of
+ * the backlog band), in seconds. It has the candidate, the sessions on the target, the band end of
+ * the stall without the term, and the term (`overshoot`).
+ */
+export const backlogPredictions = (cells: readonly KindCell[] = BACKLOG_CELLS) =>
+  cells.map((cell) => {
     const candidate = candidateOf(cell);
     const onTarget = cell.workload.onTarget;
-    if (candidate === null || onTarget === undefined) throw new Error(`${cell.name}: a cell of the backlog has a stall and a placement`);
-    const band = backlogOf(cell.mode, onTarget);
+    const band = backlogPredictionOf(cell);
+    if (candidate === null || onTarget === undefined || band === null) throw new Error(`${cell.name}: a cell of the backlog has a stall and a placement`);
     return { id: cell.id, mode: cell.mode, onTarget, bandEnd: s(band.bandEnd), overshoot: { low: s(band.overshoot.lo), high: s(band.overshoot.hi) }, candidate };
   });

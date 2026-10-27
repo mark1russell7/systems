@@ -1,6 +1,6 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
-import type { Band } from "./cell.ts";
+import type { BacklogTerm, Band } from "./cell.ts";
 
 /** This module makes and prints the bands of the predictions. It imports only the amounts. */
 
@@ -20,4 +20,38 @@ export const secondsOf = (band: Band): { readonly lo: number; readonly hi: numbe
 export const showBand = (band: Band): string => {
   const { lo, hi } = secondsOf(band);
   return `[${lo}, ${hi}] s`;
+};
+
+/** This function rounds a time to the microsecond, thus a band has no float residue. */
+const us = (value: number): number => Math.round(value * 1e6) / 1e6;
+
+/**
+ * This function gives the end band of a window with the backlog term (`BacklogTerm`). It adds n × d
+ * to each end of `end`, the end band without the term. The value n is the sessions on the target.
+ */
+export const backlogEnd = (end: Band, term: Pick<BacklogTerm, "drain">, sessions: number): Band => {
+  const ends = secondsOf(end);
+  const drain = secondsOf(term.drain);
+  return bandOf(us(ends.lo + sessions * drain.lo), us(ends.hi + sessions * drain.hi));
+};
+
+/** A count band is a range of counts of requests. */
+export interface CountBand {
+  readonly lo: number;
+  readonly hi: number;
+}
+
+/**
+ * This function gives the failed requests that the backlog term predicts (`BacklogTerm`). Each of
+ * the n sessions on the target gets a request each turn. The turn is the measured mean period of a
+ * client (`mean`) times the sessions of the client (`connections`). The requests of a session fail
+ * from the start of the window to the band end (`span`). That span holds `span / turn` requests, one
+ * less at its low edge and one more at its high edge. Each session fails r more requests in its drain time.
+ */
+export const requestBand = (term: Pick<BacklogTerm, "requests">, span: Quantity, mean: Quantity, connections: number, sessions: number): CountBand => {
+  const turn = valueIn(mean, "s") * connections;
+  if (!(turn > 0)) throw new RangeError(`a turn of ${turn} s cannot count requests`);
+  // a count rounded to six places, thus 10 s / 20 ms gives 500
+  const each = Math.round((valueIn(span, "s") / turn) * 1e6) / 1e6;
+  return { lo: sessions * (Math.floor(each) - 1 + term.requests.lo), hi: sessions * (Math.ceil(each) + 1 + term.requests.hi) };
 };

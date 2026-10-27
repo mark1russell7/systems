@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ALL } from "./all.ts";
 import { CALLERS_CELLS } from "./callers.ts";
-import { BACKLOG_CELLS } from "./backlog.ts";
+import { BACKLOG_BAND_CELLS, BACKLOG_CELLS } from "./backlog.ts";
 import { GATE_CELLS } from "./gate.ts";
 import { HZ } from "./catalog.ts";
 import { T07_GRPC } from "./grpc/t07.ts";
@@ -28,6 +28,7 @@ const CATALOGS: Readonly<Record<string, ReadonlyArray<{ readonly name: string; r
   CALLERS_CELLS,
   GATE_CELLS,
   BACKLOG_CELLS,
+  BACKLOG_BAND_CELLS,
 };
 
 /** one line for each cell, its catalog and name, then its prediction: a change of one prediction is a change of one line */
