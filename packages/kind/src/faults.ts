@@ -1,6 +1,6 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
-import type { KindCell } from "./cell.ts";
+import type { Flap, KindCell } from "./cell.ts";
 import { CLIENT, REDIS, SERVER } from "./names.ts";
 import { HBONE_PORT } from "./observe.ts";
 
@@ -74,6 +74,7 @@ export type Step =
  * - `inject` starts the trigger. The stamp of its first act is the `fault` reference.
  * - `heal` ends the fault, `hold` after the fault. A trigger that ends by itself has no heal.
  * - `restore` brings the cell back to its steady state after the run.
+ * - `flaps` are the faults after the first one. A plan without them has one fault.
  */
 export interface FaultPlan {
   readonly prepare?: readonly Step[] | undefined;
@@ -81,6 +82,8 @@ export interface FaultPlan {
   readonly hold: Quantity | null;
   readonly heal: readonly Step[];
   readonly restore: readonly Step[];
+  /** These flaps are the faults after the first one (`Trigger.flaps`). Each one does the inject and the heal again. */
+  readonly flaps?: readonly Flap[] | undefined;
 }
 
 const needs = (time: Quantity | undefined, what: string): Quantity => {
@@ -228,8 +231,34 @@ export const middleboxCommands = (peers: readonly string[], idle: Quantity | nul
  */
 const linkOf = (cell: KindCell): Target => (cell.trigger.partition === true ? "server" : cell.template === "T15" ? "servers" : "redis");
 
-/** This function gives the fault plan of a cell. */
+/**
+ * This function gives the fault plan of a cell. A trigger with flaps (`Trigger.flaps`) gives them to
+ * its plan: the runner then does the inject and the heal again for each flap. A plan with no hold or
+ * no heal cannot flap.
+ */
 export const planOf = (cell: KindCell): FaultPlan => {
+  const plan = stepsOf(cell);
+  const flaps = cell.trigger.flaps;
+  if (flaps === undefined || flaps.length === 0) return plan;
+  if (plan.hold === null || plan.heal.length === 0) throw new Error(`the trigger ${cell.trigger.kind} has no hold and heal, thus it cannot flap`);
+  for (const flap of flaps) {
+    if (valueIn(flap.rest, "ms") <= 0 || valueIn(flap.hold, "ms") <= 0) throw new Error("each flap has a rest and a hold above zero");
+  }
+  return { ...plan, flaps };
+};
+
+/**
+ * This function gives the time from the first fault of a trigger to its last heal. It is the hold,
+ * then the rest and the hold of each flap. A trigger with no hold gives zero.
+ */
+export const faultSpan = (trigger: Pick<KindCell["trigger"], "hold" | "flaps">): Quantity => {
+  const hold = trigger.hold === undefined ? 0 : valueIn(trigger.hold, "s");
+  const flaps = (trigger.flaps ?? []).reduce((sum, flap) => sum + valueIn(flap.rest, "s") + valueIn(flap.hold, "s"), 0);
+  return { value: Math.round((hold + flaps) * 1e6) / 1e6, unit: "s" };
+};
+
+/** This function gives the steps of the fault plan of a cell, with no flaps. */
+const stepsOf = (cell: KindCell): FaultPlan => {
   const ns = ["-n", "{namespace}"];
   const trigger = cell.trigger;
   const replicas = cell.pod.replicas;

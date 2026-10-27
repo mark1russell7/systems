@@ -2,7 +2,7 @@ import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import type { Declaration } from "./cell.ts";
 import { DESIGN, KUBE_PROBE, cellOf } from "./cells.fixture.ts";
-import { deletes, planOf } from "./faults.ts";
+import { deletes, faultSpan, planOf } from "./faults.ts";
 import { clientObjects, namespaceOf, serverObjects } from "./manifests.ts";
 import {
   DOCUMENTED,
@@ -109,6 +109,19 @@ describe("the shards of a catalog", () => {
 });
 
 describe("the fault mapping", () => {
+  it("gives the flaps of a trigger to its plan, and its span from the first fault to the last heal", () => {
+    const flaps = [{ rest: s(15), hold: s(27) }, { rest: s(15), hold: s(27) }];
+    const base = cellOf("blackhole", DESIGN, "T18");
+    const flapping = { ...base, trigger: { ...base.trigger, hold: s(27), flaps } };
+    expect(planOf(flapping)).toEqual({ ...planOf(base), hold: s(27), flaps });
+    expect(faultSpan(flapping.trigger)).toEqual(s(111));
+    expect(faultSpan({ hold: s(5) })).toEqual(s(5));
+    expect(faultSpan({})).toEqual(s(0));
+    // a trigger with no hold and heal cannot flap, and each flap has a rest and a hold
+    expect(() => planOf({ ...cellOf("pod-deletion"), trigger: { kind: "pod-deletion", flaps } })).toThrow("the trigger pod-deletion has no hold and heal, thus it cannot flap");
+    expect(() => planOf({ ...flapping, trigger: { ...flapping.trigger, flaps: [{ rest: s(0), hold: s(27) }] } })).toThrow("each flap has a rest and a hold above zero");
+  });
+
   it("maps each trigger to its acts", () => {
     expect(planOf(cellOf("pod-deletion")).inject).toEqual([{ do: "kubectl", args: ["-n", "{namespace}", "delete", "pod", "{pod}", "--wait=false"] }]);
     expect(planOf(cellOf("crash")).inject).toEqual([{ do: "signal", target: "server", signal: "SIGKILL" }]);

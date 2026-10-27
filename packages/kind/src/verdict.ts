@@ -1,11 +1,12 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import { seconds, secondsOf } from "./bands.ts";
-import type { KindCell, KindRun, Prediction, Reference, ResetReuse, WindowPrediction } from "./cell.ts";
+import type { Cycle, KindCell, KindRun, Prediction, Reference, ResetReuse, WindowPrediction } from "./cell.ts";
 import { PORT, SERVER } from "./names.ts";
 import type { Line, PropagationSource, Request } from "./observe.ts";
 import {
   HBONE_PORT,
+  backendsAt,
   TCP_STATE,
   byNode,
   deletionOf,
@@ -20,6 +21,8 @@ import {
   signalsOf,
   sliceDropOf,
   sliceEmptyOf,
+  sliceReadyAt,
+  sliceReadyOf,
   socketsOf,
   tunnelsOf,
 } from "./observe.ts";
@@ -85,6 +88,12 @@ export interface RunFacts<A = Quantity> {
   readonly healUpdates?: Readonly<Record<string, Propagated<A> | null>> | undefined;
   /** These are the first close of the socket of each client after the reference (`ends`), by client, or null for none. */
   readonly closes?: Readonly<Record<string, A | null>> | undefined;
+  /**
+   * These are the times of each cycle of a removal with flaps, in the sequence of the cycles. `empty` is
+   * when the EndpointSlice had no ready endpoint, after the fault of the cycle. `ready` is when it had a
+   * ready endpoint again, after the heal of the cycle. A time that the run does not have is null.
+   */
+  readonly cycles?: ReadonlyArray<{ readonly empty: A | null; readonly ready: A | null }> | undefined;
 }
 
 /** A deleted replica is a replica of a run that got a deletion. It gives its pod, and the stamps of its intake (or null) and of its deletion. */
@@ -184,6 +193,16 @@ export const referenceOf = (run: Pick<KindRun, "start" | "acts" | "target" | "li
   if (pod === undefined) return null;
   if (from === "deletion") return deletionOf(lines, [pod], run.start);
   return intakeOf(lines, pod, run.start);
+};
+
+/**
+ * This function gives the cycles of a run: each fault and its heal (`KindRun.acts.cycles`). A run
+ * without cycles gives its one fault and heal, or none when it does not have both stamps.
+ */
+export const cyclesOf = (run: Pick<KindRun, "acts">): readonly Cycle[] => {
+  if (run.acts.cycles !== undefined) return run.acts.cycles;
+  const { fault, heal } = run.acts;
+  return fault === null || heal === null ? [] : [{ fault, heal }];
 };
 
 /**
@@ -344,6 +363,61 @@ export const factsOf = (cell: KindCell, run: KindRun): RunFacts => {
   };
 };
 
+type Done = (ok: boolean, why: string, value: number | null, more?: Partial<RunFacts>) => RunCheck;
+
+/**
+ * This function judges a removal with flaps. In each cycle, the Service has no ready endpoint, and the
+ * rules of each node have no backend, in the band after its fault. Each time comes before the fault of
+ * the next cycle. At the fault of each cycle after the first, the Service has a ready endpoint and the
+ * rules of each node a backend. After the last heal, the Service has a ready endpoint again. The main
+ * value is the empty Service of the first cycle.
+ */
+const removalOfCycles = (cell: KindCell, run: KindRun, prediction: Extract<Prediction, { kind: "removal" }>, done: Done): RunCheck => {
+  const lines = run.lines as readonly Line[];
+  const cycles = cyclesOf(run);
+  if (cycles.length === 0) return done(false, "the run has no cycle of a fault and its heal", null);
+  const band = secondsOf(prediction.band);
+  const nodes = [...new Set(lines.filter((line) => line.ev === "rules").map((line) => String(line["node"])))].sort();
+  const problems: string[] = [];
+  const times: Array<{ readonly empty: Quantity | null; readonly ready: Quantity | null }> = [];
+  let rules: Record<string, Quantity | null> = {};
+  cycles.forEach((cycle, k) => {
+    const n = k + 1;
+    const next = cycles[k + 1]?.fault ?? run.end;
+    // the slice and the rules give a line only at a change, thus the first cycle starts at rest
+    if (k > 0) {
+      if (sliceReadyAt(lines, SERVER, cycle.fault) !== true) problems.push(`the Service had no ready endpoint at the fault of the cycle ${n}`);
+      const backends = backendsAt(lines, cycle.fault);
+      for (const node of nodes) if ((backends.get(node) ?? []).length === 0) problems.push(`the rules of ${node} had no backend at the fault of the cycle ${n}`);
+    }
+    const empty = sliceEmptyOf(lines, SERVER, cycle.fault);
+    const value = empty === null || empty > next ? null : sec(empty - cycle.fault);
+    if (value === null) problems.push(`the Service kept a ready endpoint in the cycle ${n}`);
+    else if (!inBand(value, band)) problems.push(`the EndpointSlice had no ready endpoint at ${value} s in the cycle ${n}`);
+    const own: Record<string, Quantity | null> = {};
+    for (const node of nodes) {
+      const drop = emptyOf(lines, node, cycle.fault);
+      const at = drop === null || drop.t > next ? null : sec(drop.t - cycle.fault);
+      own[node] = at === null ? null : seconds(at);
+      if (at === null) problems.push(`the rules of ${node} kept a backend in the cycle ${n}`);
+      else if (!inBand(at, { lo: band.lo, hi: band.hi + 0.05 })) problems.push(`the rules of ${node} had no backend at ${at} s in the cycle ${n}`);
+    }
+    if (k === 0) rules = own;
+    const ready = sliceReadyOf(lines, SERVER, cycle.heal);
+    const back = ready === null || ready > next ? null : sec(ready - cycle.heal);
+    if (k === cycles.length - 1 && back === null) problems.push("the Service had no ready endpoint after the last heal");
+    times.push({ empty: value === null ? null : seconds(value), ready: back === null ? null : seconds(back) });
+  });
+  const first = times[0]!.empty === null ? null : valueIn(times[0]!.empty, "s");
+  const inner = prediction.window === undefined ? null : checkRun({ ...cell, prediction: prediction.window }, run);
+  if (inner !== null && !inner.ok) problems.push(inner.why);
+  const empties = times.map((each) => (each.empty === null ? "none" : `${valueIn(each.empty, "s")} s`)).join(", ");
+  const agrees = `the Service was empty in each of ${cycles.length} cycles, at ${empties} after its fault${inner === null ? "" : `; ${inner.why}`}`;
+  const more: Partial<RunFacts> = { ...(inner === null ? {} : inner.facts), ...(first === null ? {} : { sliceEmpty: seconds(first) }), rules, cycles: times };
+  const checked = done(problems.length === 0, problems.length === 0 ? agrees : problems.join("; "), first, more);
+  return inner?.tail === undefined ? checked : { ...checked, tail: inner.tail };
+};
+
 /** This function judges one run against the prediction of its cell. */
 export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
   const lines = run.lines as readonly Line[];
@@ -377,10 +451,21 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
       // the window of the target, or with `each` the window of each replica that got a deletion
       const pods: ReadonlyArray<string | undefined> = each ? (facts.deletions ?? []).map((deleted) => deleted.pod) : [run.target?.pod];
       if (pods.length === 0) return done(false, "no replica of the run got a deletion", null);
+      // with flaps, the window of each cycle: its own fault and heal
+      const flaps = prediction.flaps === true;
+      const cyclic = (from: Reference): from is "fault" | "heal" => from === "fault" || from === "heal";
+      if (flaps && (each || !cyclic(prediction.start.from) || (prediction.end !== null && !cyclic(prediction.end.from))))
+        return done(false, "a window with flaps has no each, and its references are the fault and the heal", null);
+      const cycles = flaps ? cyclesOf(run) : [];
+      if (flaps && cycles.length === 0) return done(false, "the run has no cycle of a fault and its heal", null);
+      const sources: ReadonlyArray<{ readonly pod: string | undefined; readonly cycle: Cycle | undefined }> = flaps
+        ? cycles.map((cycle) => ({ pod: run.target?.pod, cycle }))
+        : pods.map((pod) => ({ pod, cycle: undefined }));
       const windows: Span[] = [];
-      for (const pod of pods) {
-        const start = referenceOf(run, prediction.start.from, pod);
-        const end = prediction.end === null ? null : referenceOf(run, prediction.end.from, pod);
+      for (const { pod, cycle } of sources) {
+        const at = (from: Reference): number | null => (cycle !== undefined && cyclic(from) ? cycle[from] : referenceOf(run, from, pod));
+        const start = at(prediction.start.from);
+        const end = prediction.end === null ? null : at(prediction.end.from);
         if (start === null || (prediction.end !== null && end === null))
           return done(false, `the run has no ${start === null ? prediction.start.from : prediction.end!.from} reference${each ? ` for ${pod}` : ""}`, null);
         const origin = each ? referenceOf(run, "deletion", pod) : (facts.deletion ?? (cell.trigger.kind === "crash" ? run.acts.fault : null));
@@ -460,21 +545,34 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
         problems.push(
           each
             ? `${outside.length} failed requests outside the window of each deleted replica: ${windows.map((window) => `${window.pod} ${bounds(window)}`).join(", ")} after its ${prediction.start.from}`
-            : `${outside.length} failed requests outside ${bounds(windows[0]!)} after ${prediction.start.from}`,
+            : flaps
+              ? `${outside.length} failed requests outside the window of each cycle: ${windows.map((window, k) => `${k + 1} ${bounds(window)}`).join(", ")} after its ${prediction.start.from}`
+              : `${outside.length} failed requests outside ${bounds(windows[0]!)} after ${prediction.start.from}`,
         );
       if (others.length > 0) problems.push(`${others.length} failed requests on nodes whose kube-proxy did not pause`);
       if (wrong.length > 0) problems.push(`${wrong.length} failed requests in the window ended ${JSON.stringify(outcomesOf(wrong))}, not ${allowed!.join(", ")}`);
       if (prediction.certain && relevant.length === 0) problems.push("no request failed in a window that the law opens");
       // the window that ends last: the last failed request comes near its end
       const final = windows.reduce((a, b) => ((b.end ?? Number.NEGATIVE_INFINITY) > (a.end ?? Number.NEGATIVE_INFINITY) ? b : a));
-      if (prediction.certain && final.end !== null && relevant.length > 0) {
+      // with flaps, each cycle has a failed request, and its last one comes near the end of its window
+      if (flaps && prediction.certain && relevant.length > 0) {
+        windows.forEach((window, k) => {
+          const own = relevant.filter((request) => request.t >= window.lo && request.t <= window.hi);
+          if (own.length === 0) problems.push(`no request failed in the window of the cycle ${k + 1}`);
+          else if (window.end !== null) {
+            const earliest = window.end + closes!.lo * 1000 - NOISE - SLACK;
+            if (own.at(-1)!.t < earliest) problems.push(`the last failed request of the cycle ${k + 1} started ${sec(earliest - own.at(-1)!.t)} s before its window can end`);
+          }
+        });
+      }
+      if (!flaps && prediction.certain && final.end !== null && relevant.length > 0) {
         const last = relevant.at(-1)!.t;
         const earliest = final.end + closes!.lo * 1000 - NOISE - SLACK;
         if (last < earliest) problems.push(`the last failed request started ${sec(earliest - last)} s before the window can end`);
       }
       const inside = relevant.filter((request) => !late.includes(request));
       const span = inside.length === 0 ? 0 : sec(inside.at(-1)!.t - inside[0]!.t);
-      const where = each ? `the windows of ${windows.length} deleted replicas` : "the window";
+      const where = each ? `the windows of ${windows.length} deleted replicas` : flaps ? `the windows of ${windows.length} cycles` : "the window";
       const agrees =
         reused.length === 0
           ? `${relevant.length} failed requests, all in ${where} (span ${span} s)`
@@ -511,6 +609,7 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
     case "removal": {
       const fault = run.acts.fault;
       if (fault === null) return done(false, "the run has no fault stamp", null);
+      if (prediction.flaps === true) return removalOfCycles(cell, run, prediction, done);
       const empty = sliceEmptyOf(lines, SERVER, fault);
       if (empty === null) return done(false, "the Service kept a ready endpoint", null);
       const value = sec(empty - fault);

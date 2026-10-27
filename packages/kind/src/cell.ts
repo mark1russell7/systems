@@ -145,6 +145,26 @@ export interface Trigger<A = Quantity> {
    * not ready (S2, a failed prober).
    */
   readonly serves?: boolean | undefined;
+  /**
+   * These flaps are the faults that come again after the first one, in their sequence. Each flap
+   * starts `rest` after the heal before it, with the steps of the inject, and its heal comes `hold`
+   * after its own fault. The first fault keeps the hold of the trigger. The steps of the prepare come
+   * one time, before the first fault. Only a trigger with a hold and a heal can flap. Without flaps,
+   * the fault comes one time.
+   */
+  readonly flaps?: readonly Flap[] | undefined;
+}
+
+/** A flap is one more fault of a trigger: the rest from the heal before it, and its hold. */
+export interface Flap {
+  readonly rest: Quantity;
+  readonly hold: Quantity;
+}
+
+/** A cycle is the stamps of one fault of a run and of its heal. */
+export interface Cycle {
+  readonly fault: number;
+  readonly heal: number;
 }
 
 /** A kubelet probe is the period, the failure threshold and the timeout of one probe of the pod. */
@@ -255,7 +275,9 @@ export interface Band<A = Quantity> {
  * - `intake`: the stop of the intake of the target pod, as its service records it.
  * - `fault`: the commit of the fault, as the injector or the agent stamps it.
  * - `resume`: the end of a pause of kube-proxy, as the agent stamps it.
- * - `heal`: the start of the first act that ends the fault, for example the delete of a policy.
+ * - `heal`: the start of the first act that ends the fault, for example the delete of a policy. With
+ *   flaps (`Trigger.flaps`), it is the heal of the last fault. A window or a removal with `flaps`
+ *   takes the fault and the heal of each cycle instead.
  * - `restart`: the first deletion timestamp of a ztunnel pod in the run, as the watcher receives it.
  */
 export type Reference = "deletion" | "intake" | "fault" | "resume" | "heal" | "restart";
@@ -281,7 +303,9 @@ export interface ResetReuse<A = Quantity> {
  *   With `each`, each replica of the run that gets a deletion has a window of its own, from its own
  *   references. A request is late only when it is outside each of these windows.
  * - `removal`: the Service has no ready endpoint, and the rules of each node have no backend, in the band.
- *   With `window`, the failed requests also start in that window.
+ *   With `window`, the failed requests also start in that window. With `flaps`, the band is after
+ *   the fault of each cycle. At each later fault, the Service must have a ready endpoint, and
+ *   the rules of each node a backend. Thus the Service came back after the heal before it.
  * - `leaves`: the target replica leaves the EndpointSlice and the rules of each node in the band.
  *   With `window`, the failed requests also start in that window.
  * - `restarts`: each replica receives SIGTERM in the band, or no replica does.
@@ -302,7 +326,7 @@ export type Prediction<A = Quantity> =
       readonly why: string;
     }
   | WindowPrediction<A>
-  | { readonly kind: "removal"; readonly band: Band<A>; readonly window?: WindowPrediction<A> | undefined; readonly why: string }
+  | { readonly kind: "removal"; readonly band: Band<A>; readonly window?: WindowPrediction<A> | undefined; readonly flaps?: boolean | undefined; readonly why: string }
   | { readonly kind: "leaves"; readonly band: Band<A>; readonly window?: WindowPrediction<A> | undefined; readonly why: string }
   | { readonly kind: "restarts"; readonly band: Band<A> | null; readonly why: string }
   | { readonly kind: "stays"; readonly why: string }
@@ -360,6 +384,13 @@ export interface WindowPrediction<A = Quantity> {
    * earlier drop only closes the window earlier.
    */
   readonly propagation?: Band<A> | undefined;
+  /**
+   * This flag gives a window to each cycle of the run (`KindRun.acts.cycles`): each fault and its
+   * heal. The references `fault` and `heal` are then those of that cycle. The window has no
+   * other reference. A failure in a rest between two windows fails the run. With `certain`, each
+   * window has a failed request, and its last one comes near the end of that window.
+   */
+  readonly flaps?: boolean | undefined;
   /** These outcomes are the only failures that the window permits. A failure with another outcome fails the run. Without them, each outcome but `ok` can fail. */
   readonly outcomes?: readonly string[] | undefined;
   readonly why: string;
@@ -389,7 +420,13 @@ export interface KindRun {
   readonly start: number;
   readonly end: number;
   /** These are the stamps of the acts: the start of the fault, its heal, and the end of a pause of kube-proxy. */
-  readonly acts: { readonly fault: number | null; readonly heal: number | null; readonly resume: number | null };
+  readonly acts: {
+    readonly fault: number | null;
+    readonly heal: number | null;
+    readonly resume: number | null;
+    /** These cycles are each fault and its heal, the first one too, for a trigger with flaps. A run without flaps has none. */
+    readonly cycles?: readonly Cycle[] | undefined;
+  };
   /** This replica is the target of the trigger, or null for a fault on Redis. */
   readonly target: Replica | null;
   /** This node is the node whose kube-proxy paused, or null. */

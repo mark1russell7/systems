@@ -2,7 +2,23 @@ import type { Band, KubeProxyMode, Reference, TriggerKind } from "@mark1russell7
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { CallerFault, Candidate } from "./callers.ts";
-import { CALLERS_CELLS, CALLERS_MODES, CALLER_FAULTS, CANDIDATES, CANNOT_SERVE_HOLD, DEPENDENCY_HOLD, PARTITION_HOLD, STALL_HOLD, callerFaultOf, dependencyOf, expectedFailures, pingsOf } from "./callers.ts";
+import {
+  CALLERS_CELLS,
+  CALLERS_MODES,
+  CALLER_FAULTS,
+  CANDIDATES,
+  CANNOT_SERVE_HOLD,
+  DEPENDENCY_HOLD,
+  FLAP_FAULTS,
+  FLAP_HOLD,
+  PARTITION_HOLD,
+  STALL_HOLD,
+  callerFaultOf,
+  dependencyOf,
+  expectedFailures,
+  flappingOf,
+  pingsOf,
+} from "./callers.ts";
 
 /**
  * The scores of the S6 candidates of health and routing, for the dimension "how callers learn". A
@@ -10,12 +26,13 @@ import { CALLERS_CELLS, CALLERS_MODES, CALLER_FAULTS, CANDIDATES, CANNOT_SERVE_H
  * The evidence is the CI run and the cell. A criterion that the data cannot support is "not measured",
  * with the reason. No score fills a gap with an estimate.
  *
- * Five incidents have cells. The first three are a pod that cannot serve (`cannot-serve`, the S2
+ * Six incidents have cells. The first three are a pod that cannot serve (`cannot-serve`, the S2
  * cells of T07), a partitioned pod (a black hole between the clients and the target), and a stalled
  * pod (`app-stall`). The fourth is a failed prober (`cannot-serve` with `serves`: a false failure of
  * the readiness check). The fifth is a black-holed shared dependency (a black hole between Redis and
- * each replica).
- * Each one has its own kind run.
+ * each replica). The sixth is a flapping dependency: that black hole, three times in one run.
+ *
+ * Each incident has its own kind run.
  * The other incidents of the design have no cell of the candidates yet, thus each one is "not measured".
  *
  * The probe load is the PINGs that the clients add to the readiness probe, which each candidate shares.
@@ -62,9 +79,9 @@ export const INCIDENTS: readonly Incident[] = [
   "a stalled pod (gray failure)",
   "a failed prober",
   "a black-holed shared dependency",
+  "a flapping dependency",
   "a lost zone",
   "a slow dependency (gray failure)",
-  "a flapping dependency",
 ];
 
 /** This record is the evidence of a score: the CI run, the cell, and the verdict of the judge on its counted runs. */
@@ -156,6 +173,10 @@ export interface Scorecard {
  *   took half the timeout of the client at the least. After it, each failure is fast.
  * - `recovers`: from the heal to the start of the last failed request.
  *
+ * In a flapping dependency, the copy has the same fields. `knows` and `recovers` have one time for
+ * each fault of each counted run, in the order of the runs. `emptied` has the time from each fault to
+ * its empty Service, in the same order. The main value is the empty Service after the first fault.
+ *
  * A copy of a run whose clients count each PING also has `pings` and `acks`. They are the PINGs of the
  * session checks of the clients in each counted run, and the ACKs of those PINGs. A run with no
  * line of the count gives null. `seconds` is the length of each counted run.
@@ -170,6 +191,7 @@ export interface CallerResult {
   readonly failures?: readonly number[];
   readonly knows?: readonly (number | null)[];
   readonly recovers?: readonly (number | null)[];
+  readonly emptied?: readonly (number | null)[];
   readonly pings?: readonly (number | null)[];
   readonly acks?: readonly (number | null)[];
   readonly seconds?: readonly number[];
@@ -219,6 +241,9 @@ const NOT_MEASURED: Readonly<Record<CallerFault, Partial<Record<Criterion, strin
   "shared dependency": {
     "false removals on a blip": `The black hole holds for ${valueIn(DEPENDENCY_HOLD, "s")} s, and the readiness of each replica follows Redis: no replica can serve. No cell gives a short fault yet.`,
   },
+  "flapping dependency": {
+    "false removals on a blip": `Each of the ${FLAP_FAULTS} faults holds for ${valueIn(FLAP_HOLD, "s")} s, and the readiness of each replica follows Redis: each removal is true. No cell gives a short fault yet.`,
+  },
 };
 
 /** These are the incidents of the design that the S2 cells measure, and the trigger of their cells. */
@@ -228,6 +253,7 @@ const INCIDENT_OF: Readonly<Record<CallerFault, { readonly incident: Incident; r
   stall: { incident: "a stalled pod (gray failure)", trigger: "app-stall" },
   "false failure": { incident: "a failed prober", trigger: "cannot-serve" },
   "shared dependency": { incident: "a black-holed shared dependency", trigger: "blackhole" },
+  "flapping dependency": { incident: "a flapping dependency", trigger: "blackhole" },
 };
 
 /** This text is the reason for each incident of the design that has no cell of the candidates yet. */
@@ -235,15 +261,13 @@ const NO_CELL = "No cell measures the candidates A, B, C and D in this incident 
 
 /**
  * These texts are the reasons of an incident with no cell. Each one tells what T07 cannot do for that
- * incident: T07 slows no dependency, has no zone, and has one fault for each run.
+ * incident: T07 slows no dependency, and has no zone.
  */
 const NO_CELL_OF: Readonly<Partial<Record<Incident, string>>> = {
   "a lost zone":
     "No cell measures the candidates in this incident yet. The kind cluster of T07 has no zones, and no step of the lab stops a node and its kubelet at once. A drain is not a loss: it evicts each pod with its grace.",
   "a slow dependency (gray failure)":
     "No cell measures the candidates in this incident yet. The trigger of the S2 cells black-holes Redis, and no trigger slows it. A slow dependency slows each replica at once, thus no routing candidate can go around it. The stalled pod is the gray failure of one replica.",
-  "a flapping dependency":
-    "No cell measures the candidates in this incident yet. Each trigger of the lab has one fault and one heal, thus no fault comes again in a run. The server of T07 has no dependency that can flap.",
 };
 
 /** This text is the reason for an incident with cells, when no copy has a result of them. */
@@ -330,8 +354,8 @@ const scoreOf = (criterion: Criterion, candidate: Candidate, mode: KubeProxyMode
     const expected = expectedFailures(candidate, mode, fault);
     const lo = valueIn(expected.lo, "{request}");
     const hi = valueIn(expected.hi, "{request}");
-    // the main value of a false failure and of a shared dependency is the time of a removal, thus its copy keeps the failures apart
-    const apart = fault === "false failure" || fault === "shared dependency";
+    // the main value of a false failure and of a dependency is the time of a removal, thus its copy keeps the failures apart
+    const apart = fault === "false failure" || fault === "shared dependency" || fault === "flapping dependency";
     const values = apart ? result.failures : result.values;
     const median = apart ? (values === undefined || values.length === 0 ? null : middle([...values].sort((a, b) => a - b))) : result.median;
     if (median === null || values === undefined) return { criterion, kind: "not measured", why: "The copy has no median of the failed requests of this cell." };
@@ -370,6 +394,18 @@ const scoreOf = (criterion: Criterion, candidate: Candidate, mode: KubeProxyMode
           ? timesOf(criterion, result.recovers, windowOf(result.id).band, "heal", result.counted, evidence)
           : timesOf(criterion, result.values, removalOf(result.id), "fault", result.counted, evidence);
     const what = { "time until callers know": "the last slow failure", "time to recover": "the last failure after the heal", "routes down": "the empty Service" }[criterion as string];
+    return scored ?? { criterion, kind: "not measured", why: `The copy has no time of ${what ?? criterion} of this cell.` };
+  }
+  if (fault === "flapping dependency" && criterion !== "complexity" && NOT_MEASURED[fault][criterion] === undefined) {
+    // each fault of a run is a black hole of Redis: each time has one value for each fault of each counted run
+    const faults = result.counted * FLAP_FAULTS;
+    const scored =
+      criterion === "time until callers know"
+        ? timesOf(criterion, result.knows, flappingOf(mode, candidate).knows, "fault", faults, evidence)
+        : criterion === "time to recover"
+          ? timesOf(criterion, result.recovers, windowOf(result.id).band, "heal", faults, evidence)
+          : timesOf(criterion, result.emptied, removalOf(result.id), "fault", faults, evidence);
+    const what = { "time until callers know": "the last slow failure of each fault", "time to recover": "the last failure after each heal", "routes down": "the empty Service after each fault" }[criterion as string];
     return scored ?? { criterion, kind: "not measured", why: `The copy has no time of ${what ?? criterion} of this cell.` };
   }
   if (criterion === "time until callers know") {

@@ -2,7 +2,7 @@
   "ranAt": "2026-10-27",
   "dimension": "how callers learn",
   "run": 40358038728,
-  "runs": [40358038728, 40380943331, 40394320219, 40406199754, 40419289511, 40430856093, 40440516571],
+  "runs": [40358038728, 40380943331, 40394320219, 40406199754, 40419289511, 40430856093, 40440516571, 40464814086],
   "criteria": [
     "time until callers know",
     "failed requests",
@@ -8554,6 +8554,3206 @@
       ]
     },
     {
+      "incident": "a flapping dependency",
+      "kind": "scored",
+      "trigger": "blackhole",
+      "run": 40464814086,
+      "modes": [
+        {
+          "mode": "iptables",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.iptables.endpoints.flapping",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 11.5782232,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 9.3158543,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.2757788,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.5290766,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.6590247,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.5782232,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.6198914,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.7541018,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.9067522,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 12.4792192,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 7.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.iptables.endpoints.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 13935,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 13336,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 14014,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 13935,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 11556,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 16551,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.iptables.endpoints.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Each of the 3 faults holds for 27 s, and the readiness of each replica follows Redis: each removal is true. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3.9275413,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.2691266,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.4371366,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.6743215,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.7913884,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.9275413,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.3449923,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.4889662,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 5.5648216,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 5.8423756,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 9.26,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.iptables.endpoints.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 18.713,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 16.704,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.211,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.481,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.669,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.713,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.004,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.941,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.211,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.434,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.105,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.iptables.endpoints.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.iptables.lame-duck.flapping",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 27.1317999,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 25.7706773,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.0944242,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1160195,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1217518,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1317999,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1332891,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1377411,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1551305,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1743793,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 24.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 27.5,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.iptables.lame-duck.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 12274,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 12814,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 12274,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 12252,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 10701,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 17505,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.iptables.lame-duck.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Each of the 3 faults holds for 27 s, and the readiness of each replica follows Redis: each removal is true. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.4987004,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": -1.3560287,
+                      "unit": "s"
+                    },
+                    {
+                      "value": -0.0501036,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.192415,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.4288121,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.4987004,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.5899849,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.805831,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.9063267,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.1105232,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": -2,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.365,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.iptables.lame-duck.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 17.721,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 16.913,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 16.954,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.024,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.552,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.721,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.166,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.191,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.249,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.4,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.105,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.iptables.lame-duck.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.iptables.goaway.flapping",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 26.49136,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 26.14131,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.2671326,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.3509916,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.374366,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.49136,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.6984679,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.7272014,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.7683535,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.0617147,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 24.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 27.5,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.iptables.goaway.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 13516,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 13918,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 13060,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 13516,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 10701,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 17442,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.iptables.goaway.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Each of the 3 faults holds for 27 s, and the readiness of each replica follows Redis: each removal is true. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 2.2850204,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 1.6582986,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.0661901,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.1971163,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.2633542,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.2850204,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.4094805,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.6284056,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.6915589,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 6.0429945,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": -2,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.225,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.iptables.goaway.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "C has no session check, and node:http2 sends a PING only when its caller asks for one. Thus the clients of C send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 18.473,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 16.477,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 16.89,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.962,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.383,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.473,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.823,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.969,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.033,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 21.386,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.105,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.iptables.goaway.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.iptables.session-check.flapping",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 26.703258,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 26.1257355,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.3058383,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.5152969,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.6084955,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.703258,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.8342271,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.9823581,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.0587176,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.0810201,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 24.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 27.5,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.iptables.session-check.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 13866,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 14582,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 13866,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 13854,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 10701,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 17442,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.iptables.session-check.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Each of the 3 faults holds for 27 s, and the readiness of each replica follows Redis: each removal is true. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3.5418597,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 2.5950993,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.0665697,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.2465959,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.4632165,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.5418597,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.8924085,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.9767729,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 6.7930388,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 6.9977523,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": -2,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.225,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.iptables.session-check.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "measured",
+                  "median": {
+                    "value": 123,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 122,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 123,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 135,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 9,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 378,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.iptables.session-check.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 17.958,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 15.641,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.585,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.692,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.907,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.958,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.381,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.015,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.211,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.294,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.105,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.iptables.session-check.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "B"
+        },
+        {
+          "mode": "ipvs",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.ipvs.endpoints.flapping",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 11.3767139,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 9.7681506,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.7930598,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.1900925,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.2044937,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.3767139,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.5170346,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.5286525,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 13.7360085,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 13.8251818,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 7.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.ipvs.endpoints.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 13434,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 13434,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 13433,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 14191,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 11556,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 16551,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.ipvs.endpoints.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Each of the 3 faults holds for 27 s, and the readiness of each replica follows Redis: each removal is true. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3.6811332,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.4146647,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.8658247,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.513575,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.6180459,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.6811332,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.2142706,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.5989524,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.7380419,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 5.2996376,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 9.26,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.ipvs.endpoints.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 20.306,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 17.043,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.205,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.555,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.831,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.306,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.322,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.763,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.767,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 21.284,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12.073,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.309,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.ipvs.endpoints.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.ipvs.lame-duck.flapping",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 27.1180035,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 27.1009727,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1058387,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1063904,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1095239,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1180035,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1182337,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1207056,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1320138,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.156098,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 24.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 27.5,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.ipvs.lame-duck.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 12956,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 12843,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 13204,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 12956,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 10701,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 17595,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.ipvs.lame-duck.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Each of the 3 faults holds for 27 s, and the readiness of each replica follows Redis: each removal is true. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 2.3496209,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.2463313,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.6758762,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.9956929,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.1112614,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.3496209,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.4309469,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.4612845,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.4887687,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.7722545,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": -2,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.569,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.ipvs.lame-duck.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 19.179,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 17.177,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.563,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.921,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.014,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.179,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.338,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.422,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 21.253,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 21.636,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12.073,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.309,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.ipvs.lame-duck.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.ipvs.goaway.flapping",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 26.7029312,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 26.1553935,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.2442506,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.468558,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.5936784,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.7029312,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.7083752,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.7888561,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.9276103,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.9355904,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 24.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 27.5,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.ipvs.goaway.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 13443,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 13031,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 13443,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 13843,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 10701,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 17532,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.ipvs.goaway.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Each of the 3 faults holds for 27 s, and the readiness of each replica follows Redis: each removal is true. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 2.6332194,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.8026574,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.1546726,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.0973479,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.3990732,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.6332194,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.7198766,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.6730333,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.9319767,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 5.6051937,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": -2,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.429,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.ipvs.goaway.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "C has no session check, and node:http2 sends a PING only when its caller asks for one. Thus the clients of C send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 19.206,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 14.261,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 16.012,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.485,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.852,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.206,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.82,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.342,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.565,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 21.386,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12.073,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.309,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.ipvs.goaway.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.ipvs.session-check.flapping",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 26.4695425,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 25.5564775,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.1006987,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.1692072,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.2782619,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.4695425,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.5918721,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.8416524,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.0040194,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.0937624,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 24.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 27.5,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.ipvs.session-check.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 14144,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 14144,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 14644,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 13867,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 10701,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 17532,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.ipvs.session-check.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Each of the 3 faults holds for 27 s, and the readiness of each replica follows Redis: each removal is true. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4.1257453,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 3.5237173,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.5974772,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.9021268,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.0522201,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.1257453,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.2391389,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 5.7839933,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 6.0180497,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 6.4708875,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": -2,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.429,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.ipvs.session-check.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "measured",
+                  "median": {
+                    "value": 131,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 124,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 131,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 138,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 9,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 378,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.ipvs.session-check.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 18.778,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 16.575,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.462,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.698,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.73,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.778,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.918,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.25,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.278,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 21.13,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12.073,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.309,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.ipvs.session-check.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "B"
+        },
+        {
+          "mode": "nftables",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.nftables.endpoints.flapping",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 11.15495,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 9.5986717,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.0288055,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.6876425,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.8990946,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.15495,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.1734962,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 12.0828979,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 12.2330469,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 12.8145059,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 7.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.nftables.endpoints.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 14213,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 13894,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 14213,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 14290,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 11556,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 16551,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.nftables.endpoints.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Each of the 3 faults holds for 27 s, and the readiness of each replica follows Redis: each removal is true. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4.3206993,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 2.3276311,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.4343728,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.4979056,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.5101303,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.3206993,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 5.417833,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 5.7690782,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 5.9054678,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 6.0848033,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 9.26,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.nftables.endpoints.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 18.651,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 15.869,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.24,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.262,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.477,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.651,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.806,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.948,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.391,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.189,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.079,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.nftables.endpoints.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.nftables.lame-duck.flapping",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 27.1783433,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 27.1573808,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1616885,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1710642,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1733323,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1783433,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1835838,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1858529,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1978764,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.2049728,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 24.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 27.5,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.nftables.lame-duck.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 13207,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 13207,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 13675,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 12823,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 10701,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 17487,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.nftables.lame-duck.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Each of the 3 faults holds for 27 s, and the readiness of each replica follows Redis: each removal is true. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 2.5312604,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 1.0071373,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.1327306,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.2295341,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.4769972,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.5312604,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.670114,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.3025054,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.4392401,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.7623503,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": -2,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.339,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.nftables.lame-duck.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 18.464,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 16.392,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.619,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.748,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.156,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.464,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.354,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.66,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.998,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.019,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.079,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.nftables.lame-duck.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.nftables.goaway.flapping",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 26.8285261,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 26.2216654,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.3914476,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.533215,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.8283772,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.8285261,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.8582585,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1584543,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1734088,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1916663,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 24.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 27.5,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.nftables.goaway.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 14102,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 14102,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 13769,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 14373,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 10701,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 17424,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.nftables.goaway.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Each of the 3 faults holds for 27 s, and the readiness of each replica follows Redis: each removal is true. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4.0498242,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 3.285021,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.4370158,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.7166597,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.7338472,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.0498242,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.0686394,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.0833605,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 5.7829937,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 7.2116128,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": -2,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.199,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.nftables.goaway.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "C has no session check, and node:http2 sends a PING only when its caller asks for one. Thus the clients of C send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 19.099,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 17.119,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.446,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.479,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.862,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.099,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.486,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.832,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.853,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.857,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.079,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.nftables.goaway.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.nftables.session-check.flapping",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 26.5290335,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 26.1695839,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.220935,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.3630916,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.5032995,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.5290335,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.6456519,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.9100269,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.0068926,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.0929553,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 24.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 27.5,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.nftables.session-check.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 13805,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 13880,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 13805,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 13357,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 10701,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 17424,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.nftables.session-check.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Each of the 3 faults holds for 27 s, and the readiness of each replica follows Redis: each removal is true. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3.7932295,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 1.322464,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.8264136,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.0904092,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.5049457,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.7932295,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.9228055,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.2402641,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 5.0919126,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 5.4082219,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": -2,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.199,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.nftables.session-check.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "measured",
+                  "median": {
+                    "value": 123,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 112,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 123,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 126,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 9,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 378,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.nftables.session-check.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 17.835,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 16.194,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 16.59,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 16.682,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.058,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.835,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.288,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.542,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.193,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.942,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.079,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40464814086,
+                    "cell": "S2.T07.nftables.session-check.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "B"
+        }
+      ]
+    },
+    {
       "incident": "a lost zone",
       "kind": "not measured",
       "why": "No cell measures the candidates in this incident yet. The kind cluster of T07 has no zones, and no step of the lab stops a node and its kubelet at once. A drain is not a loss: it evicts each pod with its grace."
@@ -8562,11 +11762,6 @@
       "incident": "a slow dependency (gray failure)",
       "kind": "not measured",
       "why": "No cell measures the candidates in this incident yet. The trigger of the S2 cells black-holes Redis, and no trigger slows it. A slow dependency slows each replica at once, thus no routing candidate can go around it. The stalled pod is the gray failure of one replica."
-    },
-    {
-      "incident": "a flapping dependency",
-      "kind": "not measured",
-      "why": "No cell measures the candidates in this incident yet. Each trigger of the lab has one fault and one heal, thus no fault comes again in a run. The server of T07 has no dependency that can flap."
     }
   ]
 }

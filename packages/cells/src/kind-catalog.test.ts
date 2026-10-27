@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { timerOf } from "@mark1russell7/algebra";
 import type { KindCell } from "@mark1russell7/kind";
 import { LINUX_TCP } from "@mark1russell7/machines";
-import { clientObjects, describeCell, kubeletBand, lintCell, namespaceOf, pausedWindow, planOf, removalBand, serverObjects, stallRemovalBand, stopOf, verdictsOf } from "@mark1russell7/kind";
+import { clientObjects, describeCell, faultSpan, kubeletBand, lintCell, namespaceOf, pausedWindow, planOf, removalBand, serverObjects, stallRemovalBand, stopOf, verdictsOf } from "@mark1russell7/kind";
 import { STOP_RULE } from "@mark1russell7/service";
 import { sessionCheckDetection, sessionCheckProblems } from "@mark1russell7/service/http-client";
 import { valueIn } from "@mark1russell7/quantity";
@@ -15,10 +15,15 @@ import {
   CANNOT_SERVE_HOLD,
   CHECKED,
   DEPENDENCY_HOLD,
+  FLAPS,
+  FLAP_FAULTS,
+  FLAP_HOLD,
+  FLAP_REST,
   KEEP_ALIVE,
   KIND_TCP,
   MULTIPLEXED,
   PARTITION_HOLD,
+  REDIS_HEAL_LEAD,
   SELECTION,
   SESSION_CHECK,
   STALL_HOLD,
@@ -26,7 +31,9 @@ import {
   dependencyOf,
   expectedFailures,
   falseOf,
+  flappingOf,
   negativeBinomial,
+  pingsOf,
   targetConnections,
 } from "./callers.ts";
 import type { CallerFault } from "./callers.ts";
@@ -47,7 +54,7 @@ const propagationOf = (cell: KindCell) => {
 
 describe("the kind catalogs", () => {
   it("names each cell by a cell of the plan, or as a calibration, and each name once", () => {
-    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(iptables|ipvs|nftables)\.(endpoints|lame-duck|goaway|session-check)(\.partition|\.stall|\.prober|\.dependency)?$/);
+    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(iptables|ipvs|nftables)\.(endpoints|lame-duck|goaway|session-check)(\.partition|\.stall|\.prober|\.dependency|\.flapping)?$/);
     expect(new Set(ALL.map((cell) => cell.name)).size).toBe(ALL.length);
     expect(new Set(ALL.map(namespaceOf)).size).toBe(ALL.length);
   });
@@ -163,9 +170,9 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
 
   it("has the four candidates in each mode of kube-proxy, from one definition", () => {
     expect(CALLERS_MODES).toEqual(["iptables", "ipvs", "nftables"]);
-    expect(CALLER_FAULTS).toEqual(["cannot serve", "partition", "stall", "false failure", "shared dependency"]);
+    expect(CALLER_FAULTS).toEqual(["cannot serve", "partition", "stall", "false failure", "shared dependency", "flapping dependency"]);
     expect(CALLERS_CELLS.map((cell) => cell.id)).toEqual(
-      ["", ".partition", ".stall", ".prober", ".dependency"].flatMap((tail) =>
+      ["", ".partition", ".stall", ".prober", ".dependency", ".flapping"].flatMap((tail) =>
         CALLERS_MODES.flatMap((mode) => [`S2.T07.${mode}.endpoints${tail}`, `S2.T07.${mode}.lame-duck${tail}`, `S2.T07.${mode}.goaway${tail}`, `S2.T07.${mode}.session-check${tail}`]),
       ),
     );
@@ -483,6 +490,69 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
         expect(predicted.knows).toEqual(band(7.98, 22));
         const { lo, hi } = expectedFailures(candidate, mode, "shared dependency");
         expect([lo.value, hi.value]).toEqual([3954, counts[mode][at]]);
+      }
+    }
+  });
+
+  it("flaps the black hole of Redis: the cells of the shared dependency, with three faults in one run", () => {
+    expect(FLAP_FAULTS).toBe(3);
+    expect(FLAPS).toEqual([
+      { rest: s(15), hold: s(27) },
+      { rest: s(15), hold: s(27) },
+    ]);
+    expect(FLAP_HOLD).toEqual(DEPENDENCY_HOLD);
+    for (const mode of CALLERS_MODES) {
+      const dependency = trioOf(mode, "shared dependency");
+      const flapping = trioOf(mode, "flapping dependency");
+      expect(flapping.map((cell) => cell.name)).toEqual(CANDIDATES.map((candidate) => `T07 ${mode}, callers learn that a shared dependency flaps: ${candidate}`));
+      for (const [at, cell] of flapping.entries()) {
+        const { id, name: _n, trigger, prediction: _p, ...rest } = cell;
+        const { id: twin, name: _tn, trigger: _tt, prediction: _tp, ...restTwin } = dependency[at]!;
+        expect(id).toBe(twin.slice(0, -".dependency".length) + ".flapping");
+        // the same design, settings, workload and runs: only the trigger and the prediction differ
+        expect(rest).toEqual(restTwin);
+        expect(trigger).toEqual({ kind: "blackhole", hold: FLAP_HOLD, flaps: FLAPS });
+        expect(callerFaultOf(cell)).toBe("flapping dependency");
+        const plan = planOf(cell);
+        expect(plan.inject).toEqual([{ do: "inject", target: "redis", action: "blackhole" }]);
+        expect(plan.flaps).toEqual(FLAPS);
+        // three holds and two rests
+        expect(faultSpan(cell.trigger)).toEqual(s(111));
+      }
+    }
+  });
+
+  it("predicts each fault of a flapping dependency: the empty Service, the window of each cycle, and the failed requests", () => {
+    const band = (lo: number, hi: number) => ({ lo: s(lo), hi: s(hi) });
+    // per fault: A from the fault to its recovery. B, C and D: their last failure can start one timeout before the heal
+    const each = { iptables: [5517, 5835, 5814, 5814], ipvs: [5517, 5865, 5844, 5844], nftables: [5517, 5829, 5808, 5808] };
+    for (const mode of CALLERS_MODES) {
+      for (const [at, cell] of trioOf(mode, "flapping dependency").entries()) {
+        const candidate = CANDIDATES[at]!;
+        const one = dependencyOf(mode, candidate);
+        const predicted = flappingOf(mode, candidate);
+        if (cell.prediction.kind !== "removal" || cell.prediction.window === undefined) throw new Error(`${cell.name}: no removal with a window`);
+        expect(cell.prediction.flaps).toBe(true);
+        expect(cell.prediction.band).toEqual(one.removal);
+        // the Service is empty in each fault, and its recovery ends in the rest
+        expect(valueIn(one.removal.hi, "s")).toBeLessThan(valueIn(FLAP_HOLD, "s"));
+        expect(valueIn(one.end.hi, "s") + 2).toBeLessThan(valueIn(FLAP_REST, "s"));
+        const window = cell.prediction.window;
+        const a = candidate === "endpoints only";
+        expect([window.certain, window.flaps, window.start, window.end]).toEqual([true, true, { from: "fault", band: band(0, 0.02) }, { from: "heal", band: { lo: s(a ? 0 : -2), hi: one.end.hi } }]);
+        expect(REDIS_HEAL_LEAD).toEqual(band(0, 0.5));
+        // A knows at the latch. B, C and D fail slowly until the heal, thus they know in the last timeout before it
+        expect(predicted.knows).toEqual(a ? band(7.98, 22) : band(24.98, 27.5));
+        expect([predicted.each.lo.value, predicted.each.hi.value]).toEqual([a ? 3852 : 3567, each[mode][at]]);
+        const { lo, hi } = expectedFailures(candidate, mode, "flapping dependency");
+        expect([lo.value, hi.value]).toEqual([3 * predicted.each.lo.value, 3 * predicted.each.hi.value]);
+        expect(predicted.why).toContain(`${predicted.each.lo.value}–${predicted.each.hi.value} requests fail in each fault`);
+        // D sends the PINGs of the shared dependency in each fault
+        if (candidate === "in band on HTTP/2 with a session check") {
+          const once = pingsOf(mode, candidate, "shared dependency");
+          const thrice = pingsOf(mode, candidate, "flapping dependency");
+          expect([thrice.lo.value, thrice.hi.value]).toEqual([3 * once.lo.value, 3 * once.hi.value]);
+        }
       }
     }
   });

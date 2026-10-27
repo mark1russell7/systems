@@ -5,11 +5,11 @@ import type { StartedTestContainer } from "testcontainers";
 import { imageOf } from "@mark1russell7/harness";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
-import type { KindCell, KindRun, Replica } from "./cell.ts";
+import type { Cycle, KindCell, KindRun, Replica } from "./cell.ts";
 import type { Cluster } from "./cluster.ts";
 import { command, createCluster } from "./cluster.ts";
 import type { Step, Target } from "./faults.ts";
-import { NODE, POD, VERSION, deletes as deletesAPod, middleboxCommands, planOf, sysctlCommand } from "./faults.ts";
+import { NODE, POD, VERSION, deletes as deletesAPod, faultSpan, middleboxCommands, planOf, sysctlCommand } from "./faults.ts";
 import { labImage } from "./image.ts";
 import type { MeshImages } from "./istio.ts";
 import { EDS_EVERY, ISTIO_IMAGES, LDS_EVERY, MESH_IMAGES, followsZtunnel, installMesh, meshKey, pollsListeners, serverCluster, setZtunnelEnv, ztunnelCertificates } from "./istio.ts";
@@ -574,18 +574,46 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
     if (stamp !== null && fault === null) fault = stamp.t0;
   }
   let heal: number | null = null;
-  if (plan.hold !== null) {
+  // the heal of one fault, `hold` after its stamp: the stamp of its first act, or null
+  const healAfter = async (from: number | null, hold: Quantity): Promise<number | null> => {
     const now = await lab.now();
-    await sleep(Math.max(0, valueIn(plan.hold, "ms") - (now - (fault ?? now))));
+    await sleep(Math.max(0, valueIn(hold, "ms") - (now - (from ?? now))));
+    let stamped: number | null = null;
     for (const step of plan.heal) {
       try {
         const stamp = await doStep(ctx, step, replicas, background);
-        if (stamp !== null && heal === null) heal = stamp.t0;
+        if (stamp !== null && stamped === null) stamped = stamp.t0;
       } catch (error) {
         notes.push(`the heal ${step.do} failed: ${String(error)}`);
       }
     }
+    return stamped;
+  };
+  const cycles: Cycle[] = [];
+  if (plan.hold !== null) {
+    heal = await healAfter(fault, plan.hold);
+    if (fault !== null && heal !== null) cycles.push({ fault, heal });
+    // each flap: the rest from the heal before it, the inject again, and its heal after its own hold
+    for (const flap of plan.flaps ?? []) {
+      const now = await lab.now();
+      await sleep(Math.max(0, valueIn(flap.rest, "ms") - (now - (heal ?? now))));
+      let again: number | null = null;
+      for (const step of plan.inject) {
+        try {
+          const stamp = await doStep(ctx, step, replicas, background);
+          if (stamp !== null && again === null) again = stamp.t0;
+        } catch (error) {
+          notes.push(`the inject ${step.do} of a flap failed: ${String(error)}`);
+        }
+      }
+      const healed = await healAfter(again, flap.hold);
+      if (again !== null && healed !== null) cycles.push({ fault: again, heal: healed });
+      heal = healed ?? heal;
+    }
   }
+  const flapped = (plan.flaps ?? []).length > 0;
+  if (flapped && cycles.length !== (plan.flaps ?? []).length + 1) notes.push(`the run has ${cycles.length} cycles with stamps of the ${(plan.flaps ?? []).length + 1} of the trigger`);
+  const flapping = flapped ? { cycles } : {};
   const settled = await Promise.allSettled(background);
   for (const each of settled) {
     if (each.status === "fulfilled" && typeof each.value === "object" && each.value !== null && "t1" in each.value) resume = (each.value as Stamp).t1;
@@ -595,7 +623,7 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
   await sleep(3000);
   while (Date.now() < limit && !over(ctx, { target, replicas, restarts }, lab.lines)) await sleep(250);
   // then until each predicted window can close and each request that started in it ended (`observationEnd`)
-  const until = observationEnd(cell, { start, acts: { fault, heal, resume }, target: stoppedOf(cell, replicas, target, lab.lines), replicas, lines: lab.lines });
+  const until = observationEnd(cell, { start, acts: { fault, heal, resume, ...flapping }, target: stoppedOf(cell, replicas, target, lab.lines), replicas, lines: lab.lines });
   if (until !== null) {
     const wait = Math.min(until - (await lab.now()), limit - Date.now());
     if (wait > 0) await sleep(wait);
@@ -622,7 +650,7 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
   if (cell.trigger.kind === "node-drain") await rebalance(ctx);
   ctx.log(`  ${warmup ? "warm-up" : `run ${index}`}: ${sec(end - start)} s${timedOut ? ", not at rest in time" : ""}`);
   return {
-    env, index, warmup, start, end, acts: { fault, heal, resume }, target: stopped, paused, replicas, void: null, lines, dropped: { ...lab.dropped }, notes,
+    env, index, warmup, start, end, acts: { fault, heal, resume, ...flapping }, target: stopped, paused, replicas, void: null, lines, dropped: { ...lab.dropped }, notes,
   };
 };
 
@@ -789,7 +817,8 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
 
 /** This function gives the estimate of a cell in seconds, for the arithmetic of the shards. */
 const estimate = (cell: KindCell, environments = 2): number => {
-  const hold = cell.trigger.hold === undefined ? 0 : valueIn(cell.trigger.hold, "s");
+  // the span of the faults: the hold, then the rest and the hold of each flap
+  const hold = valueIn(faultSpan(cell.trigger), "s");
   const trigger: Record<string, number> = {
     "liveness-restart": 100,
     crash: 30,

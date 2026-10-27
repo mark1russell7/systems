@@ -25,7 +25,7 @@ import { fileURLToPath } from "node:url";
 import type { Quantity } from "../../quantity/src/index.ts";
 import { valueIn } from "../../quantity/src/index.ts";
 import type { KindCell, KindCellRecord, KindCellRecordV1, KindRun, KindVerdict, Prediction, Reference, TimeSpread } from "../../kind/src/index.ts";
-import { FORMAT, FORMAT_V1, calibrationOf, judgeKind, propagationOf, referenceOf, upgrade } from "../../kind/src/index.ts";
+import { FORMAT, FORMAT_V1, calibrationOf, cyclesOf, judgeKind, propagationOf, referenceOf, upgrade } from "../../kind/src/index.ts";
 import { T07_CELLS } from "../../cells/src/t07.ts";
 import { T18_CELLS } from "../../cells/src/t18.ts";
 import { T15_GRPC } from "../../cells/src/grpc/t15.ts";
@@ -313,7 +313,7 @@ const groupOf = (cell: KindCell): string => {
   if (cell.template === "T07") {
     if (cell.trigger.kind === "cannot-serve") return cell.trigger.serves === true ? "prober" : "callers";
     if (cell.trigger.partition === true) return "partition";
-    if (cell.trigger.kind === "blackhole") return "dependency";
+    if (cell.trigger.kind === "blackhole") return cell.trigger.flaps === undefined ? "dependency" : "flapping";
     if (cell.trigger.kind === "app-stall") return "stall";
     if (cell.calibrates) return "calibration";
     if (cell.trigger.kind === "pod-deletion") return "deletion";
@@ -339,9 +339,9 @@ const spread = (value: TimeSpread | null) =>
  * This function gives the copy of a cell: kind for T07 and T18, and t15 for T15. The S2 cells of
  * cannot-serve get s2, those of a partition get s2-partition, and those of a stall get s2-stall. The
  * cells of a false failure of the prober get s2-prober, and those of a shared dependency get
- * s2-dependency.
+ * s2-dependency. The cells of a flapping dependency get s2-flapping.
  */
-const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" | "s2-prober" | "s2-dependency" => {
+const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" | "s2-prober" | "s2-dependency" | "s2-flapping" => {
   if (cell.template === "T15") return "t15";
   if (!cell.id.startsWith("S2.")) return "kind";
   const fault = callerFaultOf(cell);
@@ -353,7 +353,9 @@ const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" | "s2-st
         ? "s2-prober"
         : fault === "shared dependency"
           ? "s2-dependency"
-          : "s2";
+          : fault === "flapping dependency"
+            ? "s2-flapping"
+            : "s2";
 };
 
 /**
@@ -379,6 +381,42 @@ const dependencyTimesOf = (cell: KindCell, runs: readonly KindRun[]): { knows: A
     };
   });
   return { knows: times.map((each) => each.knows), recovers: times.map((each) => each.recovers) };
+};
+
+/**
+ * This function gives three times of each cycle of each counted run of a flapping dependency, in
+ * seconds. Their sequence is that of the runs, then of the cycles. A cycle with no such time gives null.
+ * - `knows`: from the fault of the cycle to the start of the last slow failure before its heal.
+ * - `recovers`: from the heal of the cycle to the start of the last failed request before the next
+ *   fault. It is below zero when the last failure starts before the heal.
+ * - `emptied`: from the fault of the cycle to its empty Service, from the check of the judge.
+ */
+const flappingTimesOf = (
+  cell: KindCell,
+  runs: readonly KindRun[],
+  verdict: KindVerdict,
+): { knows: Array<number | null>; recovers: Array<number | null>; emptied: Array<number | null> } => {
+  const slow = valueIn(cell.workload.timeout, "ms") / 2;
+  const counted = runs.filter((run) => !run.warmup && run.void === null);
+  if (counted.length !== verdict.checks.length) throw new Error(`${counted.length} counted runs and ${verdict.checks.length} checks`);
+  const times = counted.flatMap((run, at) => {
+    const cycles = cyclesOf(run);
+    const failures = failuresOf(run.lines as readonly Line[]).filter((request) => request.t >= run.start && request.t <= run.end);
+    const facts = verdict.checks[at]!.facts.cycles ?? [];
+    return cycles.map((cycle, k) => {
+      const next = cycles[k + 1]?.fault ?? run.end;
+      const mine = failures.filter((request) => request.t >= cycle.fault && request.t < next);
+      const known = mine.filter((request) => request.t < cycle.heal && request.d >= slow).at(-1);
+      const last = mine.at(-1);
+      const empty = facts[k]?.empty ?? null;
+      return {
+        knows: known === undefined ? null : round((known.t - cycle.fault) / 1000),
+        recovers: last === undefined ? null : round((last.t - cycle.heal) / 1000),
+        emptied: empty === null ? null : round(valueIn(empty, "s")),
+      };
+    });
+  });
+  return { knows: times.map((each) => each.knows), recovers: times.map((each) => each.recovers), emptied: times.map((each) => each.emptied) };
 };
 
 /**
@@ -470,9 +508,11 @@ const cells = CATALOG.flatMap((cell) => {
       first: entry.first,
       ...(copyOf(cell).startsWith("s2") ? { candidate: candidateOf(cell), lasts: lastsOf(record.runs, verdict) } : {}),
       // the main value of a false failure is the time of its removal, thus the copy keeps the failed requests of each counted run apart
-      ...(copyOf(cell) === "s2-prober" || copyOf(cell) === "s2-dependency" ? { failures: verdict.checks.map((check) => check.facts.failures) } : {}),
+      ...(copyOf(cell) === "s2-prober" || copyOf(cell) === "s2-dependency" || copyOf(cell) === "s2-flapping" ? { failures: verdict.checks.map((check) => check.facts.failures) } : {}),
       // a shared dependency: when the callers know, and when they recover after the heal
       ...(copyOf(cell) === "s2-dependency" ? dependencyTimesOf(cell, record.runs) : {}),
+      // a flapping dependency: the same times, and the empty Service, for each fault
+      ...(copyOf(cell) === "s2-flapping" ? flappingTimesOf(cell, record.runs, verdict) : {}),
       // the PINGs of the clients, when their image counts them
       ...(copyOf(cell).startsWith("s2") ? pingsOf(record.runs) : {}),
     },
@@ -516,7 +556,9 @@ for (const name of names) {
             ? { predictions: callerPredictions("false failure") }
             : name === "s2-dependency"
               ? { predictions: callerPredictions("shared dependency") }
-              : {};
+              : name === "s2-flapping"
+                ? { predictions: callerPredictions("flapping dependency") }
+                : {};
   writeFileSync(out, stringify({ ...copy, cells: mine.map(({ copy: _copy, ...cell }) => cell), ...predictions }));
   process.stdout.write(`${mine.length} cells, ${mine.reduce((sum, cell) => sum + cell.counted + cell.voided, 0)} runs: ${out}\n`);
 }
