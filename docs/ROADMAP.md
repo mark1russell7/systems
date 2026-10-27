@@ -611,12 +611,14 @@ It comes in machines as a PATCH: a new export before 1.0.0.
 
 ### SYS-32 · The service gives its drain rules from a light entry
 
-- **Status:** later
+- **Status:** done
 - **Area:** server stack
 - **Depends on:**
-- **Started:**
-- **Shipped:**
+- **Started:** 2026-10-27
+- **Shipped:** 2026-10-27
 - **Links:** [template #26](https://github.com/mark1russell7/template/pull/26), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+The entry `@mark1russell7/service/rules` gives O04, O09, O10, O16 and `DRAIN_RULES` as data, and it loads no module at run time. Kind imports the rules from the entry and gives them again, thus the exports of kind do not change.
 
 The review of the template item OTH-5 found it. `lint()` of the service takes its rules from the caller. But the drain rules, O10, O16 and the others, are only in `@mark1russell7/kind`, and kind loads Testcontainers. Thus each new service copies the data of the rules into its tests.
 

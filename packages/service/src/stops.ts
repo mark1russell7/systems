@@ -2,6 +2,7 @@ import type { ServiceDescription } from "./description.ts";
 import type { Rule } from "./law.ts";
 import type { Finding, Scenario } from "./lint.ts";
 import { BOUND_RULES, lint } from "./lint.ts";
+import { DRAIN_RULES } from "./rules.ts";
 
 /**
  * This module keeps apart the four ways that a pod stops (B11). Each way runs a different part of
@@ -29,8 +30,11 @@ export interface Stop {
   readonly rules: readonly string[];
 }
 
-/** These are the rules of the drain. Each way of stopping applies only its own rules of this set. */
-export const DRAIN_RULE_IDS: readonly string[] = ["O04", "O09", "O10", "O16"];
+/**
+ * These are the identifiers of the rules of the drain, from the data of the entry `./rules`. Each
+ * way that a pod stops applies only its own rules of this set.
+ */
+export const DRAIN_RULE_IDS: readonly string[] = DRAIN_RULES.map((rule) => rule.id);
 
 /**
  * These are the four ways that a pod stops.
