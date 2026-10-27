@@ -56,7 +56,7 @@ jobs:
   build:
     name: Build, pack and test
     needs: verify
-    uses: mark1russell7/template/.github/workflows/reusable-release-build.yml@c4764829ac2218f6fd7755130b8ae0f53dda9447 # main
+    uses: mark1russell7/template/.github/workflows/reusable-release-build.yml@2ce0e92e367db1d0c48cfbb31e87b1fbf601ec77 # main
     permissions:
       contents: read
     with:
@@ -79,7 +79,7 @@ jobs:
       # this repository and release.yml. It downloads the artifact "release" and publishes each
       # version that npm does not have, with provenance (.github/actions/npm-publish of the template).
       - id: publish
-        uses: mark1russell7/template/.github/actions/npm-publish@c4764829ac2218f6fd7755130b8ae0f53dda9447 # main
+        uses: mark1russell7/template/.github/actions/npm-publish@2ce0e92e367db1d0c48cfbb31e87b1fbf601ec77 # main
         with:
           # A package that is not on npm gets a warning, and the run does not fail.
           new-packages: warning
