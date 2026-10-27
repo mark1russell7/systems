@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Check, Rule, StopWay, TimerMarks } from "./index.ts";
 import {
+  NAME_RULE,
   PLATFORM_MARKS,
   STOP_RULE,
   STOPS,
@@ -450,5 +451,16 @@ describe("a server transport binds its knobs at @server, in a scope of its own (
 
   it("does not apply a rule without a symbol at @server to a server", () => {
     expect(lint(description, scenario(), [clientOnly]).map((finding) => [finding.scope, finding.verdict])).toEqual([["db", "holds"]]);
+  });
+
+  it("finds a server and a dependency with one name, because their findings have one scope (SYS-39)", () => {
+    const twins = declared().phase("close transports", s(3)).server("db", { server_idle_close: s(5) }).describe();
+    expect(lint(twins, scenario(), [O19]).map((finding) => [finding.rule, finding.scope, finding.verdict])).toEqual([
+      [NAME_RULE, "db", "violated"],
+      ["O19", "db", "holds"],
+      ["O19", "db", "depends"],
+    ]);
+    // each name of its own gives no finding of the rule
+    expect(lint(description, scenario(), [O19]).filter((finding) => finding.rule === NAME_RULE)).toEqual([]);
   });
 });
