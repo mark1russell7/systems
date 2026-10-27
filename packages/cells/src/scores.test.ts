@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { CallerResult, CandidateScores, Incident, ModeScores, Score, Scorecard } from "./scores.ts";
+import { PING_FRAME, pingsOf } from "./callers.ts";
 import { CRITERIA, INCIDENTS, scoreCallers } from "./scores.ts";
 
 // the copies of the kind runs that the site shows, and the scorecard that the site writes from them
@@ -80,7 +81,7 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
           // the gap: one run of B in nftables recovered before its window could end
           const decision = candidate.cell === "S2.T07.nftables.lame-duck.dependency" ? "fails" : "holds";
           for (const score of candidate.scores)
-            if (score.kind !== "not measured") expect(score.evidence, candidate.cell).toEqual({ run: evidence, cell: candidate.cell, decision, counted: 3 });
+            if (score.kind === "measured" || score.kind === "bounded") expect(score.evidence, candidate.cell).toEqual({ run: evidence, cell: candidate.cell, decision, counted: 3 });
         }
       }
     }
@@ -270,7 +271,7 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
   });
 
   it("give no number for a criterion that the data cannot support, and give the reason", () => {
-    const unmeasured = ["false removals on a blip", "time to recover", "probe load", "routes down", "complexity"] as const;
+    const unmeasured = ["false removals on a blip", "time to recover", "routes down", "complexity"] as const;
     for (const [modes, criteria] of [
       [scored(card), unmeasured],
       [partitioned(card), unmeasured],
@@ -278,7 +279,7 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
       // a failed prober measures its false removal
       [probed(card), unmeasured.slice(1)],
       // a shared dependency measures its routes down and its time to recover
-      [depended(card), ["false removals on a blip", "probe load", "complexity"]],
+      [depended(card), ["false removals on a blip", "complexity"]],
     ] as const)
       for (const mode of modes)
         for (const candidate of mode.candidates)
@@ -290,6 +291,37 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
     // the incidents of the design with no cell of the candidates
     const rest = card.incidents.filter((each) => each.kind === "not measured").map((each) => each.incident);
     expect(rest).toEqual(INCIDENTS.slice(5));
+  });
+
+  it("give A, B and C zero PINGs from the code, and D no number until a run counts its PINGs", () => {
+    for (const modes of [scored(card), partitioned(card), stalled(card), probed(card), depended(card)])
+      for (const mode of modes)
+        for (const candidate of mode.candidates) {
+          const score = scoreOf(candidate, "probe load");
+          if (candidate.label === "D") {
+            expect(score, candidate.cell).toMatchObject({ kind: "not measured" });
+            continue;
+          }
+          expect(score.kind === "derived" ? [score.value, score.why.length > 0] : null, candidate.cell).toEqual([{ value: 0, unit: "{ping}" }, true]);
+        }
+  });
+
+  it("predict the PINGs of D in each incident before a run counts them", () => {
+    const bands = (["cannot serve", "false failure", "partition", "stall", "shared dependency"] as const).map((fault) =>
+      (["iptables", "ipvs", "nftables"] as const).map((mode) => {
+        const band = pingsOf(mode, "in band on HTTP/2 with a session check", fault);
+        return [band.lo.value, band.hi.value];
+      }),
+    );
+    expect(bands).toEqual([
+      [[0, 0], [0, 0], [0, 0]],
+      [[0, 0], [0, 0], [0, 0]],
+      [[0, 3], [0, 3], [0, 3]],
+      [[0, 9], [0, 3], [0, 9]],
+      [[3, 126], [3, 126], [3, 126]],
+    ]);
+    // a PING and its ACK are each a frame header of 9 bytes and 8 bytes of data
+    expect(PING_FRAME).toEqual({ value: 17, unit: "B" });
   });
 
   it("give the step 1 scores unchanged with one copy, and an incident with cells but no copy as not measured", () => {

@@ -163,6 +163,8 @@ describe("the components of the CI runs", () => {
     // The shared dependency has two criteria with no number, and the complexity of each of the 4 candidates
     expect(table.split("Not measured.").length - 1).toBe(37);
     expect(table).toContain("T07 has no blip");
+    // A, B and C send no PING by their code. Each incident has one row of the probe load for each mode
+    expect(table.split("0 PINGs, by the code").length - 1).toBe(15);
     // the partitioned pod: its own run, and the time until callers know is measured from the fault
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40380943331");
     expect(table).toContain("S2.T07.ipvs.goaway.partition");
