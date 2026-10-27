@@ -278,6 +278,12 @@ export interface Workload {
    * then closes the session, and the next stream opens a new one. Without them, a session has no check.
    */
   readonly sessionCheck?: SessionCheckKnobs | undefined;
+  /**
+   * This count is the sessions of all clients that the lab places on the target before each run
+   * (`placementOf`). The other sessions go to the other replicas. Each client opens each session again
+   * until its first answer comes from its backend. With no value, the rules pick the backend of each session.
+   */
+  readonly onTarget?: number | undefined;
 }
 
 /**

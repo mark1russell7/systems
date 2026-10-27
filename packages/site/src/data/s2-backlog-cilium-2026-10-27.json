@@ -1,0 +1,363 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-10-27",
+  "units": "s",
+  "runs": 5,
+  "kernel": "6.17.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.cilium.goaway.backlog.n1",
+      "template": "T07",
+      "name": "cilium, callers learn that a pod is stalled, with 1 session on the target: in band on HTTP/2 (GOAWAY)",
+      "mode": "cilium",
+      "trigger": "app-stall",
+      "group": "backlog",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 9.98 s to 10.07 s after the fault. At least one request fails. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 5,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 493,
+      "values": [491, 493, 494, 491, 493],
+      "why": "Each of the 5 counted runs agrees with the prediction. The median run had 493 failed requests. The counted runs had 491 to 494 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10.07
+        },
+        "expected": {
+          "low": 499,
+          "high": 504
+        },
+        "connections": {
+          "low": 1,
+          "high": 1,
+          "of": 6
+        }
+      },
+      "lasts": [10.0100793, 10.0210101, 10.0109199, 10.0331156, 10.0127125],
+      "failures": [491, 493, 494, 491, 493],
+      "sessions": [1, 1, 1, 1, 1],
+      "stallStarts": [0.001, 0, 0, 0, 0],
+      "helds": [12, 12, 12, 12.001, 12],
+      "bandEnd": 10,
+      "pings": [0, 0, 0, 0, 0],
+      "acks": [0, 0, 0, 0, 0],
+      "seconds": [18.3751633, 18.1202913, 18.6687602, 17.7173033, 18.1080944]
+    },
+    {
+      "id": "S2.T07.cilium.goaway.backlog.n2",
+      "template": "T07",
+      "name": "cilium, callers learn that a pod is stalled, with 2 sessions on the target: in band on HTTP/2 (GOAWAY)",
+      "mode": "cilium",
+      "trigger": "app-stall",
+      "group": "backlog",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 9.98 s to 10.14 s after the fault. At least one request fails. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 5,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 988,
+      "values": [989, 986, 993, 986, 988],
+      "why": "Each of the 5 counted runs agrees with the prediction. The median run had 988 failed requests. The counted runs had 986 to 993 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10.14
+        },
+        "expected": {
+          "low": 998,
+          "high": 1008
+        },
+        "connections": {
+          "low": 2,
+          "high": 2,
+          "of": 6
+        }
+      },
+      "lasts": [10.0635876, 10.0590323, 10.0715172, 10.0560529, 10.0508122],
+      "failures": [989, 986, 993, 986, 988],
+      "sessions": [2, 2, 2, 2, 2],
+      "stallStarts": [0, 0.002, 0, 0.001, 0],
+      "helds": [12, 12, 12, 12, 12],
+      "bandEnd": 10,
+      "pings": [0, 0, 0, 0, 0],
+      "acks": [0, 0, 0, 0, 0],
+      "seconds": [18.166654, 18.3561838, 17.609196, 17.758647, 17.8781783]
+    },
+    {
+      "id": "S2.T07.cilium.goaway.backlog.n3",
+      "template": "T07",
+      "name": "cilium, callers learn that a pod is stalled, with 3 sessions on the target: in band on HTTP/2 (GOAWAY)",
+      "mode": "cilium",
+      "trigger": "app-stall",
+      "group": "backlog",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 9.98 s to 10.21 s after the fault. At least one request fails. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 5,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 1487,
+      "values": [1488, 1487, 1489, 1485, 1477],
+      "why": "Each of the 5 counted runs agrees with the prediction. The median run had 1,487 failed requests. The counted runs had 1,477 to 1,489 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10.21
+        },
+        "expected": {
+          "low": 1497,
+          "high": 1512
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 6
+        }
+      },
+      "lasts": [10.0731293, 10.1364674, 10.0730187, 10.0771915, 10.0627732],
+      "failures": [1488, 1487, 1489, 1485, 1477],
+      "sessions": [3, 3, 3, 3, 3],
+      "stallStarts": [0, 0, 0.001, 0.001, 0.003],
+      "helds": [12, 12, 12, 12, 12],
+      "bandEnd": 10,
+      "pings": [0, 0, 0, 0, 0],
+      "acks": [0, 0, 0, 0, 0],
+      "seconds": [17.875781, 18.3516384, 18.634232, 17.838601, 18.4164349]
+    },
+    {
+      "id": "S2.T07.cilium.goaway.backlog.n6",
+      "template": "T07",
+      "name": "cilium, callers learn that a pod is stalled, with 6 sessions on the target: in band on HTTP/2 (GOAWAY)",
+      "mode": "cilium",
+      "trigger": "app-stall",
+      "group": "backlog",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 9.98 s to 10.42 s after the fault. At least one request fails. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 5,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 3005,
+      "values": [2995, 3010, 2977, 3005, 3010],
+      "why": "Each of the 5 counted runs agrees with the prediction. The median run had 3,005 failed requests. The counted runs had 2,977 to 3,010 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10.42
+        },
+        "expected": {
+          "low": 2994,
+          "high": 3024
+        },
+        "connections": {
+          "low": 6,
+          "high": 6,
+          "of": 6
+        }
+      },
+      "lasts": [10.1244976, 10.1646575, 10.0749806, 10.1555153, 10.2331378],
+      "failures": [2995, 3010, 2977, 3005, 3010],
+      "sessions": [6, 6, 6, 6, 6],
+      "stallStarts": [0.003, 0, 0, 0, 0],
+      "helds": [12, 12, 12, 12, 12],
+      "bandEnd": 10,
+      "pings": [0, 0, 0, 0, 0],
+      "acks": [0, 0, 0, 0, 0],
+      "seconds": [17.1187365, 16.9800174, 18.2111448, 16.9191142, 16.935139]
+    }
+  ],
+  "predictions": [
+    {
+      "id": "S2.T07.cilium.goaway.backlog.n1",
+      "mode": "cilium",
+      "onTarget": 1,
+      "bandEnd": 10,
+      "overshoot": {
+        "low": 0.04,
+        "high": 0.07
+      },
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10.07
+        },
+        "expected": {
+          "low": 499,
+          "high": 504
+        },
+        "connections": {
+          "low": 1,
+          "high": 1,
+          "of": 6
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.goaway.backlog.n2",
+      "mode": "cilium",
+      "onTarget": 2,
+      "bandEnd": 10,
+      "overshoot": {
+        "low": 0.08,
+        "high": 0.14
+      },
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10.14
+        },
+        "expected": {
+          "low": 998,
+          "high": 1008
+        },
+        "connections": {
+          "low": 2,
+          "high": 2,
+          "of": 6
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.goaway.backlog.n3",
+      "mode": "cilium",
+      "onTarget": 3,
+      "bandEnd": 10,
+      "overshoot": {
+        "low": 0.12,
+        "high": 0.21
+      },
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10.21
+        },
+        "expected": {
+          "low": 1497,
+          "high": 1512
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 6
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.goaway.backlog.n6",
+      "mode": "cilium",
+      "onTarget": 6,
+      "bandEnd": 10,
+      "overshoot": {
+        "low": 0.24,
+        "high": 0.42
+      },
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10.42
+        },
+        "expected": {
+          "low": 2994,
+          "high": 3024
+        },
+        "connections": {
+          "low": 6,
+          "high": 6,
+          "of": 6
+        }
+      }
+    }
+  ]
+}

@@ -32,10 +32,11 @@ import { T18_CELLS } from "../../cells/src/t18.ts";
 import { T15_GRPC } from "../../cells/src/grpc/t15.ts";
 import { CALLERS_CELLS, callerFaultOf } from "../../cells/src/callers.ts";
 import { GATE_CELLS } from "../../cells/src/gate.ts";
+import { BACKLOG_CELLS, backlogOf } from "../../cells/src/backlog.ts";
 import type { Line } from "../../kind/src/observe.ts";
 import { failuresOf, slicesOf } from "../../kind/src/observe.ts";
 import { SERVER } from "../../kind/src/names.ts";
-import { callerPredictions, candidateOf } from "./callers.ts";
+import { backlogPredictions, callerPredictions, candidateOf } from "./callers.ts";
 import type { Found } from "./records.ts";
 import { dateOf, only, readFolders, runnerOf, round, stringify, time, timeAt } from "./records.ts";
 
@@ -64,7 +65,7 @@ interface Summary {
   readonly median: number | Quantity | null;
 }
 
-const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T15_GRPC, ...CALLERS_CELLS, ...GATE_CELLS];
+const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T15_GRPC, ...CALLERS_CELLS, ...GATE_CELLS, ...BACKLOG_CELLS];
 // A later folder replaces the run of each cell of the same id, also when the cell has a new name.
 const found = new Map<string, Found<KindRecord, Summary>>();
 for (const folder of folders)
@@ -328,6 +329,7 @@ const groupOf = (cell: KindCell): string => {
   }
   if (cell.template === "T07") {
     if (cell.id.includes(".shared-gate")) return "gate";
+    if (cell.id.includes(".backlog")) return "backlog";
     if (cell.trigger.kind === "cannot-serve") return cell.trigger.serves === true ? "prober" : "callers";
     if (cell.trigger.kind === "zone-loss") return "zone";
     if (cell.trigger.kind === "latency") return "slow";
@@ -359,12 +361,14 @@ const spread = (value: TimeSpread | null) =>
  * cannot-serve get s2, those of a partition get s2-partition, and those of a stall get s2-stall. The
  * cells of a false failure of the prober get s2-prober, and those of a shared dependency get
  * s2-dependency. The cells of a flapping dependency get s2-flapping, and those of a lost zone get s2-zone.
- * The cells of a slow dependency get s2-slow, and the cells of the shared gate (E) get s2-gate.
+ * The cells of a slow dependency get s2-slow, and the cells of the shared gate (E) get s2-gate. The
+ * cells of the backlog of a stall (SYS-40) get s2-backlog.
  */
-const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" | "s2-prober" | "s2-dependency" | "s2-flapping" | "s2-zone" | "s2-slow" | "s2-gate" => {
+const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" | "s2-prober" | "s2-dependency" | "s2-flapping" | "s2-zone" | "s2-slow" | "s2-gate" | "s2-backlog" => {
   if (cell.template === "T15") return "t15";
   if (!cell.id.startsWith("S2.")) return "kind";
   if (cell.id.includes(".shared-gate")) return "s2-gate";
+  if (cell.id.includes(".backlog")) return "s2-backlog";
   const fault = callerFaultOf(cell);
   if (fault === "lost zone") return "s2-zone";
   if (fault === "slow dependency") return "s2-slow";
@@ -505,6 +509,25 @@ const pingsOf = (runs: readonly KindRun[]): { pings: Array<number | null>; acks:
   };
 };
 
+/**
+ * This function gives the figures of each counted run of a cell of the backlog (SYS-40). They are the
+ * failed requests and the sessions on the target at the fault. They also are the start of the stall
+ * after the fault and how long it held, in seconds. The overshoot is from the band end without the term to the start
+ * of the last failed request, in seconds. A run with no such figure gives null.
+ */
+const backlogRunsOf = (cell: KindCell, verdict: KindVerdict) => {
+  const onTarget = cell.workload.onTarget;
+  if (onTarget === undefined) throw new Error(`${cell.name}: a cell of the backlog has a placement`);
+  const bandEnd = s(backlogOf(cell.mode, onTarget).bandEnd);
+  return {
+    failures: verdict.checks.map((check) => check.facts.failures),
+    sessions: verdict.checks.map((check) => check.facts.sessions?.onTarget ?? null),
+    stallStarts: verdict.checks.map((check) => (check.facts.stall?.start === null || check.facts.stall?.start === undefined ? null : round(s(check.facts.stall.start)))),
+    helds: verdict.checks.map((check) => (check.facts.stall?.held === null || check.facts.stall?.held === undefined ? null : round(s(check.facts.stall.held)))),
+    bandEnd,
+  };
+};
+
 const propagation: Record<string, unknown> = {};
 const cells = CATALOG.flatMap((cell) => {
   const entry = found.get(cell.name);
@@ -576,6 +599,8 @@ const cells = CATALOG.flatMap((cell) => {
       ...(copyOf(cell) === "s2-flapping" || (copyOf(cell) === "s2-gate" && callerFaultOf(cell) === "flapping dependency") ? flappingTimesOf(cell, record.runs, verdict) : {}),
       // a slow dependency: the main value is the failed requests, and the last one comes near the heal
       ...(copyOf(cell) === "s2-slow" ? slowTimesOf(record.runs) : {}),
+      // the backlog of a stall: the sessions on the target and the stall of each counted run
+      ...(copyOf(cell) === "s2-backlog" ? backlogRunsOf(cell, verdict) : {}),
       // the PINGs of the clients, when their image counts them
       ...(copyOf(cell).startsWith("s2") ? pingsOf(record.runs) : {}),
     },
@@ -625,7 +650,9 @@ for (const name of names) {
                   ? { predictions: callerPredictions("lost zone") }
                   : name === "s2-slow"
                     ? { predictions: callerPredictions("slow dependency") }
-                    : {};
+                    : name === "s2-backlog"
+                      ? { predictions: backlogPredictions() }
+                      : {};
   writeFileSync(out, stringify({ ...copy, cells: mine.map(({ copy: _copy, ...cell }) => cell), ...predictions }));
   process.stdout.write(`${mine.length} cells, ${mine.reduce((sum, cell) => sum + cell.counted + cell.voided, 0)} runs: ${out}\n`);
 }

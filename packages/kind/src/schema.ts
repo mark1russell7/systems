@@ -206,6 +206,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
       timeout: time,
       connections: count.optional(),
       sessionCheck: z.object({ keepalive_time: extent, keepalive_timeout: time }).optional(),
+      onTarget: count.optional(),
     }),
     prediction,
     calibrates: z.boolean(),
@@ -230,6 +231,8 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     healUpdates: z.record(z.string(), z.object({ after: a.nullable(), by: a }).nullable()).optional(),
     closes: z.record(z.string(), a.nullable()).optional(),
     cycles: z.array(z.object({ empty: a.nullable(), ready: a.nullable() })).optional(),
+    sessions: z.object({ onTarget: count, of: count, byClient: z.record(z.string(), count) }).optional(),
+    stall: z.object({ start: a.nullable(), held: a.nullable() }).optional(),
   });
   const verdict = z.object({
     decision: z.enum(["holds", "fails", "extend", "measured", "calibration", "void"]),

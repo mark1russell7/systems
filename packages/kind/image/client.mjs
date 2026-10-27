@@ -6,11 +6,15 @@
 // unreachable, or another error) and its local port (`lp`). With PROTOCOL h2c, each connection is a
 // session of HTTP/2, and each request is a stream on the next session in turn. With SESSION_CHECK,
 // each session has the session check of the service: a stream timeout or a PING with no ACK closes it.
-// Each second, one line counts the PINGs of the checks and their ACKs (`pings`).
+// Each second, one line counts the PINGs of the checks and their ACKs (`pings`). With a placement in
+// /tmp/lab-place (place.ts), SIGHUP opens each session of HTTP/2 again until its first answer comes
+// from the backend of its slot. A line `placed` gives the port and the backend of each slot.
+import { readFileSync } from "node:fs";
 import http from "node:http";
 import http2 from "node:http2";
 import net from "node:net";
 import { sessionCheck } from "@mark1russell7/service/http-client";
+import { placeSlot, placementFrom } from "./place.ts";
 
 const [host, port] = (process.env.TARGET ?? "").split(":");
 const every = Number(process.env.EVERY_MS ?? 20);
@@ -81,11 +85,64 @@ const slotAt = (at) => {
   return slots[at];
 };
 
+// the placement of the slots: the backend of each one, or null with no placement. The lab writes it
+// before the SIGHUP, and the requests of the client go on the old slots until each new slot has its backend
+const PLACE_FILE = process.env.LAB_PLACE ?? "/tmp/lab-place";
+const PLACE_TRIES = 64;
+const placement = () => {
+  try {
+    return placementFrom(readFileSync(PLACE_FILE, "utf8"), connections);
+  } catch {
+    return null;
+  }
+};
+
+// the first answer of a new session: the body of a stream of /work, the name of its pod, or null
+const probeOf = (held) =>
+  new Promise((resolve) => {
+    let body = "";
+    let done = false;
+    const end = (value) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
+    const timer = setTimeout(() => end(null), timeout);
+    let stream;
+    try {
+      stream = held.session.request({ ":path": "/work" });
+    } catch {
+      end(null);
+      return;
+    }
+    stream.setEncoding("utf8");
+    stream.on("data", (chunk) => {
+      body += chunk;
+    });
+    stream.on("end", () => end(body === "" ? null : body.slice(0, 64)));
+    stream.on("error", () => end(null));
+    stream.on("close", () => end(body === "" ? null : body.slice(0, 64)));
+    stream.end();
+  });
+
 // SIGHUP: new agents or sessions for the next requests. The old ones go after the timeout, thus each
 // request on them ends first
 process.on("SIGHUP", () => {
   const old = agents;
   const oldSlots = slots;
+  const wanted = h2 ? placement() : null;
+  if (wanted !== null) {
+    say({ ev: "client", what: "reconnect", t: now(), place: wanted });
+    Promise.all(wanted.map((pod) => placeSlot(sessionOf, probeOf, (held) => held.session.destroy(), pod, PLACE_TRIES))).then((placed) => {
+      slots = placed.map((each) => each.held);
+      say({ ev: "client", what: "placed", t: now(), slots: placed.map((each) => ({ lp: portOf(each.held.socket), b: each.b, tries: each.tries, ok: each.ok })) });
+      setTimeout(() => {
+        for (const held of oldSlots) held.session.destroy();
+      }, timeout + 100);
+    });
+    return;
+  }
   if (h2) slots = Array.from({ length: connections }, sessionOf);
   else agents = agentsOf();
   say({ ev: "client", what: "reconnect", t: now() });
