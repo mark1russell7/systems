@@ -174,7 +174,8 @@ The requirements that the lifecycle follows are in [the requirements of S6](http
 - **The refusals.** While the service refuses its units, the loop and the taker wait their backoff, and each refused job goes back (`"unstarted"`). Thus a worker stops while a dependency of its controller is not ready.
 - **The clock.** The sleeps, the backoffs and the bounds use the clock of the options. Give the clock of the lifecycle. With the real clock, the timers do not keep a Node process alive (A14). The lifecycle holds the process until its exit, thus a process whose only parts are workers does not end while it waits.
 - **The law.** `lint()` applies O20 one time for each consumer and each worker. A knob of the transport binds at the hop `consumer`, and a knob with a hop in its name binds at that hop. The scenario gives the lease of each source, for example the visibility timeout of SQS.
-- **The problems.** `problems(description)` compares the bounds with the caps. `close_bound` fits in the cap of `close transports`. `unit_processing_time` fits in the cap of `drain`, or the drain can cut a unit.
+- **The bounds.** `lint()` compares the bounds of each consumer and each worker with the caps of two phases (`BOUND_RULES`). `unit_processing_time` is less than the cap of `drain`, or the drain can cut a unit (`unit-bound`). `close_bound` is less than the cap of `close transports` (`close-bound`). A unit without a bound violates `unit-bound`.
+- **The problems.** `problems(description)` gives each phase that the loop needs and that the declaration does not give: `drain` and `close transports`.
 
 ```ts
 import { kubernetes, lint, queueDrain, redeliverOnce, service, workerLoop } from "@mark1russell7/service";
@@ -223,6 +224,7 @@ app.controller("jobs").requires("db").route("RUN", { idempotent: true });
 
 // O20: the lease of the queue, 30 s, against a job of 10 s
 const scenario = { platform: {}, probes: { readiness: s(30), liveness: s(30) }, transports: { jobs: { "lease_duration@broker": s(30) } } };
+// the findings also compare each bound with the cap of its phase (BOUND_RULES)
 const findings = lint(app.describe(), scenario, rules);
 const problems = [...heartbeat.problems(app.describe()), ...jobs.problems(app.describe())];
 const life = await app.run();

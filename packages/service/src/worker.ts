@@ -84,7 +84,7 @@ export interface WorkerLoop extends TransportImpl {
    * not end a backoff. It gives false after the intake stops.
    */
   wake(): boolean;
-  /** This method gives the problems of the knobs in a declaration: the close bound and the bound of an iteration against the caps. */
+  /** This method gives the problems of a declaration: each phase that the loop needs and that it does not give. `lint()` compares the bounds with the caps. */
   problems(description: ServiceDescription): string[];
 }
 
@@ -247,7 +247,7 @@ export const workerLoop = <S = undefined>(knobs: WorkerKnobs, options: WorkerLoo
       return closing;
     },
     problems(description) {
-      return boundProblems(OWNER, closeBound, bound, description);
+      return boundProblems(OWNER, description);
     },
   };
 };

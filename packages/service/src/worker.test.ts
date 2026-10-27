@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import type { Clock } from "./clock.ts";
 import type { Lifecycle, ServiceBuilder, WorkerKnobs } from "./index.ts";
-import { lint, service, workerLoop } from "./index.ts";
+import { BOUND_RULES, CLOSE_BOUND_RULE, UNIT_BOUND_RULE, lint, lintStop, service, workerLoop } from "./index.ts";
 import type { Rule } from "./law.ts";
 import type { ConformanceRecord, FakeClock, HeldWork, TransportSubject } from "./testing.ts";
 import { detachedLifecycle, fakeClock, fakeProcess, transportConformance } from "./testing.ts";
@@ -451,7 +451,7 @@ describe("workerLoop in a service: the declaration, the law and the request trac
       probes: { readiness: s(10), liveness: s(30) },
       transports: { lease: { "lease_duration@broker": s(300) }, open: { "lease_duration@broker": s(300) } },
     };
-    const findings = lint(description, scenario, [O20]);
+    const findings = lint(description, scenario, [O20]).filter((finding) => finding.rule === "O20");
     // one finding for each worker, and none for the server
     expect(findings.map((finding) => [finding.scope, finding.verdict])).toEqual([
       ["staleness", "holds"],
@@ -464,19 +464,41 @@ describe("workerLoop in a service: the declaration, the law and the request trac
     });
   });
 
-  it("gives the problems of its bounds against the caps of the declaration", () => {
+  it("lint() compares its bounds with the caps of the drain and close transports phases (SYS-23)", () => {
     const open = workerLoop(KNOBS, { iteration: () => {} });
     const fits = workerLoop({ ...KNOBS, unit_processing_time: s(5) }, { iteration: () => {} });
-    const description = declared(service("app")).describe();
-    expect(open.problems(description)).toEqual([
-      "the unit_processing_time of workerLoop has no bound, thus the drain can cut a unit at its cap of 10000 ms",
-    ]);
-    expect(fits.problems(description)).toEqual([]);
     const long = workerLoop({ ...KNOBS, unit_processing_time: s(10), close_bound: s(3) }, { iteration: () => {} });
-    expect(long.problems(description)).toEqual([
-      'the close_bound of workerLoop, 3000 ms, does not fit in the cap of "close transports", 3000 ms',
-      'the unit_processing_time of workerLoop, 10000 ms, does not fit in the cap of "drain", 10000 ms',
+    const description = declared(service("app"))
+      .worker("open", open.knobs, open)
+      .worker("fits", fits.knobs, fits)
+      .worker("long", long.knobs, long)
+      .server("http", { server_idle_close: s(5) })
+      .describe();
+    const scenario = { platform: {}, probes: { readiness: s(10), liveness: s(30) } };
+    const bounds = lint(description, scenario, []).filter((finding) => BOUND_RULES.some((rule) => rule.id === finding.rule));
+    // the drain caps at 10 s and close transports at 3 s, and the server gets no finding
+    expect(bounds.map((finding) => [finding.rule, finding.scope, finding.verdict, finding.evaluated[0]?.lhs, finding.evaluated[0]?.rhs])).toEqual([
+      [UNIT_BOUND_RULE, "open", "violated", Infinity, 10],
+      [UNIT_BOUND_RULE, "fits", "holds", 5, 10],
+      [UNIT_BOUND_RULE, "long", "violated", 10, 10],
+      [CLOSE_BOUND_RULE, "open", "holds", 2, 3],
+      [CLOSE_BOUND_RULE, "fits", "holds", 2, 3],
+      [CLOSE_BOUND_RULE, "long", "violated", 3, 3],
     ]);
+    expect(bounds[0]).toMatchObject({ window: "the drain can cut a unit that ends in its bound", unbound: [] });
+    // problems() gives only a phase that the declaration does not give
+    for (const loop of [open, fits, long]) expect(loop.problems(description)).toEqual([]);
+    const bare = { ...description, shutdown: { ...description.shutdown, phases: description.shutdown.phases.filter((phase) => phase.name === "stop intake") } };
+    expect(open.problems(bare)).toEqual(['workerLoop needs the phase "close transports" to close', 'workerLoop needs the phase "drain" to end its units']);
+    // without the phases, the caps have no bound, and each finding of the bounds depends on them
+    const missing = lint(bare, scenario, []).filter((finding) => finding.scope === "fits");
+    expect(missing.map((finding) => [finding.rule, finding.verdict, finding.unbound])).toEqual([
+      [UNIT_BOUND_RULE, "depends", ["drain_phase_cap@process"]],
+      [CLOSE_BOUND_RULE, "depends", ["close_phase_cap@process"]],
+    ]);
+    // a crash starts no phase, thus only a way of stopping with a drain gets the findings of the bounds
+    expect(lintStop(description, scenario, [], "deletion").filter((finding) => finding.rule === UNIT_BOUND_RULE)).toHaveLength(3);
+    expect(lintStop(description, scenario, [], "crash").map((finding) => finding.rule)).toEqual(["stop"]);
   });
 
   it("puts each iteration through life.request, and the shutdown drains it, cuts no failure and tears down", async () => {
