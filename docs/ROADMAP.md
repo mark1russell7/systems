@@ -843,11 +843,12 @@ The failed requests were below the bands in 16 of 20 runs, and in each run with 
 
 ### SYS-41 · Each run records the measured period of the client
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-40
 - **Started:** 2026-10-27
-- **Links:**
+- **Shipped:** 2026-10-27
+- **Links:** [#251](https://github.com/mark1russell7/systems/pull/251), [The kind run](https://github.com/mark1russell7/systems/actions/runs/40585371947)
 
 SYS-40 found that the timer of the client is late. The client sent a request each 10.10 ms to 10.22 ms, not each 10 ms. That figure came from an analysis after the run. With this item, each run records the measured period of the client as a fact. Thus a later band can use it.
 
