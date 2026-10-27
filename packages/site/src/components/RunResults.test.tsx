@@ -210,10 +210,12 @@ describe("the components of the CI runs", () => {
     // The failed prober measures its false removals, thus it has one criterion with no number less.
     // The shared dependency, the flapping one and the lost zone each have one criterion with no number, and the complexity of each of the 4 candidates
     // The slow dependency has three criteria with no number, the complexity of each of the 4 candidates, and the time to recover of C and D in each mode
-    expect.soft(table.split("Not measured.").length - 1).toBe(55);
+    // The Cilium column adds its own rows. A, C and D of the two dependencies of Cilium have no cell in the run, thus each criterion of each one has no number
+    expect.soft(table.split("Not measured.").length - 1).toBe(139);
     expect(table).toContain("T07 has no blip");
     // A, B and C send no PING by their code, and the run 40440516571 counts the PINGs of D in each mode of each incident. The flapping run, the lost zone and the slow dependency count their own
-    expect.soft(table.split("0 PINGs, by the code").length - 1).toBe(72);
+    // Cilium adds A, B and C of four incidents, and B of the two dependencies
+    expect.soft(table.split("0 PINGs, by the code").length - 1).toBe(86);
     expect(table).toContain("123 PINGs in the median run");
     expect.soft(table.match(/The prediction: 9 to 378\. The counted runs: \d+, \d+, \d+\./g)?.length).toBe(3);
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40440516571");
@@ -225,7 +227,8 @@ describe("the components of the CI runs", () => {
     // the copies of D have the time of the last failure in each incident: 3 of a pod that cannot serve, 12 of the partition and 12 of the stall.
     // The failed prober gives 9: B, C and D in each mode, and A learns only after the heal.
     // The lost zone gives 11: D in iptables has no failed request in a counted run
-    expect.soft(table.match(/the last failure [\d.]+ (?:ms|s) after the fault in the median run/g)?.length).toBe(47);
+    expect.soft(table.match(/the last failure [\d.]+ (?:ms|s) after the fault in the median run/g)?.length).toBe(61);
+    // Cilium adds 14: B, C and D of a pod that cannot serve and of the failed prober, and each candidate of the partition and of the stall
     expect(table).toContain("the last failure 26.4");
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40394320219");
     expect(table).toContain("S2.T07.ipvs.session-check.partition");
@@ -238,16 +241,17 @@ describe("the components of the CI runs", () => {
     expect(table).not.toContain("a flapping dependency: No cell");
     // the failed prober: its own run for each candidate, and the false removal of each one
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40419289511");
-    expect.soft(table.match(/the false removal [\d.]+ s after the fault in the median run/g)?.length).toBe(12);
+    expect.soft(table.match(/the false removal [\d.]+ s after the fault in the median run/g)?.length).toBe(16);
     // the shared dependency: its own run, the empty Service, the last slow failure and the last failure after the heal
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40430856093");
     expect(table).toContain("S2.T07.nftables.lame-duck.dependency");
     // the flapping dependency: its own run, and the same 3 times, from the values of each fault
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40464814086");
     expect(table).toContain("S2.T07.nftables.lame-duck.flapping");
-    expect.soft(table.match(/the empty Service [\d.]+ s after the fault in the median run/g)?.length).toBe(24);
-    expect.soft(table.match(/the last slow failure [\d.]+ s after the fault in the median run/g)?.length).toBe(24);
-    expect.soft(table.match(/the last failure [\d.]+ (?:ms|s) after the heal in the median run/g)?.length).toBe(24);
+    expect.soft(table.match(/the empty Service [\d.]+ s after the fault in the median run/g)?.length).toBe(26);
+    expect.soft(table.match(/the last slow failure [\d.]+ s after the fault in the median run/g)?.length).toBe(26);
+    expect.soft(table.match(/the last failure [\d.]+ (?:ms|s) after the heal in the median run/g)?.length).toBe(26);
+    // B of Cilium adds one to each of the three, in each dependency
     // the lost zone: its own run, and the removal of the target by the node lifecycle controller
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40500297695");
     expect(table).toContain("S2.T07.nftables.session-check.zone");
