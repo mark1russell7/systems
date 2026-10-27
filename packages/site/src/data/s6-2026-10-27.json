@@ -14061,7 +14061,7 @@
     {
       "incident": "a slow dependency (gray failure)",
       "kind": "not measured",
-      "why": "No cell measures the candidates in this incident yet. The trigger of the S2 cells black-holes Redis, and no trigger slows it. A slow dependency slows each replica at once, thus no routing candidate can go around it. The stalled pod is the gray failure of one replica."
+      "why": "No copy of a kind run has a result of the cells of this incident yet."
     }
   ]
 }

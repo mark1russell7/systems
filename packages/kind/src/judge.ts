@@ -16,6 +16,7 @@ export type {
   Mesh,
   MeshFlavor,
   MeshMode,
+  NonePrediction,
   PodSettings,
   Prediction,
   RedisDeclaration,

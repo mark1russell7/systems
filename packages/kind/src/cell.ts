@@ -72,6 +72,8 @@ export type Stack = "service" | "grpc";
  * - `zone-loss` loses the zone of the last worker for the hold. The node drops each packet on its
  *   link, and its cgroup is frozen, thus its kubelet stops too. The node lifecycle controller removes
  *   the replica. Before the fault, each client opens its connections again with SIGHUP.
+ * - `latency` delays each packet that Redis sends by `delay`, for the hold (T07). Thus each command
+ *   of each replica takes that much longer, but Redis answers it. The heal sets the delay to zero.
  * - `none` injects nothing: a calibration measures the path itself.
  */
 export type TriggerKind =
@@ -93,7 +95,8 @@ export type TriggerKind =
   | "ztunnel-restart"
   | "certificate-expiry"
   | "cannot-serve"
-  | "zone-loss";
+  | "zone-loss"
+  | "latency";
 
 /**
  * A trigger is its kind and the settings of its fault. The parameter `A` is the form of an amount:
@@ -157,6 +160,11 @@ export interface Trigger<A = Quantity> {
    * the fault comes one time.
    */
   readonly flaps?: readonly Flap[] | undefined;
+  /**
+   * This time is the delay of each packet that Redis sends while the fault holds (`latency`). A
+   * qdisc netem on the link of the Redis pod holds each packet for this time.
+   */
+  readonly delay?: Quantity | undefined;
 }
 
 /** A flap is one more fault of a trigger: the rest from the heal before it, and its hold. */
@@ -313,7 +321,8 @@ export interface ResetReuse<A = Quantity> {
  * - `leaves`: the target replica leaves the EndpointSlice and the rules of each node in the band.
  *   With `window`, the failed requests also start in that window.
  * - `restarts`: each replica receives SIGTERM in the band, or no replica does.
- * - `stays`: no endpoint leaves the Service, and no request is refused.
+ * - `stays`: no endpoint leaves the Service, and no request is refused. With `failures`, the failed
+ *   requests also agree with that prediction: a window, or none.
  * - `stalls`: the rollout does not continue while Redis is down, and it ends after Redis is back.
  * - `ends`: the socket of each client ends in the band after the reference `from`. With no band, no
  *   socket of a client ends in the run. Then the first request of each client after the heal goes on
@@ -323,17 +332,17 @@ export interface ResetReuse<A = Quantity> {
  * - `measured`: no document bounds the outcome. The run keeps the measurement.
  */
 export type Prediction<A = Quantity> =
-  | {
-      readonly kind: "none";
-      /** These outcomes are the failures that the prediction excludes. Without them, it excludes each outcome but `ok`. */
-      readonly outcomes?: readonly string[] | undefined;
-      readonly why: string;
-    }
+  | NonePrediction
   | WindowPrediction<A>
   | { readonly kind: "removal"; readonly band: Band<A>; readonly window?: WindowPrediction<A> | undefined; readonly flaps?: boolean | undefined; readonly why: string }
   | { readonly kind: "leaves"; readonly band: Band<A>; readonly window?: WindowPrediction<A> | undefined; readonly why: string }
   | { readonly kind: "restarts"; readonly band: Band<A> | null; readonly why: string }
-  | { readonly kind: "stays"; readonly why: string }
+  | {
+      readonly kind: "stays";
+      /** This prediction is where the failed requests start, or that none fails. Without it, the prediction does not test them. */
+      readonly failures?: WindowPrediction<A> | NonePrediction | undefined;
+      readonly why: string;
+    }
   | { readonly kind: "stalls"; readonly why: string }
   | {
       readonly kind: "ends";
@@ -360,6 +369,14 @@ export type Prediction<A = Quantity> =
       readonly why: string;
     }
   | { readonly kind: "measured"; readonly why: string };
+
+/** A prediction of no failure: no request fails in the run, or none with an outcome of `outcomes`. */
+export interface NonePrediction {
+  readonly kind: "none";
+  /** These outcomes are the failures that the prediction excludes. Without them, it excludes each outcome but `ok`. */
+  readonly outcomes?: readonly string[] | undefined;
+  readonly why: string;
+}
 
 /**
  * A window prediction is the requests that fail in a window. The window starts at `start` and ends in

@@ -290,9 +290,15 @@ interface Span {
   readonly dropped: (node: string) => number | null;
 }
 
-/** This function gives the window of the failed requests of a prediction: a window, the window of `ends`, or null. */
+/** This function gives the window of the failed requests of a prediction: a window, the window of `ends`, `leaves`, `removal` or `stays`, or null. */
 const windowOf = (prediction: Prediction): WindowPrediction | null =>
-  prediction.kind === "window" ? prediction : prediction.kind === "ends" || prediction.kind === "leaves" || prediction.kind === "removal" ? (prediction.window ?? null) : null;
+  prediction.kind === "window"
+    ? prediction
+    : prediction.kind === "ends" || prediction.kind === "leaves" || prediction.kind === "removal"
+      ? (prediction.window ?? null)
+      : prediction.kind === "stays" && prediction.failures?.kind === "window"
+        ? prediction.failures
+        : null;
 
 /**
  * This function gives how long a run observes after the end reference of its last window, or null
@@ -689,7 +695,12 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
       const problems: string[] = [];
       if (dropped.length > 0) problems.push(`${dropped.length} replicas left the EndpointSlice`);
       if (refused.length > 0) problems.push(`${refused.length} requests were refused`);
-      return done(problems.length === 0, problems.length === 0 ? `the replicas stayed ready, ${failures.length} requests failed by their dependency` : problems.join("; "), failures.length);
+      // the failed requests of a slow dependency: a window, or none
+      const inner = prediction.failures === undefined ? null : checkRun({ ...cell, prediction: prediction.failures }, run);
+      if (inner !== null && !inner.ok) problems.push(inner.why);
+      const agrees = `the replicas stayed ready, ${failures.length} requests failed by their dependency${inner === null ? "" : `; ${inner.why}`}`;
+      const checked = done(problems.length === 0, problems.length === 0 ? agrees : problems.join("; "), failures.length, inner === null ? {} : inner.facts);
+      return inner?.tail === undefined ? checked : { ...checked, tail: inner.tail };
     }
     case "stalls": {
       const fault = run.acts.fault;

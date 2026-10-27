@@ -42,6 +42,8 @@ import {
   REDIS_HEAL_LEAD,
   SELECTION,
   SESSION_CHECK,
+  SLOW_DELAY,
+  SLOW_HOLD,
   STALL_HOLD,
   ZONE_CLIENTS,
   ZONE_HEAL_LEAD,
@@ -54,6 +56,7 @@ import {
   lostZoneOf,
   negativeBinomial,
   pingsOf,
+  slowOf,
   targetConnections,
 } from "./callers.ts";
 import type { CallerFault } from "./callers.ts";
@@ -74,7 +77,7 @@ const propagationOf = (cell: KindCell) => {
 
 describe("the kind catalogs", () => {
   it("names each cell by a cell of the plan, or as a calibration, and each name once", () => {
-    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(iptables|ipvs|nftables)\.(endpoints|lame-duck|goaway|session-check)(\.partition|\.stall|\.prober|\.dependency|\.flapping|\.zone)?$/);
+    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(iptables|ipvs|nftables)\.(endpoints|lame-duck|goaway|session-check)(\.partition|\.stall|\.prober|\.dependency|\.flapping|\.zone|\.slow)?$/);
     expect(new Set(ALL.map((cell) => cell.name)).size).toBe(ALL.length);
     expect(new Set(ALL.map(namespaceOf)).size).toBe(ALL.length);
   });
@@ -190,9 +193,9 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
 
   it("has the four candidates in each mode of kube-proxy, from one definition", () => {
     expect(CALLERS_MODES).toEqual(["iptables", "ipvs", "nftables"]);
-    expect(CALLER_FAULTS).toEqual(["cannot serve", "partition", "stall", "false failure", "shared dependency", "flapping dependency", "lost zone"]);
+    expect(CALLER_FAULTS).toEqual(["cannot serve", "partition", "stall", "false failure", "shared dependency", "flapping dependency", "lost zone", "slow dependency"]);
     expect(CALLERS_CELLS.map((cell) => cell.id)).toEqual(
-      ["", ".partition", ".stall", ".prober", ".dependency", ".flapping", ".zone"].flatMap((tail) =>
+      ["", ".partition", ".stall", ".prober", ".dependency", ".flapping", ".zone", ".slow"].flatMap((tail) =>
         CALLERS_MODES.flatMap((mode) => [`S2.T07.${mode}.endpoints${tail}`, `S2.T07.${mode}.lame-duck${tail}`, `S2.T07.${mode}.goaway${tail}`, `S2.T07.${mode}.session-check${tail}`]),
       ),
     );
@@ -629,6 +632,61 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
       const pings = pingsOf(mode, "in band on HTTP/2 with a session check", "lost zone");
       expect([pings.lo.value, pings.hi.value]).toEqual([0, 2]);
       expect(targetConnections(mode, 1, ZONE_CLIENTS).of.value).toBe(2);
+    }
+  });
+
+  it("slows the shared dependency: the cells of the black hole, with the trigger latency", () => {
+    expect(valueIn(SLOW_DELAY, "ms")).toBe(300);
+    expect(SLOW_HOLD).toEqual(DEPENDENCY_HOLD);
+    for (const mode of CALLERS_MODES) {
+      const dependency = trioOf(mode, "shared dependency");
+      const slow = trioOf(mode, "slow dependency");
+      expect(slow.map((cell) => cell.name)).toEqual(CANDIDATES.map((candidate) => `T07 ${mode}, callers learn that a shared dependency is slow: ${candidate}`));
+      for (const [at, cell] of slow.entries()) {
+        const { id, name: _n, trigger, prediction: _p, ...rest } = cell;
+        const { id: twin, name: _tn, trigger: _tt, prediction: _tp, ...restTwin } = dependency[at]!;
+        expect(id).toBe(twin.slice(0, -".dependency".length) + ".slow");
+        // the same design, settings, workload and runs: only the trigger and the prediction differ
+        expect(rest).toEqual(restTwin);
+        expect(trigger).toEqual({ kind: "latency", hold: SLOW_HOLD, delay: SLOW_DELAY });
+        expect(callerFaultOf(cell)).toBe("slow dependency");
+        const plan = planOf(cell);
+        expect(plan.inject).toEqual([{ do: "netem", target: "redis", delay: SLOW_DELAY }]);
+        expect(plan.heal).toEqual(plan.restore);
+        expect(stopOf(cell)).toBeNull();
+        expect(lintCell(cell)).toEqual([]);
+      }
+    }
+  });
+
+  it("predicts a slow dependency: each replica stays, A and B fail by the queue of HTTP/1.1, and C and D fail no request", () => {
+    const band = (lo: number, hi: number) => ({ lo: s(lo), hi: s(hi) });
+    for (const mode of CALLERS_MODES) {
+      for (const [at, cell] of trioOf(mode, "slow dependency").entries()) {
+        const candidate = CANDIDATES[at]!;
+        const predicted = slowOf(mode, candidate);
+        if (cell.prediction.kind !== "stays" || cell.prediction.failures === undefined) throw new Error(`${cell.name}: no stay with its failures`);
+        const failures = cell.prediction.failures;
+        const { lo, hi } = expectedFailures(candidate, mode, "slow dependency");
+        if (inBandOnHttp2(candidate)) {
+          // each stream waits for Redis on its own: 0.3 s, far below the timeout of 2 s
+          expect(failures.kind).toBe("none");
+          expect([lo.value, hi.value]).toEqual([0, 0]);
+          expect([predicted.start, predicted.end]).toEqual([null, null]);
+          continue;
+        }
+        if (failures.kind !== "window") throw new Error(`${cell.name}: A and B have a window`);
+        // request j of a connection takes 0.3 s + j × 0.14 s: request 13 is the first above the timeout of 2 s
+        expect(failures.start).toEqual({ from: "fault", band: band(0.96, 2.24) });
+        expect(failures.end).toEqual({ from: "heal", band: band(-2.02, -1.74) });
+        expect([failures.certain, failures.outcomes]).toEqual([true, ["timeout"]]);
+        expect([lo.value, hi.value]).toEqual([3240, 3744]);
+        expect(predicted.expected.connections.lo.value).toBe(24);
+      }
+      // the longest time with no frame on a session of D is the delay, shorter than its tick of 0.5 s
+      const pings = pingsOf(mode, "in band on HTTP/2 with a session check", "slow dependency");
+      expect([pings.lo.value, pings.hi.value]).toEqual([0, 0]);
+      expect(valueIn(SLOW_DELAY, "s")).toBeLessThan(valueIn(SESSION_CHECK.keepalive_time, "s"));
     }
   });
 });

@@ -46,6 +46,7 @@ const TRIGGERS = [
   "certificate-expiry",
   "cannot-serve",
   "zone-loss",
+  "latency",
 ] as const satisfies readonly TriggerKind[];
 const MODES = ["iptables", "ipvs", "nftables"] as const satisfies readonly KubeProxyMode[];
 
@@ -154,13 +155,14 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     outcomes: z.array(z.string()).optional(),
     why: z.string(),
   });
+  const none = z.object({ kind: z.literal("none"), outcomes: z.array(z.string()).optional(), why: z.string() });
   const prediction = z.discriminatedUnion("kind", [
-    z.object({ kind: z.literal("none"), outcomes: z.array(z.string()).optional(), why: z.string() }),
+    none,
     window,
     z.object({ kind: z.literal("removal"), band, window: window.optional(), flaps: z.boolean().optional(), why: z.string() }),
     z.object({ kind: z.literal("leaves"), band, window: window.optional(), why: z.string() }),
     z.object({ kind: z.literal("restarts"), band: band.nullable(), why: z.string() }),
-    z.object({ kind: z.literal("stays"), why: z.string() }),
+    z.object({ kind: z.literal("stays"), failures: z.discriminatedUnion("kind", [window, none]).optional(), why: z.string() }),
     z.object({ kind: z.literal("stalls"), why: z.string() }),
     z.object({ kind: z.literal("ends"), from: reference, band: band.nullable(), window: window.optional(), of: z.enum(["socket", "tunnel"]).optional(), answer: band.optional(), why: z.string() }),
     z.object({ kind: z.literal("measured"), why: z.string() }),
@@ -189,6 +191,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
       partition: z.boolean().optional(),
       serves: z.boolean().optional(),
       flaps: z.array(z.object({ rest: time, hold: time })).optional(),
+      delay: time.optional(),
     }),
     pod: z.object({ replicas: count, grace: time, preStop: time, readiness: probe, liveness: probe, startup: probe.nullable() }),
     declaration: declaration.nullable(),

@@ -189,7 +189,12 @@ const predictionOf = (cell: KindCell) => {
       return {
         kind: p.kind,
         band: null,
-        text: "The algebra predicts that each replica stays in the Service, and that no request is refused. The requests that need Redis fail at the replica.",
+        text:
+          p.failures === undefined
+            ? "The algebra predicts that each replica stays in the Service, and that no request is refused. The requests that need Redis fail at the replica."
+            : p.failures.kind === "none"
+              ? "The algebra predicts that each replica stays in the Service, and that no request fails."
+              : `The algebra predicts that each replica stays in the Service, and that no request is refused. Each failed request starts ${time(s(p.failures.start.band.lo))} after ${REFERENCES[p.failures.start.from]} or later${p.failures.end === null ? "" : `, and the last one starts ${s(p.failures.end.band.hi) <= 0 ? `${time(-s(p.failures.end.band.hi))} to ${time(-s(p.failures.end.band.lo))} before` : `${time(s(p.failures.end.band.lo))} to ${time(s(p.failures.end.band.hi))} after`} ${REFERENCES[p.failures.end.from]}`}.${p.failures.outcomes === undefined ? "" : ` Each failed request ends with ${listed(p.failures.outcomes.map(outcome))}.`}`,
       };
     case "stalls":
       return {
@@ -319,6 +324,7 @@ const groupOf = (cell: KindCell): string => {
   if (cell.template === "T07") {
     if (cell.trigger.kind === "cannot-serve") return cell.trigger.serves === true ? "prober" : "callers";
     if (cell.trigger.kind === "zone-loss") return "zone";
+    if (cell.trigger.kind === "latency") return "slow";
     if (cell.trigger.partition === true) return "partition";
     if (cell.trigger.kind === "blackhole") return cell.trigger.flaps === undefined ? "dependency" : "flapping";
     if (cell.trigger.kind === "app-stall") return "stall";
@@ -347,12 +353,14 @@ const spread = (value: TimeSpread | null) =>
  * cannot-serve get s2, those of a partition get s2-partition, and those of a stall get s2-stall. The
  * cells of a false failure of the prober get s2-prober, and those of a shared dependency get
  * s2-dependency. The cells of a flapping dependency get s2-flapping, and those of a lost zone get s2-zone.
+ * The cells of a slow dependency get s2-slow.
  */
-const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" | "s2-prober" | "s2-dependency" | "s2-flapping" | "s2-zone" => {
+const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" | "s2-prober" | "s2-dependency" | "s2-flapping" | "s2-zone" | "s2-slow" => {
   if (cell.template === "T15") return "t15";
   if (!cell.id.startsWith("S2.")) return "kind";
   const fault = callerFaultOf(cell);
   if (fault === "lost zone") return "s2-zone";
+  if (fault === "slow dependency") return "s2-slow";
   return fault === "partition"
     ? "s2-partition"
     : fault === "stall"
@@ -426,6 +434,23 @@ const flappingTimesOf = (
   });
   return { knows: times.map((each) => each.knows), recovers: times.map((each) => each.recovers), emptied: times.map((each) => each.emptied) };
 };
+
+/**
+ * This function gives a time for each counted run of a slow dependency, in seconds: from the heal to
+ * the start of the last failed request. It is below zero when that request starts before the heal. A
+ * run with no failed request gives null.
+ */
+const slowTimesOf = (runs: readonly KindRun[]): { recovers: Array<number | null> } => ({
+  recovers: runs
+    .filter((run) => !run.warmup && run.void === null)
+    .map((run) => {
+      const heal = referenceOf(run, "heal");
+      const last = failuresOf(run.lines as readonly Line[])
+        .filter((request) => request.t >= run.start && request.t <= run.end)
+        .at(-1);
+      return heal === null || last === undefined ? null : round((last.t - heal) / 1000);
+    }),
+});
 
 /**
  * This function gives a time for each counted run of a lost zone, in seconds. It starts at the heal,
@@ -541,6 +566,8 @@ const cells = CATALOG.flatMap((cell) => {
       ...(copyOf(cell) === "s2-dependency" ? dependencyTimesOf(cell, record.runs) : {}),
       // a flapping dependency: the same times, and the empty Service, for each fault
       ...(copyOf(cell) === "s2-flapping" ? flappingTimesOf(cell, record.runs, verdict) : {}),
+      // a slow dependency: the main value is the failed requests, and the last one comes near the heal
+      ...(copyOf(cell) === "s2-slow" ? slowTimesOf(record.runs) : {}),
       // the PINGs of the clients, when their image counts them
       ...(copyOf(cell).startsWith("s2") ? pingsOf(record.runs) : {}),
     },
@@ -588,7 +615,9 @@ for (const name of names) {
                 ? { predictions: callerPredictions("flapping dependency") }
                 : name === "s2-zone"
                   ? { predictions: callerPredictions("lost zone") }
-                  : {};
+                  : name === "s2-slow"
+                    ? { predictions: callerPredictions("slow dependency") }
+                    : {};
   writeFileSync(out, stringify({ ...copy, cells: mine.map(({ copy: _copy, ...cell }) => cell), ...predictions }));
   process.stdout.write(`${mine.length} cells, ${mine.reduce((sum, cell) => sum + cell.counted + cell.voided, 0)} runs: ${out}\n`);
 }

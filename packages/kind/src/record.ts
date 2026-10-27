@@ -124,6 +124,11 @@ const upgradePrediction = (prediction: PredictionV1): Prediction => {
     }
     case "restarts":
       return { ...prediction, band: prediction.band === null ? null : band(prediction.band) };
+    // the format /1 has no failures on `stays`, but its type does
+    case "stays": {
+      const { failures, ...rest } = prediction;
+      return { ...rest, ...(failures === undefined ? {} : { failures: failures.kind === "window" ? upgradeWindow(failures) : failures }) };
+    }
     default:
       return prediction;
   }

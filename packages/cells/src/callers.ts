@@ -65,6 +65,11 @@ import { CHART_READINESS, DESIGN, DESIGN_REDIS, PROPAGATION, T07_WORKLOAD, WORKE
  * only node of the lost zone. For `ZONE_HOLD`, each packet on its link drops, and its cgroup is frozen.
  * The node lifecycle controller removes the target, and no client is in the lost zone. The cells
  * measure the removal, the failed requests, and the return of the target after the heal.
+ *
+ * The eighth incident is a slow dependency, a gray failure. Each packet that Redis sends waits
+ * `SLOW_DELAY` for `SLOW_HOLD`, thus each replica serves each request that much later. No check
+ * fails, thus each replica stays ready. The cells measure the failed requests, and that no replica
+ * leaves the Service.
  */
 
 /** This count is the keep-alive connections of each client. Eight spread over two replicas, thus each client has some on the target in almost each run. */
@@ -101,10 +106,10 @@ export const CANNOT_SERVE_HOLD = s(30);
  * dependency, that black hole comes and goes `FLAP_FAULTS` times in one run. In a lost zone, the node
  * of the target is lost for the hold.
  */
-export type CallerFault = "cannot serve" | "partition" | "stall" | "false failure" | "shared dependency" | "flapping dependency" | "lost zone";
+export type CallerFault = "cannot serve" | "partition" | "stall" | "false failure" | "shared dependency" | "flapping dependency" | "lost zone" | "slow dependency";
 
 /** These are the incidents in their sequence: the cells of "cannot serve" come first. */
-export const CALLER_FAULTS: readonly CallerFault[] = ["cannot serve", "partition", "stall", "false failure", "shared dependency", "flapping dependency", "lost zone"];
+export const CALLER_FAULTS: readonly CallerFault[] = ["cannot serve", "partition", "stall", "false failure", "shared dependency", "flapping dependency", "lost zone", "slow dependency"];
 
 /**
  * This time is how long the event loop of the target stays blocked in a stall. It has three bounds:
@@ -252,6 +257,7 @@ export const expectedFailures = (candidate: Candidate, mode: KubeProxyMode, faul
   if (fault === "shared dependency") return dependencyOf(mode, candidate).expected;
   if (fault === "flapping dependency") return flappingOf(mode, candidate).expected;
   if (fault === "lost zone") return lostZoneOf(mode, candidate).expected;
+  if (fault === "slow dependency") return slowOf(mode, candidate).expected;
   const workload = workloadOf(candidate);
   const window = learnWindow(declarationOf(candidate), CHART_READINESS, PROPAGATION[mode], workload);
   const turn = valueIn(window.turn, "s");
@@ -877,6 +883,113 @@ export const lostZoneOf = (mode: KubeProxyMode, candidate: Candidate): ZonePredi
   };
 };
 
+/**
+ * This time is how long each packet that Redis sends waits in a slow dependency. It has three bounds:
+ * - It is longer than the turn of a connection of HTTP/1.1 (8 × 20 ms = 160 ms). Thus a connection of A
+ *   or B gets its next request before it has the answer to the last one, and its queue grows.
+ * - It is shorter than the `keepalive_time` of the session check of D (0.5 s). Thus each session of
+ *   D hears a frame in each tick, and it sends no PING.
+ * - It is shorter than each bound of a check: the `heartbeat_timeout` of the Redis client (1 s), the
+ *   round-trip check (2 s) and the readiness probe of Redis (1 s). Thus each check passes, and no
+ *   replica leaves the Service.
+ */
+export const SLOW_DELAY = ms(300);
+
+/** This time is how long Redis stays slow: the hold of the black-holed shared dependency, thus the two incidents have the same length. */
+export const SLOW_HOLD = DEPENDENCY_HOLD;
+
+/**
+ * This time is the most that a request takes on a replica apart from the delay of Redis: the path
+ * from the client, the service, and the command of Redis itself. In kind it is a few milliseconds.
+ */
+const SLOW_REST = ms(100);
+
+/**
+ * This time is the most from the stamp of the heal to the instant that the delay is zero: the start
+ * of `tc` in the injector, and its change of the qdisc.
+ */
+const SLOW_HEAL_EFFECT = ms(100);
+
+/**
+ * This is the prediction of a candidate in a slow dependency. `fails` tells that each request fails
+ * from the start band to the end band. With no failure, the bands are null.
+ */
+export interface SlowPrediction {
+  readonly expected: Expected;
+  readonly fails: boolean;
+  /** This band is the first failed request, from the fault. */
+  readonly start: Band | null;
+  /** This band is the last failed request, from the heal. */
+  readonly end: Band | null;
+  readonly why: string;
+}
+
+/**
+ * This function gives the prediction of a candidate in a slow dependency. Each request waits for
+ * one command of Redis, thus each request takes `SLOW_DELAY` longer. No check fails, thus no
+ * replica leaves the Service, and no candidate learns.
+ * - A and B: each connection of HTTP/1.1 carries one request at a time, and each one gets the next
+ *   request each turn (160 ms). A request takes longer than a turn, thus the queue of each connection
+ *   grows, and request j waits j × (S − turn) for its start, with S the time of one request. The first
+ *   request whose time is above the timeout fails. After it, each request in the queue is older than
+ *   the timeout less one turn at its start, thus each one fails. A timeout ends its connection, and the
+ *   next connection goes to a replica that is as slow. The lame duck of B never fires, thus B is A.
+ * - After the heal, a request that starts gets its answer at once. The last failure is the request
+ *   that started before the delay was zero: it is one timeout less one turn older than its start.
+ * - C and D: each stream of a session waits for Redis on its own, thus no stream waits for another
+ *   one. Each stream takes `SLOW_DELAY` and some milliseconds, far below the timeout. No request fails.
+ */
+export const slowOf = (mode: KubeProxyMode, candidate: Candidate): SlowPrediction => {
+  // the mode does not change the prediction: no replica leaves the rules of a node
+  void mode;
+  const workload = workloadOf(candidate);
+  const every = valueIn(workload.every, "s");
+  const timeout = valueIn(workload.timeout, "s");
+  const delay = valueIn(SLOW_DELAY, "s");
+  const total = CLIENTS * (workload.connections ?? 1);
+  const slow = `Each packet that Redis sends waits ${say(SLOW_DELAY)} for the hold (${say(SLOW_HOLD)}), thus each request takes ${say(SLOW_DELAY)} longer. Each check of Redis and each probe passes in that time, thus each replica stays ready, and no candidate learns`;
+  if (onHttp2(candidate)) {
+    const none = { lo: requests(0), hi: requests(0), connections: { lo: connections(0), hi: connections(0), of: connections(total) } };
+    const sameAsC = candidate === "in band on HTTP/2 with a session check" ? ` The session check ticks each ${say(SESSION_CHECK.keepalive_time)}, longer than the delay, thus each session hears a frame in each tick. D is the same as C` : "";
+    return {
+      expected: none,
+      fails: false,
+      start: null,
+      end: null,
+      why: `${slow}. Each client sends its streams on one session, and each stream waits for Redis on its own. Each stream takes ${say(SLOW_DELAY)} and some milliseconds, far below the timeout of ${say(workload.timeout)}. Thus no request fails.${sameAsC}`,
+    };
+  }
+  const turn = every * (workload.connections ?? 1);
+  if (delay <= turn) throw new Error(`the delay ${say(SLOW_DELAY)} is not longer than the turn of a connection (${turn} s)`);
+  const rest = valueIn(SLOW_REST, "s");
+  // request j of a connection takes S + j × (S − turn): the first above the timeout fails
+  const first = (each: number): number => Math.floor((timeout - each) / (each - turn)) + 1;
+  const [early, late] = [first(delay + rest), first(delay)];
+  // the request in flight at the fault can wait for the delay too, thus the first failure can come one turn earlier
+  const start = { lo: time(Math.max(0, (early - 1) * turn)), hi: time((late + 1) * turn) };
+  // the last failure started before the delay was zero, one timeout less one turn before its own start
+  const end = { lo: time(-timeout - every), hi: time(-timeout + turn + valueIn(SLOW_HEAL_EFFECT, "s")) };
+  const lead = { lo: valueIn(REDIS_HEAL_LEAD.lo, "s"), hi: valueIn(REDIS_HEAL_LEAD.hi, "s") };
+  const hold = valueIn(SLOW_HOLD, "s");
+  const span = { lo: hold + lead.lo + valueIn(end.lo, "s") - valueIn(start.hi, "s"), hi: hold + lead.hi + valueIn(end.hi, "s") - valueIn(start.lo, "s") };
+  // each connection gets one request each turn. The timer fires up to FIRING_LATE late, thus a run can send fewer
+  const of = (length: number, gap: number): number => Math.round((length / gap) * 1e6) / 1e6;
+  const fired = valueIn(FIRING_LATE, "s") * (workload.connections ?? 1);
+  const expected = {
+    lo: requests(total * Math.floor(of(span.lo, turn + fired))),
+    hi: requests(total * (Math.ceil(of(span.hi, turn)) + 1)),
+    connections: { lo: connections(total), hi: connections(total), of: connections(total) },
+  };
+  const lameDuck = inBand(candidate) ? ". The readiness of the service never fails, thus its lame duck never closes a connection, and B is A" : "";
+  return {
+    expected,
+    fails: true,
+    start,
+    end,
+    why: `${slow}. Each connection of HTTP/1.1 carries one request at a time, and it gets the next request each turn (${say(time(turn))}). A request takes longer than a turn, thus the queue of each connection grows. The first request above the timeout of ${say(workload.timeout)} starts ${say(start.lo)}–${say(start.hi)} after the fault. After it, each request in the queue fails at its timeout. A timeout ends its connection, and the next connection goes to a replica that is as slow. After the heal, each request that starts gets its answer at once. Thus the last failure starts ${say(end.lo)}–${say(end.hi)} after the heal${lameDuck}. Each of the ${total} connections fails each of its requests in that span, thus approximately ${expected.lo.value}–${expected.hi.value} requests fail`,
+  };
+};
+
 /** These are the bytes of one PING frame of HTTP/2: a frame header of 9 bytes and 8 bytes of opaque data (RFC 9113, sections 4.1 and 6.7). Its ACK has the same size. */
 export const PING_FRAME: Quantity = { value: 17, unit: "B" };
 
@@ -906,6 +1019,8 @@ const pings = (value: number): Quantity => ({ value, unit: "{ping}" });
  *   sends one PING at its first tick, because the blocked loop sends no SETTINGS frame.
  * - A shared dependency: each stream waits for Redis until the latch trips, and the server answers
  *   each PING. Thus each session sends a PING at each tick with an ACK, until the trip.
+ * - A slow dependency: each replica answers each stream after the delay of Redis, shorter than a
+ *   tick. Thus each session hears a frame in each tick. No PING.
  */
 export const pingsOf = (mode: KubeProxyMode, candidate: Candidate, fault: CallerFault): PingPrediction => {
   if (candidate !== "in band on HTTP/2 with a session check")
@@ -920,6 +1035,12 @@ export const pingsOf = (mode: KubeProxyMode, candidate: Candidate, fault: Caller
   const tick = `The check sends a PING only at a tick of ${say(SESSION_CHECK.keepalive_time)} with no frame since the tick before it, and with a stream in flight`;
   if (fault === "cannot serve" || fault === "false failure")
     return { lo: pings(0), hi: pings(0), why: `${tick}. Each replica answers each stream at once, thus each session hears a frame in each tick, and the clients send no PING` };
+  if (fault === "slow dependency")
+    return {
+      lo: pings(0),
+      hi: pings(0),
+      why: `${tick}. Each replica answers each stream ${say(SLOW_DELAY)} late. A session gets a stream each ${say(MULTIPLEXED.every)}, thus the longest time with no frame is the delay, shorter than a tick. Thus the clients send no PING`,
+    };
   if (fault === "partition" || fault === "lost zone") {
     // a lost zone has the arithmetic of a partition, with the clients of the kept zone
     const on = targetConnections(mode, 1, fault === "lost zone" ? ZONE_CLIENTS : CLIENTS);
@@ -959,7 +1080,7 @@ export const pingsOf = (mode: KubeProxyMode, candidate: Candidate, fault: Caller
 };
 
 /** These are the incidents of a silent target: the words of the name of each cell, and its trigger. */
-const SILENT: Readonly<Record<Exclude<CallerFault, "cannot serve" | "false failure" | "shared dependency" | "flapping dependency" | "lost zone">, { readonly what: string; readonly trigger: KindCell["trigger"]; readonly predict: typeof partitionOf }>> = {
+const SILENT: Readonly<Record<Exclude<CallerFault, "cannot serve" | "false failure" | "shared dependency" | "flapping dependency" | "lost zone" | "slow dependency">, { readonly what: string; readonly trigger: KindCell["trigger"]; readonly predict: typeof partitionOf }>> = {
   partition: { what: "a pod is partitioned", trigger: { kind: "blackhole", hold: PARTITION_HOLD, partition: true }, predict: partitionOf },
   stall: { what: "a pod is stalled", trigger: { kind: "app-stall", hold: STALL_HOLD }, predict: stallOf },
 };
@@ -975,11 +1096,14 @@ const SUFFIX: Readonly<Record<Candidate, string>> = {
 /**
  * This function tells the incident of an S2 cell. A partition has the flag `partition` on its black
  * hole, and a stall is an `app-stall`. A black hole with no `partition` is on Redis: a shared
- * dependency. A false failure has the flag `serves` on its `cannot-serve`. A lost zone is a `zone-loss`.
+ * dependency. A false failure has the flag `serves` on its `cannot-serve`. A lost zone is a `zone-loss`,
+ * and a slow dependency is a `latency`.
  */
 export const callerFaultOf = (cell: KindCell): CallerFault =>
   cell.trigger.kind === "zone-loss"
     ? "lost zone"
+    : cell.trigger.kind === "latency"
+      ? "slow dependency"
     : cell.trigger.partition === true
     ? "partition"
     : cell.trigger.kind === "app-stall"
@@ -1116,6 +1240,40 @@ const cellOf = (mode: KubeProxyMode, candidate: Candidate, fault: CallerFault): 
           why: predicted.why,
         },
         why: `The lease of the lost node expires, thus the node lifecycle controller marks the target not ready. It leaves the rules of each kept node ${say(predicted.removal.lo)}–${say(predicted.removal.hi)} after the fault, for each candidate`,
+      },
+      calibrates: false,
+      runs: 3,
+    };
+  }
+  if (fault === "slow dependency") {
+    const predicted = slowOf(mode, candidate);
+    const failures =
+      predicted.start === null || predicted.end === null
+        ? { kind: "none" as const, why: predicted.why }
+        : {
+            kind: "window" as const,
+            nodes: "all" as const,
+            start: { from: "fault" as const, band: predicted.start },
+            end: { from: "heal" as const, band: predicted.end },
+            certain: true,
+            outcomes: ["timeout"],
+            why: predicted.why,
+          };
+    return {
+      id: `S2.T07.${mode}.${SUFFIX[candidate]}.slow`,
+      name: `T07 ${mode}, callers learn that a shared dependency is slow: ${candidate}`,
+      template: "T07",
+      substitutes: null,
+      mode,
+      workers: WORKERS,
+      trigger: { kind: "latency", hold: SLOW_HOLD, delay: SLOW_DELAY },
+      pod,
+      declaration: dependencyDeclarationOf(candidate),
+      workload,
+      prediction: {
+        kind: "stays",
+        failures,
+        why: `The round trip of Redis gates the readiness of each replica, but each check passes in the delay of ${say(SLOW_DELAY)}. Thus no replica leaves the Service, for each candidate`,
       },
       calibrates: false,
       runs: 3,

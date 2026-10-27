@@ -72,6 +72,7 @@ export const stopOf = (cell: KindCell): StopWay | null => {
     case "certificate-expiry":
     case "cannot-serve":
     case "zone-loss":
+    case "latency":
       return null;
   }
 };

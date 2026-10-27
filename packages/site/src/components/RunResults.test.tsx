@@ -229,7 +229,7 @@ describe("the components of the CI runs", () => {
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40500297695");
     expect(table).toContain("S2.T07.nftables.session-check.zone");
     expect(table).not.toContain("a lost zone: No copy");
-    // each incident with no cell gives its own reason
-    expect(table).toContain("a slow dependency (gray failure): No cell measures the candidates in this incident yet.");
+    // an incident with cells but no copy of a run gives its reason
+    expect(table).toContain("a slow dependency (gray failure): No copy of a kind run has a result of the cells of this incident yet.");
   });
 });
