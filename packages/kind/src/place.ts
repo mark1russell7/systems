@@ -2,7 +2,7 @@
 // each slot of the client (`placementOf`), and the next SIGHUP opens each slot again until its first
 // answer comes from that backend. The client runs this module with Node, thus this module imports nothing.
 
-/** A placed slot is a session of a slot, the backend of its first answer (`b`), its tries, and if that backend is the wanted one. */
+/** A placed slot is the session of a slot with the backend of its first answer (`b`). It also has its tries, and if that backend is the wanted one. */
 export interface Placed<H> {
   readonly held: H;
   readonly b: string | null;

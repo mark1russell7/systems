@@ -13,16 +13,16 @@ import { CHART_READINESS, PROPAGATION, T07_WORKLOAD, WORKERS, kubeDefaults, ms, 
  * stays as committed, and its records are judged with it.
  *
  * The term: with n sessions on the target, the window of the stall closes up to n × d after the band
- * end, and the failed requests grow by up to n × r. The value d is the drain time of one session after
+ * end. The failed requests grow by up to n × r. The value d is the drain time of one session after
  * the resume (`BACKLOG_DRAIN`). The value r is the requests of one session that fail in it (`BACKLOG_REQUESTS`).
  *
- * The term is for each candidate that keeps its sessions through the stall: C. The session check of D
+ * The term is for C, the candidate that keeps its sessions through the stall. The session check of D
  * closes each session on the target at its first stream timeout, long before the resume. Thus D has
  * no session on the target at the resume, and the term does not apply to it.
  *
  * The scenario is the stall cell of C with one change: the lab places the sessions (`onTarget` of the
- * workload). Each client has `BACKLOG_CONNECTIONS` sessions, and each one gets a request each 20 ms,
- * as the one session of C does. Thus a session on the target has the backlog of a session of C. Before
+ * workload). Each client has `BACKLOG_CONNECTIONS` sessions. Each session gets a request each 20 ms,
+ * as the one session of C does. Thus a session on the target has the backlog of a session of C in the stall. Before
  * each run, n of the 6 sessions go to the target, and the others to the other replica. Each run
  * records the sessions on the target at the fault (`sessions` of its facts).
  */
@@ -34,8 +34,8 @@ export const BACKLOG_SESSIONS: readonly number[] = [1, 2, 3, 6];
 export const BACKLOG_CONNECTIONS = 2;
 
 /**
- * This workload is the workload of C with two sessions for each client: 10 ms between two requests of
- * a client, thus 20 ms between two requests on one session, as in C.
+ * This workload is the workload of C with two sessions for each client. A client sends a request each
+ * 10 ms, thus each session gets a request each 20 ms, as in the workload of C.
  */
 export const BACKLOG_WORKLOAD: Workload = { every: ms(10), timeout: T07_WORKLOAD.timeout, connections: BACKLOG_CONNECTIONS };
 
@@ -56,7 +56,7 @@ const sessions = (value: number): Quantity => ({ value, unit: "{connection}" });
 /** This function gives a time in seconds to the microsecond, thus the sums of the bands print clean. */
 const time = (value: number): Quantity => s(Math.round(value * 1e6) / 1e6);
 
-/** This is the prediction of a cell of the backlog: the expected failures, the window from the fault, the band end without the term, and the reason. */
+/** This is the prediction of a cell of the backlog. It has the expected failures, the window from the fault, the band end without the term, and the reason. */
 export interface BacklogPrediction {
   readonly expected: Expected;
   readonly start: { readonly lo: Quantity; readonly hi: Quantity };
@@ -70,7 +70,7 @@ export interface BacklogPrediction {
 
 /**
  * This function gives the prediction of C in a stall with n sessions on the target. The band of the
- * stall gives the window from the fault to one timeout before the resume, and the term adds n × d to
+ * stall gives the window from the fault to one timeout before the resume. The term adds n × d to
  * its end. The failed requests are those of the n sessions in that window, and n × r more.
  */
 export const backlogOf = (mode: Dataplane, onTarget: number): BacklogPrediction => {

@@ -385,7 +385,7 @@ export const factsOf = (cell: KindCell, run: KindRun): RunFacts => {
 };
 
 /**
- * This function gives the stall of the target in a run: the start of its line `stall` after the
+ * This function gives the stall of the target in a run. It is the start of its line `stall` after the
  * fault, and the time that the app gives in its end line (`held`). A time that the run does not have is null.
  */
 const stallFactOf = (run: KindRun): { readonly start: Quantity | null; readonly held: Quantity | null } => {

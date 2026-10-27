@@ -77,8 +77,8 @@ export const callerPredictions = (fault: CallerFault = "cannot serve") =>
   });
 
 /**
- * This function gives the prediction of each cell of the backlog (SYS-40): its candidate, its sessions
- * on the target, the band end of the stall without the term, and the term (`overshoot`), in seconds.
+ * This function gives the prediction of each cell of the backlog (SYS-40), in seconds. It has the
+ * candidate, the sessions on the target, the band end of the stall without the term, and the term (`overshoot`).
  */
 export const backlogPredictions = () =>
   BACKLOG_CELLS.map((cell) => {

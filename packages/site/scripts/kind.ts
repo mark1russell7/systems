@@ -511,8 +511,8 @@ const pingsOf = (runs: readonly KindRun[]): { pings: Array<number | null>; acks:
 
 /**
  * This function gives the figures of each counted run of a cell of the backlog (SYS-40). They are the
- * failed requests, the sessions on the target at the fault, and the start of the stall after the fault
- * and how long it held, in seconds. The overshoot is from the band end without the term to the start
+ * failed requests and the sessions on the target at the fault. They also are the start of the stall
+ * after the fault and how long it held, in seconds. The overshoot is from the band end without the term to the start
  * of the last failed request, in seconds. A run with no such figure gives null.
  */
 const backlogRunsOf = (cell: KindCell, verdict: KindVerdict) => {
