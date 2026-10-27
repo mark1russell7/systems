@@ -5,7 +5,7 @@ import { runInNewContext } from "node:vm";
 import { afterAll, describe, expect, it } from "vitest";
 import type { Clock } from "./clock.ts";
 import type { JobSettle, Lifecycle, QueueKnobs, ServiceBuilder } from "./index.ts";
-import { CLOSE_BOUND_RULE, UNIT_BOUND_RULE, lint, queueDrain, redeliverOnce, service } from "./index.ts";
+import { CLOSE_BOUND_RULE, UNIT_BOUND_RULE, compressionOf, lint, queueDrain, redeliverOnce, service } from "./index.ts";
 import type { Rule } from "./law.ts";
 import type { ConformanceRecord, FakeClock, HeldWork, TransportSubject } from "./testing.ts";
 import { detachedLifecycle, fakeClock, fakeProcess, transportConformance } from "./testing.ts";
@@ -556,6 +556,29 @@ describe("queueDrain in a service: the declaration, the law and the request trac
     expect(drain.problems(description)).toEqual([]);
     const bare = { ...description, shutdown: { ...description.shutdown, phases: [] } };
     expect(drain.problems(bare)).toEqual(['queueDrain needs the phase "close transports" to close', 'queueDrain needs the phase "drain" to end its units']);
+  });
+
+  it("gives the bound rules to a compression, as lint() applies them (SYS-38)", () => {
+    const drain = queueDrain({ ...KNOBS, unit_processing_time: s(20) }, {
+      source: () => null,
+      settle: inProcess<string>([]).settle,
+      redelivery: redeliverOnce("reject"),
+      handle: () => {},
+    });
+    const description = declared(service("app")).consumer("jobs", drain.knobs, drain).describe();
+    const scenario = { platform: {}, probes: { readiness: s(10), liveness: s(30) } };
+    // without marks, a compression names each symbol of the two bound rules
+    expect([...compressionOf(description, scenario, [], 1, {}).unmarked].sort()).toEqual([
+      "close_bound@consumer",
+      "close_phase_cap@process",
+      "drain_phase_cap@process",
+      "unit_processing_time@consumer",
+    ]);
+    // the cap of the drain stays 10 s, and the job of 20 s scales to 5 s: the unit then fits
+    const marks = { "drain_phase_cap@process": { kind: "fixed" }, "unit_processing_time@consumer": { kind: "scalable" } } as const;
+    expect(compressionOf(description, scenario, [], 0.25, marks).changed).toEqual([
+      { rule: UNIT_BOUND_RULE, scope: "jobs", before: "violated", after: "holds" },
+    ]);
   });
 
   it("puts each job through life.request: a cut job of an idempotent route goes back, and another gets reject", async () => {

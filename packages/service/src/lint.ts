@@ -373,6 +373,39 @@ const declarationFindings = (svc: ServiceDescription): Finding[] =>
       ]
     : [];
 
+/** This identifier is the rule of the findings for two parts that have one name in the scopes of a rule. */
+export const NAME_RULE = "unique-names";
+
+/**
+ * This function gives a finding for each name that two parts share in one set of scopes. A rule
+ * about a client applies to each dependency and each server transport. A rule about a consumer
+ * applies to each consumer and each worker, and a rule about a limiter to each limiter. Two parts
+ * with one name in a set give findings with one scope, thus a reader cannot tell them apart.
+ */
+const nameFindings = (svc: ServiceDescription): Finding[] => {
+  const sets: ReadonlyArray<readonly [string, readonly string[]]> = [
+    [
+      "the dependencies and the server transports",
+      [...svc.dependencies.map((each) => each.name), ...svc.transports.filter((each) => each.kind === "server").map((each) => each.name)],
+    ],
+    ["the consumers and the workers", svc.transports.filter((each) => each.kind !== "server").map((each) => each.name)],
+    ["the limiters", (svc.limiters ?? []).map((each) => each.name)],
+  ];
+  return sets.flatMap(([set, names]) =>
+    [...new Set(names.filter((name, index) => names.indexOf(name) !== index))].map(
+      (name): Finding => ({
+        rule: NAME_RULE,
+        scope: name,
+        verdict: "violated",
+        statement: `each of ${set} has a name of its own`,
+        window: `two parts have the name ${name}, thus their findings have one scope`,
+        evaluated: [],
+        unbound: [],
+      }),
+    ),
+  );
+};
+
 /** This identifier is the rule of the findings about the stall time of a progress check (`Check.marks`). */
 export const PROGRESS_RULE = "progress";
 
@@ -600,6 +633,7 @@ export interface ScopedChange extends Change {
  * This function tells which findings of `lint` a compression by k changes (E10). It scales the
  * bindings of each scope by the marks. Thus a harness that runs the service k times faster learns
  * the orderings that its run breaks. The unmarked symbols are the symbols of the rules with no mark.
+ * It reads the rules that `lint` applies with their bindings: the service rules and `BOUND_RULES`.
  */
 export const compressionOf = (
   svc: ServiceDescription,
@@ -611,8 +645,7 @@ export const compressionOf = (
   const service = serviceBindings(svc, scenario);
   const changed: ScopedChange[] = [];
   const unmarked = new Set<string>();
-  for (const rule of rules) {
-    if (!SERVICE_RULES.includes(rule.id)) continue;
+  for (const rule of [...rules.filter((each) => SERVICE_RULES.includes(each.id)), ...BOUND_RULES]) {
     for (const [scope, bind] of scopesOf(svc, scenario, service, symbolsOf(rule))) {
       const result = compression([rule], bind, k, marks);
       for (const change of result.changed) changed.push({ ...change, scope });
@@ -649,10 +682,11 @@ const findingsOf = (
 
 /**
  * This function applies each service rule to a declaration and a scenario. A rule applies one time
- * for the service, for each client, for each consumer and worker, or for each limiter. The function
- * also gives a finding for each necessary field that the description does not give (`DECLARATION_RULE`).
- * Each progress check that names its loops also gets its findings (`PROGRESS_RULE`). The findings
- * of the bounds of each consumer and each worker come last (`BOUND_RULES`).
+ * for the service, for each client, for each consumer and worker, or for each limiter. It also
+ * gives a finding for each necessary field that the description does not give (`DECLARATION_RULE`).
+ * It gives a finding for each name that two parts share in the scopes of a rule (`NAME_RULE`). Each progress check
+ * that names its loops also gets its findings (`PROGRESS_RULE`). The findings of the bounds of each
+ * consumer and each worker come last (`BOUND_RULES`).
  */
 export const lint = (
   svc: ServiceDescription,
@@ -662,6 +696,7 @@ export const lint = (
   const service = serviceBindings(svc, scenario);
   return [
     ...declarationFindings(svc),
+    ...nameFindings(svc),
     ...progressFindings(svc),
     ...rules.filter((rule) => SERVICE_RULES.includes(rule.id)).flatMap((rule) => findingsOf(svc, scenario, service, rule)),
     ...BOUND_RULES.flatMap((rule) => findingsOf(svc, scenario, service, rule)),

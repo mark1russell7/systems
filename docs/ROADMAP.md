@@ -723,6 +723,50 @@ The logger is not a second set of calls. It is one sink of the stream of lifecyc
 
 It comes as a PATCH before 1.0.0: a new optional option and new exports.
 
+### SYS-22 · The law binds each server transport at @server
+
+- **Status:** done
+- **Area:** server stack
+- **Depends on:** SYS-7
+- **Started:** 2026-10-26
+- **Shipped:** 2026-10-27
+- **Links:** [#221](https://github.com/mark1russell7/systems/pull/221)
+
+The server stack made this item. A rule with a symbol at `@server`, for example O19, also applies one time for each server transport of the service. The knobs of the transport bind at `@server`, and the scenario gives the client side. It comes in service 0.6.0, a MINOR before 1.0.0, with SYS-23, SYS-38 and SYS-39.
+
+### SYS-23 · The law compares the bounds of a loop with the caps of its phases
+
+- **Status:** done
+- **Area:** server stack
+- **Depends on:** SYS-7
+- **Started:** 2026-10-26
+- **Shipped:** 2026-10-27
+- **Links:** [#219](https://github.com/mark1russell7/systems/pull/219)
+
+The server stack made this item. `BOUND_RULES` compare `unit_processing_time` with the cap of `drain` (`unit-bound`), and `close_bound` with the cap of `close transports` (`close-bound`). Each rule applies one time for each consumer and each worker. `problems()` gives only a phase that is missing. The change of `problems()` is a break, thus it comes in the MINOR 0.6.0.
+
+### SYS-38 · A compression reads the bound rules
+
+- **Status:** done
+- **Area:** server stack
+- **Depends on:** SYS-23
+- **Started:** 2026-10-27
+- **Shipped:** 2026-10-27
+- **Links:** [#223](https://github.com/mark1russell7/systems/pull/223)
+
+The review of SYS-23 found that `compressionOf` read only the rules that the caller gave. Thus a compression did not see `unit-bound` and `close-bound`, which `lint()` always applies. With this item, `compressionOf` reads the service rules and `BOUND_RULES`, with the same bindings as `lint()`. A test compresses the drain of a queue and finds the change of `unit-bound`.
+
+### SYS-39 · Two parts with one name give a finding
+
+- **Status:** done
+- **Area:** server stack
+- **Depends on:** SYS-22
+- **Started:** 2026-10-27
+- **Shipped:** 2026-10-27
+- **Links:** [#223](https://github.com/mark1russell7/systems/pull/223)
+
+The review of SYS-22 found that a server transport and a dependency with one name give findings with one scope. Then a reader cannot tell them apart. With this item, `lint()` gives a `violated` finding of `NAME_RULE` (`unique-names`) for two parts with one name in a set of scopes. The sets are the dependencies and the server transports, the consumers and the workers, and the limiters. A description that was correct before can get this finding, thus it comes in the MINOR 0.6.0.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue
