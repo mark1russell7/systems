@@ -380,3 +380,75 @@ describe("the ordering law's evaluator", () => {
     });
   });
 });
+
+describe("a server transport binds its knobs at @server, in a scope of its own (SYS-22)", () => {
+  // O19 of R3, with the symbols of the law
+  const O19: Rule = {
+    id: "O19",
+    rule: "A per-operation timeout (client read, proxy read, server idle) exceeds the slowest legitimate reply or quiet period",
+    expr: {
+      lhs: { terms: [{ knob: "request_timeout", coef: 1, at: "client" }] },
+      op: ">",
+      rhs: { terms: [{ knob: "server_hold_time", coef: 1, at: "server" }] },
+    },
+    expr_more: [
+      {
+        lhs: { terms: [{ knob: "server_idle_close", coef: 1, at: "server" }] },
+        op: ">",
+        rhs: { terms: [{ knob: "service_time_under_load", coef: 1, at: "server" }] },
+        margin: 0,
+      },
+    ],
+  };
+  // a rule with no symbol at @server applies only to each dependency
+  const clientOnly: Rule = {
+    id: "O13",
+    rule: "the request timeout of a client is longer than the failover of its dependency",
+    expr: {
+      lhs: { terms: [{ knob: "request_timeout", coef: 1, at: "client" }] },
+      op: ">",
+      rhs: { terms: [{ knob: "failover_time", coef: 1, at: "dependency" }] },
+    },
+  };
+  // the server of the service holds a reply for up to 30 s, and closes an idle connection at 5 s
+  const description = declared()
+    .phase("close transports", s(3))
+    .server("http", { server_idle_close: s(5), server_hold_time: s(30), "request_timeout@server": s(40) })
+    .describe();
+  const dependencies = { db: { "server_hold_time@server": s(1), "server_idle_close@server": s(60), "service_time_under_load@server": s(0.5), failover_time: s(4) } };
+  const scenario = (http?: Record<string, { value: number; unit: string }>) => ({
+    platform: {},
+    probes: { readiness: s(30), liveness: s(30) },
+    dependencies,
+    ...(http === undefined ? {} : { transports: { http } }),
+  });
+
+  it("applies O19 to each dependency and to each server, and each scope pairs its own two sides", () => {
+    const findings = lint(description, scenario({ "request_timeout@client": s(20), "service_time_under_load@server": s(3) }), [O19]);
+    expect(findings.map((finding) => [finding.rule, finding.scope, finding.verdict])).toEqual([
+      ["O19", "db", "holds"],
+      ["O19", "http", "violated"],
+    ]);
+    // the client of db (10 s) against the hold of the server of db (1 s), not against the hold of the server of the service
+    expect(findings[0]?.evaluated.map((each) => [each.lhs, each.rhs])).toEqual([[10, 1], [60, 0.5]]);
+    // the clients of the server (20 s, from the scenario) against its hold (30 s), and its idle close (5 s) against its service time (3 s)
+    expect(findings[1]?.evaluated.map((each) => [each.lhs, each.rhs, each.holds])).toEqual([[20, 30, false], [5, 3, true]]);
+  });
+
+  it("binds each time knob of a server at @server, and a knob with a hop in its name at that hop", () => {
+    const shown: Rule = { ...O19, expr: { ...O19.expr, lhs: { terms: [{ knob: "request_timeout", coef: 1, at: "server" }] } } };
+    const http = lint(description, scenario({ "service_time_under_load@server": s(3) }), [shown]).find((finding) => finding.scope === "http");
+    expect(http?.evaluated.map((each) => [each.lhs, each.rhs])).toEqual([[40, 30], [5, 3]]);
+  });
+
+  it("depends on the client side when the scenario does not give it, and names it", () => {
+    const [db, http, ...rest] = lint(description, scenario(), [O19]);
+    expect(rest).toEqual([]);
+    expect(db).toMatchObject({ scope: "db", verdict: "holds", unbound: [] });
+    expect(http).toMatchObject({ scope: "http", verdict: "depends", unbound: ["request_timeout@client", "service_time_under_load@server"] });
+  });
+
+  it("does not apply a rule without a symbol at @server to a server", () => {
+    expect(lint(description, scenario(), [clientOnly]).map((finding) => [finding.scope, finding.verdict])).toEqual([["db", "holds"]]);
+  });
+});
