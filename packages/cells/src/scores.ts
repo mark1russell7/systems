@@ -13,10 +13,12 @@ import {
   FLAP_HOLD,
   PARTITION_HOLD,
   STALL_HOLD,
+  ZONE_HOLD,
   callerFaultOf,
   dependencyOf,
   expectedFailures,
   flappingOf,
+  lostZoneOf,
   pingsOf,
 } from "./callers.ts";
 
@@ -26,11 +28,12 @@ import {
  * The evidence is the CI run and the cell. A criterion that the data cannot support is "not measured",
  * with the reason. No score fills a gap with an estimate.
  *
- * Six incidents have cells. The first three are a pod that cannot serve (`cannot-serve`, the S2
+ * Seven incidents have cells. The first three are a pod that cannot serve (`cannot-serve`, the S2
  * cells of T07), a partitioned pod (a black hole between the clients and the target), and a stalled
  * pod (`app-stall`). The fourth is a failed prober (`cannot-serve` with `serves`: a false failure of
  * the readiness check). The fifth is a black-holed shared dependency (a black hole between Redis and
- * each replica). The sixth is a flapping dependency: that black hole, three times in one run.
+ * each replica). The sixth is a flapping dependency: that black hole, three times in one run. The
+ * seventh is a lost zone (`zone-loss`): the node of the target loses its link, and its kubelet is frozen.
  *
  * Each incident has its own kind run.
  * The other incidents of the design have no cell of the candidates yet, thus each one is "not measured".
@@ -177,6 +180,10 @@ export interface Scorecard {
  * each fault of each counted run, in the order of the runs. `emptied` has the time from each fault to
  * its empty Service, in the same order. The main value is the empty Service after the first fault.
  *
+ * In a lost zone, the main value is the time from the fault until the target leaves the rules of
+ * the kept nodes. Its copy also has `failures`, `lasts`, and `returns`: the time from the heal
+ * to the target ready again in its EndpointSlice, in seconds.
+ *
  * A copy of a run whose clients count each PING also has `pings` and `acks`. They are the PINGs of the
  * session checks of the clients in each counted run, and the ACKs of those PINGs. A run with no
  * line of the count gives null. `seconds` is the length of each counted run.
@@ -192,6 +199,7 @@ export interface CallerResult {
   readonly knows?: readonly (number | null)[];
   readonly recovers?: readonly (number | null)[];
   readonly emptied?: readonly (number | null)[];
+  readonly returns?: readonly (number | null)[];
   readonly pings?: readonly (number | null)[];
   readonly acks?: readonly (number | null)[];
   readonly seconds?: readonly number[];
@@ -244,6 +252,9 @@ const NOT_MEASURED: Readonly<Record<CallerFault, Partial<Record<Criterion, strin
   "flapping dependency": {
     "false removals on a blip": `Each of the ${FLAP_FAULTS} faults holds for ${valueIn(FLAP_HOLD, "s")} s, and the readiness of each replica follows Redis: each removal is true. No cell gives a short fault yet.`,
   },
+  "lost zone": {
+    "false removals on a blip": `The zone stays lost for ${valueIn(ZONE_HOLD, "s")} s, thus each removal is true. A loss shorter than the grace of the node lifecycle controller (50 s) removes no pod. No cell gives a short loss yet.`,
+  },
 };
 
 /** These are the incidents of the design that the S2 cells measure, and the trigger of their cells. */
@@ -254,6 +265,7 @@ const INCIDENT_OF: Readonly<Record<CallerFault, { readonly incident: Incident; r
   "false failure": { incident: "a failed prober", trigger: "cannot-serve" },
   "shared dependency": { incident: "a black-holed shared dependency", trigger: "blackhole" },
   "flapping dependency": { incident: "a flapping dependency", trigger: "blackhole" },
+  "lost zone": { incident: "a lost zone", trigger: "zone-loss" },
 };
 
 /** This text is the reason for each incident of the design that has no cell of the candidates yet. */
@@ -261,11 +273,9 @@ const NO_CELL = "No cell measures the candidates A, B, C and D in this incident 
 
 /**
  * These texts are the reasons of an incident with no cell. Each one tells what T07 cannot do for that
- * incident: T07 slows no dependency, and has no zone.
+ * incident: T07 slows no dependency.
  */
 const NO_CELL_OF: Readonly<Partial<Record<Incident, string>>> = {
-  "a lost zone":
-    "No cell measures the candidates in this incident yet. The kind cluster of T07 has no zones, and no step of the lab stops a node and its kubelet at once. A drain is not a loss: it evicts each pod with its grace.",
   "a slow dependency (gray failure)":
     "No cell measures the candidates in this incident yet. The trigger of the S2 cells black-holes Redis, and no trigger slows it. A slow dependency slows each replica at once, thus no routing candidate can go around it. The stalled pod is the gray failure of one replica.",
 };
@@ -355,7 +365,7 @@ const scoreOf = (criterion: Criterion, candidate: Candidate, mode: KubeProxyMode
     const lo = valueIn(expected.lo, "{request}");
     const hi = valueIn(expected.hi, "{request}");
     // the main value of a false failure and of a dependency is the time of a removal, thus its copy keeps the failures apart
-    const apart = fault === "false failure" || fault === "shared dependency" || fault === "flapping dependency";
+    const apart = fault === "false failure" || fault === "shared dependency" || fault === "flapping dependency" || fault === "lost zone";
     const values = apart ? result.failures : result.values;
     const median = apart ? (values === undefined || values.length === 0 ? null : middle([...values].sort((a, b) => a - b))) : result.median;
     if (median === null || values === undefined) return { criterion, kind: "not measured", why: "The copy has no median of the failed requests of this cell." };
@@ -407,6 +417,15 @@ const scoreOf = (criterion: Criterion, candidate: Candidate, mode: KubeProxyMode
           : timesOf(criterion, result.emptied, removalOf(result.id), "fault", faults, evidence);
     const what = { "time until callers know": "the last slow failure of each fault", "time to recover": "the last failure after each heal", "routes down": "the empty Service after each fault" }[criterion as string];
     return scored ?? { criterion, kind: "not measured", why: `The copy has no time of ${what ?? criterion} of this cell.` };
+  }
+  if (fault === "lost zone" && (criterion === "time to recover" || criterion === "routes down")) {
+    // the platform: the departure of the target from the rules after the fault, and its return to its EndpointSlice after the heal
+    const scored =
+      criterion === "time to recover"
+        ? timesOf(criterion, result.returns, lostZoneOf(mode, candidate).returns, "heal", result.counted, evidence)
+        : timesOf(criterion, result.values, removalOf(result.id), "fault", result.counted, evidence);
+    const what = criterion === "time to recover" ? "the return of the target after the heal" : "the departure of the target";
+    return scored ?? { criterion, kind: "not measured", why: `The copy has no time of ${what} of this cell.` };
   }
   if (criterion === "time until callers know") {
     const prediction = windowOf(result.id);

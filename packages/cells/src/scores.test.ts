@@ -376,7 +376,7 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
   });
 
   it("predict the PINGs of D in each incident before a run counts them", () => {
-    const bands = (["cannot serve", "false failure", "partition", "stall", "shared dependency", "flapping dependency"] as const).map((fault) =>
+    const bands = (["cannot serve", "false failure", "partition", "stall", "shared dependency", "flapping dependency", "lost zone"] as const).map((fault) =>
       (["iptables", "ipvs", "nftables"] as const).map((mode) => {
         const band = pingsOf(mode, "in band on HTTP/2 with a session check", fault);
         return [band.lo.value, band.hi.value];
@@ -389,6 +389,8 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
       [[0, 9], [0, 3], [0, 9]],
       [[3, 126], [3, 126], [3, 126]],
       [[9, 378], [9, 378], [9, 378]],
+      // a lost zone: the PINGs of a partition, with the 2 clients of the kept zone
+      [[0, 2], [0, 2], [0, 2]],
     ]);
     // a PING and its ACK are each a frame header of 9 bytes and 8 bytes of data
     expect(PING_FRAME).toEqual({ value: 17, unit: "B" });

@@ -3,6 +3,7 @@ import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { KindCell, KubeletProbe, MeshMode, Stack } from "./cell.ts";
 import { CLIENT, HEALTH_PORT, LOG_LABEL, PORT, REDIS, SERVER } from "./names.ts";
+import { ZONE_LABEL, ZONE_LOST } from "./scenario.ts";
 
 /**
  * This module generates the Kubernetes objects of a cell. They are its namespace, its Redis, the
@@ -202,6 +203,10 @@ export const serverObjects = (cell: KindCell, namespace: string, image: string, 
                 whenUnsatisfiable: "ScheduleAnyway",
                 labelSelector: { matchLabels: { app: SERVER } },
               },
+              // a zone loss needs a replica in each zone: the scheduler must keep the spread
+              ...(cell.trigger.kind === "zone-loss"
+                ? [{ maxSkew: 1, topologyKey: ZONE_LABEL, whenUnsatisfiable: "DoNotSchedule", labelSelector: { matchLabels: { app: SERVER } } }]
+                : []),
             ],
             containers: [
               {
@@ -238,6 +243,16 @@ export const clientObjects = (cell: KindCell, namespace: string, image: string, 
         spec: {
           terminationGracePeriodSeconds: 0,
           tolerations: [{ key: "node-role.kubernetes.io/control-plane", operator: "Exists", effect: "NoSchedule" }],
+          // the clients of a zone loss are only in the zone that stays: they see the loss, and they do not have it
+          ...(cell.trigger.kind === "zone-loss"
+            ? {
+                affinity: {
+                  nodeAffinity: {
+                    requiredDuringSchedulingIgnoredDuringExecution: { nodeSelectorTerms: [{ matchExpressions: [{ key: ZONE_LABEL, operator: "NotIn", values: [ZONE_LOST] }] }] },
+                  },
+                },
+              }
+            : {}),
           containers: [
             {
               name: CLIENT,

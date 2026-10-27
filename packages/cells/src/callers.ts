@@ -1,7 +1,7 @@
 import type { Recovery } from "@mark1russell7/algebra";
 import { recovery, timerOf } from "@mark1russell7/algebra";
 import type { Declaration, Flap, KindCell, KubeProxyMode, Workload } from "@mark1russell7/kind";
-import { KUBE_PROXY_MODES, kubeletBand, latchBand, learnWindow, removalBand, stallRemovalBand } from "@mark1russell7/kind";
+import { KUBE_PROXY_MODES, NODE_LIFECYCLE, kubeletBand, latchBand, learnWindow, nodeLossBand, nodeReturnBand, removalBand, stallRemovalBand } from "@mark1russell7/kind";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { recoverSpan } from "@mark1russell7/service";
 import type { Extent, Quantity } from "@mark1russell7/quantity";
@@ -60,6 +60,11 @@ import { CHART_READINESS, DESIGN, DESIGN_REDIS, PROPAGATION, T07_WORKLOAD, WORKE
  * The sixth incident is a flapping dependency: the black hole of the fifth incident comes
  * `FLAP_FAULTS` times in one run. `FLAP_REST` is the time from each heal to the next fault (`FLAPS`
  * of the trigger). The cells measure the same times in each fault, and if the Service comes back between two faults.
+ *
+ * The seventh incident is a lost zone. The cluster has two zones, and the node of the target is the
+ * only node of the lost zone. For `ZONE_HOLD`, each packet on its link drops, and its cgroup is frozen.
+ * The node lifecycle controller removes the target, and no client is in the lost zone. The cells
+ * measure the removal, the failed requests, and the return of the target after the heal.
  */
 
 /** This count is the keep-alive connections of each client. Eight spread over two replicas, thus each client has some on the target in almost each run. */
@@ -93,12 +98,13 @@ export const CANNOT_SERVE_HOLD = s(30);
  * These are the incidents of the S2 cells. The target cannot serve, a black hole partitions it from
  * the clients, or its event loop stalls. In a false failure, its readiness check fails while it can serve.
  * In a shared dependency, a black hole comes between Redis and each replica. In a flapping
- * dependency, that black hole comes and goes `FLAP_FAULTS` times in one run.
+ * dependency, that black hole comes and goes `FLAP_FAULTS` times in one run. In a lost zone, the node
+ * of the target is lost for the hold.
  */
-export type CallerFault = "cannot serve" | "partition" | "stall" | "false failure" | "shared dependency" | "flapping dependency";
+export type CallerFault = "cannot serve" | "partition" | "stall" | "false failure" | "shared dependency" | "flapping dependency" | "lost zone";
 
 /** These are the incidents in their sequence: the cells of "cannot serve" come first. */
-export const CALLER_FAULTS: readonly CallerFault[] = ["cannot serve", "partition", "stall", "false failure", "shared dependency", "flapping dependency"];
+export const CALLER_FAULTS: readonly CallerFault[] = ["cannot serve", "partition", "stall", "false failure", "shared dependency", "flapping dependency", "lost zone"];
 
 /**
  * This time is how long the event loop of the target stays blocked in a stall. It has three bounds:
@@ -192,12 +198,12 @@ const time = (value: number): Quantity => s(Math.round(value * 1e6) / 1e6);
  * count of connections of each client. In turn, each client puts half of its connections on each
  * replica. The first pick of each node is not known, thus an odd count gives the floor to the
  * ceiling of the half. At random, the count is binomial, and the band is the central band that has
- * the chance `COVER` at the least.
+ * the chance `COVER` at the least. A lost zone has fewer clients (`clients`): no client is in the lost zone.
  */
-export const targetConnections = (mode: KubeProxyMode, each: number = CONNECTIONS): Connections => {
-  const total = CLIENTS * each;
+export const targetConnections = (mode: KubeProxyMode, each: number = CONNECTIONS, clients: number = CLIENTS): Connections => {
+  const total = clients * each;
   if (SELECTION[mode] === "in turn")
-    return { lo: connections(CLIENTS * Math.floor(each / REPLICAS)), hi: connections(CLIENTS * Math.ceil(each / REPLICAS)), of: connections(total) };
+    return { lo: connections(clients * Math.floor(each / REPLICAS)), hi: connections(clients * Math.ceil(each / REPLICAS)), of: connections(total) };
   const p = 1 / REPLICAS;
   const choose = (k: number): number => (k === 0 ? 1 : (choose(k - 1) * (total - k + 1)) / k);
   const chance = Array.from({ length: total + 1 }, (_, k) => choose(k) * p ** k * (1 - p) ** (total - k));
@@ -245,6 +251,7 @@ export const expectedFailures = (candidate: Candidate, mode: KubeProxyMode, faul
   if (fault === "false failure") return falseOf(mode, candidate).expected;
   if (fault === "shared dependency") return dependencyOf(mode, candidate).expected;
   if (fault === "flapping dependency") return flappingOf(mode, candidate).expected;
+  if (fault === "lost zone") return lostZoneOf(mode, candidate).expected;
   const workload = workloadOf(candidate);
   const window = learnWindow(declarationOf(candidate), CHART_READINESS, PROPAGATION[mode], workload);
   const turn = valueIn(window.turn, "s");
@@ -340,13 +347,13 @@ const chainOf = (total: number): number => {
  * The same arithmetic gives D in a stall (`stallOf`). The words of the fault and its removal come
  * from its silence. A removal ends each chain: a new session after it goes to the other replica.
  */
-const checkedOf = (mode: KubeProxyMode, workload: Workload, start: Band, silence: Silence): PartitionPrediction => {
+const checkedOf = (mode: KubeProxyMode, workload: Workload, start: Band, silence: Silence, clients: number = CLIENTS): PartitionPrediction => {
   const { stays } = silence;
   const quiet = valueIn(SESSION_CHECK.keepalive_time, "s");
   const answer = valueIn(SESSION_CHECK.keepalive_timeout, "s");
   const every = valueIn(workload.every, "s");
   const turn = every * (workload.connections ?? 1);
-  const on = targetConnections(mode, 1);
+  const on = targetConnections(mode, 1, clients);
   // the first session closes in [Q + P - turn, 2Q + P], and each next session Q + P after its first stream
   const first = { lo: quiet + answer - turn, hi: 2 * quiet + answer };
   const next = quiet + answer;
@@ -358,13 +365,13 @@ const checkedOf = (mode: KubeProxyMode, workload: Workload, start: Band, silence
   if (SELECTION[mode] === "in turn") {
     const node = inTurn(1);
     return {
-      expected: { lo: requests(CLIENTS * node.lo * streams.first.lo), hi: requests(CLIENTS * node.hi * streams.first.hi), connections: on },
+      expected: { lo: requests(clients * node.lo * streams.first.lo), hi: requests(clients * node.hi * streams.first.hi), connections: on },
       start,
       end: { lo: s(0), hi: time(first.hi) },
-      why: `${check}. IPVS selects in turn on each node, thus the new session goes to the other replica. ${on.lo.value}–${on.hi.value} of the ${on.of.value} sessions are on the target, thus about ${CLIENTS * node.lo * streams.first.lo}–${CLIENTS * node.hi * streams.first.hi} requests fail`,
+      why: `${check}. IPVS selects in turn on each node, thus the new session goes to the other replica. ${on.lo.value}–${on.hi.value} of the ${on.of.value} sessions are on the target, thus about ${clients * node.lo * streams.first.lo}–${clients * node.hi * streams.first.hi} requests fail`,
     };
   }
-  const total = CLIENTS;
+  const total = clients;
   const picks = negativeBinomial(total, 1 - 1 / REPLICAS);
   const chain = chainOf(total);
   // at most one pick of each client is its first session, and each other pick is a next session
@@ -406,24 +413,24 @@ interface Silence {
  * next pick comes one turn later. A chain of picks of the target ends at the first pick of the other
  * replica.
  */
-const picksOf = (mode: KubeProxyMode, candidate: Candidate, silence: Silence): PartitionPrediction => {
+const picksOf = (mode: KubeProxyMode, candidate: Candidate, silence: Silence, clients: number = CLIENTS): PartitionPrediction => {
   const workload = workloadOf(candidate);
   const window = learnWindow(declarationOf(candidate), CHART_READINESS, PROPAGATION[mode], workload);
   const turn = valueIn(window.turn, "s");
   const each = workload.connections ?? 1;
-  const on = targetConnections(mode, each);
-  const total = CLIENTS * each;
+  const on = targetConnections(mode, each, clients);
+  const total = clients * each;
   const start = { lo: s(0), hi: time(turn) };
   const same = candidate === "in band (lame duck)" ? ". The lame duck never starts, thus B is the same as A" : "";
   const picks = `${silence.stays}${same}. Each connection on the target fails one request at its timeout (${say(workload.timeout)}). Then a new connection picks a backend, one turn (${say(window.turn)}) later`;
   if (SELECTION[mode] === "in turn") {
     const node = inTurn(each);
     return {
-      expected: { lo: requests(CLIENTS * node.lo), hi: requests(CLIENTS * node.hi), connections: on },
+      expected: { lo: requests(clients * node.lo), hi: requests(clients * node.hi), connections: on },
       start,
       end: { lo: s(0), hi: time(node.rounds * turn) },
       outcomes: ["timeout"],
-      why: `${picks}. IPVS selects in turn on each node, thus each node fails ${node.lo}–${node.hi} requests in ${node.rounds} turns at the most. About ${CLIENTS * node.lo}–${CLIENTS * node.hi} requests fail`,
+      why: `${picks}. IPVS selects in turn on each node, thus each node fails ${node.lo}–${node.hi} requests in ${node.rounds} turns at the most. About ${clients * node.lo}–${clients * node.hi} requests fail`,
     };
   }
   const band = negativeBinomial(total, 1 - 1 / REPLICAS);
@@ -435,6 +442,28 @@ const picksOf = (mode: KubeProxyMode, candidate: Candidate, silence: Silence): P
     outcomes: ["timeout"],
     why: `${picks}. Each pick goes to the target at random, thus the failures of the ${total} connections are negative binomial: ${band.lo}–${band.hi} in ${COVER * 100} % of the runs. A chain longer than ${chain} picks has a chance of ${CHAIN_RISK} at the most`,
   };
+};
+
+/**
+ * This function gives the first retransmission of a session that crosses the heal of a black hole,
+ * in seconds after the fault. The chain of the server starts at its last answer. The chain of the
+ * client starts one RTO before its first stream after the fault. The stall of each chain is from its
+ * start to the heal. It throws if the hold lets more than one firing be the first after the heal.
+ */
+const crossingOf = (hold: Quantity, lead: Band, turn: number): { readonly firing: number; readonly crosses: { readonly lo: number; readonly hi: number } } => {
+  const rto = seconds(timerOf(LINUX_TCP, "retransmit", KIND_TCP, 0).duration, "the RTO of a kind node");
+  const through = (end: number): Recovery => {
+    const after = recovery(LINUX_TCP, "retransmit", KIND_TCP, s(end));
+    if ("unknown" in after) throw new Error(`the retransmissions through a stall of ${end} s: ${after.unknown}`);
+    return after;
+  };
+  const held = valueIn(hold, "s");
+  const early = through(held + valueIn(lead.lo, "s") - turn);
+  const late = through(held + valueIn(lead.hi, "s") + turn + rto);
+  const firing = early.first[0];
+  if (firing === undefined || early.first.length !== 1 || late.first.length !== 1 || firing !== late.first[0])
+    throw new Error(`the hold ${say(hold)} lets more than one firing be the first after the heal: ${early.first.join(", ")} and ${late.first.join(", ")}`);
+  return { firing, crosses: { lo: valueIn(early.low, "s") - turn - rto, hi: valueIn(late.high, "s") + turn } };
 };
 
 /**
@@ -454,25 +483,11 @@ export const partitionOf = (mode: KubeProxyMode, candidate: Candidate): Partitio
   const turn = valueIn(window.turn, "s");
   const timeout = valueIn(workload.timeout, "s");
   const on = targetConnections(mode, workload.connections ?? 1);
-  const hold = valueIn(PARTITION_HOLD, "s");
   const stays = `The kubelet probes the target from its node, thus its readiness and its endpoint stay for the hold (${say(PARTITION_HOLD)})`;
   const silence: Silence = { stays, next: "its SYN gets no answer. The check finds no SETTINGS frame", removal: null };
   if (candidate === "in band on HTTP/2 with a session check") return checkedOf(mode, workload, { lo: s(0), hi: time(valueIn(workload.every, "s")) }, silence);
   if (!onHttp2(candidate)) return picksOf(mode, candidate, silence);
-  // the chain of the server starts at its last answer, and the chain of the client one RTO before its first stream after the fault
-  const rto = seconds(timerOf(LINUX_TCP, "retransmit", KIND_TCP, 0).duration, "the RTO of a kind node");
-  const through = (end: number): Recovery => {
-    const after = recovery(LINUX_TCP, "retransmit", KIND_TCP, s(end));
-    if ("unknown" in after) throw new Error(`the retransmissions through a stall of ${end} s: ${after.unknown}`);
-    return after;
-  };
-  // the stall of each chain is from its start to the heal
-  const early = through(hold + valueIn(HEAL_LEAD.lo, "s") - turn);
-  const late = through(hold + valueIn(HEAL_LEAD.hi, "s") + turn + rto);
-  const firing = early.first[0];
-  if (early.first.length !== 1 || late.first.length !== 1 || firing !== late.first[0])
-    throw new Error(`the hold ${say(PARTITION_HOLD)} lets more than one firing be the first after the heal: ${early.first.join(", ")} and ${late.first.join(", ")}`);
-  const crosses = { lo: valueIn(early.low, "s") - turn - rto, hi: valueIn(late.high, "s") + turn };
+  const { firing, crosses } = crossingOf(PARTITION_HOLD, HEAL_LEAD, turn);
   const end = { lo: time(crosses.lo - timeout - turn), hi: time(crosses.hi) };
   const every = valueIn(workload.every, "s");
   const expected = { lo: requests((on.lo.value * valueIn(end.lo, "s")) / every), hi: requests((on.hi.value * crosses.hi) / every), connections: on };
@@ -785,6 +800,83 @@ export const flappingOf = (mode: KubeProxyMode, candidate: Candidate): FlappingP
   return { expected, each, start: one.start, end, removal: one.removal, knows, why };
 };
 
+/**
+ * This time is how long the zone stays lost. It has three bounds:
+ * - It is longer than the latest removal of the target (55.559 s in IPVS). Thus the node lifecycle
+ *   controller removes the target in the hold.
+ * - It is shorter than the toleration of a pod for a node that is not ready or unreachable (300 s,
+ *   `DefaultTolerationSeconds`). Thus no pod is evicted.
+ * - The heal comes between the eighth retransmission (51 s) and the ninth (102.2 s), with a margin on
+ *   each side. Thus the end of C has one band.
+ */
+export const ZONE_HOLD = s(70);
+
+/**
+ * This band is the heal after the hold, from the fault. The runner sleeps for the hold from the
+ * fault. Then the agent thaws the node and stamps the heal, with no lead of the injector. Its commands
+ * take up to 2 s.
+ */
+export const ZONE_HEAL_LEAD = { lo: s(0), hi: s(2) };
+
+/** This count is the clients of a lost zone: one on each node of the kept zone. No client is in the lost zone. */
+export const ZONE_CLIENTS = CLIENTS - 1;
+
+/** This is the prediction of a candidate in a lost zone: the prediction of a silence, the removal of the target, and its return. */
+export interface ZonePrediction extends PartitionPrediction {
+  /** This band is the removal of the target from the rules of each kept node, from the fault. */
+  readonly removal: Band;
+  /** This band is the return of the target to its EndpointSlice as ready, from the heal. */
+  readonly returns: Band;
+}
+
+/**
+ * This function gives the prediction of a candidate in a lost zone. The node of the target is lost:
+ * each packet on its link drops, and its cgroup is frozen, thus its kubelet stops too. Its lease
+ * expires, and the node lifecycle controller marks the target not ready (`nodeLossBand`). No client is
+ * in the lost zone, and the service of the target sends no signal in band.
+ * - A and B: the arithmetic of a partition (`picksOf`), with the clients of the kept zone. The last
+ *   pick of a chain comes before the earliest removal, thus the removal changes nothing.
+ * - C: the session stays on the target, and each stream fails at its timeout. The first
+ *   retransmission after the heal crosses, as in a partition. If the target had no unacked data, its
+ *   GOAWAY at the thaw ends C near the heal. Thus the end band starts one timeout before the heal.
+ * - D: the arithmetic of a partition (`checkedOf`), and the removal ends each chain.
+ */
+export const lostZoneOf = (mode: KubeProxyMode, candidate: Candidate): ZonePrediction => {
+  const workload = workloadOf(candidate);
+  const every = valueIn(workload.every, "s");
+  const timeout = valueIn(workload.timeout, "s");
+  const removal = nodeLossBand(NODE_LIFECYCLE, PROPAGATION[mode]);
+  const returns = nodeReturnBand(NODE_LIFECYCLE);
+  const removed = { lo: valueIn(removal.lo, "s"), hi: valueIn(removal.hi, "s") };
+  const stays = `The node of the target is lost for the hold (${say(ZONE_HOLD)}). Each packet on its link drops, and its kubelet is frozen. Its lease expires, thus the node lifecycle controller marks the target not ready, and it leaves the rules ${say(removal.lo)}–${say(removal.hi)} after the fault. No client is in the lost zone`;
+  const silence: Silence = { stays, next: "its SYN gets no answer. The check finds no SETTINGS frame", removal: removed.hi };
+  if (candidate === "in band on HTTP/2 with a session check") return { ...checkedOf(mode, workload, { lo: s(0), hi: time(every) }, silence, ZONE_CLIENTS), removal, returns };
+  if (!onHttp2(candidate)) {
+    const picks = picksOf(mode, candidate, silence, ZONE_CLIENTS);
+    const turn = every * (workload.connections ?? 1);
+    // the last failed request picked its connection at the timeout of the request one turn before it
+    const lastPick = valueIn(picks.end.hi, "s") - turn + timeout;
+    if (lastPick >= removed.lo) throw new Error(`the last pick of a chain comes ${lastPick} s after the fault, after the earliest removal (${removed.lo} s)`);
+    return { ...picks, removal, returns, why: `${picks.why}. The last pick of a chain comes ${say(time(lastPick))} after the fault at the latest, before the removal. Thus the removal changes nothing` };
+  }
+  // C: the established flow keeps the session on the target until the first retransmission after the heal crosses
+  const on = targetConnections(mode, 1, ZONE_CLIENTS);
+  const { firing, crosses } = crossingOf(ZONE_HOLD, ZONE_HEAL_LEAD, every);
+  const heal = valueIn(ZONE_HOLD, "s") + valueIn(ZONE_HEAL_LEAD.lo, "s");
+  const end = { lo: time(heal - timeout - every), hi: time(crosses.hi) };
+  // a count rounded to six places, as in a stall
+  const of = (span: number): number => Math.round((span / every) * 1e6) / 1e6;
+  const expected = { lo: requests(on.lo.value * of(valueIn(end.lo, "s"))), hi: requests(on.hi.value * of(crosses.hi)), connections: on };
+  return {
+    expected,
+    start: { lo: s(0), hi: time(every) },
+    end,
+    removal,
+    returns,
+    why: `${stays}. The established flow keeps the session of a client on the target after the removal. Each stream on it fails at its timeout (${say(workload.timeout)}). TCP retransmits with a backoff, and firing ${firing} of the timer is the first after the heal: ${say(time(crosses.lo))}–${say(time(crosses.hi))} after the fault. Then the target resets the session, or it sends GOAWAY, and the client opens a new session. If the target had no unacked data, its GOAWAY at the thaw ends the failures near the heal. Thus the last failure starts ${say(end.lo)} after the fault at the earliest. ${on.lo.value}–${on.hi.value} of the ${on.of.value} sessions are on the target, thus about ${expected.lo.value}–${expected.hi.value} requests fail`,
+  };
+};
+
 /** These are the bytes of one PING frame of HTTP/2: a frame header of 9 bytes and 8 bytes of opaque data (RFC 9113, sections 4.1 and 6.7). Its ACK has the same size. */
 export const PING_FRAME: Quantity = { value: 17, unit: "B" };
 
@@ -808,7 +900,8 @@ const pings = (value: number): Quantity => ({ value, unit: "{ping}" });
  * quiet session sends one PING at each tick at the most.
  * - A pod that cannot serve, and a failed prober: each replica answers each stream at once. No PING.
  * - A partition: each session on the target sends one PING with no ACK, and the check closes it. A
- *   next session on the target does not connect, thus it sends no PING.
+ *   next session on the target does not connect, thus it sends no PING. A lost zone is the same, with
+ *   the clients of the kept zone.
  * - A stall: each session on the target sends one PING with no ACK. A next session connects, and it
  *   sends one PING at its first tick, because the blocked loop sends no SETTINGS frame.
  * - A shared dependency: each stream waits for Redis until the latch trips, and the server answers
@@ -827,13 +920,16 @@ export const pingsOf = (mode: KubeProxyMode, candidate: Candidate, fault: Caller
   const tick = `The check sends a PING only at a tick of ${say(SESSION_CHECK.keepalive_time)} with no frame since the tick before it, and with a stream in flight`;
   if (fault === "cannot serve" || fault === "false failure")
     return { lo: pings(0), hi: pings(0), why: `${tick}. Each replica answers each stream at once, thus each session hears a frame in each tick, and the clients send no PING` };
-  const on = targetConnections(mode, 1);
-  if (fault === "partition")
+  if (fault === "partition" || fault === "lost zone") {
+    // a lost zone has the arithmetic of a partition, with the clients of the kept zone
+    const on = targetConnections(mode, 1, fault === "lost zone" ? ZONE_CLIENTS : CLIENTS);
     return {
       lo: pings(on.lo.value),
       hi: pings(on.hi.value),
       why: `${tick}. Each session on the target sends one PING, and it gets no ACK, thus the check closes the session. A next session on the target does not connect, thus it sends no PING. ${on.lo.value}–${on.hi.value} of the ${on.of.value} sessions are on the target, thus the clients send ${on.lo.value}–${on.hi.value} PINGs`,
     };
+  }
+  const on = targetConnections(mode, 1);
   if (fault === "stall") {
     const picks = SELECTION[mode] === "random" ? negativeBinomial(CLIENTS, 1 - 1 / REPLICAS) : { lo: on.lo.value, hi: on.hi.value };
     const how =
@@ -863,7 +959,7 @@ export const pingsOf = (mode: KubeProxyMode, candidate: Candidate, fault: Caller
 };
 
 /** These are the incidents of a silent target: the words of the name of each cell, and its trigger. */
-const SILENT: Readonly<Record<Exclude<CallerFault, "cannot serve" | "false failure" | "shared dependency" | "flapping dependency">, { readonly what: string; readonly trigger: KindCell["trigger"]; readonly predict: typeof partitionOf }>> = {
+const SILENT: Readonly<Record<Exclude<CallerFault, "cannot serve" | "false failure" | "shared dependency" | "flapping dependency" | "lost zone">, { readonly what: string; readonly trigger: KindCell["trigger"]; readonly predict: typeof partitionOf }>> = {
   partition: { what: "a pod is partitioned", trigger: { kind: "blackhole", hold: PARTITION_HOLD, partition: true }, predict: partitionOf },
   stall: { what: "a pod is stalled", trigger: { kind: "app-stall", hold: STALL_HOLD }, predict: stallOf },
 };
@@ -879,10 +975,12 @@ const SUFFIX: Readonly<Record<Candidate, string>> = {
 /**
  * This function tells the incident of an S2 cell. A partition has the flag `partition` on its black
  * hole, and a stall is an `app-stall`. A black hole with no `partition` is on Redis: a shared
- * dependency. A false failure has the flag `serves` on its `cannot-serve`.
+ * dependency. A false failure has the flag `serves` on its `cannot-serve`. A lost zone is a `zone-loss`.
  */
 export const callerFaultOf = (cell: KindCell): CallerFault =>
-  cell.trigger.partition === true
+  cell.trigger.kind === "zone-loss"
+    ? "lost zone"
+    : cell.trigger.partition === true
     ? "partition"
     : cell.trigger.kind === "app-stall"
       ? "stall"
@@ -987,6 +1085,37 @@ const cellOf = (mode: KubeProxyMode, candidate: Candidate, fault: CallerFault): 
           why: predicted.why,
         },
         why: `The round trip of Redis gates the readiness of each replica, thus the Service is empty ${say(predicted.removal.lo)}–${say(predicted.removal.hi)} after each of the ${FLAP_FAULTS} faults, for each candidate. It has its replicas again before the next fault`,
+      },
+      calibrates: false,
+      runs: 3,
+    };
+  }
+  if (fault === "lost zone") {
+    const predicted = lostZoneOf(mode, candidate);
+    return {
+      id: `S2.T07.${mode}.${SUFFIX[candidate]}.zone`,
+      name: `T07 ${mode}, callers learn that a zone is lost: ${candidate}`,
+      template: "T07",
+      substitutes: null,
+      mode,
+      workers: WORKERS,
+      trigger: { kind: "zone-loss", hold: ZONE_HOLD },
+      pod,
+      declaration,
+      workload,
+      prediction: {
+        kind: "leaves",
+        band: predicted.removal,
+        window: {
+          kind: "window",
+          nodes: "all",
+          start: { from: "fault", band: predicted.start },
+          end: { from: "fault", band: predicted.end },
+          certain: predicted.expected.connections.lo.value > 0,
+          ...(predicted.outcomes !== undefined ? { outcomes: predicted.outcomes } : {}),
+          why: predicted.why,
+        },
+        why: `The lease of the lost node expires, thus the node lifecycle controller marks the target not ready. It leaves the rules of each kept node ${say(predicted.removal.lo)}–${say(predicted.removal.hi)} after the fault, for each candidate`,
       },
       calibrates: false,
       runs: 3,

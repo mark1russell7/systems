@@ -59,15 +59,18 @@ export type { ListenerCounts } from "./lds.ts";
 export { LDS_FILTER, listenerCountsOf } from "./lds.ts";
 export { KEPT_KERNEL, keptKernel, localPin, openKindLab } from "./lab.ts";
 export { REDIS_IMAGE, clientObjects, namespaceObject, namespaceOf, probeOf, redisObjects, serverObjects, stackOf } from "./manifests.ts";
-export type { DeletionWindow, LearnWindow, Propagation } from "./predict.ts";
+export type { DeletionWindow, LearnWindow, NodeLifecycle, Propagation } from "./predict.ts";
 export {
   DOCUMENTED,
+  NODE_LIFECYCLE,
   capOf,
   deletionWindow,
   intakeAfter,
   kubeletBand,
   latchBand,
   learnWindow,
+  nodeLossBand,
+  nodeReturnBand,
   pausedWindow,
   removalBand,
   restartBand,
@@ -89,6 +92,10 @@ export {
   nodeNames,
   scenario,
   scenarioProblems,
+  ZONE_KEPT,
+  ZONE_LABEL,
+  ZONE_LOST,
+  zoneOf,
 } from "./scenario.ts";
 export type { Tool } from "./tools.ts";
 export { ISTIOCTL, KIND, KUBECTL, cacheFolder, ensureTool, platformKey, sha256, tarEntry, toolPath } from "./tools.ts";

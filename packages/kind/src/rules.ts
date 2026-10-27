@@ -45,6 +45,7 @@ export type Verdicts = Readonly<Record<string, Verdict>>;
  * - In T07 a pause of kube-proxy comes before a deletion. In T18 the pause is on Redis.
  * - The crash of the lab is SIGKILL from the node. Like a crash, it has no preStop hook and no drain.
  * - The other faults are on a link, on Redis or on the process. The kubelet can restart a pod after them.
+ *   A zone loss freezes the pods of its node and deletes none of them in its hold.
  */
 export const stopOf = (cell: KindCell): StopWay | null => {
   switch (cell.trigger.kind) {
@@ -70,6 +71,7 @@ export const stopOf = (cell: KindCell): StopWay | null => {
     case "ztunnel-restart":
     case "certificate-expiry":
     case "cannot-serve":
+    case "zone-loss":
       return null;
   }
 };

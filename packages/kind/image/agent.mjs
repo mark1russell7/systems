@@ -23,7 +23,8 @@
 //
 // The acts: signal (a signal to a PID), pause (SIGSTOP, then SIGCONT after ms), write (a file, for
 // example cpu.max or a flag file in the root of a container), remove (a file), stall (the stall
-// seam of the app: the ms in /tmp/lab-stall, then SIGUSR2), and now.
+// seam of the app: the ms in /tmp/lab-stall, then SIGUSR2), zone (the drops on the link of the
+// node and the freeze of its cgroup, or the thaw and the end of the drops), and now.
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { backendsOf } from "./backends.ts";
@@ -416,7 +417,63 @@ const act = async (spec) => {
     process.kill(spec.pid, "SIGUSR2");
     return { t0: t1, t1: now() };
   }
+  if (spec.op === "zone") return spec.lost ? loseZone() : keepZone();
   throw new Error(`no act ${spec.op}`);
+};
+
+/**
+ * These rules drop each packet on the link of the node, in its root network namespace. They drop
+ * each packet that comes in, and each packet that goes out. They are first in the raw and the mangle tables,
+ * thus no other rule of the node sees the packet. The ARP of the link still answers.
+ */
+const ZONE_DROPS = [
+  ["raw", "PREROUTING", ["-i", "eth0", "-j", "DROP"]],
+  ["mangle", "POSTROUTING", ["-o", "eth0", "-j", "DROP"]],
+];
+const NODE_NET = ["nsenter", "-t", "1", "-m", "-n", "--"];
+/** This file freezes each process of the node: its root cgroup, as the node sees it. */
+const NODE_FREEZE = "/proc/1/root/sys/fs/cgroup/cgroup.freeze";
+const NODE_EVENTS = "/proc/1/root/sys/fs/cgroup/cgroup.events";
+
+const nodeIptables = (args, input) => {
+  const [command, ...rest] = [...NODE_NET, ...args];
+  return spawnSync(command, rest, { input, encoding: "utf8", timeout: 10000 });
+};
+
+/**
+ * This function loses the zone of the node. The drops commit at one instant (iptables-restore), and
+ * then the cgroup of the node freezes. Thus no packet of a pod leaves after the fault, and no FIN or
+ * RST of a frozen process can go out. The stamp `t1` comes when the kernel says that the cgroup is frozen.
+ */
+const loseZone = async () => {
+  const t0 = now();
+  const restore = ZONE_DROPS.map(([table, chain, rule]) => `*${table}\n-I ${chain} 1 ${rule.join(" ")}\nCOMMIT\n`).join("");
+  const done = nodeIptables(["iptables-restore", "-w", "5", "--noflush"], restore);
+  if (done.status !== 0) throw new Error(`the drops of the zone: ${done.stderr || done.error?.message || done.status}`);
+  writeFileSync(NODE_FREEZE, "1");
+  const limit = now() + 2000;
+  while (!/^frozen 1$/m.test(readFileSync(NODE_EVENTS, "utf8"))) {
+    if (now() > limit) throw new Error("the cgroup of the node did not freeze in 2 s");
+    await sleep(5);
+  }
+  return { t0, t1: now() };
+};
+
+/**
+ * This function gives the zone back. The cgroup thaws first, and its stamp is `t0`. Then the drops
+ * go, each one until no copy is left. Thus the act does nothing to a zone that is not lost.
+ */
+const keepZone = async () => {
+  writeFileSync(NODE_FREEZE, "0");
+  const t0 = now();
+  for (const [table, chain, rule] of ZONE_DROPS) {
+    for (let copies = 0; nodeIptables(["iptables", "-w", "5", "-t", table, "-C", chain, ...rule]).status === 0; copies++) {
+      if (copies > 8) throw new Error(`the drop of ${table} ${chain} does not go`);
+      const gone = nodeIptables(["iptables", "-w", "5", "-t", table, "-D", chain, ...rule]);
+      if (gone.status !== 0) throw new Error(`the drop of ${table} ${chain}: ${gone.stderr || gone.status}`);
+    }
+  }
+  return { t0, t1: now() };
 };
 
 const [mode, arg] = process.argv.slice(2);

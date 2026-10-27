@@ -65,7 +65,14 @@ export type Step =
    * This step reads the workload certificates of the ztunnel pod of each node with istioctl. It adds a
    * line `certificates` with the validity of each leaf (`ztunnelCertificates`). It changes nothing.
    */
-  | { readonly do: "certificates" };
+  | { readonly do: "certificates" }
+  /**
+   * This step loses the zone of the last worker (`lost`), or gives it back. The agent of the node
+   * drops each packet on the link of the node, in its root network namespace. Then it freezes the
+   * cgroup of the node. Thus each pod of the node and its kubelet stop at one instant. The step with `lost`
+   * false thaws the cgroup, and then it removes the drops. It does nothing to a zone that is not lost.
+   */
+  | { readonly do: "zone"; readonly lost: boolean };
 
 /**
  * A fault plan is the steps of a run:
@@ -452,6 +459,17 @@ const stepsOf = (cell: KindCell): FaultPlan => {
         hold: needs(trigger.hold, "a hold, the time that the replica cannot serve"),
         heal: [{ do: "flag", target: "server", on: false }],
         restore: [{ do: "flag", target: "server", on: false }],
+      };
+    case "zone-loss":
+      // each client opens its connections again before the fault, as cannot-serve does. The node
+      // lifecycle controller removes the replica of the lost zone. The restore gives back a zone
+      // that a failed heal left lost
+      return {
+        prepare: [{ do: "signal", target: "clients", signal: "SIGHUP" }, { do: "wait", time: SPREAD_LEAD }],
+        inject: [{ do: "zone", lost: true }],
+        hold: needs(trigger.hold, "a hold, the time that the zone is lost"),
+        heal: [{ do: "zone", lost: false }],
+        restore: [{ do: "zone", lost: false }],
       };
   }
 };

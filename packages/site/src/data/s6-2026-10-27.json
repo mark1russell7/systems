@@ -11756,7 +11756,7 @@
     {
       "incident": "a lost zone",
       "kind": "not measured",
-      "why": "No cell measures the candidates in this incident yet. The kind cluster of T07 has no zones, and no step of the lab stops a node and its kubelet at once. A drain is not a loss: it evicts each pod with its grace."
+      "why": "No copy of a kind run has a result of the cells of this incident yet."
     },
     {
       "incident": "a slow dependency (gray failure)",

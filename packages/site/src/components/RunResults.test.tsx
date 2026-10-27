@@ -212,6 +212,7 @@ describe("the components of the CI runs", () => {
     expect(table.match(/the last slow failure [\d.]+ s after the fault in the median run/g)?.length).toBe(24);
     expect(table.match(/the last failure [\d.]+ (?:ms|s) after the heal in the median run/g)?.length).toBe(24);
     // each incident with no cell gives its own reason
-    expect(table).toContain("a lost zone: No cell measures the candidates in this incident yet. The kind cluster of T07 has no zones");
+    expect(table).toContain("a lost zone: No copy of a kind run has a result of the cells of this incident yet.");
+    expect(table).toContain("a slow dependency (gray failure): No cell measures the candidates in this incident yet.");
   });
 });

@@ -642,7 +642,10 @@ export const checkRun = (cell: KindCell, run: KindRun): RunCheck => {
       const problems: string[] = [];
       if (!inBand(value, band)) problems.push(`${run.target.pod} left the EndpointSlice at ${value} s`);
       const propagation = propagationOf(run, fault, undefined, propagationSource(cell));
+      // the kube-proxy of a lost zone is frozen with its node, thus only the rules of the other nodes count
+      const lost = cell.trigger.kind === "zone-loss" ? run.paused : null;
       for (const [node, drop] of Object.entries(propagation)) {
+        if (node === lost) continue;
         const by = drop === null ? null : valueIn(drop.by, "s");
         if (by === null) problems.push(`the rules of ${node} kept ${run.target.pod}`);
         else if (!inBand(by, { lo: band.lo, hi: band.hi + 0.05 })) problems.push(`the rules of ${node} dropped it at ${by} s`);
