@@ -6,7 +6,7 @@ import { gunzipSync } from "node:zlib";
 import * as harness from "@mark1russell7/harness";
 import { STAGES as SERVICE_STAGES } from "@mark1russell7/service";
 import { describe, expect, it } from "vitest";
-import type { KindCellRecord, KindCellRecordV1 } from "./judge.ts";
+import type { KindCellRecord, KindCellRecordV1, KindVerdict } from "./judge.ts";
 import {
   FORMAT,
   FORMAT_V1,
@@ -50,6 +50,20 @@ const bare = (x: unknown): unknown => {
   return x;
 };
 const json = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+
+/**
+ * A verdict from the judge again, without each fact that is newer than its record. The judge of
+ * SYS-41 adds the period of the clients to the facts of each run. A record judged before SYS-41
+ * does not have it, and each other fact stays the same.
+ */
+const asJudged = (verdict: KindVerdict, stored: KindVerdict): KindVerdict => ({
+  ...verdict,
+  checks: verdict.checks.map((check, at) => {
+    if (stored.checks[at]?.facts.period !== undefined) return check;
+    const { period: _period, ...facts } = check.facts;
+    return { ...check, facts };
+  }),
+});
 
 describe("the upgrade of a record from the format /1 to /2", () => {
   for (const name of [FIXTURES.holds, FIXTURES.fails]) {
@@ -112,11 +126,37 @@ describe("the judgement of a record again", () => {
       const verdict = judge(record);
       expect(verdict.decision).toBe(decision);
       expect(verdict.decision).toBe(record.verdict.decision);
-      expect(json(verdict)).toEqual(json(upgrade(record).verdict));
+      expect(json(asJudged(verdict, upgrade(record).verdict))).toEqual(json(upgrade(record).verdict));
       // a record of /2 gets the same verdict
       expect(json(judge(upgrade(record)))).toEqual(json(verdict));
     });
   }
+
+  it("adds the measured period of the clients to each run of a real record: the mean is longer than the setting of 20 ms", () => {
+    const means: number[] = [];
+    for (const name of Object.values(FIXTURES)) {
+      const record = fixture(name);
+      expect(record.cell.workload.every).toEqual({ value: 20, unit: "ms" });
+      const verdict = judge(record);
+      expect(verdict.checks.length).toBeGreaterThan(0);
+      for (const check of verdict.checks) {
+        const period = check.facts.period!;
+        expect(period, name).toBeDefined();
+        expect(period.mean.unit).toBe("s");
+        expect(period.intervals).toBeGreaterThan(400);
+        expect(Object.keys(period.byClient)).toHaveLength(3);
+        // the start of a request is late by a different amount at each tick, thus the median is near the setting
+        expect(Math.abs(period.median.value - 0.02), name).toBeLessThan(0.0006);
+        expect(period.low.value).toBeLessThan(0.02);
+        expect(period.high.value).toBeGreaterThan(0.021);
+        means.push(period.mean.value);
+      }
+    }
+    // the lateness adds up: in each of the 33 runs, the mean is 20.10 ms to 20.30 ms
+    expect(means).toHaveLength(33);
+    expect(Math.min(...means)).toBe(0.0201);
+    expect(Math.max(...means)).toBe(0.0203);
+  });
 
   it("reads a record of either format from JSON, and refuses another format", () => {
     const record = fixture(FIXTURES.fails);
@@ -128,6 +168,17 @@ describe("the judgement of a record again", () => {
     const wrong: KindCellRecord = { ...fromV1, verdict: { ...fromV1.verdict, median: { value: 3, unit: "s" } } };
     expect(kindCellRecordSchema.safeParse(json(wrong)).success).toBe(false);
     expect(FORMAT_V1).toBe("systems.kind-cell-record/1");
+  });
+
+  it("gives the period of the clients of a record of /1 as quantities in seconds", () => {
+    const record = fixture(FIXTURES.fails);
+    const period = { median: 0.0101, mean: 0.0102, low: 0.01, high: 0.03, intervals: 9, byClient: { "client-a": 0.0101 } };
+    const checks = record.verdict.checks.map((check) => ({ ...check, facts: { ...check.facts, period } }));
+    const read = upgrade({ ...record, verdict: { ...record.verdict, checks } });
+    const s = (value: number) => ({ value, unit: "s" });
+    for (const check of read.verdict.checks)
+      expect(check.facts.period).toEqual({ median: s(0.0101), mean: s(0.0102), low: s(0.01), high: s(0.03), intervals: 9, byClient: { "client-a": s(0.0101) } });
+    expect(kindCellRecordSchema.safeParse(json(read)).success).toBe(true);
   });
 
   it("gives a record from before the dataplane cilium the dataplane of its kube-proxy", () => {
@@ -369,7 +420,7 @@ describe.skipIf(RECORDS === undefined)("the records under KIND_RECORDS", () => {
       const data = JSON.parse(readFileSync(file, "utf8")) as { format?: string };
       if (data.format !== FORMAT && data.format !== FORMAT_V1) continue;
       const record = data as KindCellRecord | KindCellRecordV1;
-      expect(json(judge(record)), file).toEqual(json(upgrade(record).verdict));
+      expect(json(asJudged(judge(record), upgrade(record).verdict)), file).toEqual(json(upgrade(record).verdict));
     }
     expect(files.length).toBeGreaterThan(0);
   });

@@ -206,6 +206,59 @@ export const sessionsAt = (lines: readonly Line[], at: number, target: string, c
   return { onTarget: Object.values(byClient).reduce((sum, count) => sum + count, 0), of, byClient };
 };
 
+/**
+ * The period of the clients is the interval between the starts of two requests in sequence of one
+ * client. Each time is in milliseconds when `A` is a number. The median and the mean are of all the
+ * intervals of all the clients, and `low` and `high` are the smallest and the largest interval.
+ * `intervals` is their count, and `byClient` is the median of each client. A client with c kept
+ * connections sends on each one in turn, thus each of its sessions gets a request each c periods.
+ */
+export interface Period<A = number> {
+  readonly median: A;
+  readonly mean: A;
+  readonly low: A;
+  readonly high: A;
+  readonly intervals: number;
+  readonly byClient: Readonly<Record<string, A>>;
+}
+
+const medianOf = (sorted: readonly number[]): number => {
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
+};
+
+/**
+ * This function gives the measured period of the clients from their request lines that start from
+ * `from` to `to`. The timer of a client is late by a different amount at each tick. Thus the median
+ * stays near the setting of the client (`every`), but the lateness adds up in the mean.
+ *
+ * The mean is the span of the requests of each client over its intervals. A band can count the requests of a client in a window from the
+ * mean. A client with fewer than 2 requests gives no interval. A run with no interval gives null.
+ */
+export const periodOf = (lines: readonly Line[], from: number, to: number): Period | null => {
+  const starts = new Map<string, number[]>();
+  for (const request of requestsOf(lines)) {
+    if (request.t < from || request.t > to) continue;
+    const mine = starts.get(request.p) ?? [];
+    mine.push(request.t);
+    starts.set(request.p, mine);
+  }
+  const all: number[] = [];
+  const byClient: Record<string, number> = {};
+  let span = 0;
+  for (const client of [...starts.keys()].sort()) {
+    const mine = starts.get(client)!.sort((a, b) => a - b);
+    if (mine.length < 2) continue;
+    const intervals = mine.slice(1).map((t, at) => t - mine[at]!);
+    span += mine.at(-1)! - mine[0]!;
+    all.push(...intervals);
+    byClient[client] = medianOf(intervals.sort((a, b) => a - b));
+  }
+  if (all.length === 0) return null;
+  all.sort((a, b) => a - b);
+  return { median: medianOf(all), mean: span / all.length, low: all[0]!, high: all.at(-1)!, intervals: all.length, byClient };
+};
+
 /** This function gives the requests of each node, by the name of the node. */
 export const byNode = (requests: readonly Request[]): Map<string, Request[]> => {
   const out = new Map<string, Request[]>();

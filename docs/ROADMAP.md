@@ -841,6 +841,24 @@ The value d is smaller than the prediction. The median overshoots were 13 ms, 59
 
 The failed requests were below the bands in 16 of 20 runs, and in each run with 1, 2 or 3 sessions. For example, 1 session failed 491 to 494 requests, against 499 to 504. The missing term is the lateness of the timer of the client. The client sent a request each 10.10 ms to 10.22 ms, not each 10 ms. Thus a session got approximately 493 requests in 10 s, not 500. The next band counts the requests from the measured period of the client, not from its setting.
 
+### SYS-41 · Each run records the measured period of the client
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** SYS-40
+- **Started:** 2026-10-27
+- **Links:**
+
+SYS-40 found that the timer of the client is late. The client sent a request each 10.10 ms to 10.22 ms, not each 10 ms. That figure came from an analysis after the run. With this item, each run records the measured period of the client as a fact. Thus a later band can use it.
+
+The new optional `period` of the facts of a run is the interval between two requests in sequence of one client. The judge gets it from the request lines of the counted span of the run (`periodOf` in `packages/kind/src/observe.ts`). Thus each cell gets it with no change to the cell. Each time is a quantity in seconds, to the microsecond.
+
+The fact gives the median and the mean of all the intervals of all the clients, and the smallest and the largest interval. It also gives the count of the intervals and the median of each client. The mean is the span of the requests of each client over its intervals. Thus a band can count the requests of a client in a window from it. A client with c kept connections sends on each one in turn, thus each of its sessions gets a request each c periods.
+
+The 3 test records of 2026-10-16 give the fact for 33 runs, with a setting of 20 ms. The mean was 20.10 ms to 20.30 ms in each run. The median was 19.92 ms to 20.54 ms, thus the median does not show the lateness. A band that counts requests uses the mean.
+
+A record from before this item does not have the fact, and it stays valid. The format of the record stays `/2`. This item changes no band and no committed record.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue

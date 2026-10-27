@@ -144,7 +144,7 @@ export const upgradeCell = (cell: KindCellV1): KindCell => ({
 const upgradeFacts = (facts: RunFactsV1): RunFacts => {
   const propagated = (old: Propagated<number> | null): Propagated | null => (old === null ? null : { after: time(old.after), by: seconds(old.by) });
   const byKey = (record: Readonly<Record<string, Propagated<number> | null>>) => Object.fromEntries(Object.entries(record).map(([key, old]) => [key, propagated(old)]));
-  const { sliceEmpty, rules, left, signals, updates, healUpdates, closes, cycles, stall, ...rest } = facts;
+  const { sliceEmpty, rules, left, signals, updates, healUpdates, closes, cycles, stall, period, ...rest } = facts;
   return {
     ...rest,
     intakeAfterDeletion: time(facts.intakeAfterDeletion),
@@ -159,6 +159,18 @@ const upgradeFacts = (facts: RunFactsV1): RunFacts => {
     ...(closes === undefined ? {} : { closes: Object.fromEntries(Object.entries(closes).map(([client, old]) => [client, time(old)])) }),
     ...(cycles === undefined ? {} : { cycles: cycles.map((old) => ({ empty: time(old.empty), ready: time(old.ready) })) }),
     ...(stall === undefined ? {} : { stall: { start: time(stall.start), held: time(stall.held) } }),
+    ...(period === undefined
+      ? {}
+      : {
+          period: {
+            ...period,
+            median: seconds(period.median),
+            mean: seconds(period.mean),
+            low: seconds(period.low),
+            high: seconds(period.high),
+            byClient: Object.fromEntries(Object.entries(period.byClient).map(([client, old]) => [client, seconds(old)])),
+          },
+        }),
   };
 };
 
