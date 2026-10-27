@@ -23,8 +23,10 @@ export const candidateName = (cell: KindCell): Candidate => {
 /** This function gives the candidate of an S2 cell for the side-by-side table: its window and its expected count of failed requests. */
 export const candidateOf = (cell: KindCell) => {
   if (cell.trigger.kind !== "cannot-serve" && cell.trigger.kind !== "app-stall" && cell.trigger.partition !== true) return null;
-  const p = cell.prediction;
-  if (p.kind !== "window" || p.end === null) throw new Error(`${cell.name}: an S2 cell has a window that ends`);
+  // a false failure predicts the departure of the target, with the window of its failed requests
+  const p = cell.prediction.kind === "leaves" ? cell.prediction.window : cell.prediction;
+  if (p === undefined || p.kind !== "window" || p.end === null) throw new Error(`${cell.name}: an S2 cell has a window that ends`);
+  const leaves = cell.prediction.kind === "leaves" ? { leaves: { from: "fault", low: s(cell.prediction.band.lo), high: s(cell.prediction.band.hi) } } : {};
   const name = candidateName(cell);
   const expected = expectedFailures(name, cell.mode, callerFaultOf(cell));
   return {
@@ -34,6 +36,7 @@ export const candidateOf = (cell: KindCell) => {
     end: { from: p.end.from, low: s(p.end.band.lo), high: s(p.end.band.hi) },
     expected: { low: expected.lo.value, high: expected.hi.value },
     connections: { low: expected.connections.lo.value, high: expected.connections.hi.value, of: expected.connections.of.value },
+    ...leaves,
   };
 };
 

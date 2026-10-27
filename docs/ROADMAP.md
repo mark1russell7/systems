@@ -136,6 +136,8 @@ On 2026-10-17, Mark decided the design of the server stack (D1 to D18). These de
 
 [PR #202](https://github.com/mark1russell7/systems/pull/202) scores a third incident: a stalled pod, a gray failure. The event loop of the target stops for 12 s, and its readiness probe removes it 5 s to 7.3 s after the fault. Kind run [40406199754](https://github.com/mark1russell7/systems/actions/runs/40406199754) held each of the 12 cells in 3 of 3 runs, and the prediction of commit bd3697f held each count. A and B learned in 1.15 s at the most, D in 1.28 s to 3.3 s by the median run, and C only at the resume. The last failure of C was up to 72 ms after its band, in the noise of the judge, thus its time score shows a failure. The decision of S6 does not change.
 
+[PR #206](https://github.com/mark1russell7/systems/pull/206) scores a fourth incident: a failed prober. The readiness check of the target fails for 30 s while its route serves, thus each removal is false. Kind run [40419289511](https://github.com/mark1russell7/systems/actions/runs/40419289511) held each of the 12 cells in 3 of 3 runs, and each removal was in the band of commit 5b871cb. A failed 1,529 to 1,690 requests by the median run, and B, C and D failed 3 to 25. One run of C in nftables had 12 failed requests, over its band of 0 to 9, thus its count score shows a failure. The decision of S6 does not change, and the other four incidents need a dependency or zones that T07 does not have.
+
 ## The server stack in S6
 
 These items are the part of the server stack in this repository. The server stack is a plan across repositories: one service runner here, and one procedures server in the client. [Its tracker](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb) has the whole plan, with the same ids.

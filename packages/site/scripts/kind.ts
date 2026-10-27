@@ -165,10 +165,14 @@ const predictionOf = (cell: KindCell) => {
         text: `The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is ${time(s(p.band.lo))} to ${time(s(p.band.hi))} after the fault.`,
       };
     case "leaves":
+      // a false failure: the replica can serve, but its readiness fails, thus its departure is a false removal
       return {
         kind: p.kind,
         band: band(p.band.lo, p.band.hi),
-        text: `The algebra predicts that the replica leaves the EndpointSlice and the rules of each node. The band is ${time(s(p.band.lo))} to ${time(s(p.band.hi))} after the start of the stall.`,
+        text:
+          p.window === undefined
+            ? `The algebra predicts that the replica leaves the EndpointSlice and the rules of each node. The band is ${time(s(p.band.lo))} to ${time(s(p.band.hi))} after the start of the stall.`
+            : `The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is ${time(s(p.band.lo))} to ${time(s(p.band.hi))} after the fault. ${p.window.why}.`,
       };
     case "restarts":
       return p.band === null
@@ -305,7 +309,7 @@ const groupOf = (cell: KindCell): string => {
     return cell.id.startsWith("T15.defaults.") ? "hbone" : "borders";
   }
   if (cell.template === "T07") {
-    if (cell.trigger.kind === "cannot-serve") return "callers";
+    if (cell.trigger.kind === "cannot-serve") return cell.trigger.serves === true ? "prober" : "callers";
     if (cell.trigger.partition === true) return "partition";
     if (cell.trigger.kind === "app-stall") return "stall";
     if (cell.calibrates) return "calibration";
@@ -328,12 +332,16 @@ const propagationValues = (runs: readonly KindRun[]): number[] =>
 const spread = (value: TimeSpread | null) =>
   value === null ? null : { count: value.count, min: s(value.min), median: s(value.median), p99: s(value.p99), max: s(value.max) };
 
-/** This function gives the copy of a cell: kind for T07 and T18, and t15 for T15. The S2 cells of cannot-serve get s2, those of a partition get s2-partition, and those of a stall get s2-stall. */
-const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" => {
+/**
+ * This function gives the copy of a cell: kind for T07 and T18, and t15 for T15. The S2 cells of
+ * cannot-serve get s2, those of a partition get s2-partition, and those of a stall get s2-stall. The
+ * cells of a false failure of the prober get s2-prober.
+ */
+const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" | "s2-prober" => {
   if (cell.template === "T15") return "t15";
   if (!cell.id.startsWith("S2.")) return "kind";
   const fault = callerFaultOf(cell);
-  return fault === "partition" ? "s2-partition" : fault === "stall" ? "s2-stall" : "s2";
+  return fault === "partition" ? "s2-partition" : fault === "stall" ? "s2-stall" : fault === "false failure" ? "s2-prober" : "s2";
 };
 
 /**
@@ -407,6 +415,8 @@ const cells = CATALOG.flatMap((cell) => {
       why: whyOf(cell, verdict, values, measured),
       first: entry.first,
       ...(copyOf(cell).startsWith("s2") ? { candidate: candidateOf(cell), lasts: lastsOf(record.runs, verdict) } : {}),
+      // the main value of a false failure is the time of its removal, thus the copy keeps the failed requests of each counted run apart
+      ...(copyOf(cell) === "s2-prober" ? { failures: verdict.checks.map((check) => check.facts.failures) } : {}),
     },
   ];
 });
@@ -444,7 +454,9 @@ for (const name of names) {
         ? { predictions: callerPredictions("partition") }
         : name === "s2-stall"
           ? { predictions: callerPredictions("stall") }
-          : {};
+          : name === "s2-prober"
+            ? { predictions: callerPredictions("false failure") }
+            : {};
   writeFileSync(out, stringify({ ...copy, cells: mine.map(({ copy: _copy, ...cell }) => cell), ...predictions }));
   process.stdout.write(`${mine.length} cells, ${mine.reduce((sum, cell) => sum + cell.counted + cell.voided, 0)} runs: ${out}\n`);
 }

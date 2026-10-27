@@ -52,6 +52,12 @@ describe("the manifests of cannot-serve", () => {
     expect(configOf(cellOf("liveness-restart"))).not.toHaveProperty("failsRoute");
   });
 
+  it("keeps the route of a replica whose prober fails falsely (`serves`): the flag fails only its readiness", () => {
+    const serving = cellOf("cannot-serve");
+    expect(configOf({ ...serving, trigger: { ...serving.trigger, serves: true } })).not.toHaveProperty("failsRoute");
+    expect(configOf({ ...serving, trigger: { ...serving.trigger, serves: false } })).toMatchObject({ failsRoute: true });
+  });
+
   it("gives each client its count of keep-alive connections, or no count", () => {
     const keeps: KindCell = { ...cellOf("cannot-serve"), workload: { ...cellOf("cannot-serve").workload, connections: 8 } };
     expect(envOf(clientObjects(keeps, "lab-ns", "lab:test", "10.96.0.10:8080"), 0)).toContainEqual({ name: "CONNECTIONS", value: "8" });

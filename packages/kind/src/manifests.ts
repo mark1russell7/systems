@@ -78,7 +78,7 @@ const appEnv = (cell: KindCell): Array<Record<string, unknown>> => [
       port: PORT,
       healthPort: HEALTH_PORT,
       declaration: cell.declaration,
-      ...(cell.trigger.kind === "cannot-serve" ? { failsRoute: true } : {}),
+      ...(cell.trigger.kind === "cannot-serve" && cell.trigger.serves !== true ? { failsRoute: true } : {}),
     }),
   },
   POD_ENV,

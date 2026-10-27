@@ -68,6 +68,7 @@ export type Stack = "service" | "grpc";
  * - `cannot-serve` makes the route of one replica fail while a flag file is there, for the hold. The
  *   flag also fails the readiness check of the replica (`flag` of the declaration). Before the
  *   fault, each client opens its connections again with SIGHUP, thus they spread over the replicas.
+ *   With `serves`, the route does not fail: only the readiness check does.
  * - `none` injects nothing: a calibration measures the path itself.
  */
 export type TriggerKind =
@@ -138,6 +139,12 @@ export interface Trigger<A = Quantity> {
    * gives each client new connections first, as `cannot-serve` does.
    */
   readonly partition?: boolean | undefined;
+  /**
+   * This flag makes the flag file of `cannot-serve` fail only the readiness check of the target. The
+   * route still serves, thus the check is false: the replica can serve while the kubelet sees it as
+   * not ready (S2, a failed prober).
+   */
+  readonly serves?: boolean | undefined;
 }
 
 /** A kubelet probe is the period, the failure threshold and the timeout of one probe of the pod. */
@@ -275,6 +282,7 @@ export interface ResetReuse<A = Quantity> {
  *   references. A request is late only when it is outside each of these windows.
  * - `removal`: the Service has no ready endpoint, and the rules of each node have no backend, in the band.
  * - `leaves`: the target replica leaves the EndpointSlice and the rules of each node in the band.
+ *   With `window`, the failed requests also start in that window.
  * - `restarts`: each replica receives SIGTERM in the band, or no replica does.
  * - `stays`: no endpoint leaves the Service, and no request is refused.
  * - `stalls`: the rollout does not continue while Redis is down, and it ends after Redis is back.
@@ -294,7 +302,7 @@ export type Prediction<A = Quantity> =
     }
   | WindowPrediction<A>
   | { readonly kind: "removal"; readonly band: Band<A>; readonly why: string }
-  | { readonly kind: "leaves"; readonly band: Band<A>; readonly why: string }
+  | { readonly kind: "leaves"; readonly band: Band<A>; readonly window?: WindowPrediction<A> | undefined; readonly why: string }
   | { readonly kind: "restarts"; readonly band: Band<A> | null; readonly why: string }
   | { readonly kind: "stays"; readonly why: string }
   | { readonly kind: "stalls"; readonly why: string }

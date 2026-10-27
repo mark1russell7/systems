@@ -10,8 +10,9 @@ import { CALLERS_CELLS, CALLERS_MODES, CALLER_FAULTS, CANDIDATES, CANNOT_SERVE_H
  * The evidence is the CI run and the cell. A criterion that the data cannot support is "not measured",
  * with the reason. No score fills a gap with an estimate.
  *
- * Three incidents have cells: a pod that cannot serve (`cannot-serve`, the S2 cells of T07), a
- * partitioned pod (a black hole between the clients and the target), and a stalled pod (`app-stall`).
+ * Four incidents have cells: a pod that cannot serve (`cannot-serve`, the S2 cells of T07), a
+ * partitioned pod (a black hole between the clients and the target), a stalled pod (`app-stall`), and
+ * a failed prober (`cannot-serve` with `serves`: a false failure of the readiness check).
  * Each one has its own kind run.
  * The other incidents of the design have no cell of the candidates yet, thus each one is "not measured".
  */
@@ -53,11 +54,11 @@ export const INCIDENTS: readonly Incident[] = [
   "a pod that cannot serve",
   "a partitioned pod",
   "a stalled pod (gray failure)",
+  "a failed prober",
   "a black-holed shared dependency",
   "a lost zone",
   "a slow dependency (gray failure)",
   "a flapping dependency",
-  "a failed prober",
 ];
 
 /** This record is the evidence of a score: the CI run, the cell, and the verdict of the judge on its counted runs. */
@@ -135,9 +136,11 @@ export interface Scorecard {
 }
 
 /**
- * This result is one S2 cell in the copy of a kind run: its verdict and its failed requests in each
- * counted run. A newer copy also has `lasts`: the time from the fault to the start of the last failed
- * request of each counted run, in seconds. A run with no failed request gives null.
+ * This result is one S2 cell in the copy of a kind run: its verdict and the main value of each
+ * counted run. The main value is the failed requests, or for a false failure the time from the fault
+ * to the false removal, in seconds. A newer copy also has `lasts`: the time from the fault to the start of the last failed
+ * request of each counted run, in seconds. A run with no failed request gives null. A copy of a false
+ * failure also has `failures`: the failed requests of each counted run.
  */
 export interface CallerResult {
   readonly id: string;
@@ -146,6 +149,7 @@ export interface CallerResult {
   readonly median: number | null;
   readonly values: readonly number[];
   readonly lasts?: readonly (number | null)[];
+  readonly failures?: readonly number[];
 }
 
 /** This run is the copy of one kind run of the S2 cells: the id of the CI run and the result of each cell. */
@@ -188,6 +192,11 @@ const NOT_MEASURED: Readonly<Record<CallerFault, Partial<Record<Criterion, strin
     "probe load": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe.",
     "routes down": "The stall stops each route of the target, because its event loop is blocked. The cell does not count the routes.",
   },
+  "false failure": {
+    "time to recover": "The cell measures the false removal and the failed requests. It does not measure when the replica comes back into the endpoints after the heal.",
+    "probe load": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe.",
+    "routes down": "The route of the target serves for the whole hold. Only the refusals of the service fail requests. The cell does not count the routes.",
+  },
 };
 
 /** These are the incidents of the design that the S2 cells measure, and the trigger of their cells. */
@@ -195,30 +204,44 @@ const INCIDENT_OF: Readonly<Record<CallerFault, { readonly incident: Incident; r
   "cannot serve": { incident: "a pod that cannot serve", trigger: "cannot-serve" },
   partition: { incident: "a partitioned pod", trigger: "blackhole" },
   stall: { incident: "a stalled pod (gray failure)", trigger: "app-stall" },
+  "false failure": { incident: "a failed prober", trigger: "cannot-serve" },
 };
 
 /** This text is the reason for each incident of the design that has no cell of the candidates yet. */
 const NO_CELL = "No cell measures the candidates A, B, C and D in this incident yet.";
 
 /**
- * These texts are the reasons of an incident with no cell, when the reason is more than `NO_CELL`. A
- * slow shared dependency slows each replica at once, thus no routing candidate can go around it.
+ * These texts are the reasons of an incident with no cell. Each one tells what T07 cannot do for that
+ * incident: T07 has no shared dependency, no zone, and one fault for each run.
  */
 const NO_CELL_OF: Readonly<Partial<Record<Incident, string>>> = {
+  "a black-holed shared dependency":
+    "No cell measures the candidates in this incident yet. The server of the S2 cells has no dependency: its Redis is off. A shared dependency fails the readiness of each replica at once. T18 has Redis, but no cell of the candidates.",
+  "a lost zone":
+    "No cell measures the candidates in this incident yet. The kind cluster of T07 has no zones, and no step of the lab stops a node and its kubelet at once. A drain is not a loss: it evicts each pod with its grace.",
   "a slow dependency (gray failure)":
     "No cell measures the candidates in this incident yet. The S2 cells have no shared dependency, and a slow dependency slows each replica at once. Thus no routing candidate can go around it. The stalled pod is the gray failure of one replica.",
+  "a flapping dependency":
+    "No cell measures the candidates in this incident yet. Each trigger of the lab has one fault and one heal, thus no fault comes again in a run. The server of T07 has no dependency that can flap.",
 };
 
 /** This text is the reason for an incident with cells, when no copy has a result of them. */
 const NO_RUN = "No copy of a kind run has a result of the cells of this incident yet.";
 
-/** This function gives the window of the last failure of a candidate from its cell: the reference event and the band after it. */
+/** This function gives the window of the last failure of a candidate from its cell: the reference event and the band after it. A false failure has its window in its departure. */
 const windowOf = (id: string): Window => {
   const cell = CALLERS_CELLS.find((each) => each.id === id);
   if (cell === undefined) throw new Error(`${id}: no S2 cell of the catalog`);
-  const p = cell.prediction;
-  if (p.kind !== "window" || p.end === null) throw new Error(`${id}: an S2 cell has a window that ends`);
+  const p = cell.prediction.kind === "leaves" ? cell.prediction.window : cell.prediction;
+  if (p === undefined || p.kind !== "window" || p.end === null) throw new Error(`${id}: an S2 cell has a window that ends`);
   return { from: p.end.from, band: p.end.band };
+};
+
+/** This function gives the band of the false removal of a candidate from its cell, after the fault. */
+const removalOf = (id: string): Band => {
+  const p = CALLERS_CELLS.find((each) => each.id === id)?.prediction;
+  if (p?.kind !== "leaves") throw new Error(`${id}: the S2 cell of a false failure has a departure`);
+  return p.band;
 };
 
 /** This function gives the median of sorted values: the middle value, or the mean of the two middle values. */
@@ -230,18 +253,38 @@ const middle = (sorted: readonly number[]): number => {
 /** This function gives the score of one criterion of a candidate whose cell has a result in the copy. */
 const scoreOf = (criterion: Criterion, candidate: Candidate, mode: KubeProxyMode, fault: CallerFault, result: CallerResult, run: number): Score => {
   const evidence: Evidence = { run, cell: result.id, decision: result.decision, counted: result.counted };
+  const seconds = (value: number): Quantity => ({ value, unit: "s" });
   if (criterion === "failed requests") {
     const expected = expectedFailures(candidate, mode, fault);
     const lo = valueIn(expected.lo, "{request}");
     const hi = valueIn(expected.hi, "{request}");
-    if (result.median === null) return { criterion, kind: "not measured", why: "The copy has no median of the failed requests of this cell." };
+    // the main value of a false failure is the time of the removal, thus its copy keeps the failures apart
+    const values = fault === "false failure" ? result.failures : result.values;
+    const median = fault === "false failure" ? (values === undefined || values.length === 0 ? null : middle([...values].sort((a, b) => a - b))) : result.median;
+    if (median === null || values === undefined) return { criterion, kind: "not measured", why: "The copy has no median of the failed requests of this cell." };
     return {
       criterion,
       kind: "measured",
-      median: requests(result.median),
-      values: result.values.map(requests),
+      median: requests(median),
+      values: values.map(requests),
       prediction: { lo: expected.lo, hi: expected.hi },
-      holds: result.values.every((value) => value >= lo && value <= hi),
+      holds: values.every((value) => value >= lo && value <= hi),
+      evidence,
+    };
+  }
+  if (criterion === "false removals on a blip" && fault === "false failure") {
+    // each counted run of the judge has the departure of the target: one false removal, at the main value
+    const band = removalOf(result.id);
+    const [lo, hi] = [valueIn(band.lo, "s"), valueIn(band.hi, "s")];
+    if (result.median === null) return { criterion, kind: "not measured", why: "The copy has no time of the false removal of this cell." };
+    return {
+      criterion,
+      kind: "measured",
+      median: seconds(result.median),
+      values: result.values.map(seconds),
+      prediction: band,
+      from: "fault",
+      holds: result.values.length === result.counted && result.values.every((value) => value >= lo && value <= hi),
       evidence,
     };
   }
@@ -251,7 +294,6 @@ const scoreOf = (criterion: Criterion, candidate: Candidate, mode: KubeProxyMode
     const lasts = (result.lasts ?? []).flatMap((each) => (each === null ? [] : [each])).sort((a, b) => a - b);
     if (prediction.from === "fault" && lasts.length > 0) {
       const [lo, hi] = [valueIn(prediction.band.lo, "s"), valueIn(prediction.band.hi, "s")];
-      const seconds = (value: number): Quantity => ({ value, unit: "s" });
       return {
         criterion,
         kind: "measured",
@@ -264,9 +306,13 @@ const scoreOf = (criterion: Criterion, candidate: Candidate, mode: KubeProxyMode
       };
     }
     const late =
-      candidate === "endpoints only" && fault === "cannot serve"
-        ? ` A does not learn while the replica cannot serve: its failures end only after the heal, which comes ${valueIn(CANNOT_SERVE_HOLD, "s")} s after the fault.`
-        : "";
+      candidate !== "endpoints only"
+        ? ""
+        : fault === "cannot serve"
+          ? ` A does not learn while the replica cannot serve: its failures end only after the heal, which comes ${valueIn(CANNOT_SERVE_HOLD, "s")} s after the fault.`
+          : fault === "false failure"
+            ? ` A does not learn while the service refuses: its failures end only after the heal, which comes ${valueIn(CANNOT_SERVE_HOLD, "s")} s after the fault.`
+            : "";
     const keeps = result.lasts === undefined ? "The copy keeps the count, not the time of the last failure." : "No counted run had a failed request, thus no run gives the time of the last failure.";
     return {
       criterion,

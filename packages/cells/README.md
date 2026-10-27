@@ -394,6 +394,11 @@ The S2 cells (`src/callers.ts`, `CALLERS_CELLS`) measure the dimension "how call
   - A and B: the picks of a partition (`picksOf`). The last pick of a chain comes before the earliest removal, thus the removal changes nothing.
   - C: a session on the target fails each stream at its timeout until one timeout before the resume, 9.98 s to 10 s after the fault. At the resume, the server closes each quiet session with GOAWAY, and the client sends each stream again.
   - D: the session check of a partition (`checkedOf`). A next session on the target connects, but its PING gets no ACK. The removal ends each chain, thus the last failure starts up to 8.105 s after the fault at random.
+- **A failed prober** (`S2.T07.<mode>.<candidate>.prober`). The cells of a pod that cannot serve, with the flag `serves` on the trigger. The flag file then fails only the readiness check of the target, and its route still serves. Thus each removal is false. `falseOf` gives each prediction, as a departure (`leaves`) with a window of the failed requests:
+  - The latch of the check trips 8 s to 18 s after the fault. Then the controller of the service is not ready, and the service refuses each request with a 503.
+  - The kubelet and the propagation remove the target 12 s to 24.309 s after the fault (`removalBand`), with each candidate.
+  - A: each connection on the target stays open. Thus each request on it fails from the trip until the readiness of the service recovers, up to 6.16 s after the heal.
+  - B, C and D: each refusal closes its connection, and the next connection picks a backend. A chain of picks of the target ends at the first pick of the other replica. The target answers each stream at once, thus D is the same as C.
 - **The scores of S6** (`src/scores.ts`, `scoreCallers`). The function gives each candidate of each mode a score on each criterion of S6, from one copy of a kind run for each incident. A score is `measured`, `bounded` or `not measured`. A measured score has the prediction next to the values, and each score names its run and its cell. A criterion that the copy cannot support gives its reason and no number. The script `packages/site/scripts/scores.ts` writes the scorecard that the kind page shows.
 
 ## The runner

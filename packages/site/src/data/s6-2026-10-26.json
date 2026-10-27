@@ -2,7 +2,7 @@
   "ranAt": "2026-10-26",
   "dimension": "how callers learn",
   "run": 40358038728,
-  "runs": [40358038728, 40380943331, 40394320219, 40406199754],
+  "runs": [40358038728, 40380943331, 40394320219, 40406199754, 40419289511],
   "criteria": [
     "time until callers know",
     "failed requests",
@@ -3941,14 +3941,1743 @@
       ]
     },
     {
+      "incident": "a failed prober",
+      "kind": "scored",
+      "trigger": "cannot-serve",
+      "run": 40419289511,
+      "modes": [
+        {
+          "mode": "iptables",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.iptables.endpoints.prober",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "bounded",
+                  "prediction": {
+                    "from": "heal",
+                    "band": {
+                      "lo": {
+                        "value": 0,
+                        "unit": "s"
+                      },
+                      "hi": {
+                        "value": 6.16,
+                        "unit": "s"
+                      }
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.iptables.endpoints.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  },
+                  "why": "The judge found each failed request in the window of the prediction. No counted run had a failed request, thus no run gives the time of the last failure. A does not learn while the service refuses: its failures end only after the heal, which comes 30 s after the fault."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 1690,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 1649,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1690,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1720,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 525,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 2992,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.iptables.endpoints.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "measured",
+                  "median": {
+                    "value": 16.855,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 16.855,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 13.839,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.751,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.105,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.iptables.endpoints.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell measures the false removal and the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The route of the target serves for the whole hold. Only the refusals of the service fail requests. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.iptables.lame-duck.prober",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 15.3455701,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 12.3276288,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 15.3455701,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 15.7164494,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 8,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 20.24,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.iptables.lame-duck.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 25,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 34,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 25,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 16,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 39,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.iptables.lame-duck.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "measured",
+                  "median": {
+                    "value": 18.913,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 18.913,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.203,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.206,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.105,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.iptables.lame-duck.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell measures the false removal and the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The route of the target serves for the whole hold. Only the refusals of the service fail requests. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.iptables.goaway.prober",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 14.49883625,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 13.8793899,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 15.1182826,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 8,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 18.22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.iptables.goaway.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 5,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 7,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 5,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 9,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.iptables.goaway.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "measured",
+                  "median": {
+                    "value": 17.843,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 17.843,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 15.166,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.545,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.105,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.iptables.goaway.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell measures the false removal and the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The route of the target serves for the whole hold. Only the refusals of the service fail requests. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.iptables.session-check.prober",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 10.4049531,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 8.4943701,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.4049531,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.9272664,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 8,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 18.22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.iptables.session-check.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 2,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 6,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 9,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.iptables.session-check.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "measured",
+                  "median": {
+                    "value": 15.136,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 15.136,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 13.156,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 15.27,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.105,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.iptables.session-check.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell measures the false removal and the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The route of the target serves for the whole hold. Only the refusals of the service fail requests. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "D"
+        },
+        {
+          "mode": "ipvs",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.ipvs.endpoints.prober",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "bounded",
+                  "prediction": {
+                    "from": "heal",
+                    "band": {
+                      "lo": {
+                        "value": 0,
+                        "unit": "s"
+                      },
+                      "hi": {
+                        "value": 6.16,
+                        "unit": "s"
+                      }
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.ipvs.endpoints.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  },
+                  "why": "The judge found each failed request in the window of the prediction. No counted run had a failed request, thus no run gives the time of the last failure. A does not learn while the service refuses: its failures end only after the heal, which comes 30 s after the fault."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 1529,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 1743,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1421,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1529,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 900,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 2112,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.ipvs.endpoints.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "measured",
+                  "median": {
+                    "value": 16.249,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 15.331,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.256,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 16.249,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12.073,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.309,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.ipvs.endpoints.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell measures the false removal and the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The route of the target serves for the whole hold. Only the refusals of the service fail requests. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.ipvs.lame-duck.prober",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 13.9703853,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 13.14408,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 13.9703853,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 14.6303333,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 8,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 18.64,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.ipvs.lame-duck.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 24,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 24,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 24,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 24,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 21,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 24,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.ipvs.lame-duck.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "measured",
+                  "median": {
+                    "value": 19.087,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 17.118,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.273,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.087,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12.073,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.309,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.ipvs.lame-duck.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell measures the false removal and the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The route of the target serves for the whole hold. Only the refusals of the service fail requests. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.ipvs.goaway.prober",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 13.6155906,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 10.4854326,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 13.6155906,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 14.0586815,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 8,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 18.02,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.ipvs.goaway.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 3,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 3,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.ipvs.goaway.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "measured",
+                  "median": {
+                    "value": 19.059,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 15.229,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.059,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.187,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12.073,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.309,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.ipvs.goaway.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell measures the false removal and the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The route of the target serves for the whole hold. Only the refusals of the service fail requests. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.ipvs.session-check.prober",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 12.6841762,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 10.3727851,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 12.6841762,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 13.1670706,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 8,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 18.02,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.ipvs.session-check.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 3,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 3,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.ipvs.session-check.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "measured",
+                  "median": {
+                    "value": 17.232,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 18.178,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 15.008,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.232,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12.073,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.309,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.ipvs.session-check.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell measures the false removal and the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The route of the target serves for the whole hold. Only the refusals of the service fail requests. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "C"
+        },
+        {
+          "mode": "nftables",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.nftables.endpoints.prober",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "bounded",
+                  "prediction": {
+                    "from": "heal",
+                    "band": {
+                      "lo": {
+                        "value": 0,
+                        "unit": "s"
+                      },
+                      "hi": {
+                        "value": 6.16,
+                        "unit": "s"
+                      }
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.nftables.endpoints.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  },
+                  "why": "The judge found each failed request in the window of the prediction. No counted run had a failed request, thus no run gives the time of the last failure. A does not learn while the service refuses: its failures end only after the heal, which comes 30 s after the fault."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 1679,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 2045,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1679,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1662,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 525,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 2992,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.nftables.endpoints.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "measured",
+                  "median": {
+                    "value": 15.014,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 14.242,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 15.014,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 15.963,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.079,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.nftables.endpoints.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell measures the false removal and the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The route of the target serves for the whole hold. Only the refusals of the service fail requests. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.nftables.lame-duck.prober",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 16.2262178,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 16.1868728,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 16.2262178,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 16.8274127,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 8,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 20.24,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.nftables.lame-duck.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 25,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 31,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 17,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 25,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 39,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.nftables.lame-duck.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "measured",
+                  "median": {
+                    "value": 20.947,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 19.125,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.977,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.947,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.079,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.nftables.lame-duck.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell measures the false removal and the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The route of the target serves for the whole hold. Only the refusals of the service fail requests. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.nftables.goaway.prober",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 11.7105415,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 10.5153669,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.7105415,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 13.2365471,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 8,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 18.22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.nftables.goaway.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 3,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 12,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 9,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": false,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.nftables.goaway.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "measured",
+                  "median": {
+                    "value": 16.488,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 16.488,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.815,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 15.049,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.079,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.nftables.goaway.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell measures the false removal and the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The route of the target serves for the whole hold. Only the refusals of the service fail requests. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.nftables.session-check.prober",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 13.5326452,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 12.6231496,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 13.5326452,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 15.5621862,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 8,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 18.22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.nftables.session-check.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 6,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 2,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 6,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 6,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 9,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.nftables.session-check.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "measured",
+                  "median": {
+                    "value": 18.422,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 18.422,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 16.798,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 21.052,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.079,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40419289511,
+                    "cell": "S2.T07.nftables.session-check.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell measures the false removal and the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The route of the target serves for the whole hold. Only the refusals of the service fail requests. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "C"
+        }
+      ]
+    },
+    {
       "incident": "a black-holed shared dependency",
       "kind": "not measured",
-      "why": "No cell measures the candidates A, B, C and D in this incident yet."
+      "why": "No cell measures the candidates in this incident yet. The server of the S2 cells has no dependency: its Redis is off. A shared dependency fails the readiness of each replica at once. T18 has Redis, but no cell of the candidates."
     },
     {
       "incident": "a lost zone",
       "kind": "not measured",
-      "why": "No cell measures the candidates A, B, C and D in this incident yet."
+      "why": "No cell measures the candidates in this incident yet. The kind cluster of T07 has no zones, and no step of the lab stops a node and its kubelet at once. A drain is not a loss: it evicts each pod with its grace."
     },
     {
       "incident": "a slow dependency (gray failure)",
@@ -3958,12 +5687,7 @@
     {
       "incident": "a flapping dependency",
       "kind": "not measured",
-      "why": "No cell measures the candidates A, B, C and D in this incident yet."
-    },
-    {
-      "incident": "a failed prober",
-      "kind": "not measured",
-      "why": "No cell measures the candidates A, B, C and D in this incident yet."
+      "why": "No cell measures the candidates in this incident yet. Each trigger of the lab has one fault and one heal, thus no fault comes again in a run. The server of T07 has no dependency that can flap."
     }
   ]
 }

@@ -19,6 +19,7 @@ import S2 from "../data/s2-2026-10-26.json";
 import s2Partition from "../data/s2-partition-2026-10-26.json";
 import s2PartitionChecked from "../data/s2-partition-session-check-2026-10-26.json";
 import s2Stall from "../data/s2-stall-2026-10-26.json";
+import s2Prober from "../data/s2-prober-2026-10-26.json";
 import s2Checked from "../data/s2-session-check-2026-10-26.json";
 import s6 from "../data/s6-2026-10-26.json";
 import t15 from "../data/t15-2026-10-25.json";
@@ -440,7 +441,7 @@ export function RaceBorder(): ReactElement {
 // ---------------------------------------------------------------------------------------------
 
 /** The kind cells of each copy: T07 and T18, T15 over gRPC through Istio, and the S2 cells of each incident. The later run of D adds its cells. */
-const KIND_CELLS = [...kind.cells, ...t15.cells, ...S2.cells, ...s2Checked.cells, ...s2Partition.cells, ...s2PartitionChecked.cells, ...s2Stall.cells];
+const KIND_CELLS = [...kind.cells, ...t15.cells, ...S2.cells, ...s2Checked.cells, ...s2Partition.cells, ...s2PartitionChecked.cells, ...s2Stall.cells, ...s2Prober.cells];
 type KindCell = (typeof KIND_CELLS)[number];
 
 /** This function writes the main value of a kind cell: a count of failed requests, of replicas, or a time. */
@@ -544,10 +545,25 @@ const S2_FROM: Readonly<Record<string, string>> = { fault: "the fault", heal: "t
  * Each cell gives the verdict and the failed requests of the median run. Then it gives the
  * prediction: the expected count of failed requests, and the band of the end of the window. The
  * incident `partition` shows the copies of the partitioned pod, and `stall` the copy of the stalled pod.
+ *
+ * The incident `prober` shows the copy of the failed prober. Its main value is the time of the false
+ * removal, thus each cell gives the median of its failed requests apart.
  */
-export function CallersTable(props: { readonly incident?: "cannot serve" | "partition" | "stall" }): ReactElement {
-  // the copies of an incident: the first run of A, B and C, then the run of D. One run of the stall has each candidate. The latest copy has the prediction of each candidate
-  const copies = (props.incident === "partition" ? [s2Partition, s2PartitionChecked] : props.incident === "stall" ? [s2Stall] : [S2, s2Checked]) as unknown as readonly (typeof S2)[];
+export function CallersTable(props: { readonly incident?: "cannot serve" | "partition" | "stall" | "prober" }): ReactElement {
+  // the copies of an incident: the first run of A, B and C, then the run of D. One run of the stall, and one of the prober, has each candidate. The latest copy has the prediction of each candidate
+  const copies = (
+    props.incident === "partition" ? [s2Partition, s2PartitionChecked] : props.incident === "stall" ? [s2Stall] : props.incident === "prober" ? [s2Prober] : [S2, s2Checked]
+  ) as unknown as readonly (typeof S2)[];
+  const prober = props.incident === "prober";
+  // the failed requests of the median run of a false failure: the copy keeps them apart from the main value
+  const failuresOf = (cell: object): number | null => {
+    const failures = (cell as { readonly failures?: readonly number[] }).failures;
+    if (failures === undefined || failures.length === 0) return null;
+    // the middle value, or the mean of the two middle values, as the scores of the cells give it
+    const sorted = [...failures].sort((a, b) => a - b);
+    const half = Math.floor(sorted.length / 2);
+    return sorted.length % 2 === 1 ? sorted[half]! : (sorted[half - 1]! + sorted[half]!) / 2;
+  };
   const latest = copies.at(-1)!;
   const s2 = { predictions: latest.predictions, cells: copies.flatMap((copy) => copy.cells) };
   const candidates = [...new Set(s2.predictions.map((each) => each.candidate.name))];
@@ -577,19 +593,25 @@ export function CallersTable(props: { readonly incident?: "cannot serve" | "part
               <td>{code(mode)}</td>
               {candidates.map((name) => {
                 const cell = s2.cells.find((each) => each.mode === mode && each.candidate.name === name);
-                const { expected, end, connections } = predicted(mode, name);
+                const candidate = predicted(mode, name);
+                const { expected, end, connections } = candidate;
                 const on = connections.low === connections.high ? `${connections.low}` : `${connections.low} to ${connections.high}`;
+                const leaves = (candidate as { readonly leaves?: { readonly from: string; readonly low: number; readonly high: number } }).leaves;
+                const failures = cell === undefined ? null : failuresOf(cell);
+                const text =
+                  cell === undefined || cell.median === null
+                    ? ""
+                    : prober
+                      ? `${failures === null ? "" : `${count(failures, "failed request")}, and `}the false removal ${fine(cell.median)} after the fault, in the median run`
+                      : `${count(cell.median, "failed request")} in the median run`;
                 return (
                   <td key={name}>
-                    {cell === undefined ? (
-                      <span>No run in the copy yet.</span>
-                    ) : (
-                      <Verdict decision={cell.decision} text={cell.median === null ? "" : `${count(cell.median, "failed request")} in the median run`} />
-                    )}
+                    {cell === undefined ? <span>No run in the copy yet.</span> : <Verdict decision={cell.decision} text={text} />}
                     {cell === undefined ? null : <RunOf cell={cell.id} />}
                     <br />
                     <span className="sy-muted">
                       {`The prediction: ${digits(expected.low)} to ${digits(expected.high)} failed requests, with ${on} of the ${connections.of} connections on the target. The last one starts ${fine(end.low)} to ${fine(end.high)} after ${S2_FROM[end.from] ?? end.from}.`}
+                      {leaves === undefined ? "" : ` The false removal comes ${fine(leaves.low)} to ${fine(leaves.high)} after ${S2_FROM[leaves.from] ?? leaves.from}.`}
                       {cell === undefined || cell.failed === 0 ? "" : ` ${cell.failed} of ${cell.counted} runs ${cell.failed === 1 ? "disagrees" : "disagree"}.`}
                     </span>
                   </td>
@@ -702,7 +724,7 @@ function IncidentScoresTable(props: { readonly scored: ScoredCopy }): ReactEleme
     if (score.kind === "measured" && score.from !== undefined)
       return (
         <>
-          <Verdict decision={score.holds ? "holds" : "fails"} text={`the last failure ${fine(score.median.value)} after ${S2_FROM[score.from] ?? score.from} in the median run`} />
+          <Verdict decision={score.holds ? "holds" : "fails"} text={`${criterion === "false removals on a blip" ? "the false removal" : "the last failure"} ${fine(score.median.value)} after ${S2_FROM[score.from] ?? score.from} in the median run`} />
           <br />
           <span className="sy-muted">
             {`The prediction: ${fine(score.prediction.lo.value)} to ${fine(score.prediction.hi.value)}. The counted runs: ${score.values.map((each) => fine(each.value)).join(", ")}. `}
@@ -839,9 +861,13 @@ export function CallersScores(): ReactElement {
       {scored.map((each) => (
         <IncidentScoresTable key={each.incident} scored={each} />
       ))}
-      <p className="sy-muted">
-        {`Not measured yet: ${rest.map((each) => each.incident).join(", ")}. ${rest[0]?.why ?? ""}`}
-      </p>
+      <p className="sy-muted">{`Not measured yet: ${rest.map((each) => each.incident).join(", ")}. Each incident has its own reason:`}</p>
+      {/* each incident with no cell gives the part of the lab that it needs */}
+      <ul className="sy-muted">
+        {rest.map((each) => (
+          <li key={each.incident}>{`${each.incident}: ${each.why}`}</li>
+        ))}
+      </ul>
     </div>
   );
 }
