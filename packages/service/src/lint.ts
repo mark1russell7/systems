@@ -15,8 +15,9 @@ import { failSpan } from "./timing.ts";
  * propagation) and of each dependency (its failover time, the idle close of its server). Thus the
  * service gives the inequalities, and the scenario gives the values.
  *
- * A rule about a client applies one time for each dependency. A rule about a consumer applies one
- * time for each consumer and each worker. A rule about a limiter applies one time for each limiter.
+ * A rule about a client applies one time for each dependency. A rule about a server (`@server`)
+ * also applies one time for each server transport of the service. A rule about a consumer applies
+ * one time for each consumer and each worker. A rule about a limiter applies one time for each limiter.
  */
 
 /** A statistic of a measured distribution. The law binds p99 (`LAW_STATISTIC`). */
@@ -52,7 +53,11 @@ export interface Scenario {
   readonly probes: { readonly readiness: Quantity; readonly liveness: Quantity };
   /** These are the values of each dependency, by its name: failover_time@dependency, server_idle_close@server. */
   readonly dependencies?: Readonly<Record<string, Readonly<Record<string, ScenarioValue>>>> | undefined;
-  /** These are the values of the source of each consumer and worker, by its name and by the `symbol@hop` of the law: lease_duration@broker. */
+  /**
+   * These are the values of each transport, by its name and by the `symbol@hop` of the law. For a
+   * consumer or a worker, they are the values of its source: lease_duration@broker. For a server,
+   * they are the values of its clients: request_timeout@client.
+   */
   readonly transports?: Readonly<Record<string, Readonly<Record<string, ScenarioValue>>>> | undefined;
   /**
    * These are the values of the callers of each limiter, by its name and by the `symbol@hop` of the
@@ -301,13 +306,16 @@ const dependencyBindings = (dependency: Dependency, scenario: Scenario): Scoped 
 
 /**
  * These are the hops of the law at which the knobs of a transport bind, by its kind. A worker does
- * its units as a consumer does, thus both bind at `consumer` (O20). A server binds at no hop yet.
+ * its units as a consumer does, thus both bind at `consumer` (O20). A server binds at `server`, in a
+ * scope of its own. In the scope of a dependency, `@server` is the server of that dependency. Thus
+ * the knobs of a server of the service do not bind there, or O19 pairs the wrong two sides.
  */
-const TRANSPORT_HOPS: Readonly<Record<Transport["kind"], string | null>> = { server: null, consumer: "consumer", worker: "consumer" };
+const TRANSPORT_HOPS: Readonly<Record<Transport["kind"], "server" | "consumer">> = { server: "server", consumer: "consumer", worker: "consumer" };
 
 /**
  * This function gives the time knobs of a transport at the hop of its kind, and the values of the
- * scenario for its source. A knob with a hop in its name binds at that hop. A count binds no symbol.
+ * scenario for the transport. These values are of the source of a consumer, or of the clients of a
+ * server. A knob with a hop in its name binds at that hop. A count binds no symbol.
  */
 const transportBindings = (transport: Transport, hop: string, scenario: Scenario): Scoped => {
   const bind: Record<string, Bound> = {};
@@ -338,6 +346,7 @@ const limiterBindings = (limiter: Limiter, scenario: Scenario): Scoped => {
 };
 
 const SCOPED = /@(client|dependency|server)$/;
+const SERVER_SCOPED = /@server$/;
 const TRANSPORT_SCOPED = /@consumer$/;
 const LIMITER_SCOPED = /@(limiter|caller)$/;
 
@@ -533,7 +542,11 @@ export const BOUND_RULES: readonly Rule[] = [
   },
 ];
 
-/** This function gives the scopes of a rule that reads these symbols: the service, each client, each consumer and worker, or each limiter. */
+/**
+ * This function gives the scopes of a rule that reads these symbols: the service, each client, each
+ * consumer and worker, or each limiter. A rule that reads a symbol at `server` applies to each client
+ * and to each server transport. In the scope of a server, the scenario gives the client side.
+ */
 const scopesOf = (
   svc: ServiceDescription,
   scenario: Scenario,
@@ -546,15 +559,19 @@ const scopesOf = (
     for (const symbol of Object.keys(scoped.epochs)) if (!(symbol in scoped.bind)) delete bind[symbol];
     return [name, bind, { ...service.epochs, ...scoped.epochs }];
   };
+  const transports = (hop: "server" | "consumer"): Array<[string, Binding, Epochs]> =>
+    svc.transports
+      .filter((transport) => TRANSPORT_HOPS[transport.kind] === hop)
+      .map((transport) => within(transport.name, transportBindings(transport, hop, scenario)));
   return symbols.some((symbol) => LIMITER_SCOPED.test(symbol))
     ? (svc.limiters ?? []).map((limiter) => within(limiter.name, limiterBindings(limiter, scenario)))
     : symbols.some((symbol) => TRANSPORT_SCOPED.test(symbol))
-      ? svc.transports.flatMap((transport): Array<[string, Binding, Epochs]> => {
-          const hop = TRANSPORT_HOPS[transport.kind];
-          return hop === null ? [] : [within(transport.name, transportBindings(transport, hop, scenario))];
-        })
+      ? transports("consumer")
       : symbols.some((symbol) => SCOPED.test(symbol))
-        ? svc.dependencies.map((dependency) => within(dependency.name, dependencyBindings(dependency, scenario)))
+        ? [
+            ...svc.dependencies.map((dependency) => within(dependency.name, dependencyBindings(dependency, scenario))),
+            ...(symbols.some((symbol) => SERVER_SCOPED.test(symbol)) ? transports("server") : []),
+          ]
         : [[svc.name, service.bind, service.epochs]];
 };
 
