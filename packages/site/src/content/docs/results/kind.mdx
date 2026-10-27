@@ -183,9 +183,29 @@ One run of B in nftables had no failure after the heal. A request that waits on 
 
 <KindResults template="T07" group="dependency" client:visible />
 
+### A flapping dependency
+
+The same black hole on the Redis of both replicas, three times in one run. Each fault holds for 27 s, and a rest of 15 s comes after each heal. The cells come from the run [40464814086](https://github.com/mark1russell7/systems/actions/runs/40464814086). The judge counted 3 runs of each cell in each mode. Each of the 12 cells held in 3 of 3 runs.
+
+The judge gives each fault its own window. The Service was empty 14.26 s to 21.64 s after each of the 108 faults, in the bands of 12 s to 26.31 s. At each later fault, the Service was ready again, with its backends.
+
+Each fault is the same as the first one. Each fault had 3,843 to 5,126 failed requests, in its bands. B had the fewest failed requests in each mode: 12,274, 12,956 and 13,207 for the 3 faults by the median run. A had 13,434 to 14,213, C had 13,443 to 14,102, and D had 13,805 to 14,144.
+
+The times of each fault are the times of the shared dependency. The callers of A knew at the latch, 11.15 s to 11.58 s after the fault by the median. B, C and D failed slowly until each heal, 26.47 s to 27.18 s after the fault. Each time was in the bands that the run of the shared dependency corrected.
+
+After each heal, B recovered first, 0.5 s to 2.53 s by the median. A recovered after 3.68 s to 4.32 s, C after 2.29 s to 4.05 s, and D after 3.54 s to 4.13 s. One last failure of B in iptables started 1.36 s before its heal, in the band that starts at -2 s.
+
+D sent 112 to 138 PINGs in each run, in the band of 9 to 378. The prediction of the commit before the run held for each value, with one gap. The first failure of a fault came up to 39 ms after the fault, after the band of 20 ms. The judge widens each band of the window by its noise of 100 ms, thus each cell held.
+
+<CallersTable incident="flapping" />
+
+<KindResults template="T07" group="flapping" client:visible />
+
 ### How callers learn
 
-S6 scores each candidate of health and routing on seven criteria, for each incident of its design. Six runs score five incidents: a pod that cannot serve, a partitioned pod, a stalled pod, a failed prober and a black-holed shared dependency. The third run adds D to the first two incidents. Each of the next three incidents has its own run, with each candidate. The table puts the measure of each criterion next to its prediction, and each cell links to its run. A criterion that the run cannot support has no number, only the reason.
+S6 scores each candidate of health and routing on seven criteria, for each incident of its design. Seven runs score six incidents. They are a pod that cannot serve, a partitioned pod, a stalled pod, a failed prober, a black-holed shared dependency and a flapping dependency. The third run adds D to the first two incidents. Each of the next four incidents has its own run, with each candidate.
+
+The table puts the measure of each criterion next to its prediction, and each cell links to its run. A criterion that the run cannot support has no number, only the reason.
 
 B, C and D each have fewer failed requests than A in each mode, by the median run. B has the fewest in IPVS, and D has the fewest in iptables and nftables. D has the band of C, thus the two are equal for a pod that cannot serve. Thus the service keeps one rule: while it is not ready, it closes each connection on the channel of its protocol. HTTP/1.1 gets `Connection: close`, and HTTP/2 gets GOAWAY. A is an opt-in of the transport.
 
@@ -198,6 +218,8 @@ A failed prober does not change the rule either. Each candidate removes the targ
 A black-holed shared dependency keeps the rule too, and the readiness of the service follows its dependency. The service cannot tell a shared failure from a failure of its own replica. For a failure of one replica, the removal routes callers around that replica. In a shared failure no replica can serve, thus the removal costs no requests. B had the fewest failed requests in each mode, and it recovered first.
 
 The cost is the time until callers know. The callers of A got a fast 503 after approximately 12 s, and B, C and D failed slowly until the heal. A gate that keeps the endpoints in a shared failure is a separate decision with its own evidence. No cell measures it yet. The scores of the shared dependency measure when the Service is empty, the last slow failure and the last failure after the heal.
+
+A flapping dependency changes no part of the rule. Each fault of the run gave the result of one shared failure, and the readiness of the service followed each fault and each heal. B had the fewest failed requests in each mode again, and it recovered first. The scores of the flapping dependency have one value for each fault of each counted run, thus 9 values for each cell.
 
 <CallersScores />
 

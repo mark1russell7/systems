@@ -407,6 +407,11 @@ The S2 cells (`src/callers.ts`, `CALLERS_CELLS`) measure the dimension "how call
   - A: each connection stays open, thus A recovers when the readiness of the service recovers, up to 9.26 s after the heal.
   - B, C and D: the lame duck closes each connection, and the empty Service refuses each new one. Thus they recover only when the kubelet and the propagation add the replicas again, up to 11.57 s after the heal.
   - The time until callers know is the start of the last slow failure before the heal, 7.98 s to 22 s after the fault.
+- **A flapping dependency** (`S2.T07.<mode>.<candidate>.flapping`). The cells of the shared dependency, with the black hole 3 times in one run (`FLAP_FAULTS`). Each fault holds for 27 s (`FLAP_HOLD`), and a rest of 15 s comes after each heal (`FLAP_REST`). The trigger has these as `flaps`, and the span of the faults is 111 s. `flappingOf` gives each prediction:
+  - Each fault has the bands of the shared dependency, with the corrections of its run. The failed requests of a run have 3 times the band of one fault (`each`).
+  - A knows at the latch, 7.98 s to 22 s after each fault. B, C and D fail slowly until each heal, 24.98 s to 27.5 s after each fault. Their last failure can start up to 2 s before the heal.
+  - The removal checks the empty Service after each fault, and a ready Service with its backends at each later fault.
+  - The rest is longer than the latest recovery after a heal. Thus each fault starts from a steady state.
 - **The scores of S6** (`src/scores.ts`, `scoreCallers`). The function gives each candidate of each mode a score on each criterion of S6, from one copy of a kind run for each incident. A score is `measured`, `bounded`, `derived` (a value of the code, for example 0 PINGs) or `not measured`. A measured score has the prediction next to the values, and each score names its run and its cell. A criterion that the copy cannot support gives its reason and no number. The script `packages/site/scripts/scores.ts` writes the scorecard that the kind page shows.
 
 ## The runner

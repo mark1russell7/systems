@@ -1,0 +1,1347 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-10-27",
+  "units": "s",
+  "runs": 3,
+  "kernel": "6.17.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.iptables.endpoints.flapping",
+      "template": "T07",
+      "name": "iptables, callers learn that a shared dependency flaps: endpoints only",
+      "mode": "iptables",
+      "trigger": "blackhole",
+      "group": "flapping",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12,
+          "high": 26.105
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12 s to 26.105 s after the fault. Redis is black-holed 3 times for 27 s, with a rest of 15 s from each heal to the next fault. The heal comes 0 s–0.5 s after the hold. Each request needs Redis, thus each request fails from each fault until the callers recover. Each connection of A stays open on its replica, thus it gets the 503 of the service at the trip of the latch, and no refusal. The kubelet and the propagation remove both replicas 12 s–26.105 s after each fault, thus the Service is empty in each fault. A succeeds on its open connections when the readiness of the service recovers, up to 9.26 s after the heal. Each recovery ends before the next fault. One success resets the readiness debounce, the kubelet probe and the retry window of the client of Redis. Thus each fault is the same as the first one. Each client sends a request each 20 ms, thus approximately 3852–5517 requests fail in each fault, and 11556–16551 in the run."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 19.941,
+      "values": [19.941, 20.211, 17.669],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 19.941 s. The counted runs measured 17.669 s to 20.211 s.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 11556,
+          "high": 16551
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        },
+        "each": {
+          "low": 3852,
+          "high": 5517
+        }
+      },
+      "lasts": [115.6806585, 116.0807822, 117.2266021],
+      "failures": [13336, 14014, 13935],
+      "knows": [12.4792192, 11.9067522, 11.6198914, 9.3158543, 11.7541018, 10.2757788, 10.6590247, 11.5782232, 10.5290766],
+      "recovers": [3.7913884, 0.2691266, 3.9275413, 3.6743215, 4.4889662, 4.3449923, 2.4371366, 5.8423756, 5.5648216],
+      "emptied": [19.941, 18.713, 20.434, 20.211, 19.004, 16.704, 17.669, 17.481, 17.211],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [123.3559293, 123.3435244, 123.262597]
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck.flapping",
+      "template": "T07",
+      "name": "iptables, callers learn that a shared dependency flaps: in band (lame duck)",
+      "mode": "iptables",
+      "trigger": "blackhole",
+      "group": "flapping",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12,
+          "high": 26.105
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12 s to 26.105 s after the fault. Redis is black-holed 3 times for 27 s, with a rest of 15 s from each heal to the next fault. The heal comes 0 s–0.5 s after the hold. Each request needs Redis, thus each request fails from each fault until the callers recover. The kubelet and the propagation remove both replicas 12 s–26.105 s after each fault, thus the Service is empty in each fault. On the empty Service, each request waits for its connect, and it fails at the timeout of 2 s. Thus the slow failures go on until the heal. A request that waits for its connect succeeds when an endpoint comes back. Thus the last failure starts up to 2 s before the heal, and up to 11.365 s after it. Each recovery ends before the next fault. One success resets the readiness debounce, the kubelet probe and the retry window of the client of Redis. Thus each fault is the same as the first one. Each client sends a request each 20 ms, thus approximately 3567–5835 requests fail in each fault, and 10701–17505 in the run."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 17.721,
+      "values": [17.552, 17.721, 19.4],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 17.721 s. The counted runs measured 17.552 s to 19.4 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.365
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17505
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5835
+        }
+      },
+      "lasts": [113.5558606, 111.7010929, 113.5675],
+      "failures": [12814, 12274, 12252],
+      "knows": [27.1332891, 27.1551305, 27.1377411, 27.1743793, 27.1317999, 27.0944242, 25.7706773, 27.1160195, 27.1217518],
+      "recovers": [0.5899849, 2.1105232, 1.805831, 0.4987004, 0.4288121, -0.0501036, -1.3560287, 0.192415, 1.9063267],
+      "emptied": [17.552, 19.166, 16.954, 17.721, 19.191, 16.913, 19.4, 19.249, 17.024],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [125.4647057, 125.4809161, 125.3626393]
+    },
+    {
+      "id": "S2.T07.iptables.goaway.flapping",
+      "template": "T07",
+      "name": "iptables, callers learn that a shared dependency flaps: in band on HTTP/2 (GOAWAY)",
+      "mode": "iptables",
+      "trigger": "blackhole",
+      "group": "flapping",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12,
+          "high": 26.105
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12 s to 26.105 s after the fault. Redis is black-holed 3 times for 27 s, with a rest of 15 s from each heal to the next fault. The heal comes 0 s–0.5 s after the hold. Each request needs Redis, thus each request fails from each fault until the callers recover. The kubelet and the propagation remove both replicas 12 s–26.105 s after each fault, thus the Service is empty in each fault. On the empty Service, each request waits for its connect, and it fails at the timeout of 2 s. Thus the slow failures go on until the heal. A request that waits for its connect succeeds when an endpoint comes back. Thus the last failure starts up to 2 s before the heal, and up to 11.225 s after it. Each recovery ends before the next fault. One success resets the readiness debounce, the kubelet probe and the retry window of the client of Redis. Thus each fault is the same as the first one. Each client sends a request each 20 ms, thus approximately 3567–5814 requests fail in each fault, and 10701–17442 in the run."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 18.383,
+      "values": [19.969, 18.383, 16.477],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 18.383 s. The counted runs measured 16.477 s to 19.969 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.225
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17442
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5814
+        }
+      },
+      "lasts": [115.3300237, 113.7157486, 113.9412633],
+      "failures": [13918, 13060, 13516],
+      "knows": [26.2671326, 27.0617147, 26.6984679, 26.7683535, 26.49136, 26.14131, 26.7272014, 26.374366, 26.3509916],
+      "recovers": [2.1971163, 6.0429945, 3.6284056, 1.6582986, 2.4094805, 2.0661901, 4.6915589, 2.2850204, 2.2633542],
+      "emptied": [19.969, 18.473, 21.386, 18.383, 16.89, 19.823, 16.477, 20.033, 17.962],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [125.2801076, 125.2141164, 125.2691405]
+    },
+    {
+      "id": "S2.T07.iptables.session-check.flapping",
+      "template": "T07",
+      "name": "iptables, callers learn that a shared dependency flaps: in band on HTTP/2 with a session check",
+      "mode": "iptables",
+      "trigger": "blackhole",
+      "group": "flapping",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12,
+          "high": 26.105
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12 s to 26.105 s after the fault. Redis is black-holed 3 times for 27 s, with a rest of 15 s from each heal to the next fault. The heal comes 0 s–0.5 s after the hold. Each request needs Redis, thus each request fails from each fault until the callers recover. The kubelet and the propagation remove both replicas 12 s–26.105 s after each fault, thus the Service is empty in each fault. On the empty Service, each request waits for its connect, and it fails at the timeout of 2 s. Thus the slow failures go on until the heal. A request that waits for its connect succeeds when an endpoint comes back. Thus the last failure starts up to 2 s before the heal, and up to 11.225 s after it. Each recovery ends before the next fault. One success resets the readiness debounce, the kubelet probe and the retry window of the client of Redis. Thus each fault is the same as the first one. Each client sends a request each 20 ms, thus approximately 3567–5814 requests fail in each fault, and 10701–17442 in the run."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 20.211,
+      "values": [17.907, 20.294, 20.211],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 20.211 s. The counted runs measured 17.907 s to 20.294 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.225
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17442
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5814
+        }
+      },
+      "lasts": [114.2615891, 116.5564211, 116.6248811],
+      "failures": [14582, 13866, 13854],
+      "knows": [27.0587176, 26.8342271, 26.703258, 26.6084955, 26.3058383, 26.9823581, 26.5152969, 26.1257355, 27.0810201],
+      "recovers": [6.9977523, 6.7930388, 2.5950993, 3.5418597, 3.2465959, 4.8924085, 3.4632165, 3.0665697, 4.9767729],
+      "emptied": [17.907, 15.641, 19.381, 20.294, 20.015, 17.585, 20.211, 17.958, 17.692],
+      "pings": [123, 135, 122],
+      "acks": [123, 134, 122],
+      "seconds": [125.2635683, 125.2306169, 125.2314974]
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints.flapping",
+      "template": "T07",
+      "name": "ipvs, callers learn that a shared dependency flaps: endpoints only",
+      "mode": "ipvs",
+      "trigger": "blackhole",
+      "group": "flapping",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12.073,
+          "high": 26.309
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12.073 s to 26.309 s after the fault. Redis is black-holed 3 times for 27 s, with a rest of 15 s from each heal to the next fault. The heal comes 0 s–0.5 s after the hold. Each request needs Redis, thus each request fails from each fault until the callers recover. Each connection of A stays open on its replica, thus it gets the 503 of the service at the trip of the latch, and no refusal. The kubelet and the propagation remove both replicas 12.073 s–26.309 s after each fault, thus the Service is empty in each fault. A succeeds on its open connections when the readiness of the service recovers, up to 9.26 s after the heal. Each recovery ends before the next fault. One success resets the readiness debounce, the kubelet probe and the retry window of the client of Redis. Thus each fault is the same as the first one. Each client sends a request each 20 ms, thus approximately 3852–5517 requests fail in each fault, and 11556–16551 in the run."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 20.767,
+      "values": [18.831, 21.284, 20.767],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 20.767 s. The counted runs measured 18.831 s to 21.284 s.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 11556,
+          "high": 16551
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        },
+        "each": {
+          "low": 3852,
+          "high": 5517
+        }
+      },
+      "lasts": [116.2078897, 115.1731227, 116.3093394],
+      "failures": [13434, 13433, 14191],
+      "knows": [11.5170346, 11.3767139, 10.7930598, 13.8251818, 9.7681506, 11.2044937, 13.7360085, 11.1900925, 11.5286525],
+      "recovers": [3.6180459, 0.4146647, 4.5989524, 0.8658247, 4.2142706, 3.513575, 5.2996376, 3.6811332, 4.7380419],
+      "emptied": [18.831, 18.555, 20.322, 21.284, 17.043, 20.763, 20.767, 18.205, 20.306],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [123.1864466, 123.2408509, 123.1361142]
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck.flapping",
+      "template": "T07",
+      "name": "ipvs, callers learn that a shared dependency flaps: in band (lame duck)",
+      "mode": "ipvs",
+      "trigger": "blackhole",
+      "group": "flapping",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12.073,
+          "high": 26.309
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12.073 s to 26.309 s after the fault. Redis is black-holed 3 times for 27 s, with a rest of 15 s from each heal to the next fault. The heal comes 0 s–0.5 s after the hold. Each request needs Redis, thus each request fails from each fault until the callers recover. The kubelet and the propagation remove both replicas 12.073 s–26.309 s after each fault, thus the Service is empty in each fault. On the empty Service, each request waits for its connect, and it fails at the timeout of 2 s. Thus the slow failures go on until the heal. A request that waits for its connect succeeds when an endpoint comes back. Thus the last failure starts up to 2 s before the heal, and up to 11.569 s after it. Each recovery ends before the next fault. One success resets the readiness debounce, the kubelet probe and the retry window of the client of Redis. Thus each fault is the same as the first one. Each client sends a request each 20 ms, thus approximately 3567–5865 requests fail in each fault, and 10701–17595 in the run."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 19.422,
+      "values": [19.422, 17.563, 21.636],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 19.422 s. The counted runs measured 17.563 s to 21.636 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.569
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17595
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5865
+        }
+      },
+      "lasts": [113.6240958, 113.7806675, 114.0313933],
+      "failures": [12843, 13204, 12956],
+      "knows": [27.1207056, 27.1320138, 27.1180035, 27.156098, 27.1182337, 27.1058387, 27.1095239, 27.1009727, 27.1063904],
+      "recovers": [2.4887687, 0.2463313, 1.9956929, 2.7722545, 2.3496209, 2.1112614, 0.6758762, 2.4309469, 2.4612845],
+      "emptied": [19.422, 17.177, 18.921, 17.563, 21.253, 19.014, 21.636, 19.338, 19.179],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [125.5097649, 125.5450003, 125.4229529]
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.flapping",
+      "template": "T07",
+      "name": "ipvs, callers learn that a shared dependency flaps: in band on HTTP/2 (GOAWAY)",
+      "mode": "ipvs",
+      "trigger": "blackhole",
+      "group": "flapping",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12.073,
+          "high": 26.309
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12.073 s to 26.309 s after the fault. Redis is black-holed 3 times for 27 s, with a rest of 15 s from each heal to the next fault. The heal comes 0 s–0.5 s after the hold. Each request needs Redis, thus each request fails from each fault until the callers recover. The kubelet and the propagation remove both replicas 12.073 s–26.309 s after each fault, thus the Service is empty in each fault. On the empty Service, each request waits for its connect, and it fails at the timeout of 2 s. Thus the slow failures go on until the heal. A request that waits for its connect succeeds when an endpoint comes back. Thus the last failure starts up to 2 s before the heal, and up to 11.429 s after it. Each recovery ends before the next fault. One success resets the readiness debounce, the kubelet probe and the retry window of the client of Redis. Thus each fault is the same as the first one. Each client sends a request each 20 ms, thus approximately 3567–5844 requests fail in each fault, and 10701–17532 in the run."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 18.852,
+      "values": [18.485, 18.852, 19.82],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 18.852 s. The counted runs measured 18.485 s to 19.82 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.429
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17532
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5844
+        }
+      },
+      "lasts": [114.0012272, 114.2094138, 117.2047386],
+      "failures": [13031, 13443, 13843],
+      "knows": [26.9276103, 26.7888561, 26.468558, 26.2442506, 26.9355904, 26.7029312, 26.1553935, 26.7083752, 26.5936784],
+      "recovers": [0.8026574, 2.7198766, 2.3990732, 1.1546726, 4.9319767, 2.6332194, 2.0973479, 3.6730333, 5.6051937],
+      "emptied": [18.485, 14.261, 16.012, 18.852, 20.565, 20.342, 19.82, 21.386, 19.206],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [125.3480715, 125.3035974, 125.3216334]
+    },
+    {
+      "id": "S2.T07.ipvs.session-check.flapping",
+      "template": "T07",
+      "name": "ipvs, callers learn that a shared dependency flaps: in band on HTTP/2 with a session check",
+      "mode": "ipvs",
+      "trigger": "blackhole",
+      "group": "flapping",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12.073,
+          "high": 26.309
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12.073 s to 26.309 s after the fault. Redis is black-holed 3 times for 27 s, with a rest of 15 s from each heal to the next fault. The heal comes 0 s–0.5 s after the hold. Each request needs Redis, thus each request fails from each fault until the callers recover. The kubelet and the propagation remove both replicas 12.073 s–26.309 s after each fault, thus the Service is empty in each fault. On the empty Service, each request waits for its connect, and it fails at the timeout of 2 s. Thus the slow failures go on until the heal. A request that waits for its connect succeeds when an endpoint comes back. Thus the last failure starts up to 2 s before the heal, and up to 11.429 s after it. Each recovery ends before the next fault. One success resets the readiness debounce, the kubelet probe and the retry window of the client of Redis. Thus each fault is the same as the first one. Each client sends a request each 20 ms, thus approximately 3567–5844 requests fail in each fault, and 10701–17532 in the run."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 18.778,
+      "values": [18.73, 21.13, 18.778],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 18.778 s. The counted runs measured 18.73 s to 21.13 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.429
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17532
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5844
+        }
+      },
+      "lasts": [115.0718555, 117.5728457, 115.1535397],
+      "failures": [14144, 14644, 13867],
+      "knows": [26.1006987, 26.8416524, 25.5564775, 26.4695425, 26.2782619, 27.0937624, 26.1692072, 27.0040194, 26.5918721],
+      "recovers": [4.0522201, 5.7839933, 3.5237173, 6.4708875, 4.2391389, 6.0180497, 4.1257453, 3.9021268, 3.5974772],
+      "emptied": [18.73, 18.462, 20.25, 21.13, 18.918, 18.698, 18.778, 16.575, 20.278],
+      "pings": [131, 138, 124],
+      "acks": [131, 138, 124],
+      "seconds": [125.2689939, 125.2824691, 125.2853289]
+    },
+    {
+      "id": "S2.T07.nftables.endpoints.flapping",
+      "template": "T07",
+      "name": "nftables, callers learn that a shared dependency flaps: endpoints only",
+      "mode": "nftables",
+      "trigger": "blackhole",
+      "group": "flapping",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12,
+          "high": 26.079
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12 s to 26.079 s after the fault. Redis is black-holed 3 times for 27 s, with a rest of 15 s from each heal to the next fault. The heal comes 0 s–0.5 s after the hold. Each request needs Redis, thus each request fails from each fault until the callers recover. Each connection of A stays open on its replica, thus it gets the 503 of the service at the trip of the latch, and no refusal. The kubelet and the propagation remove both replicas 12 s–26.079 s after each fault, thus the Service is empty in each fault. A succeeds on its open connections when the readiness of the service recovers, up to 9.26 s after the heal. Each recovery ends before the next fault. One success resets the readiness debounce, the kubelet probe and the retry window of the client of Redis. Thus each fault is the same as the first one. Each client sends a request each 20 ms, thus approximately 3852–5517 requests fail in each fault, and 11556–16551 in the run."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 18.262,
+      "values": [17.24, 18.948, 18.262],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 18.262 s. The counted runs measured 17.24 s to 18.948 s.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 11556,
+          "high": 16551
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        },
+        "each": {
+          "low": 3852,
+          "high": 5517
+        }
+      },
+      "lasts": [115.5373485, 118.0920865, 117.3773228],
+      "failures": [13894, 14213, 14290],
+      "knows": [10.8990946, 9.5986717, 11.15495, 10.6876425, 11.1734962, 12.8145059, 12.0828979, 10.0288055, 12.2330469],
+      "recovers": [5.9054678, 2.3276311, 3.4979056, 3.5101303, 4.3206993, 6.0848033, 5.7690782, 3.4343728, 5.417833],
+      "emptied": [17.24, 18.806, 18.477, 18.948, 18.651, 20.189, 18.262, 15.869, 19.391],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [123.7432475, 123.7508434, 123.6562404]
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck.flapping",
+      "template": "T07",
+      "name": "nftables, callers learn that a shared dependency flaps: in band (lame duck)",
+      "mode": "nftables",
+      "trigger": "blackhole",
+      "group": "flapping",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12,
+          "high": 26.079
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12 s to 26.079 s after the fault. Redis is black-holed 3 times for 27 s, with a rest of 15 s from each heal to the next fault. The heal comes 0 s–0.5 s after the hold. Each request needs Redis, thus each request fails from each fault until the callers recover. The kubelet and the propagation remove both replicas 12 s–26.079 s after each fault, thus the Service is empty in each fault. On the empty Service, each request waits for its connect, and it fails at the timeout of 2 s. Thus the slow failures go on until the heal. A request that waits for its connect succeeds when an endpoint comes back. Thus the last failure starts up to 2 s before the heal, and up to 11.339 s after it. Each recovery ends before the next fault. One success resets the readiness debounce, the kubelet probe and the retry window of the client of Redis. Thus each fault is the same as the first one. Each client sends a request each 20 ms, thus approximately 3567–5829 requests fail in each fault, and 10701–17487 in the run."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 18.156,
+      "values": [18.464, 18.156, 16.392],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 18.156 s. The counted runs measured 16.392 s to 18.464 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.339
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17487
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5829
+        }
+      },
+      "lasts": [114.6431491, 114.5042261, 114.4331964],
+      "failures": [13207, 13675, 12823],
+      "knows": [27.2049728, 27.1835838, 27.1573808, 27.1858529, 27.1616885, 27.1710642, 27.1783433, 27.1978764, 27.1733323],
+      "recovers": [3.4392401, 1.0071373, 2.670114, 3.3025054, 4.7623503, 2.5312604, 1.2295341, 1.1327306, 2.4769972],
+      "emptied": [18.464, 20.019, 19.66, 18.156, 17.748, 19.354, 16.392, 19.998, 17.619],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [125.7734684, 125.7448926, 125.7883368]
+    },
+    {
+      "id": "S2.T07.nftables.goaway.flapping",
+      "template": "T07",
+      "name": "nftables, callers learn that a shared dependency flaps: in band on HTTP/2 (GOAWAY)",
+      "mode": "nftables",
+      "trigger": "blackhole",
+      "group": "flapping",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12,
+          "high": 26.079
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12 s to 26.079 s after the fault. Redis is black-holed 3 times for 27 s, with a rest of 15 s from each heal to the next fault. The heal comes 0 s–0.5 s after the hold. Each request needs Redis, thus each request fails from each fault until the callers recover. The kubelet and the propagation remove both replicas 12 s–26.079 s after each fault, thus the Service is empty in each fault. On the empty Service, each request waits for its connect, and it fails at the timeout of 2 s. Thus the slow failures go on until the heal. A request that waits for its connect succeeds when an endpoint comes back. Thus the last failure starts up to 2 s before the heal, and up to 11.199 s after it. Each recovery ends before the next fault. One success resets the readiness debounce, the kubelet probe and the retry window of the client of Redis. Thus each fault is the same as the first one. Each client sends a request each 20 ms, thus approximately 3567–5808 requests fail in each fault, and 10701–17424 in the run."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 19.853,
+      "values": [19.853, 19.832, 19.857],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 19.853 s. The counted runs measured 19.832 s to 19.857 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.199
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17424
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5808
+        }
+      },
+      "lasts": [115.3539689, 115.2046693, 119.1991406],
+      "failures": [14102, 13769, 14373],
+      "knows": [27.1734088, 26.8582585, 26.533215, 27.1584543, 26.8285261, 26.3914476, 27.1916663, 26.8283772, 26.2216654],
+      "recovers": [4.0833605, 5.7829937, 3.4370158, 4.0498242, 3.7338472, 3.285021, 4.0686394, 3.7166597, 7.2116128],
+      "emptied": [19.853, 19.486, 17.119, 19.832, 17.479, 19.099, 19.857, 17.446, 18.862],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [125.6134778, 125.5732724, 125.671724]
+    },
+    {
+      "id": "S2.T07.nftables.session-check.flapping",
+      "template": "T07",
+      "name": "nftables, callers learn that a shared dependency flaps: in band on HTTP/2 with a session check",
+      "mode": "nftables",
+      "trigger": "blackhole",
+      "group": "flapping",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12,
+          "high": 26.079
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12 s to 26.079 s after the fault. Redis is black-holed 3 times for 27 s, with a rest of 15 s from each heal to the next fault. The heal comes 0 s–0.5 s after the hold. Each request needs Redis, thus each request fails from each fault until the callers recover. The kubelet and the propagation remove both replicas 12 s–26.079 s after each fault, thus the Service is empty in each fault. On the empty Service, each request waits for its connect, and it fails at the timeout of 2 s. Thus the slow failures go on until the heal. A request that waits for its connect succeeds when an endpoint comes back. Thus the last failure starts up to 2 s before the heal, and up to 11.199 s after it. Each recovery ends before the next fault. One success resets the readiness debounce, the kubelet probe and the retry window of the client of Redis. Thus each fault is the same as the first one. Each client sends a request each 20 ms, thus approximately 3567–5808 requests fail in each fault, and 10701–17424 in the run."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 17.058,
+      "values": [17.058, 20.942, 16.59],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 17.058 s. The counted runs measured 16.59 s to 20.942 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.199
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17424
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5808
+        }
+      },
+      "lasts": [115.4580782, 117.3633206, 117.0435533],
+      "failures": [13880, 13805, 13357],
+      "knows": [26.3630916, 27.0929553, 26.6456519, 26.220935, 26.9100269, 26.5290335, 27.0068926, 26.5032995, 26.1695839],
+      "recovers": [4.2402641, 3.9228055, 3.5049457, 2.0904092, 3.7932295, 5.4082219, 1.8264136, 1.322464, 5.0919126],
+      "emptied": [17.058, 16.682, 18.288, 20.942, 18.542, 16.194, 16.59, 20.193, 17.835],
+      "pings": [112, 123, 126],
+      "acks": [112, 123, 126],
+      "seconds": [125.6228687, 125.6240381, 125.6575316]
+    }
+  ],
+  "predictions": [
+    {
+      "id": "S2.T07.iptables.endpoints.flapping",
+      "mode": "iptables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 11556,
+          "high": 16551
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        },
+        "each": {
+          "low": 3852,
+          "high": 5517
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck.flapping",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.365
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17505
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5835
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.goaway.flapping",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.225
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17442
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5814
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.session-check.flapping",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.225
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17442
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5814
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints.flapping",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 11556,
+          "high": 16551
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        },
+        "each": {
+          "low": 3852,
+          "high": 5517
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck.flapping",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.569
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17595
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5865
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.flapping",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.429
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17532
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5844
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.session-check.flapping",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.429
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17532
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5844
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.endpoints.flapping",
+      "mode": "nftables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 11556,
+          "high": 16551
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        },
+        "each": {
+          "low": 3852,
+          "high": 5517
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck.flapping",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.339
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17487
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5829
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.goaway.flapping",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.199
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17424
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5808
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.session-check.flapping",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.199
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17424
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5808
+        }
+      }
+    }
+  ]
+}

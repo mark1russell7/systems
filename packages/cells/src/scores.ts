@@ -79,9 +79,9 @@ export const INCIDENTS: readonly Incident[] = [
   "a stalled pod (gray failure)",
   "a failed prober",
   "a black-holed shared dependency",
+  "a flapping dependency",
   "a lost zone",
   "a slow dependency (gray failure)",
-  "a flapping dependency",
 ];
 
 /** This record is the evidence of a score: the CI run, the cell, and the verdict of the judge on its counted runs. */
