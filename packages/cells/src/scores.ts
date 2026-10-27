@@ -2,7 +2,7 @@ import type { Band, KubeProxyMode, Reference, TriggerKind } from "@mark1russell7
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { CallerFault, Candidate } from "./callers.ts";
-import { CALLERS_CELLS, CALLERS_MODES, CALLER_FAULTS, CANDIDATES, CANNOT_SERVE_HOLD, DEPENDENCY_HOLD, PARTITION_HOLD, STALL_HOLD, callerFaultOf, dependencyOf, expectedFailures } from "./callers.ts";
+import { CALLERS_CELLS, CALLERS_MODES, CALLER_FAULTS, CANDIDATES, CANNOT_SERVE_HOLD, DEPENDENCY_HOLD, PARTITION_HOLD, STALL_HOLD, callerFaultOf, dependencyOf, expectedFailures, pingsOf } from "./callers.ts";
 
 /**
  * The scores of the S6 candidates of health and routing, for the dimension "how callers learn". A
@@ -17,6 +17,10 @@ import { CALLERS_CELLS, CALLERS_MODES, CALLER_FAULTS, CANDIDATES, CANNOT_SERVE_H
  * each replica).
  * Each one has its own kind run.
  * The other incidents of the design have no cell of the candidates yet, thus each one is "not measured".
+ *
+ * The probe load is the PINGs that the clients add to the readiness probe, which each candidate shares.
+ * A, B and C send no PING by their code (`derived`). The PINGs of D come from a later kind run, whose
+ * clients count each PING.
  */
 
 /** These are the criteria of the design of S6, in its sequence. */
@@ -83,6 +87,7 @@ export interface Window {
  *   counted value is in the band of the prediction. A time has `from`: its values and its band come after that event.
  * - `bounded`: the judge checked each counted run against the prediction, but the copy keeps no
  *   value of its own. `holds` is the verdict of the judge.
+ * - `derived`: the code of the candidate gives the value with no run, and `why` gives the reason.
  * - `not measured`: the data cannot support the criterion, and `why` gives the reason.
  */
 export type Score =
@@ -104,6 +109,7 @@ export type Score =
       readonly evidence: Evidence;
       readonly why: string;
     }
+  | { readonly criterion: Criterion; readonly kind: "derived"; readonly value: Quantity; readonly why: string }
   | { readonly criterion: Criterion; readonly kind: "not measured"; readonly why: string };
 
 /** These are the scores of one candidate in one mode, one for each criterion in the sequence of `CRITERIA`. */
@@ -149,6 +155,10 @@ export interface Scorecard {
  * - `knows`: from the fault to the start of the last slow failure before the heal. A slow failure
  *   took half the timeout of the client at the least. After it, each failure is fast.
  * - `recovers`: from the heal to the start of the last failed request.
+ *
+ * A copy of a run whose clients count each PING also has `pings` and `acks`. They are the PINGs of the
+ * session checks of the clients in each counted run, and the ACKs of those PINGs. A run with no
+ * line of the count gives null. `seconds` is the length of each counted run.
  */
 export interface CallerResult {
   readonly id: string;
@@ -160,6 +170,9 @@ export interface CallerResult {
   readonly failures?: readonly number[];
   readonly knows?: readonly (number | null)[];
   readonly recovers?: readonly (number | null)[];
+  readonly pings?: readonly (number | null)[];
+  readonly acks?: readonly (number | null)[];
+  readonly seconds?: readonly number[];
 }
 
 /** This run is the copy of one kind run of the S2 cells: the id of the CI run and the result of each cell. */
@@ -187,29 +200,24 @@ const NOT_MEASURED: Readonly<Record<CallerFault, Partial<Record<Criterion, strin
   "cannot serve": {
     "false removals on a blip": "T07 has no blip: the replica cannot serve for the whole hold of 30 s. No cell gives a short fault to the candidates yet.",
     "time to recover": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the heal.",
-    "probe load": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe.",
     "routes down": "T07 has one route, and the flag fails it only on the target. The cell does not count the routes.",
   },
   partition: {
     "false removals on a blip": `The partition holds for ${valueIn(PARTITION_HOLD, "s")} s, and no candidate removes the replica: its readiness stays. No cell gives a short fault yet.`,
     "time to recover": "The cell counts the failed requests. It does not measure when the clients use the replica again after the heal.",
-    "probe load": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe.",
     "routes down": "The partition stops each route of the target for the clients. The cell does not count the routes.",
   },
   stall: {
     "false removals on a blip": `The stall holds for ${valueIn(STALL_HOLD, "s")} s, and the readiness probe removes the replica in it: a true removal. No cell gives a short stall yet.`,
     "time to recover": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the stall.",
-    "probe load": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe.",
     "routes down": "The stall stops each route of the target, because its event loop is blocked. The cell does not count the routes.",
   },
   "false failure": {
     "time to recover": "The cell measures the false removal and the failed requests. It does not measure when the replica comes back into the endpoints after the heal.",
-    "probe load": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe.",
     "routes down": "The route of the target serves for the whole hold. Only the refusals of the service fail requests. The cell does not count the routes.",
   },
   "shared dependency": {
     "false removals on a blip": `The black hole holds for ${valueIn(DEPENDENCY_HOLD, "s")} s, and the readiness of each replica follows Redis: no replica can serve. No cell gives a short fault yet.`,
-    "probe load": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe.",
   },
 };
 
@@ -285,8 +293,37 @@ const middle = (sorted: readonly number[]): number => {
   return sorted.length % 2 === 1 ? sorted[half]! : (sorted[half - 1]! + sorted[half]!) / 2;
 };
 
-/** This function gives the score of one criterion of a candidate whose cell has a result in the copy. */
-const scoreOf = (criterion: Criterion, candidate: Candidate, mode: KubeProxyMode, fault: CallerFault, result: CallerResult, run: number): Score => {
+/** This text is the part of the probe load that each candidate shares. */
+const SHARED_PROBE = "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service";
+
+/**
+ * This function gives the probe load of a candidate: the PINGs that its clients add. A, B and C send
+ * no PING by their code. D gets the count of the first copy whose clients count each PING (`load`).
+ */
+const loadOf = (candidate: Candidate, mode: KubeProxyMode, fault: CallerFault, id: string, load: CallerRun | undefined): Score => {
+  const criterion = "probe load";
+  const predicted = pingsOf(mode, candidate, fault);
+  if (candidate !== "in band on HTTP/2 with a session check") return { criterion, kind: "derived", value: predicted.lo, why: `${predicted.why}. ${SHARED_PROBE}.` };
+  const result = load?.cells.find((each) => each.id === id);
+  if (load === undefined || result === undefined) return { criterion, kind: "not measured", why: `No copy of a kind run counts the PINGs of the clients of this cell yet. ${SHARED_PROBE}.` };
+  const values = (result.pings ?? []).flatMap((each) => (each === null ? [] : [each])).sort((a, b) => a - b);
+  if (values.length === 0) return { criterion, kind: "not measured", why: `The copy of the run ${load.run} has no count of the PINGs of this cell.` };
+  const [lo, hi] = [valueIn(predicted.lo, "{ping}"), valueIn(predicted.hi, "{ping}")];
+  const count = (value: number): Quantity => ({ value, unit: "{ping}" });
+  return {
+    criterion,
+    kind: "measured",
+    median: count(middle(values)),
+    values: values.map(count),
+    prediction: { lo: predicted.lo, hi: predicted.hi },
+    holds: values.length === result.counted && values.every((value) => value >= lo && value <= hi),
+    evidence: { run: load.run, cell: result.id, decision: result.decision, counted: result.counted },
+  };
+};
+
+/** This function gives the score of one criterion of a candidate whose cell has a result in the copy. The probe load comes from `loadOf`. */
+const scoreOf = (criterion: Criterion, candidate: Candidate, mode: KubeProxyMode, fault: CallerFault, result: CallerResult, run: number, load: CallerRun | undefined): Score => {
+  if (criterion === "probe load") return loadOf(candidate, mode, fault, result.id, load);
   const evidence: Evidence = { run, cell: result.id, decision: result.decision, counted: result.counted };
   const seconds = (value: number): Quantity => ({ value, unit: "s" });
   if (criterion === "failed requests") {
@@ -389,7 +426,8 @@ const fewestOf = (candidates: readonly CandidateScores[]): string | null => {
 /**
  * This function gives the scores of each candidate in each mode for an incident, from the copies of
  * its kind runs. Each cell gets its result from the first copy that has one, and that run is its
- * evidence. Thus a later run can add a candidate, and the scores of the earlier cells stay.
+ * evidence. Thus a later run can add a candidate, and the scores of the earlier cells stay. The
+ * probe load comes from the first copy that counts the PINGs of the cell.
  */
 const modesOf = (fault: CallerFault, copies: readonly [CallerRun, ...CallerRun[]]): readonly ModeScores[] =>
   CALLERS_MODES.map((mode): ModeScores => {
@@ -398,8 +436,10 @@ const modesOf = (fault: CallerFault, copies: readonly [CallerRun, ...CallerRun[]
       if (cell === undefined) throw new Error(`${mode}, ${candidate}: no S2 cell of the catalog for ${fault}`);
       const copy = copies.find((each) => each.cells.some((result) => result.id === cell.id)) ?? copies[0];
       const result = copy.cells.find((each) => each.id === cell.id);
+      // the first copy whose clients counted the PINGs of this cell
+      const load = copies.find((each) => each.cells.some((one) => one.id === cell.id && one.pings !== undefined));
       const scores = CRITERIA.map((criterion): Score =>
-        result === undefined ? { criterion, kind: "not measured", why: `The copy of the run ${copy.run} has no result of this cell.` } : scoreOf(criterion, candidate, mode, fault, result, copy.run),
+        result === undefined ? { criterion, kind: "not measured", why: `The copy of the run ${copy.run} has no result of this cell.` } : scoreOf(criterion, candidate, mode, fault, result, copy.run, load),
       );
       return { candidate, label: LABELS[at] ?? "", cell: cell.id, scores };
     });

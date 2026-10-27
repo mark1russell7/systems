@@ -1,0 +1,654 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-10-27",
+  "units": "s",
+  "runs": 3,
+  "kernel": "6.17.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.iptables.session-check.dependency",
+      "template": "T07",
+      "name": "iptables, callers learn that a shared dependency is black-holed: in band on HTTP/2 with a session check",
+      "mode": "iptables",
+      "trigger": "blackhole",
+      "group": "dependency",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12,
+          "high": 26.105
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12 s to 26.105 s after the fault. Redis is black-holed for each replica for the hold (27 s). Each request needs Redis, thus each request fails from the fault until the callers recover. Before the readiness latch of a replica trips (8 s–20 s), each request on it waits for Redis and fails slowly. Then its controller is not ready, and the service refuses each request at once with a 503. The kubelet and the propagation (CAL.T07.iptables: median 0.059 s, 33 times) remove both replicas 12 s–26.105 s after the fault. Then the Service is empty, and its rules refuse each new connection. The lame duck closes each connection after the trip with a GOAWAY on its session, thus each next request opens a new connection, and the empty Service refuses it. After the heal, the client of Redis connects again in 3.1 s at the most, and the readiness of the service recovers up to 6 s later. The kubelet then finds a replica ready in 2 s at the most, and the propagation adds it to the rules. Each client sends a request each 20 ms, thus about 3954–6039 requests fail. A stream timeout before the trip closes its session, and the next stream opens a new one. Thus D is the same as C."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 18.681,
+      "values": [21.937, 18.681, 15.838],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 18.681 s. The counted runs measured 15.838 s to 21.937 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.225
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6039
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      },
+      "lasts": [30.2521529, 31.0806188, 30.2375212],
+      "failures": [4515, 4632, 4505],
+      "knows": [26.1940056, 27.0208272, 26.23258],
+      "recovers": [3.0849697, 3.8905822, 3.0701104],
+      "pings": [51, 44, 33],
+      "acks": [51, 43, 33],
+      "seconds": [40.8179529, 40.8255027, 40.8574184]
+    },
+    {
+      "id": "S2.T07.ipvs.session-check.dependency",
+      "template": "T07",
+      "name": "ipvs, callers learn that a shared dependency is black-holed: in band on HTTP/2 with a session check",
+      "mode": "ipvs",
+      "trigger": "blackhole",
+      "group": "dependency",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12.073,
+          "high": 26.309
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12.073 s to 26.309 s after the fault. Redis is black-holed for each replica for the hold (27 s). Each request needs Redis, thus each request fails from the fault until the callers recover. Before the readiness latch of a replica trips (8 s–20 s), each request on it waits for Redis and fails slowly. Then its controller is not ready, and the service refuses each request at once with a 503. The kubelet and the propagation (CAL.T07.ipvs: median 0.192 s, 33 times) remove both replicas 12.073 s–26.309 s after the fault. Then the Service is empty, and its rules refuse each new connection. The lame duck closes each connection after the trip with a GOAWAY on its session, thus each next request opens a new connection, and the empty Service refuses it. After the heal, the client of Redis connects again in 3.1 s at the most, and the readiness of the service recovers up to 6 s later. The kubelet then finds a replica ready in 2 s at the most, and the propagation adds it to the rules. Each client sends a request each 20 ms, thus about 3954–6069 requests fail. A stream timeout before the trip closes its session, and the next stream opens a new one. Thus D is the same as C."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 19.923,
+      "values": [15.027, 20.648, 19.923],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 19.923 s. The counted runs measured 15.027 s to 20.648 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.429
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6069
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      },
+      "lasts": [31.8000784, 31.1522191, 32.436522],
+      "failures": [4742, 4647, 4832],
+      "knows": [26.7662999, 27.0922198, 26.3247529],
+      "recovers": [4.6495888, 3.9979757, 5.2762403],
+      "pings": [33, 45, 47],
+      "acks": [33, 45, 45],
+      "seconds": [41.0115095, 41.0106973, 40.9854913]
+    },
+    {
+      "id": "S2.T07.nftables.session-check.dependency",
+      "template": "T07",
+      "name": "nftables, callers learn that a shared dependency is black-holed: in band on HTTP/2 with a session check",
+      "mode": "nftables",
+      "trigger": "blackhole",
+      "group": "dependency",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12,
+          "high": 26.079
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12 s to 26.079 s after the fault. Redis is black-holed for each replica for the hold (27 s). Each request needs Redis, thus each request fails from the fault until the callers recover. Before the readiness latch of a replica trips (8 s–20 s), each request on it waits for Redis and fails slowly. Then its controller is not ready, and the service refuses each request at once with a 503. The kubelet and the propagation (CAL.T07.nftables: median 0.045 s, 33 times) remove both replicas 12 s–26.079 s after the fault. Then the Service is empty, and its rules refuse each new connection. The lame duck closes each connection after the trip with a GOAWAY on its session, thus each next request opens a new connection, and the empty Service refuses it. After the heal, the client of Redis connects again in 3.1 s at the most, and the readiness of the service recovers up to 6 s later. The kubelet then finds a replica ready in 2 s at the most, and the propagation adds it to the rules. Each client sends a request each 20 ms, thus about 3954–6033 requests fail. A stream timeout before the trip closes its session, and the next stream opens a new one. Thus D is the same as C."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 19.707,
+      "values": [16.791, 19.707, 20.916],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 19.707 s. The counted runs measured 16.791 s to 20.916 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.199
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6033
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      },
+      "lasts": [31.1566543, 29.9784804, 31.2584705],
+      "failures": [4636, 4469, 4664],
+      "knows": [27.1041721, 26.9409252, 26.1760621],
+      "recovers": [4.0155975, 2.8315755, 4.1325216],
+      "pings": [33, 45, 51],
+      "acks": [33, 45, 51],
+      "seconds": [40.6956667, 40.7253078, 40.6680697]
+    }
+  ],
+  "predictions": [
+    {
+      "id": "S2.T07.iptables.endpoints.dependency",
+      "mode": "iptables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 3954,
+          "high": 5742
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck.dependency",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.365
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6060
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.goaway.dependency",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.225
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6039
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.session-check.dependency",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.225
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6039
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints.dependency",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 3954,
+          "high": 5742
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck.dependency",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.569
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6090
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.dependency",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.429
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6069
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.session-check.dependency",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.429
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6069
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.endpoints.dependency",
+      "mode": "nftables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 3954,
+          "high": 5742
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck.dependency",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.339
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6054
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.goaway.dependency",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.199
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6033
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.session-check.dependency",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.199
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6033
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    }
+  ]
+}

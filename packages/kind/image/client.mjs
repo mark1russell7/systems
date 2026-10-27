@@ -6,6 +6,7 @@
 // unreachable, or another error) and its local port (`lp`). With PROTOCOL h2c, each connection is a
 // session of HTTP/2, and each request is a stream on the next session in turn. With SESSION_CHECK,
 // each session has the session check of the service: a stream timeout or a PING with no ACK closes it.
+// Each second, one line counts the PINGs of the checks and their ACKs (`pings`).
 import http from "node:http";
 import http2 from "node:http2";
 import net from "node:net";
@@ -32,7 +33,8 @@ let turn = 0;
 // each slot of HTTP/2 holds one session on its own socket, thus the client knows its local port. A
 // GOAWAY, a close or an error of the session makes the slot open a new session at its next stream.
 // kube-proxy picks a backend for that new connection. The old session ends the streams that it has.
-// The check of a session hears each frame of the peer: its SETTINGS, its PINGs, and each response
+// The check of a session hears each frame of the peer: its SETTINGS, its PINGs, and each response.
+// It sends each PING through `counted`, thus the client counts each PING and each ACK
 const sessionOf = () => {
   const socket = net.connect({ host, port: Number(port) });
   const session = http2.connect(`http://${host}:${port}`, { createConnection: () => socket });
@@ -42,7 +44,23 @@ const sessionOf = () => {
     held.check?.stop();
   };
   if (checkKnobs !== null) {
-    held.check = sessionCheck(session, {
+    const counted = {
+      get connecting() {
+        return session.connecting;
+      },
+      ping(callback) {
+        const sent = session.ping((error) => {
+          if (error === null) pings.acked += 1;
+          callback(error);
+        });
+        if (sent) pings.sent += 1;
+        return sent;
+      },
+      destroy(error) {
+        session.destroy(error);
+      },
+    };
+    held.check = sessionCheck(counted, {
       knobs: checkKnobs,
       onClose: (cause) => {
         held.usable = false;
@@ -76,6 +94,15 @@ process.on("SIGHUP", () => {
     for (const held of oldSlots) held.session.destroy();
   }, timeout + 100);
 });
+
+// the PINGs of the session checks of this client. Each second, one line gives the PINGs that the client
+// sent and the ACKs that it got in that second. A client with no check writes zeros, thus each record
+// shows that the client counted
+let pings = { sent: 0, acked: 0 };
+setInterval(() => {
+  say({ ev: "pings", t: now(), sent: pings.sent, acked: pings.acked });
+  pings = { sent: 0, acked: 0 };
+}, 1000);
 
 let pending = [];
 const flush = () => {

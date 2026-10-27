@@ -695,6 +695,80 @@ export const dependencyOf = (mode: KubeProxyMode, candidate: Candidate): Depende
   return { expected, start: { lo: s(0), hi: time(every) }, end, removal: { lo: time(removed.lo), hi: time(removed.hi) }, knows, why };
 };
 
+/** These are the bytes of one PING frame of HTTP/2: a frame header of 9 bytes and 8 bytes of opaque data (RFC 9113, sections 4.1 and 6.7). Its ACK has the same size. */
+export const PING_FRAME: Quantity = { value: 17, unit: "B" };
+
+/**
+ * This band is the count of PINGs that the session checks of the clients send in one counted run, in
+ * `{ping}`. It is the sum over the clients, from the start of the run to its end. `why` gives the reason.
+ */
+export interface PingPrediction {
+  readonly lo: Quantity;
+  readonly hi: Quantity;
+  readonly why: string;
+}
+
+const pings = (value: number): Quantity => ({ value, unit: "{ping}" });
+
+/**
+ * This function gives the prediction of the PINGs of a candidate in an incident. Only the session
+ * check of D sends a PING. Its heartbeat ticks at each `keepalive_time` and sends one PING at a time.
+ * A tick sends a PING only when the session heard no frame since the tick before it and has a stream
+ * in flight. An ACK is not a frame that the check hears. Thus a busy session sends no PING, and a
+ * quiet session sends one PING at each tick at the most.
+ * - A pod that cannot serve, and a failed prober: each replica answers each stream at once. No PING.
+ * - A partition: each session on the target sends one PING with no ACK, and the check closes it. A
+ *   next session on the target does not connect, thus it sends no PING.
+ * - A stall: each session on the target sends one PING with no ACK. A next session connects, and it
+ *   sends one PING at its first tick, because the blocked loop sends no SETTINGS frame.
+ * - A shared dependency: each stream waits for Redis until the latch trips, and the server answers
+ *   each PING. Thus each session sends a PING at each tick with an ACK, until the trip.
+ */
+export const pingsOf = (mode: KubeProxyMode, candidate: Candidate, fault: CallerFault): PingPrediction => {
+  if (candidate !== "in band on HTTP/2 with a session check")
+    return {
+      lo: pings(0),
+      hi: pings(0),
+      why: onHttp2(candidate)
+        ? "C has no session check, and node:http2 sends a PING only when its caller asks for one. Thus the clients of C send no PING"
+        : "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING",
+    };
+  const quiet = valueIn(SESSION_CHECK.keepalive_time, "s");
+  const tick = `The check sends a PING only at a tick of ${say(SESSION_CHECK.keepalive_time)} with no frame since the tick before it, and with a stream in flight`;
+  if (fault === "cannot serve" || fault === "false failure")
+    return { lo: pings(0), hi: pings(0), why: `${tick}. Each replica answers each stream at once, thus each session hears a frame in each tick, and the clients send no PING` };
+  const on = targetConnections(mode, 1);
+  if (fault === "partition")
+    return {
+      lo: pings(on.lo.value),
+      hi: pings(on.hi.value),
+      why: `${tick}. Each session on the target sends one PING, and it gets no ACK, thus the check closes the session. A next session on the target does not connect, thus it sends no PING. ${on.lo.value}–${on.hi.value} of the ${on.of.value} sessions are on the target, thus the clients send ${on.lo.value}–${on.hi.value} PINGs`,
+    };
+  if (fault === "stall") {
+    const picks = SELECTION[mode] === "random" ? negativeBinomial(CLIENTS, 1 - 1 / REPLICAS) : { lo: on.lo.value, hi: on.hi.value };
+    const how =
+      SELECTION[mode] === "random"
+        ? `The picks of the target are negative binomial: ${picks.lo}–${picks.hi} in ${COVER * 100} % of the runs`
+        : `IPVS selects in turn, thus a next session goes to the other replica, and ${picks.lo}–${picks.hi} sessions are on the target`;
+    return {
+      lo: pings(picks.lo),
+      hi: pings(picks.hi),
+      why: `${tick}. Each session on the target sends one PING, and it gets no ACK, thus the check closes the session. A next session on the target connects, but the blocked loop sends no SETTINGS frame, thus it also sends one PING. ${how}`,
+    };
+  }
+  const declaration = dependencyDeclarationOf(candidate);
+  const latch = latchBand(declaration.readiness, declaration.poll, "silent", declaration.redis!.knobs.request_timeout);
+  const workload = workloadOf(candidate);
+  const turn = valueIn(workload.every, "s") * (workload.connections ?? 1);
+  // one PING at each tick of a client from the fault to the trip, and one more for the tick of the session at the fault
+  const each = Math.ceil(Math.round(((valueIn(latch.hi, "s") + turn) / quiet) * 1e6) / 1e6) + 1;
+  return {
+    lo: pings(CLIENTS),
+    hi: pings(CLIENTS * each),
+    why: `${tick}. Each stream waits for Redis until the latch trips (${say(latch.lo)}–${say(latch.hi)}), but the server answers each PING. Thus each session sends a PING at each tick, with an ACK. A stream timeout closes the session, and the first tick of the next session hears its SETTINGS. After the trip, each stream gets a 503 at once, and a session on the empty Service does not connect. The PINGs of a client are one tick apart at the least. Each client sends one PING before the trip at the least, and ${each} at the most`,
+  };
+};
+
 /** These are the incidents of a silent target: the words of the name of each cell, and its trigger. */
 const SILENT: Readonly<Record<Exclude<CallerFault, "cannot serve" | "false failure" | "shared dependency">, { readonly what: string; readonly trigger: KindCell["trigger"]; readonly predict: typeof partitionOf }>> = {
   partition: { what: "a pod is partitioned", trigger: { kind: "blackhole", hold: PARTITION_HOLD, partition: true }, predict: partitionOf },

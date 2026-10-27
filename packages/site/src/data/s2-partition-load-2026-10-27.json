@@ -1,0 +1,486 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-10-27",
+  "units": "s",
+  "runs": 3,
+  "kernel": "6.17.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.iptables.session-check.partition",
+      "template": "T07",
+      "name": "iptables, callers learn that a pod is partitioned: in band on HTTP/2 with a session check",
+      "mode": "iptables",
+      "trigger": "blackhole",
+      "group": "partition",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 11.7 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 173,
+      "values": [348, 122, 173],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 173 failed requests. The counted runs had 122 to 348 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 11.7
+        },
+        "expected": {
+          "low": 0,
+          "high": 534
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      },
+      "lasts": [4.4820466, 2.4322534, 3.4691201],
+      "pings": [3, 1, 1],
+      "acks": [0, 0, 0],
+      "seconds": [30.64243, 30.6256278, 30.6361262]
+    },
+    {
+      "id": "S2.T07.ipvs.session-check.partition",
+      "template": "T07",
+      "name": "ipvs, callers learn that a pod is partitioned: in band on HTTP/2 with a session check",
+      "mode": "ipvs",
+      "trigger": "blackhole",
+      "group": "partition",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 1.5 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 219,
+      "values": [197, 219, 221],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 219 failed requests. The counted runs had 197 to 221 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 1.5
+        },
+        "expected": {
+          "low": 0,
+          "high": 228
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      },
+      "lasts": [1.4698046, 1.4736736, 1.4775575],
+      "pings": [3, 3, 3],
+      "acks": [0, 0, 0],
+      "seconds": [30.5999511, 30.626259, 30.5998369]
+    },
+    {
+      "id": "S2.T07.nftables.session-check.partition",
+      "template": "T07",
+      "name": "nftables, callers learn that a pod is partitioned: in band on HTTP/2 with a session check",
+      "mode": "nftables",
+      "trigger": "blackhole",
+      "group": "partition",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 11.7 s after the fault."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 101,
+      "values": [0, 101, 153],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 101 failed requests. The counted runs had 0 to 153 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 11.7
+        },
+        "expected": {
+          "low": 0,
+          "high": 534
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      },
+      "lasts": [null, 2.0174954, 2.0662703],
+      "pings": [0, 1, 2],
+      "acks": [0, 0, 0],
+      "seconds": [30.4257973, 30.399686, 30.4244175]
+    }
+  ],
+  "predictions": [
+    {
+      "id": "S2.T07.iptables.endpoints.partition",
+      "mode": "iptables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck.partition",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.goaway.partition",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 23.479,
+          "high": 26.988
+        },
+        "expected": {
+          "low": 0,
+          "high": 4048
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.session-check.partition",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 11.7
+        },
+        "expected": {
+          "low": 0,
+          "high": 534
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints.partition",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.64
+        },
+        "expected": {
+          "low": 21,
+          "high": 24
+        },
+        "connections": {
+          "low": 12,
+          "high": 12,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck.partition",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.64
+        },
+        "expected": {
+          "low": 21,
+          "high": 24
+        },
+        "connections": {
+          "low": 12,
+          "high": 12,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.partition",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 23.479,
+          "high": 26.988
+        },
+        "expected": {
+          "low": 0,
+          "high": 4048
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.session-check.partition",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 1.5
+        },
+        "expected": {
+          "low": 0,
+          "high": 228
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.endpoints.partition",
+      "mode": "nftables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck.partition",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.goaway.partition",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 23.479,
+          "high": 26.988
+        },
+        "expected": {
+          "low": 0,
+          "high": 4048
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.session-check.partition",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 11.7
+        },
+        "expected": {
+          "low": 0,
+          "high": 534
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    }
+  ]
+}

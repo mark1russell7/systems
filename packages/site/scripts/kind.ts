@@ -394,6 +394,23 @@ const lastsOf = (runs: readonly KindRun[], verdict: KindVerdict): Array<number |
   });
 };
 
+/**
+ * This function gives the PINGs of the session checks of the clients in each counted run. It also
+ * gives the ACKs and the length of the run in seconds. Each client writes one line of its count each
+ * second (`pings`). A run with no such line gives null, and a record with none gives no field.
+ */
+const pingsOf = (runs: readonly KindRun[]): { pings: Array<number | null>; acks: Array<number | null>; seconds: number[] } | Record<string, never> => {
+  const counted = runs.filter((run) => !run.warmup && run.void === null);
+  const lines = counted.map((run) => (run.lines as readonly Line[]).filter((line) => line.ev === "pings" && line.t >= run.start && line.t <= run.end));
+  if (lines.every((each) => each.length === 0)) return {};
+  const sum = (each: readonly Line[], field: string): number | null => (each.length === 0 ? null : each.reduce((total, line) => total + Number(line[field]), 0));
+  return {
+    pings: lines.map((each) => sum(each, "sent")),
+    acks: lines.map((each) => sum(each, "acked")),
+    seconds: counted.map((run) => round((run.end - run.start) / 1000)),
+  };
+};
+
 const propagation: Record<string, unknown> = {};
 const cells = CATALOG.flatMap((cell) => {
   const entry = found.get(cell.name);
@@ -456,6 +473,8 @@ const cells = CATALOG.flatMap((cell) => {
       ...(copyOf(cell) === "s2-prober" || copyOf(cell) === "s2-dependency" ? { failures: verdict.checks.map((check) => check.facts.failures) } : {}),
       // a shared dependency: when the callers know, and when they recover after the heal
       ...(copyOf(cell) === "s2-dependency" ? dependencyTimesOf(cell, record.runs) : {}),
+      // the PINGs of the clients, when their image counts them
+      ...(copyOf(cell).startsWith("s2") ? pingsOf(record.runs) : {}),
     },
   ];
 });

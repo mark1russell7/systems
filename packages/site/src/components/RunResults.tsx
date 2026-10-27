@@ -633,7 +633,7 @@ export function CallersTable(props: { readonly incident?: "cannot serve" | "part
   );
 }
 
-/** A quantity of the scorecard of S6: a value and its unit, `s` or `{request}`. */
+/** A quantity of the scorecard of S6: a value and its unit, `s`, `{request}` or `{ping}`. */
 interface Amount {
   readonly value: number;
   readonly unit: string;
@@ -642,6 +642,7 @@ interface Amount {
 type ScoreCopy =
   | { readonly criterion: string; readonly kind: "measured"; readonly median: Amount; readonly values: readonly Amount[]; readonly prediction: { readonly lo: Amount; readonly hi: Amount }; readonly from?: string; readonly holds: boolean; readonly evidence: { readonly run: number; readonly cell: string } }
   | { readonly criterion: string; readonly kind: "bounded"; readonly prediction: { readonly from: string; readonly band: { readonly lo: Amount; readonly hi: Amount } }; readonly holds: boolean; readonly evidence: { readonly run: number; readonly cell: string }; readonly why: string }
+  | { readonly criterion: string; readonly kind: "derived"; readonly value: Amount; readonly why: string }
   | { readonly criterion: string; readonly kind: "not measured"; readonly why: string };
 /** The scores of one mode of the scorecard: each candidate, and the label of the candidate with the fewest failed requests. */
 interface ModeCopy {
@@ -674,8 +675,8 @@ const runOfCell = (cell: string): number | null => {
     for (const mode of incident.modes)
       for (const each of mode.candidates) {
         if (each.cell !== cell) continue;
-        const score = each.scores.find((one) => one.kind !== "not measured");
-        if (score !== undefined) return score.evidence.run;
+        const score = each.scores.find((one) => one.kind === "measured" || one.kind === "bounded");
+        if (score?.kind === "measured" || score?.kind === "bounded") return score.evidence.run;
       }
   }
   return null;
@@ -706,14 +707,14 @@ const measureOf = (incident: string, criterion: string): string =>
 /** This function writes a criterion as the head of a row: its first letter in capitals. */
 const headOf = (criterion: string): string => `${criterion.charAt(0).toUpperCase()}${criterion.slice(1)}`;
 
-/** This function gives the reason of each candidate for a criterion with no number, or null when a mode gives a different reason. */
-const reasonsOf = (modes: readonly ModeCopy[], criterion: string): readonly string[] | null => {
-  const of = (mode: ModeCopy): string[] => mode.candidates.map((each) => {
-    const score = each.scores.find((one) => one.criterion === criterion);
-    return score?.kind === "not measured" ? score.why : "";
-  });
+/**
+ * This function gives the scores of each candidate for a criterion with no run, or null when a mode
+ * gives a different score. Such a criterion has a reason or a value of the code (`derived`).
+ */
+const reasonsOf = (modes: readonly ModeCopy[], criterion: string): readonly ScoreCopy[] | null => {
+  const of = (mode: ModeCopy): ScoreCopy[] => mode.candidates.flatMap((each) => each.scores.filter((one) => one.criterion === criterion));
   const first = modes[0] === undefined ? [] : of(modes[0]);
-  return modes.every((mode) => of(mode).join("\n") === first.join("\n")) ? first : null;
+  return modes.every((mode) => JSON.stringify(of(mode)) === JSON.stringify(first)) ? first : null;
 };
 
 /**
@@ -734,6 +735,15 @@ function IncidentScoresTable(props: { readonly scored: ScoredCopy }): ReactEleme
   const cellOf = (mode: ModeCopy, label: string, criterion: string): ReactElement => {
     const score = scoreAt(mode, label, criterion);
     if (score.kind === "not measured") return <span className="sy-muted">{`Not measured. ${score.why}`}</span>;
+    // a value of the code: the candidate sends no PING, with no run
+    if (score.kind === "derived")
+      return (
+        <>
+          {`${count(score.value.value, "PING")}, by the code`}
+          <br />
+          <span className="sy-muted">{score.why}</span>
+        </>
+      );
     const evidence = (
       <a href={runLink(score.evidence.run)}>
         <code>{score.evidence.cell}</code>
@@ -753,8 +763,8 @@ function IncidentScoresTable(props: { readonly scored: ScoredCopy }): ReactEleme
     if (score.kind === "measured")
       return (
         <>
-          <Verdict decision={score.holds ? "holds" : "fails"} text={`${count(score.median.value, "failed request")} in the median run`} />
-          {mode.fewest === label ? <strong> The fewest in this mode.</strong> : null}
+          <Verdict decision={score.holds ? "holds" : "fails"} text={`${count(score.median.value, criterion === "probe load" ? "PING" : "failed request")} in the median run`} />
+          {mode.fewest === label && criterion === "failed requests" ? <strong> The fewest in this mode.</strong> : null}
           <br />
           <span className="sy-muted">
             {`The prediction: ${digits(score.prediction.lo.value)} to ${digits(score.prediction.hi.value)}. The counted runs: ${score.values.map((each) => digits(each.value)).join(", ")}. `}
@@ -774,7 +784,8 @@ function IncidentScoresTable(props: { readonly scored: ScoredCopy }): ReactEleme
       </>
     );
   };
-  const measured = SCORES.criteria.filter((criterion) => modes.some((mode) => mode.candidates.some((each) => scoreAt(mode, each.label, criterion).kind !== "not measured")));
+  // a criterion with a score from a run, and the rest with a reason or a value of the code
+  const measured = SCORES.criteria.filter((criterion) => modes.some((mode) => mode.candidates.some((each) => ["measured", "bounded"].includes(scoreAt(mode, each.label, criterion).kind))));
   const unmeasured = SCORES.criteria.filter((criterion) => !measured.includes(criterion));
   const notes = [...new Set(measured.flatMap((criterion) => modes.flatMap((mode) => mode.candidates.flatMap((each) => {
     const score = scoreAt(mode, each.label, criterion);
@@ -786,7 +797,7 @@ function IncidentScoresTable(props: { readonly scored: ScoredCopy }): ReactEleme
   const runs = [
     scored.run,
     ...new Set(
-      modes.flatMap((mode) => mode.candidates.flatMap((each) => each.scores.flatMap((score) => (score.kind === "not measured" || score.evidence.run === scored.run ? [] : [score.evidence.run])))),
+      modes.flatMap((mode) => mode.candidates.flatMap((each) => each.scores.flatMap((score) => (score.kind === "not measured" || score.kind === "derived" || score.evidence.run === scored.run ? [] : [score.evidence.run])))),
     ),
   ];
   return (
@@ -840,16 +851,10 @@ function IncidentScoresTable(props: { readonly scored: ScoredCopy }): ReactEleme
                 <tr key={criterion}>
                   <td>{headOf(criterion)}</td>
                   <td>Each mode</td>
-                  {new Set(reasons).size === 1 ? (
-                    <td colSpan={heads.length}>
-                      <span className="sy-muted">{`Not measured. ${reasons[0] ?? ""}`}</span>
-                    </td>
+                  {reasons.every((each) => each.kind === "not measured") && new Set(reasons.map((each) => (each.kind === "not measured" ? each.why : ""))).size === 1 ? (
+                    <td colSpan={heads.length}>{cellOf(modes[0]!, heads[0]?.label ?? "", criterion)}</td>
                   ) : (
-                    reasons.map((why, at) => (
-                      <td key={heads[at]?.label ?? at}>
-                        <span className="sy-muted">{`Not measured. ${why}`}</span>
-                      </td>
-                    ))
+                    heads.map((each) => <td key={each.label}>{cellOf(modes[0]!, each.label, criterion)}</td>)
                   )}
                 </tr>
               );

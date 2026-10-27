@@ -158,11 +158,16 @@ describe("the components of the CI runs", () => {
     // in the stall, B in iptables and nftables, and A in IPVS (a tie); for the failed prober, D in iptables and C in IPVS (a tie) and nftables.
     // In the shared dependency, B has the fewest in each mode
     expect(table.split("The fewest in this mode.").length - 1).toBe(15);
-    // in each of the three incidents, four criteria have no number in each mode, and the complexity has its own reason for each of the 4 candidates.
+    // in each of the three incidents, three criteria have no number in each mode, and the complexity has its own reason for each of the 4 candidates.
     // The failed prober measures its false removals, thus it has one criterion with no number less.
-    // The shared dependency has two criteria with no number, and the complexity of each of the 4 candidates
-    expect(table.split("Not measured.").length - 1).toBe(37);
+    // The shared dependency has one criterion with no number, and the complexity of each of the 4 candidates
+    expect(table.split("Not measured.").length - 1).toBe(32);
     expect(table).toContain("T07 has no blip");
+    // A, B and C send no PING by their code, and the run 40440516571 counts the PINGs of D in each mode of each incident
+    expect(table.split("0 PINGs, by the code").length - 1).toBe(45);
+    expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40440516571");
+    expect(table).toContain("45 PINGs in the median run");
+    expect(table).toContain("The prediction: 3 to 126. The counted runs: 33, 44, 51.");
     // the partitioned pod: its own run, and the time until callers know is measured from the fault
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40380943331");
     expect(table).toContain("S2.T07.ipvs.goaway.partition");
