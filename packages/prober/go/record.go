@@ -102,7 +102,7 @@ func (e *ev) kindName() string {
 }
 
 // retransmission says what a retransmission was: the tail loss probe, the RTO timer's, or one
-// from ACK processing; "" when the record carries no TCP state.
+// from ACK processing. It gives "" when the record carries no TCP state.
 func (e *ev) retransmission() string {
 	switch {
 	case e.tcp == nil:
@@ -120,7 +120,7 @@ func (e *ev) retransmission() string {
 const replacement = "\xef\xbf\xbd"
 
 // appendLossyQuoted appends raw bytes as a JSON string, decoded as Rust's
-// String::from_utf8_lossy decodes them: each maximal prefix of a would-be UTF-8 sequence that
+// String::from_utf8_lossy decodes them: each maximal prefix of a UTF-8 sequence that
 // cannot complete becomes one U+FFFD, and decoding resumes at the byte that broke it. ASCII is
 // escaped as serde_json escapes it.
 func appendLossyQuoted(out []byte, b []byte) []byte {

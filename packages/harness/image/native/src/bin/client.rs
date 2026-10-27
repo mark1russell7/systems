@@ -8,7 +8,7 @@
 //! beside the prober's records. It waits in poll(), never holding its socket's lock, so it never
 //! puts off the socket's own keepalive timer.
 //!
-//! Both modes send one request and read its reply first; that reply is the last segment received.
+//! Each mode sends one request and reads its reply first. That reply is the last segment received.
 //! idle: then hold the connection idle until it fails.
 //! inflight: then wait for the file --go to appear, send the request again, and wait. --request
 //! names that second request, a Redis inline command: PING unless it says otherwise. BLPOP with a
@@ -29,7 +29,7 @@ use std::os::fd::AsRawFd;
 use std::path::Path;
 use std::time::Duration;
 
-/// a Redis inline command; any line-based server echoes or errors on it, which is a reply too
+/// a Redis inline command. Any line-based server echoes it or gives an error, and that is a reply too
 const REQUEST: &[u8] = b"PING\r\n";
 
 fn emit(event: &str, fields: Value) {
@@ -45,7 +45,7 @@ fn emit_at(event: &str, t: u64, fields: Value) {
 }
 
 /// Sends the request, stamped before the write: on a bridge, the kernel can take a reset to the
-/// request before write() returns, and a stamp after it would come later than the reset's own.
+/// request before write() returns, and a stamp after it comes later than the reset's own.
 fn send(stream: &mut TcpStream, request: &[u8]) -> std::io::Result<()> {
     let t = monotonic_ns();
     stream.write_all(request)?;
@@ -211,15 +211,14 @@ fn run() -> Result<(), Box<dyn Error>> {
     );
 
     // the loop waits in poll(), which takes no lock on the socket, and reads only what is there. A
-    // read that waits takes the socket's lock each time it wakes, and a keepalive timer that finds
-    // the socket held puts itself off by HZ/20: the client would move the timer
-    // it measures
+    // read that waits takes the socket's lock each time it wakes. A keepalive timer that finds the
+    // socket held puts itself off by HZ/20. Thus such a read moves the timer that the client measures
     stream.set_nonblocking(true)?;
     let tick = args.sample.as_millis().clamp(1, i32::MAX as u128) as i32;
     let mut waiting = args.inflight;
     let mut seen: Option<[u32; 7]> = None;
     let mut age = info.tcpi_last_ack_recv;
-    // stream mode: requests sent, whether one waits for its reply, and when the next may go
+    // stream mode: requests sent, whether one waits for its reply, and when the next can go
     let mut sent: u32 = 0;
     let mut awaiting = false;
     let mut reply = Reply::default();
@@ -240,7 +239,7 @@ fn run() -> Result<(), Box<dyn Error>> {
                         next_at = monotonic_ns() + args.interval.as_nanos() as u64;
                     }
                 }
-                // nothing after all; ETIMEDOUT is the connection's own end
+                // nothing after all. ETIMEDOUT is the connection's own end
                 Err(error) if error.kind() == ErrorKind::WouldBlock || error.kind() == ErrorKind::Interrupted => {}
                 Err(error) => {
                     let code = error.raw_os_error().unwrap_or(0);

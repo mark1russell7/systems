@@ -113,7 +113,7 @@ export const supavisorHop = (settings: SupavisorSettings = {}): ProxyHop => ({
   port: SUPAVISOR_PORT,
   command: ["sh", "/lab/start.sh"],
   // the entrypoint of the image raises the limit of open files to RLIMIT_NOFILE (100000) with set -e, and a
-  // container may not raise it (run 39162356355): an empty value skips that step (limits.sh:4-7)
+  // container cannot raise it (run 39162356355): an empty value skips that step (limits.sh:4-7)
   environment: { RLIMIT_NOFILE: "" },
   files: { "/lab/start.sh": supavisorStart(settings) },
   ready: SUPAVISOR_READY,

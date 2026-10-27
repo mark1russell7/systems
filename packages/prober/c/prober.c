@@ -141,7 +141,7 @@ static inline void put_escaped(struct buf *o, uint8_t c)
 }
 
 /* Raw bytes as a JSON string, decoded as Rust's String::from_utf8_lossy decodes them: each
- * maximal prefix of a would-be UTF-8 sequence that cannot complete becomes one U+FFFD, and
+ * maximal prefix of a UTF-8 sequence that cannot complete becomes one U+FFFD, and
  * decoding resumes at the byte that broke it. */
 static void put_lossy_quoted(struct buf *o, const uint8_t *b, size_t n)
 {
@@ -353,7 +353,7 @@ static void line(FILE *out, const struct ev *e)
 }
 
 /* a JSON string, for the rare lines that are not records: written in pieces, since a failure's
- * words may escape to more than one buffer holds */
+ * words can escape to more than one buffer holds */
 static void qs(FILE *out, const char *s)
 {
 	struct buf o = {.n = 0};

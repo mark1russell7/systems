@@ -46,7 +46,7 @@ export const WINDOW = 20;
 export const RTT_MS = 1;
 /**
  * This rate is the HZ of the kernel that runs the cells: 250 for the development VM. The cells
- * workflow gives the runner's own value in CELLS_HZ, from the kernel's config.
+ * workflow gives the runner's own value in `CELLS_HZ`, from the kernel's config.
  */
 export const HZ = Number(process.env["CELLS_HZ"] ?? 250);
 
@@ -368,7 +368,7 @@ export const predictAt = (spec: Spec, rttMs: number): Prediction => {
   const manifestation: Manifestation = MANIFESTATIONS[spec.manifestation];
 
   if (spec.stall !== undefined) {
-    // nothing may detect a stall in its window: the give-up must outlast it
+    // nothing can detect a stall in its window: the give-up must outlast it
     const giveUp = detection(LINUX_TCP, { state: "ESTABLISHED", inFlight: true }, manifestation, given(linux));
     if (giveUp.first !== null && seconds(giveUp.first.duration, "the give-up") <= WINDOW)
       throw new Error(`${spec.name}: ${giveUp.first.timer} can detect the stall in its window`);

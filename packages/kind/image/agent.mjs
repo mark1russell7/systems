@@ -1,4 +1,4 @@
-// The agent of a kind node. It runs in a privileged container in the PID namespace of the node
+// The agent of a kind node. It operates in a privileged container in the PID namespace of the node
 // container, thus it sees the processes of each pod of the node, and PID 1 is the init of the node.
 //
 //   node agent.mjs serve       polls the rules of kube-proxy in the namespaces of the node, as
@@ -37,7 +37,7 @@ const node = process.env.NODE_NAME ?? "";
 const say = (line) => process.stdout.write(`${JSON.stringify({ ...line, node })}\n`);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** the backends of a Service in each mode of kube-proxy, as "ip:port" (with the weight for IPVS) */
+/** These commands give the backends of a Service in each mode of kube-proxy, as "ip:port" (with the weight for IPVS). */
 const DUMP = {
   iptables: ["nsenter", "-t", "1", "-m", "-n", "--", "iptables-save", "-t", "nat"],
   nftables: ["nsenter", "-t", "1", "-m", "-n", "--", "nft", "list", "table", "ip", "kube-proxy"],
@@ -45,15 +45,15 @@ const DUMP = {
 };
 
 /**
- * the TCP lines of the conntrack table of the node's network namespace: those of the ClusterIP and
- * those of a handshake. A kernel without CONFIG_NF_CONNTRACK_PROCFS has no /proc/net/nf_conntrack
- * (the kernel of GitHub's runner, 6.17), thus the agent then asks netlink with the conntrack tool of
+ * This function reads the TCP lines of the conntrack table in the node's network namespace: those
+ * of the ClusterIP and those of a handshake. A kernel without CONFIG_NF_CONNTRACK_PROCFS has no
+ * /proc/net/nf_conntrack (the kernel of GitHub's runner, 6.17), thus the agent then asks netlink with the conntrack tool of
  * the node. Both give the same form of line. The first read decides the source. `text` is null when
  * no source answers, and `why` tells why.
  *
  * A dump through netlink walks each bucket of the table of the whole kernel with the softirqs off,
  * whatever its filter. A segment that comes in that walk waits for its end. Thus each read is one
- * dump of TCP, and the agent filters it. The workflow makes the table small (kind.yml)
+ * dump of TCP, and the agent filters it. The workflow makes the table small (kind.yml).
  */
 const SOURCES = {
   procfs: (ip) => [["nsenter", "-t", "1", "-n", "--", "grep", "-F", "-e", ` dst=${ip} `, "-e", "[UNREPLIED]", "-e", " SYN_RECV ", "/proc/net/nf_conntrack"]],
@@ -67,7 +67,7 @@ const conntrackOf = (ip) => {
     let ok = true;
     for (const [command, ...args] of SOURCES[name](ip)) {
       const run = spawnSync(command, args, { encoding: "utf8", maxBuffer: 64 << 20 });
-      // grep exits 1 when no line matches; conntrack exits 0 with no entry
+      // grep exits 1 when no line matches, and conntrack exits 0 with no entry
       if (run.status === 0 || (name === "procfs" && run.status === 1)) {
         for (const line of (run.stdout ?? "").split("\n")) if (line.trim() !== "") lines.add(line);
       } else {
@@ -83,7 +83,7 @@ const conntrackOf = (ip) => {
   }
   return { text: null, why: why.join("; ") };
 };
-/** the PIDs of the clients of the node: the agent is in the PID namespace of the node, thus /proc holds each pod */
+/** This function gives the PIDs of the clients of the node. The agent is in the PID namespace of the node, thus /proc holds each pod. */
 const clientsOf = () => {
   const out = [];
   for (const name of readdirSync("/proc")) {
@@ -98,10 +98,11 @@ const clientsOf = () => {
 };
 
 /**
- * the counters of dropped packets, by name. For the node: the drops of the backlogs and the squeezes
- * of the softirqs (the kernel, all CPUs), and the drops of each veth. For each client pod, through
- * /proc/<pid>/net: the IP discards and the sends with no route, the failed connects, the ICMP
- * errors of an unreachable destination, the drops of each interface, and the neighbors with no address yet
+ * This function gives the counters of dropped packets, by name. For the node, it gives the drops of
+ * the backlogs and the squeezes of the softirqs (the kernel, all CPUs), and the drops of each veth.
+ * For each client pod, it reads /proc/<pid>/net. There it gives the IP discards and the sends with
+ * no route, and the failed connects. It also gives the ICMP errors of an unreachable destination,
+ * the drops of each interface, and the neighbors with no address yet.
  */
 const countersOf = () => {
   const values = {};
@@ -136,7 +137,7 @@ const countersOf = () => {
     values[`client.${pid}.ip-out-discards`] = ip["OutDiscards"] ?? 0;
     values[`client.${pid}.ip-out-no-routes`] = ip["OutNoRoutes"] ?? 0;
     values[`client.${pid}.tcp-attempt-fails`] = tcp["AttemptFails"] ?? 0;
-    // a refused connect is a reset, or an ICMP error such as the port unreachable of a reject rule
+    // a refused connect is a reset, or an ICMP error, for example the port unreachable of a reject rule
     values[`client.${pid}.icmp-in-unreachable`] = snmpOf(snmp, "Icmp")["InDestUnreachs"] ?? 0;
     for (const [name, drops] of Object.entries(devOf(own))) {
       if (name === "lo") continue;
@@ -149,9 +150,9 @@ const countersOf = () => {
 };
 
 /**
- * how often the agent reads the conntrack table, in ms. Three dumps each 250 ms on each node took
- * three quarters of the CPUs of a runner (run 39066066532), and the lab waited for an idle VM until
- * the end. An entry of a SYN with no reply lives 120 s, thus a read each second sees it
+ * This value tells how often the agent reads the conntrack table, in ms. Three dumps each 250 ms on
+ * each node took three quarters of the CPUs of a runner (CI 39066066532). Then the lab waited for an
+ * idle VM until the end. An entry of a SYN with no reply lives 120 s, thus a read each second sees it.
  */
 const CONNTRACK_EVERY = 1000;
 
@@ -266,12 +267,14 @@ const serve = async () => {
 };
 
 /**
- * the pollers of the sidecars of the node, of one kind: `eds` or `lds`. /tmp/<kind>.json gives the
- * interval and each pod of the node with a PID in it, and for `eds` the server cluster. The agent
- * starts one poller for each pod in the network namespace of that PID, and stops each one when the
- * file changes or goes. nsenter -n keeps the mount namespace of the agent, thus the poller is this
- * file, and its clock is the one of the VM. The EDS pollers read the client pods, and the LDS
- * pollers read the server pods
+ * This function controls the pollers of the sidecars of the node, of one kind: `eds` or `lds`.
+ * The file /tmp/<kind>.json gives the interval and each pod of the node with a PID in it. For
+ * `eds`, it also gives the server cluster. The agent starts one poller for each pod in the network
+ * namespace of that PID. It stops each poller when the file changes or goes.
+ *
+ * The command nsenter -n keeps the mount namespace of the agent. Thus the poller is this file, and
+ * its clock is the one of the VM. The EDS pollers read the client pods, and the LDS pollers read the
+ * server pods.
  */
 const pollers = async (kind) => {
   const file = `/tmp/${kind}.json`;
@@ -312,10 +315,10 @@ const pollers = async (kind) => {
 };
 
 /**
- * one poll loop of the admin endpoint of a sidecar, 127.0.0.1:15000 in the namespace of the pod
- * (envoy_bootstrap.json of Istio 1.31.3), each `every` ms. `read` gives the state of one answer, and
- * a line comes at each change of that state, with the start of the poll before it (`prev`), as a rules
- * line. Each second, a line `<kind>-alive` counts the polls
+ * This function is one poll loop of the admin endpoint of a sidecar, each `every` ms. The endpoint
+ * is 127.0.0.1:15000 in the namespace of the pod (envoy_bootstrap.json of Istio 1.31.3). `read`
+ * gives the state of one answer. A line comes at each change of that state, with the start of the
+ * poll before it (`prev`), as a rules line. Each second, a line `<kind>-alive` counts the polls.
  */
 const poll = async (kind, url, every, pod, read) => {
   let last = null;
@@ -359,8 +362,9 @@ const poll = async (kind, url, every, pod, read) => {
 };
 
 /**
- * one EDS poller. The filter of /clusters keeps the server cluster only (clusters_handler.cc of Envoy
- * v1.39.4). A line `eds` gives the healthy hosts (`b`), and each other host with its flags (`u`)
+ * This function is one EDS poller. The filter of /clusters keeps the server cluster only
+ * (clusters_handler.cc of Envoy v1.39.4). A line `eds` gives the healthy hosts (`b`), and each
+ * other host with its flags (`u`).
  */
 const eds = ({ cluster, every, pod }) =>
   poll("eds", `http://127.0.0.1:15000/clusters?filter=${encodeURIComponent(clusterFilter(cluster))}`, every, pod, (text) => {
@@ -369,8 +373,9 @@ const eds = ({ cluster, every, pod }) =>
   });
 
 /**
- * one LDS poller, in a server pod. The filter of /stats keeps the two counters of the listener
- * manager. A line `lds` gives each update of a listener (`mod`) and each update in place (`inPlace`)
+ * This function is one LDS poller, in a server pod. The filter of /stats keeps the two counters of
+ * the listener manager. A line `lds` gives each update of a listener (`mod`) and each update in
+ * place (`inPlace`).
  */
 const lds = ({ every, pod }) =>
   poll("lds", `http://127.0.0.1:15000/stats?filter=${encodeURIComponent(LDS_FILTER)}`, every, pod, (text) => {

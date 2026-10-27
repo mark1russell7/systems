@@ -7,8 +7,8 @@
 // beside them as `status` lines.
 //
 // ioredis sets the socket's keepalive itself, once it connects: setKeepAlive(true, keepAlive), and
-// Node fixes the probe interval and count. It sets no other timer the kernel would see. Both modes
-// send a PING and read its reply first; that reply is the last segment received. idle: then hold
+// Node fixes the probe interval and count. It sets no other timer that the kernel sees. Each mode
+// sends a PING and reads its reply first. That reply is the last segment received. idle: then hold
 // the connection until it fails. inflight: then wait for the file --go to appear, send a PING into
 // the fault, and wait.
 
@@ -40,7 +40,7 @@ emit("start", {
   client: "ioredis",
 });
 
-// one connection, whose end is what is measured: ioredis would reconnect, so the client ends first
+// one connection, whose end is what is measured: ioredis reconnects by itself, thus the client ends first
 const redis = new Redis({ host, port: Number(port), keepAlive, lazyConnect: true });
 for (const status of ["connect", "ready", "close", "reconnecting", "end"]) {
   redis.on(status, () => emit("status", { status }));
@@ -69,7 +69,7 @@ setTimeout(() => {
   end();
 }, max);
 
-/** a PING, stamped before it is written: the kernel can answer before the call returns */
+/** This function sends a PING. It stamps the PING before the write, because the kernel can answer before the call ends. */
 const ping = () => {
   const at = now();
   const reply = redis.ping();

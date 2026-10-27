@@ -1,11 +1,11 @@
-// The watcher of a kind cell. It runs in a container on the Docker network of the cluster, thus in
+// The watcher of a kind cell. It operates in a container on the Docker network of the cluster, thus in
 // the VM, and it stamps each event on CLOCK_MONOTONIC when it arrives. It watches the pods, the
 // EndpointSlices and the events of one namespace through the API, and it follows the log of each
 // pod with the label lab.systems/log=1. A log line is JSON with its own stamp, and the watcher
 // passes it on as it is.
 //
 // The sidecar of Istio (the container istio-proxy) is a native sidecar: an init container that
-// runs beside the app. The watcher follows it too. Its lines are the access log of Envoy (JSON, a
+// operates beside the app. The watcher follows it too. Its lines are the access log of Envoy (JSON, a
 // stamp of the wall clock) and the text of pilot-agent. Each one becomes a line `proxy` with the
 // stamp of its arrival: evidence, not a time that a band reads. An access line of a call that
 // succeeded at its first attempt is only counted (`proxy-ok`, each second), thus the record keeps
@@ -43,10 +43,10 @@ const say = (line) => pending.push(`${JSON.stringify(line)}\n`);
  * opens again with no resource version, and the API gives each object again as ADDED.
  */
 const GONE = Symbol("gone");
-/** the result of a handler for an ERROR event: GONE for an expired resource version, else null */
+/** This function gives the result of a handler for an ERROR event: GONE for an expired resource version, else null. */
 const errorOf = (status) => (status?.code === 410 ? GONE : null);
 
-/** a stream of lines from the API, again after each end, from the last resource version it saw */
+/** This function opens a stream of lines from the API. After each end, it opens it again from the last resource version that it saw. */
 const stream = (path, query, onLine, again = true) => {
   let version = null;
   const open = () => {
@@ -104,9 +104,9 @@ const stateOf = (state) => {
   return "none";
 };
 
-/** the container of the sidecar of Istio */
+/** This is the container of the sidecar of Istio. */
 const PROXY = "istio-proxy";
-/** the access lines of each sidecar that the watcher only counted, by pod, since the last count */
+/** This map holds the access lines of each sidecar that the watcher only counted, by pod, since the last count. */
 const counted = new Map();
 setInterval(() => {
   const t = now();
@@ -114,11 +114,11 @@ setInterval(() => {
   counted.clear();
 }, 1000);
 
-/** an access line of Envoy that tells nothing more than its call: status 200, no flag, gRPC status 0, one attempt */
+/** This function tells if an access line of Envoy tells nothing more than its call: status 200, no flag, gRPC status 0, one try. */
 const plain = (log) =>
   String(log.code) === "200" && (log.flags === "-" || log.flags === "" || log.flags === undefined) && String(log.grpc) === "0" && Number(log.attempts ?? 1) <= 1;
 
-/** a line of the sidecar: an access line of Envoy as JSON, or a text line of pilot-agent */
+/** This function takes a line of the sidecar: an access line of Envoy as JSON, or a text line of pilot-agent. */
 const proxyLine = (pod, text) => {
   if (text.startsWith("{")) {
     try {
@@ -136,7 +136,7 @@ const proxyLine = (pod, text) => {
   say({ ev: "proxy", t: now(), p: pod, text: text.slice(0, 500) });
 };
 
-/** the namespace of the mesh, with the ztunnel pods */
+/** This is the namespace of the mesh, with the ztunnel pods. */
 const MESH_NS = "istio-system";
 
 const following = new Set();
@@ -146,7 +146,7 @@ const follow = (ns, pod, container, id) => {
   following.add(key);
   stream(
     `/api/v1/namespaces/${ns}/pods/${pod}/log`,
-    // a ztunnel ran before the cell: only its lines from the start of the watcher
+    // a ztunnel started before the cell: only its lines from the start of the watcher
     ns === MESH_NS ? { container, follow: "true", sinceSeconds: "5" } : { container, follow: "true" },
     (text) => {
       if (ns === MESH_NS) say({ ev: "ztunnel", t: now(), p: pod, text: text.slice(0, 500) });
@@ -176,7 +176,7 @@ for (const ns of namespaces) {
       last: stateOf(status.lastState),
       id: status.containerID ?? null,
     }));
-    // the native sidecar of Istio is a running init container: its state, apart from the containers
+    // the native sidecar of Istio is an init container that operates: its state, apart from the containers
     const sidecars = (pod.status?.initContainerStatuses ?? [])
       .filter((status) => status.name === PROXY)
       .map((status) => ({ n: status.name, r: status.ready, rc: status.restartCount, st: stateOf(status.state), id: status.containerID ?? null }));

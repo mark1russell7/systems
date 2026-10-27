@@ -21,13 +21,13 @@ const OBJECT: &str = "/opt/harness/prober.bpf.o";
 const TRACEFS: &str = "/sys/kernel/tracing";
 
 /// Classic tracepoints (the connect and accept syscalls) attach through tracefs, which a
-/// container does not mount. A privileged one may mount it for itself.
+/// container does not mount. A privileged container can mount it for itself.
 fn mount_tracefs() -> Result<(), Box<dyn Error>> {
     if Path::new(TRACEFS).join("events").exists() {
         return Ok(());
     }
     let (source, target) = (CString::new("tracefs")?, CString::new(TRACEFS)?);
-    // SAFETY: every pointer is a NUL-terminated string that outlives the call; data may be null
+    // SAFETY: every pointer is a NUL-terminated string that outlives the call. Data can be null
     let status = unsafe {
         libc::mount(source.as_ptr(), target.as_ptr(), source.as_ptr(), 0, std::ptr::null())
     };
@@ -51,8 +51,8 @@ fn record(out: &Rc<RefCell<BufWriter<Stdout>>>, ev: &Ev, buffer: &mut Vec<u8>) {
     let _ = out.borrow_mut().write_all(buffer);
 }
 
-/// Prints the line for every record in a file of raw records, as the ring buffer would hand them
-/// over: how the three collectors are held to one contract byte for byte.
+/// Prints the line for every record in a file of raw records, as the ring buffer gives them. This
+/// is how the three collectors are held to one contract byte for byte.
 fn decode_file(path: &str) -> Result<(), Box<dyn Error>> {
     let data = std::fs::read(path).map_err(|error| format!("{path}: {error}"))?;
     let out = Rc::new(RefCell::new(BufWriter::with_capacity(1 << 16, std::io::stdout())));

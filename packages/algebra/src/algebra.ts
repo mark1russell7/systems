@@ -235,9 +235,9 @@ const capped = (base: Rational, k: bigint, cap: Rational): Rational => {
   return r.cmp(doubled, cap) <= 0 ? doubled : cap;
 };
 /**
- * This function gives the hypothetical retransmission timeout of the kernel, tcp_model_timeout in
- * net/ipv4/tcp_timer.c. The waits double from the minimum RTO until a step is more than the
- * maximum, and then the waits are capped. For tcp_retries2 = 15, it is 0.2 s × (2^10 − 1) +
+ * This function gives the hypothetical retransmission timeout of the kernel, `tcp_model_timeout`
+ * in `net/ipv4/tcp_timer.c`. The waits double from the minimum RTO until a step is more than the
+ * maximum, and then the waits are capped. For `tcp_retries2` = 15, it is 0.2 s × (2^10 − 1) +
  * 6 × 120 s = 924.6 s.
  */
 const retransBudget = (retries: bigint, min: Rational, max: Rational): Rational => {
@@ -247,35 +247,35 @@ const retransBudget = (retries: bigint, min: Rational, max: Rational): Rational 
   return r.add(r.mul(min, whole(2n ** (thresh + 1n) - 1n)), r.mul(whole(retries - thresh), max));
 };
 
-/** These are TCP_TIMEOUT_INIT and TCP_RTO_MAX in include/net/tcp.h at v6.6: the first SYN RTO and the cap. */
+/** These are `TCP_TIMEOUT_INIT` and `TCP_RTO_MAX` in `include/net/tcp.h` at v6.6: the first SYN RTO and the cap. */
 const TCP_TIMEOUT_INIT = whole(1n);
 const TCP_RTO_MAX = whole(120n);
 
 /**
  * This function gives the wait of the SYN of a connect after `fired` firings, from 6.5
- * (tcp_retransmit_timer in net/ipv4/tcp_timer.c). Each firing sends the SYN again. The first
- * tcp_syn_linear_timeouts firings keep the initial RTO, thus the waits 0 to tcp_syn_linear_timeouts
- * are 1 s each. Then each firing doubles the wait, up to TCP_RTO_MAX.
+ * (`tcp_retransmit_timer` in `net/ipv4/tcp_timer.c`). Each firing sends the SYN again. The first
+ * `tcp_syn_linear_timeouts` firings keep the initial RTO, thus the waits 0 to
+ * `tcp_syn_linear_timeouts` are 1 s each. Then each firing doubles the wait, up to `TCP_RTO_MAX`.
  */
 const synWait = (fired: bigint, linear: bigint): Rational =>
   fired <= linear ? TCP_TIMEOUT_INIT : capped(TCP_TIMEOUT_INIT, fired - linear, TCP_RTO_MAX);
 
 /**
  * This function gives each wait of the SYN of a connect, from 6.5: the waits 0 to
- * tcp_syn_retries + tcp_syn_linear_timeouts (`synWait`). The connect gives up at the end of the last wait.
+ * `tcp_syn_retries` + `tcp_syn_linear_timeouts` (`synWait`). The connect gives up at the end of the last wait.
  */
 const synWaits = (retries: bigint, linear: bigint): Rational[] =>
   Array.from({ length: Number(linear + 1n + retries) }, (_, fired) => synWait(BigInt(fired), linear));
 
-/** This function gives the whole jiffies of a time at HZ, rounded up, as msecs_to_jiffies and usecs_to_jiffies round. */
+/** This function gives the whole jiffies of a time at HZ, rounded up, as `msecs_to_jiffies` and `usecs_to_jiffies` round. */
 const jiffiesOf = (seconds: Rational, hz: Rational): bigint => r.ceil(r.mul(seconds, hz)).n;
 
 /**
- * This function gives the longest wait of the delayed ACK, in jiffies (tcp_send_delayed_ack in
- * net/ipv4/tcp_output.c:4004-4054 at v6.6). The wait is the ACK timeout, ato. It is at least
- * TCP_DELACK_MIN, HZ/25. Above that, the smoothed round trip in whole jiffies bounds it, but not
- * below TCP_DELACK_MIN. The cap is icsk_delack_max, TCP_DELACK_MAX by default, HZ/5
- * (include/net/tcp.h:133-136, net/ipv4/tcp.c:425). Thus it is 40 ms on a fast path at each HZ, and
+ * This function gives the longest wait of the delayed ACK, in jiffies (`tcp_send_delayed_ack` in
+ * `net/ipv4/tcp_output.c:4004-4054` at v6.6). The wait is the ACK timeout, `ato`. It is at least
+ * `TCP_DELACK_MIN`, HZ/25. Above that, the smoothed round trip in whole jiffies bounds it, but not
+ * below `TCP_DELACK_MIN`. The cap is `icsk_delack_max`, `TCP_DELACK_MAX` by default, HZ/5
+ * (`include/net/tcp.h:133-136`, `net/ipv4/tcp.c:425`). Thus it is 40 ms on a fast path at each HZ, and
  * 200 ms at most.
  */
 const delackWait = (rtt: Rational, hz: Rational): bigint => {
@@ -289,7 +289,7 @@ const delackWait = (rtt: Rational, hz: Rational): bigint => {
 
 /**
  * This function gives how late the timer wheel can fire a timer that is due in `jiffies`
- * (calc_wheel_index in kernel/time/timer.c at v6.6). Level 0 holds the timers due in 63 jiffies
+ * (`calc_wheel_index` in `kernel/time/timer.c` at v6.6). Level 0 holds the timers due in 63 jiffies
  * or less. Each level above holds eight times as long, at eight times the granularity. The wheel
  * rounds a timer up to the next boundary of its level, thus it fires up to one granularity late.
  * At HZ 250, a 2 h timer can be up to 131 s late.
@@ -303,7 +303,7 @@ const granularity = (jiffies: bigint): bigint => {
 /**
  * This function gives the lateness of the retransmission give-up after its budget. The first
  * retransmission sets the RTO to the round trip plus the minimum, rounded up to a jiffy
- * (tcp_set_rto). On a Docker network at HZ 250, that is 204 ms, not 200.
+ * (`tcp_set_rto`). On a Docker network at HZ 250, that is 204 ms, not 200.
  *
  * Each firing doubles the RTO, up to the cap. The budget ends in the firing after the last one
  * that is short of it. Thus the give-up comes one step late at most, plus the rounding of each
@@ -329,10 +329,10 @@ const retransLateness = (
 
 /**
  * This function gives one wait of the retransmission timer with one segment in flight, in jiffies
- * (net/ipv4/tcp_timer.c, and tcp_schedule_loss_probe in tcp_output.c, at v6.6). Its first firing
- * is the tail loss probe. For one segment, the probe waits two round trips plus TCP_RTO_MIN, but
- * not longer than the RTO. Thus it waits the RTO itself: the round trip plus the minimum, in whole
- * jiffies.
+ * (`net/ipv4/tcp_timer.c`, and `tcp_schedule_loss_probe` in `tcp_output.c`, at v6.6). Its first
+ * firing is the tail loss probe. For one segment, the probe waits two round trips plus
+ * `TCP_RTO_MIN`, but not longer than the RTO. Thus it waits the RTO itself: the round trip plus
+ * the minimum, in whole jiffies.
  *
  * The probe arms the RTO again, and each RTO firing doubles it, up to the cap. Thus the
  * firing k comes 2^k RTOs after the send: 0.204, 0.408, 0.816 s on a Docker network at HZ 250.
@@ -354,7 +354,7 @@ const rtoWait = (fired: bigint, min: Rational, max: Rational, rtt: Rational, hz:
 /**
  * This function gives the lateness of the retransmission give-up after its budget, under an ICMP
  * host or net unreachable for each RTO retransmission. Each ICMP reverts one doubling of the backoff
- * (tcp_ld_RTO_revert in net/ipv4/tcp_ipv4.c at v6.6, RFC 6069). Then each wait after the first RTO
+ * (`tcp_ld_RTO_revert` in `net/ipv4/tcp_ipv4.c` at v6.6, RFC 6069). Then each wait after the first RTO
  * firing is one RTO again, thus the give-up comes at most one RTO after the budget. Each firing up
  * to it can fire up to the granularity of its level of the wheel late.
  */
@@ -799,9 +799,9 @@ export interface Manifestation {
   readonly delivers?: readonly string[] | undefined;
   /**
    * This errno replaces ETIMEDOUT when one of these timers gives up. Linux keeps an ICMP error on
-   * an established socket as a soft error, and the timeout reports it (tcp_write_err). An ICMP
-   * counts only when it quotes a segment in the window (tcp_v4_err). A retransmission is in the
-   * window. A keepalive probe uses the sequence number before snd_una, thus its ICMP does not count.
+   * an established socket as a soft error, and the timeout reports it (`tcp_write_err`). An ICMP
+   * counts only when it quotes a segment in the window (`tcp_v4_err`). A retransmission is in the
+   * window. A keepalive probe uses the sequence number before `snd_una`, thus its ICMP does not count.
    */
   readonly errno?: { readonly errno: string; readonly timers: readonly string[] } | undefined;
   /**

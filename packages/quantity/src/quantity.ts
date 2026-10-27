@@ -18,7 +18,7 @@ export interface Unbounded {
 
 export type Extent = Quantity | Unbounded;
 
-/** An unknown is a value that nobody can give, and the reason. Most internals of a cloud are not published. */
+/** An unknown is a value that nobody can give, and the reason. A cloud does not publish most of its internals. */
 export interface Unknown {
   readonly unknown: string;
   readonly unit?: string | undefined;

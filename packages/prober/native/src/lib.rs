@@ -1,8 +1,8 @@
-//! The prober's native side:
-//! - the record contract: the C struct the kernel source writes (`record`), and the JSON line it
-//!   becomes;
-//! - the clock, the quantities and the errno names, which the harness's tools share;
-//! - with the `collector` feature, the `prober` binary, which loads `bpf/prober.bpf.c` and prints
+//! The native side of the prober has these parts:
+//! - The record contract: the C struct that the kernel source writes (`record`), and the JSON line
+//!   that it becomes.
+//! - The clock, the quantities and the errno names, which the tools of the harness share.
+//! - With the `collector` feature, the `prober` binary, which loads `bpf/prober.bpf.c` and prints
 //!   every record the kernel writes as one JSON line.
 //!
 //! Every instant printed is CLOCK_MONOTONIC in nanoseconds: eBPF stamps with that clock, and every
@@ -31,8 +31,8 @@ pub fn tai_ns() -> u64 {
     clock_ns(libc::CLOCK_TAI)
 }
 
-/// An amount and its canonical unit, as @mark1russell7/quantity writes one; its keys in byte order, as
-/// serde_json writes any object it holds as a map.
+/// An amount and its canonical unit, as @mark1russell7/quantity writes one. Its keys are in byte
+/// order, as serde_json writes any object it holds as a map.
 #[derive(Serialize, Clone, Copy, Debug, PartialEq)]
 pub struct Quantity {
     pub unit: &'static str,

@@ -1,9 +1,10 @@
 //! inject ACTION ARGS... [--at NS]
 //!
-//! A cell's fault, applied inside the network namespace this sidecar shares with the target (or,
-//! for the server's side, with the client), so the target's image stays stock. Each lands in one
-//! commit, bracketed by CLOCK_MONOTONIC stamps taken in the VM: a docker exec from Windows lands
-//! 190 ms late at the median, and the bracket does not care.
+//! This sidecar applies the fault of a cell. It applies the fault inside the network namespace
+//! that it shares with the target (or, for the side of the server, with the client). Thus the
+//! image of the target stays stock. Each fault lands in one commit, between two CLOCK_MONOTONIC
+//! stamps that the sidecar takes in the VM. A docker exec from Windows lands 190 ms late at the
+//! median, and this delay has no effect on the two stamps.
 //!
 //! The actions, each with its lift:
 //!
@@ -29,8 +30,8 @@
 //!
 //! - `signal NAME SIGNAL`: SIGNAL (KILL, STOP, CONT, TERM or HUP) to each process whose name is
 //!   NAME, in the process namespace this sidecar shares with a member of a group or a hop. STOP and
-//!   CONT freeze a server and thaw it while its kernel stays up; KILL stops it, and its kernel
-//!   closes its sockets; HUP asks a pooler to read its configuration again. The stamps bracket the
+//!   CONT freeze a server and thaw it while its kernel stays up. KILL stops it, and its kernel
+//!   closes its sockets. HUP asks a pooler to read its configuration again. The stamps bracket the
 //!   kill(2) calls.
 //! - `write NAME PATH CONTENT`: CONTENT to the file PATH in the root of the process NAME, through
 //!   /proc/PID/root, by a rename in one step. A proxy that watches its configuration file reloads
@@ -119,7 +120,7 @@ fn options(args: &[String]) -> Result<Options, Box<dyn Error>> {
 fn rules(action: &str, peer: Ipv4Addr, opts: &Options) -> Result<String, Box<dyn Error>> {
     let op = |set: &str| if action == set { "-I" } else { "-D" };
     // what comes from the peer, and what goes to it: at an end, the INPUT and OUTPUT of its own
-    // sockets; at a router, what it forwards in and out of the device toward the peer
+    // sockets. At a router, what it forwards in and out of the device toward the peer
     let (from, to) = match opts.via.as_deref() {
         None => (format!("INPUT -s {peer}/32"), format!("OUTPUT -d {peer}/32")),
         Some(dev) => (format!("FORWARD -i {dev} -s {peer}/32"), format!("FORWARD -o {dev} -d {peer}/32")),
@@ -152,8 +153,8 @@ fn rules(action: &str, peer: Ipv4Addr, opts: &Options) -> Result<String, Box<dyn
             };
             format!("{op} {from} -p tcp -j REJECT --reject-with {with}\n")
         }
-        // the long segments drop where they arrive: in the sender's own namespace, an OUTPUT drop
-        // would fail its sends with EPERM rather than lose them on the way
+        // the long segments drop where they arrive. In the namespace of the sender, an OUTPUT drop
+        // fails its sends with EPERM, and it does not lose them on the way
         "mtu" | "clear-mtu" => {
             let op = op("mtu");
             let above = opts.above.ok_or("--above N")?;
@@ -291,7 +292,7 @@ fn processes(name: &str) -> Result<Vec<libc::pid_t>, Box<dyn Error>> {
             continue;
         };
         // a process can end between the listing and the read. A zombie keeps its name until its
-        // parent reaps it: a server that a fin killed is one, and no signal reaches it
+        // parent reaps it: a server that a fin stopped is one, and no signal reaches it
         let Ok(comm) = std::fs::read_to_string(entry.path().join("comm")) else { continue };
         let Ok(stat) = std::fs::read_to_string(entry.path().join("stat")) else { continue };
         if comm.trim_end() == name && !zombie(&stat) {

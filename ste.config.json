@@ -7,7 +7,11 @@
     "packages/*/README.md",
     "packages/site/**/*.{md,mdx}",
     "packages/*/src/**/*.{ts,tsx}",
-    "packages/*/*.config.{ts,mts}"
+    "packages/*/*.config.{ts,mts}",
+    "packages/*/image/**/*.mjs",
+    "packages/*/targets/**/*.mjs",
+    "packages/site/**/*.mjs",
+    "scripts/*.mjs"
   ],
   "ignore": [
     "**/node_modules/**",
