@@ -862,10 +862,12 @@ A record from before this item does not have the fact, and it stays valid. The f
 
 ### SYS-42 · The stall band carries the backlog term and the measured period
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-40, SYS-41
 - **Started:** 2026-10-27
+- **Shipped:** 2026-10-27
+- **Links:** [#253](https://github.com/mark1russell7/systems/pull/253), [The band run](https://github.com/mark1russell7/systems/actions/runs/40591832542), [The run with 6 sessions](https://github.com/mark1russell7/systems/actions/runs/40601022555), [#254](https://github.com/mark1russell7/systems/pull/254)
 
 SYS-40 found two biases of the first backlog band. The value d of 40 ms to 70 ms was too large, and the count of failed requests came from the setting of the period. This item gives a new band version for the stall of each candidate that keeps its sessions through the stall. Of the candidates of S2, only C does. D does not keep its sessions.
 
@@ -876,6 +878,14 @@ The judge counts the failed requests from `period` of the facts (SYS-41), at the
 The test cells are `BACKLOG_BAND_CELLS` in `packages/cells/src/backlog.ts`. They are the cells of SYS-40 with new ids and names. Thus each record of SYS-40 is judged with its first band. The old bands and records stay as committed.
 
 The decision rule: the new band hits if every counted run of each n falls in its window band and in its count band. A miss with the same sign in each run is a bias. Then the result names the missing term, and the old band stays as committed.
+
+The result, from 4 cells with 5 runs each: the band misses. The cells of 1, 2 and 3 sessions are from the band run. One shard of that run did not end, thus the cell of 6 sessions is from a second run. Each run recorded n sessions on the target.
+
+The window band hits in 19 of 20 runs. The median overshoots were 36 ms, 58 ms, 49 ms and 117 ms for 1, 2, 3 and 6 sessions. One run with 1 session overshot by 90 ms, above 45 ms. That run is the only one, thus it is not a bias.
+
+The count band misses above in 9 of 20 runs, and in each run with 6 sessions. The mean period of the runs was 10.18 ms to 10.25 ms. With 6 sessions, each session failed approximately 496 requests, against at most 495. With 1 to 3 sessions, each session failed approximately 494.
+
+The missing term is the drain of each session. A session fails a request each c periods until the window closes, and the window closes n × d after the band end. Thus the failures in the drain are approximately n × d / (c × p) for each session, not 0 to 3. With 6 sessions and an overshoot of 117 ms, that is approximately 6 requests for each session. The next band counts the drain failures from the overshoot, thus the total term is approximately n² × d / (c × p).
 
 ## The systems of S1
 

@@ -275,6 +275,14 @@ const DISAGREE: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => stri
       return `${total} requests failed: ${listed(outcomes.map(([name, n]) => `${n} with ${outcome(name)}`))}`;
     },
   ],
+  // the count of the backlog term (SYS-42): the band of n sessions at the mean period of the run
+  [
+    /^(\d+) failed requests, outside the count \[(\d+), (\d+)\] of (\d+) sessions? on the target at a mean period of ([\d.]+) ms$/,
+    (match) =>
+      `${of(Number(match[1]), "request")} failed, outside the count of ${Number(match[2]).toLocaleString("en-US")} to ${Number(match[3]).toLocaleString("en-US")} for ${of(Number(match[4]), "session")} on the target at the mean period of ${match[5]} ms of the run`,
+  ],
+  [/^the run has no measured period, thus the backlog term cannot count its failed requests$/, () => "the run has no measured period of the clients, thus the backlog band cannot count its failed requests"],
+  [/^the run has no sessions on the target at the fault, thus the backlog term has no n$/, () => "the run has no count of the sessions on the target at the fault"],
 ];
 const disagreeOf = (why: string): string =>
   `${why
