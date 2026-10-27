@@ -281,6 +281,7 @@ export interface ResetReuse<A = Quantity> {
  *   With `each`, each replica of the run that gets a deletion has a window of its own, from its own
  *   references. A request is late only when it is outside each of these windows.
  * - `removal`: the Service has no ready endpoint, and the rules of each node have no backend, in the band.
+ *   With `window`, the failed requests also start in that window.
  * - `leaves`: the target replica leaves the EndpointSlice and the rules of each node in the band.
  *   With `window`, the failed requests also start in that window.
  * - `restarts`: each replica receives SIGTERM in the band, or no replica does.
@@ -301,7 +302,7 @@ export type Prediction<A = Quantity> =
       readonly why: string;
     }
   | WindowPrediction<A>
-  | { readonly kind: "removal"; readonly band: Band<A>; readonly why: string }
+  | { readonly kind: "removal"; readonly band: Band<A>; readonly window?: WindowPrediction<A> | undefined; readonly why: string }
   | { readonly kind: "leaves"; readonly band: Band<A>; readonly window?: WindowPrediction<A> | undefined; readonly why: string }
   | { readonly kind: "restarts"; readonly band: Band<A> | null; readonly why: string }
   | { readonly kind: "stays"; readonly why: string }

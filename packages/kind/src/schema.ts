@@ -150,7 +150,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
   const prediction = z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("none"), outcomes: z.array(z.string()).optional(), why: z.string() }),
     window,
-    z.object({ kind: z.literal("removal"), band, why: z.string() }),
+    z.object({ kind: z.literal("removal"), band, window: window.optional(), why: z.string() }),
     z.object({ kind: z.literal("leaves"), band, window: window.optional(), why: z.string() }),
     z.object({ kind: z.literal("restarts"), band: band.nullable(), why: z.string() }),
     z.object({ kind: z.literal("stays"), why: z.string() }),

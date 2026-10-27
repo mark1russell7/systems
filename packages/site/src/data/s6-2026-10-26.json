@@ -5672,7 +5672,7 @@
     {
       "incident": "a black-holed shared dependency",
       "kind": "not measured",
-      "why": "No cell measures the candidates in this incident yet. The server of the S2 cells has no dependency: its Redis is off. A shared dependency fails the readiness of each replica at once. T18 has Redis, but no cell of the candidates."
+      "why": "No copy of a kind run has a result of the cells of this incident yet."
     },
     {
       "incident": "a lost zone",
@@ -5682,7 +5682,7 @@
     {
       "incident": "a slow dependency (gray failure)",
       "kind": "not measured",
-      "why": "No cell measures the candidates in this incident yet. The S2 cells have no shared dependency, and a slow dependency slows each replica at once. Thus no routing candidate can go around it. The stalled pod is the gray failure of one replica."
+      "why": "No cell measures the candidates in this incident yet. The trigger of the S2 cells black-holes Redis, and no trigger slows it. A slow dependency slows each replica at once, thus no routing candidate can go around it. The stalled pod is the gray failure of one replica."
     },
     {
       "incident": "a flapping dependency",

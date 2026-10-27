@@ -1,13 +1,14 @@
 import type { Recovery } from "@mark1russell7/algebra";
 import { recovery, timerOf } from "@mark1russell7/algebra";
 import type { Declaration, KindCell, KubeProxyMode, Workload } from "@mark1russell7/kind";
-import { KUBE_PROXY_MODES, learnWindow, removalBand, stallRemovalBand } from "@mark1russell7/kind";
+import { KUBE_PROXY_MODES, kubeletBand, latchBand, learnWindow, removalBand, stallRemovalBand } from "@mark1russell7/kind";
 import { LINUX_TCP } from "@mark1russell7/machines";
-import type { Quantity } from "@mark1russell7/quantity";
-import { valueIn } from "@mark1russell7/quantity";
+import { recoverSpan } from "@mark1russell7/service";
+import type { Extent, Quantity } from "@mark1russell7/quantity";
+import { isUnbounded, valueIn } from "@mark1russell7/quantity";
 import type { SessionCheckKnobs } from "@mark1russell7/service/http-client";
 import { LINUX_66, given, seconds } from "./catalog.ts";
-import { CHART_READINESS, DESIGN, PROPAGATION, T07_WORKLOAD, WORKERS, kubeDefaults, ms, s, say } from "./kind.ts";
+import { CHART_READINESS, DESIGN, DESIGN_REDIS, PROPAGATION, T07_WORKLOAD, WORKERS, kubeDefaults, ms, s, say } from "./kind.ts";
 
 /**
  * The S2 cells of the dimension "how callers learn that a pod cannot serve". Clients send requests
@@ -50,6 +51,11 @@ import { CHART_READINESS, DESIGN, PROPAGATION, T07_WORKLOAD, WORKERS, kubeDefaul
  * The fourth incident is a failed prober, as a false failure. The flag fails only the readiness
  * check of the target, and its route still serves (`serves` of the trigger). The cells measure the
  * false removal of a replica that can serve, and the requests that fail because of it.
+ *
+ * The fifth incident is a black-holed shared dependency. The server has Redis, and its round trip
+ * gates readiness (`DESIGN_REDIS`). A black hole comes between Redis and each replica for
+ * `DEPENDENCY_HOLD`. No replica can serve, thus no candidate can route around the fault. The cells
+ * measure when the Service is empty, when the callers get fast failures, and when they recover.
  */
 
 /** This count is the keep-alive connections of each client. Eight spread over two replicas, thus each client has some on the target in almost each run. */
@@ -82,11 +88,12 @@ export const CANNOT_SERVE_HOLD = s(30);
 /**
  * These are the incidents of the S2 cells. The target cannot serve, a black hole partitions it from
  * the clients, or its event loop stalls. In a false failure, its readiness check fails while it can serve.
+ * In a shared dependency, a black hole comes between Redis and each replica.
  */
-export type CallerFault = "cannot serve" | "partition" | "stall" | "false failure";
+export type CallerFault = "cannot serve" | "partition" | "stall" | "false failure" | "shared dependency";
 
 /** These are the incidents in their sequence: the cells of "cannot serve" come first. */
-export const CALLER_FAULTS: readonly CallerFault[] = ["cannot serve", "partition", "stall", "false failure"];
+export const CALLER_FAULTS: readonly CallerFault[] = ["cannot serve", "partition", "stall", "false failure", "shared dependency"];
 
 /**
  * This time is how long the event loop of the target stays blocked in a stall. It has three bounds:
@@ -231,6 +238,7 @@ export const expectedFailures = (candidate: Candidate, mode: KubeProxyMode, faul
   if (fault === "partition") return partitionOf(mode, candidate).expected;
   if (fault === "stall") return stallOf(mode, candidate).expected;
   if (fault === "false failure") return falseOf(mode, candidate).expected;
+  if (fault === "shared dependency") return dependencyOf(mode, candidate).expected;
   const workload = workloadOf(candidate);
   const window = learnWindow(declarationOf(candidate), CHART_READINESS, PROPAGATION[mode], workload);
   const turn = valueIn(window.turn, "s");
@@ -592,8 +600,103 @@ export const falseOf = (mode: KubeProxyMode, candidate: Candidate): FalsePredict
   };
 };
 
+/**
+ * This time is how long Redis stays black-holed for each replica. It has two bounds:
+ * - It is longer than the latest removal of both replicas (26.309 s in IPVS), thus the Service is
+ *   empty in the hold.
+ * - The client of Redis closes its connection at least 3 s after the fault (`driver_writeoff_time`).
+ *   Its retry window of 30 s starts at its first try to connect again. Each try before the heal ends
+ *   by the heal and one `connect_bound`, 30 s after the fault at the latest. Thus the client connects
+ *   again in its retry window.
+ */
+export const DEPENDENCY_HOLD = s(27);
+
+/** This time is the most that the interval timer of a client fires late, on a quiet loop. Node reads its clock in whole milliseconds. */
+const FIRING_LATE = ms(1);
+
+/** This function gives the declaration of a candidate in a shared dependency: its settings on the design with Redis, and no flag. */
+const dependencyDeclarationOf = (candidate: Candidate): Declaration => ({ ...declarationOf(candidate), flag: null, redis: DESIGN_REDIS.redis });
+
+/**
+ * This is the prediction of a candidate in a shared dependency. It has the expected failures, their
+ * window, the empty Service, the last slow failure, and the reason.
+ */
+export interface DependencyPrediction {
+  readonly expected: Expected;
+  /** This band is the first failed request, from the fault. */
+  readonly start: Band;
+  /** This band is the last failed request, from the heal. */
+  readonly end: Band;
+  /** This band is the empty Service: no ready endpoint in the EndpointSlice, and no backend in the rules, from the fault. */
+  readonly removal: Band;
+  /** This band is the start of the last slow failure before the heal, from the fault. After it, each failure is fast. */
+  readonly knows: Band;
+  readonly why: string;
+}
+
+/**
+ * This function gives the prediction of a candidate in a black-holed shared dependency. Each request
+ * needs Redis, thus each request fails from the fault until the callers recover after the heal.
+ * - Before the readiness latch of a replica trips, each request waits for Redis and fails slowly.
+ *   After the trip, the controller is not ready, and the service refuses each request at once.
+ * - The kubelet and the propagation remove both replicas (`removalBand`): the Service is empty.
+ * - A: each connection stays open, thus A recovers when the readiness of the service recovers.
+ * - B, C and D: the lame duck closes each connection, and the empty Service refuses each new one.
+ *   Thus they recover only when the kubelet and the propagation add the replicas again.
+ */
+export const dependencyOf = (mode: KubeProxyMode, candidate: Candidate): DependencyPrediction => {
+  const workload = workloadOf(candidate);
+  const declaration = dependencyDeclarationOf(candidate);
+  const knobs = declaration.redis!.knobs;
+  const propagation = PROPAGATION[mode];
+  const every = valueIn(workload.every, "s");
+  const timeout = valueIn(workload.timeout, "s");
+  const turn = every * (workload.connections ?? 1);
+  const hold = valueIn(DEPENDENCY_HOLD, "s");
+  const latch = latchBand(declaration.readiness, declaration.poll, "silent", knobs.request_timeout);
+  const trip = { lo: valueIn(latch.lo, "s"), hi: valueIn(latch.hi, "s") };
+  const removal = removalBand(latch, CHART_READINESS, propagation);
+  const removed = { lo: valueIn(removal.lo, "s"), hi: valueIn(removal.hi, "s") };
+  if (removed.hi >= hold) throw new Error(`the hold ${say(DEPENDENCY_HOLD)} ends before the latest removal (${removed.hi} s)`);
+  // a try at the heal ends at connect_bound, and the next try comes after the backoff: the cap, and a jitter up to the base
+  const reconnect = valueIn(knobs.connect_bound, "s") + valueIn(knobs.retry_cap, "s") + valueIn(knobs.retry_base, "s");
+  const tries = hold + valueIn(HEAL_LEAD.hi, "s") + valueIn(knobs.connect_bound, "s");
+  const finite = (extent: Extent): number => {
+    if (isUnbounded(extent)) throw new Error("the client of Redis has an unbounded retry knob");
+    return valueIn(extent, "s");
+  };
+  if (tries - finite(knobs.driver_writeoff_time) >= finite(knobs.client_retry_window))
+    throw new Error(`the retry window of the client of Redis can end before its try ${tries} s after the fault`);
+  const recover = valueIn(recoverSpan(declaration.readiness, declaration.poll).max, "s");
+  // the kubelet finds a ready replica at its next probe: one success, in one period at the most
+  const kubelet = valueIn(kubeletBand({ ...CHART_READINESS, threshold: 1 }, false).hi, "s");
+  const spread = valueIn(propagation.hi, "s");
+  const endHi = inBand(candidate) ? reconnect + recover + kubelet + spread + turn : reconnect + recover + turn;
+  const end = { lo: s(0), hi: time(endHi) };
+  // each request from the fault to the last failure fails. The timer fires up to FIRING_LATE late, thus a run can send fewer
+  const late = valueIn(FIRING_LATE, "s");
+  const span = { lo: hold + valueIn(HEAL_LEAD.lo, "s"), hi: hold + valueIn(HEAL_LEAD.hi, "s") + endHi };
+  const of = (length: number, gap: number): number => Math.round((length / gap) * 1e6) / 1e6;
+  const total = CLIENTS * (workload.connections ?? 1);
+  const expected = {
+    lo: requests(CLIENTS * (Math.floor(of(span.lo, every + late)) - 1)),
+    hi: requests(CLIENTS * (Math.ceil(of(span.hi, every)) + 1)),
+    connections: { lo: connections(total), hi: connections(total), of: connections(total) },
+  };
+  // a request that waits behind a slow one on a connection of HTTP/1.1 can start up to one timeout after the trip
+  const knows = { lo: time(trip.lo - every), hi: time(trip.hi + timeout) };
+  const fails = `Redis is black-holed for each replica for the hold (${say(DEPENDENCY_HOLD)}). Each request needs Redis, thus each request fails from the fault until the callers recover. Before the readiness latch of a replica trips (${say(latch.lo)}–${say(latch.hi)}), each request on it waits for Redis and fails slowly. Then its controller is not ready, and the service refuses each request at once with a 503. The kubelet and the propagation (${propagation.from}) remove both replicas ${say(removal.lo)}–${say(removal.hi)} after the fault. Then the Service is empty, and its rules refuse each new connection`;
+  const back = `After the heal, the client of Redis connects again in ${say(time(reconnect))} at the most, and the readiness of the service recovers up to ${say(time(recover))} later`;
+  const about = `Each client sends a request each ${say(workload.every)}, thus about ${expected.lo.value}–${expected.hi.value} requests fail`;
+  const sameAsC = candidate === "in band on HTTP/2 with a session check" ? ". A stream timeout before the trip closes its session, and the next stream opens a new one. Thus D is the same as C" : "";
+  const why = inBand(candidate)
+    ? `${fails}. The lame duck closes each connection after the trip${onHttp2(candidate) ? " with a GOAWAY on its session" : ""}, thus each next request opens a new connection, and the empty Service refuses it. ${back}. The kubelet then finds a replica ready in ${say(time(kubelet))} at the most, and the propagation adds it to the rules. ${about}${sameAsC}`
+    : `${fails}. Each connection of A stays open on its replica, thus it gets the 503 of the service and no refusal. ${back}. Then A succeeds on its open connections, before the endpoints come back. ${about}`;
+  return { expected, start: { lo: s(0), hi: time(every) }, end, removal: { lo: time(removed.lo), hi: time(removed.hi) }, knows, why };
+};
+
 /** These are the incidents of a silent target: the words of the name of each cell, and its trigger. */
-const SILENT: Readonly<Record<Exclude<CallerFault, "cannot serve" | "false failure">, { readonly what: string; readonly trigger: KindCell["trigger"]; readonly predict: typeof partitionOf }>> = {
+const SILENT: Readonly<Record<Exclude<CallerFault, "cannot serve" | "false failure" | "shared dependency">, { readonly what: string; readonly trigger: KindCell["trigger"]; readonly predict: typeof partitionOf }>> = {
   partition: { what: "a pod is partitioned", trigger: { kind: "blackhole", hold: PARTITION_HOLD, partition: true }, predict: partitionOf },
   stall: { what: "a pod is stalled", trigger: { kind: "app-stall", hold: STALL_HOLD }, predict: stallOf },
 };
@@ -608,10 +711,19 @@ const SUFFIX: Readonly<Record<Candidate, string>> = {
 
 /**
  * This function tells the incident of an S2 cell. A partition has the flag `partition` on its black
- * hole, and a stall is an `app-stall`. A false failure has the flag `serves` on its `cannot-serve`.
+ * hole, and a stall is an `app-stall`. A black hole with no `partition` is on Redis: a shared
+ * dependency. A false failure has the flag `serves` on its `cannot-serve`.
  */
 export const callerFaultOf = (cell: KindCell): CallerFault =>
-  cell.trigger.partition === true ? "partition" : cell.trigger.kind === "app-stall" ? "stall" : cell.trigger.serves === true ? "false failure" : "cannot serve";
+  cell.trigger.partition === true
+    ? "partition"
+    : cell.trigger.kind === "app-stall"
+      ? "stall"
+      : cell.trigger.kind === "blackhole"
+        ? "shared dependency"
+        : cell.trigger.serves === true
+          ? "false failure"
+          : "cannot serve";
 
 /** This function gives the cell of a candidate in a mode, for an incident. The cells of an incident share each setting but the trigger and the prediction. */
 const cellOf = (mode: KubeProxyMode, candidate: Candidate, fault: CallerFault): KindCell => {
@@ -644,6 +756,36 @@ const cellOf = (mode: KubeProxyMode, candidate: Candidate, fault: CallerFault): 
           why: predicted.why,
         },
         why: `The readiness check fails while the target can serve. The kubelet removes it ${say(predicted.removal.lo)}–${say(predicted.removal.hi)} after the fault: a false removal of each candidate`,
+      },
+      calibrates: false,
+      runs: 3,
+    };
+  }
+  if (fault === "shared dependency") {
+    const predicted = dependencyOf(mode, candidate);
+    return {
+      id: `S2.T07.${mode}.${SUFFIX[candidate]}.dependency`,
+      name: `T07 ${mode}, callers learn that a shared dependency is black-holed: ${candidate}`,
+      template: "T07",
+      substitutes: null,
+      mode,
+      workers: WORKERS,
+      trigger: { kind: "blackhole", hold: DEPENDENCY_HOLD },
+      pod,
+      declaration: dependencyDeclarationOf(candidate),
+      workload,
+      prediction: {
+        kind: "removal",
+        band: predicted.removal,
+        window: {
+          kind: "window",
+          nodes: "all",
+          start: { from: "fault", band: predicted.start },
+          end: { from: "heal", band: predicted.end },
+          certain: true,
+          why: predicted.why,
+        },
+        why: `The round trip of Redis gates the readiness of each replica, thus the Service is empty ${say(predicted.removal.lo)}–${say(predicted.removal.hi)} after the fault, for each candidate`,
       },
       calibrates: false,
       runs: 3,
