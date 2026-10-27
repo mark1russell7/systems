@@ -489,7 +489,7 @@ A check of the kind `progress` fires when no loop marks progress in its stall ti
 - **Depends on:**
 - **Started:** 2026-10-27
 - **Shipped:** 2026-10-27
-- **Links:**
+- **Links:** [#224](https://github.com/mark1russell7/systems/pull/224), [The WS run](https://github.com/mark1russell7/systems/actions/runs/40453803841)
 
 A run pairs each event of a program with its record of the kernel in δ_abs, 1 ms. On a runner of GitHub the jitter of a program is 1.06 to 1.74 ms, thus a single run can fail on it. Thus the harness measures that jitter in each run and records it (`Run.jitter`). The pairing window of the run is the larger of δ_abs and the measured bound (`pairingOf`).
 
@@ -498,6 +498,8 @@ A run pairs each event of a program with its record of the kernel in δ_abs, 1 m
 - The acts that a cell judges come after the fault, thus a late act cannot widen its own window.
 - Each measurement gives its bound and its window (`Measured.pairing`), and each line of `summary.ndjson` gives `pairing`. A record from before SYS-25 has no bound, thus its window is δ_abs, 1 ms.
 - In the 33 records of the nightly run 40446582383, only the cells of the `ws` class got a longer window: 1.009 ms to 1.519 ms. Each decision stayed the same.
+- The WS run 40453803841 on the branch held each of its 33 cells, and each line gave `pairing`. Only 10 cells of the `ws` class got a longer window, 1.027 ms to 2.129 ms.
+- The prediction of that run said that each bound stays below 2 ms. One cell missed it: the silent drop at 5 s with a heartbeat of 6 s, at 2.129 ms. Thus the jitter of a runner can be above 2 ms.
 
 - Stage 0 calibrated the runner image `ubuntu24 20261023.334.3` on 2026-10-24 (runs 40128274924 and 40129876394). The worst of 90 resets took 0.316 ms, thus δ_abs stays 1 ms and the cap stays 4.
 
