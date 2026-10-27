@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The source of each fact of the transport is the Go source of google.golang.org/grpc at the tag v1.84.0
 // (github.com/grpc/grpc-go). Each line number is a line of that file at the tag. The facts of Go are from

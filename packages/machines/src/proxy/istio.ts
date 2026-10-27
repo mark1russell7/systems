@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 import { ENVOY_HTTP2 } from "./envoy.ts";
 
 // The source of each fact of Istio below is github.com/istio/istio at the tag 1.31.3. The proxy of

@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The source of each fact below is the C source of PgBouncer at the tag pgbouncer_1_26_1 (commit
 // f03e9bf263d7, the tarball of GitHub with SHA-256 2e659b12...a64ea6bc38). Each line number is a

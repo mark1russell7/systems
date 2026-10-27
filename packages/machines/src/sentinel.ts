@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The source of each fact below is src/sentinel.c of Valkey at the tag 9.1.2, unless a line names
 // src/server.c or src/server.h. Each line number is a line of that file at that tag.

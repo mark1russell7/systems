@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The sources of the two proxies below. Toxiproxy is github.com/Shopify/toxiproxy at the tag v2.12.0
 // (commit 3ccd6a79cbc6), with go.mod at go 1.23.0. docker-proxy is cmd/docker-proxy of github.com/moby/moby

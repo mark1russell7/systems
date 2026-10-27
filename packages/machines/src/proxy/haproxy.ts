@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The source of each fact below is the stable branch of HAProxy 3.2 at the tag v3.2.25 (commit
 // 70469d33ba0e), in git.haproxy.org/git/haproxy-3.2.git. The repository haproxy/haproxy on GitHub

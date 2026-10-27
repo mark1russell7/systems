@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The source of each fact below is the JavaScript source of the npm package amqplib at 2.2.0, as the
 // tag v2.2.0 of github.com/amqp-node/amqplib gives it (under lib/). Each line number is a line of that

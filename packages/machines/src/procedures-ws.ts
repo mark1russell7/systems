@@ -1,5 +1,5 @@
 import type { Expr, Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 import { NODE_TIMER_EARLY, nodeTimerLateness } from "./http/timers.ts";
 
 /**

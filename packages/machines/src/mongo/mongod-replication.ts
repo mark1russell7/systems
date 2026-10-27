@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The source of each fact below is src/mongo/db/repl of MongoDB at the tag r9.0.4, unless a line
 // names another folder. Each line number is a line of that file at that tag.

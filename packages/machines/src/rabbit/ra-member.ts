@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The source of each fact below is ra 3.1.10, the Raft library that RabbitMQ 4.3.6 locks
 // (rabbitmq-components.mk:58) and ships in deps/ra, unless a line names RabbitMQ. Each line number is

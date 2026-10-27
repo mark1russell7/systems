@@ -4,7 +4,7 @@ State machines as data, and the timer algebra over them. A machine document give
 
 ## The machine document
 
-A machine document has the format `mark1russell7.machine/1`, and `machineSchema` accepts it.
+A machine document has the format `mark1russell7.machine/1`, and `machineSchema` accepts it. The schema is in the entry `@mark1russell7/algebra/schema`.
 
 - **States and transitions.** A transition goes from one or more states to a state, on one or more events. The state `"*"` is each state that is not final.
 - **Timers.** A timer has a duration, the events that arm it, the events that cancel it, and the event that it fires. It can also have a lateness and an early bound.
@@ -63,12 +63,19 @@ const problems = replay(CONNECTION_MACHINE, recorded, { machine: CONNECTION_MACH
 pnpm add @mark1russell7/algebra zod
 ```
 
-The package uses [`@mark1russell7/quantity`](https://www.npmjs.com/package/@mark1russell7/quantity) for each amount, and both packages use `zod` as a peer dependency.
+The package uses [`@mark1russell7/quantity`](https://www.npmjs.com/package/@mark1russell7/quantity) for each amount.
+
+The root entry has the machine types, the consistency checks and the algebra. It does not import `zod`.
+
+The schema is in the entry `@mark1russell7/algebra/schema`. That entry uses `zod` as an optional peer dependency, as `@mark1russell7/quantity/schema` does. An application that does not parse documents can install the package without `zod`.
+
+**From 0.7 to 0.8.** The root entry does not give `machineSchema`. Import it from `@mark1russell7/algebra/schema`.
 
 ## Example
 
 ```ts
-import { detection, machineSchema, timerOf } from "@mark1russell7/algebra";
+import { detection, timerOf } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 const tcp = machineSchema.parse(linuxTcpDocument);
 const values = (name: string) =>
@@ -86,7 +93,9 @@ detection(tcp, idle, { name: "blackhole", passes: [] }, values).first?.timer; //
 
 ## Tests
 
-`pnpm --filter @mark1russell7/algebra test` starts the tests. Each test writes its own small machines. The machines are a socket with the timers of a kernel's TCP, a server over the socket, and a driver with a backoff. The tests compute each model at the defaults of Linux 6.6, and the rounding of the timer wheel. They also compute the backoff waits, recovery after a stall, and detection for each fault. The replay tests use a machine with its own names, and they hold the entry of the replay without zod.
+`pnpm --filter @mark1russell7/algebra test` starts the tests. Each test writes its own small machines. The machines are a socket with the timers of a kernel's TCP, a server over the socket, and a driver with a backoff. The tests compute each model at the defaults of Linux 6.6, and the rounding of the timer wheel. They also compute the backoff waits, recovery after a stall, and detection for each fault.
+
+The replay tests use a machine with its own names, and they hold the entry of the replay without zod. A test of the root entry fails if the root imports zod.
 
 The tests of the algebra on the real documents are in `@mark1russell7/machines`.
 

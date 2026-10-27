@@ -1,5 +1,5 @@
 import type { Machine } from "@mark1russell7/algebra";
-import { machineSchema } from "@mark1russell7/algebra";
+import { machineSchema } from "@mark1russell7/algebra/schema";
 
 // The source of each fact below is the Java source of HikariCP at the tag HikariCP-7.1.0 (commit
 // e4c04e8b6d33) and of pgjdbc at the tag REL42.7.13 (commit 3297557c6a80). Each line number is a
