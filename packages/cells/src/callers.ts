@@ -889,9 +889,9 @@ export const lostZoneOf = (mode: KubeProxyMode, candidate: Candidate): ZonePredi
  *   or B gets its next request before it has the answer to the last one, and its queue grows.
  * - It is shorter than the `keepalive_time` of the session check of D (0.5 s). Thus each session of
  *   D hears a frame in each tick, and it sends no PING.
- * - It is shorter than each bound of a check: the `heartbeat_timeout` of the Redis client (1 s), the
- *   round-trip check (2 s) and the readiness probe of Redis (1 s). Thus each check passes, and no
- *   replica leaves the Service.
+ * - It is shorter than each bound of a check. The bounds are the `heartbeat_timeout` of the Redis
+ *   client (1 s), the round-trip check (2 s) and the readiness probe of Redis (1 s). Thus each check
+ *   passes, and no replica leaves the Service.
  */
 export const SLOW_DELAY = ms(300);
 
@@ -899,14 +899,14 @@ export const SLOW_DELAY = ms(300);
 export const SLOW_HOLD = DEPENDENCY_HOLD;
 
 /**
- * This time is the most that a request takes on a replica apart from the delay of Redis: the path
- * from the client, the service, and the command of Redis itself. In kind it is a few milliseconds.
+ * This time is the most that a request takes on a replica, apart from the delay of Redis. It has
+ * the path from the client, the service, and the command of Redis. In kind it is a few milliseconds.
  */
 const SLOW_REST = ms(100);
 
 /**
- * This time is the most from the stamp of the heal to the instant that the delay is zero: the start
- * of `tc` in the injector, and its change of the qdisc.
+ * This time is the most from the stamp of the heal to the instant that the delay is zero. It has the
+ * start of `tc` in the injector, and its change of the qdisc.
  */
 const SLOW_HEAL_EFFECT = ms(100);
 
@@ -930,10 +930,10 @@ export interface SlowPrediction {
  * replica leaves the Service, and no candidate learns.
  * - A and B: each connection of HTTP/1.1 carries one request at a time, and each one gets the next
  *   request each turn (160 ms). A request takes longer than a turn, thus the queue of each connection
- *   grows, and request j waits j × (S − turn) for its start, with S the time of one request. The first
+ *   grows. With S the time of one request, request j waits j × (S − turn) for its start. The first
  *   request whose time is above the timeout fails. After it, each request in the queue is older than
  *   the timeout less one turn at its start, thus each one fails. A timeout ends its connection, and the
- *   next connection goes to a replica that is as slow. The lame duck of B never fires, thus B is A.
+ *   next connection goes to a replica that is as slow. The lame duck of B does not fire, thus B is A.
  * - After the heal, a request that starts gets its answer at once. The last failure is the request
  *   that started before the delay was zero: it is one timeout less one turn older than its start.
  * - C and D: each stream of a session waits for Redis on its own, thus no stream waits for another

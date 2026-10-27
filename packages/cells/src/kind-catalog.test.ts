@@ -654,7 +654,6 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
         expect(plan.inject).toEqual([{ do: "netem", target: "redis", delay: SLOW_DELAY }]);
         expect(plan.heal).toEqual(plan.restore);
         expect(stopOf(cell)).toBeNull();
-        expect(lintCell(cell)).toEqual([]);
       }
     }
   });

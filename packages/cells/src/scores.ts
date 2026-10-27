@@ -37,9 +37,8 @@ import {
  * the readiness check). The fifth is a black-holed shared dependency (a black hole between Redis and
  * each replica). The sixth is a flapping dependency: that black hole, three times in one run. The
  * seventh is a lost zone (`zone-loss`): the node of the target loses its link, and its kubelet is frozen.
- * The eighth is a slow dependency (`latency`): each packet that Redis sends waits for a delay.
  *
- * Each incident has its own kind run. An incident with no copy of a run is "not measured".
+ * The eighth is a slow dependency (`latency`): each packet that Redis sends waits for a delay. Each incident has its own kind run. An incident with no copy of a run is "not measured".
  *
  * The probe load is the PINGs that the clients add to the readiness probe, which each candidate shares.
  * A, B and C send no PING by their code (`derived`). The PINGs of D come from a later kind run, whose
