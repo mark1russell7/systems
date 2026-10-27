@@ -6,7 +6,7 @@ import type { KindCell } from "../../kind/src/index.ts";
 import type { Quantity } from "../../quantity/src/index.ts";
 import { valueIn } from "../../quantity/src/index.ts";
 import type { Candidate, CallerFault } from "../../cells/src/callers.ts";
-import { CALLERS_CELLS, CANDIDATES, callerFaultOf, dependencyOf, expectedFailures } from "../../cells/src/callers.ts";
+import { CALLERS_CELLS, CANDIDATES, callerFaultOf, dependencyOf, expectedFailures, flappingOf } from "../../cells/src/callers.ts";
 
 const s = (value: Quantity): number => valueIn(value, "s");
 
@@ -23,7 +23,8 @@ export const candidateName = (cell: KindCell): Candidate => {
 /**
  * This function gives the candidate of an S2 cell for the side-by-side table: its window and its
  * expected count of failed requests. A shared dependency also has the empty Service and the time
- * until the callers know.
+ * until the callers know. A flapping dependency has them for each fault, and `each`: the expected
+ * failed requests of one fault.
  */
 export const candidateOf = (cell: KindCell) => {
   if (cell.trigger.kind !== "cannot-serve" && cell.trigger.kind !== "app-stall" && cell.trigger.kind !== "blackhole") return null;
@@ -32,7 +33,9 @@ export const candidateOf = (cell: KindCell) => {
   if (p === undefined || p.kind !== "window" || p.end === null) throw new Error(`${cell.name}: an S2 cell has a window that ends`);
   const leaves = cell.prediction.kind === "leaves" ? { leaves: { from: "fault", low: s(cell.prediction.band.lo), high: s(cell.prediction.band.hi) } } : {};
   const name = candidateName(cell);
-  const knows = cell.prediction.kind === "removal" ? dependencyOf(cell.mode, name).knows : null;
+  const flapping = callerFaultOf(cell) === "flapping dependency" ? flappingOf(cell.mode, name) : null;
+  const knows = cell.prediction.kind === "removal" ? (flapping ?? dependencyOf(cell.mode, name)).knows : null;
+  const each = flapping === null ? {} : { each: { low: flapping.each.lo.value, high: flapping.each.hi.value } };
   const removal =
     cell.prediction.kind === "removal" && knows !== null
       ? { removal: { from: "fault", low: s(cell.prediction.band.lo), high: s(cell.prediction.band.hi) }, knows: { from: "fault", low: s(knows.lo), high: s(knows.hi) } }
@@ -47,6 +50,7 @@ export const candidateOf = (cell: KindCell) => {
     connections: { low: expected.connections.lo.value, high: expected.connections.hi.value, of: expected.connections.of.value },
     ...leaves,
     ...removal,
+    ...each,
   };
 };
 
