@@ -14,6 +14,7 @@ const stall = read<{ readonly cells: readonly CallerResult[] }>("s2-stall-2026-1
 const prober = read<{ readonly cells: readonly CallerResult[] }>("s2-prober-2026-10-26.json");
 const dependency = read<{ readonly cells: readonly CallerResult[] }>("s2-dependency-2026-10-27.json");
 const flapping = read<{ readonly cells: readonly CallerResult[] }>("s2-flapping-2026-10-27.json");
+const zone = read<{ readonly cells: readonly CallerResult[] }>("s2-zone-2026-10-27.json");
 // the copies of the run that counts the PINGs of D, for each incident
 const loads = ["s2-load", "s2-partition-load", "s2-stall-load", "s2-prober-load", "s2-dependency-load"].map((name) => read<{ readonly cells: readonly CallerResult[] }>(`${name}-2026-10-27.json`));
 const s6 = read<Scorecard & { readonly ranAt: string }>("s6-2026-10-27.json");
@@ -25,6 +26,7 @@ const PROBER_RUN = 40419289511;
 const DEPENDENCY_RUN = 40430856093;
 const LOAD_RUN = 40440516571;
 const FLAPPING_RUN = 40464814086;
+const ZONE_RUN = 40500297695;
 const card = scoreCallers(
   { run: RUN, cells: s2.cells },
   { run: PARTITION_RUN, cells: partition.cells },
@@ -35,6 +37,7 @@ const card = scoreCallers(
   { run: DEPENDENCY_RUN, cells: dependency.cells },
   ...loads.map((each) => ({ run: LOAD_RUN, cells: each.cells })),
   { run: FLAPPING_RUN, cells: flapping.cells },
+  { run: ZONE_RUN, cells: zone.cells },
 );
 
 const scoredOf = (scorecard: Scorecard, name: Incident): readonly ModeScores[] => {
@@ -48,6 +51,7 @@ const stalled = (scorecard: Scorecard): readonly ModeScores[] => scoredOf(scorec
 const probed = (scorecard: Scorecard): readonly ModeScores[] => scoredOf(scorecard, "a failed prober");
 const depended = (scorecard: Scorecard): readonly ModeScores[] => scoredOf(scorecard, "a black-holed shared dependency");
 const flapped = (scorecard: Scorecard): readonly ModeScores[] => scoredOf(scorecard, "a flapping dependency");
+const zoned = (scorecard: Scorecard): readonly ModeScores[] => scoredOf(scorecard, "a lost zone");
 const scoreOf = (candidate: CandidateScores, criterion: Score["criterion"]): Score => {
   const found = candidate.scores.find((each) => each.criterion === criterion);
   if (found === undefined) throw new Error(`${candidate.cell}: no score of ${criterion}`);
@@ -59,7 +63,7 @@ const median = (candidate: CandidateScores, criterion: Score["criterion"] = "fai
   return score.median.value;
 };
 
-describe("the scores of how callers learn, from the copies of kind runs 40358038728, 40380943331, 40394320219, 40406199754, 40419289511, 40430856093, 40440516571 and 40464814086", () => {
+describe("the scores of how callers learn, from the copies of kind runs 40358038728, 40380943331, 40394320219, 40406199754, 40419289511, 40430856093, 40440516571, 40464814086 and 40500297695", () => {
   it("are the scorecard that the site shows", () => {
     const { ranAt, ...shown } = s6;
     expect(ranAt).toBe("2026-10-27");
@@ -68,7 +72,7 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
 
   it("give each candidate of each mode a score on each criterion, with the run and the cell as evidence", () => {
     // the copies of run 40394320219 add D to each incident, and A, B and C keep the evidence of their own runs
-    expect([card.run, card.runs]).toEqual([RUN, [RUN, PARTITION_RUN, CHECK_RUN, STALL_RUN, PROBER_RUN, DEPENDENCY_RUN, LOAD_RUN, FLAPPING_RUN]]);
+    expect([card.run, card.runs]).toEqual([RUN, [RUN, PARTITION_RUN, CHECK_RUN, STALL_RUN, PROBER_RUN, DEPENDENCY_RUN, LOAD_RUN, FLAPPING_RUN, ZONE_RUN]]);
     expect(card.incidents.map((each) => each.incident)).toEqual(INCIDENTS);
     for (const [modes, run, tail] of [
       [scored(card), RUN, ""],
@@ -77,6 +81,7 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
       [probed(card), PROBER_RUN, ".prober"],
       [depended(card), DEPENDENCY_RUN, ".dependency"],
       [flapped(card), FLAPPING_RUN, ".flapping"],
+      [zoned(card), ZONE_RUN, ".zone"],
     ] as const) {
       expect(modes.map((each) => each.mode)).toEqual(["iptables", "ipvs", "nftables"]);
       for (const mode of modes) {
@@ -86,20 +91,20 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
         for (const candidate of mode.candidates) {
           expect(candidate.scores.map((each) => each.criterion)).toEqual(CRITERIA);
           // the runs of the stall, of the prober and of each dependency have each candidate, D too
-          const single = [STALL_RUN, PROBER_RUN, DEPENDENCY_RUN, FLAPPING_RUN].includes(run);
+          const single = [STALL_RUN, PROBER_RUN, DEPENDENCY_RUN, FLAPPING_RUN, ZONE_RUN].includes(run);
           const evidence = candidate.label === "D" && !single ? CHECK_RUN : run;
           // the gap: one run of B in nftables recovered before its window could end
           const decision = candidate.cell === "S2.T07.nftables.lame-duck.dependency" ? "fails" : "holds";
-          // the PINGs of D come from the run that counts them, and each of its cells held. The run of the flapping dependency counts its own
-          const load = run === FLAPPING_RUN ? FLAPPING_RUN : LOAD_RUN;
+          // the PINGs of D come from the run that counts them, and each of its cells held. The runs of the flapping dependency and of the lost zone count their own
+          const load = run === FLAPPING_RUN || run === ZONE_RUN ? run : LOAD_RUN;
           for (const score of candidate.scores)
             if (score.kind === "measured" || score.kind === "bounded")
               expect(score.evidence, candidate.cell).toEqual(score.criterion === "probe load" ? { run: load, cell: candidate.cell, decision: "holds", counted: 3 } : { run: evidence, cell: candidate.cell, decision, counted: 3 });
         }
       }
     }
-    const runOf: Partial<Record<Incident, number>> = { "a pod that cannot serve": RUN, "a partitioned pod": PARTITION_RUN, "a stalled pod (gray failure)": STALL_RUN, "a failed prober": PROBER_RUN, "a black-holed shared dependency": DEPENDENCY_RUN, "a flapping dependency": FLAPPING_RUN };
-    for (const incident of card.incidents.slice(0, 6)) expect(incident.kind === "scored" ? incident.run : null).toBe(runOf[incident.incident]);
+    const runOf: Partial<Record<Incident, number>> = { "a pod that cannot serve": RUN, "a partitioned pod": PARTITION_RUN, "a stalled pod (gray failure)": STALL_RUN, "a failed prober": PROBER_RUN, "a black-holed shared dependency": DEPENDENCY_RUN, "a flapping dependency": FLAPPING_RUN, "a lost zone": ZONE_RUN };
+    for (const incident of card.incidents.slice(0, 7)) expect(incident.kind === "scored" ? incident.run : null).toBe(runOf[incident.incident]);
   });
 
   it("put the measure of the failed requests next to the prediction, and each counted run is in the prediction", () => {
@@ -227,6 +232,38 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
     expect(early.kind === "measured" ? [Math.min(...early.values.map((each) => each.value)) < 0, early.prediction.lo] : null).toEqual([true, { value: -2, unit: "s" }]);
   });
 
+  it("score a lost zone: the node lifecycle controller removes the target, and C learns only at the 9th retransmission", () => {
+    // the failed requests of the median run. C fails until the 9th retransmission if a session is on the lost node, and D bounds it
+    expect(zoned(card).map((mode) => mode.candidates.map((each) => median(each)))).toEqual([
+      [21, 13, 5128, 0],
+      [16, 16, 0, 133],
+      [17, 23, 10464, 117],
+    ]);
+    // in IPVS, 2 of the 3 runs of C had no session on the lost node, thus its median is 0
+    expect(zoned(card).map((mode) => mode.fewest)).toEqual(["D", "C", "A"]);
+    for (const mode of zoned(card))
+      for (const candidate of mode.candidates)
+        for (const criterion of ["failed requests", "time to recover", "routes down"] as const)
+          expect(scoreOf(candidate, criterion), `${candidate.cell} ${criterion}`).toMatchObject({ kind: "measured", holds: true });
+    // the removal of the target, in seconds after the fault: in the band of the grace of the node controller for each candidate
+    const removals = zoned(card).map((mode) => mode.candidates.map((each) => median(each, "routes down")));
+    expect(removals).toEqual([
+      [50.393, 45.402, 49.002, 50.695],
+      [46.541, 45.697, 45.68, 47.451],
+      [46.149, 46.293, 45.717, 45.539],
+    ]);
+    // A and B learn in 1.3 s at the most. C learns after the heal, at the 9th retransmission
+    const knows = zoned(card).map((mode) => mode.candidates.slice(0, 3).map((each) => Math.round(median(each, "time until callers know") * 100) / 100));
+    expect(knows).toEqual([
+      [1.06, 0.49, 103.64],
+      [0.53, 0.52, 103.34],
+      [0.62, 0.79, 105.33],
+    ]);
+    // D in iptables had no failed request in a counted run, thus its time is bounded by the window
+    expect(scoreOf(zoned(card)[0]!.candidates[3]!, "time until callers know")).toMatchObject({ kind: "bounded", holds: true });
+    for (const mode of zoned(card).slice(1)) expect(median(mode.candidates[3]!, "time until callers know"), mode.mode).toBeLessThan(5);
+  });
+
   it("support the decision: B, C and D each beat A in each mode, and no candidate has the fewest in each mode", () => {
     for (const mode of scored(card)) {
       const [a, b, c, d] = mode.candidates.map((each) => median(each));
@@ -331,6 +368,8 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
       // a shared dependency measures its routes down and its time to recover
       [depended(card), ["false removals on a blip", "complexity"]],
       [flapped(card), ["false removals on a blip", "complexity"]],
+      // a lost zone is a true loss: no removal is false
+      [zoned(card), ["false removals on a blip", "complexity"]],
     ] as const)
       for (const mode of modes)
         for (const candidate of mode.candidates)
@@ -341,12 +380,12 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
           }
     // the incidents of the design with no cell of the candidates
     const rest = card.incidents.filter((each) => each.kind === "not measured").map((each) => each.incident);
-    expect(rest).toEqual(INCIDENTS.slice(6));
+    expect(rest).toEqual(INCIDENTS.slice(7));
   });
 
   it("give A, B and C zero PINGs from the code, and the PINGs of D from the run that counts them", () => {
     const pings: number[][][] = [];
-    for (const modes of [scored(card), partitioned(card), stalled(card), probed(card), depended(card), flapped(card)]) {
+    for (const modes of [scored(card), partitioned(card), stalled(card), probed(card), depended(card), flapped(card), zoned(card)]) {
       pings.push([]);
       for (const mode of modes)
         for (const candidate of mode.candidates) {
@@ -369,6 +408,8 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
       [[33, 44, 51], [33, 45, 47], [33, 45, 51]],
       // three faults in one run: approximately three times the PINGs of the shared dependency
       [[122, 123, 135], [124, 131, 138], [112, 123, 126]],
+      // a lost zone: the PINGs of a partition, from the 2 clients of the kept zone
+      [[0, 0, 0], [2, 2, 2], [0, 1, 2]],
     ]);
     // without the copies of the PINGs, D has no number
     const without = scoreCallers({ run: RUN, cells: s2.cells }, { run: CHECK_RUN, cells: checked.cells });
@@ -376,7 +417,7 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
   });
 
   it("predict the PINGs of D in each incident before a run counts them", () => {
-    const bands = (["cannot serve", "false failure", "partition", "stall", "shared dependency", "flapping dependency"] as const).map((fault) =>
+    const bands = (["cannot serve", "false failure", "partition", "stall", "shared dependency", "flapping dependency", "lost zone"] as const).map((fault) =>
       (["iptables", "ipvs", "nftables"] as const).map((mode) => {
         const band = pingsOf(mode, "in band on HTTP/2 with a session check", fault);
         return [band.lo.value, band.hi.value];
@@ -389,6 +430,8 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
       [[0, 9], [0, 3], [0, 9]],
       [[3, 126], [3, 126], [3, 126]],
       [[9, 378], [9, 378], [9, 378]],
+      // a lost zone: the PINGs of a partition, with the 2 clients of the kept zone
+      [[0, 2], [0, 2], [0, 2]],
     ]);
     // a PING and its ACK are each a frame header of 9 bytes and 8 bytes of data
     expect(PING_FRAME).toEqual({ value: 17, unit: "B" });

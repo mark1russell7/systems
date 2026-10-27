@@ -6,11 +6,14 @@ import { deletes, faultSpan, planOf } from "./faults.ts";
 import { clientObjects, namespaceOf, serverObjects } from "./manifests.ts";
 import {
   DOCUMENTED,
+  NODE_LIFECYCLE,
   deletionWindow,
   intakeAfter,
   kubeletBand,
   latchBand,
   learnWindow,
+  nodeLossBand,
+  nodeReturnBand,
   pausedWindow,
   removalBand,
   restartBand,
@@ -41,6 +44,12 @@ describe("the arithmetic of the predictions", () => {
     expect(removalBand(b(8, 20), PROBE, E)).toEqual(b(28.05, 50.4));
     expect(restartBand(b(8, 20), PROBE, s(0))).toEqual(b(28, 50));
     expect(stallRemovalBand(PROBE, E)).toEqual(b(21.05, 31.4));
+  });
+
+  it("removes the pods of a lost node 39.6–55.25 s after the loss and the propagation, and gives them back in 26.85 s after the return, at the defaults of v1.37.0", () => {
+    expect(nodeLossBand(NODE_LIFECYCLE, E)).toEqual(b(39.6, 55.65));
+    expect(nodeLossBand(NODE_LIFECYCLE, { ...b(0, 0), from: "a test" })).toEqual(b(39.6, 55.25));
+    expect(nodeReturnBand(NODE_LIFECYCLE)).toEqual(b(0, 26.85));
   });
 
   it("ends the failures of a replica that cannot serve at the removal with the lame duck, and at the recovery after the heal without it", () => {
@@ -166,6 +175,15 @@ describe("the fault mapping", () => {
       heal: [{ do: "inject", target: "server", action: "clear" }],
       restore: [],
     });
+    // a zone loss: new connections first, then the loss of the zone of the last worker, which no pod deletion follows
+    expect(planOf(cellOf("zone-loss"))).toEqual({
+      prepare: [{ do: "signal", target: "clients", signal: "SIGHUP" }, { do: "wait", time: s(3) }],
+      inject: [{ do: "zone", lost: true }],
+      hold: s(5),
+      heal: [{ do: "zone", lost: false }],
+      restore: [{ do: "zone", lost: false }],
+    });
+    expect(deletes(cellOf("zone-loss"))).toBe(false);
     expect(planOf(cellOf("rollout", DESIGN, "T18")).heal).toEqual([{ do: "kubectl", args: ["-n", "{namespace}", "scale", "deployment/redis", "--replicas=1"] }]);
     expect(deletes(cellOf("rolling-update"))).toBe(true);
     expect(deletes(cellOf("crash"))).toBe(false);

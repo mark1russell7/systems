@@ -2,7 +2,23 @@ import { describe, expect, it } from "vitest";
 import { timerOf } from "@mark1russell7/algebra";
 import type { KindCell } from "@mark1russell7/kind";
 import { LINUX_TCP } from "@mark1russell7/machines";
-import { clientObjects, describeCell, faultSpan, kubeletBand, lintCell, namespaceOf, pausedWindow, planOf, removalBand, serverObjects, stallRemovalBand, stopOf, verdictsOf } from "@mark1russell7/kind";
+import {
+  NODE_LIFECYCLE,
+  clientObjects,
+  describeCell,
+  faultSpan,
+  kubeletBand,
+  lintCell,
+  namespaceOf,
+  nodeLossBand,
+  pausedWindow,
+  planOf,
+  removalBand,
+  serverObjects,
+  stallRemovalBand,
+  stopOf,
+  verdictsOf,
+} from "@mark1russell7/kind";
 import { STOP_RULE } from "@mark1russell7/service";
 import { sessionCheckDetection, sessionCheckProblems } from "@mark1russell7/service/http-client";
 import { valueIn } from "@mark1russell7/quantity";
@@ -27,11 +43,15 @@ import {
   SELECTION,
   SESSION_CHECK,
   STALL_HOLD,
+  ZONE_CLIENTS,
+  ZONE_HEAL_LEAD,
+  ZONE_HOLD,
   callerFaultOf,
   dependencyOf,
   expectedFailures,
   falseOf,
   flappingOf,
+  lostZoneOf,
   negativeBinomial,
   pingsOf,
   targetConnections,
@@ -54,7 +74,7 @@ const propagationOf = (cell: KindCell) => {
 
 describe("the kind catalogs", () => {
   it("names each cell by a cell of the plan, or as a calibration, and each name once", () => {
-    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(iptables|ipvs|nftables)\.(endpoints|lame-duck|goaway|session-check)(\.partition|\.stall|\.prober|\.dependency|\.flapping)?$/);
+    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(iptables|ipvs|nftables)\.(endpoints|lame-duck|goaway|session-check)(\.partition|\.stall|\.prober|\.dependency|\.flapping|\.zone)?$/);
     expect(new Set(ALL.map((cell) => cell.name)).size).toBe(ALL.length);
     expect(new Set(ALL.map(namespaceOf)).size).toBe(ALL.length);
   });
@@ -170,9 +190,9 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
 
   it("has the four candidates in each mode of kube-proxy, from one definition", () => {
     expect(CALLERS_MODES).toEqual(["iptables", "ipvs", "nftables"]);
-    expect(CALLER_FAULTS).toEqual(["cannot serve", "partition", "stall", "false failure", "shared dependency", "flapping dependency"]);
+    expect(CALLER_FAULTS).toEqual(["cannot serve", "partition", "stall", "false failure", "shared dependency", "flapping dependency", "lost zone"]);
     expect(CALLERS_CELLS.map((cell) => cell.id)).toEqual(
-      ["", ".partition", ".stall", ".prober", ".dependency", ".flapping"].flatMap((tail) =>
+      ["", ".partition", ".stall", ".prober", ".dependency", ".flapping", ".zone"].flatMap((tail) =>
         CALLERS_MODES.flatMap((mode) => [`S2.T07.${mode}.endpoints${tail}`, `S2.T07.${mode}.lame-duck${tail}`, `S2.T07.${mode}.goaway${tail}`, `S2.T07.${mode}.session-check${tail}`]),
       ),
     );
@@ -556,4 +576,62 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
       }
     }
   });
+
+  it("loses the zone of the target: the cells of the partition, with the trigger zone-loss and the clients of the kept zone", () => {
+    expect(ZONE_CLIENTS).toBe(2);
+    for (const mode of CALLERS_MODES) {
+      const partition = trioOf(mode, "partition");
+      const zone = trioOf(mode, "lost zone");
+      expect(zone.map((cell) => cell.name)).toEqual(CANDIDATES.map((candidate) => `T07 ${mode}, callers learn that a zone is lost: ${candidate}`));
+      for (const [at, cell] of zone.entries()) {
+        const { id, name: _n, trigger, prediction: _p, ...rest } = cell;
+        const { id: twin, name: _tn, trigger: _tt, prediction: _tp, ...restTwin } = partition[at]!;
+        expect(id).toBe(twin.slice(0, -".partition".length) + ".zone");
+        // the same design, settings, workload and runs: only the trigger and the prediction differ
+        expect(rest).toEqual(restTwin);
+        expect(trigger).toEqual({ kind: "zone-loss", hold: ZONE_HOLD });
+        expect(callerFaultOf(cell)).toBe("lost zone");
+        const plan = planOf(cell);
+        expect([plan.inject, plan.heal]).toEqual([[{ do: "zone", lost: true }], [{ do: "zone", lost: false }]]);
+        expect(stopOf(cell)).toBeNull();
+      }
+    }
+  });
+
+  it("predicts a lost zone: the removal by the node lifecycle controller, the window of each candidate, and the return", () => {
+    const band = (lo: number, hi: number) => ({ lo: s(lo), hi: s(hi) });
+    const removal = { iptables: band(39.6, 55.355), ipvs: band(39.6, 55.559), nftables: band(39.6, 55.329) };
+    // A and B: the chains of a partition on 16 connections. C: firing 9 crosses the heal. D: the session check
+    const ends = { iptables: [2.08, 2.08, 108.78, 10.68], ipvs: [0.64, 0.64, 108.78, 1.5], nftables: [2.08, 2.08, 108.78, 10.68] };
+    const counts = { iptables: [[6, 28], [6, 28], [0, 10878], [0, 407]], ipvs: [[14, 16], [14, 16], [0, 10878], [0, 152]], nftables: [[6, 28], [6, 28], [0, 10878], [0, 407]] };
+    for (const mode of CALLERS_MODES) {
+      for (const [at, cell] of trioOf(mode, "lost zone").entries()) {
+        const candidate = CANDIDATES[at]!;
+        const predicted = lostZoneOf(mode, candidate);
+        if (cell.prediction.kind !== "leaves" || cell.prediction.window === undefined) throw new Error(`${cell.name}: no departure with a window`);
+        expect(cell.prediction.band).toEqual(removal[mode]);
+        expect(predicted.removal).toEqual(nodeLossBand(NODE_LIFECYCLE, PROPAGATION[mode]));
+        // the hold outlasts the removal, and no pod is evicted in it (300 s)
+        expect(valueIn(predicted.removal.hi, "s")).toBeLessThan(valueIn(ZONE_HOLD, "s"));
+        expect(valueIn(ZONE_HOLD, "s")).toBeLessThan(300);
+        expect(predicted.returns).toEqual(band(0, 26.85));
+        expect(ZONE_HEAL_LEAD).toEqual(band(0, 2));
+        const window = cell.prediction.window;
+        const c = candidate === "in band on HTTP/2 (GOAWAY)";
+        expect(window.end).toEqual({ from: "fault", band: band(c ? 67.98 : 0, ends[mode][at]!) });
+        const { lo, hi } = expectedFailures(candidate, mode, "lost zone");
+        expect([lo.value, hi.value]).toEqual(counts[mode][at]);
+        // a run of C or D can have no session on the target, thus only A and B are certain
+        expect(window.certain).toBe(!inBandOnHttp2(candidate));
+        expect(window.outcomes).toEqual(inBandOnHttp2(candidate) ? undefined : ["timeout"]);
+      }
+      // D sends one PING on each session on the target, as in a partition, with 2 clients
+      const pings = pingsOf(mode, "in band on HTTP/2 with a session check", "lost zone");
+      expect([pings.lo.value, pings.hi.value]).toEqual([0, 2]);
+      expect(targetConnections(mode, 1, ZONE_CLIENTS).of.value).toBe(2);
+    }
+  });
 });
+
+/** This function tells if a candidate is C or D: one session of HTTP/2 for each client. */
+const inBandOnHttp2 = (candidate: Candidate): boolean => candidate === "in band on HTTP/2 (GOAWAY)" || candidate === "in band on HTTP/2 with a session check";

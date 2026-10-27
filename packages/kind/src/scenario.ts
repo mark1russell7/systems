@@ -50,10 +50,25 @@ export interface KindScenario {
   readonly cni: "kindnet";
   readonly podSubnet: string;
   readonly serviceSubnet: string;
+  /**
+   * If this flag is true, each node has the label `topology.kubernetes.io/zone`. The last worker is
+   * in the zone `ZONE_LOST`, and the other nodes are in the zone `ZONE_KEPT`.
+   */
+  readonly zoned?: boolean;
 }
 
+/** This label gives the zone of a node, as Kubernetes names it. */
+export const ZONE_LABEL = "topology.kubernetes.io/zone";
+/** This zone holds the control plane and each worker but the last. A zone loss keeps it. */
+export const ZONE_KEPT = "zone-a";
+/** This zone holds only the last worker. A zone loss loses it. */
+export const ZONE_LOST = "zone-b";
+
+/** This function gives the zone of the node at the position `at` of `nodeNames`, in a cluster of `count` nodes. */
+export const zoneOf = (at: number, count: number): string => (at === count - 1 && at > 0 ? ZONE_LOST : ZONE_KEPT);
+
 /** This function gives a scenario with the defaults of Kubernetes for kube-proxy, as explicit values. */
-export const scenario = (name: string, mode: KubeProxyMode, workers: number, kubernetes = "1.37"): KindScenario => ({
+export const scenario = (name: string, mode: KubeProxyMode, workers: number, kubernetes = "1.37", zoned = false): KindScenario => ({
   name,
   kubernetes,
   workers,
@@ -61,6 +76,7 @@ export const scenario = (name: string, mode: KubeProxyMode, workers: number, kub
   cni: "kindnet",
   podSubnet: "10.244.0.0/16",
   serviceSubnet: "10.96.0.0/16",
+  ...(zoned ? { zoned } : {}),
 });
 
 const NAME = /^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$/;
@@ -134,10 +150,13 @@ export const kindConfig = (s: KindScenario): KindConfig => {
       podSubnet: s.podSubnet,
       serviceSubnet: s.serviceSubnet,
     },
-    nodes: nodeNames(s).map((node, at) => ({
+    nodes: nodeNames(s).map((node, at, all) => ({
       role: at === 0 ? "control-plane" : "worker",
       image,
-      labels: { "lab.systems/node": node.slice(s.name.length + 1) },
+      labels: {
+        "lab.systems/node": node.slice(s.name.length + 1),
+        ...(s.zoned === true ? { [ZONE_LABEL]: zoneOf(at, all.length) } : {}),
+      },
     })),
     kubeadmConfigPatches: [kubeProxyPatch(s)],
   };

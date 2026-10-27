@@ -55,8 +55,15 @@ interface Images {
   readonly mesh?: MeshImages | undefined;
 }
 
-/** This function gives the key of the cluster of a cell: its kube-proxy mode, its node count, and the flavor of its mesh. */
-const clusterKey = (cell: KindCell): string => (cell.mesh === undefined ? `${cell.mode}-${cell.workers}` : `${cell.mode}-${cell.workers}-${cell.mesh.flavor}`);
+/**
+ * This function gives the key of the cluster of a cell: its kube-proxy mode, its node count, and the
+ * flavor of its mesh. A zone loss has clusters of its own, with a zone on each node.
+ */
+const clusterKey = (cell: KindCell): string =>
+  cell.mesh !== undefined ? `${cell.mode}-${cell.workers}-${cell.mesh.flavor}` : zoned(cell) ? `${cell.mode}-${cell.workers}-zones` : `${cell.mode}-${cell.workers}`;
+
+/** This function tells if a cell needs a cluster with zones: a zone loss. */
+const zoned = (cell: KindCell): boolean => cell.trigger.kind === "zone-loss";
 
 /**
  * This tracker keeps the latest state of the cell from the lines: each pod, each slice and each
@@ -145,8 +152,10 @@ const unsteady = (ctx: Context): string | null => {
   if (cell.mesh?.mode === "sidecar")
     for (const node of ctx.cluster.nodes)
       if ((tracker.hosts.get(node) ?? []).join() !== expected) return `the client sidecar of ${node} has ${(tracker.hosts.get(node) ?? []).join(" ") || "no host"}`;
+  // the clients of a zone loss are only in the zone that stays
   const nodes = new Set([...tracker.clients.values()].map((client) => client.node));
-  if (nodes.size !== ctx.cluster.nodes.length) return `clients answer on ${nodes.size} nodes`;
+  const clientNodes = ctx.cluster.nodes.length - (cell.trigger.kind === "zone-loss" ? 1 : 0);
+  if (nodes.size !== clientNodes) return `clients answer on ${nodes.size} nodes, not ${clientNodes}`;
   for (const [pod, client] of tracker.clients) {
     if (tracker.last - client.ok > 1000) return `client ${pod} has no answer in the last second`;
     if (tracker.last - client.failed < 2000) return `client ${pod} failed in the last 2 s`;
@@ -161,6 +170,37 @@ const steady = async (ctx: Context, within: number): Promise<string | null> => {
   while (why !== null && Date.now() < end) {
     await sleep(200);
     why = unsteady(ctx);
+  }
+  return why;
+};
+
+/** These taints of the node lifecycle controller mark a node that it does not see as ready. */
+const NODE_LOSS_TAINTS: readonly string[] = ["node.kubernetes.io/unreachable", "node.kubernetes.io/not-ready"];
+
+/**
+ * This function tells why a node is not at rest for the node lifecycle controller, or gives null. A
+ * ready pod is not sufficient after a zone loss. The controller can still see the node as lost, and
+ * then it does not mark the pods again at the next loss. The controller removes its taints only after
+ * it sees the node ready.
+ */
+const nodeUnsteady = async (cluster: Cluster, name: string): Promise<string | null> => {
+  const node = JSON.parse(await cluster.kubectl(["get", "node", name, "-o", "json"])) as {
+    readonly spec?: { readonly taints?: ReadonlyArray<{ readonly key: string }> };
+    readonly status?: { readonly conditions?: ReadonlyArray<{ readonly type: string; readonly status: string }> };
+  };
+  const ready = node.status?.conditions?.find((condition) => condition.type === "Ready")?.status;
+  if (ready !== "True") return `the node ${name} has the Ready condition ${ready ?? "none"}`;
+  const taints = (node.spec?.taints ?? []).map((taint) => taint.key).filter((key) => NODE_LOSS_TAINTS.includes(key));
+  return taints.length === 0 ? null : `the node ${name} has the taints ${taints.join(", ")}`;
+};
+
+/** This function waits until a node is at rest for the node lifecycle controller. It gives null, or the reason when the node is not at rest in time. */
+const nodeSteady = async (cluster: Cluster, name: string, within: number): Promise<string | null> => {
+  const end = Date.now() + within;
+  let why = await nodeUnsteady(cluster, name);
+  while (why !== null && Date.now() < end) {
+    await sleep(1000);
+    why = await nodeUnsteady(cluster, name);
   }
   return why;
 };
@@ -494,8 +534,20 @@ const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], ba
     case "middlebox":
       if (step.target !== "servers") throw new Error(`a middlebox takes the target servers, not ${step.target}`);
       return middleboxServers(ctx, step.idle, step.port, replicas);
+    case "zone":
+      // the agent of the lost node is in its own container, thus the freeze of the node does not stop it
+      return lab.act(lostNodeOf(cluster), { op: "zone", lost: step.lost });
   }
 };
+
+/** This function gives the node of the lost zone: the last worker (`zoneOf`). */
+const lostNodeOf = (cluster: Cluster): string => cluster.nodes.at(-1)!;
+
+/** This function puts the replicas of a node first, and keeps the sequence of the others. */
+const lostFirst = (replicas: readonly Replica[], node: string): Replica[] => [
+  ...replicas.filter((replica) => replica.node === node),
+  ...replicas.filter((replica) => replica.node !== node),
+];
 
 /** This function tells if a run is over: the trigger is done, and the cell is at rest again. */
 const over = (
@@ -540,11 +592,18 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
   await probeThePods(ctx);
   await pollListeners(ctx);
   await quiet(ctx, ours);
+  const zoneLoss = cell.trigger.kind === "zone-loss";
+  // the node of a zone loss must be ready for the node lifecycle controller too, with no taint of the last loss
+  const lost = zoneLoss ? await nodeSteady(cluster, lostNodeOf(cluster), 300_000) : null;
+  if (lost !== null) return empty(`the node of the lost zone was not at rest: ${lost}`, await lab.now());
   if ((await steady(ctx, 300_000)) !== null) return empty("the cell was not at rest after the wait for a quiet VM", await lab.now());
-  const replicas = replicasOf(ctx);
+  // the target of a zone loss is the replica of the lost node: the zone spread puts one there
+  const replicas = zoneLoss ? lostFirst(replicasOf(ctx), lostNodeOf(cluster)) : replicasOf(ctx);
+  if (zoneLoss && replicas[0]?.node !== lostNodeOf(cluster)) return empty(`no replica is on the node of the lost zone, ${lostNodeOf(cluster)}`, await lab.now());
   const restarts = new Map(ctx.tracker.servers().map((pod) => [pod.name, pod.cs.reduce((sum, status) => sum + status.rc, 0)]));
   const target = hasRedis(cell) && ["rst", "blackhole", "freeze-process", "peer-gone-without-close", "rollout"].includes(cell.trigger.kind) ? null : replicas[0]!;
-  const paused = cell.template === "T07" && cell.trigger.kind === "freeze-process" ? (cluster.nodes[1] ?? cluster.nodes[0]!) : null;
+  // the paused node is the node of kube-proxy that a freeze stops, or the node of the lost zone
+  const paused = cell.template === "T07" && cell.trigger.kind === "freeze-process" ? (cluster.nodes[1] ?? cluster.nodes[0]!) : zoneLoss ? lostNodeOf(cluster) : null;
   // A SYN with no answer before the run keeps its NAT for 120 s (SYN_SENT). A client that takes its
   // port again in the run meets it, and the restore of the last run leaves such SYNs. Each run starts with none
   const cleared = await lab.forgetHandshakes(ctx.clusterIp, 80);
@@ -718,7 +777,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
   for (const [key, group] of groups) {
     const partial = new Map<string, { runs: KindRun[]; manifests: EnvironmentManifest[]; loads: LoadSample[] }>();
     for (let env = 0; env < environments; env += 1) {
-      const s = scenario(`lab-${key}-${env}`, group[0]!.mode, group[0]!.workers);
+      const s = scenario(`lab-${key}-${env}`, group[0]!.mode, group[0]!.workers, undefined, zoned(group[0]!));
       const dir = join(options.work ?? join(tmpdir(), "systems-kind-work"), s.name);
       const mesh = group[0]!.mesh;
       options.log(`cluster ${s.name}: ${s.kubeProxy.mode}, ${s.workers} workers${mesh === undefined ? "" : `, Istio ${mesh.flavor}`}`);
@@ -832,6 +891,8 @@ const estimate = (cell: KindCell, environments = 2): number => {
     // the hold, and a read of the certificates of each ztunnel pod at the fault and at the heal
     "certificate-expiry": hold + 20,
     "cannot-serve": hold + 20,
+    // the hold, then the kubelet of the lost node connects again and the replica is ready again
+    "zone-loss": hold + 45,
   };
   // a window can need a longer observation: from the end of the hold, until each request that started in it ended
   const after = observationAfter(cell);

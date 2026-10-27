@@ -45,6 +45,7 @@ const TRIGGERS = [
   "ztunnel-restart",
   "certificate-expiry",
   "cannot-serve",
+  "zone-loss",
 ] as const satisfies readonly TriggerKind[];
 const MODES = ["iptables", "ipvs", "nftables"] as const satisfies readonly KubeProxyMode[];
 

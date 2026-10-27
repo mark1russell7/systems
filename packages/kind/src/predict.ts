@@ -88,6 +88,81 @@ export const stallRemovalBand = (readiness: KubeletProbe, propagation: Propagati
   return band(kubelet.lo + spread.lo, kubelet.hi + spread.hi);
 };
 
+/**
+ * A node lifecycle is the set of timers that removes the pods of a lost node. The same timers give
+ * them back after the heal of the node. The lab sets none of them, thus each one is a default of Kubernetes
+ * v1.37.0 (file and line in that tag).
+ */
+export interface NodeLifecycle {
+  /**
+   * This time is `NodeMonitorGracePeriod`. The node lifecycle controller marks a node Unknown when
+   * it saw no renewal of its lease for this time. Then it marks each pod of the node not ready.
+   */
+  readonly grace: Quantity;
+  /** This time is `NodeMonitorPeriod`: the controller checks each node once in it. */
+  readonly monitor: Quantity;
+  /** This time is the renewal interval of the lease of the kubelet. */
+  readonly renew: Quantity;
+  /** This share is the jitter of each renewal interval: a renewal comes `renew` to `renew × (1 + jitter)` after the one before it. */
+  readonly jitter: number;
+  /** This time is the margin of the writes of the controller: the status of the node, then each pod of the node. */
+  readonly writes: Quantity;
+  /** This time is the PING timeout of the HTTP/2 health check of client-go. A kubelet that gets no PING ACK in it connects again. */
+  readonly pingTimeout: Quantity;
+  /** This time is the longest first backoff of a reflector of client-go before it watches again. */
+  readonly rewatch: Quantity;
+  /** This time is the sync period of the status manager of the kubelet: it puts back a pod status that the controller changed. */
+  readonly statusSync: Quantity;
+}
+
+/**
+ * These are the defaults of Kubernetes v1.37.0 for a lost node:
+ * - `grace` 50 s and `monitor` 5 s: pkg/controller/nodelifecycle/config/v1alpha1/defaults.go, lines
+ *   46 and 52. The controller checks the nodes on a sliding period (node_lifecycle_controller.go,
+ *   lines 506–510). It sets the probe time when it sees a new lease (lines 952–960), and it marks the
+ *   node Unknown after `grace` (line 962). Then it marks each pod of the node not ready (lines 768–773).
+ * - `renew` 10 s: `NodeLeaseDurationSeconds` 40 (pkg/kubelet/apis/config/v1beta1/defaults.go, line 150)
+ *   times the fraction 0.25 (pkg/kubelet/kubelet.go, lines 237 and 1156).
+ * - `jitter` 0.04: the lease controller renews on a sliding jitter of 0.04
+ *   (staging/src/k8s.io/component-helpers/apimachinery/lease/controller.go, line 153).
+ * - `pingTimeout` 15 s: the PING timeout of the HTTP/2 health check, after a read idle timeout of 30 s
+ *   (staging/src/k8s.io/apimachinery/pkg/util/net/http.go, lines 131–192).
+ * - `rewatch` 1.6 s: a first backoff of 800 ms with a jitter of 1.0
+ *   (staging/src/k8s.io/client-go/tools/cache/reflector.go, lines 62–67).
+ * - `statusSync` 10 s: the sync period of the status manager (pkg/kubelet/status/status_manager.go, line 215).
+ * - `writes` 0.25 s is a margin of the lab, not a default.
+ */
+export const NODE_LIFECYCLE: NodeLifecycle = {
+  grace: seconds(50),
+  monitor: seconds(5),
+  renew: seconds(10),
+  jitter: 0.04,
+  writes: seconds(0.25),
+  pingTimeout: seconds(15),
+  rewatch: seconds(1.6),
+  statusSync: seconds(10),
+};
+
+/**
+ * This function gives the time from the loss of a node to the drop of its pods from the rules of
+ * the other nodes. The last renewal of the lease comes up to `renew × (1 + jitter)` before the loss.
+ * The controller sees it up to one `monitor` later, and marks the node `grace` after that. Then the
+ * writes and the propagation follow. The band does not add the low bound of the propagation.
+ */
+export const nodeLossBand = (lifecycle: NodeLifecycle, propagation: Propagation): Band => {
+  const last = s(lifecycle.renew) * (1 + lifecycle.jitter);
+  return band(s(lifecycle.grace) - last, s(lifecycle.grace) + s(lifecycle.monitor) + s(lifecycle.writes) + s(propagation.hi));
+};
+
+/**
+ * This function gives the time from the heal of a lost node until its pods are ready again in the
+ * EndpointSlice. The kubelet connects again in one PING timeout at the most: its old connection
+ * waits behind the backoff of TCP. Its reflectors watch again after their first backoff. Then its
+ * status manager puts back the pod status in one sync period at the most.
+ */
+export const nodeReturnBand = (lifecycle: NodeLifecycle): Band =>
+  band(0, s(lifecycle.pingTimeout) + s(lifecycle.rewatch) + s(lifecycle.statusSync) + s(lifecycle.writes));
+
 /** This function gives the cap of a stage in a declaration, or zero when the declaration does not name the stage. */
 export const capOf = (declaration: Declaration, stage: Stage): Quantity => {
   const found = declaration.phases.find(([name]) => name === stage);

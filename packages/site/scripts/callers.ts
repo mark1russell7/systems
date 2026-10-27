@@ -6,7 +6,7 @@ import type { KindCell } from "../../kind/src/index.ts";
 import type { Quantity } from "../../quantity/src/index.ts";
 import { valueIn } from "../../quantity/src/index.ts";
 import type { Candidate, CallerFault } from "../../cells/src/callers.ts";
-import { CALLERS_CELLS, CANDIDATES, callerFaultOf, dependencyOf, expectedFailures, flappingOf } from "../../cells/src/callers.ts";
+import { CALLERS_CELLS, CANDIDATES, callerFaultOf, dependencyOf, expectedFailures, flappingOf, lostZoneOf } from "../../cells/src/callers.ts";
 
 const s = (value: Quantity): number => valueIn(value, "s");
 
@@ -24,10 +24,12 @@ export const candidateName = (cell: KindCell): Candidate => {
  * This function gives the candidate of an S2 cell for the side-by-side table: its window and its
  * expected count of failed requests. A shared dependency also has the empty Service and the time
  * until the callers know. A flapping dependency has them for each fault, and `each`: the expected
- * failed requests of one fault.
+ * failed requests of one fault. A lost zone has `returns`: the band of the time from the heal until
+ * the target is ready again.
  */
 export const candidateOf = (cell: KindCell) => {
-  if (cell.trigger.kind !== "cannot-serve" && cell.trigger.kind !== "app-stall" && cell.trigger.kind !== "blackhole") return null;
+  const kinds: readonly string[] = ["cannot-serve", "app-stall", "blackhole", "zone-loss"];
+  if (!kinds.includes(cell.trigger.kind)) return null;
   // a false failure predicts the departure of the target, and a shared dependency the empty Service, each with the window of its failed requests
   const p = cell.prediction.kind === "leaves" || cell.prediction.kind === "removal" ? cell.prediction.window : cell.prediction;
   if (p === undefined || p.kind !== "window" || p.end === null) throw new Error(`${cell.name}: an S2 cell has a window that ends`);
@@ -41,6 +43,9 @@ export const candidateOf = (cell: KindCell) => {
       ? { removal: { from: "fault", low: s(cell.prediction.band.lo), high: s(cell.prediction.band.hi) }, knows: { from: "fault", low: s(knows.lo), high: s(knows.hi) } }
       : {};
   const expected = expectedFailures(name, cell.mode, callerFaultOf(cell));
+  // a lost zone: the time from the heal until the target is ready again in its EndpointSlice
+  const zone = callerFaultOf(cell) === "lost zone" ? lostZoneOf(cell.mode, name).returns : null;
+  const returns = zone === null ? {} : { returns: { from: "heal", low: s(zone.lo), high: s(zone.hi) } };
   return {
     name,
     label: LABELS[CANDIDATES.indexOf(name)] ?? "",
@@ -51,6 +56,7 @@ export const candidateOf = (cell: KindCell) => {
     ...leaves,
     ...removal,
     ...each,
+    ...returns,
   };
 };
 
@@ -58,6 +64,6 @@ export const candidateOf = (cell: KindCell) => {
 export const callerPredictions = (fault: CallerFault = "cannot serve") =>
   CALLERS_CELLS.filter((cell) => callerFaultOf(cell) === fault).map((cell) => {
     const candidate = candidateOf(cell);
-    if (candidate === null) throw new Error(`${cell.name}: an S2 cell has the trigger cannot-serve, a black hole or a stall`);
+    if (candidate === null) throw new Error(`${cell.name}: an S2 cell has the trigger cannot-serve, a black hole, a stall or a zone loss`);
     return { id: cell.id, mode: cell.mode, candidate };
   });

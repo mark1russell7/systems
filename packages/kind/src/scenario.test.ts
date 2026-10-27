@@ -2,7 +2,21 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { KUBE_PROXY_MODES, NODE_IMAGES, cidrOverlap, goDuration, kindConfig, kubeProxyPatch, nodeNames, scenario, scenarioProblems } from "./scenario.ts";
+import {
+  KUBE_PROXY_MODES,
+  NODE_IMAGES,
+  ZONE_KEPT,
+  ZONE_LABEL,
+  ZONE_LOST,
+  cidrOverlap,
+  goDuration,
+  kindConfig,
+  kubeProxyPatch,
+  nodeNames,
+  scenario,
+  scenarioProblems,
+  zoneOf,
+} from "./scenario.ts";
 import { KIND, KUBECTL, download, ensureTool, platformKey, sha256, toolPath } from "./tools.ts";
 import type { Tool } from "./tools.ts";
 
@@ -39,6 +53,14 @@ describe("the configuration of kind, from a scenario", () => {
     expect(goDuration({ value: 500, unit: "ms" })).toBe("500ms");
     expect(goDuration({ value: 2, unit: "s" })).toBe("2s");
     expect(() => goDuration({ value: 0.5, unit: "ms" })).toThrow(/whole number/);
+  });
+
+  it("labels each node with its zone only in a zoned scenario, and puts the last worker alone in the lost zone", () => {
+    expect(kindConfig(scenario("lab-a", "iptables", 2)).nodes.map((node) => node.labels[ZONE_LABEL])).toEqual([undefined, undefined, undefined]);
+    const zoned = kindConfig(scenario("lab-a", "iptables", 2, "1.37", true));
+    expect(zoned.nodes.map((node) => node.labels[ZONE_LABEL])).toEqual([ZONE_KEPT, ZONE_KEPT, ZONE_LOST]);
+    expect(zoned.nodes.map((node) => node.labels["lab.systems/node"])).toEqual(["control-plane", "worker", "worker2"]);
+    expect(zoneOf(0, 1)).toBe(ZONE_KEPT);
   });
 
   it("names the node containers as kind names them", () => {

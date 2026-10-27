@@ -69,6 +69,9 @@ export type Stack = "service" | "grpc";
  *   flag also fails the readiness check of the replica (`flag` of the declaration). Before the
  *   fault, each client opens its connections again with SIGHUP, thus they spread over the replicas.
  *   With `serves`, the route does not fail: only the readiness check does.
+ * - `zone-loss` loses the zone of the last worker for the hold. The node drops each packet on its
+ *   link, and its cgroup is frozen, thus its kubelet stops too. The node lifecycle controller removes
+ *   the replica. Before the fault, each client opens its connections again with SIGHUP.
  * - `none` injects nothing: a calibration measures the path itself.
  */
 export type TriggerKind =
@@ -89,7 +92,8 @@ export type TriggerKind =
   | "idle"
   | "ztunnel-restart"
   | "certificate-expiry"
-  | "cannot-serve";
+  | "cannot-serve"
+  | "zone-loss";
 
 /**
  * A trigger is its kind and the settings of its fault. The parameter `A` is the form of an amount:

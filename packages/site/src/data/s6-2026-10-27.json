@@ -2,7 +2,7 @@
   "ranAt": "2026-10-27",
   "dimension": "how callers learn",
   "run": 40358038728,
-  "runs": [40358038728, 40380943331, 40394320219, 40406199754, 40419289511, 40430856093, 40440516571, 40464814086],
+  "runs": [40358038728, 40380943331, 40394320219, 40406199754, 40419289511, 40430856093, 40440516571, 40464814086, 40500297695],
   "criteria": [
     "time until callers know",
     "failed requests",
@@ -11755,8 +11755,2308 @@
     },
     {
       "incident": "a lost zone",
-      "kind": "not measured",
-      "why": "No cell measures the candidates in this incident yet. The kind cluster of T07 has no zones, and no step of the lab stops a node and its kubelet at once. A drain is not a loss: it evicts each pod with its grace."
+      "kind": "scored",
+      "trigger": "zone-loss",
+      "run": 40500297695,
+      "modes": [
+        {
+          "mode": "iptables",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.iptables.endpoints.zone",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 1.055621,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.642369,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.055621,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.2233971,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 2.08,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.iptables.endpoints.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 21,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 18,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 26,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 21,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 6,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 28,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.iptables.endpoints.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The zone stays lost for 70 s, thus each removal is true. A loss shorter than the grace of the node lifecycle controller (50 s) removes no pod. No cell gives a short loss yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 10.8559335,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 5.7350513,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.8559335,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 16.4363047,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.85,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.iptables.endpoints.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 50.393,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 46.025,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 50.393,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 51.048,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 39.6,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 55.355,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.iptables.endpoints.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.iptables.lame-duck.zone",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.4871814,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.4184778,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.4871814,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.4950297,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 2.08,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.iptables.lame-duck.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 13,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 15,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 13,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 10,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 6,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 28,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.iptables.lame-duck.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The zone stays lost for 70 s, thus each removal is true. A loss shorter than the grace of the node lifecycle controller (50 s) removes no pod. No cell gives a short loss yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 11.2055779,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 1.3044043,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.2055779,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 21.1976253,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.85,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.iptables.lame-duck.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 45.402,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 41.639,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 45.402,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 46.723,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 39.6,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 55.355,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.iptables.lame-duck.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.iptables.goaway.zone",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 103.6358268,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 103.084648,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 104.1870056,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 67.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 108.78,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.iptables.goaway.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 5128,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 5128,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 10359,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 10878,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.iptables.goaway.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The zone stays lost for 70 s, thus each removal is true. A loss shorter than the grace of the node lifecycle controller (50 s) removes no pod. No cell gives a short loss yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 15.9088536,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 14.7767358,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 15.9088536,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 16.6850651,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.85,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.iptables.goaway.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "C has no session check, and node:http2 sends a PING only when its caller asks for one. Thus the clients of C send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 49.002,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 42.4,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 49.002,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 51.553,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 39.6,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 55.355,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.iptables.goaway.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.iptables.session-check.zone",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "bounded",
+                  "prediction": {
+                    "from": "fault",
+                    "band": {
+                      "lo": {
+                        "value": 0,
+                        "unit": "s"
+                      },
+                      "hi": {
+                        "value": 10.68,
+                        "unit": "s"
+                      }
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.iptables.session-check.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  },
+                  "why": "The judge found each failed request in the window of the prediction. No counted run had a failed request, thus no run gives the time of the last failure."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 407,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.iptables.session-check.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The zone stays lost for 70 s, thus each removal is true. A loss shorter than the grace of the node lifecycle controller (50 s) removes no pod. No cell gives a short loss yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 11.2056638,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 9.9434477,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.2056638,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.3225236,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.85,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.iptables.session-check.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 2,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.iptables.session-check.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 50.695,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 47.14,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 50.695,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 50.819,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 39.6,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 55.355,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.iptables.session-check.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "D"
+        },
+        {
+          "mode": "ipvs",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.ipvs.endpoints.zone",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.52578,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.5255032,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.52578,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.5264137,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 0.64,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.ipvs.endpoints.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 16,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 16,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 16,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 16,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 14,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 16,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.ipvs.endpoints.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The zone stays lost for 70 s, thus each removal is true. A loss shorter than the grace of the node lifecycle controller (50 s) removes no pod. No cell gives a short loss yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 10.2640282,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 6.6773888,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.2640282,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.1247504,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.85,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.ipvs.endpoints.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 46.541,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 45.611,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 46.541,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 50.904,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 39.6,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 55.559,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.ipvs.endpoints.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.ipvs.lame-duck.zone",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.5169429,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.5135481,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.5169429,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.5243009,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 0.64,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.ipvs.lame-duck.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 16,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 16,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 16,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 16,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 14,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 16,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.ipvs.lame-duck.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The zone stays lost for 70 s, thus each removal is true. A loss shorter than the grace of the node lifecycle controller (50 s) removes no pod. No cell gives a short loss yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 21.0657652,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 11.1602992,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 21.0657652,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 21.3127722,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.85,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.ipvs.lame-duck.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 45.697,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 41.639,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 45.697,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 46.997,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 39.6,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 55.559,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.ipvs.lame-duck.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.ipvs.goaway.zone",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 103.342286,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 103.342286,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 67.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 108.78,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.ipvs.goaway.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 10278,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 10878,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.ipvs.goaway.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The zone stays lost for 70 s, thus each removal is true. A loss shorter than the grace of the node lifecycle controller (50 s) removes no pod. No cell gives a short loss yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 16.2018702,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 15.9335872,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 16.2018702,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 16.8298078,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.85,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.ipvs.goaway.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "C has no session check, and node:http2 sends a PING only when its caller asks for one. Thus the clients of C send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 45.68,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 42.867,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 45.68,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 46.931,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 39.6,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 55.559,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.ipvs.goaway.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.ipvs.session-check.zone",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 1.3436396,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 1.3410082,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.3436396,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.3529957,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 1.5,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.ipvs.session-check.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 133,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 134,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 133,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 133,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 152,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.ipvs.session-check.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The zone stays lost for 70 s, thus each removal is true. A loss shorter than the grace of the node lifecycle controller (50 s) removes no pod. No cell gives a short loss yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 11.2454344,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 11.1894565,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.2454344,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 21.1881847,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.85,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.ipvs.session-check.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "measured",
+                  "median": {
+                    "value": 2,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 2,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 2,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 2,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 2,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.ipvs.session-check.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 47.451,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 47.441,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 47.451,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 50.796,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 39.6,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 55.559,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.ipvs.session-check.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "C"
+        },
+        {
+          "mode": "nftables",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.nftables.endpoints.zone",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.6233794,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.1932109,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.6233794,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.1466909,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 2.08,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.nftables.endpoints.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 17,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 20,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 7,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 17,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 6,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 28,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.nftables.endpoints.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The zone stays lost for 70 s, thus each removal is true. A loss shorter than the grace of the node lifecycle controller (50 s) removes no pod. No cell gives a short loss yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 10.423952,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 6.8935878,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.423952,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 21.4328747,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.85,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.nftables.endpoints.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 46.149,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 44.847,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 46.149,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 50.756,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 39.6,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 55.329,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.nftables.endpoints.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.nftables.lame-duck.zone",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.7867431,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.6291283,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.7867431,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.950368,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 2.08,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.nftables.lame-duck.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 23,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 24,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 18,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 23,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 6,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 28,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.nftables.lame-duck.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The zone stays lost for 70 s, thus each removal is true. A loss shorter than the grace of the node lifecycle controller (50 s) removes no pod. No cell gives a short loss yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 21.382651,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 11.5603883,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 21.382651,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 21.5056152,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.85,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.nftables.lame-duck.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 46.293,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 46.101,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 46.293,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 51.173,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 39.6,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 55.329,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.nftables.lame-duck.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.nftables.goaway.zone",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 105.3299627,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 105.2331636,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 105.3299627,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 105.4521531,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 67.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 108.78,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.nftables.goaway.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 10464,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 10487,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 10464,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 5239,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 10878,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.nftables.goaway.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The zone stays lost for 70 s, thus each removal is true. A loss shorter than the grace of the node lifecycle controller (50 s) removes no pod. No cell gives a short loss yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 17.4913741,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 16.4791564,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.4913741,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 25.8786834,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.85,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.nftables.goaway.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "C has no session check, and node:http2 sends a PING only when its caller asks for one. Thus the clients of C send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 45.717,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 42.445,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 45.717,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 51.386,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 39.6,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 55.329,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.nftables.goaway.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.nftables.session-check.zone",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3.3556817,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 2.3469034,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.36446,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 10.68,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.nftables.session-check.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 117,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 117,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 285,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 407,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.nftables.session-check.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The zone stays lost for 70 s, thus each removal is true. A loss shorter than the grace of the node lifecycle controller (50 s) removes no pod. No cell gives a short loss yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 10.3965754,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 10.3461382,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.3965754,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.3596693,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.85,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.nftables.session-check.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "measured",
+                  "median": {
+                    "value": 1,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 1,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 2,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 2,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.nftables.session-check.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 45.539,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 45.444,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 45.539,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 50.41,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 39.6,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 55.329,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40500297695,
+                    "cell": "S2.T07.nftables.session-check.zone",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "A"
+        }
+      ]
     },
     {
       "incident": "a slow dependency (gray failure)",

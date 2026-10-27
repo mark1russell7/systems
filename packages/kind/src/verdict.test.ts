@@ -218,6 +218,23 @@ describe("the judgement of a kind run", () => {
     expect(predictionText(leaves.prediction)).toBe("the replica leaves in [12, 24.105] s; failures only from the fault + [8, 18.16] s to the fault + [8, 20.24] s, at least one, each one 503");
   });
 
+  it("times the departure of the target in a zone loss by the rules of each node but the frozen node of the lost zone", () => {
+    const both = [`${TARGET.ip}:8080`, `${OTHER.ip}:8080`];
+    const lines: Line[] = [
+      { ev: "rules", t: 4000, prev: 3950, node: "w1", b: both },
+      { ev: "rules", t: 4000, prev: 3950, node: "w2", b: both },
+      { ev: "slice", t: 50_000, type: "MODIFIED", name: "lab-x", svc: "lab", eps: [{ ip: TARGET.ip, r: false }, { ip: OTHER.ip, r: true }] },
+      { ev: "rules", t: 50_200, prev: 50_150, node: "w2", b: [`${OTHER.ip}:8080`] },
+    ];
+    // the paused node w1 is the node of the lost zone: its kube-proxy is frozen, and its rules keep the target
+    const run: KindRun = { ...runWith([]), lines, acts: { fault: 5000, heal: 75_000, resume: null } };
+    const prediction: Prediction = { kind: "leaves", band: b(39.6, 55.65), why: "a test" };
+    const zone: KindCell = { ...cellOf("zone-loss"), prediction };
+    expect(checkRun(zone, run)).toMatchObject({ ok: true, value: s(45), facts: { left: s(45) } });
+    // each other trigger counts the rules of each node
+    expect(checkRun(cell(prediction), run).why).toBe("the rules of w1 kept lab-a");
+  });
+
   it("decides a cell on its counted runs: a disagreeing run fails it, and a warm-up does not count", () => {
     const none = cell({ kind: "none", why: "a test" });
     const good = runWith([request(2000, "ok")]);

@@ -1,0 +1,1227 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-10-27",
+  "units": "s",
+  "runs": 3,
+  "kernel": "6.17.0 and 7.0.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.iptables.endpoints.zone",
+      "template": "T07",
+      "name": "iptables, callers learn that a zone is lost: endpoints only",
+      "mode": "iptables",
+      "trigger": "zone-loss",
+      "group": "zone",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 39.6,
+          "high": 55.355
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 39.6 s to 55.355 s after the fault. The node of the target is lost for the hold (70 s). Each packet on its link drops, and its kubelet is frozen. Its lease expires, thus the node lifecycle controller marks the target not ready, and it leaves the rules 39.6 s–55.355 s after the fault. No client is in the lost zone. Each connection on the target fails one request at its timeout (2 s). Then a new connection picks a backend, one turn (0.16 s) later. Each pick goes to the target at random, thus the failures of the 16 connections are negative binomial: 6–28 in 95 % of the runs. A chain longer than 13 picks has a chance of 0.001 at the most. The last pick of a chain comes 3.92 s after the fault at the latest, before the removal. Thus the removal changes nothing."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 50.393,
+      "values": [51.048, 46.025, 50.393],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 50.393 s. The counted runs measured 46.025 s to 51.048 s.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.08
+        },
+        "expected": {
+          "low": 6,
+          "high": 28
+        },
+        "connections": {
+          "low": 4,
+          "high": 12,
+          "of": 16
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.355
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      },
+      "lasts": [0.642369, 1.2233971, 1.055621],
+      "failures": [18, 26, 21],
+      "returns": [10.8559335, 5.7350513, 16.4363047],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [85.0431275, 79.7734079, 91.4722128]
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck.zone",
+      "template": "T07",
+      "name": "iptables, callers learn that a zone is lost: in band (lame duck)",
+      "mode": "iptables",
+      "trigger": "zone-loss",
+      "group": "zone",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 39.6,
+          "high": 55.355
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 39.6 s to 55.355 s after the fault. The node of the target is lost for the hold (70 s). Each packet on its link drops, and its kubelet is frozen. Its lease expires, thus the node lifecycle controller marks the target not ready, and it leaves the rules 39.6 s–55.355 s after the fault. No client is in the lost zone. The lame duck never starts, thus B is the same as A. Each connection on the target fails one request at its timeout (2 s). Then a new connection picks a backend, one turn (0.16 s) later. Each pick goes to the target at random, thus the failures of the 16 connections are negative binomial: 6–28 in 95 % of the runs. A chain longer than 13 picks has a chance of 0.001 at the most. The last pick of a chain comes 3.92 s after the fault at the latest, before the removal. Thus the removal changes nothing."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 45.402,
+      "values": [41.639, 46.723, 45.402],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 45.402 s. The counted runs measured 41.639 s to 46.723 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.08
+        },
+        "expected": {
+          "low": 6,
+          "high": 28
+        },
+        "connections": {
+          "low": 4,
+          "high": 12,
+          "of": 16
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.355
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      },
+      "lasts": [0.4950297, 0.4184778, 0.4871814],
+      "failures": [15, 13, 10],
+      "returns": [21.1976253, 11.2055779, 1.3044043],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [95.285017, 85.3345094, 76.9441721]
+    },
+    {
+      "id": "S2.T07.iptables.goaway.zone",
+      "template": "T07",
+      "name": "iptables, callers learn that a zone is lost: in band on HTTP/2 (GOAWAY)",
+      "mode": "iptables",
+      "trigger": "zone-loss",
+      "group": "zone",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 39.6,
+          "high": 55.355
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 39.6 s to 55.355 s after the fault. The node of the target is lost for the hold (70 s). Each packet on its link drops, and its kubelet is frozen. Its lease expires, thus the node lifecycle controller marks the target not ready, and it leaves the rules 39.6 s–55.355 s after the fault. No client is in the lost zone. The established flow keeps the session of a client on the target after the removal. Each stream on it fails at its timeout (2 s). TCP retransmits with a backoff, and firing 9 of the timer is the first after the heal: 102.681 s–108.78 s after the fault. Then the target resets the session, or it sends GOAWAY, and the client opens a new session. If the target had no unacked data, its GOAWAY at the thaw ends the failures near the heal. Thus the last failure starts 67.98 s after the fault at the earliest. 0–2 of the 2 sessions are on the target, thus about 0–10878 requests fail."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 49.002,
+      "values": [51.553, 42.4, 49.002],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 49.002 s. The counted runs measured 42.4 s to 51.553 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 67.98,
+          "high": 108.78
+        },
+        "expected": {
+          "low": 0,
+          "high": 10878
+        },
+        "connections": {
+          "low": 0,
+          "high": 2,
+          "of": 2
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.355
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      },
+      "lasts": [null, 103.084648, 104.1870056],
+      "failures": [0, 5128, 10359],
+      "returns": [15.9088536, 16.6850651, 14.7767358],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [114.5563774, 114.5834488, 114.5035088]
+    },
+    {
+      "id": "S2.T07.iptables.session-check.zone",
+      "template": "T07",
+      "name": "iptables, callers learn that a zone is lost: in band on HTTP/2 with a session check",
+      "mode": "iptables",
+      "trigger": "zone-loss",
+      "group": "zone",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 39.6,
+          "high": 55.355
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 39.6 s to 55.355 s after the fault. The node of the target is lost for the hold (70 s). Each packet on its link drops, and its kubelet is frozen. Its lease expires, thus the node lifecycle controller marks the target not ready, and it leaves the rules 39.6 s–55.355 s after the fault. No client is in the lost zone. The client checks its session: a PING after 0.5 s with no frame, and a close with no ACK in 0.5 s. The first session on the target closes 0.98 s–1.5 s after the fault, before its first stream timeout (2 s). Each stream on it fails at the close, 49–76 streams. The next request opens a new session. It goes to the target at random, and its SYN gets no answer. The check finds no SETTINGS frame, and it closes the session 1 s after its first stream, 50–51 streams. The picks of the target of the 2 clients are negative binomial: 0–7 in 95 % of the runs, thus about 0–407 requests fail. A chain longer than 10 picks has a chance of 0.001 at the most."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 50.695,
+      "values": [50.819, 47.14, 50.695],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 50.695 s. The counted runs measured 47.14 s to 50.819 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 10.68
+        },
+        "expected": {
+          "low": 0,
+          "high": 407
+        },
+        "connections": {
+          "low": 0,
+          "high": 2,
+          "of": 2
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.355
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      },
+      "lasts": [null, null, null],
+      "failures": [0, 0, 0],
+      "returns": [9.9434477, 11.2056638, 11.3225236],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [84.1040561, 85.3307263, 85.453842]
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints.zone",
+      "template": "T07",
+      "name": "ipvs, callers learn that a zone is lost: endpoints only",
+      "mode": "ipvs",
+      "trigger": "zone-loss",
+      "group": "zone",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 39.6,
+          "high": 55.559
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 39.6 s to 55.559 s after the fault. The node of the target is lost for the hold (70 s). Each packet on its link drops, and its kubelet is frozen. Its lease expires, thus the node lifecycle controller marks the target not ready, and it leaves the rules 39.6 s–55.559 s after the fault. No client is in the lost zone. Each connection on the target fails one request at its timeout (2 s). Then a new connection picks a backend, one turn (0.16 s) later. IPVS selects in turn on each node, thus each node fails 7–8 requests in 4 turns at the most. About 14–16 requests fail. The last pick of a chain comes 2.48 s after the fault at the latest, before the removal. Thus the removal changes nothing."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 46.541,
+      "values": [45.611, 46.541, 50.904],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 46.541 s. The counted runs measured 45.611 s to 50.904 s.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.64
+        },
+        "expected": {
+          "low": 14,
+          "high": 16
+        },
+        "connections": {
+          "low": 8,
+          "high": 8,
+          "of": 16
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.559
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      },
+      "lasts": [0.5255032, 0.5264137, 0.52578],
+      "failures": [16, 16, 16],
+      "returns": [10.2640282, 11.1247504, 6.6773888],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [84.5128626, 85.233173, 80.6916749]
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck.zone",
+      "template": "T07",
+      "name": "ipvs, callers learn that a zone is lost: in band (lame duck)",
+      "mode": "ipvs",
+      "trigger": "zone-loss",
+      "group": "zone",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 39.6,
+          "high": 55.559
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 39.6 s to 55.559 s after the fault. The node of the target is lost for the hold (70 s). Each packet on its link drops, and its kubelet is frozen. Its lease expires, thus the node lifecycle controller marks the target not ready, and it leaves the rules 39.6 s–55.559 s after the fault. No client is in the lost zone. The lame duck never starts, thus B is the same as A. Each connection on the target fails one request at its timeout (2 s). Then a new connection picks a backend, one turn (0.16 s) later. IPVS selects in turn on each node, thus each node fails 7–8 requests in 4 turns at the most. About 14–16 requests fail. The last pick of a chain comes 2.48 s after the fault at the latest, before the removal. Thus the removal changes nothing."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 45.697,
+      "values": [41.639, 46.997, 45.697],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 45.697 s. The counted runs measured 41.639 s to 46.997 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.64
+        },
+        "expected": {
+          "low": 14,
+          "high": 16
+        },
+        "connections": {
+          "low": 8,
+          "high": 8,
+          "of": 16
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.559
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      },
+      "lasts": [0.5135481, 0.5169429, 0.5243009],
+      "failures": [16, 16, 16],
+      "returns": [21.0657652, 11.1602992, 21.3127722],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [95.2608902, 85.2881845, 95.4699607]
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.zone",
+      "template": "T07",
+      "name": "ipvs, callers learn that a zone is lost: in band on HTTP/2 (GOAWAY)",
+      "mode": "ipvs",
+      "trigger": "zone-loss",
+      "group": "zone",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 39.6,
+          "high": 55.559
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 39.6 s to 55.559 s after the fault. The node of the target is lost for the hold (70 s). Each packet on its link drops, and its kubelet is frozen. Its lease expires, thus the node lifecycle controller marks the target not ready, and it leaves the rules 39.6 s–55.559 s after the fault. No client is in the lost zone. The established flow keeps the session of a client on the target after the removal. Each stream on it fails at its timeout (2 s). TCP retransmits with a backoff, and firing 9 of the timer is the first after the heal: 102.681 s–108.78 s after the fault. Then the target resets the session, or it sends GOAWAY, and the client opens a new session. If the target had no unacked data, its GOAWAY at the thaw ends the failures near the heal. Thus the last failure starts 67.98 s after the fault at the earliest. 0–2 of the 2 sessions are on the target, thus about 0–10878 requests fail."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 45.68,
+      "values": [46.931, 42.867, 45.68],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 45.68 s. The counted runs measured 42.867 s to 46.931 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 67.98,
+          "high": 108.78
+        },
+        "expected": {
+          "low": 0,
+          "high": 10878
+        },
+        "connections": {
+          "low": 0,
+          "high": 2,
+          "of": 2
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.559
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      },
+      "lasts": [null, 103.342286, null],
+      "failures": [0, 10278, 0],
+      "returns": [15.9335872, 16.8298078, 16.2018702],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [114.5152306, 114.5096337, 114.488863]
+    },
+    {
+      "id": "S2.T07.ipvs.session-check.zone",
+      "template": "T07",
+      "name": "ipvs, callers learn that a zone is lost: in band on HTTP/2 with a session check",
+      "mode": "ipvs",
+      "trigger": "zone-loss",
+      "group": "zone",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 39.6,
+          "high": 55.559
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 39.6 s to 55.559 s after the fault. The node of the target is lost for the hold (70 s). Each packet on its link drops, and its kubelet is frozen. Its lease expires, thus the node lifecycle controller marks the target not ready, and it leaves the rules 39.6 s–55.559 s after the fault. No client is in the lost zone. The client checks its session: a PING after 0.5 s with no frame, and a close with no ACK in 0.5 s. The first session on the target closes 0.98 s–1.5 s after the fault, before its first stream timeout (2 s). Each stream on it fails at the close, 49–76 streams. The next request opens a new session. IPVS selects in turn on each node, thus the new session goes to the other replica. 0–2 of the 2 sessions are on the target, thus about 0–152 requests fail."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 47.451,
+      "values": [47.441, 47.451, 50.796],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 47.451 s. The counted runs measured 47.441 s to 50.796 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 1.5
+        },
+        "expected": {
+          "low": 0,
+          "high": 152
+        },
+        "connections": {
+          "low": 0,
+          "high": 2,
+          "of": 2
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.559
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      },
+      "lasts": [1.3410082, 1.3529957, 1.3436396],
+      "failures": [134, 133, 133],
+      "returns": [11.2454344, 21.1881847, 11.1894565],
+      "pings": [2, 2, 2],
+      "acks": [0, 0, 0],
+      "seconds": [85.4437696, 95.2405933, 85.9437632]
+    },
+    {
+      "id": "S2.T07.nftables.endpoints.zone",
+      "template": "T07",
+      "name": "nftables, callers learn that a zone is lost: endpoints only",
+      "mode": "nftables",
+      "trigger": "zone-loss",
+      "group": "zone",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 39.6,
+          "high": 55.329
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 39.6 s to 55.329 s after the fault. The node of the target is lost for the hold (70 s). Each packet on its link drops, and its kubelet is frozen. Its lease expires, thus the node lifecycle controller marks the target not ready, and it leaves the rules 39.6 s–55.329 s after the fault. No client is in the lost zone. Each connection on the target fails one request at its timeout (2 s). Then a new connection picks a backend, one turn (0.16 s) later. Each pick goes to the target at random, thus the failures of the 16 connections are negative binomial: 6–28 in 95 % of the runs. A chain longer than 13 picks has a chance of 0.001 at the most. The last pick of a chain comes 3.92 s after the fault at the latest, before the removal. Thus the removal changes nothing."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 46.149,
+      "values": [46.149, 50.756, 44.847],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 46.149 s. The counted runs measured 44.847 s to 50.756 s.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.08
+        },
+        "expected": {
+          "low": 6,
+          "high": 28
+        },
+        "connections": {
+          "low": 4,
+          "high": 12,
+          "of": 16
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.329
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      },
+      "lasts": [1.1466909, 0.1932109, 0.6233794],
+      "failures": [20, 7, 17],
+      "returns": [6.8935878, 21.4328747, 10.423952],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [80.911164, 95.4055518, 84.3713607]
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck.zone",
+      "template": "T07",
+      "name": "nftables, callers learn that a zone is lost: in band (lame duck)",
+      "mode": "nftables",
+      "trigger": "zone-loss",
+      "group": "zone",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 39.6,
+          "high": 55.329
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 39.6 s to 55.329 s after the fault. The node of the target is lost for the hold (70 s). Each packet on its link drops, and its kubelet is frozen. Its lease expires, thus the node lifecycle controller marks the target not ready, and it leaves the rules 39.6 s–55.329 s after the fault. No client is in the lost zone. The lame duck never starts, thus B is the same as A. Each connection on the target fails one request at its timeout (2 s). Then a new connection picks a backend, one turn (0.16 s) later. Each pick goes to the target at random, thus the failures of the 16 connections are negative binomial: 6–28 in 95 % of the runs. A chain longer than 13 picks has a chance of 0.001 at the most. The last pick of a chain comes 3.92 s after the fault at the latest, before the removal. Thus the removal changes nothing."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 46.293,
+      "values": [51.173, 46.293, 46.101],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 46.293 s. The counted runs measured 46.101 s to 51.173 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.08
+        },
+        "expected": {
+          "low": 6,
+          "high": 28
+        },
+        "connections": {
+          "low": 4,
+          "high": 12,
+          "of": 16
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.329
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      },
+      "lasts": [0.950368, 0.6291283, 0.7867431],
+      "failures": [24, 18, 23],
+      "returns": [21.5056152, 11.5603883, 21.382651],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [95.383421, 85.6566561, 95.3701244]
+    },
+    {
+      "id": "S2.T07.nftables.goaway.zone",
+      "template": "T07",
+      "name": "nftables, callers learn that a zone is lost: in band on HTTP/2 (GOAWAY)",
+      "mode": "nftables",
+      "trigger": "zone-loss",
+      "group": "zone",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 39.6,
+          "high": 55.329
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 39.6 s to 55.329 s after the fault. The node of the target is lost for the hold (70 s). Each packet on its link drops, and its kubelet is frozen. Its lease expires, thus the node lifecycle controller marks the target not ready, and it leaves the rules 39.6 s–55.329 s after the fault. No client is in the lost zone. The established flow keeps the session of a client on the target after the removal. Each stream on it fails at its timeout (2 s). TCP retransmits with a backoff, and firing 9 of the timer is the first after the heal: 102.681 s–108.78 s after the fault. Then the target resets the session, or it sends GOAWAY, and the client opens a new session. If the target had no unacked data, its GOAWAY at the thaw ends the failures near the heal. Thus the last failure starts 67.98 s after the fault at the earliest. 0–2 of the 2 sessions are on the target, thus about 0–10878 requests fail."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 45.717,
+      "values": [51.386, 42.445, 45.717],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 45.717 s. The counted runs measured 42.445 s to 51.386 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 67.98,
+          "high": 108.78
+        },
+        "expected": {
+          "low": 0,
+          "high": 10878
+        },
+        "connections": {
+          "low": 0,
+          "high": 2,
+          "of": 2
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.329
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      },
+      "lasts": [105.4521531, 105.2331636, 105.3299627],
+      "failures": [10487, 10464, 5239],
+      "returns": [16.4791564, 17.4913741, 25.8786834],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [114.4815693, 114.4650292, 114.446833]
+    },
+    {
+      "id": "S2.T07.nftables.session-check.zone",
+      "template": "T07",
+      "name": "nftables, callers learn that a zone is lost: in band on HTTP/2 with a session check",
+      "mode": "nftables",
+      "trigger": "zone-loss",
+      "group": "zone",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 39.6,
+          "high": 55.329
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 39.6 s to 55.329 s after the fault. The node of the target is lost for the hold (70 s). Each packet on its link drops, and its kubelet is frozen. Its lease expires, thus the node lifecycle controller marks the target not ready, and it leaves the rules 39.6 s–55.329 s after the fault. No client is in the lost zone. The client checks its session: a PING after 0.5 s with no frame, and a close with no ACK in 0.5 s. The first session on the target closes 0.98 s–1.5 s after the fault, before its first stream timeout (2 s). Each stream on it fails at the close, 49–76 streams. The next request opens a new session. It goes to the target at random, and its SYN gets no answer. The check finds no SETTINGS frame, and it closes the session 1 s after its first stream, 50–51 streams. The picks of the target of the 2 clients are negative binomial: 0–7 in 95 % of the runs, thus about 0–407 requests fail. A chain longer than 10 picks has a chance of 0.001 at the most."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 45.539,
+      "values": [45.444, 45.539, 50.41],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 45.539 s. The counted runs measured 45.444 s to 50.41 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 10.68
+        },
+        "expected": {
+          "low": 0,
+          "high": 407
+        },
+        "connections": {
+          "low": 0,
+          "high": 2,
+          "of": 2
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.329
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      },
+      "lasts": [2.3469034, null, 4.36446],
+      "failures": [117, 0, 285],
+      "returns": [10.3461382, 20.3596693, 10.3965754],
+      "pings": [1, 0, 2],
+      "acks": [0, 0, 0],
+      "seconds": [84.3830615, 94.3752028, 84.4082179]
+    }
+  ],
+  "predictions": [
+    {
+      "id": "S2.T07.iptables.endpoints.zone",
+      "mode": "iptables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.08
+        },
+        "expected": {
+          "low": 6,
+          "high": 28
+        },
+        "connections": {
+          "low": 4,
+          "high": 12,
+          "of": 16
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.355
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck.zone",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.08
+        },
+        "expected": {
+          "low": 6,
+          "high": 28
+        },
+        "connections": {
+          "low": 4,
+          "high": 12,
+          "of": 16
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.355
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.goaway.zone",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 67.98,
+          "high": 108.78
+        },
+        "expected": {
+          "low": 0,
+          "high": 10878
+        },
+        "connections": {
+          "low": 0,
+          "high": 2,
+          "of": 2
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.355
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.session-check.zone",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 10.68
+        },
+        "expected": {
+          "low": 0,
+          "high": 407
+        },
+        "connections": {
+          "low": 0,
+          "high": 2,
+          "of": 2
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.355
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints.zone",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.64
+        },
+        "expected": {
+          "low": 14,
+          "high": 16
+        },
+        "connections": {
+          "low": 8,
+          "high": 8,
+          "of": 16
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.559
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck.zone",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.64
+        },
+        "expected": {
+          "low": 14,
+          "high": 16
+        },
+        "connections": {
+          "low": 8,
+          "high": 8,
+          "of": 16
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.559
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.zone",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 67.98,
+          "high": 108.78
+        },
+        "expected": {
+          "low": 0,
+          "high": 10878
+        },
+        "connections": {
+          "low": 0,
+          "high": 2,
+          "of": 2
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.559
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.session-check.zone",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 1.5
+        },
+        "expected": {
+          "low": 0,
+          "high": 152
+        },
+        "connections": {
+          "low": 0,
+          "high": 2,
+          "of": 2
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.559
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.endpoints.zone",
+      "mode": "nftables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.08
+        },
+        "expected": {
+          "low": 6,
+          "high": 28
+        },
+        "connections": {
+          "low": 4,
+          "high": 12,
+          "of": 16
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.329
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck.zone",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.08
+        },
+        "expected": {
+          "low": 6,
+          "high": 28
+        },
+        "connections": {
+          "low": 4,
+          "high": 12,
+          "of": 16
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.329
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.goaway.zone",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 67.98,
+          "high": 108.78
+        },
+        "expected": {
+          "low": 0,
+          "high": 10878
+        },
+        "connections": {
+          "low": 0,
+          "high": 2,
+          "of": 2
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.329
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.session-check.zone",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 10.68
+        },
+        "expected": {
+          "low": 0,
+          "high": 407
+        },
+        "connections": {
+          "low": 0,
+          "high": 2,
+          "of": 2
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 39.6,
+          "high": 55.329
+        },
+        "returns": {
+          "from": "heal",
+          "low": 0,
+          "high": 26.85
+        }
+      }
+    }
+  ]
+}

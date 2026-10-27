@@ -38,6 +38,31 @@ describe("the manifests of the stack grpc", () => {
   });
 });
 
+describe("the manifests of a zone loss", () => {
+  type PodSpec = { topologySpreadConstraints?: Array<Record<string, unknown>>; affinity?: unknown };
+  const specOf = (objects: unknown[], index: number): PodSpec => (objects[index] as { spec: { template: { spec: PodSpec } } }).spec.template.spec;
+
+  it("spreads the replicas over the zones, and keeps the clients out of the lost zone", () => {
+    const zone = cellOf("zone-loss");
+    const spread = specOf(serverObjects(zone, "lab-ns", "lab:test"), 1).topologySpreadConstraints!;
+    expect(spread.map((each) => [each["topologyKey"], each["whenUnsatisfiable"]])).toEqual([
+      ["kubernetes.io/hostname", "ScheduleAnyway"],
+      ["topology.kubernetes.io/zone", "DoNotSchedule"],
+    ]);
+    expect(specOf(clientObjects(zone, "lab-ns", "lab:test", "10.96.0.10:8080"), 0).affinity).toEqual({
+      nodeAffinity: {
+        requiredDuringSchedulingIgnoredDuringExecution: {
+          nodeSelectorTerms: [{ matchExpressions: [{ key: "topology.kubernetes.io/zone", operator: "NotIn", values: ["zone-b"] }] }],
+        },
+      },
+    });
+    // each other trigger keeps one spread by node, and a client on each node
+    const other = cellOf("cannot-serve");
+    expect(specOf(serverObjects(other, "lab-ns", "lab:test"), 1).topologySpreadConstraints).toHaveLength(1);
+    expect(specOf(clientObjects(other, "lab-ns", "lab:test", "10.96.0.10:8080"), 0)).not.toHaveProperty("affinity");
+  });
+});
+
 describe("the manifests of cannot-serve", () => {
   type Env = Array<{ name: string; value?: string }>;
   const envOf = (objects: unknown[], index: number): Env =>
