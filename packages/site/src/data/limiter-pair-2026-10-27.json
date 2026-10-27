@@ -1,0 +1,621 @@
+{
+  "workflow": 40471731235,
+  "control_workflow": 40463875702,
+  "candidate_workflow": 40457899999,
+  "date": "2026-10-27",
+  "only": "^O(29|30)[.]",
+  "shards": 6,
+  "runs": 11,
+  "unit": "ms",
+  "bootstrap": {
+    "kind": "percentile",
+    "level": 0.95,
+    "resamples": 10000,
+    "seed": 20261027
+  },
+  "runs_needed": "ceil(11 * max(((hi - d) / (tol - d))^2, ((d - lo) / (tol + d))^2)), each version; null if a margin is 0 or less",
+  "result": "No detectable shift: each d is within its tolerance, and each 95% interval of d contains 0.",
+  "caveat": "This is no detectable shift, not equivalence. The intervals of O30.1, O30.2, O29.1 and O29.2 each cross their tolerance on one side. Thus 11 runs cannot rule out a shift of about 1 to 3 ms.",
+  "runners": {
+    "cells-0": {
+      "image": "ubuntu24 20261023.334.3",
+      "cpu": "Intel(R) Xeon(R) 6973P-C",
+      "cpus": 4,
+      "hz": 1000
+    },
+    "cells-1": {
+      "image": "ubuntu24 20261023.334.3",
+      "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": 4,
+      "hz": 1000
+    },
+    "cells-2": {
+      "image": "ubuntu24 20261023.334.3",
+      "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": 4,
+      "hz": 1000
+    },
+    "cells-3": {
+      "image": "ubuntu24 20261023.334.3",
+      "cpu": "Intel(R) Xeon(R) 6973P-C",
+      "cpus": 4,
+      "hz": 1000
+    },
+    "cells-4": {
+      "image": "ubuntu24 20261023.334.3",
+      "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": 4,
+      "hz": 1000
+    },
+    "cells-5": {
+      "image": "ubuntu24 20261023.334.3",
+      "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+      "cpus": 4,
+      "hz": 1000
+    }
+  },
+  "cells": [
+    {
+      "plan": "O30.1",
+      "shard": "cells-0",
+      "control": {
+        "service": "0.5.6",
+        "median": 30.008022,
+        "values": [
+          30.008061,
+          30.006234,
+          30.006336,
+          30.008022,
+          30.0071,
+          30.007373,
+          30.008263,
+          30.008298,
+          30.007454,
+          30.008126,
+          30.008113
+        ]
+      },
+      "candidate": {
+        "service": "0.6.0",
+        "median": 30.007204,
+        "values": [
+          30.006887,
+          30.005074,
+          30.003432,
+          30.005152,
+          30.00784,
+          30.007346,
+          30.007324,
+          30.008883,
+          30.007204,
+          30.005376,
+          30.007469
+        ]
+      },
+      "d": -0.818,
+      "interval": [
+        -2.87,
+        0.104
+      ],
+      "tolerance": 1.0,
+      "verdict": "within",
+      "crosses": [
+        "low"
+      ],
+      "runs_needed": 1399,
+      "unpaired": -0.392
+    },
+    {
+      "plan": "O30.2",
+      "shard": "cells-1",
+      "control": {
+        "service": "0.5.6",
+        "median": 30.007629,
+        "values": [
+          30.004442,
+          30.002297,
+          30.009416,
+          30.008235,
+          30.007956,
+          30.010044,
+          30.007706,
+          30.007343,
+          30.007629,
+          30.006227,
+          30.007318
+        ]
+      },
+      "candidate": {
+        "service": "0.6.0",
+        "median": 30.007623,
+        "values": [
+          30.007657,
+          30.007163,
+          30.005939,
+          30.007386,
+          30.008011,
+          30.00796,
+          30.006861,
+          30.007623,
+          30.00808,
+          30.007683,
+          30.007549
+        ]
+      },
+      "d": -0.006,
+      "interval": [
+        -0.686,
+        1.43
+      ],
+      "tolerance": 1.0,
+      "verdict": "within",
+      "crosses": [
+        "high"
+      ],
+      "runs_needed": 23,
+      "unpaired": -0.308
+    },
+    {
+      "plan": "O29.1",
+      "shard": "cells-2",
+      "control": {
+        "service": "0.5.6",
+        "median": 30.007258,
+        "values": [
+          30.006953,
+          30.007433,
+          30.008178,
+          30.00756,
+          30.007258,
+          30.006308,
+          30.008275,
+          30.001513,
+          30.006482,
+          30.007326,
+          30.007249
+        ]
+      },
+      "candidate": {
+        "service": "0.6.0",
+        "median": 30.007545,
+        "values": [
+          30.007894,
+          30.007728,
+          30.007807,
+          30.007201,
+          30.00643,
+          30.007599,
+          30.006966,
+          30.007189,
+          30.007545,
+          30.006329,
+          30.007855
+        ]
+      },
+      "d": 0.287,
+      "interval": [
+        -0.371,
+        1.063
+      ],
+      "tolerance": 1.0,
+      "verdict": "within",
+      "crosses": [
+        "high"
+      ],
+      "runs_needed": 14,
+      "unpaired": -1.282
+    },
+    {
+      "plan": "O29.2",
+      "shard": "cells-3",
+      "control": {
+        "service": "0.5.6",
+        "median": 30.007635,
+        "values": [
+          30.00695,
+          30.008045,
+          30.006713,
+          30.007635,
+          30.009342,
+          30.007214,
+          30.008318,
+          30.00693,
+          30.006363,
+          30.008583,
+          30.007864
+        ]
+      },
+      "candidate": {
+        "service": "0.6.0",
+        "median": 30.007783,
+        "values": [
+          30.007905,
+          30.008274,
+          30.007521,
+          30.008906,
+          30.00328,
+          30.008325,
+          30.00734,
+          30.007934,
+          30.003347,
+          30.007421,
+          30.007783
+        ]
+      },
+      "d": 0.148,
+      "interval": [
+        -0.797,
+        1.004
+      ],
+      "tolerance": 1.0,
+      "verdict": "within",
+      "crosses": [
+        "high"
+      ],
+      "runs_needed": 12,
+      "unpaired": -0.041
+    },
+    {
+      "plan": "O29.3",
+      "shard": "cells-4",
+      "control": {
+        "service": "0.5.6",
+        "median": 0.001914,
+        "values": [
+          0.002197,
+          0.001813,
+          0.001856,
+          0.002337,
+          0.001914,
+          0.001872,
+          0.00217,
+          0.001933,
+          0.001676,
+          0.00192,
+          0.001885
+        ]
+      },
+      "candidate": {
+        "service": "0.6.0",
+        "median": 0.001858,
+        "values": [
+          0.001825,
+          0.001857,
+          0.001706,
+          0.001968,
+          0.001781,
+          0.001711,
+          0.00209,
+          0.001869,
+          0.001858,
+          0.001981,
+          0.002287
+        ]
+      },
+      "d": -0.056,
+      "interval": [
+        -0.312,
+        0.096
+      ],
+      "tolerance": 0.5,
+      "verdict": "within",
+      "crosses": [],
+      "runs_needed": 4,
+      "unpaired": 0.078
+    },
+    {
+      "plan": "O29.4",
+      "shard": "cells-5",
+      "control": {
+        "service": "0.5.6",
+        "median": 0.000842,
+        "values": [
+          0.000893,
+          0.000862,
+          0.001002,
+          0.000842,
+          0.000689,
+          0.000513,
+          0.000943,
+          0.000744,
+          0.000786,
+          0.000644,
+          0.001319
+        ]
+      },
+      "candidate": {
+        "service": "0.6.0",
+        "median": 0.000817,
+        "values": [
+          0.000974,
+          0.000646,
+          0.000735,
+          0.000677,
+          0.000738,
+          0.000667,
+          0.001386,
+          0.001378,
+          0.000817,
+          0.001246,
+          0.00099
+        ]
+      },
+      "d": -0.025,
+      "interval": [
+        -0.195,
+        0.404
+      ],
+      "tolerance": 0.5,
+      "verdict": "within",
+      "crosses": [],
+      "runs_needed": 8,
+      "unpaired": -0.41
+    }
+  ],
+  "summaries": [
+    {
+      "shard": "cells-0",
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in",
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "median": {
+        "value": 30.008022,
+        "unit": "s"
+      },
+      "band": {
+        "low": {
+          "value": 29.997,
+          "unit": "s"
+        },
+        "high": {
+          "value": 30.044182,
+          "unit": "s"
+        }
+      },
+      "why": "11 of 11 runs inside [29.997, 30.044182] s; median 30.008022 s, its interval [30.006336, 30.008263] s"
+    },
+    {
+      "shard": "cells-0",
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in",
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "median": {
+        "value": 30.007204,
+        "unit": "s"
+      },
+      "band": {
+        "low": {
+          "value": 29.997,
+          "unit": "s"
+        },
+        "high": {
+          "value": 30.044182,
+          "unit": "s"
+        }
+      },
+      "why": "11 of 11 runs inside [29.997, 30.044182] s; median 30.007204 s, its interval [30.005074, 30.00784] s"
+    },
+    {
+      "shard": "cells-1",
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in",
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "median": {
+        "value": 30.007629,
+        "unit": "s"
+      },
+      "band": {
+        "low": {
+          "value": 29.997,
+          "unit": "s"
+        },
+        "high": {
+          "value": 30.044182,
+          "unit": "s"
+        }
+      },
+      "why": "11 of 11 runs inside [29.997, 30.044182] s; median 30.007629 s, its interval [30.004442, 30.009416] s"
+    },
+    {
+      "shard": "cells-1",
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in",
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "median": {
+        "value": 30.007623,
+        "unit": "s"
+      },
+      "band": {
+        "low": {
+          "value": 29.997,
+          "unit": "s"
+        },
+        "high": {
+          "value": 30.044182,
+          "unit": "s"
+        }
+      },
+      "why": "11 of 11 runs inside [29.997, 30.044182] s; median 30.007623 s, its interval [30.006861, 30.008011] s"
+    },
+    {
+      "shard": "cells-2",
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in",
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "median": {
+        "value": 30.007258,
+        "unit": "s"
+      },
+      "band": {
+        "low": {
+          "value": 29.997,
+          "unit": "s"
+        },
+        "high": {
+          "value": 30.044182,
+          "unit": "s"
+        }
+      },
+      "why": "11 of 11 runs inside [29.997, 30.044182] s; median 30.007258 s, its interval [30.006308, 30.008178] s"
+    },
+    {
+      "shard": "cells-2",
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in",
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "median": {
+        "value": 30.007545,
+        "unit": "s"
+      },
+      "band": {
+        "low": {
+          "value": 29.997,
+          "unit": "s"
+        },
+        "high": {
+          "value": 30.044182,
+          "unit": "s"
+        }
+      },
+      "why": "11 of 11 runs inside [29.997, 30.044182] s; median 30.007545 s, its interval [30.00643, 30.007855] s"
+    },
+    {
+      "shard": "cells-3",
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429",
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "median": {
+        "value": 30.007635,
+        "unit": "s"
+      },
+      "band": {
+        "low": {
+          "value": 29.997,
+          "unit": "s"
+        },
+        "high": {
+          "value": 30.044182,
+          "unit": "s"
+        }
+      },
+      "why": "11 of 11 runs inside [29.997, 30.044182] s; median 30.007635 s, its interval [30.006713, 30.008583] s"
+    },
+    {
+      "shard": "cells-3",
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429",
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "median": {
+        "value": 30.007783,
+        "unit": "s"
+      },
+      "band": {
+        "low": {
+          "value": 29.997,
+          "unit": "s"
+        },
+        "high": {
+          "value": 30.044182,
+          "unit": "s"
+        }
+      },
+      "why": "11 of 11 runs inside [29.997, 30.044182] s; median 30.007783 s, its interval [30.003347, 30.008325] s"
+    },
+    {
+      "shard": "cells-4",
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again",
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "median": {
+        "value": 0.001914,
+        "unit": "s"
+      },
+      "band": {
+        "low": {
+          "value": -0.001,
+          "unit": "s"
+        },
+        "high": {
+          "value": 0.032182,
+          "unit": "s"
+        }
+      },
+      "why": "11 of 11 runs inside [-0.001, 0.032182] s; median 0.001914 s, its interval [0.001813, 0.002197] s"
+    },
+    {
+      "shard": "cells-4",
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again",
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "median": {
+        "value": 0.001858,
+        "unit": "s"
+      },
+      "band": {
+        "low": {
+          "value": -0.001,
+          "unit": "s"
+        },
+        "high": {
+          "value": 0.032182,
+          "unit": "s"
+        }
+      },
+      "why": "11 of 11 runs inside [-0.001, 0.032182] s; median 0.001858 s, its interval [0.001711, 0.00209] s"
+    },
+    {
+      "shard": "cells-5",
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again",
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "median": {
+        "value": 0.000842,
+        "unit": "s"
+      },
+      "band": {
+        "low": {
+          "value": -0.001,
+          "unit": "s"
+        },
+        "high": {
+          "value": 0.021,
+          "unit": "s"
+        }
+      },
+      "why": "11 of 11 runs inside [-0.001, 0.021] s; median 0.000842 s, its interval [0.000644, 0.001002] s"
+    },
+    {
+      "shard": "cells-5",
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again",
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "median": {
+        "value": 0.000817,
+        "unit": "s"
+      },
+      "band": {
+        "low": {
+          "value": -0.001,
+          "unit": "s"
+        },
+        "high": {
+          "value": 0.021,
+          "unit": "s"
+        }
+      },
+      "why": "11 of 11 runs inside [-0.001, 0.021] s; median 0.000817 s, its interval [0.000667, 0.001378] s"
+    }
+  ]
+}

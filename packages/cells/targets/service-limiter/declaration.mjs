@@ -3,27 +3,11 @@
 // on the service of the workspace.
 
 import { LIMITER_RULES, lint, service } from "@mark1russell7/service";
+import { LIMITER, specOf } from "./spec.mjs";
 
-const count = (value) => ({ value, unit: "count" });
+export { LIMITER, specOf };
+
 const s = (value) => ({ value, unit: "s" });
-
-/** This is the name of the one limiter of the target. */
-export const LIMITER = "calls";
-
-/**
- * This function gives the spec of the limiter from the flags of the server. A token bucket has its
- * rate in count/s. A sliding window has its window in ms. Each request has its key in the header
- * x-limiter-key.
- */
-export const specOf = ({ policy, limit, windowMs, ratePerS, burst, maxKeys }) => ({
-  key: "x-limiter-key",
-  policy:
-    policy === "token-bucket"
-      ? { type: "token-bucket", rate: { value: ratePerS, unit: "count/s" }, burst: count(burst) }
-      : { type: "sliding-window", limit: count(limit), window: { value: windowMs, unit: "ms" } },
-  store: { kind: "local" },
-  evict: { maxKeys: count(maxKeys) },
-});
 
 /**
  * This function gives the description of the target: a service with one keyed limiter. describe()

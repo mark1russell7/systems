@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import type { Subjects } from "./all.ts";
 import { catalogs } from "./all.ts";
 import { environmentOf } from "./environments.ts";
+import { limiterPair, pairOf } from "./limiter.ts";
 
 /**
  * The runner of the catalog. It starts only with CELLS=1, because it needs Docker and privileged
@@ -18,7 +19,9 @@ import { environmentOf } from "./environments.ts";
  * CELLS_FILE names a JSON file of cells that another repository compiles. Its cells then run in
  * place of the catalogs, with the same selection and the same records. CELLS_SUBJECT is a subject
  * as JSON (`Subject`), which replaces the subject of its name in the catalogs: another repository
- * runs the WS and WST cells on its own release this way.
+ * runs the WS and WST cells on its own release this way. CELLS_PAIR is two versions of the
+ * service, for example "0.5.6,0.6.0", and CELLS_PAIR_DIR holds a target folder for each version.
+ * The cells of the limiter on the control and on the candidate then replace the catalogs (limiterPair).
  */
 const RUN = process.env["CELLS"] === "1";
 const ONLY = new RegExp(process.env["CELLS_ONLY"] ?? ".");
@@ -34,8 +37,18 @@ const subjects = (subject: Subject | undefined): Partial<Subjects> => {
   return { procedures: subject };
 };
 
-/** These cells are the cells of the file, or the catalogs on their subjects when no file is given. */
-const source: readonly Cell[] = FILE === undefined ? catalogs(subjects(SUBJECT)) : (JSON.parse(readFileSync(FILE, "utf8")) as Cell[]);
+const PAIR = process.env["CELLS_PAIR"] || undefined;
+const PAIR_DIR = process.env["CELLS_PAIR_DIR"] || undefined;
+
+/** These cells are the cells of the limiter pair, of the file, or of the catalogs on their subjects. */
+const sourceOf = (): readonly Cell[] => {
+  if (PAIR !== undefined) {
+    if (FILE !== undefined || PAIR_DIR === undefined) throw new Error("CELLS_PAIR needs CELLS_PAIR_DIR, and it takes no CELLS_FILE");
+    return limiterPair(pairOf(PAIR, PAIR_DIR), of, ONLY);
+  }
+  return FILE === undefined ? catalogs(subjects(SUBJECT)) : (JSON.parse(readFileSync(FILE, "utf8")) as Cell[]);
+};
+const source: readonly Cell[] = sourceOf();
 const selected: Cell[] = source.filter((each) => ONLY.test(each.name)).filter((_, at) => at % of === shard);
 
 /** This environment is the runner image, when stage 0 calibrated it. A cell without its own δ_abs gets the image's. */

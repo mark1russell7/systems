@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { timerOf } from "@mark1russell7/algebra";
 import type { Cell, DriverStep, LineMatch, Prediction, Target } from "@mark1russell7/harness";
@@ -14,10 +15,7 @@ import { handlingOf } from "./http/race.ts";
  * - O29: the longest Retry-After of the limiter is at most the retry window of the caller.
  * - O30: the least delay of the caller before a retry is at least the longest Retry-After.
  *
- * Each spec has two cells: one on the limiter of service 0.6.0 from npm, and one on the control
- * target of 0.5.6. The two cells of a spec share a runner, thus their difference is the version.
- *
- * The target is the limiter of the service: a sliding window of one take in `window`
+ * The target is the limiter of service 0.6.0 from npm: a sliding window of one take in `window`
  * seconds for each key. The first request of a run takes the one unit of its key, and the second
  * request meets the 429. Its Retry-After is the time until the first take leaves the window, in
  * whole seconds, rounded up. Each client sends a key of its own process, thus each run has its own count.
@@ -27,54 +25,57 @@ import { handlingOf } from "./http/race.ts";
  * Client of undici and the Transport of Go send nothing again: the caller gets the 429.
  */
 
+/** This folder is the build context of the target: its Dockerfile, its lockfile, the script of its server, its spec and its declaration. */
+const CONTEXT = fileURLToPath(new URL("../targets/service-limiter/", import.meta.url));
+
+/** These are the files of the build context of each target. */
+const FILES = ["Dockerfile", "package.json", "npm-lock.json", "server.mjs", "spec.mjs", "declaration.mjs"];
+
 /** This is the version of the service in the target. The name of each cell has its MAJOR and MINOR, thus the records of two versions stay apart. */
 export const LIMITER_SERVICE = "0.6.0";
 
-/** This is the version of the service in the control target: the target of main before 0.6.0. */
-export const LIMITER_CONTROL = "0.5.6";
-
 /**
- * A limiter version is one target of the cells. It has the version of the service in it, the name
- * of its build, and the files of its build context. The target of 0.6.0 also has its declaration, because
- * its server lints that declaration before it listens. The control target of 0.5.6 is the target
- * of main, without a change.
+ * A limiter build is one target of the cells. It has the version of the service and the label of
+ * that version in the name of each cell. It also has the build context and the check of the declaration. The
+ * standing target is the folder `targets/service-limiter`. A pair of versions builds a copy of
+ * that folder for each version (the input `pair` of cells.yml).
  */
-export interface LimiterVersion {
+export interface LimiterBuild {
   readonly service: string;
-  readonly name: string;
-  readonly folder: string;
-  readonly files: readonly string[];
+  readonly label: string;
+  readonly context: string;
+  readonly lint: boolean;
 }
 
-/** These are the two targets: the control target of 0.5.6 first, then the target of 0.6.0. */
-export const LIMITER_VERSIONS: readonly LimiterVersion[] = [
-  { service: LIMITER_CONTROL, name: "service-limiter-056", folder: "service-limiter-056", files: ["Dockerfile", "package.json", "npm-lock.json", "server.mjs"] },
-  { service: LIMITER_SERVICE, name: "service-limiter", folder: "service-limiter", files: ["Dockerfile", "package.json", "npm-lock.json", "server.mjs", "declaration.mjs"] },
-];
-
-/** This function gives the version of the target of the service `service`. */
-const versionOf = (service: string): LimiterVersion => {
-  const found = LIMITER_VERSIONS.find((each) => each.service === service);
-  if (found === undefined) throw new Error(`no target of the limiter has service ${service}`);
-  return found;
-};
+/** This is the standing target: service 0.6.0, with the check of its declaration. */
+export const LIMITER_BUILD: LimiterBuild = { service: LIMITER_SERVICE, label: LIMITER_SERVICE.split(".").slice(0, 2).join("."), context: CONTEXT, lint: true };
 
 /** This port is the port of the server in the target. */
 const PORT = 8080;
 
-/** This function gives the target: the limiter of the service `service` over node:http, one take in `window` seconds for each key. */
-export const limiterTarget = (window: number, service: string = LIMITER_SERVICE): Target => {
-  const version = versionOf(service);
-  return {
-    image: NODE_IMAGE,
-    // this folder is the build context of the target: its Dockerfile, its lockfile, the script of its server, and its declaration in 0.6.0
-    subject: { kind: "build", name: version.name, context: fileURLToPath(new URL(`../targets/${version.folder}/`, import.meta.url)), files: [...version.files] },
-    port: PORT,
-    ready: '"ev":"listening"',
-    lines: true,
-    command: ["node", "/srv/server.mjs", "--port", String(PORT), "--policy", "sliding-window", "--limit", "1", "--window-ms", String(window * 1000), "--max-keys", "100"],
-  };
-};
+/** This function gives the target: the limiter of a build over node:http, one take in `window` seconds for each key. */
+export const limiterTarget = (window: number, build: LimiterBuild = LIMITER_BUILD): Target => ({
+  image: NODE_IMAGE,
+  subject: { kind: "build", name: build === LIMITER_BUILD ? "service-limiter" : `service-limiter-${build.service}`, context: build.context, files: FILES },
+  port: PORT,
+  ready: '"ev":"listening"',
+  lines: true,
+  command: [
+    "node",
+    "/srv/server.mjs",
+    "--port",
+    String(PORT),
+    "--policy",
+    "sliding-window",
+    "--limit",
+    "1",
+    "--window-ms",
+    String(window * 1000),
+    "--max-keys",
+    "100",
+    ...(build.lint ? [] : ["--lint", "off"]),
+  ],
+});
 
 /** A limiter client is the client of a cell: the RetryAgent of undici, a Client of undici, or the Transport of Go. */
 export type LimiterClient = "undici-retry" | "undici" | "go";
@@ -220,13 +221,10 @@ export const LIMITER_SPECS: readonly LimiterSpec[] = [
   { plan: "O29.4", client: "go", window: 30, name: "the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again" },
 ];
 
-/** This function gives the MAJOR and the MINOR of a version, for the name of a cell. */
-const minorOf = (service: string): string => service.split(".").slice(0, 2).join(".");
-
-/** This function gives the cell of the harness for a spec, on the target of the service `service`. */
-export const limiterCell = (spec: LimiterSpec, service: string = LIMITER_SERVICE): Cell => ({
-  name: `${spec.plan} ${spec.client === "go" ? "go net/http 1.27" : "undici 8.12"} to the keyed limiter of service ${minorOf(service)}, ${spec.name}`,
-  target: limiterTarget(spec.window, service),
+/** This function gives the cell of the harness for a spec, on a build of the target. */
+export const limiterCell = (spec: LimiterSpec, build: LimiterBuild = LIMITER_BUILD): Cell => ({
+  name: `${spec.plan} ${spec.client === "go" ? "go net/http 1.27" : "undici 8.12"} to the keyed limiter of service ${build.label}, ${spec.name}`,
+  target: limiterTarget(spec.window, build),
   sysctls: {},
   client: spec.client === "go" ? "go-http" : "undici",
   probe: { mode: "gap", keepalive: false, http: { method: "GET", gap: s(0), options: OPTIONS[spec.client] } },
@@ -236,9 +234,41 @@ export const limiterCell = (spec: LimiterSpec, service: string = LIMITER_SERVICE
   environments: 2,
 });
 
+/** These are the cells of the keyed limiter, for the harness. */
+export const LIMITER_CELLS: readonly Cell[] = LIMITER_SPECS.map((spec) => limiterCell(spec));
+
+/** A version of the service is MAJOR.MINOR.PATCH, with no range. */
+const VERSION = /^\d+\.\d+\.\d+$/;
+
 /**
- * These are the cells of the keyed limiter, for the harness. The six cells of 0.5.6 come first,
- * then the six cells of 0.6.0 in the same order. The runner gives cell k of a selection to shard k % n. Thus with
- * six shards, each shard gets one spec in both versions, one after the other on the same runner.
+ * This function gives the two builds of a pair from the input `pair` of cells.yml, for example
+ * "0.5.6,0.6.0". The control comes first, then the candidate. Each build is the folder of its
+ * version in `dir`, where the workflow copies the target. Only the candidate checks its
+ * declaration, because the control can be a version without that lint().
  */
-export const LIMITER_CELLS: readonly Cell[] = LIMITER_VERSIONS.flatMap((version) => LIMITER_SPECS.map((spec) => limiterCell(spec, version.service)));
+export const pairOf = (text: string, dir: string): readonly [LimiterBuild, LimiterBuild] => {
+  const versions = text.split(",").map((each) => each.trim());
+  if (versions.length !== 2 || !versions.every((each) => VERSION.test(each)) || versions[0] === versions[1])
+    throw new Error(`the pair ${JSON.stringify(text)} is not two different versions, for example "0.5.6,0.6.0"`);
+  const [control, candidate] = versions as [string, string];
+  const build = (service: string, lint: boolean): LimiterBuild => ({ service, label: service, context: join(dir, service), lint });
+  return [build(control, false), build(candidate, true)];
+};
+
+/**
+ * This function gives the cells of a pair that `only` selects. They are each spec on the control,
+ * then the same specs on the candidate, in the same order. The runner gives cell k of a selection to shard
+ * k % n. Thus if n divides the count of specs, the two cells of a spec operate on the same runner,
+ * one after the other. The function stops with an error if the halves differ. It also stops if n does not divide them.
+ */
+export const limiterPair = (builds: readonly [LimiterBuild, LimiterBuild], shards: number, only: RegExp = /./): readonly Cell[] => {
+  const [control, candidate] = builds.map((build) =>
+    LIMITER_SPECS.map((spec) => ({ plan: spec.plan, cell: limiterCell(spec, build) })).filter((each) => only.test(each.cell.name)),
+  ) as [{ plan: string; cell: Cell }[], { plan: string; cell: Cell }[]];
+  const plans = (half: { plan: string }[]) => half.map((each) => each.plan).join(",");
+  if (control.length === 0 || plans(control) !== plans(candidate))
+    throw new Error(`the selection takes the specs ${plans(control) || "none"} of the control and ${plans(candidate) || "none"} of the candidate`);
+  if (!Number.isInteger(shards) || shards < 1 || control.length % shards !== 0)
+    throw new Error(`a pair of ${control.length} specs needs a count of shards that divides ${control.length}, and it has ${shards}`);
+  return [...control, ...candidate].map((each) => each.cell);
+};

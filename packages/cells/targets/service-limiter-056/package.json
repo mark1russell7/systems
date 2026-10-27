@@ -1,9 +1,0 @@
-{
-  "name": "loom-cells-service-limiter",
-  "private": true,
-  "type": "module",
-  "dependencies": {
-    "@mark1russell7/service": "0.5.6",
-    "zod": "4.6.6"
-  }
-}

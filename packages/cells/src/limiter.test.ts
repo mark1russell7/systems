@@ -1,8 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { ALL } from "./all.ts";
-import { LIMITER_CELLS, LIMITER_CONTROL, LIMITER_SERVICE, LIMITER_SPECS, LIMITER_VERSIONS, limiterPrediction, limiterTarget, retryPlan } from "./limiter.ts";
+import { LIMITER_BUILD, LIMITER_CELLS, LIMITER_SERVICE, LIMITER_SPECS, limiterPair, limiterPrediction, limiterTarget, pairOf, retryPlan } from "./limiter.ts";
 
 /** The check of the declaration of the target, from its script. The import has no types, thus this type gives them. */
 interface TargetLint {
@@ -10,6 +9,7 @@ interface TargetLint {
   readonly lintTarget: (spec: unknown) => { readonly findings: ReadonlyArray<Record<string, unknown>>; readonly problems: readonly string[] };
 }
 const DECLARATION = new URL("../targets/service-limiter/declaration.mjs", import.meta.url).href;
+const SERVER = new URL("../targets/service-limiter/server.mjs", import.meta.url);
 
 /** SYS-28: the cells of the keyed limiter take their bands from the documents of the limiter and of the RetryAgent. */
 describe("the cells of the keyed limiter", () => {
@@ -46,48 +46,24 @@ describe("the cells of the keyed limiter", () => {
   });
 
   it("names each cell by its plan, builds its target from a pinned context, and keys each client", () => {
-    const plans = ["O30.1", "O30.2", "O29.1", "O29.2", "O29.3", "O29.4"];
-    expect(LIMITER_CELLS.map((cell) => cell.name.split(" ")[0])).toEqual([...plans, ...plans]);
-    for (const version of LIMITER_VERSIONS) {
-      const target = limiterTarget(30, version.service);
-      expect(target.command).toContain("--window-ms");
-      expect(target.command[target.command.indexOf("--window-ms") + 1]).toBe("30000");
-      const subject = target.subject as { kind: string; name: string; context: string; files: string[] };
-      expect(subject.kind).toBe("build");
-      expect(subject.name).toBe(version.name);
-      for (const file of subject.files) expect(existsSync(join(subject.context, file)), file).toBe(true);
-    }
+    expect(LIMITER_CELLS.map((cell) => cell.name.split(" ")[0])).toEqual(["O30.1", "O30.2", "O29.1", "O29.2", "O29.3", "O29.4"]);
+    const target = limiterTarget(30);
+    expect(target.command).toContain("--window-ms");
+    expect(target.command[target.command.indexOf("--window-ms") + 1]).toBe("30000");
+    const subject = target.subject as { kind: string; context: string; files: string[] };
+    expect(subject.kind).toBe("build");
+    for (const file of subject.files) expect(existsSync(join(subject.context, file)), file).toBe(true);
     for (const cell of LIMITER_CELLS) expect(cell.probe.http?.options?.["limiter-key"], cell.name).toBe(1);
-    expect(LIMITER_CELLS.filter((cell) => cell.probe.http?.options?.["retry"] === 1).length).toBe(8);
+    expect(LIMITER_CELLS.filter((cell) => cell.probe.http?.options?.["retry"] === 1).length).toBe(4);
   });
 
   it("names the version of the service of the target in each cell, as its package and its lockfile pin it", () => {
-    expect(LIMITER_VERSIONS.map((version) => version.service)).toEqual([LIMITER_CONTROL, LIMITER_SERVICE]);
-    for (const [at, version] of LIMITER_VERSIONS.entries()) {
-      const context = (limiterTarget(30, version.service).subject as { context: string }).context;
-      const manifest = JSON.parse(readFileSync(join(context, "package.json"), "utf8")) as { dependencies: Record<string, string> };
-      const lock = JSON.parse(readFileSync(join(context, "npm-lock.json"), "utf8")) as { packages: Record<string, { version?: string }> };
-      expect(manifest.dependencies["@mark1russell7/service"]).toBe(version.service);
-      expect(lock.packages["node_modules/@mark1russell7/service"]?.version).toBe(version.service);
-      const minor = version.service.split(".").slice(0, 2).join(".");
-      for (const cell of LIMITER_CELLS.slice(at * LIMITER_SPECS.length, (at + 1) * LIMITER_SPECS.length)) {
-        expect(cell.name, cell.name).toContain(`to the keyed limiter of service ${minor},`);
-        expect((cell.target.subject as { name: string }).name, cell.name).toBe(version.name);
-      }
-    }
-  });
-
-  it("puts the two cells of each spec on one shard of six, the control of 0.5.6 first", () => {
-    // the selection and the shards of run.test.ts: the cells that match the filter, then cell k on shard k % n
-    const only = /^O(29|30)\./;
-    const selected = ALL.filter((cell) => only.test(cell.name));
-    expect(selected).toEqual(LIMITER_CELLS);
-    const shards = 6;
-    for (let shard = 0; shard < shards; shard++) {
-      const mine = selected.filter((_, at) => at % shards === shard);
-      expect(mine.map((cell) => cell.name.split(" ")[0]), `shard ${shard}`).toEqual([LIMITER_SPECS[shard]!.plan, LIMITER_SPECS[shard]!.plan]);
-      expect(mine.map((cell) => (cell.target.subject as { name: string }).name), `shard ${shard}`).toEqual(["service-limiter-056", "service-limiter"]);
-    }
+    const context = (limiterTarget(30).subject as { context: string }).context;
+    const manifest = JSON.parse(readFileSync(join(context, "package.json"), "utf8")) as { dependencies: Record<string, string> };
+    const lock = JSON.parse(readFileSync(join(context, "npm-lock.json"), "utf8")) as { packages: Record<string, { version?: string }> };
+    expect(manifest.dependencies["@mark1russell7/service"]).toBe(LIMITER_SERVICE);
+    expect(lock.packages["node_modules/@mark1russell7/service"]?.version).toBe(LIMITER_SERVICE);
+    for (const cell of LIMITER_CELLS) expect(cell.name, cell.name).toContain("to the keyed limiter of service 0.6,");
   });
 
   it("lints the declaration of the target for each cell: O29 and O30 depend on the caller, and nothing else is found", async () => {
@@ -104,5 +80,51 @@ describe("the cells of the keyed limiter", () => {
     const bucket = lintTarget(specOf({ policy: "token-bucket", ratePerS: 1, burst: 3, maxKeys: 100 }));
     expect(bucket.problems).toEqual([]);
     expect(bucket.findings.map((finding) => finding["limiter"])).toEqual([[1, 3], [1]]);
+  });
+
+  it("reads the spec without the service, and loads the check only if --lint is not off", () => {
+    const server = readFileSync(SERVER, "utf8");
+    expect(server).toContain('import { LIMITER, specOf } from "./spec.mjs";');
+    expect(server).not.toMatch(/^import .*declaration[.]mjs/m);
+    expect(server).toContain('flag("--lint") === "off"');
+    expect(readFileSync(new URL("../targets/service-limiter/spec.mjs", import.meta.url), "utf8")).not.toMatch(/^import /m);
+    expect((limiterTarget(30).subject as { files: string[] }).files).toContain("spec.mjs");
+    expect(limiterTarget(30).command).not.toContain("--lint");
+  });
+
+  it("builds the catalog of a pair: the control cell of each spec, then its candidate cell, on the same shard", () => {
+    const builds = pairOf("0.5.6,0.6.0", "/pair");
+    expect(builds.map((build) => [build.service, build.label, build.lint])).toEqual([
+      ["0.5.6", "0.5.6", false],
+      ["0.6.0", "0.6.0", true],
+    ]);
+    for (const shards of [1, 2, 3, 6]) {
+      const cells = limiterPair(builds, shards);
+      expect(cells.length).toBe(12);
+      // the runner gives cell k of the selection to shard k % n (run.test.ts)
+      for (let k = 0; k < 6; k += 1) {
+        const [control, candidate] = [cells[k]!, cells[k + 6]!];
+        expect(k % shards, control.name).toBe((k + 6) % shards);
+        expect(control.name.split(" ")[0]).toBe(LIMITER_SPECS[k]!.plan);
+        expect(candidate.name.replace("service 0.6.0,", "service 0.5.6,")).toBe(control.name);
+        expect(control.prediction).toEqual(candidate.prediction);
+        // only the candidate checks its declaration: the control can lack that lint()
+        expect(control.target.command.slice(-2)).toEqual(["--lint", "off"]);
+        expect(candidate.target.command).not.toContain("--lint");
+        const [ofControl, ofCandidate] = [control.target.subject, candidate.target.subject] as Array<{ name: string; context: string }>;
+        expect([ofControl.name, ofCandidate.name]).toEqual(["service-limiter-0.5.6", "service-limiter-0.6.0"]);
+        expect([ofControl.context, ofCandidate.context]).toEqual([join("/pair", "0.5.6"), join("/pair", "0.6.0")]);
+      }
+    }
+    // a selection keeps the pairs: O30 on 2 shards
+    expect(limiterPair(builds, 2, /^O30[.]/).map((cell) => cell.name.split(" ")[0])).toEqual(["O30.1", "O30.2", "O30.1", "O30.2"]);
+    // a count of shards that does not divide the specs puts the two cells of a spec on two runners
+    expect(() => limiterPair(builds, 4)).toThrow(/divides 6/);
+    expect(() => limiterPair(builds, 3, /^O30[.]/)).toThrow(/divides 2/);
+    expect(() => limiterPair(builds, 1, /service 0[.]6[.]0/)).toThrow(/selection/);
+    for (const bad of ["0.6.0", "0.6.0,0.6.0", "^0.5.6,0.6.0", "0.5,0.6.0", "0.5.6,0.6.0,0.7.0"]) expect(() => pairOf(bad, "/pair"), bad).toThrow(/two different versions/);
+    // the standing catalog keeps its target
+    expect(LIMITER_CELLS.every((cell) => (cell.target.subject as { name: string }).name === "service-limiter")).toBe(true);
+    expect(LIMITER_BUILD).toMatchObject({ service: LIMITER_SERVICE, label: "0.6", lint: true });
   });
 });

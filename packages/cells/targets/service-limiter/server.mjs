@@ -15,13 +15,15 @@
 // Before it listens, the server checks its declaration with lint() (declaration.mjs). A problem
 // stops the server before its line "listening", thus the cell fails. The line "listening" gives
 // the version of the service and the findings of lint(), thus each record of a cell has them.
+// With --lint off, the server does not load declaration.mjs, and the line gives "lint": "off".
+// The control of a pair of versions uses it, because an older version can lack that lint().
 
 import http from "node:http";
 import { limitedResponse } from "@mark1russell7/service/http";
 import { keyedLimiter, memoryStore } from "@mark1russell7/service/limiter";
 import { realClock } from "@mark1russell7/service/clock";
 import manifest from "@mark1russell7/service/package.json" with { type: "json" };
-import { LIMITER, lintTarget, specOf } from "./declaration.mjs";
+import { LIMITER, specOf } from "./spec.mjs";
 
 /** This function writes one line, with `t` from process.hrtime: CLOCK_MONOTONIC, the clock of the prober. */
 const emit = (ev, fields = {}) =>
@@ -45,7 +47,7 @@ const spec =
   flag("--policy") === "token-bucket"
     ? specOf({ policy: "token-bucket", ratePerS: number("--rate-per-s"), burst: number("--burst"), maxKeys: number("--max-keys") })
     : specOf({ policy: "sliding-window", limit: number("--limit"), windowMs: number("--window-ms"), maxKeys: number("--max-keys") });
-const checked = lintTarget(spec);
+const checked = flag("--lint") === "off" ? { findings: "off", problems: [] } : (await import("./declaration.mjs")).lintTarget(spec);
 if (checked.problems.length > 0) {
   emit("fail", { why: checked.problems.join("; "), service: manifest.version, lint: checked.findings });
   process.exit(1);
