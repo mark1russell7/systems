@@ -6,6 +6,8 @@ import { imageOf } from "@mark1russell7/harness";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Cycle, KindCell, KindRun, Replica } from "./cell.ts";
+import type { CiliumImages } from "./cilium.ts";
+import { CILIUM_IMAGES, CILIUM_VERSION, installCilium } from "./cilium.ts";
 import type { Cluster } from "./cluster.ts";
 import { command, createCluster } from "./cluster.ts";
 import type { Step, Target } from "./faults.ts";
@@ -256,7 +258,7 @@ const deploy = async (lab: KindLab, cluster: Cluster, cell: KindCell, namespace:
   await cluster.kubectl(["-n", namespace, "rollout", "status", `deployment/${SERVER}`, "--timeout=300s"]);
   if (grpc) await cluster.apply(clients);
   await cluster.kubectl(["-n", namespace, "rollout", "status", `daemonset/${CLIENT}`, "--timeout=300s"]);
-  await lab.rules({ mode: cluster.scenario.kubeProxy.mode, ns: namespace, svc: SERVER, ip: clusterIp, port: 80, every: RULES_EVERY });
+  await lab.rules({ mode: cluster.scenario.dataplane, ns: namespace, svc: SERVER, ip: clusterIp, port: 80, every: RULES_EVERY });
   if (cell.mesh?.mode === "sidecar") await pollEndpoints(lab, cluster, namespace);
   return clusterIp;
 };
@@ -450,6 +452,8 @@ const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], ba
       const redis = [...ctx.tracker.pods.values()].find((pod) => pod.labels["app"] === REDIS && !pod.del)!;
       return { node: redis.node!, pid: await lab.pidOf(redis.node!, namespace, redis.name, REDIS), pod: redis };
     }
+    // the target kube-proxy: the kube-proxy of the first worker. The dataplane cilium has no kube-proxy.
+    if (cluster.scenario.kubeProxy === null) throw new Error(`${ctx.cell.name}: the target kube-proxy needs kube-proxy, and the dataplane ${cluster.scenario.dataplane} has none`);
     const worker = cluster.nodes[1] ?? cluster.nodes[0]!;
     const proxy = JSON.parse(
       await cluster.kubectl(["-n", "kube-system", "get", "pods", "-l", "k8s-app=kube-proxy", "--field-selector", `spec.nodeName=${worker}`, "-o", "json"]),
@@ -776,6 +780,10 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
   for (const name of new Set([...flavors].flatMap((flavor) => MESH_IMAGES[flavor]))) pinned.set(name, await localPin(ISTIO_IMAGES[name]));
   const meshImages: MeshImages | undefined =
     flavors.size === 0 ? undefined : { pilot: pinned.get("pilot")!, proxy: pinned.get("proxy")!, cni: pinned.get("cni"), ztunnel: pinned.get("ztunnel") };
+  // Cilium: each image pulled once by its digest, if a cell has the dataplane cilium
+  const cilium: CiliumImages | undefined = cells.some((cell) => cell.mode === "cilium")
+    ? { agent: await localPin(CILIUM_IMAGES.agent), operator: await localPin(CILIUM_IMAGES.operator), envoy: await localPin(CILIUM_IMAGES.envoy) }
+    : undefined;
   const images: Images = { lab: image, redis: redisImage, grpc: grpcImage, mesh: meshImages };
   // the cells of one kube-proxy mode, node count and mesh flavor share a cluster
   const groups = new Map<string, KindCell[]>();
@@ -787,11 +795,19 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
       const s = scenario(`lab-${key}-${env}`, group[0]!.mode, group[0]!.workers, undefined, zoned(group[0]!));
       const dir = join(options.work ?? join(tmpdir(), "systems-kind-work"), s.name);
       const mesh = group[0]!.mesh;
-      options.log(`cluster ${s.name}: ${s.kubeProxy.mode}, ${s.workers} workers${mesh === undefined ? "" : `, Istio ${mesh.flavor}`}`);
+      options.log(`cluster ${s.name}: ${s.dataplane}, ${s.workers} workers${mesh === undefined ? "" : `, Istio ${mesh.flavor}`}`);
       const cluster = await createCluster(s, dir);
       let lab: KindLab | null = null;
       let loader: StartedTestContainer | null = null;
       try {
+        // the CNI first: with no CNI, no pod of the lab can start
+        if (s.cni === "cilium") {
+          if (cilium === undefined) throw new Error(`${group[0]!.name}: the run has no images of Cilium`);
+          for (const each of [cilium.agent, cilium.operator, cilium.envoy]) await cluster.load(each);
+          const began = Date.now();
+          await installCilium(cluster, cilium);
+          options.log(`  Cilium ${CILIUM_VERSION} installed in ${Math.round((Date.now() - began) / 100) / 10} s`);
+        }
         await cluster.load(image);
         await cluster.load(redisImage);
         if (grpcImage !== undefined && group.some((cell) => stackOf(cell) === "grpc")) await cluster.load(grpcImage);
@@ -844,6 +860,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
                 redis: redisImage,
                 ...(stackOf(cell) === "grpc" ? { grpc: grpcImage! } : {}),
                 ...(cell.mesh === undefined ? {} : Object.fromEntries(MESH_IMAGES[cell.mesh.flavor].map((name) => [`istio-${name}`, ISTIO_IMAGES[name]]))),
+                ...(s.cni === "cilium" ? Object.fromEntries(Object.entries(CILIUM_IMAGES).map(([name, ref]) => [`cilium-${name}`, ref])) : {}),
               },
             });
             entry.loads.push(...loads);

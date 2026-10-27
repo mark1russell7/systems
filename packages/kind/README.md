@@ -62,10 +62,12 @@ The tests read three real records of `/1` (`test/records/`): a cell that holds, 
 
 ## The cluster
 
-- **The scenario** (`scenario.ts`) is the cluster as data: its nodes, its version, the mode and the sync periods of kube-proxy, its CNI and its subnets. `kindConfig(scenario)` generates the configuration of kind from it.
+- **The scenario** (`scenario.ts`) is the cluster as data: its nodes, its version, its dataplane, the sync periods of kube-proxy, its CNI and its subnets. `kindConfig(scenario)` generates the configuration of kind from it.
+- **The dataplane** (`Dataplane`) is the path of a Service on each node, and the mode of a cell. From 0.12.0, it is a mode of kube-proxy (`iptables`, `ipvs`, `nftables`), or `cilium`. A scenario of `cilium` has no kube-proxy and no kindnet (`kubeProxy: null`, `cni: "cilium"`).
 - **The node image** is `kindest/node:v1.37.0`, pinned by digest, the default of kind v0.33.0. The research names v1.37.1 for some defaults. The patch release is the mismatch.
 - **The tools** (`tools.ts`) are kind v0.33.0 and kubectl v1.37.0. The lab downloads each one into `.cache/` in this package, and it compares the sha256 with the pinned value at each use. `KIND_CACHE` names another folder. The lab installs nothing on the system, and the same code works on Linux, macOS and Windows.
 - **istioctl 1.31.3** (`ISTIOCTL`) comes in a gzipped tar file. The pinned sha256 is that of the tar file. The cache keeps the tar file, and each use examines it and takes the tool from it again (`tarEntry`). The release has a zip file for Windows, thus Windows has no asset of istioctl.
+- **Helm v3.22.1** (`HELM`) installs Cilium. It also comes in a gzipped tar file. Its tar file for Windows has `helm.exe`, thus Windows has no asset of Helm.
 - **The isolation.** Each cluster gets its own Docker network, its own kubeconfig and its own cache for kubectl, in its run folder. The lab refuses a pod or service subnet that overlaps a Docker network.
 
 ## The lab
@@ -82,6 +84,7 @@ The tests read three real records of `/1` (`test/records/`): a cell that holds, 
   - Each second, the agent reads the counters of dropped packets (`drops.ts`), and it writes a `drops` line with each counter that grew. For the node, these are the drops of the backlogs, the squeezes of the softirqs, and the drops of each veth.
   - For each client pod, the agent reads `/proc/<pid>/net`. These counters are the IP discards, the sends with no route, the failed connects, the drops of its interfaces, and its neighbors with no address. From 0.1.5, they also count the ICMP errors of an unreachable destination. A refusal by a reject rule is such an error, not a reset. A SYN that does not get to the conntrack of the node leaves its trace in one of them.
 - **The rules of each node.** The agent reads the rules of kube-proxy in the namespaces of the node each 50 ms: `iptables-save`, `nft list table ip kube-proxy`, or `/proc/net/ip_vs`. It writes a line when the backends of the Service change (`backends.ts`). A backend of IPVS with the weight zero takes no new connection, thus it is not a backend.
+  - From 0.12.0, in the dataplane `cilium`, the agent asks the agent of Cilium on its socket in the node: `GET /v1/service`. The backends are those in the state `active`, or the `terminating` ones when no backend is active (`ciliumBackendsOf`). A reply that does not parse gives a `rules-fail` line.
 - **The endpoints of each client sidecar.** From 0.3.0, in a sidecar mesh, the agent also polls the Envoy of the client sidecar on its node each 50 ms (`eds`). The client sidecar picks the backend of each call, thus these endpoints and not the rules are the propagation of the cell (`propagationSource`).
   - A poller enters the network namespace of the client pod (`nsenter -n`). It reads `/clusters` on `127.0.0.1:15000` with a filter that selects the server cluster (`eds.ts`).
   - Each change of the healthy hosts gives an `eds` line with the start of the poll before it. That line has the form of a rules line. Each second, an `eds-alive` line counts the polls and gives their mean time.
@@ -294,11 +297,25 @@ A preStop sleep that is longer than the grace is a command in the container (`sh
 
 The catalogs are in `@systems/cells` (`t07.ts`, `t18.ts`, `grpc/t07.ts` and `grpc/t15.ts`). `KIND_LAB=1` starts them in kind.
 
+## Cilium
+
+From 0.12.0, a cell can have the dataplane `cilium`: Cilium 1.20.4 is the CNI, and it replaces kube-proxy (`cilium.ts`).
+
+- **The cluster.** kind makes the cluster with no kube-proxy and no CNI, thus it does not wait for ready nodes. Then the lab loads the images of Cilium and installs it, before each other image.
+- **The install.** `installCilium` installs the chart of 1.20.4, pinned by sha256 (`CILIUM_CHART`), with Helm. Then it waits for the agent, the operator, Envoy, each node and CoreDNS. A failed install gives the pods of kube-system and the log of the agent in its error.
+- **The values** (`ciliumValues`). `kubeProxyReplacement` is true, and the agent reaches the API server on the control plane. The IPAM is `kubernetes`, as the kind guide of Cilium tells. The operator has one replica. Each other value is the default of the chart.
+- **Socket LB** stays at its default: on, because the replacement of kube-proxy sets it. It selects a backend at each `connect()`, thus an established connection keeps its backend, as with kube-proxy.
+- **The images.** `CILIUM_IMAGES` pins the agent, the operator and Envoy by the digests of the chart. `pullPolicy` is `Never`.
+- **The mode** of the cluster manifest gives the version of Cilium and the keys of `cilium-config` that a cell depends on (`ciliumMode`).
+- **The target `kube-proxy`** of a freeze needs kube-proxy. A cell of `cilium` with that target fails with a clear error.
+
 ## CI
 
 The cells operate on the runners of GitHub, and not on a machine that does other work (`.github/workflows/kind.yml`). Each shard gets a runner, and each job makes its own clusters and deletes them.
 
 - **The modes of the kernel.** kube-proxy in a node container uses the modules of the host kernel. Thus the job loads `ip_vs` and `nf_tables` first. A cell of a mode that the kernel cannot do waits, and `summary.ndjson` tells why.
+- **The dataplane `cilium`** needs cgroup v2 on the runner. The job examines it, and a cell of `cilium` waits on a runner without it.
+- **The capture.** The job `capture` makes a cluster of `cilium` and dumps the services of the agent of each node in three states of the backends (`src/cilium.capture.test.ts`). It uploads the artifact `cilium-capture`. The unit tests of `ciliumBackendsOf` read a part of a real dump (`test/cilium/`).
 - **The inotify limits.** The pods of each node share the inotify limits of the kernel of the runner. Thus the job raises them to 512 instances and 524288 watches, the values of the known issues of kind.
 - **The shards.** `shardOf` gives each shard an equal share of the estimated time, and the cells of one mode stay together. Thus a shard makes few clusters.
 - **The output.** Each job uploads its raw records, `summary.ndjson`, and what the runner is. The run folder of each cluster stays out of the output, because a kubeconfig holds credentials.

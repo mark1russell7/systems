@@ -27,7 +27,7 @@
 // node and the freeze of its cgroup, or the thaw and the end of the drops), and now.
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { backendsOf } from "./backends.ts";
+import { backendsOf, namesService } from "./backends.ts";
 import { entriesOf, flowsOf, staleOf, stalledOf } from "./conntrack.ts";
 import { devOf, grownOf, snmpOf, softnetOf, unresolvedOf } from "./drops.ts";
 import { clusterFilter, hostsOf } from "./eds.ts";
@@ -38,11 +38,16 @@ const node = process.env.NODE_NAME ?? "";
 const say = (line) => process.stdout.write(`${JSON.stringify({ ...line, node })}\n`);
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** These commands give the backends of a Service in each mode of kube-proxy, as "ip:port" (with the weight for IPVS). */
+/**
+ * These commands give the backends of a Service in each dataplane, as "ip:port" (with the weight for
+ * IPVS). The agent of Cilium answers on its socket in the node (a hostPath of its chart), with the
+ * services of its load balancer as JSON (`GET /v1/service`).
+ */
 const DUMP = {
   iptables: ["nsenter", "-t", "1", "-m", "-n", "--", "iptables-save", "-t", "nat"],
   nftables: ["nsenter", "-t", "1", "-m", "-n", "--", "nft", "list", "table", "ip", "kube-proxy"],
   ipvs: ["nsenter", "-t", "1", "-n", "--", "cat", "/proc/net/ip_vs"],
+  cilium: ["nsenter", "-t", "1", "-m", "-n", "--", "curl", "-sS", "--fail", "--max-time", "2", "--unix-socket", "/var/run/cilium/cilium.sock", "http://localhost/v1/service"],
 };
 
 /**
@@ -185,14 +190,23 @@ const serve = async () => {
     const took = now() - t;
     polls += 1;
     spent += took;
-    if (run.status !== 0) {
-      say({ ev: "rules-fail", t, why: (run.stderr ?? "").trim().slice(0, 300) });
+    // a reply that the parser refuses (JSON that is not a list) is a failure, not a Service with no backend
+    let backends = null;
+    let refused = "";
+    if (run.status === 0) {
+      try {
+        backends = backendsOf(rule.mode, run.stdout, rule);
+      } catch (error) {
+        refused = `the dump does not parse: ${String(error)}: ${run.stdout.slice(0, 200)}`;
+      }
+    }
+    if (backends === null) {
+      say({ ev: "rules-fail", t, why: (refused || (run.stderr ?? "")).trim().slice(0, 300) });
     } else {
-      const backends = backendsOf(rule.mode, run.stdout, rule);
       const key = backends.join(",");
       // a dump that names the Service but gives no backend: once for each rule, its text, to read the format
       const config = JSON.stringify(rule);
-      if (backends.length === 0 && run.stdout.includes(`${rule.ns}/${rule.svc}`) && dumped !== config) {
+      if (backends.length === 0 && namesService(rule.mode, run.stdout, rule) && dumped !== config) {
         say({ ev: "rules-dump", t, text: run.stdout.slice(0, 30000) });
         dumped = config;
       }

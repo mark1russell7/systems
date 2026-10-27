@@ -6,7 +6,9 @@
 
 export * from "./judge.ts";
 export type { ServiceRule } from "./backends.ts";
-export { backendsOf } from "./backends.ts";
+export { backendsOf, ciliumBackendsOf, namesService } from "./backends.ts";
+export type { CiliumImages } from "./cilium.ts";
+export { CILIUM_CHART, CILIUM_CONFIG_KEYS, CILIUM_IMAGES, CILIUM_VERSION, CILIUM_WORKLOADS, ciliumMode, ciliumValues, ensureChart, installCilium } from "./cilium.ts";
 export type { Cluster, Credentials } from "./cluster.ts";
 export { createCluster } from "./cluster.ts";
 export type { Parts } from "./compose.ts";
@@ -84,8 +86,10 @@ export type { RunOptions } from "./run.ts";
 export { RULES_EVERY, estimatedTime, runKindCells, shardOf, writeResult } from "./run.ts";
 export type { KindConfig, KindScenario, NodeImage } from "./scenario.ts";
 export {
+  DATAPLANES,
   KUBE_PROXY_MODES,
   NODE_IMAGES,
+  isKubeProxyMode,
   cidrOverlap,
   cidrRange,
   goDuration,
@@ -100,4 +104,4 @@ export {
   zoneOf,
 } from "./scenario.ts";
 export type { Tool } from "./tools.ts";
-export { ISTIOCTL, KIND, KUBECTL, cacheFolder, ensureTool, platformKey, sha256, tarEntry, toolPath } from "./tools.ts";
+export { HELM, ISTIOCTL, KIND, KUBECTL, cacheFolder, ensureTool, platformKey, sha256, tarEntry, toolPath } from "./tools.ts";

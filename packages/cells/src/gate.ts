@@ -1,4 +1,4 @@
-import type { Declaration, KindCell, KubeProxyMode } from "@mark1russell7/kind";
+import type { Dataplane, Declaration, KindCell } from "@mark1russell7/kind";
 import { learnWindow } from "@mark1russell7/kind";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
@@ -95,7 +95,7 @@ export interface GateDependencyPrediction {
  * - After the heal, the readiness of the service recovers, and the next request succeeds. E does
  *   not wait for the kubelet and the propagation.
  */
-export const gateDependencyOf = (mode: KubeProxyMode, faults: 1 | typeof FLAP_FAULTS): GateDependencyPrediction => {
+export const gateDependencyOf = (mode: Dataplane, faults: 1 | typeof FLAP_FAULTS): GateDependencyPrediction => {
   const a = flappingOf(mode, "endpoints only");
   const every = valueIn(KEEP_ALIVE.every, "s");
   const start = { lo: s(0), hi: time(every + valueIn(FAULT_LAG, "s")) };
@@ -122,7 +122,7 @@ export interface GateCannotServePrediction {
  * each band of B: the failed requests, their window, and the removal (`falseOf` gives the same
  * latch, probe and propagation).
  */
-export const gateCannotServeOf = (mode: KubeProxyMode): GateCannotServePrediction => {
+export const gateCannotServeOf = (mode: Dataplane): GateCannotServePrediction => {
   const b = "in band (lame duck)" as const;
   const window = learnWindow(CANNOT_SERVE, CHART_READINESS, PROPAGATION[mode], KEEP_ALIVE);
   const expected = expectedFailures(b, mode);
@@ -132,7 +132,7 @@ export const gateCannotServeOf = (mode: KubeProxyMode): GateCannotServePredictio
 };
 
 /** This function gives the cell of E in a mode, for an incident. */
-const gateCellOf = (mode: KubeProxyMode, fault: GateFault): KindCell => {
+const gateCellOf = (mode: Dataplane, fault: GateFault): KindCell => {
   const pod = { ...kubeDefaults(2), readiness: CHART_READINESS };
   const base = { template: "T07" as const, substitutes: null, mode, workers: WORKERS, pod, workload: KEEP_ALIVE, calibrates: false, runs: 3 };
   if (fault === "cannot serve") {

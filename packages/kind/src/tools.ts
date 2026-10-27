@@ -13,7 +13,7 @@ import { gunzipSync } from "node:zlib";
  * The cache keeps the file, and each use takes the entry from it again.
  */
 export interface Tool {
-  readonly name: "kind" | "kubectl" | "istioctl";
+  readonly name: "kind" | "kubectl" | "istioctl" | "helm";
   readonly version: string;
   /** These are the release assets, by the platform and the architecture of Node: `win32-x64`, `linux-x64`. */
   readonly assets: Readonly<Record<string, { readonly url: string; readonly sha256: string }>>;
@@ -90,6 +90,31 @@ export const ISTIOCTL: Tool = {
     "darwin-arm64": {
       url: "https://github.com/istio/istio/releases/download/1.31.3/istioctl-1.31.3-osx-arm64.tar.gz",
       sha256: "881c3b443d9e458e8f19feed6ffa187dcfcb03dc032cb56068f7d1d0cd976c82",
+    },
+  },
+};
+
+/**
+ * This release of Helm is v3.22.1, from 2026-10-15. The lab installs Cilium from its chart with it.
+ * The guide of Cilium 1.20.4 installs with Helm 3. The sums are from the `.sha256sum` files of
+ * `get.helm.sh`. The tar file for Windows has `helm.exe`, not `helm`, thus Windows has no asset.
+ */
+export const HELM: Tool = {
+  name: "helm",
+  version: "v3.22.1",
+  entry: "helm",
+  assets: {
+    "linux-x64": {
+      url: "https://get.helm.sh/helm-v3.22.1-linux-amd64.tar.gz",
+      sha256: "896cf63684a42a723d61c980369d6e588330927deb13676ca0d85006dd6da0ea",
+    },
+    "linux-arm64": {
+      url: "https://get.helm.sh/helm-v3.22.1-linux-arm64.tar.gz",
+      sha256: "4c29e286b279d170fa048ddfc3e4e83dcd069ca9c52102766ba672d7149e694d",
+    },
+    "darwin-arm64": {
+      url: "https://get.helm.sh/helm-v3.22.1-darwin-arm64.tar.gz",
+      sha256: "e73da8a0b0d5193774fdff17ce6319c7436bb22ee229b45fd64f3c40368c753a",
     },
   },
 };

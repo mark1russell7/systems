@@ -50,7 +50,7 @@ export type {
 export { FORMAT, FORMAT_V1, judge, upgrade, upgradeCell } from "./record.ts";
 export type { Judged, TimeSpread } from "./report.ts";
 export { calibrationOf, cellsTable, medianText, predictionText, timeSpread } from "./report.ts";
-export type { KubeProxyMode } from "./scenario.ts";
+export type { Dataplane, KubeProxyMode } from "./scenario.ts";
 export { STAGES, kindCellRecordSchema, kindCellRecordV1Schema, readRecord } from "./schema.ts";
 export { RELATIVE, medianInterval, middle, quantileOf } from "./stats.ts";
 export type { Deleted, KindDecision, KindVerdict, Propagated, RunCheck, RunFacts } from "./verdict.ts";

@@ -1,5 +1,5 @@
 import type { Declaration, KubeletProbe, PodSettings, Workload } from "@mark1russell7/kind";
-import type { KubeProxyMode, Propagation } from "@mark1russell7/kind";
+import type { Dataplane, KubeProxyMode, Propagation } from "@mark1russell7/kind";
 import { DOCUMENTED, scenario } from "@mark1russell7/kind";
 import type { Quantity } from "@mark1russell7/quantity";
 import { format, valueIn } from "@mark1russell7/quantity";
@@ -130,12 +130,48 @@ export const CLOSE: Quantity = s(Number(NF_CONNTRACK_TCP.knobs["nf_conntrack_tcp
  * cells of T07: 33 times for each mode, 3 nodes in 11 runs. The upper bound is the
  * longest poll without the pod. The lower bound is the shortest such poll less the 50 ms of a
  * poll, and not below zero. `DOCUMENTED` is the bound before a calibration, `minSyncPeriod`.
+ *
  */
-export const PROPAGATION: Readonly<Record<KubeProxyMode, Propagation>> = {
+export const KUBE_PROXY_PROPAGATION: Readonly<Record<KubeProxyMode, Propagation>> = {
   iptables: { lo: s(0), hi: s(0.105), from: "CAL.T07.iptables: median 0.059 s, 33 times" },
   ipvs: { lo: s(0.073), hi: s(0.309), from: "CAL.T07.ipvs: median 0.192 s, 33 times" },
   nftables: { lo: s(0), hi: s(0.079), from: "CAL.T07.nftables: median 0.045 s, 33 times" },
 };
+
+/**
+ * These are the terms of the propagation of Cilium 1.20.4 after a change of an EndpointSlice. The
+ * agent has no `minSyncPeriod`. Each term is from the source at the tag v1.20.4:
+ * - The reflector of the load balancer buffers the events of Services and EndpointSlices, and it
+ *   commits each buffer in one write transaction (`pkg/loadbalancer/reflectors/k8s.go`, lines
+ *   414–439). The buffer is `stream.Buffer` with a free ticker of `lb-reflector-wait-time`, 500 ms
+ *   by default (`pkg/loadbalancer/config.go`, line 515). The ticker emits a buffer that is not
+ *   empty at each tick (`operators.go` of cilium/stream v0.0.1, lines 322–383). Thus an event waits
+ *   0 to 500 ms.
+ * - The BPF reconciler then writes the maps. Its rate limiter is the default of statedb v0.8.4: 1000
+ *   rounds a second, a burst of one (`reconciler/config.go`, line 30). Thus a round waits up to 1 ms.
+ *
+ * The other terms are the same as for kube-proxy. They are the API server, the EndpointSlice
+ * controller, the watch of the agent, and the poll of the lab. Their bound is the upper bound of CAL.T07.iptables.
+ * That bound also holds a whole iptables-restore.
+ */
+export const CILIUM_TERMS: { readonly reflector: Quantity; readonly reconciler: Quantity; readonly shared: Quantity } = {
+  reflector: s(0.5),
+  reconciler: s(0.001),
+  shared: KUBE_PROXY_PROPAGATION.iptables.hi,
+};
+
+/** This propagation is the band of Cilium: from zero to the sum of its terms (`CILIUM_TERMS`). No run gives it. */
+export const CILIUM_PROPAGATION: Propagation = {
+  lo: s(0),
+  hi: s(Math.round((valueIn(CILIUM_TERMS.shared, "s") + valueIn(CILIUM_TERMS.reflector, "s") + valueIn(CILIUM_TERMS.reconciler, "s")) * 1e6) / 1e6),
+  from: "Cilium 1.20.4 sources: the reflector buffer (500 ms) and the BPF reconciler (1 ms), plus the shared path of CAL.T07.iptables (0.105 s)",
+};
+
+/**
+ * This table is the propagation of the endpoints for each dataplane, after a deletion. Its sources
+ * are the CAL cells of kube-proxy (`KUBE_PROXY_PROPAGATION`) and the terms of Cilium (`CILIUM_PROPAGATION`).
+ */
+export const PROPAGATION: Readonly<Record<Dataplane, Propagation>> = { ...KUBE_PROXY_PROPAGATION, cilium: CILIUM_PROPAGATION };
 
 /** This propagation is the bound of the documents, for a cell that a calibration does not cover. */
 export const UNCALIBRATED: Propagation = DOCUMENTED;
@@ -200,8 +236,8 @@ export const WORKERS = 2;
  * 39090689204 (iptables), the rules dropped each old pod 0.233 s to 1.065 s after its deletion.
  */
 export const afterSync = (mode: KubeProxyMode): Propagation => {
-  const wait = scenario("lab", mode, WORKERS).kubeProxy.minSyncPeriod;
-  const idle = PROPAGATION[mode];
+  const wait = scenario("lab", mode, WORKERS).kubeProxy!.minSyncPeriod;
+  const idle = KUBE_PROXY_PROPAGATION[mode];
   const sync = valueIn(idle.hi, "s");
   return {
     lo: idle.lo,

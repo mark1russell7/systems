@@ -61,7 +61,7 @@ import {
 } from "./callers.ts";
 import type { CallerFault } from "./callers.ts";
 import { FAULT_LAG, GATE, GATE_CELLS, GATE_FAULTS, gateCannotServeOf, gateDependencyOf } from "./gate.ts";
-import { CHART_READINESS, DESIGN_REDIS, KUBE_PROBE, PROPAGATION, SYN_SENT, afterSync, s } from "./kind.ts";
+import { CHART_READINESS, CILIUM_PROPAGATION, CILIUM_TERMS, DESIGN_REDIS, KUBE_PROBE, PROPAGATION, SYN_SENT, afterSync, s } from "./kind.ts";
 import { T07_CELLS } from "./t07.ts";
 import { T18_CELLS } from "./t18.ts";
 
@@ -124,6 +124,13 @@ describe("the kind catalogs", () => {
       const held = T07_CELLS.find((cell) => cell.mode === mode && cell.name.endsWith("pauses 5 s on one node, a hold of 8 s"))!;
       expect(held.prediction.kind).toBe("none");
     }
+  });
+
+  it("gives Cilium the propagation of its sources: the shared path, the reflector buffer and the reconciler", () => {
+    expect(CILIUM_TERMS).toEqual({ reflector: s(0.5), reconciler: s(0.001), shared: PROPAGATION.iptables.hi });
+    expect(PROPAGATION.cilium).toBe(CILIUM_PROPAGATION);
+    expect(CILIUM_PROPAGATION).toMatchObject({ lo: s(0), hi: s(0.606) });
+    expect(CILIUM_PROPAGATION.from).toMatch(/Cilium 1\.20\.4/);
   });
 
   it("waits for the end of a sync and minSyncPeriod before the rules drop the old pod of a rolling update", () => {
@@ -265,7 +272,7 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
 
   it("puts 12 of the 24 connections on the target in turn, and 7 to 17 at random", () => {
     const band = (lo: number, hi: number) => ({ lo: { value: lo, unit: "{connection}" }, hi: { value: hi, unit: "{connection}" }, of: { value: 24, unit: "{connection}" } });
-    expect(SELECTION).toEqual({ iptables: "random", ipvs: "in turn", nftables: "random" });
+    expect(SELECTION).toEqual({ iptables: "random", ipvs: "in turn", nftables: "random", cilium: "random" });
     // the binomial count of 24 connections with a chance of 1/2: P(k <= 6) = P(k >= 18) = 0.011, P(k <= 7) = 0.032
     expect(CALLERS_MODES.map((mode) => targetConnections(mode))).toEqual([band(7, 17), band(12, 12), band(7, 17)]);
   });

@@ -3,8 +3,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
+  DATAPLANES,
   KUBE_PROXY_MODES,
   NODE_IMAGES,
+  isKubeProxyMode,
   ZONE_KEPT,
   ZONE_LABEL,
   ZONE_LOST,
@@ -17,7 +19,7 @@ import {
   scenarioProblems,
   zoneOf,
 } from "./scenario.ts";
-import { KIND, KUBECTL, download, ensureTool, platformKey, sha256, toolPath } from "./tools.ts";
+import { HELM, KIND, KUBECTL, download, ensureTool, platformKey, sha256, toolPath } from "./tools.ts";
 import type { Tool } from "./tools.ts";
 
 describe("the configuration of kind, from a scenario", () => {
@@ -36,6 +38,34 @@ describe("the configuration of kind, from a scenario", () => {
       expect(config.nodes[0]!.image).toMatch(/^kindest\/node:v1\.37\.0@sha256:[0-9a-f]{64}$/);
       expect(config.kubeadmConfigPatches).toEqual([kubeProxyPatch(scenario("lab-a", mode, 2))]);
     }
+  });
+
+  it("gives the dataplane cilium no kube-proxy and no kindnet", () => {
+    const cilium = scenario("lab-a", "cilium", 2);
+    expect(cilium).toMatchObject({ dataplane: "cilium", kubeProxy: null, cni: "cilium" });
+    expect(scenarioProblems(cilium)).toEqual([]);
+    const config = kindConfig(cilium);
+    expect(config.networking).toEqual({
+      ipFamily: "ipv4",
+      kubeProxyMode: "none",
+      disableDefaultCNI: true,
+      podSubnet: "10.244.0.0/16",
+      serviceSubnet: "10.96.0.0/16",
+    });
+    expect(config.kubeadmConfigPatches).toEqual([]);
+    expect(() => kubeProxyPatch(cilium)).toThrow(/has no kube-proxy/);
+    expect(DATAPLANES).toEqual([...KUBE_PROXY_MODES, "cilium"]);
+    expect(DATAPLANES.filter(isKubeProxyMode)).toEqual(KUBE_PROXY_MODES);
+  });
+
+  it("refuses a kube-proxy or a CNI that does not agree with the dataplane", () => {
+    const iptables = scenario("lab-a", "iptables", 2);
+    const cilium = scenario("lab-a", "cilium", 2);
+    expect(scenarioProblems({ ...iptables, cni: "cilium" })).toEqual(["the dataplane iptables needs the CNI kindnet"]);
+    expect(scenarioProblems({ ...iptables, kubeProxy: null })[0]).toMatch(/needs kube-proxy in the mode iptables/);
+    expect(scenarioProblems({ ...iptables, dataplane: "ipvs" })[0]).toMatch(/needs kube-proxy in the mode ipvs/);
+    expect(scenarioProblems({ ...cilium, cni: "kindnet" })).toEqual(["the dataplane cilium needs no kube-proxy and the CNI cilium"]);
+    expect(scenarioProblems({ ...cilium, kubeProxy: iptables.kubeProxy })).toEqual(["the dataplane cilium needs no kube-proxy and the CNI cilium"]);
   });
 
   it("states the sync periods of kube-proxy in the patch of its mode", () => {
@@ -92,6 +122,15 @@ describe("the pinned tools", () => {
     expect(platformKey("linux", "x64")).toBe("linux-x64");
     expect(toolPath(KIND, "win32-x64", "/cache")).toMatch(/kind-v0\.33\.0-win32-x64[\\/]kind\.exe$/);
     expect(toolPath(KUBECTL, "linux-x64", "/cache")).toMatch(/kubectl-v1\.37\.0-linux-x64[\\/]kubectl$/);
+  });
+
+  it("pins Helm for Linux in a tar file, by sha256", () => {
+    for (const key of ["linux-x64", "linux-arm64", "darwin-arm64"]) {
+      expect(HELM.assets[key]?.sha256).toMatch(/^[0-9a-f]{64}$/);
+      expect(HELM.assets[key]?.url).toMatch(/^https:\/\/get\.helm\.sh\/helm-v3\.22\.1-(linux|darwin)-(amd64|arm64)\.tar\.gz$/);
+    }
+    expect(HELM.entry).toBe("helm");
+    expect(HELM.assets["win32-x64"]).toBeUndefined();
   });
 
   it("uses a cached binary only when its sha256 is the pinned one", async () => {
