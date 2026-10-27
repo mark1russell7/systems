@@ -6,7 +6,7 @@ import { groupOnce, openGroupLab } from "./group.ts";
 import type { FaultOptions, Lab, Manifest, Probe } from "./lab.ts";
 import { openLab } from "./lab.ts";
 import type { Measured } from "./observe.ts";
-import { measure, socketOf } from "./observe.ts";
+import { jitterOf, measure, socketOf } from "./observe.ts";
 import { openReplicaSetLab, replicaSetOnce } from "./replset.ts";
 import { clusterOnce, openClusterLab } from "./cluster.ts";
 import type { Verdict } from "./verdict.ts";
@@ -678,12 +678,14 @@ const inEnvironment = async (
     // the first connection must not wait for ARP: under a delay, that is a longer first round trip
     await lab.warm();
     const manifest = await lab.manifest(await lab.sysctl(cell.sysctls), settings, targetSysctls);
-    const warmed = await once(lab, cell, environment, -1, endsEnvironment(cell));
+    // each run records the jitter of its program, which sets the window of its pairings
+    const timed = (run: Run): Run => ({ ...run, jitter: jitterOf(cell, run) });
+    const warmed = timed(await once(lab, cell, environment, -1, endsEnvironment(cell)));
     const warmup: Run = { ...warmed, warmup: true };
     say(line(cell, warmup, measure(cell, warmup)));
     const runs: Run[] = [];
     for (let index = 0; index < count; index += 1) {
-      const run = await once(lab, cell, environment, index);
+      const run = timed(await once(lab, cell, environment, index));
       runs.push(run);
       say(line(cell, run, measure(cell, run)));
     }

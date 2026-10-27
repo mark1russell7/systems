@@ -1,6 +1,6 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
-import type { Prediction, Stage } from "./cell.ts";
+import type { Prediction, Run, Stage } from "./cell.ts";
 import type { Measured, Reordering } from "./observe.ts";
 
 /** This function gives the words of the outcome of a second request: its connection, a retry, and its end. */
@@ -30,6 +30,49 @@ export const INJECT: Quantity = NOISE;
 
 /** This function gives the δ_abs of a cell: its own, or `NOISE` for a cell that gives none. */
 export const noiseOf = (cell: { readonly noise?: Quantity | undefined }): Quantity => cell.noise ?? NOISE;
+
+/**
+ * A pairing is the window of a run in which a line of its program pairs with the kernel's record
+ * of its act. `bound` is the jitter of the program that the run measured, or null. `delta` is the
+ * window: δ_abs of the cell, or the bound when the bound is longer.
+ */
+export interface Pairing {
+  readonly bound: Quantity | null;
+  readonly delta: Quantity;
+}
+
+/**
+ * This function gives the pairing window of a run (SYS-25). On a runner of GitHub, the jitter of
+ * a program can be longer than the δ_abs of 1 ms. Thus each run measures it before its fault
+ * (`Run.jitter`), and its own measurement widens its window. A run without a jitter record is
+ * from before SYS-25. It reads as a bound of null, thus its window is δ_abs. The decision of
+ * 2026-10-19 keeps the rule of one miss: a pair that a window misses is still a finding.
+ */
+export const pairingOf = (cell: { readonly noise?: Quantity | undefined }, run: Pick<Run, "jitter">): Pairing => {
+  const noise = noiseOf(cell);
+  const bound = run.jitter?.bound ?? null;
+  return { bound, delta: bound !== null && valueIn(bound, "s") > valueIn(noise, "s") ? bound : noise };
+};
+
+/**
+ * This function sums the pairings of the measurements of a cell. It gives the longest bound and
+ * the longest window. It also counts the pairings whose window is longer than δ_abs (`noise`). It
+ * is null when no measurement has a pairing.
+ */
+export const pairingsOf = (
+  runs: readonly Measured[],
+  noise: Quantity = NOISE,
+): { readonly bound: Quantity | null; readonly delta: Quantity; readonly widened: number } | null => {
+  const pairings = runs.flatMap((run) => (run.pairing === undefined ? [] : [run.pairing]));
+  if (pairings.length === 0) return null;
+  const longest = (values: readonly Quantity[]): Quantity => values.reduce((most, each) => (valueIn(each, "s") > valueIn(most, "s") ? each : most));
+  const bounds = pairings.flatMap((pairing) => (pairing.bound === null ? [] : [pairing.bound]));
+  return {
+    bound: bounds.length === 0 ? null : longest(bounds),
+    delta: longest(pairings.map((pairing) => pairing.delta)),
+    widened: pairings.filter((pairing) => valueIn(pairing.delta, "s") > valueIn(noise, "s")).length,
+  };
+};
 
 /**
  * This function tells if a timer firing came late enough to void a run. A firing two jiffies or

@@ -279,6 +279,7 @@ The CAL catalog (`src/calibration.ts`) measures the own time of each proxy: HAPr
 Stage 0 measures δ_abs in each environment: the latency of the pipeline on a path that has no timer. `src/environments.ts` holds each runner image that it calibrated, by `$ImageOS $ImageVersion`.
 
 - The runner gives each cell the δ_abs of its image (`Cell.noise`), when the cell gives none. A band and the rule of a late timer read it.
+- The pairing of a program line with its kernel record reads the window of its run (SYS-25). That window is δ_abs, or the jitter bound that the run measured when it is longer. Each line of `summary.ndjson` gives that bound and window as `pairing`: `noise`, `bound`, `delta`, and `widened`, the count of runs with a longer window.
 - The image `ubuntu24 20261012.334.1` has a δ_abs of 1 ms: the worst reset took 0.147 ms at HZ 1000. Its concurrency cap is 4.
 - A cell on an image that stage 0 did not calibrate keeps 4 ms, the δ_abs of the first environment. A new image gets its calibration before its cells get a smaller δ_abs.
 
