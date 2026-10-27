@@ -5,13 +5,14 @@ import type { Judged, KindCell, KindCellRecord, KindCellRecordV1 } from "@mark1r
 import { FORMAT, FORMAT_V1, calibrationOf, cellsTable, judgeKind, runKindCells, shardOf, upgrade } from "@mark1russell7/kind";
 import { describe, expect, it } from "vitest";
 import { CALLERS_CELLS } from "./callers.ts";
+import { GATE_CELLS } from "./gate.ts";
 import { T07_GRPC } from "./grpc/t07.ts";
 import { T15_GRPC } from "./grpc/t15.ts";
 import { T07_CELLS } from "./t07.ts";
 import { T18_CELLS } from "./t18.ts";
 
 /**
- * The runner of the kind catalogs, T07, T15 and T18. It starts only with KIND_LAB=1, because it creates
+ * The runner of the kind catalogs, T07, T15 and T18. It starts only with KIND_LAB=1, because it makes
  * kind clusters in Docker. CI starts it on GitHub's runners (.github/workflows/kind.yml).
  * - KIND_ONLY selects the cells whose names match a regular expression.
  * - KIND_SHARD=i/n takes the i-th of n equal shares of the estimated time, the cells of one mode together.
@@ -25,7 +26,7 @@ import { T18_CELLS } from "./t18.ts";
  *   Istio: a module of istio-cni that does not load. Each ambient cell then waits with that reason.
  * - KIND_IDLE is the idle share of the CPUs that a run waits for (the default is 0.6).
  *
- * KIND_JUDGE=<folder> judges the raw records under a folder again with the cells as they are now,
+ * KIND_JUDGE=<folder> judges the raw records under a folder again with the cells of today,
  * by name, and prints the tables of a report. The calibration of the propagation changes the
  * bands, thus the records of a run are judged again after it. A record of the format `/1` is read
  * through `upgrade`.
@@ -39,7 +40,7 @@ const RUNS = process.env["KIND_RUNS"] === undefined || process.env["KIND_RUNS"] 
 const MODES = (process.env["KIND_MODES"] ?? "iptables,ipvs,nftables").split(",").filter((mode) => mode !== "");
 const [shard, of] = (process.env["KIND_SHARD"] ?? "0/1").split("/").map(Number) as [number, number];
 
-const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T07_GRPC, ...T15_GRPC, ...CALLERS_CELLS];
+const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T07_GRPC, ...T15_GRPC, ...CALLERS_CELLS, ...GATE_CELLS];
 const chosen: KindCell[] = shardOf(
   CATALOG.filter((cell) => ONLY.test(cell.name)),
   shard,

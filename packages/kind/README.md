@@ -152,6 +152,7 @@ The lab image (`image/`) holds the service of a cell on `@mark1russell7/service`
 
 - **The keep-alive clients.** A workload with `connections` gives each HTTP client that count of keep-alive connections. Each request goes on the next connection in turn. kube-proxy selects a backend only for a new connection. SIGHUP gives the client new connections, and its old connections close after the timeout. With no `connections`, each request has a new connection, as before.
 - **The lame duck.** The declaration has the optional field `lameDuck`. With true or no value, the edge sends `Connection: close` while the service is not ready (`httpTransport` as it is). With false, the app gives the transport `keepAlive: () => true`, thus each connection stays open and a caller learns only from the endpoints.
+- **The shared gate.** The declaration has the optional field `sharedGate`, a candidate of S6 that is off by default. With true, the app gives its health server `sharedGate()` of this package. The readiness probe that the kubelet reads then leaves out each check of the Redis of the declaration, which must have Redis. The controller still reads those checks, thus the service refuses each request with a 503. A check of no dependency, a drain or a failed liveness still fails the probe.
 - **HTTP/2.** The declaration has the optional field `protocol` (`EdgeProtocol`). With `h2c`, the app listens with `node:http2` through the same `httpTransport`, and the lame duck is a GOAWAY on each session. The manifests give each client `PROTOCOL=h2c`. The client then keeps `connections` sessions, and sends each request as a stream on the next session in turn.
   - A GOAWAY, a close or an error of a session makes its slot open a new session at the next stream. Then kube-proxy selects a backend for that new connection.
   - The client sends a stream that the server did not take again, once, on a new session (RFC 9113, section 8.7). Its line has `r: 1`.
@@ -265,7 +266,9 @@ From 0.8.0, a prediction `ends` can be the end of the tunnel of each client (`of
 - The first request of each client after the heal must be `ok`, on a new tunnel. The main value is the middle of the ends, in `s`.
 - From 0.8.1, `ends` has the optional band `answer`. A change to CLOSE_WAIT in that band ± δ also agrees: the peer answers the close of the client, and its FIN comes first. Before the band, the peer closed first.
 
-The optional field `protocol` of a declaration, the type `EdgeProtocol` and the mode h2c of the lab image are new features. They keep the old behavior. Before `1.0.0`, a feature is a patch, thus the next version is `0.11.1`. The record format stays `/2`.
+The optional field `protocol` of a declaration, the type `EdgeProtocol` and the mode h2c of the lab image are new features. The optional field `sharedGate` of a declaration and the function `sharedGate` are new features. They keep the old behavior, thus their release is a patch. The record format stays `/2`.
+
+They keep the old behavior. Before `1.0.0`, a feature is a patch, thus the next version is `0.11.1`. The record format stays `/2`.
 
 A new member of the union `TriggerKind`, `cannot-serve`, breaks a reader that switches on it. That is a breaking change before 1.0.0, thus the next version is 0.11.0. The record format stays `/2`, with the optional fields `connections` of a workload and `lameDuck` of a declaration. The line `client` of the reconnect is a new line of a run.
 

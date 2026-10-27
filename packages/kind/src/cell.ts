@@ -239,6 +239,14 @@ export interface Declaration {
    * With `http/1.1` or no value, the edge is `node:http`.
    */
   readonly protocol?: EdgeProtocol | undefined;
+  /**
+   * This flag is the shared gate (S6, candidate E). With true, the readiness probe that the kubelet
+   * reads leaves out each check of Redis, a dependency that each replica shares. Thus a failure of
+   * Redis keeps each replica in the endpoints. The controller still reads the checks of Redis, thus
+   * the service refuses each request at once with a 503. With false or no value, each check that
+   * gates readiness also gates the probe. A declaration with the gate needs Redis.
+   */
+  readonly sharedGate?: boolean | undefined;
 }
 
 /** An edge protocol is the protocol of the HTTP edge of the service: HTTP/1.1, or HTTP/2 without TLS (`h2c`). */

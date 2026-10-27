@@ -231,6 +231,24 @@ C and D carry each stream on its own, thus no stream waits for another one. They
 
 <KindResults template="T07" group="slow" client:visible />
 
+### The shared gate (E)
+
+E is B with the shared gate of the kind lab. The readiness probe of the kubelet leaves out each check of Redis, because each replica shares Redis. The controller still reads those checks, thus each replica refuses each request at once with a 503. A check of no dependency still fails the probe. The cells come from the run [40533209929](https://github.com/mark1russell7/systems/actions/runs/40533209929). Each of the 9 cells held in 3 of 3 runs, and each measure was in its band.
+
+The decision rule came before the run, in the message of commit 221b5bc. The gate becomes the default only if two conditions hold. In the shared and the flapping dependency, it cuts the failed requests of the median run of B by 50 % in each mode. In a pod that cannot serve, it keeps the failed requests and the removal of B.
+
+| Mode | B, shared | E, shared | B, flapping | E, flapping |
+| --- | --- | --- | --- | --- |
+| iptables | 4,173 | 4,729 | 12,274 | 13,140 |
+| IPVS | 4,452 | 4,325 | 12,956 | 13,199 |
+| nftables | 4,126 | 4,365 | 13,207 | 13,718 |
+
+The table gives the failed requests of the median run. No replica left the Service, thus the callers of E got a fast 503 12.2 s to 15.94 s after the fault by the median run. But no replica can serve in a shared failure, thus the fast 503 saves no request. E failed 3 % fewer requests than B in one cell, and 2 % to 13 % more in the other five.
+
+In a pod that cannot serve, the kubelet removed the target 17.1 s to 18.98 s after the fault by the median run. Each run failed 454 to 1,175 requests. Each value is in the band of B. The first condition fails. Thus the gate stays in the kind lab, off by default, and the service does not get it.
+
+<KindResults template="T07" group="gate" client:visible />
+
 ### How callers learn
 
 S6 scores each candidate of health and routing on seven criteria, for each incident of its design. Nine runs score eight incidents. They are a pod that cannot serve, a partitioned pod, a stalled pod and a failed prober. A black-holed shared dependency, a flapping dependency, a lost zone and a slow dependency are the other four. The third run adds D to the first two incidents. Each of the next six incidents has its own run, with each candidate.
@@ -247,7 +265,7 @@ A failed prober does not change the rule either. Each candidate removes the targ
 
 A black-holed shared dependency keeps the rule too, and the readiness of the service follows its dependency. The service cannot tell a shared failure from a failure of its own replica. For a failure of one replica, the removal routes callers around that replica. In a shared failure no replica can serve, thus the removal costs no requests. B had the fewest failed requests in each mode, and it recovered first.
 
-The cost is the time until callers know. The callers of A got a fast 503 after approximately 12 s, and B, C and D failed slowly until the heal. A gate that keeps the endpoints in a shared failure is a separate decision with its own evidence. No cell measures it yet. The scores of the shared dependency measure when the Service is empty, the last slow failure and the last failure after the heal.
+The cost is the time until callers know. The callers of A got a fast 503 after approximately 12 s, and B, C and D failed slowly until the heal. A gate that keeps the endpoints in a shared failure was a separate decision with its own evidence. The shared gate (E) gave B the fast 503s of A, but it did not cut the failed requests. Thus the service does not get it. The scores of the shared dependency measure when the Service is empty, the last slow failure and the last failure after the heal.
 
 A flapping dependency changes no part of the rule. Each fault of the run gave the result of one shared failure, and the readiness of the service followed each fault and each heal. B had the fewest failed requests in each mode again, and it recovered first. The scores of the flapping dependency have one value for each fault of each counted run, thus 9 values for each cell.
 

@@ -24,6 +24,7 @@ import s2Flapping from "../data/s2-flapping-2026-10-27.json";
 import s2Prober from "../data/s2-prober-2026-10-26.json";
 import s2Zone from "../data/s2-zone-2026-10-27.json";
 import s2Slow from "../data/s2-slow-2026-10-27.json";
+import s2Gate from "../data/s2-gate-2026-10-27.json";
 import s2Checked from "../data/s2-session-check-2026-10-26.json";
 import s6 from "../data/s6-2026-10-27.json";
 import t15 from "../data/t15-2026-10-25.json";
@@ -444,8 +445,8 @@ export function RaceBorder(): ReactElement {
 // the kind cells
 // ---------------------------------------------------------------------------------------------
 
-/** The kind cells of each copy: T07 and T18, T15 over gRPC through Istio, and the S2 cells of each incident. The later run of D adds its cells. */
-const KIND_CELLS = [...kind.cells, ...t15.cells, ...S2.cells, ...s2Checked.cells, ...s2Partition.cells, ...s2PartitionChecked.cells, ...s2Stall.cells, ...s2Prober.cells, ...s2Dependency.cells, ...s2Flapping.cells, ...s2Zone.cells, ...s2Slow.cells];
+/** The kind cells of each copy: T07 and T18, T15 over gRPC through Istio, and the S2 cells of each incident. The later run of D adds its cells, and the run of the shared gate (E) adds its cells. */
+const KIND_CELLS = [...kind.cells, ...t15.cells, ...S2.cells, ...s2Checked.cells, ...s2Partition.cells, ...s2PartitionChecked.cells, ...s2Stall.cells, ...s2Prober.cells, ...s2Dependency.cells, ...s2Flapping.cells, ...s2Zone.cells, ...s2Slow.cells, ...s2Gate.cells];
 type KindCell = (typeof KIND_CELLS)[number];
 
 /** This function writes the main value of a kind cell: a count of failed requests, of replicas, or a time. */

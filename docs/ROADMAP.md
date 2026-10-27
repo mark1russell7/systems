@@ -166,6 +166,8 @@ On 2026-10-17, Mark decided the design of the server stack (D1 to D18). These de
 
 A and B failed 3,481 to 3,490 requests in each run, each one a timeout, because a connection of HTTP/1.1 queues its requests. C and D failed none. The last failure of A and B started up to 38 ms after its band of commit 93a58b6, in the noise of the judge. The rule gives no signal while the service stays ready, thus the decision of S6 does not change ([S6.md](S6.md#unified-or-separate-how-callers-learn)).
 
+[PR #242](https://github.com/mark1russell7/systems/pull/242) measures the shared gate (E), a candidate that keeps the endpoints in a shared failure. The readiness probe of the kubelet leaves out each check of the shared Redis, and the controller still refuses each request with a 503. Kind run [40533209929](https://github.com/mark1russell7/systems/actions/runs/40533209929) held each of the 9 cells in 3 of 3 runs, in the bands of commit 221b5bc. E failed 4,325 to 4,729 requests by the median run in the shared dependency, and B 4,126 to 4,452. The rule of that commit needed a cut of 50 % in each mode, thus the gate stays in the kind lab, off by default ([S6.md](S6.md#the-shared-gate-e)).
+
 ## The server stack in S6
 
 These items are the part of the server stack in this repository. The server stack is a plan across repositories: one service runner here, and one procedures server in the client. [Its tracker](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb) has the whole plan, with the same ids.

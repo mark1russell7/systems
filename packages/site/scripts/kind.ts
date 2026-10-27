@@ -9,7 +9,8 @@
 // T07 is the endpoint lifecycle of a Service in kind, and T18 is a fleet whose readiness needs
 // Redis. T15 is gRPC through two hops of an Istio mesh in kind. The S2 cells are T07 with a replica
 // that cannot serve, for four candidates in each mode: A (endpoints only), B (lame duck), C
-// (GOAWAY on HTTP/2) and D (C with the session check of the client). The copy of S2 also has the prediction of each S2 cell of the catalog
+// (GOAWAY on HTTP/2) and D (C with the session check of the client). The cells of the shared gate (E, B with the gate
+// of S6) get the copy s2-gate, with no candidate of the table. The copy of S2 also has the prediction of each S2 cell of the catalog
 // (`predictions`), thus the page shows a candidate with no run. Each folder is the output of one shard of the workflow Kind on a runner of GitHub: the raw
 // record of each cell, summary.ndjson and runner.txt. A record of the format /1 is read through
 // `upgrade`. The script judges each record again with the cell of the catalog of the same name
@@ -30,6 +31,7 @@ import { T07_CELLS } from "../../cells/src/t07.ts";
 import { T18_CELLS } from "../../cells/src/t18.ts";
 import { T15_GRPC } from "../../cells/src/grpc/t15.ts";
 import { CALLERS_CELLS, callerFaultOf } from "../../cells/src/callers.ts";
+import { GATE_CELLS } from "../../cells/src/gate.ts";
 import type { Line } from "../../kind/src/observe.ts";
 import { failuresOf, slicesOf } from "../../kind/src/observe.ts";
 import { SERVER } from "../../kind/src/names.ts";
@@ -62,7 +64,7 @@ interface Summary {
   readonly median: number | Quantity | null;
 }
 
-const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T15_GRPC, ...CALLERS_CELLS];
+const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T15_GRPC, ...CALLERS_CELLS, ...GATE_CELLS];
 // A later folder replaces the run of each cell of the same id, also when the cell has a new name.
 const found = new Map<string, Found<KindRecord, Summary>>();
 for (const folder of folders)
@@ -175,7 +177,10 @@ const predictionOf = (cell: KindCell) => {
         text:
           p.window === undefined
             ? `The algebra predicts that the replica leaves the EndpointSlice and the rules of each node. The band is ${time(s(p.band.lo))} to ${time(s(p.band.hi))} after the start of the stall.`
-            : `The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is ${time(s(p.band.lo))} to ${time(s(p.band.hi))} after the fault. ${p.window.why}.`,
+            : cell.id.includes(".shared-gate")
+              ? // the shared gate in a pod that cannot serve: the removal is true, as for B
+                `The algebra predicts that the replica leaves the EndpointSlice and the rules of each node. The band is ${time(s(p.band.lo))} to ${time(s(p.band.hi))} after the fault. ${p.window.why}.`
+              : `The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is ${time(s(p.band.lo))} to ${time(s(p.band.hi))} after the fault. ${p.window.why}.`,
       };
     case "restarts":
       return p.band === null
@@ -322,6 +327,7 @@ const groupOf = (cell: KindCell): string => {
     return cell.id.startsWith("T15.defaults.") ? "hbone" : "borders";
   }
   if (cell.template === "T07") {
+    if (cell.id.includes(".shared-gate")) return "gate";
     if (cell.trigger.kind === "cannot-serve") return cell.trigger.serves === true ? "prober" : "callers";
     if (cell.trigger.kind === "zone-loss") return "zone";
     if (cell.trigger.kind === "latency") return "slow";
@@ -353,11 +359,12 @@ const spread = (value: TimeSpread | null) =>
  * cannot-serve get s2, those of a partition get s2-partition, and those of a stall get s2-stall. The
  * cells of a false failure of the prober get s2-prober, and those of a shared dependency get
  * s2-dependency. The cells of a flapping dependency get s2-flapping, and those of a lost zone get s2-zone.
- * The cells of a slow dependency get s2-slow.
+ * The cells of a slow dependency get s2-slow, and the cells of the shared gate (E) get s2-gate.
  */
-const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" | "s2-prober" | "s2-dependency" | "s2-flapping" | "s2-zone" | "s2-slow" => {
+const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" | "s2-prober" | "s2-dependency" | "s2-flapping" | "s2-zone" | "s2-slow" | "s2-gate" => {
   if (cell.template === "T15") return "t15";
   if (!cell.id.startsWith("S2.")) return "kind";
+  if (cell.id.includes(".shared-gate")) return "s2-gate";
   const fault = callerFaultOf(cell);
   if (fault === "lost zone") return "s2-zone";
   if (fault === "slow dependency") return "s2-slow";
@@ -555,17 +562,18 @@ const cells = CATALOG.flatMap((cell) => {
       values,
       why: whyOf(cell, verdict, values, measured),
       first: entry.first,
-      ...(copyOf(cell).startsWith("s2") ? { candidate: candidateOf(cell), lasts: lastsOf(record.runs, verdict) } : {}),
+      // the shared gate (E) is not a candidate of the table of S2, thus its cells have no candidate
+      ...(copyOf(cell).startsWith("s2") ? { ...(copyOf(cell) === "s2-gate" ? {} : { candidate: candidateOf(cell) }), lasts: lastsOf(record.runs, verdict) } : {}),
       // the main value of a false failure is the time of its removal, thus the copy keeps the failed requests of each counted run apart
-      ...(copyOf(cell) === "s2-prober" || copyOf(cell) === "s2-dependency" || copyOf(cell) === "s2-flapping" || copyOf(cell) === "s2-zone"
+      ...(copyOf(cell) === "s2-prober" || copyOf(cell) === "s2-dependency" || copyOf(cell) === "s2-flapping" || copyOf(cell) === "s2-zone" || copyOf(cell) === "s2-gate"
         ? { failures: verdict.checks.map((check) => check.facts.failures) }
         : {}),
       // a lost zone: when the target is ready again after the heal
       ...(copyOf(cell) === "s2-zone" ? returnsOf(record.runs) : {}),
       // a shared dependency: when the callers know, and when they recover after the heal
-      ...(copyOf(cell) === "s2-dependency" ? dependencyTimesOf(cell, record.runs) : {}),
+      ...(copyOf(cell) === "s2-dependency" || (copyOf(cell) === "s2-gate" && callerFaultOf(cell) === "shared dependency") ? dependencyTimesOf(cell, record.runs) : {}),
       // a flapping dependency: the same times, and the empty Service, for each fault
-      ...(copyOf(cell) === "s2-flapping" ? flappingTimesOf(cell, record.runs, verdict) : {}),
+      ...(copyOf(cell) === "s2-flapping" || (copyOf(cell) === "s2-gate" && callerFaultOf(cell) === "flapping dependency") ? flappingTimesOf(cell, record.runs, verdict) : {}),
       // a slow dependency: the main value is the failed requests, and the last one comes near the heal
       ...(copyOf(cell) === "s2-slow" ? slowTimesOf(record.runs) : {}),
       // the PINGs of the clients, when their image counts them
