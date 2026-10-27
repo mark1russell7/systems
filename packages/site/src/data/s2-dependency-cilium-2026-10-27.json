@@ -1,0 +1,672 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-10-27",
+  "units": "s",
+  "runs": 3,
+  "kernel": "6.17.0 and 7.0.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.cilium.lame-duck.dependency",
+      "template": "T07",
+      "name": "cilium, callers learn that a shared dependency is black-holed: in band (lame duck)",
+      "mode": "cilium",
+      "trigger": "blackhole",
+      "group": "dependency",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12,
+          "high": 26.606
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12 s to 26.606 s after the fault. Redis is black-holed for each replica for the hold (27 s). Each request needs Redis, thus each request fails from the fault until the callers recover. Before the readiness latch of a replica trips (8 s–20 s), each request on it waits for Redis and fails slowly. Then its controller is not ready, and the service refuses each request at once with a 503. The kubelet and the propagation (Cilium 1.20.4 sources: the reflector buffer (500 ms) and the BPF reconciler (1 ms), plus the shared path of CAL.T07.iptables (0.105 s)) remove both replicas 12 s–26.606 s after the fault. Then the Service is empty, and its rules refuse each new connection. The lame duck closes each connection after the trip, thus each next request opens a new connection, and the empty Service refuses it. After the heal, the client of Redis connects again in 3.1 s at the most, and the readiness of the service recovers up to 6 s later. The kubelet then finds a replica ready in 2 s at the most, and the propagation adds it to the rules. Each client sends a request each 20 ms, thus about 3954–6135 requests fail."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 18.273,
+      "values": [20.126, 18.273, 17.808],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 18.273 s. The counted runs measured 17.808 s to 20.126 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.866
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6135
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.606
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      },
+      "lasts": [30.5375811, 30.6870059, 34.252018],
+      "failures": [4541, 4568, 5091],
+      "knows": [14.6074118, 12.274143, 12.6656159],
+      "recovers": [3.3163217, 3.5473962, 7.1057228],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [41.4316048, 41.3864982, 41.3801374]
+    }
+  ],
+  "predictions": [
+    {
+      "id": "S2.T07.iptables.endpoints.dependency",
+      "mode": "iptables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 3954,
+          "high": 5742
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck.dependency",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.365
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6060
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.goaway.dependency",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.225
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6039
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.session-check.dependency",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.225
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6039
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints.dependency",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 3954,
+          "high": 5742
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck.dependency",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.569
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6090
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.dependency",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.429
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6069
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.session-check.dependency",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.429
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6069
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.endpoints.dependency",
+      "mode": "nftables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 3954,
+          "high": 5742
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck.dependency",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.339
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6054
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.goaway.dependency",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.199
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6033
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.session-check.dependency",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.199
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6033
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.endpoints.dependency",
+      "mode": "cilium",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 3954,
+          "high": 5742
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.606
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.lame-duck.dependency",
+      "mode": "cilium",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.866
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6135
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.606
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.goaway.dependency",
+      "mode": "cilium",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.726
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6114
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.606
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.session-check.dependency",
+      "mode": "cilium",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.726
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6114
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.606
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    }
+  ]
+}

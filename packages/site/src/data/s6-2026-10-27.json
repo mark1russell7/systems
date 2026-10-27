@@ -2,7 +2,7 @@
   "ranAt": "2026-10-27",
   "dimension": "how callers learn",
   "run": 40358038728,
-  "runs": [40358038728, 40380943331, 40394320219, 40406199754, 40419289511, 40430856093, 40440516571, 40464814086, 40500297695, 40521784305],
+  "runs": [40358038728, 40380943331, 40394320219, 40406199754, 40419289511, 40430856093, 40440516571, 40464814086, 40500297695, 40521784305, 40558968382],
   "criteria": [
     "time until callers know",
     "failed requests",
@@ -1367,6 +1367,735 @@
             }
           ],
           "fewest": "D"
+        },
+        {
+          "mode": "cilium",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.cilium.endpoints",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "bounded",
+                  "prediction": {
+                    "from": "heal",
+                    "band": {
+                      "lo": {
+                        "value": 0,
+                        "unit": "s"
+                      },
+                      "hi": {
+                        "value": 6.16,
+                        "unit": "s"
+                      }
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.endpoints",
+                    "decision": "holds",
+                    "counted": 11
+                  },
+                  "why": "The judge found each failed request in the window of the prediction. No counted run had a failed request, thus no run gives the time of the last failure. A does not learn while the replica cannot serve: its failures end only after the heal, which comes 30 s after the fault."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 2810,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 3517,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1889,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1579,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3026,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 2730,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 2805,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 2124,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3783,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 2988,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 2810,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3085,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 1313,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 3842,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.endpoints",
+                    "decision": "holds",
+                    "counted": 11
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "T07 has no blip: the replica cannot serve for the whole hold of 30 s. No cell gives a short fault to the candidates yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "T07 has one route, and the flag fails it only on the target. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.cilium.lame-duck",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 12.9467294,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 10.8368461,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.3980677,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.8319224,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 12.5415097,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 12.5416046,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 12.9467294,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 13.9383924,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 14.2704368,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 14.8620568,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 15.6745754,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 15.9807064,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 8,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.766,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.lame-duck",
+                    "decision": "holds",
+                    "counted": 11
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 956,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 781,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1337,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 605,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 972,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 925,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1146,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 754,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 956,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 970,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 979,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 926,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 350,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 1913,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.lame-duck",
+                    "decision": "holds",
+                    "counted": 11
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "T07 has no blip: the replica cannot serve for the whole hold of 30 s. No cell gives a short fault to the candidates yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "T07 has one route, and the flag fails it only on the target. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.cilium.goaway",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 12.4853901,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 9.0916394,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.7444863,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.6458592,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 12.115653,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 12.4853901,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 12.5343841,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 12.8029058,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 14.603717,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 14.6195593,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 8,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.626,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.goaway",
+                    "decision": "holds",
+                    "counted": 11
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 622,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 1732,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 727,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 453,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 604,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 622,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 728,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 535,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1274,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 624,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 2700,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.goaway",
+                    "decision": "holds",
+                    "counted": 11
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "T07 has no blip: the replica cannot serve for the whole hold of 30 s. No cell gives a short fault to the candidates yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "C has no session check, and node:http2 sends a PING only when its caller asks for one. Thus the clients of C send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "T07 has one route, and the flag fails it only on the target. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.cilium.session-check",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 12.5880459,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 10.4888343,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.0322584,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.2403965,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.3889082,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 12.4867665,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 12.5880459,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 13.2088016,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 14.5860302,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 14.6262639,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 14.7331304,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 16.0336851,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 8,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.626,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.session-check",
+                    "decision": "holds",
+                    "counted": 11
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 734,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 729,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1243,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 559,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1315,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 626,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1590,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1563,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 550,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1452,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 734,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 568,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 2700,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.session-check",
+                    "decision": "holds",
+                    "counted": 11
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "T07 has no blip: the replica cannot serve for the whole hold of 30 s. No cell gives a short fault to the candidates yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.session-check",
+                    "decision": "holds",
+                    "counted": 11
+                  }
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "T07 has one route, and the flag fails it only on the target. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "C"
         }
       ]
     },
@@ -2841,6 +3570,502 @@
                   "evidence": {
                     "run": 40440516571,
                     "cell": "S2.T07.nftables.session-check.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The partition stops each route of the target for the clients. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "A"
+        },
+        {
+          "mode": "cilium",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.cilium.endpoints.partition",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.5798817,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.4492867,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.5798817,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.8536559,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 2.24,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.endpoints.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 19,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 16,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 26,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 19,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 39,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.endpoints.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The partition holds for 22 s, and no candidate removes the replica: its readiness stays. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the clients use the replica again after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The partition stops each route of the target for the clients. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.cilium.lame-duck.partition",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.7404076,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.4110203,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.7404076,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.7499025,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 2.24,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.lame-duck.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 21,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 17,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 21,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 27,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 39,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.lame-duck.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The partition holds for 22 s, and no candidate removes the replica: its readiness stays. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the clients use the replica again after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The partition stops each route of the target for the clients. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.cilium.goaway.partition",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 26.4944133,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 26.2331224,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.4944133,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.6034928,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 23.479,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.988,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.goaway.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 1318,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 1325,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1303,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1318,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 4048,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.goaway.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The partition holds for 22 s, and no candidate removes the replica: its readiness stays. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the clients use the replica again after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "C has no session check, and node:http2 sends a PING only when its caller asks for one. Thus the clients of C send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The partition stops each route of the target for the clients. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.cilium.session-check.partition",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 5.4309626,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 3.4086828,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 5.4309626,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 6.4503922,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.7,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.session-check.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 421,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 472,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 294,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 421,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 534,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.session-check.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The partition holds for 22 s, and no candidate removes the replica: its readiness stays. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the clients use the replica again after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "measured",
+                  "median": {
+                    "value": 2,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 2,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 2,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 2,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 3,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.session-check.partition",
                     "decision": "holds",
                     "counted": 3
                   }
@@ -4351,6 +5576,502 @@
             }
           ],
           "fewest": "B"
+        },
+        {
+          "mode": "cilium",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.cilium.endpoints.stall",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.6136918,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.5154263,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.6136918,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.6310668,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 2.24,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.endpoints.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 20,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 23,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 14,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 20,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 39,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.endpoints.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The stall holds for 12 s, and the readiness probe removes the replica in it: a true removal. No cell gives a short stall yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the stall."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The stall stops each route of the target, because its event loop is blocked. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.cilium.lame-duck.stall",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.5612259,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.4842523,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.5612259,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.7102427,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 2.24,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.lame-duck.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 22,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 24,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 21,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 22,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 39,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.lame-duck.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The stall holds for 12 s, and the readiness probe removes the replica in it: a true removal. No cell gives a short stall yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the stall."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The stall stops each route of the target, because its event loop is blocked. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.cilium.goaway.stall",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 10.0941555,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 10.0452413,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.0941555,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 10.1656767,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 9.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 10,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.goaway.stall",
+                    "decision": "fails",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 1001,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 1001,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 499,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1507,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 1503,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": false,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.goaway.stall",
+                    "decision": "fails",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The stall holds for 12 s, and the readiness probe removes the replica in it: a true removal. No cell gives a short stall yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the stall."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "C has no session check, and node:http2 sends a PING only when its caller asks for one. Thus the clients of C send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The stall stops each route of the target, because its event loop is blocked. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.cilium.session-check.stall",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 1.147546,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 1.1144907,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 1.147546,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.1370832,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 8.606,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.session-check.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 111,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 56,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 111,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 160,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 534,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.session-check.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The stall holds for 12 s, and the readiness probe removes the replica in it: a true removal. No cell gives a short stall yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell counts the failed requests. It does not measure when the replica comes back into the endpoints after the stall."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "measured",
+                  "median": {
+                    "value": 2,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 1,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 2,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 3,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 9,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.session-check.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The stall stops each route of the target, because its event loop is blocked. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "A"
         }
       ]
     },
@@ -6200,6 +7921,627 @@
                   "evidence": {
                     "run": 40440516571,
                     "cell": "S2.T07.nftables.session-check.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The route of the target serves for the whole hold. Only the refusals of the service fail requests. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "C"
+        },
+        {
+          "mode": "cilium",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.cilium.endpoints.prober",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "bounded",
+                  "prediction": {
+                    "from": "heal",
+                    "band": {
+                      "lo": {
+                        "value": 0,
+                        "unit": "s"
+                      },
+                      "hi": {
+                        "value": 6.16,
+                        "unit": "s"
+                      }
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.endpoints.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  },
+                  "why": "The judge found each failed request in the window of the prediction. No counted run had a failed request, thus no run gives the time of the last failure. A does not learn while the service refuses: its failures end only after the heal, which comes 30 s after the fault."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 1506,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 1220,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1506,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 1567,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 525,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 2992,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.endpoints.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "measured",
+                  "median": {
+                    "value": 20.023,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 17.952,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.446,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.023,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.606,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.endpoints.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell measures the false removal and the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The route of the target serves for the whole hold. Only the refusals of the service fail requests. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.cilium.lame-duck.prober",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 14.1173163,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 13.8678908,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 14.1173163,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 16.1677839,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 8,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 20.24,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.lame-duck.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 22,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 13,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 27,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 22,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 39,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.lame-duck.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "measured",
+                  "median": {
+                    "value": 18.528,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 18.492,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.541,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.528,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.606,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.lame-duck.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell measures the false removal and the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The route of the target serves for the whole hold. Only the refusals of the service fail requests. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.cilium.goaway.prober",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 13.8885945,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 10.7647818,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 13.8885945,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 14.3733845,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 8,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 18.22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.goaway.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 2,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 9,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.goaway.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "measured",
+                  "median": {
+                    "value": 18.927,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 18.927,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.024,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 15.09,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.606,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.goaway.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell measures the false removal and the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "C has no session check, and node:http2 sends a PING only when its caller asks for one. Thus the clients of C send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The route of the target serves for the whole hold. Only the refusals of the service fail requests. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.cilium.session-check.prober",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 13.3093517,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 12.8586679,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 13.3093517,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 15.6274797,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 8,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 18.22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.session-check.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 5,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 2,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 9,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.session-check.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "measured",
+                  "median": {
+                    "value": 19.227,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 19.227,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.62,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.955,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 24.606,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.session-check.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The cell measures the false removal and the failed requests. It does not measure when the replica comes back into the endpoints after the heal."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.session-check.prober",
                     "decision": "holds",
                     "counted": 3
                   }
@@ -8545,6 +10887,323 @@
                   "criterion": "complexity",
                   "kind": "not measured",
                   "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "B"
+        },
+        {
+          "mode": "cilium",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.cilium.endpoints.dependency",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.cilium.lame-duck.dependency",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 12.6656159,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 12.274143,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 12.6656159,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 14.6074118,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 7.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.lame-duck.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4568,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 4541,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4568,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 5091,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3954,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 6135,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.lame-duck.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The black hole holds for 27 s, and the readiness of each replica follows Redis: no replica can serve. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3.5473962,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 3.3163217,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.5473962,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 7.1057228,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.866,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.lame-duck.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 18.273,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 17.808,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.273,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.126,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.606,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.lame-duck.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.cilium.goaway.dependency",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.cilium.session-check.dependency",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40430856093 has no result of this cell."
                 }
               ]
             }
@@ -11745,6 +14404,395 @@
                   "criterion": "complexity",
                   "kind": "not measured",
                   "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "B"
+        },
+        {
+          "mode": "cilium",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.cilium.endpoints.flapping",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.cilium.lame-duck.flapping",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 14.2023211,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 10.9288325,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.1205948,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 12.5561413,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 13.9462231,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 14.2023211,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 14.7558944,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 15.2077713,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 15.2900901,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 15.4036709,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 24.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 27.5,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.lame-duck.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 14150,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 14165,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 14150,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 13655,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 10701,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 17730,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.lame-duck.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Each of the 3 faults holds for 27 s, and the readiness of each replica follows Redis: each removal is true. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4.367123,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 2.7483175,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.7579709,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.1191372,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.4467705,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.367123,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.8515467,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.885389,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 5.5805597,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 6.1393816,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": -2,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.866,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.lame-duck.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 19.294,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 15.962,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 16.23,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.331,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.707,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.294,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.654,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.684,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.002,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 21.85,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.606,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40558968382,
+                    "cell": "S2.T07.cilium.lame-duck.flapping",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.cilium.goaway.flapping",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.cilium.session-check.flapping",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "The copy of the run 40464814086 has no result of this cell."
                 }
               ]
             }

@@ -1,0 +1,102 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-10-27",
+  "units": "s",
+  "runs": 3,
+  "kernel": "6.17.0 and 7.0.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.cilium.shared-gate.dependency",
+      "template": "T07",
+      "name": "cilium, callers learn that a shared dependency is black-holed: in band with a shared gate",
+      "mode": "cilium",
+      "trigger": "blackhole",
+      "group": "gate",
+      "prediction": {
+        "kind": "stays",
+        "band": null,
+        "text": "The algebra predicts that each replica stays in the Service, and that no request is refused. Each failed request starts 0 s after the fault or later, and the last one starts 0 s to 9.26 s after the end of the fault."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 4342,
+      "values": [4543, 4240, 4342],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 4,342 failed requests. The counted runs had 4,240 to 4,543 failed requests.",
+      "first": null,
+      "lasts": [31.2609827, 29.641813, 29.8377898],
+      "failures": [4543, 4240, 4342],
+      "knows": [13.8242176, 12.0997497, 13.0400691],
+      "recovers": [4.0283943, 2.4097244, 2.6060926],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [38.9358752, 38.9471787, 38.9609708]
+    },
+    {
+      "id": "S2.T07.cilium.shared-gate.flapping",
+      "template": "T07",
+      "name": "cilium, callers learn that a shared dependency flaps: in band with a shared gate",
+      "mode": "cilium",
+      "trigger": "blackhole",
+      "group": "gate",
+      "prediction": {
+        "kind": "stays",
+        "band": null,
+        "text": "The algebra predicts that each replica stays in the Service, and that no request is refused. Each failed request starts 0 s after the fault or later, and the last one starts 0 s to 9.26 s after the end of the fault."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 13980,
+      "values": [13980, 14171, 13679],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 13,980 failed requests. The counted runs had 13,679 to 14,171 failed requests.",
+      "first": null,
+      "lasts": [116.8113368, 117.0887926, 117.4785249],
+      "failures": [13980, 14171, 13679],
+      "knows": [11.8753133, 15.0163977, 12.0481253, 14.8140154, 11.7881159, 13.9250633, 14.5055734, 15.0205287, 13.4863388],
+      "recovers": [4.5832093, 3.5003037, 4.9412205, 5.2821328, 4.2760298, 5.1862723, 2.2523886, 3.7475163, 5.6383482],
+      "emptied": [null, null, null, null, null, null, null, null, null],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [123.5041992, 123.5855824, 123.4935338]
+    },
+    {
+      "id": "S2.T07.cilium.shared-gate",
+      "template": "T07",
+      "name": "cilium, callers learn that a pod cannot serve: in band with a shared gate",
+      "mode": "cilium",
+      "trigger": "cannot-serve",
+      "group": "gate",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 12,
+          "high": 24.606
+        },
+        "text": "The algebra predicts that the replica leaves the EndpointSlice and the rules of each node. The band is 12 s to 24.606 s after the fault. The flag fails the route of the target and its check, a check of no dependency. Redis stays up. Thus the shared gate leaves the readiness probe as it is, and the kubelet and the propagation remove the target 12 s–24.606 s after the fault, as for B. Each request on the target fails until the latch trips (8 s–18 s), and the lame duck closes its connection. Thus E has the band of B: approximately 350–1913 failed requests."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 15.001,
+      "values": [14.917, 15.001, 19.135],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 15.001 s. The counted runs measured 14.917 s to 19.135 s.",
+      "first": null,
+      "lasts": [10.4736419, 10.8833902, 15.5454933],
+      "failures": [751, 855, 1501],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [39.2222575, 39.4617378, 41.4169898]
+    }
+  ]
+}

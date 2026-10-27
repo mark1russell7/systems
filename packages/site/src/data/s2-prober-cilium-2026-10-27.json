@@ -1,0 +1,759 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-10-27",
+  "units": "s",
+  "runs": 3,
+  "kernel": "6.17.0 and 7.0.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.cilium.endpoints.prober",
+      "template": "T07",
+      "name": "cilium, callers learn that a prober fails while the pod can serve: endpoints only",
+      "mode": "cilium",
+      "trigger": "cannot-serve",
+      "group": "prober",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 12,
+          "high": 24.606
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 12 s to 24.606 s after the fault. The readiness check of the target fails for the hold (30 s), but its route still serves. Its latch trips 8 s–18 s after the fault. Then the controller of the service is not ready, thus the service refuses each request with a 503. The kubelet and the propagation (Cilium 1.20.4 sources: the reflector buffer (500 ms) and the BPF reconciler (1 ms), plus the shared path of CAL.T07.iptables (0.105 s)) remove the target 12 s–24.606 s after the fault: a false removal. Each connection to the target stays open, and the rules select a backend only for a new connection. Thus each request on those connections fails from the trip until the readiness of the service recovers, up to 6.16 s after the heal. 7–17 of the 24 connections are on the target, thus about 525–2992 requests fail."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 20.023,
+      "values": [17.952, 20.446, 20.023],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 20.023 s. The counted runs measured 17.952 s to 20.446 s.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 6.16
+        },
+        "expected": {
+          "low": 525,
+          "high": 2992
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.606
+        }
+      },
+      "lasts": [31.9421689, 34.3260943, 33.571038],
+      "failures": [1220, 1506, 1567],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [42.7289818, 42.7127107, 42.7461116]
+    },
+    {
+      "id": "S2.T07.cilium.lame-duck.prober",
+      "template": "T07",
+      "name": "cilium, callers learn that a prober fails while the pod can serve: in band (lame duck)",
+      "mode": "cilium",
+      "trigger": "cannot-serve",
+      "group": "prober",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 12,
+          "high": 24.606
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 12 s to 24.606 s after the fault. The readiness check of the target fails for the hold (30 s), but its route still serves. Its latch trips 8 s–18 s after the fault. Then the controller of the service is not ready, thus the service refuses each request with a 503. The kubelet and the propagation (Cilium 1.20.4 sources: the reflector buffer (500 ms) and the BPF reconciler (1 ms), plus the shared path of CAL.T07.iptables (0.105 s)) remove the target 12 s–24.606 s after the fault: a false removal. Each refusal closes its connection, and the next request opens a new connection one turn (0.16 s) later. A chain of picks of the target ends at the first pick of the other replica. Each pick goes to the target at random, thus the failures of the 24 connections are negative binomial: 12–39 in 95 % of the runs. A chain longer than 14 picks has a chance of 0.001 at the most."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 18.528,
+      "values": [18.492, 20.541, 18.528],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 18.528 s. The counted runs measured 18.492 s to 20.541 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 20.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.606
+        }
+      },
+      "lasts": [13.8678908, 16.1677839, 14.1173163],
+      "failures": [13, 27, 22],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [39.1273516, 37.6058855, 37.6133705]
+    },
+    {
+      "id": "S2.T07.cilium.goaway.prober",
+      "template": "T07",
+      "name": "cilium, callers learn that a prober fails while the pod can serve: in band on HTTP/2 (GOAWAY)",
+      "mode": "cilium",
+      "trigger": "cannot-serve",
+      "group": "prober",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 12,
+          "high": 24.606
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 12 s to 24.606 s after the fault. The readiness check of the target fails for the hold (30 s), but its route still serves. Its latch trips 8 s–18 s after the fault. Then the controller of the service is not ready, thus the service refuses each request with a 503. The kubelet and the propagation (Cilium 1.20.4 sources: the reflector buffer (500 ms) and the BPF reconciler (1 ms), plus the shared path of CAL.T07.iptables (0.105 s)) remove the target 12 s–24.606 s after the fault: a false removal. Each refusal closes its connection with a GOAWAY on its session, and the next request opens a new connection one turn (0.02 s) later. A chain of picks of the target ends at the first pick of the other replica. Each pick goes to the target at random, thus the failures of the 3 connections are negative binomial: 0–9 in 95 % of the runs. A chain longer than 11 picks has a chance of 0.001 at the most."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 18.927,
+      "values": [18.927, 19.024, 15.09],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 18.927 s. The counted runs measured 15.09 s to 19.024 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.22
+        },
+        "expected": {
+          "low": 0,
+          "high": 9
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.606
+        }
+      },
+      "lasts": [13.8885945, 14.3733845, 10.7647818],
+      "failures": [2, 3, 4],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [39.3532598, 37.1141606, 37.3182616]
+    },
+    {
+      "id": "S2.T07.cilium.session-check.prober",
+      "template": "T07",
+      "name": "cilium, callers learn that a prober fails while the pod can serve: in band on HTTP/2 with a session check",
+      "mode": "cilium",
+      "trigger": "cannot-serve",
+      "group": "prober",
+      "prediction": {
+        "kind": "leaves",
+        "band": {
+          "low": 12,
+          "high": 24.606
+        },
+        "text": "The algebra predicts a false removal: the replica can serve, but it leaves the EndpointSlice and the rules of each node. The band is 12 s to 24.606 s after the fault. The readiness check of the target fails for the hold (30 s), but its route still serves. Its latch trips 8 s–18 s after the fault. Then the controller of the service is not ready, thus the service refuses each request with a 503. The kubelet and the propagation (Cilium 1.20.4 sources: the reflector buffer (500 ms) and the BPF reconciler (1 ms), plus the shared path of CAL.T07.iptables (0.105 s)) remove the target 12 s–24.606 s after the fault: a false removal. Each refusal closes its connection with a GOAWAY on its session, and the next request opens a new connection one turn (0.02 s) later. A chain of picks of the target ends at the first pick of the other replica. The target answers each stream at once, thus the session check closes no session, and D is the same as C. Each pick goes to the target at random, thus the failures of the 3 connections are negative binomial: 0–9 in 95 % of the runs. A chain longer than 11 picks has a chance of 0.001 at the most."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 19.227,
+      "values": [19.227, 17.62, 19.955],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 19.227 s. The counted runs measured 17.62 s to 19.955 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.22
+        },
+        "expected": {
+          "low": 0,
+          "high": 9
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.606
+        }
+      },
+      "lasts": [13.3093517, 12.8586679, 15.6274797],
+      "failures": [5, 3, 2],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [37.0514854, 37.7947884, 40.4290316]
+    }
+  ],
+  "predictions": [
+    {
+      "id": "S2.T07.iptables.endpoints.prober",
+      "mode": "iptables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 6.16
+        },
+        "expected": {
+          "low": 525,
+          "high": 2992
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.105
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck.prober",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 20.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.105
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.goaway.prober",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.22
+        },
+        "expected": {
+          "low": 0,
+          "high": 9
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.105
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.session-check.prober",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.22
+        },
+        "expected": {
+          "low": 0,
+          "high": 9
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.105
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints.prober",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 6.16
+        },
+        "expected": {
+          "low": 900,
+          "high": 2112
+        },
+        "connections": {
+          "low": 12,
+          "high": 12,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 24.309
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck.prober",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.64
+        },
+        "expected": {
+          "low": 21,
+          "high": 24
+        },
+        "connections": {
+          "low": 12,
+          "high": 12,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 24.309
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.prober",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "expected": {
+          "low": 0,
+          "high": 3
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 24.309
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.session-check.prober",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "expected": {
+          "low": 0,
+          "high": 3
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 24.309
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.endpoints.prober",
+      "mode": "nftables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 6.16
+        },
+        "expected": {
+          "low": 525,
+          "high": 2992
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.079
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck.prober",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 20.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.079
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.goaway.prober",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.22
+        },
+        "expected": {
+          "low": 0,
+          "high": 9
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.079
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.session-check.prober",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.22
+        },
+        "expected": {
+          "low": 0,
+          "high": 9
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.079
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.endpoints.prober",
+      "mode": "cilium",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 6.16
+        },
+        "expected": {
+          "low": 525,
+          "high": 2992
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.606
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.lame-duck.prober",
+      "mode": "cilium",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 20.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.606
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.goaway.prober",
+      "mode": "cilium",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.22
+        },
+        "expected": {
+          "low": 0,
+          "high": 9
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.606
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.session-check.prober",
+      "mode": "cilium",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 18.22
+        },
+        "expected": {
+          "low": 0,
+          "high": 9
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        },
+        "leaves": {
+          "from": "fault",
+          "low": 12,
+          "high": 24.606
+        }
+      }
+    }
+  ]
+}

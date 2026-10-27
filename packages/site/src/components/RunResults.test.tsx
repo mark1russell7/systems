@@ -82,12 +82,16 @@ describe("the components of the CI runs", () => {
     // D has the prediction of C, and its column links its own run
     expect(table).toContain("D: in band on HTTP/2 with a session check");
     expect(table).toContain("580 failed requests in the median run");
-    expect(table.split("The prediction: 0 to 2,700 failed requests, with 0 to 3 of the 3 connections on the target.").length - 1).toBe(6);
+    // C and D of Cilium have the prediction of C in iptables too
+    expect(table.split("The prediction: 0 to 2,700 failed requests, with 0 to 3 of the 3 connections on the target.").length - 1).toBe(8);
+    // the Cilium column: its own run, and its median runs
+    expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40558968382");
+    expect(table).toContain("2,810 failed requests in the median run");
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40394320219");
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40358038728");
-    expect(table.split("<tr>").length - 1).toBe(4);
+    expect(table.split("<tr>").length - 1).toBe(5);
     const frames = renderToString(<KindResults template="T07" group="callers" />);
-    expect(frames.split('class="sy-frame').length - 1).toBe(12);
+    expect(frames.split('class="sy-frame').length - 1).toBe(16);
     expect(frames).toContain("Each failed request ends with an answer of 503.");
   });
 
@@ -102,9 +106,9 @@ describe("the components of the CI runs", () => {
     // D: the session check closes each session on the target at its PING
     expect(table).toContain("158 failed requests in the median run");
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40394320219");
-    expect(table.split("<tr>").length - 1).toBe(4);
+    expect(table.split("<tr>").length - 1).toBe(5);
     const frames = renderToString(<KindResults template="T07" group="partition" />);
-    expect(frames.split('class="sy-frame').length - 1).toBe(12);
+    expect(frames.split('class="sy-frame').length - 1).toBe(16);
   });
 
   it("render the S2 candidates of a stalled pod side by side, with the frame of each cell", () => {
@@ -113,14 +117,16 @@ describe("the components of the CI runs", () => {
     expect(table).toContain("1,498 failed requests in the median run");
     expect(table).toContain("The prediction: 12 to 39 failed requests, with 7 to 17 of the 24 connections on the target.");
     expect(table).toContain("The prediction: 0 to 1,503 failed requests, with 0 to 3 of the 3 connections on the target.");
-    expect(table).not.toContain("disagree");
+    // C of Cilium failed in 1 of 3 runs, and each other cell held
+    expect(table.split("disagree").length - 1).toBe(1);
+    expect(table).toContain("1 of 3 runs disagrees.");
     expect(table).not.toContain("No run in the copy yet.");
     // D: the removal ends each chain of the session check
     expect(table).toContain("191 failed requests in the median run");
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40406199754");
-    expect(table.split("<tr>").length - 1).toBe(4);
+    expect(table.split("<tr>").length - 1).toBe(5);
     const frames = renderToString(<KindResults template="T07" group="stall" />);
-    expect(frames.split('class="sy-frame').length - 1).toBe(12);
+    expect(frames.split('class="sy-frame').length - 1).toBe(16);
   });
 
   it("render the S2 candidates of a failed prober side by side, with the failed requests and the false removal of the median run", () => {
@@ -131,9 +137,9 @@ describe("the components of the CI runs", () => {
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40419289511");
     expect(table).not.toContain("disagree");
     expect(table).not.toContain("No run in the copy yet.");
-    expect(table.split("<tr>").length - 1).toBe(4);
+    expect(table.split("<tr>").length - 1).toBe(5);
     const frames = renderToString(<KindResults template="T07" group="prober" />);
-    expect(frames.split('class="sy-frame').length - 1).toBe(12);
+    expect(frames.split('class="sy-frame').length - 1).toBe(16);
   });
 
   it("render the S2 candidates of a black-holed shared dependency side by side, with the failed requests and the empty Service of the median run", () => {
@@ -141,10 +147,11 @@ describe("the components of the CI runs", () => {
     expect(table).toContain("4,173 failed requests, and the empty Service 17.524 s after the fault, in the median run");
     expect(table).toContain("The Service is empty 12 s to 26.105 s after the fault.");
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40430856093");
-    expect(table).not.toContain("No run in the copy yet.");
-    expect(table.split("<tr>").length - 1).toBe(4);
+    // the run of Cilium has only B, thus A, C and D of Cilium have no run
+    expect(table.split("No run in the copy yet.").length - 1).toBe(3);
+    expect(table.split("<tr>").length - 1).toBe(5);
     const frames = renderToString(<KindResults template="T07" group="dependency" />);
-    expect(frames.split('class="sy-frame').length - 1).toBe(12);
+    expect(frames.split('class="sy-frame').length - 1).toBe(13);
   });
 
   it("render the S2 candidates of a flapping dependency side by side, with the empty Service after the first fault and the band of each fault", () => {
@@ -154,10 +161,11 @@ describe("the components of the CI runs", () => {
     expect(table).toContain("The Service is empty 12 s to 26.105 s after the fault, for each fault.");
     expect(table).toContain("Each fault has 3,567 to 5,835 failed requests.");
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40464814086");
-    expect(table).not.toContain("No run in the copy yet.");
-    expect(table.split("<tr>").length - 1).toBe(4);
+    // the run of Cilium has only B, thus A, C and D of Cilium have no run
+    expect(table.split("No run in the copy yet.").length - 1).toBe(3);
+    expect(table.split("<tr>").length - 1).toBe(5);
     const frames = renderToString(<KindResults template="T07" group="flapping" />);
-    expect(frames.split('class="sy-frame').length - 1).toBe(12);
+    expect(frames.split('class="sy-frame').length - 1).toBe(13);
   });
 
   it("render the S2 candidates of a lost zone side by side, with the removal of the target and its return after the heal", () => {

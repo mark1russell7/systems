@@ -26,6 +26,13 @@ import s2Zone from "../data/s2-zone-2026-10-27.json";
 import s2Slow from "../data/s2-slow-2026-10-27.json";
 import s2Gate from "../data/s2-gate-2026-10-27.json";
 import s2Checked from "../data/s2-session-check-2026-10-26.json";
+import s2Cilium from "../data/s2-cilium-2026-10-27.json";
+import s2PartitionCilium from "../data/s2-partition-cilium-2026-10-27.json";
+import s2StallCilium from "../data/s2-stall-cilium-2026-10-27.json";
+import s2ProberCilium from "../data/s2-prober-cilium-2026-10-27.json";
+import s2DependencyCilium from "../data/s2-dependency-cilium-2026-10-27.json";
+import s2FlappingCilium from "../data/s2-flapping-cilium-2026-10-27.json";
+import s2GateCilium from "../data/s2-gate-cilium-2026-10-27.json";
 import s6 from "../data/s6-2026-10-27.json";
 import t15 from "../data/t15-2026-10-25.json";
 import sentinel from "../data/sentinel-2026-10-17.json";
@@ -446,7 +453,7 @@ export function RaceBorder(): ReactElement {
 // ---------------------------------------------------------------------------------------------
 
 /** The kind cells of each copy: T07 and T18, T15 over gRPC through Istio, and the S2 cells of each incident. The later run of D adds its cells, and the run of the shared gate (E) adds its cells. */
-const KIND_CELLS = [...kind.cells, ...t15.cells, ...S2.cells, ...s2Checked.cells, ...s2Partition.cells, ...s2PartitionChecked.cells, ...s2Stall.cells, ...s2Prober.cells, ...s2Dependency.cells, ...s2Flapping.cells, ...s2Zone.cells, ...s2Slow.cells, ...s2Gate.cells];
+const KIND_CELLS = [...kind.cells, ...t15.cells, ...S2.cells, ...s2Checked.cells, ...s2Partition.cells, ...s2PartitionChecked.cells, ...s2Stall.cells, ...s2Prober.cells, ...s2Dependency.cells, ...s2Flapping.cells, ...s2Zone.cells, ...s2Slow.cells, ...s2Gate.cells, ...s2Cilium.cells, ...s2PartitionCilium.cells, ...s2StallCilium.cells, ...s2ProberCilium.cells, ...s2DependencyCilium.cells, ...s2FlappingCilium.cells, ...s2GateCilium.cells];
 type KindCell = (typeof KIND_CELLS)[number];
 
 /** This function writes the main value of a kind cell: a count of failed requests, of replicas, or a time. */
@@ -541,6 +548,9 @@ export function KindResults(props: { readonly template: "T07" | "T18" | "T15"; r
 /** These are the modes of kube-proxy, in the sequence of the catalog. */
 const MODES = ["iptables", "ipvs", "nftables"] as const;
 
+/** These are the modes of S2: the modes of kube-proxy, then Cilium, which replaces kube-proxy. */
+const S2_MODES = [...MODES, "cilium"] as const;
+
 /** These phrases name the reference event of the end of a window of S2. */
 const S2_FROM: Readonly<Record<string, string>> = { fault: "the fault", heal: "the heal" };
 
@@ -565,6 +575,9 @@ const S2_FROM: Readonly<Record<string, string>> = { fault: "the fault", heal: "t
  *
  * The incident `slow` shows the copy of the slow dependency. Its main value is the count of failed
  * requests. The last failure of A and B comes before the heal, and C and D have no window.
+ *
+ * The Cilium column comes from the Cilium copy of the incident, with its own predictions. The lost
+ * zone and the slow dependency have no Cilium copy, thus no Cilium column.
  */
 export function CallersTable(props: { readonly incident?: "cannot serve" | "partition" | "stall" | "prober" | "dependency" | "flapping" | "zone" | "slow" }): ReactElement {
   // the copies of an incident: the first run of A, B and C, then the run of D. One run of the stall, and one of the prober, has each candidate. The latest copy has the prediction of each candidate
@@ -585,6 +598,22 @@ export function CallersTable(props: { readonly incident?: "cannot serve" | "part
                   ? [s2Slow]
                   : [S2, s2Checked]
   ) as unknown as readonly (typeof S2)[];
+  // the Cilium copy of the incident, if the incident has one
+  const cilium = (
+    props.incident === "partition"
+      ? s2PartitionCilium
+      : props.incident === "stall"
+        ? s2StallCilium
+        : props.incident === "prober"
+          ? s2ProberCilium
+          : props.incident === "dependency"
+            ? s2DependencyCilium
+            : props.incident === "flapping"
+              ? s2FlappingCilium
+              : props.incident === "zone" || props.incident === "slow"
+                ? null
+                : s2Cilium
+  ) as unknown as typeof S2 | null;
   const prober = props.incident === "prober";
   const zone = props.incident === "zone";
   const dependency = props.incident === "dependency" || props.incident === "flapping";
@@ -599,9 +628,11 @@ export function CallersTable(props: { readonly incident?: "cannot serve" | "part
     return sorted.length % 2 === 1 ? sorted[half]! : (sorted[half - 1]! + sorted[half]!) / 2;
   };
   const latest = copies.at(-1)!;
-  const s2 = { predictions: latest.predictions, cells: copies.flatMap((copy) => copy.cells) };
+  // each mode of kube-proxy keeps the predictions of its own copies, and Cilium takes the predictions of its copy
+  const predictions = [...latest.predictions.filter((each) => each.mode !== "cilium"), ...(cilium?.predictions.filter((each) => each.mode === "cilium") ?? [])];
+  const s2 = { predictions, cells: [...copies, ...(cilium === null ? [] : [cilium])].flatMap((copy) => copy.cells) };
   const candidates = [...new Set(s2.predictions.map((each) => each.candidate.name))];
-  const modes = MODES.filter((mode) => s2.predictions.some((each) => each.mode === mode));
+  const modes = S2_MODES.filter((mode) => s2.predictions.some((each) => each.mode === mode));
   const predicted = (mode: string, name: string) => {
     const found = s2.predictions.find((each) => each.mode === mode && each.candidate.name === name);
     if (found === undefined) throw new Error(`no S2 prediction ${mode}, ${name}`);

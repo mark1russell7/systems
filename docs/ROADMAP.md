@@ -56,6 +56,8 @@ The first step measures how callers learn that a pod cannot serve: endpoint prop
 
 Kind run 40358038728 held all 9 cells in 3 of 3 runs. With iptables, the median failed requests for A, B and C were 3044, 813 and 1087. With IPVS they were 2449, 983 and 2133, and with nftables 2562, 1092 and 706.
 
+Cilium is the fourth mode of the T07 cells. It replaces kube-proxy in a cluster of kind with no kube-proxy, from a pinned chart. Kind run 40558968382 started 21 cells of Cilium, and 20 held in each counted run. C in the stall failed in 1 of 3 runs, by a bias that the next band must add. Each finding of kube-proxy holds in Cilium, thus the rule of the service does not change ([S6](S6.md#the-cilium-column)).
+
 ### S3 · Outcomes under failure and load
 
 - **Status:** later

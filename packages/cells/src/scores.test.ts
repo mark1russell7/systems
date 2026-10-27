@@ -18,6 +18,8 @@ const zone = read<{ readonly cells: readonly CallerResult[] }>("s2-zone-2026-10-
 const slow = read<{ readonly cells: readonly CallerResult[] }>("s2-slow-2026-10-27.json");
 // the copies of the run that counts the PINGs of D, for each incident
 const loads = ["s2-load", "s2-partition-load", "s2-stall-load", "s2-prober-load", "s2-dependency-load"].map((name) => read<{ readonly cells: readonly CallerResult[] }>(`${name}-2026-10-27.json`));
+// the copies of the run of the Cilium column: the kube-proxy replacement, for each incident that it has cells of
+const ciliums = ["s2-cilium", "s2-partition-cilium", "s2-stall-cilium", "s2-prober-cilium", "s2-dependency-cilium", "s2-flapping-cilium"].map((name) => read<{ readonly cells: readonly CallerResult[] }>(`${name}-2026-10-27.json`));
 const s6 = read<Scorecard & { readonly ranAt: string }>("s6-2026-10-27.json");
 const RUN = 40358038728;
 const PARTITION_RUN = 40380943331;
@@ -29,6 +31,7 @@ const LOAD_RUN = 40440516571;
 const FLAPPING_RUN = 40464814086;
 const ZONE_RUN = 40500297695;
 const SLOW_RUN = 40521784305;
+const CILIUM_RUN = 40558968382;
 const card = scoreCallers(
   { run: RUN, cells: s2.cells },
   { run: PARTITION_RUN, cells: partition.cells },
@@ -41,12 +44,20 @@ const card = scoreCallers(
   { run: FLAPPING_RUN, cells: flapping.cells },
   { run: ZONE_RUN, cells: zone.cells },
   { run: SLOW_RUN, cells: slow.cells },
+  ...ciliums.map((each) => ({ run: CILIUM_RUN, cells: each.cells })),
 );
 
-const scoredOf = (scorecard: Scorecard, name: Incident): readonly ModeScores[] => {
+const modesOf = (scorecard: Scorecard, name: Incident): readonly ModeScores[] => {
   const incident = scorecard.incidents.find((each) => each.incident === name);
   if (incident?.kind !== "scored") throw new Error(`${name}: the incident has no scores`);
   return incident.modes;
+};
+// the modes of kube-proxy. The Cilium column has its own test
+const scoredOf = (scorecard: Scorecard, name: Incident): readonly ModeScores[] => modesOf(scorecard, name).filter((each) => each.mode !== "cilium");
+const ciliumOf = (scorecard: Scorecard, name: Incident): ModeScores => {
+  const found = modesOf(scorecard, name).find((each) => each.mode === "cilium");
+  if (found === undefined) throw new Error(`${name}: the incident has no Cilium column`);
+  return found;
 };
 const scored = (scorecard: Scorecard): readonly ModeScores[] => scoredOf(scorecard, "a pod that cannot serve");
 const partitioned = (scorecard: Scorecard): readonly ModeScores[] => scoredOf(scorecard, "a partitioned pod");
@@ -67,7 +78,7 @@ const median = (candidate: CandidateScores, criterion: Score["criterion"] = "fai
   return score.median.value;
 };
 
-describe("the scores of how callers learn, from the copies of kind runs 40358038728, 40380943331, 40394320219, 40406199754, 40419289511, 40430856093, 40440516571, 40464814086, 40500297695 and 40521784305", () => {
+describe("the scores of how callers learn, from the copies of kind runs 40358038728, 40380943331, 40394320219, 40406199754, 40419289511, 40430856093, 40440516571, 40464814086, 40500297695, 40521784305 and 40558968382", () => {
   it("are the scorecard that the site shows", () => {
     const { ranAt, ...shown } = s6;
     expect(ranAt).toBe("2026-10-27");
@@ -76,8 +87,11 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
 
   it("give each candidate of each mode a score on each criterion, with the run and the cell as evidence", () => {
     // the copies of run 40394320219 add D to each incident, and A, B and C keep the evidence of their own runs
-    expect([card.run, card.runs]).toEqual([RUN, [RUN, PARTITION_RUN, CHECK_RUN, STALL_RUN, PROBER_RUN, DEPENDENCY_RUN, LOAD_RUN, FLAPPING_RUN, ZONE_RUN, SLOW_RUN]]);
+    expect([card.run, card.runs]).toEqual([RUN, [RUN, PARTITION_RUN, CHECK_RUN, STALL_RUN, PROBER_RUN, DEPENDENCY_RUN, LOAD_RUN, FLAPPING_RUN, ZONE_RUN, SLOW_RUN, CILIUM_RUN]]);
     expect(card.incidents.map((each) => each.incident)).toEqual(INCIDENTS);
+    // the Cilium column is in each incident that the run of the Cilium copies has cells of
+    const kubeProxy = ["iptables", "ipvs", "nftables"];
+    expect(INCIDENTS.map((name) => modesOf(card, name).map((each) => each.mode))).toEqual(INCIDENTS.map((name) => (name === "a lost zone" || name === "a slow dependency (gray failure)" ? kubeProxy : [...kubeProxy, "cilium"])));
     for (const [modes, run, tail] of [
       [scored(card), RUN, ""],
       [partitioned(card), PARTITION_RUN, ".partition"],
@@ -476,6 +490,65 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
     ]);
     // a PING and its ACK are each a frame header of 9 bytes and 8 bytes of data
     expect(PING_FRAME).toEqual({ value: 17, unit: "B" });
+  });
+
+  it("score the Cilium column from the run 40558968382: each finding of kube-proxy holds, and the scores show two gaps", () => {
+    const column = (name: Incident): ModeScores => ciliumOf(card, name);
+    const counts = (name: Incident): (number | null)[] => column(name).candidates.map((each) => (scoreOf(each, "failed requests").kind === "measured" ? median(each) : null));
+    // the failed requests of the median run. The runs of the dependencies have only B
+    expect(counts("a pod that cannot serve")).toEqual([2810, 956, 622, 734]);
+    expect(counts("a partitioned pod")).toEqual([19, 21, 1318, 421]);
+    expect(counts("a stalled pod (gray failure)")).toEqual([20, 22, 1001, 111]);
+    expect(counts("a failed prober")).toEqual([1506, 22, 3, 3]);
+    expect(counts("a black-holed shared dependency")).toEqual([null, 4568, null, null]);
+    expect(counts("a flapping dependency")).toEqual([null, 14150, null, null]);
+    expect((["a pod that cannot serve", "a partitioned pod", "a stalled pod (gray failure)", "a failed prober"] as const).map((name) => column(name).fewest)).toEqual(["C", "A", "A", "C"]);
+    // B and C fail fewer requests than A in a pod that cannot serve. D fails fewer than C in a partition and a stall. B, C and D fail fewer than A on a failed prober
+    const [a, b, c] = counts("a pod that cannot serve");
+    expect([b! < a!, c! < a!]).toEqual([true, true]);
+    for (const name of ["a partitioned pod", "a stalled pod (gray failure)"] as const) expect(counts(name)[3]!, name).toBeLessThan(counts(name)[2]!);
+    for (const count of counts("a failed prober").slice(1)) expect(count!).toBeLessThan(counts("a failed prober")[0]!);
+    // each measured or bounded score has the evidence of the Cilium run. The count of runs is 11 for a pod that cannot serve, and 3 for each other incident
+    for (const name of ["a pod that cannot serve", "a partitioned pod", "a stalled pod (gray failure)", "a failed prober", "a black-holed shared dependency", "a flapping dependency"] as const)
+      for (const candidate of column(name).candidates)
+        for (const score of candidate.scores)
+          if (score.kind === "measured" || score.kind === "bounded") {
+            const decision = candidate.cell === "S2.T07.cilium.goaway.stall" ? "fails" : "holds";
+            expect(score.evidence, `${candidate.cell} ${score.criterion}`).toEqual({ run: CILIUM_RUN, cell: candidate.cell, decision, counted: name === "a pod that cannot serve" ? 11 : 3 });
+          }
+    // the gap of the stall: the backlog of the target after the resume. One run of C had 1507 failed requests, over the band of 0 to 1503, and each run of C knew after the band of 9.98 s to 10 s
+    const stall = column("a stalled pod (gray failure)").candidates[2]!;
+    const failed = scoreOf(stall, "failed requests");
+    expect(failed.kind === "measured" ? [failed.holds, failed.values.map((each) => each.value), failed.prediction.hi.value] : null).toEqual([false, [1001, 499, 1507], 1503]);
+    const late = scoreOf(stall, "time until callers know");
+    expect(late.kind === "measured" ? [late.holds, late.values.every((each) => each.value > late.prediction.hi.value), late.prediction.hi.value] : null).toEqual([false, true, 10]);
+    // each other score of the failed requests holds
+    for (const name of ["a pod that cannot serve", "a partitioned pod", "a stalled pod (gray failure)", "a failed prober", "a black-holed shared dependency", "a flapping dependency"] as const)
+      for (const candidate of column(name).candidates) {
+        const score = scoreOf(candidate, "failed requests");
+        if (score.kind === "measured") expect(score.holds, candidate.cell).toBe(candidate.cell !== "S2.T07.cilium.goaway.stall");
+      }
+    // the false removal of each candidate is in its band, after the fault
+    expect(column("a failed prober").candidates.map((each) => median(each, "false removals on a blip"))).toEqual([20.023, 18.528, 18.927, 19.227]);
+    // the gap of the flapping dependency: Cilium refuses a connect to an empty Service at once, thus B fails fast after the removal. kube-proxy keeps the connect until its timeout.
+    // Thus B knows at the removal, in each of the 9 faults, before the band of 24.98 s to 27.5 s that kube-proxy gave
+    const flapping = column("a flapping dependency").candidates[1]!;
+    const knows = scoreOf(flapping, "time until callers know");
+    expect(knows.kind === "measured" ? [knows.holds, knows.values.length, knows.values.every((each) => each.value < knows.prediction.lo.value), knows.prediction.lo.value] : null).toEqual([false, 9, true, 24.98]);
+    for (const criterion of ["time to recover", "routes down"] as const) expect(scoreOf(flapping, criterion), criterion).toMatchObject({ kind: "measured", holds: true });
+    // on a black-holed shared dependency, the band of B is the band before the correction of kube-proxy, thus B knows in it
+    const dependency = column("a black-holed shared dependency").candidates[1]!;
+    for (const criterion of ["time until callers know", "time to recover", "routes down"] as const) expect(scoreOf(dependency, criterion), criterion).toMatchObject({ kind: "measured", holds: true });
+    expect([median(dependency, "routes down"), Math.round(median(dependency, "time until callers know") * 100) / 100]).toEqual([18.273, 12.67]);
+    // A, C and D of the dependencies have no cell in the run, thus no number
+    for (const name of ["a black-holed shared dependency", "a flapping dependency"] as const)
+      for (const candidate of column(name).candidates.filter((each) => each.label !== "B")) expect(candidate.scores.every((each) => each.kind === "not measured"), candidate.cell).toBe(true);
+    // the PINGs of D, from the Cilium run
+    const pings = (["a pod that cannot serve", "a partitioned pod", "a stalled pod (gray failure)", "a failed prober"] as const).map((name) => {
+      const score = scoreOf(column(name).candidates[3]!, "probe load");
+      return score.kind === "measured" && score.holds ? score.values.map((each) => each.value) : null;
+    });
+    expect(pings).toEqual([Array.from({ length: 11 }, () => 0), [2, 2, 2], [1, 2, 3], [0, 0, 0]]);
   });
 
   it("give the step 1 scores unchanged with one copy, and an incident with cells but no copy as not measured", () => {
