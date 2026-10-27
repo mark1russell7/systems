@@ -269,6 +269,8 @@ From 0.8.0, a prediction `ends` can be the end of the tunnel of each client (`of
 - The first request of each client after the heal must be `ok`, on a new tunnel. The main value is the middle of the ends, in `s`.
 - From 0.8.1, `ends` has the optional band `answer`. A change to CLOSE_WAIT in that band ± δ also agrees: the peer answers the close of the client, and its FIN comes first. Before the band, the peer closed first.
 
+In 0.12.0, `kubeProxy` of a scenario can be null, `cni` can be `cilium`, and the mode of a cell can be `cilium`. A reader of `kubeProxy.mode` breaks, thus this is a breaking change before 1.0.0. To migrate, examine `kubeProxy` for null, and read the mode from `dataplane`. The record format stays `/2`.
+
 The optional field `protocol` of a declaration, the type `EdgeProtocol` and the mode h2c of the lab image are new features. The optional field `sharedGate` of a declaration and the function `sharedGate` are new features. They keep the old behavior, thus their release is a patch. The record format stays `/2`.
 
 They keep the old behavior. Before `1.0.0`, a feature is a patch, thus the next version is `0.11.1`. The record format stays `/2`.
