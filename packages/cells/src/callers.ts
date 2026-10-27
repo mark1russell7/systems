@@ -932,8 +932,9 @@ export interface SlowPrediction {
  *   request each turn (160 ms). A request takes longer than a turn, thus the queue of each connection
  *   grows. With S the time of one request, request j waits j × (S − turn) for its start. The first
  *   request whose time is above the timeout fails. After it, each request in the queue is older than
- *   the timeout less one turn at its start, thus each one fails. A timeout ends its connection, and the
- *   next connection goes to a replica that is as slow. The lame duck of B does not fire, thus B is A.
+ *   the timeout less one turn at its start, thus each one fails.
+ * - A timeout ends its connection, and the next connection goes to a replica that is as slow. The
+ *   lame duck of B does not fire, thus B is A.
  * - After the heal, a request that starts gets its answer at once. The last failure is the request
  *   that started before the delay was zero: it is one timeout less one turn older than its start.
  * - C and D: each stream of a session waits for Redis on its own, thus no stream waits for another

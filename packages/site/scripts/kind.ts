@@ -436,8 +436,8 @@ const flappingTimesOf = (
 };
 
 /**
- * This function gives a time for each counted run of a slow dependency, in seconds: from the heal to
- * the start of the last failed request. It is below zero when that request starts before the heal. A
+ * This function gives a time for each counted run of a slow dependency, in seconds. The time goes
+ * from the heal to the start of the last failed request. It is below zero when that request starts before the heal. A
  * run with no failed request gives null.
  */
 const slowTimesOf = (runs: readonly KindRun[]): { recovers: Array<number | null> } => ({
