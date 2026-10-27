@@ -406,7 +406,7 @@ The S2 cells (`src/callers.ts`, `CALLERS_CELLS`) measure the dimension "how call
   - A: each connection stays open, thus A recovers when the readiness of the service recovers, up to 9.26 s after the heal.
   - B, C and D: the lame duck closes each connection, and the empty Service refuses each new one. Thus they recover only when the kubelet and the propagation add the replicas again, up to 11.57 s after the heal.
   - The time until callers know is the start of the last slow failure before the heal, 7.98 s to 22 s after the fault.
-- **The scores of S6** (`src/scores.ts`, `scoreCallers`). The function gives each candidate of each mode a score on each criterion of S6, from one copy of a kind run for each incident. A score is `measured`, `bounded` or `not measured`. A measured score has the prediction next to the values, and each score names its run and its cell. A criterion that the copy cannot support gives its reason and no number. The script `packages/site/scripts/scores.ts` writes the scorecard that the kind page shows.
+- **The scores of S6** (`src/scores.ts`, `scoreCallers`). The function gives each candidate of each mode a score on each criterion of S6, from one copy of a kind run for each incident. A score is `measured`, `bounded`, `derived` (a value of the code, for example 0 PINGs) or `not measured`. A measured score has the prediction next to the values, and each score names its run and its cell. A criterion that the copy cannot support gives its reason and no number. The script `packages/site/scripts/scores.ts` writes the scorecard that the kind page shows.
 
 ## The runner
 

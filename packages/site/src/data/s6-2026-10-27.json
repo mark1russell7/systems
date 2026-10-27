@@ -2,7 +2,7 @@
   "ranAt": "2026-10-27",
   "dimension": "how callers learn",
   "run": 40358038728,
-  "runs": [40358038728, 40380943331, 40394320219, 40406199754, 40419289511, 40430856093],
+  "runs": [40358038728, 40380943331, 40394320219, 40406199754, 40419289511, 40430856093, 40440516571],
   "criteria": [
     "time until callers know",
     "failed requests",
@@ -418,8 +418,42 @@
                 },
                 {
                   "criterion": "probe load",
-                  "kind": "not measured",
-                  "why": "No copy of a kind run counts the PINGs of the clients of this cell yet. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                  "kind": "measured",
+                  "median": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40440516571,
+                    "cell": "S2.T07.iptables.session-check",
+                    "decision": "holds",
+                    "counted": 3
+                  }
                 },
                 {
                   "criterion": "routes down",
@@ -835,8 +869,42 @@
                 },
                 {
                   "criterion": "probe load",
-                  "kind": "not measured",
-                  "why": "No copy of a kind run counts the PINGs of the clients of this cell yet. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                  "kind": "measured",
+                  "median": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40440516571,
+                    "cell": "S2.T07.ipvs.session-check",
+                    "decision": "holds",
+                    "counted": 3
+                  }
                 },
                 {
                   "criterion": "routes down",
@@ -1248,8 +1316,42 @@
                 },
                 {
                   "criterion": "probe load",
-                  "kind": "not measured",
-                  "why": "No copy of a kind run counts the PINGs of the clients of this cell yet. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                  "kind": "measured",
+                  "median": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40440516571,
+                    "cell": "S2.T07.nftables.session-check",
+                    "decision": "holds",
+                    "counted": 3
+                  }
                 },
                 {
                   "criterion": "routes down",
@@ -1718,8 +1820,42 @@
                 },
                 {
                   "criterion": "probe load",
-                  "kind": "not measured",
-                  "why": "No copy of a kind run counts the PINGs of the clients of this cell yet. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                  "kind": "measured",
+                  "median": {
+                    "value": 1,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 1,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 1,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 3,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 3,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40440516571,
+                    "cell": "S2.T07.iptables.session-check.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
                 },
                 {
                   "criterion": "routes down",
@@ -2180,8 +2316,42 @@
                 },
                 {
                   "criterion": "probe load",
-                  "kind": "not measured",
-                  "why": "No copy of a kind run counts the PINGs of the clients of this cell yet. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                  "kind": "measured",
+                  "median": {
+                    "value": 3,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 3,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 3,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 3,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 3,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40440516571,
+                    "cell": "S2.T07.ipvs.session-check.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
                 },
                 {
                   "criterion": "routes down",
@@ -2638,8 +2808,42 @@
                 },
                 {
                   "criterion": "probe load",
-                  "kind": "not measured",
-                  "why": "No copy of a kind run counts the PINGs of the clients of this cell yet. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                  "kind": "measured",
+                  "median": {
+                    "value": 1,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 1,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 2,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 3,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40440516571,
+                    "cell": "S2.T07.nftables.session-check.partition",
+                    "decision": "holds",
+                    "counted": 3
+                  }
                 },
                 {
                   "criterion": "routes down",
@@ -3104,8 +3308,42 @@
                 },
                 {
                   "criterion": "probe load",
-                  "kind": "not measured",
-                  "why": "No copy of a kind run counts the PINGs of the clients of this cell yet. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                  "kind": "measured",
+                  "median": {
+                    "value": 2,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 1,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 2,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 8,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 9,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40440516571,
+                    "cell": "S2.T07.iptables.session-check.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
                 },
                 {
                   "criterion": "routes down",
@@ -3566,8 +3804,42 @@
                 },
                 {
                   "criterion": "probe load",
-                  "kind": "not measured",
-                  "why": "No copy of a kind run counts the PINGs of the clients of this cell yet. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                  "kind": "measured",
+                  "median": {
+                    "value": 3,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 3,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 3,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 3,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 3,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40440516571,
+                    "cell": "S2.T07.ipvs.session-check.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
                 },
                 {
                   "criterion": "routes down",
@@ -4028,8 +4300,42 @@
                 },
                 {
                   "criterion": "probe load",
-                  "kind": "not measured",
-                  "why": "No copy of a kind run counts the PINGs of the clients of this cell yet. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                  "kind": "measured",
+                  "median": {
+                    "value": 1,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 1,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 3,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 9,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40440516571,
+                    "cell": "S2.T07.nftables.session-check.stall",
+                    "decision": "holds",
+                    "counted": 3
+                  }
                 },
                 {
                   "criterion": "routes down",
@@ -4619,8 +4925,42 @@
                 },
                 {
                   "criterion": "probe load",
-                  "kind": "not measured",
-                  "why": "No copy of a kind run counts the PINGs of the clients of this cell yet. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                  "kind": "measured",
+                  "median": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40440516571,
+                    "cell": "S2.T07.iptables.session-check.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
                 },
                 {
                   "criterion": "routes down",
@@ -5206,8 +5546,42 @@
                 },
                 {
                   "criterion": "probe load",
-                  "kind": "not measured",
-                  "why": "No copy of a kind run counts the PINGs of the clients of this cell yet. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                  "kind": "measured",
+                  "median": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40440516571,
+                    "cell": "S2.T07.ipvs.session-check.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
                 },
                 {
                   "criterion": "routes down",
@@ -5793,8 +6167,42 @@
                 },
                 {
                   "criterion": "probe load",
-                  "kind": "not measured",
-                  "why": "No copy of a kind run counts the PINGs of the clients of this cell yet. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                  "kind": "measured",
+                  "median": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40440516571,
+                    "cell": "S2.T07.nftables.session-check.prober",
+                    "decision": "holds",
+                    "counted": 3
+                  }
                 },
                 {
                   "criterion": "routes down",
@@ -6508,8 +6916,42 @@
                 },
                 {
                   "criterion": "probe load",
-                  "kind": "not measured",
-                  "why": "No copy of a kind run counts the PINGs of the clients of this cell yet. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                  "kind": "measured",
+                  "median": {
+                    "value": 44,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 33,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 44,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 51,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 126,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40440516571,
+                    "cell": "S2.T07.iptables.session-check.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
                 },
                 {
                   "criterion": "routes down",
@@ -7250,8 +7692,42 @@
                 },
                 {
                   "criterion": "probe load",
-                  "kind": "not measured",
-                  "why": "No copy of a kind run counts the PINGs of the clients of this cell yet. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                  "kind": "measured",
+                  "median": {
+                    "value": 45,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 33,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 45,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 47,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 126,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40440516571,
+                    "cell": "S2.T07.ipvs.session-check.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
                 },
                 {
                   "criterion": "routes down",
@@ -7988,8 +8464,42 @@
                 },
                 {
                   "criterion": "probe load",
-                  "kind": "not measured",
-                  "why": "No copy of a kind run counts the PINGs of the clients of this cell yet. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                  "kind": "measured",
+                  "median": {
+                    "value": 45,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 33,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 45,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 51,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 126,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40440516571,
+                    "cell": "S2.T07.nftables.session-check.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
                 },
                 {
                   "criterion": "routes down",

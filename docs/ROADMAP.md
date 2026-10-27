@@ -140,6 +140,8 @@ On 2026-10-17, Mark decided the design of the server stack (D1 to D18). These de
 
 [PR #211](https://github.com/mark1russell7/systems/pull/211) scores a fifth incident: a black-holed shared dependency. Redis gates the readiness of both replicas, and it is black-holed for 27 s. Kind run [40430856093](https://github.com/mark1russell7/systems/actions/runs/40430856093) held 11 of the 12 cells in 3 of 3 runs, against the prediction of commit bbe898e. B had the fewest failed requests in each mode and recovered first. B, C and D failed slowly on the empty Service until the heal, thus their time until callers know misses its band. Readiness follows the dependency, and the defaults do not change ([S6.md](S6.md#unified-or-separate-how-callers-learn)).
 
+[PR #214](https://github.com/mark1russell7/systems/pull/214) scores the probe load. A, B and C send no PING by their code, thus their score is 0, from the code. The session check of D sends 2 PINGs each second for each session at the most. It sends them only while the session is quiet with a stream in flight. Kind run [40440516571](https://github.com/mark1russell7/systems/actions/runs/40440516571) held each of the 15 cells of D in 3 of 3 runs. Each count of PINGs was in the band of commit 47909ad, with 51 PINGs in a run at the most. The check stays an opt-in, because the package has no client of HTTP/2 and no caller of the fleet uses one ([S6.md](S6.md#the-probe-load-of-the-session-check)).
+
 ## The server stack in S6
 
 These items are the part of the server stack in this repository. The server stack is a plan across repositories: one service runner here, and one procedures server in the client. [Its tracker](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb) has the whole plan, with the same ids.

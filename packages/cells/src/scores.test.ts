@@ -13,6 +13,8 @@ const checkedPartition = read<{ readonly cells: readonly CallerResult[] }>("s2-p
 const stall = read<{ readonly cells: readonly CallerResult[] }>("s2-stall-2026-10-26.json");
 const prober = read<{ readonly cells: readonly CallerResult[] }>("s2-prober-2026-10-26.json");
 const dependency = read<{ readonly cells: readonly CallerResult[] }>("s2-dependency-2026-10-27.json");
+// the copies of the run that counts the PINGs of D, for each incident
+const loads = ["s2-load", "s2-partition-load", "s2-stall-load", "s2-prober-load", "s2-dependency-load"].map((name) => read<{ readonly cells: readonly CallerResult[] }>(`${name}-2026-10-27.json`));
 const s6 = read<Scorecard & { readonly ranAt: string }>("s6-2026-10-27.json");
 const RUN = 40358038728;
 const PARTITION_RUN = 40380943331;
@@ -20,6 +22,7 @@ const CHECK_RUN = 40394320219;
 const STALL_RUN = 40406199754;
 const PROBER_RUN = 40419289511;
 const DEPENDENCY_RUN = 40430856093;
+const LOAD_RUN = 40440516571;
 const card = scoreCallers(
   { run: RUN, cells: s2.cells },
   { run: PARTITION_RUN, cells: partition.cells },
@@ -28,6 +31,7 @@ const card = scoreCallers(
   { run: STALL_RUN, cells: stall.cells },
   { run: PROBER_RUN, cells: prober.cells },
   { run: DEPENDENCY_RUN, cells: dependency.cells },
+  ...loads.map((each) => ({ run: LOAD_RUN, cells: each.cells })),
 );
 
 const scoredOf = (scorecard: Scorecard, name: Incident): readonly ModeScores[] => {
@@ -51,7 +55,7 @@ const median = (candidate: CandidateScores, criterion: Score["criterion"] = "fai
   return score.median.value;
 };
 
-describe("the scores of how callers learn, from the copies of kind runs 40358038728, 40380943331, 40394320219, 40406199754, 40419289511 and 40430856093", () => {
+describe("the scores of how callers learn, from the copies of kind runs 40358038728, 40380943331, 40394320219, 40406199754, 40419289511, 40430856093 and 40440516571", () => {
   it("are the scorecard that the site shows", () => {
     const { ranAt, ...shown } = s6;
     expect(ranAt).toBe("2026-10-27");
@@ -60,7 +64,7 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
 
   it("give each candidate of each mode a score on each criterion, with the run and the cell as evidence", () => {
     // the copies of run 40394320219 add D to each incident, and A, B and C keep the evidence of their own runs
-    expect([card.run, card.runs]).toEqual([RUN, [RUN, PARTITION_RUN, CHECK_RUN, STALL_RUN, PROBER_RUN, DEPENDENCY_RUN]]);
+    expect([card.run, card.runs]).toEqual([RUN, [RUN, PARTITION_RUN, CHECK_RUN, STALL_RUN, PROBER_RUN, DEPENDENCY_RUN, LOAD_RUN]]);
     expect(card.incidents.map((each) => each.incident)).toEqual(INCIDENTS);
     for (const [modes, run, tail] of [
       [scored(card), RUN, ""],
@@ -80,8 +84,10 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
           const evidence = candidate.label === "D" && run !== STALL_RUN && run !== PROBER_RUN && run !== DEPENDENCY_RUN ? CHECK_RUN : run;
           // the gap: one run of B in nftables recovered before its window could end
           const decision = candidate.cell === "S2.T07.nftables.lame-duck.dependency" ? "fails" : "holds";
+          // the PINGs of D come from the run that counts them, and each of its cells held
           for (const score of candidate.scores)
-            if (score.kind === "measured" || score.kind === "bounded") expect(score.evidence, candidate.cell).toEqual({ run: evidence, cell: candidate.cell, decision, counted: 3 });
+            if (score.kind === "measured" || score.kind === "bounded")
+              expect(score.evidence, candidate.cell).toEqual(score.criterion === "probe load" ? { run: LOAD_RUN, cell: candidate.cell, decision: "holds", counted: 3 } : { run: evidence, cell: candidate.cell, decision, counted: 3 });
         }
       }
     }
@@ -293,17 +299,33 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
     expect(rest).toEqual(INCIDENTS.slice(5));
   });
 
-  it("give A, B and C zero PINGs from the code, and D no number until a run counts its PINGs", () => {
-    for (const modes of [scored(card), partitioned(card), stalled(card), probed(card), depended(card)])
+  it("give A, B and C zero PINGs from the code, and the PINGs of D from the run that counts them", () => {
+    const pings: number[][][] = [];
+    for (const modes of [scored(card), partitioned(card), stalled(card), probed(card), depended(card)]) {
+      pings.push([]);
       for (const mode of modes)
         for (const candidate of mode.candidates) {
           const score = scoreOf(candidate, "probe load");
           if (candidate.label === "D") {
-            expect(score, candidate.cell).toMatchObject({ kind: "not measured" });
+            // each counted run of each cell of D is in the band of commit 47909ad
+            expect(score.kind === "measured" ? [score.holds, score.values.length] : null, candidate.cell).toEqual([true, 3]);
+            pings.at(-1)!.push(score.kind === "measured" ? score.values.map((each) => each.value) : []);
             continue;
           }
           expect(score.kind === "derived" ? [score.value, score.why.length > 0] : null, candidate.cell).toEqual([{ value: 0, unit: "{ping}" }, true]);
         }
+    }
+    // the values of each score are in order
+    expect(pings).toEqual([
+      [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
+      [[1, 1, 3], [3, 3, 3], [0, 1, 2]],
+      [[1, 2, 8], [3, 3, 3], [0, 1, 3]],
+      [[0, 0, 0], [0, 0, 0], [0, 0, 0]],
+      [[33, 44, 51], [33, 45, 47], [33, 45, 51]],
+    ]);
+    // without the copies of the PINGs, D has no number
+    const without = scoreCallers({ run: RUN, cells: s2.cells }, { run: CHECK_RUN, cells: checked.cells });
+    for (const mode of scored(without)) expect(scoreOf(mode.candidates[3]!, "probe load"), mode.mode).toMatchObject({ kind: "not measured" });
   });
 
   it("predict the PINGs of D in each incident before a run counts them", () => {
