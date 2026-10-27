@@ -3,8 +3,10 @@
 // `/1`, the verdict and the report. It loads no Docker, no Testcontainers, no child process and no
 // `node:` module, thus a program that only reads records can use it, in a browser too.
 
-export { bandOf, seconds, secondsOf, showBand } from "./bands.ts";
+export type { CountBand } from "./bands.ts";
+export { backlogEnd, bandOf, requestBand, seconds, secondsOf, showBand } from "./bands.ts";
 export type {
+  BacklogTerm,
   Band,
   Cycle,
   Declaration,

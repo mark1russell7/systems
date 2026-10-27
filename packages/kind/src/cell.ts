@@ -428,7 +428,34 @@ export interface WindowPrediction<A = Quantity> {
   readonly flaps?: boolean | undefined;
   /** These outcomes are the only failures that the window permits. A failure with another outcome fails the run. Without them, each outcome but `ok` can fail. */
   readonly outcomes?: readonly string[] | undefined;
+  /**
+   * This term is the backlog of a stalled target after its resume (`BacklogTerm`). With it, the
+   * judge adds n × d to each end of the end band, and it counts the failed requests of the run. The
+   * value n is the sessions on the target at the fault (`sessions` of the facts). Without it, the
+   * window has no such term, and the judge does not count the failed requests.
+   */
+  readonly backlog?: BacklogTerm<A> | undefined;
   readonly why: string;
+}
+
+/**
+ * The backlog term (SYS-40, SYS-42) is what a stalled target does after its resume. It drains a
+ * backlog from each of its sessions. Thus a stream that started up to d after the band end for each
+ * session also fails. With n sessions on the target, the window closes n × d after the band end.
+ * The failed requests are the requests of the n sessions from the start of the window to the band
+ * end, and n × r more.
+ *
+ * The judge counts the requests from the measured period of the clients (`period` of the facts), not
+ * from `every`. The timer of a client is late, thus its mean period is longer than its setting.
+ * Each session of a client gets a request each `connections` periods (`requestBand`).
+ */
+export interface BacklogTerm<A = Quantity> {
+  /** This band is d: the drain time of one session on the target after the resume. */
+  readonly drain: Band<A>;
+  /** These counts are r: the requests of one session on the target that fail in its drain time. */
+  readonly requests: { readonly lo: number; readonly hi: number };
+  /** This count is the most sessions on the target in a run. The observation of a run waits for their drain. */
+  readonly most: number;
 }
 
 /** A replica is one pod of the service at the start of a run. */

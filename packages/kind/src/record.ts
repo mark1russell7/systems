@@ -92,13 +92,15 @@ const upgradeTrigger = (trigger: TriggerV1): Trigger => {
 };
 
 const upgradeWindow = (window: WindowPrediction<number>): WindowPrediction => {
-  const { afterReset, propagation, ...rest } = window;
+  const { afterReset, propagation, backlog, ...rest } = window;
   return {
     ...rest,
     start: { from: window.start.from, band: band(window.start.band) },
     end: window.end === null ? null : { from: window.end.from, band: band(window.end.band) },
     ...(afterReset === undefined ? {} : { afterReset: { life: seconds(afterReset.life), outcome: afterReset.outcome } }),
     ...(propagation === undefined ? {} : { propagation: band(propagation) }),
+    // the format /1 has no backlog term, but its type does
+    ...(backlog === undefined ? {} : { backlog: { ...backlog, drain: band(backlog.drain) } }),
   };
 };
 

@@ -159,6 +159,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     propagation: band.optional(),
     flaps: z.boolean().optional(),
     outcomes: z.array(z.string()).optional(),
+    backlog: z.object({ drain: band, requests: z.object({ lo: count, hi: count }), most: count }).optional(),
     why: z.string(),
   });
   const none = z.object({ kind: z.literal("none"), outcomes: z.array(z.string()).optional(), why: z.string() });

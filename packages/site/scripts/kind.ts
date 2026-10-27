@@ -26,17 +26,17 @@ import { fileURLToPath } from "node:url";
 import type { Quantity } from "../../quantity/src/index.ts";
 import { valueIn } from "../../quantity/src/index.ts";
 import type { KindCell, KindCellRecord, KindCellRecordV1, KindRun, KindVerdict, Prediction, Reference, TimeSpread } from "../../kind/src/index.ts";
-import { FORMAT, FORMAT_V1, calibrationOf, cyclesOf, judgeKind, propagationOf, referenceOf, upgrade } from "../../kind/src/index.ts";
+import { FORMAT, FORMAT_V1, calibrationOf, cyclesOf, judgeKind, propagationOf, referenceOf, requestBand, seconds, upgrade } from "../../kind/src/index.ts";
 import { T07_CELLS } from "../../cells/src/t07.ts";
 import { T18_CELLS } from "../../cells/src/t18.ts";
 import { T15_GRPC } from "../../cells/src/grpc/t15.ts";
 import { CALLERS_CELLS, callerFaultOf } from "../../cells/src/callers.ts";
 import { GATE_CELLS } from "../../cells/src/gate.ts";
-import { BACKLOG_CELLS, backlogOf } from "../../cells/src/backlog.ts";
+import { BACKLOG_BAND_CELLS, BACKLOG_CELLS } from "../../cells/src/backlog.ts";
 import type { Line } from "../../kind/src/observe.ts";
 import { failuresOf, slicesOf } from "../../kind/src/observe.ts";
 import { SERVER } from "../../kind/src/names.ts";
-import { backlogPredictions, callerPredictions, candidateOf } from "./callers.ts";
+import { backlogPredictionOf, backlogPredictions, callerPredictions, candidateOf } from "./callers.ts";
 import type { Found } from "./records.ts";
 import { dateOf, only, readFolders, runnerOf, round, stringify, time, timeAt } from "./records.ts";
 
@@ -65,7 +65,7 @@ interface Summary {
   readonly median: number | Quantity | null;
 }
 
-const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T15_GRPC, ...CALLERS_CELLS, ...GATE_CELLS, ...BACKLOG_CELLS];
+const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T15_GRPC, ...CALLERS_CELLS, ...GATE_CELLS, ...BACKLOG_CELLS, ...BACKLOG_BAND_CELLS];
 // A later folder replaces the run of each cell of the same id, also when the cell has a new name.
 const found = new Map<string, Found<KindRecord, Summary>>();
 for (const folder of folders)
@@ -158,6 +158,10 @@ const predictionOf = (cell: KindCell) => {
       if (p.nodes === "paused") parts.push("Only the clients of the paused node fail.");
       if (p.certain) parts.push("At least one request fails.");
       if (p.outcomes !== undefined) parts.push(`Each failed request ends with ${listed(p.outcomes.map(outcome))}.`);
+      if (p.backlog !== undefined)
+        parts.push(
+          `With n sessions on the target at the fault, the window closes n × ${time(s(p.backlog.drain.lo))} to n × ${time(s(p.backlog.drain.hi))} later. The failed requests are those of the n sessions up to the end of the window without this term, at the measured mean period of the clients, and ${p.backlog.requests.lo} to ${p.backlog.requests.hi} more for each session.`,
+        );
       if (p.afterReset !== undefined)
         parts.push(
           `A request after the window can also fail with a ${p.afterReset.outcome}, on a port that a reset of the same client closed up to ${time(s(p.afterReset.life))} before it: the CLOSE entry of that reset keeps its NAT to the pod.`,
@@ -271,6 +275,14 @@ const DISAGREE: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => stri
       return `${total} requests failed: ${listed(outcomes.map(([name, n]) => `${n} with ${outcome(name)}`))}`;
     },
   ],
+  // the count of the backlog term (SYS-42): the band of n sessions at the mean period of the run
+  [
+    /^(\d+) failed requests, outside the count \[(\d+), (\d+)\] of (\d+) sessions? on the target at a mean period of ([\d.]+) ms$/,
+    (match) =>
+      `${of(Number(match[1]), "request")} failed, outside the count of ${Number(match[2]).toLocaleString("en-US")} to ${Number(match[3]).toLocaleString("en-US")} for ${of(Number(match[4]), "session")} on the target at the mean period of ${match[5]} ms of the run`,
+  ],
+  [/^the run has no measured period, thus the backlog term cannot count its failed requests$/, () => "the run has no measured period of the clients, thus the backlog band cannot count its failed requests"],
+  [/^the run has no sessions on the target at the fault, thus the backlog term has no n$/, () => "the run has no count of the sessions on the target at the fault"],
 ];
 const disagreeOf = (why: string): string =>
   `${why
@@ -516,15 +528,31 @@ const pingsOf = (runs: readonly KindRun[]): { pings: Array<number | null>; acks:
  * of the last failed request, in seconds. A run with no such figure gives null.
  */
 const backlogRunsOf = (cell: KindCell, verdict: KindVerdict) => {
-  const onTarget = cell.workload.onTarget;
-  if (onTarget === undefined) throw new Error(`${cell.name}: a cell of the backlog has a placement`);
-  const bandEnd = s(backlogOf(cell.mode, onTarget).bandEnd);
+  const predicted = backlogPredictionOf(cell);
+  if (predicted === null) throw new Error(`${cell.name}: a cell of the backlog has a placement`);
+  const bandEnd = s(predicted.bandEnd);
+  // a cell of the backlog band (SYS-42) also gives the measured mean period of each run, and the count band at it
+  const window = cell.prediction.kind === "window" ? cell.prediction : null;
+  const term = window?.backlog;
+  const band = (check: KindVerdict["checks"][number]) => {
+    const mean = check.facts.period?.mean;
+    const n = check.facts.sessions?.onTarget;
+    if (window === null || term === undefined || window.end === null || mean === undefined || n === undefined) return null;
+    const count = requestBand(term, seconds(s(window.end.band.hi) - s(window.start.band.lo)), mean, cell.workload.connections ?? 1, n);
+    return { low: count.lo, high: count.hi };
+  };
   return {
     failures: verdict.checks.map((check) => check.facts.failures),
     sessions: verdict.checks.map((check) => check.facts.sessions?.onTarget ?? null),
     stallStarts: verdict.checks.map((check) => (check.facts.stall?.start === null || check.facts.stall?.start === undefined ? null : round(s(check.facts.stall.start)))),
     helds: verdict.checks.map((check) => (check.facts.stall?.held === null || check.facts.stall?.held === undefined ? null : round(s(check.facts.stall.held)))),
     bandEnd,
+    ...(term === undefined
+      ? {}
+      : {
+          periods: verdict.checks.map((check) => (check.facts.period === undefined ? null : s(check.facts.period.mean))),
+          counts: verdict.checks.map(band),
+        }),
   };
 };
 
@@ -651,7 +679,7 @@ for (const name of names) {
                   : name === "s2-slow"
                     ? { predictions: callerPredictions("slow dependency") }
                     : name === "s2-backlog"
-                      ? { predictions: backlogPredictions() }
+                      ? { predictions: backlogPredictions(mine.some((cell) => cell.id.includes(".backlog-band.")) ? BACKLOG_BAND_CELLS : BACKLOG_CELLS) }
                       : {};
   writeFileSync(out, stringify({ ...copy, cells: mine.map(({ copy: _copy, ...cell }) => cell), ...predictions }));
   process.stdout.write(`${mine.length} cells, ${mine.reduce((sum, cell) => sum + cell.counted + cell.voided, 0)} runs: ${out}\n`);
