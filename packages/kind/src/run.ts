@@ -11,7 +11,7 @@ import { CILIUM_IMAGES, CILIUM_VERSION, installCilium } from "./cilium.ts";
 import type { Cluster } from "./cluster.ts";
 import { command, createCluster } from "./cluster.ts";
 import type { Step, Target } from "./faults.ts";
-import { NODE, POD, POD_LINK, VERSION, deletes as deletesAPod, faultSpan, middleboxCommands, planOf, sysctlCommand } from "./faults.ts";
+import { NODE, POD, POD_LINK, VERSION, deletes as deletesAPod, faultSpan, middleboxCommands, placementOf, planOf, sysctlCommand } from "./faults.ts";
 import { labImage } from "./image.ts";
 import type { MeshImages } from "./istio.ts";
 import { EDS_EVERY, ISTIO_IMAGES, LDS_EVERY, MESH_IMAGES, followsZtunnel, installMesh, meshKey, pollsListeners, serverCluster, setZtunnelEnv, ztunnelCertificates } from "./istio.ts";
@@ -400,6 +400,29 @@ const signalClients = async (ctx: Context, signal: string): Promise<Stamp> => {
   return { t0: Math.min(...stamps.map((stamp) => stamp.t0)), t1: Math.max(...stamps.map((stamp) => stamp.t1)) };
 };
 
+/** This path in the root of a client container holds its placement: the backend of each of its slots, as JSON. */
+const PLACE_FILE = "/tmp/lab-place";
+
+/**
+ * This function writes the placement of the sessions of each client pod (`placementOf`). The target
+ * is the first replica, and the other slots go to the other replicas. The next SIGHUP of the clients
+ * reads it. The nodes go at the same time, and the stamp is the first act and the last end.
+ */
+const placeClients = async (ctx: Context, onTarget: number, replicas: readonly Replica[]): Promise<Stamp> => {
+  const connections = ctx.cell.workload.connections;
+  if (connections === undefined) throw new Error("a placement needs the sessions of each client (connections)");
+  const clients = [...ctx.tracker.pods.values()].filter((pod) => pod.labels["app"] === CLIENT && !pod.del && pod.node !== null);
+  if (clients.length === 0 || replicas.length === 0) throw new Error(`a placement needs clients and replicas: ${clients.length} clients, ${replicas.length} replicas`);
+  const placement = placementOf(clients.map((pod) => pod.name), connections, onTarget, replicas[0]!.pod, replicas.slice(1).map((replica) => replica.pod));
+  const stamps = await Promise.all(
+    clients.map(async (pod) => {
+      const pid = await ctx.lab.pidOf(pod.node!, ctx.namespace, pod.name, CLIENT);
+      return ctx.lab.act(pod.node!, { op: "write", path: `/proc/${pid}/root${PLACE_FILE}`, data: JSON.stringify(placement.get(pod.name)) });
+    }),
+  );
+  return { t0: Math.min(...stamps.map((stamp) => stamp.t0)), t1: Math.max(...stamps.map((stamp) => stamp.t1)) };
+};
+
 /**
  * This function gives the network namespace of each pod of a target, as a node and a PID in it. The
  * pods are each client pod (`clients`), or each replica (`servers`).
@@ -541,6 +564,8 @@ const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], ba
     case "zone":
       // the agent of the lost node is in its own container, thus the freeze of the node does not stop it
       return lab.act(lostNodeOf(cluster), { op: "zone", lost: step.lost });
+    case "place":
+      return placeClients(ctx, step.onTarget, replicas);
     case "netem": {
       if (step.target !== "redis") throw new Error(`a netem takes the target redis, not ${step.target}`);
       // one qdisc on the link of the Redis pod delays each reply to each replica

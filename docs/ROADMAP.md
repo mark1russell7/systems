@@ -814,7 +814,7 @@ The review of SYS-22 found that a server transport and a dependency with one nam
 
 ### SYS-40 · The backlog after a resume, from the sessions on the target
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** S2, KIND
 - **Started:** 2026-10-27
@@ -829,6 +829,10 @@ The term: with n sessions on the target, the window of a stall closes up to n ×
 The first test is a cell of C of the stall with 1, 2, 3 and 6 sessions on the target. It records the sessions on the target in each run. The prediction: the value d is 40 ms to 70 ms, and the value r is 0 to 3 requests. Thus with 1 session, the last failure comes 40 ms to 70 ms after the band end. With 6 sessions, it comes 240 ms to 420 ms after it. The decision rule: if the overshoot with 6 sessions is more than 420 ms, the term is not linear in n. Then the next band adds a new term.
 
 The bands of the test and its fleet entry are committed before the dispatch. The old bands stay as committed.
+
+The cells are `BACKLOG_CELLS` in `packages/cells/src/backlog.ts`. Each client has 2 sessions and sends a request each 10 ms. Thus each session gets a request each 20 ms, as the one session of C does.
+
+The new `onTarget` field of the workload gives the sessions on the target. Before the SIGHUP of the clients, the lab writes the backend of each session to each client. The client then opens each session again until its first answer comes from that backend. Each run records the sessions on the target at the fault (`sessions` of its facts), and the start and the hold of the stall (`stall`).
 
 ## The systems of S1
 

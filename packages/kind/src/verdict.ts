@@ -3,7 +3,7 @@ import { valueIn } from "@mark1russell7/quantity";
 import { seconds, secondsOf } from "./bands.ts";
 import type { Cycle, KindCell, KindRun, Prediction, Reference, ResetReuse, WindowPrediction } from "./cell.ts";
 import { PORT, SERVER } from "./names.ts";
-import type { Line, PropagationSource, Request } from "./observe.ts";
+import type { Line, PropagationSource, Request, Sessions } from "./observe.ts";
 import {
   HBONE_PORT,
   backendsAt,
@@ -18,6 +18,7 @@ import {
   podsOf,
   requestsOf,
   restartOf,
+  sessionsAt,
   signalsOf,
   sliceDropOf,
   sliceEmptyOf,
@@ -94,6 +95,16 @@ export interface RunFacts<A = Quantity> {
    * ready endpoint again, after the heal of the cycle. A time that the run does not have is null.
    */
   readonly cycles?: ReadonlyArray<{ readonly empty: A | null; readonly ready: A | null }> | undefined;
+  /**
+   * These are the sessions of the clients at the fault (`sessionsAt`): those on the target, of all,
+   * and those on the target by client. A run of a workload with kept connections and a target has them.
+   */
+  readonly sessions?: Sessions | undefined;
+  /**
+   * This is the stall of the target (`app-stall`): its start after the fault, and how long its loop
+   * stayed blocked. The app writes a line at each end of the stall. A run with no such line gives null.
+   */
+  readonly stall?: { readonly start: A | null; readonly held: A | null } | undefined;
 }
 
 /** A deleted replica is a replica of a run that got a deletion. It gives its pod, and the stamps of its intake (or null) and of its deletion. */
@@ -366,6 +377,27 @@ export const factsOf = (cell: KindCell, run: KindRun): RunFacts => {
     propagation: propagationOf(run, from, undefined, propagationSource(cell)),
     ...(eachOf(cell.prediction) ? { deletions: deletionsOf(run) } : {}),
     ...(listens(cell) ? { updates: updatesOf(run, run.acts.fault), healUpdates: updatesOf(run, run.acts.heal) } : {}),
+    ...(cell.workload.connections !== undefined && run.target !== null && run.acts.fault !== null
+      ? { sessions: sessionsAt(lines, run.acts.fault, run.target.pod, cell.workload.connections) }
+      : {}),
+    ...(cell.trigger.kind === "app-stall" ? { stall: stallFactOf(run) } : {}),
+  };
+};
+
+/**
+ * This function gives the stall of the target in a run: the start of its line `stall` after the
+ * fault, and the time that the app gives in its end line (`held`). A time that the run does not have is null.
+ */
+const stallFactOf = (run: KindRun): { readonly start: Quantity | null; readonly held: Quantity | null } => {
+  const fault = run.acts.fault;
+  const pod = run.target?.pod;
+  const mine = (run.lines as readonly Line[]).filter((line) => line.ev === "stall" && (pod === undefined || line["p"] === pod) && line.t >= run.start);
+  const start = mine.find((line) => line["phase"] === "start");
+  const end = mine.find((line) => line["phase"] === "end");
+  const held = end === undefined ? undefined : Number(end["held"]);
+  return {
+    start: start === undefined || fault === null ? null : seconds(sec(start.t - fault)),
+    held: held === undefined || !Number.isFinite(held) ? null : seconds(sec(held)),
   };
 };
 

@@ -39,6 +39,7 @@ const STAGED = [
   "eds.ts",
   "lds.ts",
   "client-lines.ts",
+  "place.ts",
 ];
 
 describe("the lab image", () => {

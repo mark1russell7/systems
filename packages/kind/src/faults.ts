@@ -79,7 +79,13 @@ export type Step =
    * packets in the queue keep their time. With `delay` null, the step removes the qdisc and each
    * packet in it. Only the target `redis` takes it.
    */
-  | { readonly do: "netem"; readonly target: Target; readonly delay: Quantity | null };
+  | { readonly do: "netem"; readonly target: Target; readonly delay: Quantity | null }
+  /**
+   * This step writes the placement of the sessions of each client pod (`placementOf`): the backend of
+   * each slot. `onTarget` of the sessions of all clients go to the target. The next SIGHUP of the
+   * clients opens each slot again until its first answer comes from its backend.
+   */
+  | { readonly do: "place"; readonly onTarget: number };
 
 /**
  * A fault plan is the steps of a run:
@@ -246,12 +252,48 @@ export const middleboxCommands = (peers: readonly string[], idle: Quantity | nul
 const linkOf = (cell: KindCell): Target => (cell.trigger.partition === true ? "server" : cell.template === "T15" ? "servers" : "redis");
 
 /**
+ * This function gives the placement of the sessions of the clients: the backend of each slot of each
+ * client, by client. The clients come in the sequence of their names. The sessions on the target go
+ * one to each client in turn: the first slot of each client, then the second slot of each client. Thus
+ * no client has two more sessions on the target than another. The other slots go to the other
+ * replicas in turn.
+ */
+export const placementOf = (clients: readonly string[], connections: number, onTarget: number, target: string, others: readonly string[]): Map<string, string[]> => {
+  if (!Number.isInteger(connections) || connections < 1) throw new RangeError(`a placement needs one session of each client at the least, not ${connections}`);
+  if (!Number.isInteger(onTarget) || onTarget < 0 || onTarget > clients.length * connections)
+    throw new RangeError(`${onTarget} sessions on the target is not a count of the ${clients.length * connections} sessions of the clients`);
+  if (others.length === 0 && onTarget < clients.length * connections) throw new RangeError("a session off the target needs another replica");
+  const sorted = [...clients].sort((a, b) => a.localeCompare(b));
+  let other = 0;
+  return new Map(
+    sorted.map((client, at) => [
+      client,
+      Array.from({ length: connections }, (_, slot) => (slot * sorted.length + at < onTarget ? target : others[other++ % others.length]!)),
+    ]),
+  );
+};
+
+/**
+ * This function puts the step `place` before the first SIGHUP of the clients, for a workload with a
+ * placement (`Workload.onTarget`). A plan with no such SIGHUP cannot place the sessions.
+ */
+const placed = (cell: KindCell, plan: FaultPlan): FaultPlan => {
+  const onTarget = cell.workload.onTarget;
+  if (onTarget === undefined) return plan;
+  if (cell.workload.connections === undefined) throw new Error(`${cell.name}: a placement needs the sessions of each client (connections)`);
+  const prepare = plan.prepare ?? [];
+  const at = prepare.findIndex((step) => step.do === "signal" && step.target === "clients" && step.signal === "SIGHUP");
+  if (at === -1) throw new Error(`${cell.name}: the trigger ${cell.trigger.kind} has no SIGHUP of the clients before its fault, thus it cannot place the sessions`);
+  return { ...plan, prepare: [...prepare.slice(0, at), { do: "place", onTarget }, ...prepare.slice(at)] };
+};
+
+/**
  * This function gives the fault plan of a cell. A trigger with flaps (`Trigger.flaps`) gives them to
  * its plan: the runner then does the inject and the heal again for each flap. A plan with no hold or
  * no heal cannot flap.
  */
 export const planOf = (cell: KindCell): FaultPlan => {
-  const plan = stepsOf(cell);
+  const plan = placed(cell, stepsOf(cell));
   const flaps = cell.trigger.flaps;
   if (flaps === undefined || flaps.length === 0) return plan;
   if (plan.hold === null || plan.heal.length === 0) throw new Error(`the trigger ${cell.trigger.kind} has no hold and heal, thus it cannot flap`);

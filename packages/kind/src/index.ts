@@ -32,6 +32,7 @@ export {
   deletes,
   faultSpan,
   middleboxCommands,
+  placementOf,
   planOf,
   policyObject,
   sysctlCommand,

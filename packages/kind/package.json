@@ -52,6 +52,7 @@
     "src/eds.ts",
     "src/lds.ts",
     "src/client-lines.ts",
+    "src/place.ts",
     "README.md",
     "LICENSE"
   ],

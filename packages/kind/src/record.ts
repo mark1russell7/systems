@@ -144,7 +144,7 @@ export const upgradeCell = (cell: KindCellV1): KindCell => ({
 const upgradeFacts = (facts: RunFactsV1): RunFacts => {
   const propagated = (old: Propagated<number> | null): Propagated | null => (old === null ? null : { after: time(old.after), by: seconds(old.by) });
   const byKey = (record: Readonly<Record<string, Propagated<number> | null>>) => Object.fromEntries(Object.entries(record).map(([key, old]) => [key, propagated(old)]));
-  const { sliceEmpty, rules, left, signals, updates, healUpdates, closes, cycles, ...rest } = facts;
+  const { sliceEmpty, rules, left, signals, updates, healUpdates, closes, cycles, stall, ...rest } = facts;
   return {
     ...rest,
     intakeAfterDeletion: time(facts.intakeAfterDeletion),
@@ -158,6 +158,7 @@ const upgradeFacts = (facts: RunFactsV1): RunFacts => {
     ...(signals === undefined ? {} : { signals: signals.map((old) => time(old)) }),
     ...(closes === undefined ? {} : { closes: Object.fromEntries(Object.entries(closes).map(([client, old]) => [client, time(old)])) }),
     ...(cycles === undefined ? {} : { cycles: cycles.map((old) => ({ empty: time(old.empty), ready: time(old.ready) })) }),
+    ...(stall === undefined ? {} : { stall: { start: time(stall.start), held: time(stall.held) } }),
   };
 };
 

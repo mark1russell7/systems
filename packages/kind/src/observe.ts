@@ -176,6 +176,36 @@ export const byClients = <T extends { readonly pod: string }>(replicas: readonly
   return [...replicas].sort((a, b) => count(b.pod) - count(a.pod) || a.pod.localeCompare(b.pod));
 };
 
+/** These are the sessions of the clients at an instant: those on the target, of all, and those on the target by client. */
+export interface Sessions {
+  readonly onTarget: number;
+  readonly of: number;
+  readonly byClient: Readonly<Record<string, number>>;
+}
+
+/**
+ * This function gives the sessions of the clients at an instant (`at`), and how many of them are on
+ * the target pod. A client sends each request on its next session in turn. Thus its last `connections`
+ * requests that started before the instant name its sessions, each by its local port. The backend of
+ * a session is the body of the last answer on its port before the instant: the name of the pod. A
+ * session with no such answer is not on the target. A request with no port names no session.
+ */
+export const sessionsAt = (lines: readonly Line[], at: number, target: string, connections: number): Sessions => {
+  const before = requestsOf(lines)
+    .filter((request) => request.t < at)
+    .sort((a, b) => a.t - b.t);
+  const byClient: Record<string, number> = {};
+  let of = 0;
+  for (const client of [...new Set(before.map((request) => request.p))].sort()) {
+    const mine = before.filter((request) => request.p === client);
+    const ports = new Set(mine.slice(-connections).flatMap((request) => (typeof request.lp === "number" ? [request.lp] : [])));
+    const backend = (port: number): string | undefined => mine.filter((request) => request.lp === port && request.o === "ok" && request.b !== undefined).at(-1)?.b;
+    byClient[client] = [...ports].filter((port) => backend(port) === target).length;
+    of += ports.size;
+  }
+  return { onTarget: Object.values(byClient).reduce((sum, count) => sum + count, 0), of, byClient };
+};
+
 /** This function gives the requests of each node, by the name of the node. */
 export const byNode = (requests: readonly Request[]): Map<string, Request[]> => {
   const out = new Map<string, Request[]>();
