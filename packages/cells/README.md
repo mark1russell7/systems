@@ -417,6 +417,13 @@ The S2 cells (`src/callers.ts`, `CALLERS_CELLS`) measure the dimension "how call
   - A knows at the latch, 7.98 s to 22 s after each fault. B, C and D fail slowly until each heal, 24.98 s to 27.5 s after each fault. Their last failure can start up to 2 s before the heal.
   - The removal checks the empty Service after each fault, and a ready Service with its backends at each later fault.
   - The rest is longer than the latest recovery after a heal. Thus each fault starts from a steady state.
+- **A lost zone** (`S2.T07.<mode>.<candidate>.zone`). The cells of a pod that cannot serve, on a cluster with a zone label on each node. The last worker is the only node of zone-b, and the zone spread puts one replica on it. The clients are only in zone-a (`ZONE_CLIENTS`). The trigger `zone-loss` drops each packet on the link of that node and freezes its cgroup for 70 s (`ZONE_HOLD`). `lostZoneOf` gives each prediction, as a departure (`leaves`) with a window of the failed requests:
+  - The node lifecycle controller removes the target when the lease of the node expires. The bands come from the defaults of Kubernetes v1.37.0 (`NODE_LIFECYCLE`): a grace of 50 s, a monitor period of 5 s and a renew interval of 10 s. Thus the target leaves the rules 39.6 s to 55.559 s after the fault (`nodeLossBand`).
+  - The hold is longer than the latest removal, and shorter than the toleration of 300 s. Thus no pod is evicted. The target is ready again 0 s to 26.85 s after the heal (`nodeReturnBand`).
+  - A and B: the picks of a partition (`picksOf`), on the connections of 2 clients. The last pick of a chain comes before the earliest removal, thus the removal changes nothing.
+  - C: a session on the target fails each stream until the first retransmission after the heal (`crossingOf`). The heal comes between the 8th retransmission (51 s) and the 9th (102.2 s).
+  - D: the session check of a partition (`checkedOf`), on 2 clients.
+  - Each run starts only when the lost node is ready for the node lifecycle controller, with no taint of the last loss.
 - **The scores of S6** (`src/scores.ts`, `scoreCallers`). The function gives each candidate of each mode a score on each criterion of S6, from one copy of a kind run for each incident. A score is `measured`, `bounded`, `derived` (a value of the code, for example 0 PINGs) or `not measured`. A measured score has the prediction next to the values, and each score names its run and its cell. A criterion that the copy cannot support gives its reason and no number. The script `packages/site/scripts/scores.ts` writes the scorecard that the kind page shows.
 
 ## The runner

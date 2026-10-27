@@ -31,7 +31,8 @@ import { T18_CELLS } from "../../cells/src/t18.ts";
 import { T15_GRPC } from "../../cells/src/grpc/t15.ts";
 import { CALLERS_CELLS, callerFaultOf } from "../../cells/src/callers.ts";
 import type { Line } from "../../kind/src/observe.ts";
-import { failuresOf } from "../../kind/src/observe.ts";
+import { failuresOf, slicesOf } from "../../kind/src/observe.ts";
+import { SERVER } from "../../kind/src/names.ts";
 import { callerPredictions, candidateOf } from "./callers.ts";
 import type { Found } from "./records.ts";
 import { dateOf, only, readFolders, runnerOf, round, stringify, time, timeAt } from "./records.ts";
@@ -241,6 +242,11 @@ const DISAGREE: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => stri
     (match) => `${of(Number(match[1]), "request")} failed on ${Number(match[1]) === 1 ? "a node" : "nodes"} whose kube-proxy did not pause`,
   ],
   [/^no request failed in a window that the law opens$/, () => "no request failed in a window that the law opens"],
+  // the reasons of a departure name the pod and the node: the page names neither
+  [/^\S+ stayed ready in the EndpointSlice$/, () => "the target stayed ready in the EndpointSlice"],
+  [/^\S+ left the EndpointSlice at (-?[\d.]+) s$/, (match) => `the target left the EndpointSlice ${time(Number(match[1]))} after the fault`],
+  [/^\S+ left at (-?[\d.]+) s$/, (match) => `the target left ${time(Number(match[1]))} after the fault`],
+  [/^the rules of \S+ kept \S+$/, () => "the rules of a node kept the target"],
   [
     /^the last failed request started (-?[\d.]+) s before the window can end$/,
     (match) => `the last failed request started ${time(Number(match[1]))} before the window can end`,
@@ -312,6 +318,7 @@ const groupOf = (cell: KindCell): string => {
   }
   if (cell.template === "T07") {
     if (cell.trigger.kind === "cannot-serve") return cell.trigger.serves === true ? "prober" : "callers";
+    if (cell.trigger.kind === "zone-loss") return "zone";
     if (cell.trigger.partition === true) return "partition";
     if (cell.trigger.kind === "blackhole") return cell.trigger.flaps === undefined ? "dependency" : "flapping";
     if (cell.trigger.kind === "app-stall") return "stall";
@@ -339,12 +346,13 @@ const spread = (value: TimeSpread | null) =>
  * This function gives the copy of a cell: kind for T07 and T18, and t15 for T15. The S2 cells of
  * cannot-serve get s2, those of a partition get s2-partition, and those of a stall get s2-stall. The
  * cells of a false failure of the prober get s2-prober, and those of a shared dependency get
- * s2-dependency. The cells of a flapping dependency get s2-flapping.
+ * s2-dependency. The cells of a flapping dependency get s2-flapping, and those of a lost zone get s2-zone.
  */
-const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" | "s2-prober" | "s2-dependency" | "s2-flapping" => {
+const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" | "s2-prober" | "s2-dependency" | "s2-flapping" | "s2-zone" => {
   if (cell.template === "T15") return "t15";
   if (!cell.id.startsWith("S2.")) return "kind";
   const fault = callerFaultOf(cell);
+  if (fault === "lost zone") return "s2-zone";
   return fault === "partition"
     ? "s2-partition"
     : fault === "stall"
@@ -418,6 +426,22 @@ const flappingTimesOf = (
   });
   return { knows: times.map((each) => each.knows), recovers: times.map((each) => each.recovers), emptied: times.map((each) => each.emptied) };
 };
+
+/**
+ * This function gives a time for each counted run of a lost zone, in seconds. It starts at the heal,
+ * and it ends when the target is ready again in its EndpointSlice. A run with no such slice line gives null.
+ */
+const returnsOf = (runs: readonly KindRun[]): { returns: Array<number | null> } => ({
+  returns: runs
+    .filter((run) => !run.warmup && run.void === null)
+    .map((run) => {
+      const heal = referenceOf(run, "heal");
+      const ip = run.target?.ip;
+      if (heal === null || ip === undefined) return null;
+      const at = slicesOf(run.lines as readonly Line[], SERVER).find((slice) => slice.t >= heal && slice.eps.some((endpoint) => endpoint.ip === ip && endpoint.r === true))?.t;
+      return at === undefined ? null : round((at - heal) / 1000);
+    }),
+});
 
 /**
  * This function gives the time from the fault to the start of the last failed request of each counted run, in seconds. A run with no
@@ -508,7 +532,11 @@ const cells = CATALOG.flatMap((cell) => {
       first: entry.first,
       ...(copyOf(cell).startsWith("s2") ? { candidate: candidateOf(cell), lasts: lastsOf(record.runs, verdict) } : {}),
       // the main value of a false failure is the time of its removal, thus the copy keeps the failed requests of each counted run apart
-      ...(copyOf(cell) === "s2-prober" || copyOf(cell) === "s2-dependency" || copyOf(cell) === "s2-flapping" ? { failures: verdict.checks.map((check) => check.facts.failures) } : {}),
+      ...(copyOf(cell) === "s2-prober" || copyOf(cell) === "s2-dependency" || copyOf(cell) === "s2-flapping" || copyOf(cell) === "s2-zone"
+        ? { failures: verdict.checks.map((check) => check.facts.failures) }
+        : {}),
+      // a lost zone: when the target is ready again after the heal
+      ...(copyOf(cell) === "s2-zone" ? returnsOf(record.runs) : {}),
       // a shared dependency: when the callers know, and when they recover after the heal
       ...(copyOf(cell) === "s2-dependency" ? dependencyTimesOf(cell, record.runs) : {}),
       // a flapping dependency: the same times, and the empty Service, for each fault
@@ -558,7 +586,9 @@ for (const name of names) {
               ? { predictions: callerPredictions("shared dependency") }
               : name === "s2-flapping"
                 ? { predictions: callerPredictions("flapping dependency") }
-                : {};
+                : name === "s2-zone"
+                  ? { predictions: callerPredictions("lost zone") }
+                  : {};
   writeFileSync(out, stringify({ ...copy, cells: mine.map(({ copy: _copy, ...cell }) => cell), ...predictions }));
   process.stdout.write(`${mine.length} cells, ${mine.reduce((sum, cell) => sum + cell.counted + cell.voided, 0)} runs: ${out}\n`);
 }

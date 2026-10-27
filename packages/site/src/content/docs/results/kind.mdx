@@ -201,9 +201,25 @@ D sent 112 to 138 PINGs in each run, in the band of 9 to 378. The prediction of 
 
 <KindResults template="T07" group="flapping" client:visible />
 
+### A lost zone
+
+The lab has two zones. The node of the target is the only node of its zone, and the clients are only in the other zone. The trigger drops each packet on the link of that node and freezes the node for 70 s. Thus its kubelet stops too, and the node lifecycle controller removes the target, not a probe. The cells come from the run [40500297695](https://github.com/mark1russell7/systems/actions/runs/40500297695). Each of the 12 cells held in 3 of 3 runs.
+
+The prediction comes from the defaults of Kubernetes: a grace of 50 s, a monitor period of 5 s and a lease renewal of 10 s. The target left the rules of each kept node 41.64 s to 51.55 s after the fault, in the bands of 39.6 s to 55.56 s. It was ready again 1.3 s to 25.88 s after the heal, in the band of 0 s to 26.85 s.
+
+A and B knew 0.49 s to 1.06 s after the fault by the median run, from the timeouts of their connections. They failed 13 to 23 requests by the median run. C keeps its session on the lost node until the 9th TCP retransmission, approximately 104 s after the fault. A run of C failed 0, approximately 5,200 or approximately 10,400 requests, for 0, 1 or 2 sessions on the lost node.
+
+D closed each session on the lost node at its PING, 1.34 s to 4.36 s after the fault. Its worst run failed 285 requests, and the worst run of C failed 10,487. Each run of 0 to 2 PINGs, in the band of 0 to 2.
+
+An earlier run, [40494462562](https://github.com/mark1russell7/systems/actions/runs/40494462562), held 11 of the 12 cells. One run started before the controller saw the node Ready again, thus that loss removed nothing. Each run of a zone loss then waits until the node is Ready and has no taint.
+
+<CallersTable incident="zone" />
+
+<KindResults template="T07" group="zone" client:visible />
+
 ### How callers learn
 
-S6 scores each candidate of health and routing on seven criteria, for each incident of its design. Seven runs score six incidents. They are a pod that cannot serve, a partitioned pod, a stalled pod, a failed prober, a black-holed shared dependency and a flapping dependency. The third run adds D to the first two incidents. Each of the next four incidents has its own run, with each candidate.
+S6 scores each candidate of health and routing on seven criteria, for each incident of its design. Eight runs score seven incidents. They are a pod that cannot serve, a partitioned pod, a stalled pod and a failed prober. A black-holed shared dependency, a flapping dependency and a lost zone are the other three. The third run adds D to the first two incidents. Each of the next five incidents has its own run, with each candidate.
 
 The table puts the measure of each criterion next to its prediction, and each cell links to its run. A criterion that the run cannot support has no number, only the reason.
 
@@ -220,6 +236,8 @@ A black-holed shared dependency keeps the rule too, and the readiness of the ser
 The cost is the time until callers know. The callers of A got a fast 503 after approximately 12 s, and B, C and D failed slowly until the heal. A gate that keeps the endpoints in a shared failure is a separate decision with its own evidence. No cell measures it yet. The scores of the shared dependency measure when the Service is empty, the last slow failure and the last failure after the heal.
 
 A flapping dependency changes no part of the rule. Each fault of the run gave the result of one shared failure, and the readiness of the service followed each fault and each heal. B had the fewest failed requests in each mode again, and it recovered first. The scores of the flapping dependency have one value for each fault of each counted run, thus 9 values for each cell.
+
+A lost zone changes no part of the rule. The frozen service sends no signal, thus the rule gives none. A and B learned from their timeouts in 1.06 s at the most. The node lifecycle controller removed the target 45.4 s to 50.7 s after the fault by the median run. C failed until the 9th retransmission, after the heal, and D bounded it by its session check. The scores of the lost zone measure the removal of the target and the time until it is ready again after the heal.
 
 <CallersScores />
 
