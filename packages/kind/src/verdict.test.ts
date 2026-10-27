@@ -134,6 +134,24 @@ describe("the judgement of a kind run", () => {
     expect(checkRun(removal, late).ok).toBe(false);
   });
 
+  it("holds the failed requests of an empty Service to its window, from the fault to the heal", () => {
+    const window = { kind: "window", nodes: "all", start: { from: "fault", band: b(0, 0.02) }, end: { from: "heal", band: b(0, 9) }, certain: true, why: "a test" } as const;
+    const removal = cell({ kind: "removal", band: b(12, 26.105), window, why: "a test" });
+    const lines: Line[] = [
+      { ev: "slice", t: 20_000, type: "MODIFIED", name: "lab-x", svc: "lab", eps: [{ ip: TARGET.ip, r: false }, { ip: OTHER.ip, r: false }] },
+      { ev: "rules", t: 20_200, prev: 20_150, node: "w1", b: [] },
+      { ev: "rules", t: 20_100, prev: 20_050, node: "w2", b: [] },
+    ];
+    const run = (extra: Line[]): KindRun => ({ ...runWith([]), lines: [...lines, ...extra], acts: { fault: 5000, heal: 32_000, resume: null } });
+    const check = checkRun(removal, run([request(6000, "timeout"), request(21_000, "refused"), request(38_000, "503")]));
+    expect(check).toMatchObject({ ok: true, value: s(15), facts: { sliceEmpty: s(15), failures: 3 } });
+    expect(check.why).toBe("the Service was empty at 15 s; 3 failed requests, all in the window (span 32 s)");
+    // a failure before the fault or long after the heal is outside the window
+    expect(checkRun(removal, run([request(4000, "timeout"), request(21_000, "refused")])).ok).toBe(false);
+    expect(checkRun(removal, run([request(21_000, "refused"), request(42_000, "refused")])).ok).toBe(false);
+    expect(predictionText(removal.prediction)).toBe("Service empty in [12, 26.105] s; failures only from the fault + [0, 0.02] s to the heal + [0, 9] s, at least one");
+  });
+
   it("times the departure of the target from the fault, and with a window it holds the failed requests to that window too", () => {
     const window = { kind: "window", nodes: "all", start: { from: "fault", band: b(8, 18.16) }, end: { from: "fault", band: b(8, 20.24) }, certain: true, outcomes: ["503"], why: "a test" } as const;
     const leaves = cell({ kind: "leaves", band: b(12, 24.105), window, why: "a test" });

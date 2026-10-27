@@ -11,12 +11,14 @@ const checked = read<{ readonly cells: readonly CallerResult[] }>("s2-session-ch
 const checkedPartition = read<{ readonly cells: readonly CallerResult[] }>("s2-partition-session-check-2026-10-26.json");
 const stall = read<{ readonly cells: readonly CallerResult[] }>("s2-stall-2026-10-26.json");
 const prober = read<{ readonly cells: readonly CallerResult[] }>("s2-prober-2026-10-26.json");
-const s6 = read<Scorecard & { readonly ranAt: string }>("s6-2026-10-26.json");
+const dependency = read<{ readonly cells: readonly CallerResult[] }>("s2-dependency-2026-10-27.json");
+const s6 = read<Scorecard & { readonly ranAt: string }>("s6-2026-10-27.json");
 const RUN = 40358038728;
 const PARTITION_RUN = 40380943331;
 const CHECK_RUN = 40394320219;
 const STALL_RUN = 40406199754;
 const PROBER_RUN = 40419289511;
+const DEPENDENCY_RUN = 40430856093;
 const card = scoreCallers(
   { run: RUN, cells: s2.cells },
   { run: PARTITION_RUN, cells: partition.cells },
@@ -24,6 +26,7 @@ const card = scoreCallers(
   { run: CHECK_RUN, cells: checkedPartition.cells },
   { run: STALL_RUN, cells: stall.cells },
   { run: PROBER_RUN, cells: prober.cells },
+  { run: DEPENDENCY_RUN, cells: dependency.cells },
 );
 
 const scoredOf = (scorecard: Scorecard, name: Incident): readonly ModeScores[] => {
@@ -35,6 +38,7 @@ const scored = (scorecard: Scorecard): readonly ModeScores[] => scoredOf(scoreca
 const partitioned = (scorecard: Scorecard): readonly ModeScores[] => scoredOf(scorecard, "a partitioned pod");
 const stalled = (scorecard: Scorecard): readonly ModeScores[] => scoredOf(scorecard, "a stalled pod (gray failure)");
 const probed = (scorecard: Scorecard): readonly ModeScores[] => scoredOf(scorecard, "a failed prober");
+const depended = (scorecard: Scorecard): readonly ModeScores[] => scoredOf(scorecard, "a black-holed shared dependency");
 const scoreOf = (candidate: CandidateScores, criterion: Score["criterion"]): Score => {
   const found = candidate.scores.find((each) => each.criterion === criterion);
   if (found === undefined) throw new Error(`${candidate.cell}: no score of ${criterion}`);
@@ -46,22 +50,23 @@ const median = (candidate: CandidateScores, criterion: Score["criterion"] = "fai
   return score.median.value;
 };
 
-describe("the scores of how callers learn, from the copies of kind runs 40358038728, 40380943331, 40394320219, 40406199754 and 40419289511", () => {
+describe("the scores of how callers learn, from the copies of kind runs 40358038728, 40380943331, 40394320219, 40406199754, 40419289511 and 40430856093", () => {
   it("are the scorecard that the site shows", () => {
     const { ranAt, ...shown } = s6;
-    expect(ranAt).toBe("2026-10-26");
+    expect(ranAt).toBe("2026-10-27");
     expect(shown).toEqual(JSON.parse(JSON.stringify(card)));
   });
 
   it("give each candidate of each mode a score on each criterion, with the run and the cell as evidence", () => {
     // the copies of run 40394320219 add D to each incident, and A, B and C keep the evidence of their own runs
-    expect([card.run, card.runs]).toEqual([RUN, [RUN, PARTITION_RUN, CHECK_RUN, STALL_RUN, PROBER_RUN]]);
+    expect([card.run, card.runs]).toEqual([RUN, [RUN, PARTITION_RUN, CHECK_RUN, STALL_RUN, PROBER_RUN, DEPENDENCY_RUN]]);
     expect(card.incidents.map((each) => each.incident)).toEqual(INCIDENTS);
     for (const [modes, run, tail] of [
       [scored(card), RUN, ""],
       [partitioned(card), PARTITION_RUN, ".partition"],
       [stalled(card), STALL_RUN, ".stall"],
       [probed(card), PROBER_RUN, ".prober"],
+      [depended(card), DEPENDENCY_RUN, ".dependency"],
     ] as const) {
       expect(modes.map((each) => each.mode)).toEqual(["iptables", "ipvs", "nftables"]);
       for (const mode of modes) {
@@ -70,15 +75,17 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
         );
         for (const candidate of mode.candidates) {
           expect(candidate.scores.map((each) => each.criterion)).toEqual(CRITERIA);
-          // the runs of the stall and of the prober have each candidate, D too
-          const evidence = candidate.label === "D" && run !== STALL_RUN && run !== PROBER_RUN ? CHECK_RUN : run;
+          // the runs of the stall, of the prober and of the dependency have each candidate, D too
+          const evidence = candidate.label === "D" && run !== STALL_RUN && run !== PROBER_RUN && run !== DEPENDENCY_RUN ? CHECK_RUN : run;
+          // the gap: one run of B in nftables recovered before its window could end
+          const decision = candidate.cell === "S2.T07.nftables.lame-duck.dependency" ? "fails" : "holds";
           for (const score of candidate.scores)
-            if (score.kind !== "not measured") expect(score.evidence, candidate.cell).toEqual({ run: evidence, cell: candidate.cell, decision: "holds", counted: 3 });
+            if (score.kind !== "not measured") expect(score.evidence, candidate.cell).toEqual({ run: evidence, cell: candidate.cell, decision, counted: 3 });
         }
       }
     }
-    const runOf: Partial<Record<Incident, number>> = { "a pod that cannot serve": RUN, "a partitioned pod": PARTITION_RUN, "a stalled pod (gray failure)": STALL_RUN, "a failed prober": PROBER_RUN };
-    for (const incident of card.incidents.slice(0, 4)) expect(incident.kind === "scored" ? incident.run : null).toBe(runOf[incident.incident]);
+    const runOf: Partial<Record<Incident, number>> = { "a pod that cannot serve": RUN, "a partitioned pod": PARTITION_RUN, "a stalled pod (gray failure)": STALL_RUN, "a failed prober": PROBER_RUN, "a black-holed shared dependency": DEPENDENCY_RUN };
+    for (const incident of card.incidents.slice(0, 5)) expect(incident.kind === "scored" ? incident.run : null).toBe(runOf[incident.incident]);
   });
 
   it("put the measure of the failed requests next to the prediction, and each counted run is in the prediction", () => {
@@ -128,6 +135,45 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
         expect(time, candidate.cell).toMatchObject(candidate.label === "A" ? { kind: "bounded", holds: true } : { kind: "measured", from: "fault", holds: true });
         if (time.kind === "measured") expect(time.median.value, candidate.cell).toBeLessThan(30);
       }
+  });
+
+  it("score a black-holed shared dependency: each candidate fails each request, and the Service is empty in its band", () => {
+    // no replica can serve, thus the counts are close. B has the fewest in each mode
+    expect(depended(card).map((mode) => mode.candidates.map((each) => median(each)))).toEqual([
+      [5019, 4173, 4403, 4690],
+      [4530, 4452, 4492, 4778],
+      [4714, 4126, 4677, 4932],
+    ]);
+    expect(depended(card).map((mode) => mode.fewest)).toEqual(["B", "B", "B"]);
+    // the routes are down for each candidate: the Service is empty in its band, after the fault
+    expect(depended(card).map((mode) => mode.candidates.map((each) => median(each, "routes down")))).toEqual([
+      [18.165, 17.524, 16.982, 18.006],
+      [19.418, 19.713, 18.288, 18.38],
+      [18.549, 19.298, 17.59, 19.652],
+    ]);
+    for (const mode of depended(card))
+      for (const candidate of mode.candidates) {
+        const nft = candidate.cell === "S2.T07.nftables.lame-duck.dependency";
+        expect(scoreOf(candidate, "routes down"), candidate.cell).toMatchObject({ kind: "measured", from: "fault", holds: true });
+        // the gap: one run of B in nftables recovered early and had 3953 failed requests, under the band of 3954
+        expect(scoreOf(candidate, "failed requests"), candidate.cell).toMatchObject({ kind: "measured", holds: !nft });
+        // the gap: that run has no failure after the heal, thus no time to recover
+        expect(scoreOf(candidate, "time to recover"), candidate.cell).toMatchObject({ kind: "measured", from: "heal", holds: !nft });
+        // the gap: B, C and D fail slowly on the empty Service until the heal, thus only A knows in the band
+        expect(scoreOf(candidate, "time until callers know"), candidate.cell).toMatchObject({ kind: "measured", from: "fault", holds: candidate.label === "A" });
+      }
+    const knows = depended(card).map((mode) => mode.candidates.map((each) => Math.round(median(each, "time until callers know") * 100) / 100));
+    expect(knows).toEqual([
+      [11.41, 27.12, 26.51, 26.4],
+      [11.52, 27.16, 26.76, 26.95],
+      [12.4, 27.11, 26.95, 26.96],
+    ]);
+    const recovers = depended(card).map((mode) => mode.candidates.map((each) => Math.round(median(each, "time to recover") * 100) / 100));
+    expect(recovers).toEqual([
+      [6.58, 0.91, 2.35, 4.33],
+      [3.24, 2.76, 3, 4.92],
+      [4.48, 1.45, 4.22, 5.92],
+    ]);
   });
 
   it("support the decision: B, C and D each beat A in each mode, and no candidate has the fewest in each mode", () => {
@@ -231,6 +277,8 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
       [stalled(card), unmeasured],
       // a failed prober measures its false removal
       [probed(card), unmeasured.slice(1)],
+      // a shared dependency measures its routes down and its time to recover
+      [depended(card), ["false removals on a blip", "probe load", "complexity"]],
     ] as const)
       for (const mode of modes)
         for (const candidate of mode.candidates)
@@ -241,7 +289,7 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
           }
     // the incidents of the design with no cell of the candidates
     const rest = card.incidents.filter((each) => each.kind === "not measured").map((each) => each.incident);
-    expect(rest).toEqual(INCIDENTS.slice(4));
+    expect(rest).toEqual(INCIDENTS.slice(5));
   });
 
   it("give the step 1 scores unchanged with one copy, and an incident with cells but no copy as not measured", () => {

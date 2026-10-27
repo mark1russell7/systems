@@ -14,6 +14,7 @@ import {
   CANDIDATES,
   CANNOT_SERVE_HOLD,
   CHECKED,
+  DEPENDENCY_HOLD,
   KEEP_ALIVE,
   KIND_TCP,
   MULTIPLEXED,
@@ -22,13 +23,14 @@ import {
   SESSION_CHECK,
   STALL_HOLD,
   callerFaultOf,
+  dependencyOf,
   expectedFailures,
   falseOf,
   negativeBinomial,
   targetConnections,
 } from "./callers.ts";
 import type { CallerFault } from "./callers.ts";
-import { CHART_READINESS, KUBE_PROBE, PROPAGATION, SYN_SENT, afterSync, s } from "./kind.ts";
+import { CHART_READINESS, DESIGN_REDIS, KUBE_PROBE, PROPAGATION, SYN_SENT, afterSync, s } from "./kind.ts";
 import { T07_CELLS } from "./t07.ts";
 import { T18_CELLS } from "./t18.ts";
 
@@ -45,7 +47,7 @@ const propagationOf = (cell: KindCell) => {
 
 describe("the kind catalogs", () => {
   it("names each cell by a cell of the plan, or as a calibration, and each name once", () => {
-    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(iptables|ipvs|nftables)\.(endpoints|lame-duck|goaway|session-check)(\.partition|\.stall|\.prober)?$/);
+    for (const cell of ALL) expect(cell.id, cell.name).toMatch(/^(T07|T18)\.(defaults|border-off)\.\d+$|^CAL\.T07\.(iptables|ipvs|nftables)$|^S2\.T07\.(iptables|ipvs|nftables)\.(endpoints|lame-duck|goaway|session-check)(\.partition|\.stall|\.prober|\.dependency)?$/);
     expect(new Set(ALL.map((cell) => cell.name)).size).toBe(ALL.length);
     expect(new Set(ALL.map(namespaceOf)).size).toBe(ALL.length);
   });
@@ -161,9 +163,9 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
 
   it("has the four candidates in each mode of kube-proxy, from one definition", () => {
     expect(CALLERS_MODES).toEqual(["iptables", "ipvs", "nftables"]);
-    expect(CALLER_FAULTS).toEqual(["cannot serve", "partition", "stall", "false failure"]);
+    expect(CALLER_FAULTS).toEqual(["cannot serve", "partition", "stall", "false failure", "shared dependency"]);
     expect(CALLERS_CELLS.map((cell) => cell.id)).toEqual(
-      ["", ".partition", ".stall", ".prober"].flatMap((tail) =>
+      ["", ".partition", ".stall", ".prober", ".dependency"].flatMap((tail) =>
         CALLERS_MODES.flatMap((mode) => [`S2.T07.${mode}.endpoints${tail}`, `S2.T07.${mode}.lame-duck${tail}`, `S2.T07.${mode}.goaway${tail}`, `S2.T07.${mode}.session-check${tail}`]),
       ),
     );
@@ -433,6 +435,55 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
       expect(counts("in band on HTTP/2 (GOAWAY)")).toEqual(random ? requests(0, 9) : requests(0, 3));
       expect(counts("in band on HTTP/2 with a session check")).toEqual(counts("in band on HTTP/2 (GOAWAY)"));
       for (const candidate of CANDIDATES) expect(expectedFailures(candidate, mode, "false failure")).toEqual(falseOf(mode, candidate).expected);
+    }
+  });
+
+  it("black-holes Redis for each replica, with the cells of each candidate: the design with Redis, and no flag", () => {
+    for (const mode of CALLERS_MODES) {
+      const serve = trioOf(mode);
+      const dependency = trioOf(mode, "shared dependency");
+      expect(dependency.map((cell) => cell.name)).toEqual(CANDIDATES.map((candidate) => `T07 ${mode}, callers learn that a shared dependency is black-holed: ${candidate}`));
+      for (const [at, cell] of dependency.entries()) {
+        const { id, name: _n, trigger, prediction: _p, runs, declaration, ...rest } = cell;
+        const { id: twin, name: _tn, trigger: _tt, prediction: _tp, runs: _tr, declaration: twinDeclaration, ...restTwin } = serve[at]!;
+        expect(id).toBe(`${twin}.dependency`);
+        expect(rest).toEqual(restTwin);
+        // the settings of the candidate, on the design with Redis: the round trip gates readiness
+        expect(declaration).toEqual({ ...twinDeclaration, flag: null, redis: DESIGN_REDIS.redis });
+        expect(declaration!.redis!.gates).toBe("readiness");
+        // a black hole with no partition is on Redis, with each replica as a peer
+        expect(trigger).toEqual({ kind: "blackhole", hold: DEPENDENCY_HOLD });
+        expect(planOf(cell).inject).toEqual([{ do: "inject", target: "redis", action: "blackhole" }]);
+        expect(runs).toBe(3);
+      }
+    }
+  });
+
+  it("predicts the empty Service of each candidate, the failed requests from the fault to the recovery, and the recovery after the heal", () => {
+    const band = (lo: number, hi: number) => ({ lo: s(lo), hi: s(hi) });
+    // the silent latch of 8–20 s, the readiness probe of the chart (4–6 s), and the propagation of the mode
+    const removal = { iptables: band(12, 26.105), ipvs: band(12.073, 26.309), nftables: band(12, 26.079) };
+    // the reconnect (3.1 s), the recovery of the readiness (6 s), then for B, C and D the kubelet (2 s) and the propagation, and one turn
+    const ends = {
+      iptables: [9.26, 11.365, 11.225, 11.225],
+      ipvs: [9.26, 11.569, 11.429, 11.429],
+      nftables: [9.26, 11.339, 11.199, 11.199],
+    };
+    const counts = { iptables: [5742, 6060, 6039, 6039], ipvs: [5742, 6090, 6069, 6069], nftables: [5742, 6054, 6033, 6033] };
+    for (const mode of CALLERS_MODES) {
+      for (const [at, cell] of trioOf(mode, "shared dependency").entries()) {
+        if (cell.prediction.kind !== "removal" || cell.prediction.window === undefined) throw new Error(`${cell.name}: no removal with a window`);
+        expect(cell.prediction.band).toEqual(removal[mode]);
+        expect(valueIn(cell.prediction.band.hi, "s")).toBeLessThan(valueIn(DEPENDENCY_HOLD, "s"));
+        const window = cell.prediction.window;
+        expect([window.certain, window.start, window.end, window.outcomes]).toEqual([true, { from: "fault", band: band(0, 0.02) }, { from: "heal", band: band(0, ends[mode][at]!) }, undefined]);
+        const candidate = CANDIDATES[at]!;
+        const predicted = dependencyOf(mode, candidate);
+        // the callers know at the latch: after it, each failure is fast. A request can wait one timeout behind a slow one
+        expect(predicted.knows).toEqual(band(7.98, 22));
+        const { lo, hi } = expectedFailures(candidate, mode, "shared dependency");
+        expect([lo.value, hi.value]).toEqual([3954, counts[mode][at]]);
+      }
     }
   });
 });

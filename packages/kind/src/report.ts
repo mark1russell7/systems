@@ -53,7 +53,7 @@ export const predictionText = (prediction: Prediction): string => {
       // A window can open before its reference: a stale SYN_SENT entry fails the paused node up to its life before the intake
       return `failures only from ${atBand(prediction.start.from, prediction.start.band)}${prediction.end === null ? "" : ` to ${atBand(prediction.end.from, prediction.end.band)}`}${prediction.each === true ? ", of each deleted replica" : ""}${prediction.nodes === "paused" ? ", on the paused node" : ""}${prediction.certain ? ", at least one" : ""}${prediction.outcomes === undefined ? "" : `, each one ${prediction.outcomes.join(" or ")}`}${prediction.afterReset === undefined ? "" : `, or a ${prediction.afterReset.outcome} up to ${format(prediction.afterReset.life)} after a reset on its port`}${prediction.propagation === undefined ? "" : `, the rules drop the replica in ${showBand(prediction.propagation)}`}`;
     case "removal":
-      return `Service empty in ${showBand(prediction.band)}`;
+      return `Service empty in ${showBand(prediction.band)}${prediction.window === undefined ? "" : `; ${predictionText(prediction.window)}`}`;
     case "leaves":
       return `the replica leaves in ${showBand(prediction.band)}${prediction.window === undefined ? "" : `; ${predictionText(prediction.window)}`}`;
     case "restarts":

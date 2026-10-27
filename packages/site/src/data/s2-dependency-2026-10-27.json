@@ -1,0 +1,1203 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-10-27",
+  "units": "s",
+  "runs": 3,
+  "kernel": "6.17.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.iptables.endpoints.dependency",
+      "template": "T07",
+      "name": "iptables, callers learn that a shared dependency is black-holed: endpoints only",
+      "mode": "iptables",
+      "trigger": "blackhole",
+      "group": "dependency",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12,
+          "high": 26.105
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12 s to 26.105 s after the fault. Redis is black-holed for each replica for the hold (27 s). Each request needs Redis, thus each request fails from the fault until the callers recover. Before the readiness latch of a replica trips (8 s–20 s), each request on it waits for Redis and fails slowly. Then its controller is not ready, and the service refuses each request at once with a 503. The kubelet and the propagation (CAL.T07.iptables: median 0.059 s, 33 times) remove both replicas 12 s–26.105 s after the fault. Then the Service is empty, and its rules refuse each new connection. Each connection of A stays open on its replica, thus it gets the 503 of the service and no refusal. After the heal, the client of Redis connects again in 3.1 s at the most, and the readiness of the service recovers up to 6 s later. Then A succeeds on its open connections, before the endpoints come back. Each client sends a request each 20 ms, thus about 3954–5742 requests fail."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 18.165,
+      "values": [19.211, 18.165, 16.833],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 18.165 s. The counted runs measured 16.833 s to 19.211 s.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 3954,
+          "high": 5742
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      },
+      "lasts": [34.7131728, 33.7070219, 32.1656732],
+      "failures": [5019, 5035, 4786],
+      "knows": [12.8505271, 11.4133922, 10.2883994],
+      "recovers": [7.5800482, 6.5839144, 5.0464632]
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck.dependency",
+      "template": "T07",
+      "name": "iptables, callers learn that a shared dependency is black-holed: in band (lame duck)",
+      "mode": "iptables",
+      "trigger": "blackhole",
+      "group": "dependency",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12,
+          "high": 26.105
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12 s to 26.105 s after the fault. Redis is black-holed for each replica for the hold (27 s). Each request needs Redis, thus each request fails from the fault until the callers recover. Before the readiness latch of a replica trips (8 s–20 s), each request on it waits for Redis and fails slowly. Then its controller is not ready, and the service refuses each request at once with a 503. The kubelet and the propagation (CAL.T07.iptables: median 0.059 s, 33 times) remove both replicas 12 s–26.105 s after the fault. Then the Service is empty, and its rules refuse each new connection. The lame duck closes each connection after the trip, thus each next request opens a new connection, and the empty Service refuses it. After the heal, the client of Redis connects again in 3.1 s at the most, and the readiness of the service recovers up to 6 s later. The kubelet then finds a replica ready in 2 s at the most, and the propagation adds it to the rules. Each client sends a request each 20 ms, thus about 3954–6060 requests fail."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 17.524,
+      "values": [17.057, 17.912, 17.524],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 17.524 s. The counted runs measured 17.057 s to 17.912 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.365
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6060
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      },
+      "lasts": [29.378702, 28.0334382, 27.6822009],
+      "failures": [4358, 4173, 4130],
+      "knows": [27.1292952, 27.1096558, 27.1189637],
+      "recovers": [2.2478024, 0.9064642, 0.5519349]
+    },
+    {
+      "id": "S2.T07.iptables.goaway.dependency",
+      "template": "T07",
+      "name": "iptables, callers learn that a shared dependency is black-holed: in band on HTTP/2 (GOAWAY)",
+      "mode": "iptables",
+      "trigger": "blackhole",
+      "group": "dependency",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12,
+          "high": 26.105
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12 s to 26.105 s after the fault. Redis is black-holed for each replica for the hold (27 s). Each request needs Redis, thus each request fails from the fault until the callers recover. Before the readiness latch of a replica trips (8 s–20 s), each request on it waits for Redis and fails slowly. Then its controller is not ready, and the service refuses each request at once with a 503. The kubelet and the propagation (CAL.T07.iptables: median 0.059 s, 33 times) remove both replicas 12 s–26.105 s after the fault. Then the Service is empty, and its rules refuse each new connection. The lame duck closes each connection after the trip with a GOAWAY on its session, thus each next request opens a new connection, and the empty Service refuses it. After the heal, the client of Redis connects again in 3.1 s at the most, and the readiness of the service recovers up to 6 s later. The kubelet then finds a replica ready in 2 s at the most, and the propagation adds it to the rules. Each client sends a request each 20 ms, thus about 3954–6039 requests fail."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 16.982,
+      "values": [15.106, 20.109, 16.982],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 16.982 s. The counted runs measured 15.106 s to 20.109 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.225
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6039
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      },
+      "lasts": [29.8572296, 29.4755545, 28.5394627],
+      "failures": [4460, 4403, 4260],
+      "knows": [26.8036041, 26.4238998, 26.5128882],
+      "recovers": [2.7396121, 2.3520002, 1.4088452]
+    },
+    {
+      "id": "S2.T07.iptables.session-check.dependency",
+      "template": "T07",
+      "name": "iptables, callers learn that a shared dependency is black-holed: in band on HTTP/2 with a session check",
+      "mode": "iptables",
+      "trigger": "blackhole",
+      "group": "dependency",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12,
+          "high": 26.105
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12 s to 26.105 s after the fault. Redis is black-holed for each replica for the hold (27 s). Each request needs Redis, thus each request fails from the fault until the callers recover. Before the readiness latch of a replica trips (8 s–20 s), each request on it waits for Redis and fails slowly. Then its controller is not ready, and the service refuses each request at once with a 503. The kubelet and the propagation (CAL.T07.iptables: median 0.059 s, 33 times) remove both replicas 12 s–26.105 s after the fault. Then the Service is empty, and its rules refuse each new connection. The lame duck closes each connection after the trip with a GOAWAY on its session, thus each next request opens a new connection, and the empty Service refuses it. After the heal, the client of Redis connects again in 3.1 s at the most, and the readiness of the service recovers up to 6 s later. The kubelet then finds a replica ready in 2 s at the most, and the propagation adds it to the rules. Each client sends a request each 20 ms, thus about 3954–6039 requests fail. A stream timeout before the trip closes its session, and the next stream opens a new one. Thus D is the same as C."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 18.006,
+      "values": [15.014, 18.006, 20.82],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 18.006 s. The counted runs measured 15.014 s to 20.82 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.225
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6039
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      },
+      "lasts": [31.4475015, 30.4003301, 33.2219143],
+      "failures": [4690, 4536, 4955],
+      "knows": [26.3995316, 26.3565859, 27.1195949],
+      "recovers": [4.3274506, 3.2706523, 6.1011209]
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints.dependency",
+      "template": "T07",
+      "name": "ipvs, callers learn that a shared dependency is black-holed: endpoints only",
+      "mode": "ipvs",
+      "trigger": "blackhole",
+      "group": "dependency",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12.073,
+          "high": 26.309
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12.073 s to 26.309 s after the fault. Redis is black-holed for each replica for the hold (27 s). Each request needs Redis, thus each request fails from the fault until the callers recover. Before the readiness latch of a replica trips (8 s–20 s), each request on it waits for Redis and fails slowly. Then its controller is not ready, and the service refuses each request at once with a 503. The kubelet and the propagation (CAL.T07.ipvs: median 0.192 s, 33 times) remove both replicas 12.073 s–26.309 s after the fault. Then the Service is empty, and its rules refuse each new connection. Each connection of A stays open on its replica, thus it gets the 503 of the service and no refusal. After the heal, the client of Redis connects again in 3.1 s at the most, and the readiness of the service recovers up to 6 s later. Then A succeeds on its open connections, before the endpoints come back. Each client sends a request each 20 ms, thus about 3954–5742 requests fail."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 19.418,
+      "values": [19.418, 18.134, 19.644],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 19.418 s. The counted runs measured 18.134 s to 19.644 s.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 3954,
+          "high": 5742
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      },
+      "lasts": [30.4279995, 30.4344951, 30.3951728],
+      "failures": [4537, 4530, 4527],
+      "knows": [11.5179854, 11.0225416, 12.8519307],
+      "recovers": [3.2419919, 3.2793865, 3.2276019]
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck.dependency",
+      "template": "T07",
+      "name": "ipvs, callers learn that a shared dependency is black-holed: in band (lame duck)",
+      "mode": "ipvs",
+      "trigger": "blackhole",
+      "group": "dependency",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12.073,
+          "high": 26.309
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12.073 s to 26.309 s after the fault. Redis is black-holed for each replica for the hold (27 s). Each request needs Redis, thus each request fails from the fault until the callers recover. Before the readiness latch of a replica trips (8 s–20 s), each request on it waits for Redis and fails slowly. Then its controller is not ready, and the service refuses each request at once with a 503. The kubelet and the propagation (CAL.T07.ipvs: median 0.192 s, 33 times) remove both replicas 12.073 s–26.309 s after the fault. Then the Service is empty, and its rules refuse each new connection. The lame duck closes each connection after the trip, thus each next request opens a new connection, and the empty Service refuses it. After the heal, the client of Redis connects again in 3.1 s at the most, and the readiness of the service recovers up to 6 s later. The kubelet then finds a replica ready in 2 s at the most, and the propagation adds it to the rules. Each client sends a request each 20 ms, thus about 3954–6090 requests fail."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 19.713,
+      "values": [19.713, 20.049, 17.43],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 19.713 s. The counted runs measured 17.43 s to 20.049 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.569
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6090
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      },
+      "lasts": [29.4727078, 29.9232355, 31.5389214],
+      "failures": [4398, 4452, 4703],
+      "knows": [27.1585011, 27.1583099, 27.1422135],
+      "recovers": [2.3062164, 2.7563201, 4.3876585]
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.dependency",
+      "template": "T07",
+      "name": "ipvs, callers learn that a shared dependency is black-holed: in band on HTTP/2 (GOAWAY)",
+      "mode": "ipvs",
+      "trigger": "blackhole",
+      "group": "dependency",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12.073,
+          "high": 26.309
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12.073 s to 26.309 s after the fault. Redis is black-holed for each replica for the hold (27 s). Each request needs Redis, thus each request fails from the fault until the callers recover. Before the readiness latch of a replica trips (8 s–20 s), each request on it waits for Redis and fails slowly. Then its controller is not ready, and the service refuses each request at once with a 503. The kubelet and the propagation (CAL.T07.ipvs: median 0.192 s, 33 times) remove both replicas 12.073 s–26.309 s after the fault. Then the Service is empty, and its rules refuse each new connection. The lame duck closes each connection after the trip with a GOAWAY on its session, thus each next request opens a new connection, and the empty Service refuses it. After the heal, the client of Redis connects again in 3.1 s at the most, and the readiness of the service recovers up to 6 s later. The kubelet then finds a replica ready in 2 s at the most, and the propagation adds it to the rules. Each client sends a request each 20 ms, thus about 3954–6069 requests fail."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 18.288,
+      "values": [18.562, 17.094, 18.288],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 18.288 s. The counted runs measured 17.094 s to 18.562 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.429
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6069
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      },
+      "lasts": [30.1595358, 32.7681989, 29.8627057],
+      "failures": [4492, 4886, 4441],
+      "knows": [27.1049447, 26.6356302, 26.7614854],
+      "recovers": [3.0028955, 5.6001765, 2.7035246]
+    },
+    {
+      "id": "S2.T07.ipvs.session-check.dependency",
+      "template": "T07",
+      "name": "ipvs, callers learn that a shared dependency is black-holed: in band on HTTP/2 with a session check",
+      "mode": "ipvs",
+      "trigger": "blackhole",
+      "group": "dependency",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12.073,
+          "high": 26.309
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12.073 s to 26.309 s after the fault. Redis is black-holed for each replica for the hold (27 s). Each request needs Redis, thus each request fails from the fault until the callers recover. Before the readiness latch of a replica trips (8 s–20 s), each request on it waits for Redis and fails slowly. Then its controller is not ready, and the service refuses each request at once with a 503. The kubelet and the propagation (CAL.T07.ipvs: median 0.192 s, 33 times) remove both replicas 12.073 s–26.309 s after the fault. Then the Service is empty, and its rules refuse each new connection. The lame duck closes each connection after the trip with a GOAWAY on its session, thus each next request opens a new connection, and the empty Service refuses it. After the heal, the client of Redis connects again in 3.1 s at the most, and the readiness of the service recovers up to 6 s later. The kubelet then finds a replica ready in 2 s at the most, and the propagation adds it to the rules. Each client sends a request each 20 ms, thus about 3954–6069 requests fail. A stream timeout before the trip closes its session, and the next stream opens a new one. Thus D is the same as C."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 18.38,
+      "values": [17.851, 18.38, 19.586],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 18.38 s. The counted runs measured 17.851 s to 19.586 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.429
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6069
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      },
+      "lasts": [34.5017939, 31.0159681, 32.0675555],
+      "failures": [5143, 4620, 4778],
+      "knows": [26.3993235, 26.9511857, 26.9889255],
+      "recovers": [7.329113, 3.8576794, 4.9171128]
+    },
+    {
+      "id": "S2.T07.nftables.endpoints.dependency",
+      "template": "T07",
+      "name": "nftables, callers learn that a shared dependency is black-holed: endpoints only",
+      "mode": "nftables",
+      "trigger": "blackhole",
+      "group": "dependency",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12,
+          "high": 26.079
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12 s to 26.079 s after the fault. Redis is black-holed for each replica for the hold (27 s). Each request needs Redis, thus each request fails from the fault until the callers recover. Before the readiness latch of a replica trips (8 s–20 s), each request on it waits for Redis and fails slowly. Then its controller is not ready, and the service refuses each request at once with a 503. The kubelet and the propagation (CAL.T07.nftables: median 0.045 s, 33 times) remove both replicas 12 s–26.079 s after the fault. Then the Service is empty, and its rules refuse each new connection. Each connection of A stays open on its replica, thus it gets the 503 of the service and no refusal. After the heal, the client of Redis connects again in 3.1 s at the most, and the readiness of the service recovers up to 6 s later. Then A succeeds on its open connections, before the endpoints come back. Each client sends a request each 20 ms, thus about 3954–5742 requests fail."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 18.549,
+      "values": [18.549, 20.573, 16.797],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 18.549 s. The counted runs measured 16.797 s to 20.573 s.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 3954,
+          "high": 5742
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      },
+      "lasts": [31.5879061, 33.2551751, 30.5090275],
+      "failures": [4714, 4964, 4555],
+      "knows": [12.4047721, 13.391145, 10.2658723],
+      "recovers": [4.4752162, 6.1462179, 3.3949791]
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck.dependency",
+      "template": "T07",
+      "name": "nftables, callers learn that a shared dependency is black-holed: in band (lame duck)",
+      "mode": "nftables",
+      "trigger": "blackhole",
+      "group": "dependency",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12,
+          "high": 26.079
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12 s to 26.079 s after the fault. Redis is black-holed for each replica for the hold (27 s). Each request needs Redis, thus each request fails from the fault until the callers recover. Before the readiness latch of a replica trips (8 s–20 s), each request on it waits for Redis and fails slowly. Then its controller is not ready, and the service refuses each request at once with a 503. The kubelet and the propagation (CAL.T07.nftables: median 0.045 s, 33 times) remove both replicas 12 s–26.079 s after the fault. Then the Service is empty, and its rules refuse each new connection. The lame duck closes each connection after the trip, thus each next request opens a new connection, and the empty Service refuses it. After the heal, the client of Redis connects again in 3.1 s at the most, and the readiness of the service recovers up to 6 s later. The kubelet then finds a replica ready in 2 s at the most, and the propagation adds it to the rules. Each client sends a request each 20 ms, thus about 3954–6054 requests fail."
+      },
+      "decision": "fails",
+      "counted": 3,
+      "voided": 0,
+      "failed": 1,
+      "unit": "s",
+      "median": 19.298,
+      "values": [19.298, 18.264, 19.482],
+      "why": "1 of the 3 counted runs disagrees with the prediction. In that run, the last failed request started 162 ms before the window can end. The median is 19.298 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.339
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6054
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      },
+      "lasts": [29.4725631, 26.603405, 27.6407674],
+      "failures": [4392, 3953, 4126],
+      "knows": [27.1097644, 26.603405, 27.1065217],
+      "recovers": [2.3613126, null, 0.533418]
+    },
+    {
+      "id": "S2.T07.nftables.goaway.dependency",
+      "template": "T07",
+      "name": "nftables, callers learn that a shared dependency is black-holed: in band on HTTP/2 (GOAWAY)",
+      "mode": "nftables",
+      "trigger": "blackhole",
+      "group": "dependency",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12,
+          "high": 26.079
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12 s to 26.079 s after the fault. Redis is black-holed for each replica for the hold (27 s). Each request needs Redis, thus each request fails from the fault until the callers recover. Before the readiness latch of a replica trips (8 s–20 s), each request on it waits for Redis and fails slowly. Then its controller is not ready, and the service refuses each request at once with a 503. The kubelet and the propagation (CAL.T07.nftables: median 0.045 s, 33 times) remove both replicas 12 s–26.079 s after the fault. Then the Service is empty, and its rules refuse each new connection. The lame duck closes each connection after the trip with a GOAWAY on its session, thus each next request opens a new connection, and the empty Service refuses it. After the heal, the client of Redis connects again in 3.1 s at the most, and the readiness of the service recovers up to 6 s later. The kubelet then finds a replica ready in 2 s at the most, and the propagation adds it to the rules. Each client sends a request each 20 ms, thus about 3954–6033 requests fail."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 17.59,
+      "values": [20.783, 15.878, 17.59],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 17.59 s. The counted runs measured 15.878 s to 20.783 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.199
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6033
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      },
+      "lasts": [30.1563339, 31.3277437, 33.0771212],
+      "failures": [4500, 4677, 4924],
+      "knows": [27.108309, 26.2311822, 26.948232],
+      "recovers": [3.0430992, 4.215977, 5.9557933]
+    },
+    {
+      "id": "S2.T07.nftables.session-check.dependency",
+      "template": "T07",
+      "name": "nftables, callers learn that a shared dependency is black-holed: in band on HTTP/2 with a session check",
+      "mode": "nftables",
+      "trigger": "blackhole",
+      "group": "dependency",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12,
+          "high": 26.079
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12 s to 26.079 s after the fault. Redis is black-holed for each replica for the hold (27 s). Each request needs Redis, thus each request fails from the fault until the callers recover. Before the readiness latch of a replica trips (8 s–20 s), each request on it waits for Redis and fails slowly. Then its controller is not ready, and the service refuses each request at once with a 503. The kubelet and the propagation (CAL.T07.nftables: median 0.045 s, 33 times) remove both replicas 12 s–26.079 s after the fault. Then the Service is empty, and its rules refuse each new connection. The lame duck closes each connection after the trip with a GOAWAY on its session, thus each next request opens a new connection, and the empty Service refuses it. After the heal, the client of Redis connects again in 3.1 s at the most, and the readiness of the service recovers up to 6 s later. The kubelet then finds a replica ready in 2 s at the most, and the propagation adds it to the rules. Each client sends a request each 20 ms, thus about 3954–6033 requests fail. A stream timeout before the trip closes its session, and the next stream opens a new one. Thus D is the same as C."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 19.652,
+      "values": [22.548, 19.652, 18.625],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 19.652 s. The counted runs measured 18.625 s to 22.548 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.199
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6033
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      },
+      "lasts": [34.9177138, 30.0035133, 33.0259054],
+      "failures": [5214, 4481, 4932],
+      "knows": [26.7839728, 26.9712934, 26.9579198],
+      "recovers": [7.8054034, 2.8934613, 5.9166015]
+    }
+  ],
+  "predictions": [
+    {
+      "id": "S2.T07.iptables.endpoints.dependency",
+      "mode": "iptables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 3954,
+          "high": 5742
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck.dependency",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.365
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6060
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.goaway.dependency",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.225
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6039
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.session-check.dependency",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.225
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6039
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints.dependency",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 3954,
+          "high": 5742
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck.dependency",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.569
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6090
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.dependency",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.429
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6069
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.session-check.dependency",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.429
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6069
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.endpoints.dependency",
+      "mode": "nftables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 3954,
+          "high": 5742
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck.dependency",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.339
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6054
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.goaway.dependency",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.199
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6033
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.session-check.dependency",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 11.199
+        },
+        "expected": {
+          "low": 3954,
+          "high": 6033
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        }
+      }
+    }
+  ]
+}

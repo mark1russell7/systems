@@ -1,8 +1,8 @@
 {
-  "ranAt": "2026-10-26",
+  "ranAt": "2026-10-27",
   "dimension": "how callers learn",
   "run": 40358038728,
-  "runs": [40358038728, 40380943331, 40394320219, 40406199754, 40419289511],
+  "runs": [40358038728, 40380943331, 40394320219, 40406199754, 40419289511, 40430856093],
   "criteria": [
     "time until callers know",
     "failed requests",
@@ -5671,8 +5671,2197 @@
     },
     {
       "incident": "a black-holed shared dependency",
-      "kind": "not measured",
-      "why": "No cell measures the candidates in this incident yet. The server of the S2 cells has no dependency: its Redis is off. A shared dependency fails the readiness of each replica at once. T18 has Redis, but no cell of the candidates."
+      "kind": "scored",
+      "trigger": "blackhole",
+      "run": 40430856093,
+      "modes": [
+        {
+          "mode": "iptables",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.iptables.endpoints.dependency",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 11.4133922,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 10.2883994,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.4133922,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 12.8505271,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 7.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.iptables.endpoints.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 5019,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 5019,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 5035,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4786,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3954,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 5742,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.iptables.endpoints.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The black hole holds for 27 s, and the readiness of each replica follows Redis: no replica can serve. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 6.5839144,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 5.0464632,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 6.5839144,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 7.5800482,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 9.26,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.iptables.endpoints.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 18.165,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 16.833,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.165,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.211,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.105,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.iptables.endpoints.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.iptables.lame-duck.dependency",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 27.1189637,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 27.1096558,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1189637,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1292952,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 7.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.iptables.lame-duck.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4173,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 4358,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4173,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4130,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3954,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 6060,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.iptables.lame-duck.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The black hole holds for 27 s, and the readiness of each replica follows Redis: no replica can serve. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0.9064642,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.5519349,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 0.9064642,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.2478024,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.365,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.iptables.lame-duck.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 17.524,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 17.057,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.524,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.912,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.105,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.iptables.lame-duck.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.iptables.goaway.dependency",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 26.5128882,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 26.4238998,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.5128882,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.8036041,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 7.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.iptables.goaway.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4403,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 4460,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4403,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4260,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3954,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 6039,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.iptables.goaway.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The black hole holds for 27 s, and the readiness of each replica follows Redis: no replica can serve. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 2.3520002,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 1.4088452,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.3520002,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.7396121,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.225,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.iptables.goaway.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 16.982,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 15.106,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 16.982,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.109,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.105,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.iptables.goaway.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.iptables.session-check.dependency",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 26.3995316,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 26.3565859,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.3995316,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1195949,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 7.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.iptables.session-check.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4690,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 4690,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4536,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4955,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3954,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 6039,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.iptables.session-check.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The black hole holds for 27 s, and the readiness of each replica follows Redis: no replica can serve. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4.3274506,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 3.2706523,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.3274506,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 6.1011209,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.225,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.iptables.session-check.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 18.006,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 15.014,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.006,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.82,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.105,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.iptables.session-check.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "B"
+        },
+        {
+          "mode": "ipvs",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.ipvs.endpoints.dependency",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 11.5179854,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 11.0225416,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 11.5179854,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 12.8519307,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 7.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.ipvs.endpoints.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4530,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 4537,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4530,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4527,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3954,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 5742,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.ipvs.endpoints.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The black hole holds for 27 s, and the readiness of each replica follows Redis: no replica can serve. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3.2419919,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 3.2276019,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.2419919,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.2793865,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 9.26,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.ipvs.endpoints.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 19.418,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 18.134,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.418,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.644,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12.073,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.309,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.ipvs.endpoints.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.ipvs.lame-duck.dependency",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 27.1583099,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 27.1422135,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1583099,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1585011,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 7.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.ipvs.lame-duck.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4452,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 4398,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4452,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4703,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3954,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 6090,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.ipvs.lame-duck.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The black hole holds for 27 s, and the readiness of each replica follows Redis: no replica can serve. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 2.7563201,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 2.3062164,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.7563201,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.3876585,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.569,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.ipvs.lame-duck.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 19.713,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 17.43,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.713,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.049,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12.073,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.309,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.ipvs.lame-duck.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.ipvs.goaway.dependency",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 26.7614854,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 26.6356302,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.7614854,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1049447,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 7.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.ipvs.goaway.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4492,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 4492,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4886,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4441,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3954,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 6069,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.ipvs.goaway.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The black hole holds for 27 s, and the readiness of each replica follows Redis: no replica can serve. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3.0028955,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 2.7035246,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 3.0028955,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 5.6001765,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.429,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.ipvs.goaway.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 18.288,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 17.094,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.288,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.562,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12.073,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.309,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.ipvs.goaway.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.ipvs.session-check.dependency",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 26.9511857,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 26.3993235,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.9511857,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.9889255,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 7.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.ipvs.session-check.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4778,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 5143,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4620,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4778,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3954,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 6069,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.ipvs.session-check.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The black hole holds for 27 s, and the readiness of each replica follows Redis: no replica can serve. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4.9171128,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 3.8576794,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.9171128,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 7.329113,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.429,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.ipvs.session-check.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 18.38,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 17.851,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.38,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.586,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12.073,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.309,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.ipvs.session-check.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "B"
+        },
+        {
+          "mode": "nftables",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.nftables.endpoints.dependency",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 12.4047721,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 10.2658723,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 12.4047721,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 13.391145,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 7.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.nftables.endpoints.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4714,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 4714,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4964,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4555,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3954,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 5742,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.nftables.endpoints.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The black hole holds for 27 s, and the readiness of each replica follows Redis: no replica can serve. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4.4752162,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 3.3949791,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.4752162,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 6.1462179,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 9.26,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.nftables.endpoints.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 18.549,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 16.797,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 18.549,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.573,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.079,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.nftables.endpoints.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.nftables.lame-duck.dependency",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 27.1065217,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 26.603405,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1065217,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.1097644,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 7.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.nftables.lame-duck.dependency",
+                    "decision": "fails",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4126,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 4392,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3953,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4126,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3954,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 6054,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": false,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.nftables.lame-duck.dependency",
+                    "decision": "fails",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The black hole holds for 27 s, and the readiness of each replica follows Redis: no replica can serve. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 1.4473653,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 0.533418,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 2.3613126,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.339,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.nftables.lame-duck.dependency",
+                    "decision": "fails",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 19.298,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 18.264,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.298,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.482,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.079,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.nftables.lame-duck.dependency",
+                    "decision": "fails",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.nftables.goaway.dependency",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 26.948232,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 26.2311822,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.948232,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 27.108309,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 7.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.nftables.goaway.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4677,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 4500,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4677,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4924,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3954,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 6033,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.nftables.goaway.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The black hole holds for 27 s, and the readiness of each replica follows Redis: no replica can serve. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4.215977,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 3.0430992,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 4.215977,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 5.9557933,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.199,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.nftables.goaway.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 17.59,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 15.878,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 17.59,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 20.783,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.079,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.nftables.goaway.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.nftables.session-check.dependency",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "measured",
+                  "median": {
+                    "value": 26.9579198,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 26.7839728,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.9579198,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 26.9712934,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 7.98,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 22,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.nftables.session-check.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 4932,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 5214,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4481,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 4932,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3954,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 6033,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.nftables.session-check.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "The black hole holds for 27 s, and the readiness of each replica follows Redis: no replica can serve. No cell gives a short fault yet."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": 5.9166015,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 2.8934613,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 5.9166015,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 7.8054034,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 11.199,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.nftables.session-check.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "not measured",
+                  "why": "Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service. The cell counts no probe."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "measured",
+                  "median": {
+                    "value": 19.652,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": 18.625,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 19.652,
+                      "unit": "s"
+                    },
+                    {
+                      "value": 22.548,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 12,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": 26.079,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "fault",
+                  "holds": true,
+                  "evidence": {
+                    "run": 40430856093,
+                    "cell": "S2.T07.nftables.session-check.dependency",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "B"
+        }
+      ]
     },
     {
       "incident": "a lost zone",
@@ -5682,7 +7871,7 @@
     {
       "incident": "a slow dependency (gray failure)",
       "kind": "not measured",
-      "why": "No cell measures the candidates in this incident yet. The S2 cells have no shared dependency, and a slow dependency slows each replica at once. Thus no routing candidate can go around it. The stalled pod is the gray failure of one replica."
+      "why": "No cell measures the candidates in this incident yet. The trigger of the S2 cells black-holes Redis, and no trigger slows it. A slow dependency slows each replica at once, thus no routing candidate can go around it. The stalled pod is the gray failure of one replica."
     },
     {
       "incident": "a flapping dependency",

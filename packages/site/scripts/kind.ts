@@ -30,6 +30,8 @@ import { T07_CELLS } from "../../cells/src/t07.ts";
 import { T18_CELLS } from "../../cells/src/t18.ts";
 import { T15_GRPC } from "../../cells/src/grpc/t15.ts";
 import { CALLERS_CELLS, callerFaultOf } from "../../cells/src/callers.ts";
+import type { Line } from "../../kind/src/observe.ts";
+import { failuresOf } from "../../kind/src/observe.ts";
 import { callerPredictions, candidateOf } from "./callers.ts";
 import type { Found } from "./records.ts";
 import { dateOf, only, readFolders, runnerOf, round, stringify, time, timeAt } from "./records.ts";
@@ -162,7 +164,7 @@ const predictionOf = (cell: KindCell) => {
       return {
         kind: p.kind,
         band: band(p.band.lo, p.band.hi),
-        text: `The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is ${time(s(p.band.lo))} to ${time(s(p.band.hi))} after the fault.`,
+        text: `The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is ${time(s(p.band.lo))} to ${time(s(p.band.hi))} after the fault.${p.window === undefined ? "" : ` ${p.window.why}.`}`,
       };
     case "leaves":
       // a false failure: the replica can serve, but its readiness fails, thus its departure is a false removal
@@ -311,6 +313,7 @@ const groupOf = (cell: KindCell): string => {
   if (cell.template === "T07") {
     if (cell.trigger.kind === "cannot-serve") return cell.trigger.serves === true ? "prober" : "callers";
     if (cell.trigger.partition === true) return "partition";
+    if (cell.trigger.kind === "blackhole") return "dependency";
     if (cell.trigger.kind === "app-stall") return "stall";
     if (cell.calibrates) return "calibration";
     if (cell.trigger.kind === "pod-deletion") return "deletion";
@@ -335,13 +338,47 @@ const spread = (value: TimeSpread | null) =>
 /**
  * This function gives the copy of a cell: kind for T07 and T18, and t15 for T15. The S2 cells of
  * cannot-serve get s2, those of a partition get s2-partition, and those of a stall get s2-stall. The
- * cells of a false failure of the prober get s2-prober.
+ * cells of a false failure of the prober get s2-prober, and those of a shared dependency get
+ * s2-dependency.
  */
-const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" | "s2-prober" => {
+const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" | "s2-prober" | "s2-dependency" => {
   if (cell.template === "T15") return "t15";
   if (!cell.id.startsWith("S2.")) return "kind";
   const fault = callerFaultOf(cell);
-  return fault === "partition" ? "s2-partition" : fault === "stall" ? "s2-stall" : fault === "false failure" ? "s2-prober" : "s2";
+  return fault === "partition"
+    ? "s2-partition"
+    : fault === "stall"
+      ? "s2-stall"
+      : fault === "false failure"
+        ? "s2-prober"
+        : fault === "shared dependency"
+          ? "s2-dependency"
+          : "s2";
+};
+
+/**
+ * This function gives two times of each counted run of a shared dependency, in seconds. A run with no
+ * such failure gives null.
+ * - `knows`: from the fault to the start of the last slow failure before the heal. A slow failure
+ *   took half the timeout of the client at the least.
+ * - `recovers`: from the heal to the start of the last failed request.
+ */
+const dependencyTimesOf = (cell: KindCell, runs: readonly KindRun[]): { knows: Array<number | null>; recovers: Array<number | null> } => {
+  const slow = valueIn(cell.workload.timeout, "ms") / 2;
+  const counted = runs.filter((run) => !run.warmup && run.void === null);
+  const times = counted.map((run) => {
+    const fault = referenceOf(run, "fault");
+    const heal = referenceOf(run, "heal");
+    if (fault === null || heal === null) return { knows: null, recovers: null };
+    const failures = failuresOf(run.lines as readonly Line[]).filter((request) => request.t >= run.start && request.t <= run.end);
+    const known = failures.filter((request) => request.t >= fault && request.t < heal && request.d >= slow).at(-1);
+    const last = failures.at(-1);
+    return {
+      knows: known === undefined ? null : round((known.t - fault) / 1000),
+      recovers: last === undefined || last.t < heal ? null : round((last.t - heal) / 1000),
+    };
+  });
+  return { knows: times.map((each) => each.knows), recovers: times.map((each) => each.recovers) };
 };
 
 /**
@@ -416,7 +453,9 @@ const cells = CATALOG.flatMap((cell) => {
       first: entry.first,
       ...(copyOf(cell).startsWith("s2") ? { candidate: candidateOf(cell), lasts: lastsOf(record.runs, verdict) } : {}),
       // the main value of a false failure is the time of its removal, thus the copy keeps the failed requests of each counted run apart
-      ...(copyOf(cell) === "s2-prober" ? { failures: verdict.checks.map((check) => check.facts.failures) } : {}),
+      ...(copyOf(cell) === "s2-prober" || copyOf(cell) === "s2-dependency" ? { failures: verdict.checks.map((check) => check.facts.failures) } : {}),
+      // a shared dependency: when the callers know, and when they recover after the heal
+      ...(copyOf(cell) === "s2-dependency" ? dependencyTimesOf(cell, record.runs) : {}),
     },
   ];
 });
@@ -456,7 +495,9 @@ for (const name of names) {
           ? { predictions: callerPredictions("stall") }
           : name === "s2-prober"
             ? { predictions: callerPredictions("false failure") }
-            : {};
+            : name === "s2-dependency"
+              ? { predictions: callerPredictions("shared dependency") }
+              : {};
   writeFileSync(out, stringify({ ...copy, cells: mine.map(({ copy: _copy, ...cell }) => cell), ...predictions }));
   process.stdout.write(`${mine.length} cells, ${mine.reduce((sum, cell) => sum + cell.counted + cell.voided, 0)} runs: ${out}\n`);
 }

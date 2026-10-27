@@ -116,9 +116,8 @@ const upgradePrediction = (prediction: PredictionV1): Prediction => {
         ...(answer === undefined ? {} : { answer: band(answer) }),
       };
     }
+    // the format /1 has no window on `removal` and `leaves`, but their types do
     case "removal":
-      return { ...prediction, band: band(prediction.band) };
-    // the format /1 has no window on `leaves`, but its type does
     case "leaves": {
       const { window, ...rest } = prediction;
       return { ...rest, band: band(prediction.band), ...(window === undefined ? {} : { window: upgradeWindow(window) }) };

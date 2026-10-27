@@ -161,9 +161,31 @@ One run of C in nftables had 12 failed requests. The prediction was 0 to 9, a ba
 
 <KindResults template="T07" group="prober" client:visible />
 
+### A black-holed shared dependency
+
+The same cells, with a black hole on the Redis of both replicas for 27 s. Redis gates the readiness of each replica, thus no replica can serve. The cells come from the run [40430856093](https://github.com/mark1russell7/systems/actions/runs/40430856093). The judge counted 3 runs of each cell in each mode. 11 of the 12 cells held in 3 of 3 runs.
+
+Each request waits on Redis and times out at 2 s. The latch of each replica trips 8 s to 20 s after the fault. Then each replica refuses each request at once with a 503. The kubelet removed both replicas, and the Service was empty 16.98 s to 19.71 s after the fault by the median run. That is in the bands of 12 s to 26.31 s.
+
+No replica can serve, thus each candidate fails each request until it recovers. B had the fewest failed requests in each mode: 4,173, 4,452 and 4,126 by the median run. A had 4,530 to 5,019, C had 4,403 to 4,677, and D had 4,690 to 4,932.
+
+A keeps its connections on the empty Service, thus its callers get a fast 503 until the readiness of the service recovers. The last slow failure of A started 11.41 s to 12.4 s after the fault by the median run.
+
+B, C and D close each refused connection, and on the empty Service each next connection waits on its connect. B fails each request slowly, at its timeout or with a refusal after approximately 1.8 s. C and D fail most streams at once, but approximately one stream each second for each client fails slowly. The record does not show the cause. A rate limit of the kernel on its ICMP errors is a possible cause.
+
+Thus the last slow failure of B, C and D started 26.4 s to 27.16 s after the fault, near the heal at approximately 27.1 s. The band was 7.98 s to 22 s, thus this score shows a failure. The prediction assumed that the empty Service refuses each next connection at once.
+
+After the heal, B recovered first, 0.91 s to 2.76 s after the heal by the median run. A recovered after 3.24 s to 6.58 s, C after 2.35 s to 4.22 s, and D after 4.33 s to 5.92 s.
+
+One run of B in nftables had no failure after the heal. A request that waits on its connect succeeds when an endpoint comes back within its timeout. Thus its last failure started 0.162 s before its window could end, and that cell held in 2 of 3 runs. That run also had 3,953 failed requests, under the band of 3,954. The bands stay as the commit before the run gave them.
+
+<CallersTable incident="dependency" />
+
+<KindResults template="T07" group="dependency" client:visible />
+
 ### How callers learn
 
-S6 scores each candidate of health and routing on seven criteria, for each incident of its design. Five runs score four incidents: a pod that cannot serve, a partitioned pod, a stalled pod and a failed prober. The third run adds D to the first two incidents. The fourth run has each candidate of the stall, and the fifth run has each candidate of the failed prober. The table puts the measure of each criterion next to its prediction, and each cell links to its run. A criterion that the run cannot support has no number, only the reason.
+S6 scores each candidate of health and routing on seven criteria, for each incident of its design. Six runs score five incidents: a pod that cannot serve, a partitioned pod, a stalled pod, a failed prober and a black-holed shared dependency. The third run adds D to the first two incidents. Each of the next three incidents has its own run, with each candidate. The table puts the measure of each criterion next to its prediction, and each cell links to its run. A criterion that the run cannot support has no number, only the reason.
 
 B, C and D each have fewer failed requests than A in each mode, by the median run. B has the fewest in IPVS, and D has the fewest in iptables and nftables. D has the band of C, thus the two are equal for a pod that cannot serve. Thus the service keeps one rule: while it is not ready, it closes each connection on the channel of its protocol. HTTP/1.1 gets `Connection: close`, and HTTP/2 gets GOAWAY. A is an opt-in of the transport.
 
@@ -172,6 +194,10 @@ In a partition, the service is ready, thus no candidate gets a signal in band. E
 A stall gives the same result. The service stays ready, and A and B learned in 1.15 s at the most. C learned only at the resume, approximately 10 s after the fault. D learned in 1.28 s to 3.3 s by the median run. Thus the stall changes no part of the rule.
 
 A failed prober does not change the rule either. Each candidate removes the target falsely, because the kubelet reads the same readiness check. A failed 1,529 to 1,690 requests by the median run, and B, C and D failed 3 to 25. B, C and D learned 10.4 s to 16.23 s after the fault by the median run, and A only after the heal. The scores of the failed prober also measure the time of the false removal.
+
+A black-holed shared dependency keeps the rule too, and the readiness of the service follows its dependency. The service cannot tell a shared failure from a failure of its own replica. For a failure of one replica, the removal routes callers around that replica. In a shared failure no replica can serve, thus the removal costs no requests. B had the fewest failed requests in each mode, and it recovered first.
+
+The cost is the time until callers know. The callers of A got a fast 503 after approximately 12 s, and B, C and D failed slowly until the heal. A gate that keeps the endpoints in a shared failure is a separate decision with its own evidence. No cell measures it yet. The scores of the shared dependency measure when the Service is empty, the last slow failure and the last failure after the heal.
 
 <CallersScores />
 
