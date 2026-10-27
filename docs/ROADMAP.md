@@ -814,11 +814,12 @@ The review of SYS-22 found that a server transport and a dependency with one nam
 
 ### SYS-40 · The backlog after a resume, from the sessions on the target
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** S2, KIND
 - **Started:** 2026-10-27
-- **Links:** [#246](https://github.com/mark1russell7/systems/pull/246), [The Cilium run](https://github.com/mark1russell7/systems/actions/runs/40558968382)
+- **Shipped:** 2026-10-27
+- **Links:** [#246](https://github.com/mark1russell7/systems/pull/246), [The Cilium run](https://github.com/mark1russell7/systems/actions/runs/40558968382), [#249](https://github.com/mark1russell7/systems/pull/249), [The backlog run](https://github.com/mark1russell7/systems/actions/runs/40575359112)
 
 The Cilium cells of #246 found a term that the bands do not have. In each of 3 runs, C of the stall had failed requests after the band end of 10 s. After the resume, the target drains a backlog from each of its sessions. Thus the backlog grows with the sessions on the target. The kube-proxy cells of C overshot the same band by up to 72 ms, thus the term is not specific to Cilium.
 
@@ -833,6 +834,12 @@ The bands of the test and its fleet entry are committed before the dispatch. The
 The cells are `BACKLOG_CELLS` in `packages/cells/src/backlog.ts`. Each client has 2 sessions and sends a request each 10 ms. Thus each session gets a request each 20 ms, as the one session of C does.
 
 The new `onTarget` field of the workload gives the sessions on the target. Before the SIGHUP of the clients, the lab writes the backend of each session to each client. The client then opens each session again until its first answer comes from that backend. Each run records the sessions on the target at the fault (`sessions` of its facts), and the start and the hold of the stall (`stall`).
+
+The result, from the run of 4 cells with 5 runs each: each cell holds in 5 of 5 runs. Each run recorded n sessions on the target, and each session got its backend. The overshoot is linear in n, thus the decision rule keeps the term. The largest overshoot with 6 sessions was 233 ms, below 420 ms.
+
+The value d is smaller than the prediction. The median overshoots were 13 ms, 59 ms, 73 ms and 156 ms for 1, 2, 3 and 6 sessions. A fit gives approximately 26 ms for each session, and the largest run gave 45 ms for each session. Thus 19 of 20 runs were below n × 40 ms. The next band of a stall takes d = 10 ms to 45 ms.
+
+The failed requests were below the bands in 16 of 20 runs, and in each run with 1, 2 or 3 sessions. For example, 1 session failed 491 to 494 requests, against 499 to 504. The missing term is the lateness of the timer of the client. The client sent a request each 10.10 ms to 10.22 ms, not each 10 ms. Thus a session got approximately 493 requests in 10 s, not 500. The next band counts the requests from the measured period of the client, not from its setting.
 
 ## The systems of S1
 
