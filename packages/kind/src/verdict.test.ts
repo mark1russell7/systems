@@ -152,6 +152,51 @@ describe("the judgement of a kind run", () => {
     expect(predictionText(removal.prediction)).toBe("Service empty in [12, 26.105] s; failures only from the fault + [0, 0.02] s to the heal + [0, 9] s, at least one");
   });
 
+  it("holds a flapping dependency to the empty Service and the window of each cycle, and to its return before the next fault", () => {
+    const window = { kind: "window", nodes: "all", start: { from: "fault", band: b(0, 0.02) }, end: { from: "heal", band: b(-2, 9) }, certain: true, flaps: true, why: "a test" } as const;
+    const removal = cell({ kind: "removal", band: b(12, 26.105), window, flaps: true, why: "a test" });
+    // three cycles of 27 s, 15 s apart: each one 42 s after the one before it
+    const cycles = [0, 1, 2].map((k) => ({ fault: 5000 + k * 42_000, heal: 32_000 + k * 42_000 }));
+    const empty = (at: number): Line[] => [
+      { ev: "slice", t: at, type: "MODIFIED", name: "lab-x", svc: "lab", eps: [{ ip: TARGET.ip, r: false }, { ip: OTHER.ip, r: false }] },
+      { ev: "rules", t: at + 200, prev: at + 150, node: "w1", b: [] },
+      { ev: "rules", t: at + 100, prev: at + 50, node: "w2", b: [] },
+    ];
+    const ready = (at: number): Line[] => [
+      { ev: "slice", t: at, type: "MODIFIED", name: "lab-x", svc: "lab", eps: [{ ip: TARGET.ip, r: true }, { ip: OTHER.ip, r: true }] },
+      { ev: "rules", t: at + 200, prev: at + 150, node: "w1", b: [`${TARGET.ip}:8080`] },
+      { ev: "rules", t: at + 100, prev: at + 50, node: "w2", b: [`${TARGET.ip}:8080`] },
+    ];
+    const failures = (k: number): Line[] => [request(6000 + k * 42_000, "timeout"), request(21_000 + k * 42_000, "refused"), request(33_000 + k * 42_000, "refused")];
+    const run = (lines: Line[]): KindRun => ({ ...runWith([]), end: 140_000, lines, acts: { fault: cycles[0]!.fault, heal: cycles[2]!.heal, resume: null, cycles } });
+    const all = [0, 1, 2].flatMap((k) => [...empty(20_000 + k * 42_000), ...ready(36_000 + k * 42_000)]);
+    const each = [0, 1, 2].flatMap(failures);
+    const check = checkRun(removal, run([...all, ...each]));
+    expect(check).toMatchObject({ ok: true, value: s(15), facts: { sliceEmpty: s(15), failures: 9, cycles: [0, 1, 2].map(() => ({ empty: s(15), ready: s(4) })) } });
+    expect(check.why).toBe("the Service was empty in each of 3 cycles, at 15 s, 15 s, 15 s after its fault; 9 failed requests, all in the windows of 3 cycles (span 111 s)");
+    // a failure in a rest is outside each window
+    expect(checkRun(removal, run([...all, ...each, request(44_000, "refused")])).why).toMatch(/^1 failed requests outside the window of each cycle: 1 \[-0.1, 36.1\] s/);
+    // a cycle with no failure, or whose last failure comes long before its heal
+    expect(checkRun(removal, run([...all, ...failures(0), ...failures(2)])).why).toContain("no request failed in the window of the cycle 2");
+    expect(checkRun(removal, run([...all, ...failures(0), ...failures(1).slice(0, 2), ...failures(2)])).why).toContain("the last failed request of the cycle 2 started 8.65 s before its window can end");
+    // the Service did not come back after the first heal: the second cycle starts empty
+    const stuck = [...empty(20_000), ...empty(104_000), ...ready(120_000)];
+    expect(checkRun(removal, run([...stuck, ...each])).why).toContain("the Service had no ready endpoint at the fault of the cycle 2");
+    // the Service empties late in the third cycle
+    const late = [0, 1].flatMap((k) => [...empty(20_000 + k * 42_000), ...ready(36_000 + k * 42_000)]).concat(empty(116_000), ready(120_000));
+    expect(checkRun(removal, run([...late, ...each])).why).toContain("the EndpointSlice had no ready endpoint at 27 s in the cycle 3");
+    expect(predictionText(removal.prediction)).toBe(
+      "Service empty in [12, 26.105] s after each fault, and ready again before the next; failures only from the fault + [0, 0.02] s to the heal + [-2, 9] s, in each cycle, at least one",
+    );
+  });
+
+  it("refuses a window with flaps on a reference that a cycle does not have, and a run with no cycle", () => {
+    const window = cell({ kind: "window", nodes: "all", start: { from: "deletion", band: b(0, 1) }, end: { from: "heal", band: b(0, 9) }, certain: true, flaps: true, why: "a test" });
+    expect(checkRun(window, runWith([], { fault: 5000, heal: 32_000 })).why).toBe("a window with flaps has no each, and its references are the fault and the heal");
+    const fault = cell({ kind: "window", nodes: "all", start: { from: "fault", band: b(0, 1) }, end: { from: "heal", band: b(0, 9) }, certain: true, flaps: true, why: "a test" });
+    expect(checkRun(fault, runWith([], { fault: 5000 })).why).toBe("the run has no cycle of a fault and its heal");
+  });
+
   it("times the departure of the target from the fault, and with a window it holds the failed requests to that window too", () => {
     const window = { kind: "window", nodes: "all", start: { from: "fault", band: b(8, 18.16) }, end: { from: "fault", band: b(8, 20.24) }, certain: true, outcomes: ["503"], why: "a test" } as const;
     const leaves = cell({ kind: "leaves", band: b(12, 24.105), window, why: "a test" });

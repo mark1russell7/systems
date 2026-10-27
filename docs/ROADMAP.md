@@ -158,6 +158,8 @@ On 2026-10-17, Mark decided the design of the server stack (D1 to D18). These de
 
 [PR #214](https://github.com/mark1russell7/systems/pull/214) scores the probe load. A, B and C send no PING by their code, thus their score is 0, from the code. The session check of D sends 2 PINGs each second for each session at the most. It sends them only while the session is quiet with a stream in flight. Kind run [40440516571](https://github.com/mark1russell7/systems/actions/runs/40440516571) held each of the 15 cells of D in 3 of 3 runs. Each count of PINGs was in the band of commit 47909ad, with 51 PINGs in a run at the most. The check stays an opt-in, because the package has no client of HTTP/2 and no caller of the fleet uses one ([S6.md](S6.md#the-probe-load-of-the-session-check)).
 
+[PR #235](https://github.com/mark1russell7/systems/pull/235) scores a sixth incident: a flapping dependency. The black hole of PR #211 comes three times in one run, for 27 s each, with a rest of 15 s after each heal. Kind run [40464814086](https://github.com/mark1russell7/systems/actions/runs/40464814086) held each of the 12 cells in 3 of 3 runs. The prediction of commit c8bca00 held each count, each removal, each recovery, each time until callers know and each count of PINGs. The first failure of a fault came up to 39 ms after the fault, after its band of 20 ms but in the noise of the judge. Each fault was the same as the first one, thus the decision of S6 does not change ([S6.md](S6.md#unified-or-separate-how-callers-learn)).
+
 ## The server stack in S6
 
 These items are the part of the server stack in this repository. The server stack is a plan across repositories: one service runner here, and one procedures server in the client. [Its tracker](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb) has the whole plan, with the same ids.
@@ -486,14 +488,22 @@ A check of the kind `progress` fires when no loop marks progress in its stall ti
 
 ### SYS-25 · The pairing window from the jitter of the runner
 
-- **Status:** later
+- **Status:** done
 - **Area:** engines
 - **Depends on:**
-- **Started:**
-- **Shipped:**
-- **Links:**
+- **Started:** 2026-10-27
+- **Shipped:** 2026-10-27
+- **Links:** [#224](https://github.com/mark1russell7/systems/pull/224), [The WS run](https://github.com/mark1russell7/systems/actions/runs/40453803841)
 
-A run pairs each event of a program with its record of the kernel in δ_abs, 1 ms. On a runner of GitHub the jitter of a program is 1.06 to 1.74 ms, thus a single run can fail on it. The harness measures that jitter in each run and records it, and δ_abs is the larger of 1 ms and the measured bound. A verdict that fails a cell only when its miss repeats changes how a verdict counts. Mark ruled the void threshold on 2026-10-16, thus that part is the decision D19 of the server stack, for Mark.
+A run pairs each event of a program with its record of the kernel in δ_abs, 1 ms. On a runner of GitHub the jitter of a program is 1.06 to 1.74 ms, thus a single run can fail on it. Thus the harness measures that jitter in each run and records it (`Run.jitter`). The pairing window of the run is the larger of δ_abs and the measured bound (`pairingOf`).
+
+- The decision of 2026-10-19 keeps the rule of one miss. A verdict does not wait for a miss to repeat. Only the window changes.
+- The bound is the longest delay from an act of the program to the first write of data on its socket. An act is a `write` line or a `ping` line before the fault. That write must come before the next act and before the fault.
+- The acts that a cell judges come after the fault, thus a late act cannot widen its own window.
+- Each measurement gives its bound and its window (`Measured.pairing`), and each line of `summary.ndjson` gives `pairing`. A record from before SYS-25 has no bound, thus its window is δ_abs, 1 ms.
+- In the 33 records of the nightly run 40446582383, only the cells of the `ws` class got a longer window: 1.009 ms to 1.519 ms. Each decision stayed the same.
+- The WS run 40453803841 on the branch held each of its 33 cells, and each line gave `pairing`. Only 10 cells of the `ws` class got a longer window, 1.027 ms to 2.129 ms.
+- The prediction of that run said that each bound stays below 2 ms. One cell missed it: the silent drop at 5 s with a heartbeat of 6 s, at 2.129 ms. Thus the jitter of a runner can be above 2 ms.
 
 - Stage 0 calibrated the runner image `ubuntu24 20261023.334.3` on 2026-10-24 (runs 40128274924 and 40129876394). The worst of 90 resets took 0.316 ms, thus δ_abs stays 1 ms and the cap stays 4.
 
@@ -611,12 +621,14 @@ It comes in machines as a PATCH: a new export before 1.0.0.
 
 ### SYS-32 · The service gives its drain rules from a light entry
 
-- **Status:** later
+- **Status:** done
 - **Area:** server stack
 - **Depends on:**
-- **Started:**
-- **Shipped:**
-- **Links:** [template #26](https://github.com/mark1russell7/template/pull/26), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Started:** 2026-10-27
+- **Shipped:** 2026-10-27
+- **Links:** [#228](https://github.com/mark1russell7/systems/pull/228), [template #26](https://github.com/mark1russell7/template/pull/26), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+
+The entry `@mark1russell7/service/rules` gives O04, O09, O10, O16 and `DRAIN_RULES` as data, and it loads no module at run time. Kind imports the rules from the entry and gives them again, thus the exports of kind do not change.
 
 The review of the template item OTH-5 found it. `lint()` of the service takes its rules from the caller. But the drain rules, O10, O16 and the others, are only in `@mark1russell7/kind`, and kind loads Testcontainers. Thus each new service copies the data of the rules into its tests.
 

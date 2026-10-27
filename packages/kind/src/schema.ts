@@ -97,7 +97,12 @@ const run: z.ZodType<KindRun> = z.object({
   warmup: z.boolean(),
   start: z.number(),
   end: z.number(),
-  acts: z.object({ fault: z.number().nullable(), heal: z.number().nullable(), resume: z.number().nullable() }),
+  acts: z.object({
+    fault: z.number().nullable(),
+    heal: z.number().nullable(),
+    resume: z.number().nullable(),
+    cycles: z.array(z.object({ fault: z.number(), heal: z.number() })).optional(),
+  }),
   target: replica.nullable(),
   paused: z.string().nullable(),
   replicas: z.array(replica),
@@ -144,13 +149,14 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     afterReset: z.object({ life: a, outcome: z.string() }).optional(),
     each: z.boolean().optional(),
     propagation: band.optional(),
+    flaps: z.boolean().optional(),
     outcomes: z.array(z.string()).optional(),
     why: z.string(),
   });
   const prediction = z.discriminatedUnion("kind", [
     z.object({ kind: z.literal("none"), outcomes: z.array(z.string()).optional(), why: z.string() }),
     window,
-    z.object({ kind: z.literal("removal"), band, window: window.optional(), why: z.string() }),
+    z.object({ kind: z.literal("removal"), band, window: window.optional(), flaps: z.boolean().optional(), why: z.string() }),
     z.object({ kind: z.literal("leaves"), band, window: window.optional(), why: z.string() }),
     z.object({ kind: z.literal("restarts"), band: band.nullable(), why: z.string() }),
     z.object({ kind: z.literal("stays"), why: z.string() }),
@@ -181,6 +187,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
       close: z.boolean().optional(),
       partition: z.boolean().optional(),
       serves: z.boolean().optional(),
+      flaps: z.array(z.object({ rest: time, hold: time })).optional(),
     }),
     pod: z.object({ replicas: count, grace: time, preStop: time, readiness: probe, liveness: probe, startup: probe.nullable() }),
     declaration: declaration.nullable(),
@@ -212,6 +219,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     updates: z.record(z.string(), z.object({ after: a.nullable(), by: a }).nullable()).optional(),
     healUpdates: z.record(z.string(), z.object({ after: a.nullable(), by: a }).nullable()).optional(),
     closes: z.record(z.string(), a.nullable()).optional(),
+    cycles: z.array(z.object({ empty: a.nullable(), ready: a.nullable() })).optional(),
   });
   const verdict = z.object({
     decision: z.enum(["holds", "fails", "extend", "measured", "calibration", "void"]),

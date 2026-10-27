@@ -2,9 +2,11 @@ import { timerOf } from "@mark1russell7/algebra";
 import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import type { LifecycleEvent } from "./events.ts";
-import type { Lifecycle, MessageTrigger, Profile, RequestEnd, Rule, ServiceBuilder, TransportImpl } from "./index.ts";
+import type { Lifecycle, MessageTrigger, Profile, RequestEnd, ServiceBuilder, TransportImpl } from "./index.ts";
 import { DECLARATION_RULE, daemon, drainMachine, ephemeral, kubernetes, lint, localDev, service } from "./index.ts";
 import { CAPS, exited, rig, run } from "./rig.ts";
+// the drain rules of the law that a profile meets, from the entry ./rules
+import { O10, O16 } from "./rules.ts";
 import { fakeClock, fakeProcess, seeded } from "./testing.ts";
 
 /**
@@ -19,42 +21,6 @@ const exitSteps = (events: readonly LifecycleEvent[]) =>
 const drainEnter = (events: readonly LifecycleEvent[], phase: string) =>
   events.find((event) => event.machine === "drain" && event.to === phase && event.from !== phase)!;
 
-/** These rules are the drain rules of the law that a profile meets: O10 and O16, as kind gives them. */
-const O10: Rule = {
-  id: "O10",
-  rule: "the preStop sleep plus the shutdown of the process fits in the grace period",
-  expr: {
-    lhs: {
-      terms: [
-        { knob: "prestop_sleep", coef: 1, at: "pod" },
-        { knob: "process_drain_time", coef: 1, at: "process" },
-      ],
-    },
-    op: "<=",
-    rhs: { terms: [{ knob: "termination_grace", coef: 1, at: "pod" }] },
-  },
-};
-const O16: Rule = {
-  id: "O16",
-  rule: "the cooperative window is shorter than the drain, which is shorter than the grace less the preStop sleep",
-  expr: {
-    lhs: { terms: [{ knob: "cooperative_window", coef: 1, at: "process" }] },
-    op: "<",
-    rhs: { terms: [{ knob: "process_drain_time", coef: 1, at: "process" }] },
-  },
-  expr_more: [
-    {
-      lhs: { terms: [{ knob: "process_drain_time", coef: 1, at: "process" }] },
-      op: "<",
-      rhs: {
-        terms: [
-          { knob: "termination_grace", coef: 1, at: "pod" },
-          { knob: "prestop_sleep", coef: -1, at: "pod" },
-        ],
-      },
-    },
-  ],
-};
 const podScenario = (grace: number, preStop: number) => ({
   platform: { "termination_grace@pod": s(grace), "prestop_sleep@pod": s(preStop) },
   probes: { readiness: s(30), liveness: s(30) },

@@ -1,7 +1,7 @@
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Cell, Subject } from "@mark1russell7/harness";
-import { measure, runCell } from "@mark1russell7/harness";
+import { measure, noiseOf, pairingsOf, runCell } from "@mark1russell7/harness";
 import { subjectSchema } from "@mark1russell7/harness/schema";
 import { describe, expect, it } from "vitest";
 import type { Subjects } from "./all.ts";
@@ -64,6 +64,7 @@ describe.skipIf(!RUN)("the catalogs, on the harness", () => {
         }),
       );
       const { verdict } = result;
+      const pairings = pairingsOf(result.measured, noiseOf(result.cell));
       appendFileSync(
         `${OUT}/summary.ndjson`,
         `${JSON.stringify({
@@ -82,6 +83,8 @@ describe.skipIf(!RUN)("the catalogs, on the harness", () => {
           ...(verdict.calls === undefined ? {} : { calls: verdict.calls }),
           ...(verdict.left === undefined ? {} : { left: verdict.left }),
           void: result.measured.filter((run) => run.void !== null).map((run) => run.void),
+          // the jitter bound of the program and the pairing window of the runs, against δ_abs of the cell
+          ...(pairings === null ? {} : { pairing: { noise: noiseOf(result.cell), ...pairings } }),
           warmups: result.warmups.map((run) => {
             const read = measure(cell, run);
             return read.elapsed?.value ?? read.outcome.kind;

@@ -1116,6 +1116,19 @@ export interface ProbeEvent {
   readonly [field: string]: unknown;
 }
 
+/**
+ * A jitter record tells how late the kernel stamped the acts of a program after their lines, in
+ * one run. An act is a `write` line or a `ping` line on the connection of the run, before the
+ * fault. Its delay goes from the line to the kernel's stamp of the first write of data on the
+ * socket after it. That write must come before the next act and before the fault.
+ */
+export interface Jitter {
+  /** This count is the number of acts that had a write in their window. */
+  readonly acts: number;
+  /** This time is the longest delay of those acts. It is null when the run has no such act. */
+  readonly bound: Quantity | null;
+}
+
 /** A run is one run of a cell, as the harness records it. */
 export interface Run {
   readonly environment: number;
@@ -1146,6 +1159,13 @@ export interface Run {
    * late timer is in time. A run without it keeps the rule in jiffies, as the runs before 0.9.0.
    */
   readonly hz?: number;
+  /**
+   * This record is the jitter of the program of the observer in the run (`jitterOf`). The pairing
+   * window of the run is δ_abs of its cell, or the bound of the jitter when the bound is longer
+   * (`pairingOf`). A record from before SYS-25 has no jitter. It reads as a bound of null, thus
+   * its window is δ_abs of its cell: 1 ms on a calibrated runner.
+   */
+  readonly jitter?: Jitter;
   /** These are the addresses and the namespaces of a topology, which the measurement of a run reads. */
   readonly topology?: RunTopology;
   /** These are the lines of the routers of a topology from the start to the end of the run. */

@@ -20,6 +20,7 @@ import {
   serviceBindings,
   verdictOf,
 } from "./index.ts";
+import { O04 } from "./rules.ts";
 import { fakeClock } from "./testing.ts";
 
 const s = (value: number) => ({ value, unit: "s" });
@@ -248,22 +249,8 @@ describe("the ordering law's evaluator", () => {
     expect(of(O01, { "expiry@client": Number.NaN, "close@server": 60 })).toBe("violated");
   });
 
-  // O04 with the service's own hold: the preStop sleep and the hold of "fail readiness" both keep the
-  // listener open while the endpoints update
-  const O04: Rule = {
-    id: "O04",
-    rule: "the preStop sleep plus the hold of fail readiness is at least the endpoint propagation",
-    expr: {
-      lhs: {
-        terms: [
-          { knob: "prestop_sleep", coef: 1, at: "pod" },
-          { knob: "readiness_hold", coef: 1, at: "process" },
-        ],
-      },
-      op: ">=",
-      rhs: { terms: [{ knob: "propagation_bound", coef: 1, at: "cluster" }] },
-    },
-  };
+  // O04 of the entry ./rules is O04 with the service's own hold: the preStop sleep and the hold of
+  // "fail readiness" both keep the listener open while the endpoints update
   const drained = (hold: number | null) => {
     const svc = service("svc")
       .readiness({ type: "debounce", interval: s(5), failAfter: 3, recoverAfter: 1 })

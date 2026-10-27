@@ -147,6 +147,19 @@ describe("the components of the CI runs", () => {
     expect(frames.split('class="sy-frame').length - 1).toBe(12);
   });
 
+  it("render the S2 candidates of a flapping dependency side by side, with the empty Service after the first fault and the band of each fault", () => {
+    const table = renderToString(<CallersTable incident="flapping" />);
+    expect(table).toContain("12,274 failed requests, and the empty Service 17.721 s after the first fault, in the median run");
+    expect(table).toContain("The prediction: 10,701 to 17,505 failed requests");
+    expect(table).toContain("The Service is empty 12 s to 26.105 s after the fault, for each fault.");
+    expect(table).toContain("Each fault has 3,567 to 5,835 failed requests.");
+    expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40464814086");
+    expect(table).not.toContain("No run in the copy yet.");
+    expect(table.split("<tr>").length - 1).toBe(4);
+    const frames = renderToString(<KindResults template="T07" group="flapping" />);
+    expect(frames.split('class="sy-frame').length - 1).toBe(12);
+  });
+
   it("render the scores of S6 side by side, with the run of the evidence and the reason for each criterion with no number", () => {
     const table = renderToString(<CallersScores />);
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40358038728");
@@ -156,15 +169,17 @@ describe("the components of the CI runs", () => {
     expect(table).toContain("The prediction: the last failure 8 s to 24.265 s after the fault.");
     // the fewest in each mode: D in iptables and nftables, B in IPVS; in the partition, B in iptables and A in IPVS (a tie) and nftables;
     // in the stall, B in iptables and nftables, and A in IPVS (a tie); for the failed prober, D in iptables and C in IPVS (a tie) and nftables.
-    // In the shared dependency, B has the fewest in each mode
-    expect(table.split("The fewest in this mode.").length - 1).toBe(15);
+    // In the shared dependency and in the flapping one, B has the fewest in each mode
+    expect(table.split("The fewest in this mode.").length - 1).toBe(18);
     // in each of the three incidents, three criteria have no number in each mode, and the complexity has its own reason for each of the 4 candidates.
     // The failed prober measures its false removals, thus it has one criterion with no number less.
-    // The shared dependency has one criterion with no number, and the complexity of each of the 4 candidates
-    expect(table.split("Not measured.").length - 1).toBe(32);
+    // The shared dependency and the flapping one each have one criterion with no number, and the complexity of each of the 4 candidates
+    expect(table.split("Not measured.").length - 1).toBe(37);
     expect(table).toContain("T07 has no blip");
-    // A, B and C send no PING by their code, and the run 40440516571 counts the PINGs of D in each mode of each incident
-    expect(table.split("0 PINGs, by the code").length - 1).toBe(45);
+    // A, B and C send no PING by their code, and the run 40440516571 counts the PINGs of D in each mode of each incident. The flapping run counts its own
+    expect(table.split("0 PINGs, by the code").length - 1).toBe(54);
+    expect(table).toContain("123 PINGs in the median run");
+    expect(table.match(/The prediction: 9 to 378\. The counted runs: \d+, \d+, \d+\./g)?.length).toBe(3);
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40440516571");
     expect(table).toContain("45 PINGs in the median run");
     expect(table).toContain("The prediction: 3 to 126. The counted runs: 33, 44, 51.");
@@ -183,15 +198,19 @@ describe("the components of the CI runs", () => {
     expect(table).toMatch(/the last failure 10\.0\d* s after the fault in the median run/);
     expect(table).toContain("Not measured yet: a lost zone");
     expect(table).not.toContain("Not measured yet: a black-holed shared dependency");
+    expect(table).not.toContain("a flapping dependency: No cell");
     // the failed prober: its own run for each candidate, and the false removal of each one
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40419289511");
     expect(table.match(/the false removal [\d.]+ s after the fault in the median run/g)?.length).toBe(12);
     // the shared dependency: its own run, the empty Service, the last slow failure and the last failure after the heal
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40430856093");
     expect(table).toContain("S2.T07.nftables.lame-duck.dependency");
-    expect(table.match(/the empty Service [\d.]+ s after the fault in the median run/g)?.length).toBe(12);
-    expect(table.match(/the last slow failure [\d.]+ s after the fault in the median run/g)?.length).toBe(12);
-    expect(table.match(/the last failure [\d.]+ (?:ms|s) after the heal in the median run/g)?.length).toBe(12);
+    // the flapping dependency: its own run, and the same 3 times, from the values of each fault
+    expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40464814086");
+    expect(table).toContain("S2.T07.nftables.lame-duck.flapping");
+    expect(table.match(/the empty Service [\d.]+ s after the fault in the median run/g)?.length).toBe(24);
+    expect(table.match(/the last slow failure [\d.]+ s after the fault in the median run/g)?.length).toBe(24);
+    expect(table.match(/the last failure [\d.]+ (?:ms|s) after the heal in the median run/g)?.length).toBe(24);
     // each incident with no cell gives its own reason
     expect(table).toContain("a lost zone: No cell measures the candidates in this incident yet. The kind cluster of T07 has no zones");
   });

@@ -1,6 +1,6 @@
 import type { Recovery } from "@mark1russell7/algebra";
 import { recovery, timerOf } from "@mark1russell7/algebra";
-import type { Declaration, KindCell, KubeProxyMode, Workload } from "@mark1russell7/kind";
+import type { Declaration, Flap, KindCell, KubeProxyMode, Workload } from "@mark1russell7/kind";
 import { KUBE_PROXY_MODES, kubeletBand, latchBand, learnWindow, removalBand, stallRemovalBand } from "@mark1russell7/kind";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { recoverSpan } from "@mark1russell7/service";
@@ -56,6 +56,10 @@ import { CHART_READINESS, DESIGN, DESIGN_REDIS, PROPAGATION, T07_WORKLOAD, WORKE
  * gates readiness (`DESIGN_REDIS`). A black hole comes between Redis and each replica for
  * `DEPENDENCY_HOLD`. No replica can serve, thus no candidate can route around the fault. The cells
  * measure when the Service is empty, when the callers get fast failures, and when they recover.
+ *
+ * The sixth incident is a flapping dependency: the black hole of the fifth incident comes
+ * `FLAP_FAULTS` times in one run. `FLAP_REST` is the time from each heal to the next fault (`FLAPS`
+ * of the trigger). The cells measure the same times in each fault, and if the Service comes back between two faults.
  */
 
 /** This count is the keep-alive connections of each client. Eight spread over two replicas, thus each client has some on the target in almost each run. */
@@ -88,12 +92,13 @@ export const CANNOT_SERVE_HOLD = s(30);
 /**
  * These are the incidents of the S2 cells. The target cannot serve, a black hole partitions it from
  * the clients, or its event loop stalls. In a false failure, its readiness check fails while it can serve.
- * In a shared dependency, a black hole comes between Redis and each replica.
+ * In a shared dependency, a black hole comes between Redis and each replica. In a flapping
+ * dependency, that black hole comes and goes `FLAP_FAULTS` times in one run.
  */
-export type CallerFault = "cannot serve" | "partition" | "stall" | "false failure" | "shared dependency";
+export type CallerFault = "cannot serve" | "partition" | "stall" | "false failure" | "shared dependency" | "flapping dependency";
 
 /** These are the incidents in their sequence: the cells of "cannot serve" come first. */
-export const CALLER_FAULTS: readonly CallerFault[] = ["cannot serve", "partition", "stall", "false failure", "shared dependency"];
+export const CALLER_FAULTS: readonly CallerFault[] = ["cannot serve", "partition", "stall", "false failure", "shared dependency", "flapping dependency"];
 
 /**
  * This time is how long the event loop of the target stays blocked in a stall. It has three bounds:
@@ -239,6 +244,7 @@ export const expectedFailures = (candidate: Candidate, mode: KubeProxyMode, faul
   if (fault === "stall") return stallOf(mode, candidate).expected;
   if (fault === "false failure") return falseOf(mode, candidate).expected;
   if (fault === "shared dependency") return dependencyOf(mode, candidate).expected;
+  if (fault === "flapping dependency") return flappingOf(mode, candidate).expected;
   const workload = workloadOf(candidate);
   const window = learnWindow(declarationOf(candidate), CHART_READINESS, PROPAGATION[mode], workload);
   const turn = valueIn(window.turn, "s");
@@ -695,6 +701,90 @@ export const dependencyOf = (mode: KubeProxyMode, candidate: Candidate): Depende
   return { expected, start: { lo: s(0), hi: time(every) }, end, removal: { lo: time(removed.lo), hi: time(removed.hi) }, knows, why };
 };
 
+/**
+ * This count is the faults of a flapping dependency in one run: the first fault, and two flaps. Three
+ * faults give two rests, thus each fault after the first one comes after a full recovery.
+ */
+export const FLAP_FAULTS = 3;
+
+/** This time is how long Redis stays black-holed in each fault of a flapping dependency: the hold of the black-holed shared dependency. */
+export const FLAP_HOLD = DEPENDENCY_HOLD;
+
+/**
+ * This time is the rest of a flapping dependency: from the heal of one fault to the next fault. It has
+ * two bounds:
+ * - It is longer than the latest recovery after a heal (`flappingOf`), thus the Service has its
+ *   replicas, and the callers succeed, before the next fault.
+ * - It is longer than a period of the readiness debounce (5 s), of the poll (5 s ±20 %) and of the
+ *   kubelet probe (2 s). One success resets each of them, thus each fault starts from a steady state.
+ */
+export const FLAP_REST = s(15);
+
+/** These are the flaps of the trigger: each fault after the first one, with its rest and its hold. */
+export const FLAPS: readonly Flap[] = Array.from({ length: FLAP_FAULTS - 1 }, () => ({ rest: FLAP_REST, hold: FLAP_HOLD }));
+
+/**
+ * This band is the heal of a black hole on Redis after its hold, from its fault. The runner sleeps for
+ * the hold from the stamp of the first inject, thus the heal comes no earlier. The inject of the other
+ * replica comes after that stamp. In the kind run 40430856093, the heal came 0.105 s–0.186 s after the
+ * hold, in 60 runs. Thus the band is 0 s–0.5 s. `HEAL_LEAD` is the lead of the injector of a partition.
+ */
+export const REDIS_HEAL_LEAD = { lo: s(0), hi: s(0.5) };
+
+/**
+ * This is the prediction of a candidate in a flapping dependency. Each band is for one fault, from
+ * the fault or the heal of that fault. `each` is the failed requests of one fault, and `expected` is
+ * the failed requests of the run.
+ */
+export interface FlappingPrediction extends DependencyPrediction {
+  readonly each: Expected;
+}
+
+/**
+ * This function gives the prediction of a candidate in a flapping dependency. It is the black hole
+ * of a shared dependency, `FLAP_FAULTS` times, with `FLAP_REST` from a heal to the next fault. Each
+ * fault is the same as the first one, because each recovery ends before the next fault. The kind run
+ * 40430856093 of the black-holed shared dependency gives three corrections to its bands:
+ * - B, C and D: on the empty Service, each request waits for its connect, and fails at its timeout.
+ *   Thus the slow failures go on until the heal.
+ * - B, C and D: a request that waits for its connect succeeds when an endpoint comes back. Thus the
+ *   last failure starts up to one timeout before the heal.
+ * - The heal of Redis comes `REDIS_HEAL_LEAD` after the hold, not `HEAL_LEAD`.
+ */
+export const flappingOf = (mode: KubeProxyMode, candidate: Candidate): FlappingPrediction => {
+  const one = dependencyOf(mode, candidate);
+  const workload = workloadOf(candidate);
+  const every = valueIn(workload.every, "s");
+  const timeout = valueIn(workload.timeout, "s");
+  const hold = valueIn(FLAP_HOLD, "s");
+  const rest = valueIn(FLAP_REST, "s");
+  const lead = { lo: valueIn(REDIS_HEAL_LEAD.lo, "s"), hi: valueIn(REDIS_HEAL_LEAD.hi, "s") };
+  const removal = { lo: valueIn(one.removal.lo, "s"), hi: valueIn(one.removal.hi, "s") };
+  if (removal.hi >= hold) throw new Error(`the hold ${say(FLAP_HOLD)} ends before the latest removal (${removal.hi} s)`);
+  const endHi = valueIn(one.end.hi, "s");
+  // a request that waits for its connect on the empty Service succeeds when an endpoint comes back
+  const endLo = inBand(candidate) ? -timeout : 0;
+  // the last request of a recovery ends before the next fault
+  if (endHi + timeout >= rest) throw new Error(`the rest ${say(FLAP_REST)} ends before the latest recovery (${endHi + timeout} s)`);
+  const late = valueIn(FIRING_LATE, "s");
+  const span = { lo: hold + lead.lo + endLo, hi: hold + lead.hi + endHi };
+  const of = (length: number, gap: number): number => Math.round((length / gap) * 1e6) / 1e6;
+  const per = { lo: CLIENTS * (Math.floor(of(span.lo, every + late)) - 1), hi: CLIENTS * (Math.ceil(of(span.hi, every)) + 1) };
+  const each = { lo: requests(per.lo), hi: requests(per.hi), connections: one.expected.connections };
+  const expected = { lo: requests(FLAP_FAULTS * per.lo), hi: requests(FLAP_FAULTS * per.hi), connections: one.expected.connections };
+  const end = { lo: time(endLo), hi: one.end.hi };
+  // B, C and D: the last slow failure starts in the last timeout before the heal. A: at the trip of the latch
+  const knows = inBand(candidate) ? { lo: time(hold + lead.lo - timeout - every), hi: time(hold + lead.hi) } : one.knows;
+  const flaps = `Redis is black-holed ${FLAP_FAULTS} times for ${say(FLAP_HOLD)}, with a rest of ${say(FLAP_REST)} from each heal to the next fault. The heal comes ${say(REDIS_HEAL_LEAD.lo)}–${say(REDIS_HEAL_LEAD.hi)} after the hold. Each request needs Redis, thus each request fails from each fault until the callers recover`;
+  const removed = `The kubelet and the propagation remove both replicas ${say(one.removal.lo)}–${say(one.removal.hi)} after each fault, thus the Service is empty in each fault`;
+  const back = `Each recovery ends before the next fault. One success resets the readiness debounce, the kubelet probe and the retry window of the client of Redis. Thus each fault is the same as the first one`;
+  const about = `Each client sends a request each ${say(workload.every)}, thus approximately ${per.lo}–${per.hi} requests fail in each fault, and ${expected.lo.value}–${expected.hi.value} in the run`;
+  const why = inBand(candidate)
+    ? `${flaps}. ${removed}. On the empty Service, each request waits for its connect, and it fails at the timeout of ${say(workload.timeout)}. Thus the slow failures go on until the heal. A request that waits for its connect succeeds when an endpoint comes back. Thus the last failure starts up to ${say(workload.timeout)} before the heal, and up to ${say(one.end.hi)} after it. ${back}. ${about}`
+    : `${flaps}. Each connection of A stays open on its replica, thus it gets the 503 of the service at the trip of the latch, and no refusal. ${removed}. A succeeds on its open connections when the readiness of the service recovers, up to ${say(one.end.hi)} after the heal. ${back}. ${about}`;
+  return { expected, each, start: one.start, end, removal: one.removal, knows, why };
+};
+
 /** These are the bytes of one PING frame of HTTP/2: a frame header of 9 bytes and 8 bytes of opaque data (RFC 9113, sections 4.1 and 6.7). Its ACK has the same size. */
 export const PING_FRAME: Quantity = { value: 17, unit: "B" };
 
@@ -762,15 +852,18 @@ export const pingsOf = (mode: KubeProxyMode, candidate: Candidate, fault: Caller
   const turn = valueIn(workload.every, "s") * (workload.connections ?? 1);
   // one PING at each tick of a client from the fault to the trip, and one more for the tick of the session at the fault
   const each = Math.ceil(Math.round(((valueIn(latch.hi, "s") + turn) / quiet) * 1e6) / 1e6) + 1;
+  // a flapping dependency: the same PINGs in each fault. In a rest, each replica answers each stream at once
+  const faults = fault === "flapping dependency" ? FLAP_FAULTS : 1;
+  const flaps = faults === 1 ? "" : `. The clients send these PINGs in each of the ${faults} faults. In a rest, each replica answers each stream at once, thus no session sends a PING`;
   return {
-    lo: pings(CLIENTS),
-    hi: pings(CLIENTS * each),
-    why: `${tick}. Each stream waits for Redis until the latch trips (${say(latch.lo)}–${say(latch.hi)}), but the server answers each PING. Thus each session sends a PING at each tick, with an ACK. A stream timeout closes the session, and the first tick of the next session hears its SETTINGS. After the trip, each stream gets a 503 at once, and a session on the empty Service does not connect. The PINGs of a client are one tick apart at the least. Each client sends one PING before the trip at the least, and ${each} at the most`,
+    lo: pings(faults * CLIENTS),
+    hi: pings(faults * CLIENTS * each),
+    why: `${tick}. Each stream waits for Redis until the latch trips (${say(latch.lo)}–${say(latch.hi)}), but the server answers each PING. Thus each session sends a PING at each tick, with an ACK. A stream timeout closes the session, and the first tick of the next session hears its SETTINGS. After the trip, each stream gets a 503 at once, and a session on the empty Service does not connect. The PINGs of a client are one tick apart at the least. Each client sends one PING before the trip at the least, and ${each} at the most${flaps}`,
   };
 };
 
 /** These are the incidents of a silent target: the words of the name of each cell, and its trigger. */
-const SILENT: Readonly<Record<Exclude<CallerFault, "cannot serve" | "false failure" | "shared dependency">, { readonly what: string; readonly trigger: KindCell["trigger"]; readonly predict: typeof partitionOf }>> = {
+const SILENT: Readonly<Record<Exclude<CallerFault, "cannot serve" | "false failure" | "shared dependency" | "flapping dependency">, { readonly what: string; readonly trigger: KindCell["trigger"]; readonly predict: typeof partitionOf }>> = {
   partition: { what: "a pod is partitioned", trigger: { kind: "blackhole", hold: PARTITION_HOLD, partition: true }, predict: partitionOf },
   stall: { what: "a pod is stalled", trigger: { kind: "app-stall", hold: STALL_HOLD }, predict: stallOf },
 };
@@ -794,7 +887,9 @@ export const callerFaultOf = (cell: KindCell): CallerFault =>
     : cell.trigger.kind === "app-stall"
       ? "stall"
       : cell.trigger.kind === "blackhole"
-        ? "shared dependency"
+        ? (cell.trigger.flaps ?? []).length > 0
+          ? "flapping dependency"
+          : "shared dependency"
         : cell.trigger.serves === true
           ? "false failure"
           : "cannot serve";
@@ -860,6 +955,38 @@ const cellOf = (mode: KubeProxyMode, candidate: Candidate, fault: CallerFault): 
           why: predicted.why,
         },
         why: `The round trip of Redis gates the readiness of each replica, thus the Service is empty ${say(predicted.removal.lo)}–${say(predicted.removal.hi)} after the fault, for each candidate`,
+      },
+      calibrates: false,
+      runs: 3,
+    };
+  }
+  if (fault === "flapping dependency") {
+    const predicted = flappingOf(mode, candidate);
+    return {
+      id: `S2.T07.${mode}.${SUFFIX[candidate]}.flapping`,
+      name: `T07 ${mode}, callers learn that a shared dependency flaps: ${candidate}`,
+      template: "T07",
+      substitutes: null,
+      mode,
+      workers: WORKERS,
+      trigger: { kind: "blackhole", hold: FLAP_HOLD, flaps: FLAPS },
+      pod,
+      declaration: dependencyDeclarationOf(candidate),
+      workload,
+      prediction: {
+        kind: "removal",
+        band: predicted.removal,
+        flaps: true,
+        window: {
+          kind: "window",
+          nodes: "all",
+          start: { from: "fault", band: predicted.start },
+          end: { from: "heal", band: predicted.end },
+          certain: true,
+          flaps: true,
+          why: predicted.why,
+        },
+        why: `The round trip of Redis gates the readiness of each replica, thus the Service is empty ${say(predicted.removal.lo)}–${say(predicted.removal.hi)} after each of the ${FLAP_FAULTS} faults, for each candidate. It has its replicas again before the next fault`,
       },
       calibrates: false,
       runs: 3,

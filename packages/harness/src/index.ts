@@ -28,6 +28,7 @@ export type {
   HopSignal,
   HopWrite,
   HttpProbe,
+  Jitter,
   ImageSource,
   LineMatch,
   MiddleboxEvent,
@@ -76,6 +77,7 @@ export {
   dropOf,
   exitOf,
   firstUnanswered,
+  jitterOfLines,
   leftAfter,
   pingsOf,
   programLines,
@@ -83,7 +85,7 @@ export {
   reconnectOf,
 } from "./application.ts";
 export type { Crossings, Measured, Outcome, Reordering, RequestReading, SocketPlace } from "./observe.ts";
-export { crossingsOf, measure, reorderingOf, requestOf, socketOf } from "./observe.ts";
+export { crossingsOf, jitterOf, measure, reorderingOf, requestOf, socketOf } from "./observe.ts";
 export type { DriverSocket, DriverStepTime } from "./driver.ts";
 export { fieldOf, matches, measureDriver, referenceOf, socketAt, socketsOf } from "./driver.ts";
 export type { ErrorOnTheWay, GroupMeasured, GroupReading, Writes } from "./timeline.ts";
@@ -101,8 +103,23 @@ export {
   stagesOf,
   writesOf,
 } from "./timeline.ts";
-export type { Decision, GroupVerdict, Interval, ReconnectVerdict, Spread, StageVerdict, Verdict } from "./verdict.ts";
-export { INJECT, NOISE, RELATIVE, STEPS, delayVoids, groupVerdictOf, medianInterval, noiseOf, quantileOf, requestWords, spreadOf, verdictOf } from "./verdict.ts";
+export type { Decision, GroupVerdict, Interval, Pairing, ReconnectVerdict, Spread, StageVerdict, Verdict } from "./verdict.ts";
+export {
+  INJECT,
+  NOISE,
+  RELATIVE,
+  STEPS,
+  delayVoids,
+  groupVerdictOf,
+  medianInterval,
+  noiseOf,
+  pairingOf,
+  pairingsOf,
+  quantileOf,
+  requestWords,
+  spreadOf,
+  verdictOf,
+} from "./verdict.ts";
 export type { Agent, FaultSide, Lab, Manifest, ManifestHop, NetworkFault, Probe } from "./lab.ts";
 export { LISTING, PUMP, PUMP_SLACK, deviceOf, endpointAfter, hzOf, openLab, routesOf, templated, toxicBody } from "./lab.ts";
 export type { ImagePlan } from "./image.ts";

@@ -6,8 +6,10 @@
 export { bandOf, seconds, secondsOf, showBand } from "./bands.ts";
 export type {
   Band,
+  Cycle,
   Declaration,
   EdgeProtocol,
+  Flap,
   KindCell,
   KindRun,
   KubeletProbe,
@@ -55,6 +57,7 @@ export {
   KIND_NOISE,
   LAST_SLACK,
   checkRun,
+  cyclesOf,
   deletionsOf,
   factsOf,
   judgeKind,

@@ -1,6 +1,6 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
-import type { Cell, KernelRecord, ProbeEvent, Reconnects, Run } from "./cell.ts";
+import type { Cell, Jitter, KernelRecord, ProbeEvent, Reconnects, Run } from "./cell.ts";
 import { NOISE } from "./verdict.ts";
 
 /**
@@ -35,13 +35,13 @@ import { NOISE } from "./verdict.ts";
  *   These are the runs 39390222333 and 39903020657 of the client repository.
  *
  * The bound is 1.5 ms: the maximum and a margin of 0.48 ms. The pairing of a drop with its act
- * uses it, or δ_abs when δ_abs is longer. The band of a drop adds it to its high bound (the WS
- * catalog of the cells). Read the records again after a change to the subject, to Node or to
+ * uses it, or the pairing window of the run when that window is longer. The band of a drop adds
+ * it to its high bound (the WS catalog of the cells). Read the records again after a change to the subject, to Node or to
  * the runners.
  */
 export const DROP_HANDLING: Quantity = quantity(1.5, "ms");
 
-/** This function gives the window of the act of a drop after its line, in seconds: `DROP_HANDLING`, or δ_abs when δ_abs is longer. */
+/** This function gives the window of the act of a drop, in seconds: `DROP_HANDLING`, or the pairing window (`delta`) when it is longer. */
 const dropWindow = (delta: Quantity): number => Math.max(valueIn(DROP_HANDLING, "s"), valueIn(delta, "s"));
 
 /** This function gives the interval between two instants on the one clock, in seconds to the microsecond. */
@@ -54,8 +54,8 @@ const oldState = (record: KernelRecord): number | undefined => (record as { read
 /**
  * A program event is a line of the program of the observer, with the kernel's stamp of its act.
  * The act is a write, or a change of state of the socket. Without a record of the kernel in its
- * window after the line, the instant is the stamp of the line. The window is δ_abs, and for a drop
- * it is `DROP_HANDLING` when that is longer.
+ * window after the line, the instant is the stamp of the line. The window is the pairing window of
+ * the run (`pairingOf`), and for a drop it is `DROP_HANDLING` when that is longer.
  */
 export interface ProgramEvent {
   readonly line: ProbeEvent;
@@ -164,9 +164,9 @@ export const closeOrExit = (
 
 /**
  * This function tells how a drop differs from the way that its prediction gives, or gives null.
- * A close closes the socket at once: in the handling time of the program (`DROP_HANDLING`), or in
- * δ_abs (`delta`) when δ_abs is longer. A close frame is a write, and the program does not close
- * the socket at the drop. A peer that answers the close frame can close it, and that is no finding.
+ * A close closes the socket at once, in the handling time of the program (`DROP_HANDLING`). If
+ * the pairing window of the run (`delta`) is longer, that window is the limit. A close frame is a
+ * write, and the program does not close the socket at the drop. A peer that answers the close frame can close it, and that is no finding.
  */
 export const dropFinding = (
   expected: "frame" | "close",
@@ -188,7 +188,31 @@ export const dropFinding = (
 
 const isWrite = (record: KernelRecord): boolean => record.ev === "tx";
 
-/** This function gives each ping of the program on the connection of the run, with the kernel's stamp of its write. */
+/**
+ * This function measures the jitter of a program from its acts before `until`, the start of the
+ * fault. An act is a `write` line or a `ping` line on the connection. Its delay goes from the line
+ * to the first write of data on the socket after it, before the next act and before `until`. An
+ * act with no such write does not count. The bound is the longest delay, to the microsecond.
+ */
+export const jitterOfLines = (
+  lines: readonly ProbeEvent[],
+  socket: readonly KernelRecord[],
+  local: unknown,
+  until: number,
+): Jitter => {
+  const acts = lines.filter((line) => (line.ev === "write" || line.ev === "ping") && line.t < until && onConnection(line, local));
+  const delays = acts.flatMap((line, at) => {
+    const next = Math.min(acts[at + 1]?.t ?? until, until);
+    const write = socket.find((record) => isWrite(record) && (record.seg?.len.value ?? 0) > 0 && record.mono >= line.t && record.mono < next);
+    return write === undefined ? [] : [write.mono - line.t];
+  });
+  return {
+    acts: delays.length,
+    bound: delays.length === 0 ? null : quantity(Math.round(Math.max(...delays) / 1e3) / 1e3, "ms"),
+  };
+};
+
+/** This function gives each ping of the program on the connection, with the kernel's stamp of its write in the pairing window (`delta`). */
 export const pingsOf = (
   lines: readonly ProbeEvent[],
   socket: readonly KernelRecord[],
@@ -217,7 +241,7 @@ export const firstUnanswered = (
  * This function gives the first drop of the connection by its program. The kernel stamps it as the
  * write of a close frame. Or it stamps the change of the socket out of ESTABLISHED: a close or an
  * abort. That stamp comes in the handling time of the program after the drop line
- * (`DROP_HANDLING`), or in δ_abs (`delta`) when δ_abs is longer.
+ * (`DROP_HANDLING`). If the pairing window of the run (`delta`) is longer, that window is the limit.
  */
 export const dropOf = (
   lines: readonly ProbeEvent[],

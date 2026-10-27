@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { DROP_HANDLING, callOf, dropFinding, dropOf, exitOf, reconnectFinding } from "./application.ts";
+import { DROP_HANDLING, callOf, dropFinding, dropOf, exitOf, jitterOfLines, reconnectFinding } from "./application.ts";
 import type { Cell, KernelRecord, ProbeEvent, Run } from "./cell.ts";
 import { latestEndOf } from "./cell.ts";
-import { measure } from "./observe.ts";
-import { verdictOf } from "./verdict.ts";
+import { jitterOf, measure } from "./observe.ts";
+import type { Pairing } from "./verdict.ts";
+import { NOISE, pairingOf, pairingsOf, verdictOf } from "./verdict.ts";
 
 const s = (value: number) => ({ value, unit: "s" });
 const ms = (value: number) => ({ value, unit: "ms" });
@@ -418,5 +419,79 @@ describe("a detection by the program of the observer, from its lines and the ker
     const read = measure(inflight, run([...client.slice(0, 4), request, ...client.slice(4), lines[1]!], kernel));
     expect(read.call).toEqual({ outcome: "WebSocket connection closed", after: s(0.00012) });
     expect(verdictOf(inflight.prediction, [read]).why).toContain("Calls in flight: 1 WebSocket connection closed.");
+  });
+});
+
+describe("the pairing window of a run, from the jitter of its program (SYS-25)", () => {
+  // the hello of the ws class: its write came 1.4 ms after its line, as on a runner of GitHub
+  const hello: ProbeEvent = { ev: "write", t: T - 1_900_000, conn: 1, local: LOCAL, type: "hello" };
+  const greeted = [...client.slice(0, 2), hello, ...client.slice(2)];
+  const written = [k("tx", T - 500_000, data(20)), ...kernel];
+  const runner: Cell = { ...HEARTBEAT, noise: ms(1) };
+
+  it("measures the jitter from the acts of the program before the fault", () => {
+    // the ping before the fault: its write 0.02 ms after its line. The ping into the fault does not count
+    expect(jitterOf(runner, run(client, kernel))).toEqual({ acts: 1, bound: ms(0.02) });
+    expect(jitterOf(runner, run(greeted, written))).toEqual({ acts: 2, bound: ms(1.4) });
+    // a fault with no stamp: the acts count up to the reply of the client
+    expect(jitterOf(runner, run(greeted, written, { fault: null }))).toEqual({ acts: 1, bound: ms(1.4) });
+    // a run with no lines of a program has no act
+    expect(jitterOf({ ...runner, observer: { hop: "nat", toward: "client" } }, run(client, kernel))).toEqual({ acts: 0, bound: null });
+  });
+
+  it("counts an act only with its own write: before the next act, and before the fault", () => {
+    const socket = written.filter((record) => record.cookie === OLD);
+    const until = T + 300e6;
+    // a hello whose write never came: the write of the ping is not its write
+    const silent = written.filter((record) => record.mono !== T - 500_000);
+    expect(jitterOfLines(greeted, silent, LOCAL, until)).toEqual({ acts: 1, bound: ms(0.02) });
+    // a write that the fault met: its line came before the fault, and its write after the start
+    const late: ProbeEvent = { ev: "write", t: until - 1_000_000, conn: 1, local: LOCAL, type: "request" };
+    expect(jitterOfLines([...greeted.slice(0, 6), late], [...socket, k("tx", until + 1_000_000, data(30))], LOCAL, until)).toEqual({
+      acts: 2,
+      bound: ms(1.4),
+    });
+    // an ACK has no data: it is no write of the program
+    expect(jitterOfLines([hello], [k("tx", T - 1_800_000), k("tx", T - 1_000_000, data(20))], LOCAL, until)).toEqual({ acts: 1, bound: ms(0.9) });
+    // a line of a socket that did not open is no act on the connection
+    expect(jitterOfLines([{ ...hello, local: null }], socket, LOCAL, until)).toEqual({ acts: 0, bound: null });
+  });
+
+  it("widens the window to the bound when the bound is longer than δ_abs, and reads an old record as δ_abs", () => {
+    const jitter = { acts: 2, bound: ms(1.4) };
+    expect(pairingOf(runner, { jitter })).toEqual({ bound: ms(1.4), delta: ms(1.4) });
+    // a short bound keeps δ_abs, and so does an uncalibrated runner at 4 ms
+    expect(pairingOf(runner, { jitter: { acts: 2, bound: ms(0.3) } })).toEqual({ bound: ms(0.3), delta: ms(1) });
+    expect(pairingOf(HEARTBEAT, { jitter })).toEqual({ bound: ms(1.4), delta: NOISE });
+    // the upgrade: a record from before SYS-25 has no jitter. Its bound is null, and its window is δ_abs, 1 ms
+    expect(pairingOf(runner, {})).toEqual({ bound: null, delta: ms(1) });
+    expect(pairingOf(runner, { jitter: { acts: 0, bound: null } })).toEqual({ bound: null, delta: ms(1) });
+    expect(measure(runner, run(client, kernel))).not.toHaveProperty("pairing");
+    expect(measure(runner, run(client, kernel, { jitter: { acts: 1, bound: ms(0.02) } })).pairing).toEqual({ bound: ms(0.02), delta: ms(1) });
+  });
+
+  it("pairs a ping and a drop in the window of their own run, and keeps the rule of one miss", () => {
+    const frame: Cell = { ...runner, prediction: { ...HEARTBEAT.prediction, drop: "frame" } as Cell["prediction"] };
+    // the ping into the fault wrote 1.3 ms after its line, and the close frame came 1.6 ms after the drop line
+    const slow = kernel.map((record) =>
+      record.mono === P + 25_000 ? { ...record, mono: P + 1_300_000 } : record.mono === D + 30_000 ? { ...record, mono: D + 1_600_000 } : record,
+    );
+    // δ_abs of 1 ms: the ping is not paired, and the drop wrote no close frame. One miss is a finding
+    const missed = measure(frame, run(client, slow));
+    expect(missed).toMatchObject({ elapsed: s(1.0015), finding: "the drop wrote no close frame on its socket" });
+    expect(verdictOf(frame.prediction, [missed]).outside).toHaveLength(1);
+    // the run measured a jitter of 1.7 ms before its fault: each act pairs in that window
+    const widened = measure(frame, run(client, slow, { jitter: { acts: 1, bound: ms(1.7) } }));
+    expect(widened).toMatchObject({ elapsed: s(1.0018), finding: null, pairing: { bound: ms(1.7), delta: ms(1.7) } });
+    // a close frame later than the measured bound is still a miss
+    const later = slow.map((record) => (record.mono === D + 1_600_000 ? { ...record, mono: D + 1_800_000 } : record));
+    expect(measure(frame, run(client, later, { jitter: { acts: 1, bound: ms(1.7) } })).finding).toBe("the drop wrote no close frame on its socket");
+  });
+
+  it("sums the pairings of a cell: the longest bound and window, and the runs that the bound widened", () => {
+    const at = (pairing?: Pairing) => ({ ...measure(runner, run(client, kernel)), ...(pairing === undefined ? {} : { pairing }) });
+    const runs = [at({ bound: ms(1.7), delta: ms(1.7) }), at({ bound: null, delta: ms(1) }), at({ bound: ms(0.4), delta: ms(1) }), at()];
+    expect(pairingsOf(runs, ms(1))).toEqual({ bound: ms(1.7), delta: ms(1.7), widened: 1 });
+    expect(pairingsOf([at()], ms(1))).toBeNull();
   });
 });
