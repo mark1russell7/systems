@@ -6,7 +6,7 @@ import type { KindCell } from "../../kind/src/index.ts";
 import type { Quantity } from "../../quantity/src/index.ts";
 import { valueIn } from "../../quantity/src/index.ts";
 import type { Candidate, CallerFault } from "../../cells/src/callers.ts";
-import { CALLERS_CELLS, CANDIDATES, callerFaultOf, expectedFailures } from "../../cells/src/callers.ts";
+import { CALLERS_CELLS, CANDIDATES, callerFaultOf, dependencyOf, expectedFailures } from "../../cells/src/callers.ts";
 
 const s = (value: Quantity): number => valueIn(value, "s");
 
@@ -20,14 +20,23 @@ export const candidateName = (cell: KindCell): Candidate => {
   return name;
 };
 
-/** This function gives the candidate of an S2 cell for the side-by-side table: its window and its expected count of failed requests. */
+/**
+ * This function gives the candidate of an S2 cell for the side-by-side table: its window and its
+ * expected count of failed requests. A shared dependency also has the empty Service and the time
+ * until the callers know.
+ */
 export const candidateOf = (cell: KindCell) => {
-  if (cell.trigger.kind !== "cannot-serve" && cell.trigger.kind !== "app-stall" && cell.trigger.partition !== true) return null;
-  // a false failure predicts the departure of the target, with the window of its failed requests
-  const p = cell.prediction.kind === "leaves" ? cell.prediction.window : cell.prediction;
+  if (cell.trigger.kind !== "cannot-serve" && cell.trigger.kind !== "app-stall" && cell.trigger.kind !== "blackhole") return null;
+  // a false failure predicts the departure of the target, and a shared dependency the empty Service, each with the window of its failed requests
+  const p = cell.prediction.kind === "leaves" || cell.prediction.kind === "removal" ? cell.prediction.window : cell.prediction;
   if (p === undefined || p.kind !== "window" || p.end === null) throw new Error(`${cell.name}: an S2 cell has a window that ends`);
   const leaves = cell.prediction.kind === "leaves" ? { leaves: { from: "fault", low: s(cell.prediction.band.lo), high: s(cell.prediction.band.hi) } } : {};
   const name = candidateName(cell);
+  const knows = cell.prediction.kind === "removal" ? dependencyOf(cell.mode, name).knows : null;
+  const removal =
+    cell.prediction.kind === "removal" && knows !== null
+      ? { removal: { from: "fault", low: s(cell.prediction.band.lo), high: s(cell.prediction.band.hi) }, knows: { from: "fault", low: s(knows.lo), high: s(knows.hi) } }
+      : {};
   const expected = expectedFailures(name, cell.mode, callerFaultOf(cell));
   return {
     name,
@@ -37,6 +46,7 @@ export const candidateOf = (cell: KindCell) => {
     expected: { low: expected.lo.value, high: expected.hi.value },
     connections: { low: expected.connections.lo.value, high: expected.connections.hi.value, of: expected.connections.of.value },
     ...leaves,
+    ...removal,
   };
 };
 
@@ -44,6 +54,6 @@ export const candidateOf = (cell: KindCell) => {
 export const callerPredictions = (fault: CallerFault = "cannot serve") =>
   CALLERS_CELLS.filter((cell) => callerFaultOf(cell) === fault).map((cell) => {
     const candidate = candidateOf(cell);
-    if (candidate === null) throw new Error(`${cell.name}: an S2 cell has the trigger cannot-serve, a partition or a stall`);
+    if (candidate === null) throw new Error(`${cell.name}: an S2 cell has the trigger cannot-serve, a black hole or a stall`);
     return { id: cell.id, mode: cell.mode, candidate };
   });

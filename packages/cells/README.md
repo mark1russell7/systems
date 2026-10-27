@@ -399,6 +399,13 @@ The S2 cells (`src/callers.ts`, `CALLERS_CELLS`) measure the dimension "how call
   - The kubelet and the propagation remove the target 12 s to 24.309 s after the fault (`removalBand`), with each candidate.
   - A: each connection on the target stays open. Thus each request on it fails from the trip until the readiness of the service recovers, up to 6.16 s after the heal.
   - B, C and D: each refusal closes its connection, and the next connection picks a backend. A chain of picks of the target ends at the first pick of the other replica. The target answers each stream at once, thus D is the same as C.
+- **A black-holed shared dependency** (`S2.T07.<mode>.<candidate>.dependency`). The cells of a pod that cannot serve, on the design with Redis (`DESIGN_REDIS`), where the round trip of Redis gates readiness. A black hole comes between Redis and each replica for 27 s (`DEPENDENCY_HOLD`). The trigger is `blackhole` with no `partition`. `dependencyOf` gives each prediction, as an empty Service (`removal`) with a window of the failed requests:
+  - Each request needs Redis, thus each request fails from the fault until the callers recover. Before the latch of a replica trips (8 s to 20 s), each request on it fails slowly. Then the service refuses each request at once with a 503.
+  - The kubelet and the propagation remove both replicas 12 s to 26.309 s after the fault (`removalBand`). Then the Service is empty, for each candidate.
+  - The hold is longer than the latest removal. The client of Redis connects again in its retry window of 30 s.
+  - A: each connection stays open, thus A recovers when the readiness of the service recovers, up to 9.26 s after the heal.
+  - B, C and D: the lame duck closes each connection, and the empty Service refuses each new one. Thus they recover only when the kubelet and the propagation add the replicas again, up to 11.57 s after the heal.
+  - The time until callers know is the start of the last slow failure before the heal, 7.98 s to 22 s after the fault.
 - **The scores of S6** (`src/scores.ts`, `scoreCallers`). The function gives each candidate of each mode a score on each criterion of S6, from one copy of a kind run for each incident. A score is `measured`, `bounded` or `not measured`. A measured score has the prediction next to the values, and each score names its run and its cell. A criterion that the copy cannot support gives its reason and no number. The script `packages/site/scripts/scores.ts` writes the scorecard that the kind page shows.
 
 ## The runner

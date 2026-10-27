@@ -136,6 +136,17 @@ describe("the components of the CI runs", () => {
     expect(frames.split('class="sy-frame').length - 1).toBe(12);
   });
 
+  it("render the S2 candidates of a black-holed shared dependency side by side, with the failed requests and the empty Service of the median run", () => {
+    const table = renderToString(<CallersTable incident="dependency" />);
+    expect(table).toContain("4,173 failed requests, and the empty Service 17.524 s after the fault, in the median run");
+    expect(table).toContain("The Service is empty 12 s to 26.105 s after the fault.");
+    expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40430856093");
+    expect(table).not.toContain("No run in the copy yet.");
+    expect(table.split("<tr>").length - 1).toBe(4);
+    const frames = renderToString(<KindResults template="T07" group="dependency" />);
+    expect(frames.split('class="sy-frame').length - 1).toBe(12);
+  });
+
   it("render the scores of S6 side by side, with the run of the evidence and the reason for each criterion with no number", () => {
     const table = renderToString(<CallersScores />);
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40358038728");
@@ -144,11 +155,13 @@ describe("the components of the CI runs", () => {
     expect(table).toContain("The prediction: 1,313 to 3,842. The counted runs: 3,044, 3,333, 2,104.");
     expect(table).toContain("The prediction: the last failure 8 s to 24.265 s after the fault.");
     // the fewest in each mode: D in iptables and nftables, B in IPVS; in the partition, B in iptables and A in IPVS (a tie) and nftables;
-    // in the stall, B in iptables and nftables, and A in IPVS (a tie); for the failed prober, D in iptables and C in IPVS (a tie) and nftables
-    expect(table.split("The fewest in this mode.").length - 1).toBe(12);
-    // in each of the three incidents, four criteria have no number in each mode, and the complexity has its own reason for each of the 4 candidates
-    // the failed prober measures its false removals, thus it has one criterion with no number less
-    expect(table.split("Not measured.").length - 1).toBe(31);
+    // in the stall, B in iptables and nftables, and A in IPVS (a tie); for the failed prober, D in iptables and C in IPVS (a tie) and nftables.
+    // In the shared dependency, B has the fewest in each mode
+    expect(table.split("The fewest in this mode.").length - 1).toBe(15);
+    // in each of the three incidents, four criteria have no number in each mode, and the complexity has its own reason for each of the 4 candidates.
+    // The failed prober measures its false removals, thus it has one criterion with no number less.
+    // The shared dependency has two criteria with no number, and the complexity of each of the 4 candidates
+    expect(table.split("Not measured.").length - 1).toBe(37);
     expect(table).toContain("T07 has no blip");
     // the partitioned pod: its own run, and the time until callers know is measured from the fault
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40380943331");
@@ -163,10 +176,17 @@ describe("the components of the CI runs", () => {
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40406199754");
     expect(table).toContain("S2.T07.ipvs.session-check.stall");
     expect(table).toMatch(/the last failure 10\.0\d* s after the fault in the median run/);
-    expect(table).toContain("Not measured yet: a black-holed shared dependency, a lost zone");
+    expect(table).toContain("Not measured yet: a lost zone");
+    expect(table).not.toContain("Not measured yet: a black-holed shared dependency");
     // the failed prober: its own run for each candidate, and the false removal of each one
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40419289511");
     expect(table.match(/the false removal [\d.]+ s after the fault in the median run/g)?.length).toBe(12);
+    // the shared dependency: its own run, the empty Service, the last slow failure and the last failure after the heal
+    expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40430856093");
+    expect(table).toContain("S2.T07.nftables.lame-duck.dependency");
+    expect(table.match(/the empty Service [\d.]+ s after the fault in the median run/g)?.length).toBe(12);
+    expect(table.match(/the last slow failure [\d.]+ s after the fault in the median run/g)?.length).toBe(12);
+    expect(table.match(/the last failure [\d.]+ (?:ms|s) after the heal in the median run/g)?.length).toBe(12);
     // each incident with no cell gives its own reason
     expect(table).toContain("a lost zone: No cell measures the candidates in this incident yet. The kind cluster of T07 has no zones");
   });
