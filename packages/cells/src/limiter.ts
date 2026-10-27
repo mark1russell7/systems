@@ -14,7 +14,7 @@ import { handlingOf } from "./http/race.ts";
  * - O29: the longest Retry-After of the limiter is at most the retry window of the caller.
  * - O30: the least delay of the caller before a retry is at least the longest Retry-After.
  *
- * The target is the limiter of service 0.5.6 from npm: a sliding window of one take in `window`
+ * The target is the limiter of service 0.6.0 from npm: a sliding window of one take in `window`
  * seconds for each key. The first request of a run takes the one unit of its key, and the second
  * request meets the 429. Its Retry-After is the time until the first take leaves the window, in
  * whole seconds, rounded up. Each client sends a key of its own process, thus each run has its own count.
@@ -24,16 +24,19 @@ import { handlingOf } from "./http/race.ts";
  * Client of undici and the Transport of Go send nothing again: the caller gets the 429.
  */
 
-/** This folder is the build context of the target: its Dockerfile, its lockfile and the script of its server. */
+/** This folder is the build context of the target: its Dockerfile, its lockfile, the script of its server and its declaration. */
 const CONTEXT = fileURLToPath(new URL("../targets/service-limiter/", import.meta.url));
+
+/** This is the version of the service in the target. The name of each cell has its MAJOR and MINOR, thus the records of two versions stay apart. */
+export const LIMITER_SERVICE = "0.6.0";
 
 /** This port is the port of the server in the target. */
 const PORT = 8080;
 
-/** This function gives the target: the limiter of service 0.5.6 over node:http, one take in `window` seconds for each key. */
+/** This function gives the target: the limiter of service 0.6.0 over node:http, one take in `window` seconds for each key. */
 export const limiterTarget = (window: number): Target => ({
   image: NODE_IMAGE,
-  subject: { kind: "build", name: "service-limiter", context: CONTEXT, files: ["Dockerfile", "package.json", "npm-lock.json", "server.mjs"] },
+  subject: { kind: "build", name: "service-limiter", context: CONTEXT, files: ["Dockerfile", "package.json", "npm-lock.json", "server.mjs", "declaration.mjs"] },
   port: PORT,
   ready: '"ev":"listening"',
   lines: true,
@@ -186,7 +189,7 @@ export const LIMITER_SPECS: readonly LimiterSpec[] = [
 
 /** This function gives the cell of the harness for a spec. */
 export const limiterCell = (spec: LimiterSpec): Cell => ({
-  name: `${spec.plan} ${spec.client === "go" ? "go net/http 1.27" : "undici 8.12"} to the keyed limiter of service 0.5, ${spec.name}`,
+  name: `${spec.plan} ${spec.client === "go" ? "go net/http 1.27" : "undici 8.12"} to the keyed limiter of service ${LIMITER_SERVICE.split(".").slice(0, 2).join(".")}, ${spec.name}`,
   target: limiterTarget(spec.window),
   sysctls: {},
   client: spec.client === "go" ? "go-http" : "undici",

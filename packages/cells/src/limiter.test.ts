@@ -1,7 +1,14 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { LIMITER_CELLS, LIMITER_SPECS, limiterPrediction, limiterTarget, retryPlan } from "./limiter.ts";
+import { LIMITER_CELLS, LIMITER_SERVICE, LIMITER_SPECS, limiterPrediction, limiterTarget, retryPlan } from "./limiter.ts";
+
+/** The check of the declaration of the target, from its script. The import has no types, thus this type gives them. */
+interface TargetLint {
+  readonly specOf: (flags: Readonly<Record<string, number | string>>) => unknown;
+  readonly lintTarget: (spec: unknown) => { readonly findings: ReadonlyArray<Record<string, unknown>>; readonly problems: readonly string[] };
+}
+const DECLARATION = new URL("../targets/service-limiter/declaration.mjs", import.meta.url).href;
 
 /** SYS-28: the cells of the keyed limiter take their bands from the documents of the limiter and of the RetryAgent. */
 describe("the cells of the keyed limiter", () => {
@@ -47,5 +54,30 @@ describe("the cells of the keyed limiter", () => {
     for (const file of subject.files) expect(existsSync(join(subject.context, file)), file).toBe(true);
     for (const cell of LIMITER_CELLS) expect(cell.probe.http?.options?.["limiter-key"], cell.name).toBe(1);
     expect(LIMITER_CELLS.filter((cell) => cell.probe.http?.options?.["retry"] === 1).length).toBe(4);
+  });
+
+  it("names the version of the service of the target in each cell, as its package and its lockfile pin it", () => {
+    const context = (limiterTarget(30).subject as { context: string }).context;
+    const manifest = JSON.parse(readFileSync(join(context, "package.json"), "utf8")) as { dependencies: Record<string, string> };
+    const lock = JSON.parse(readFileSync(join(context, "npm-lock.json"), "utf8")) as { packages: Record<string, { version?: string }> };
+    expect(manifest.dependencies["@mark1russell7/service"]).toBe(LIMITER_SERVICE);
+    expect(lock.packages["node_modules/@mark1russell7/service"]?.version).toBe(LIMITER_SERVICE);
+    for (const cell of LIMITER_CELLS) expect(cell.name, cell.name).toContain("to the keyed limiter of service 0.6,");
+  });
+
+  it("lints the declaration of the target for each cell: O29 and O30 depend on the caller, and nothing else is found", async () => {
+    const { lintTarget, specOf } = (await import(DECLARATION)) as TargetLint;
+    for (const spec of LIMITER_SPECS) {
+      const checked = lintTarget(specOf({ policy: "sliding-window", limit: 1, windowMs: spec.window * 1000, maxKeys: 100 }));
+      expect(checked.problems, spec.plan).toEqual([]);
+      expect(checked.findings.map((finding) => [finding["rule"], finding["verdict"], finding["limiter"]]), spec.plan).toEqual([
+        ["O29", "depends", [spec.window, spec.window]],
+        ["O30", "depends", [spec.window]],
+      ]);
+    }
+    // a token bucket of 3 at 1 each second: a refusal waits 1 s at most, and a new key at the cap 3 s
+    const bucket = lintTarget(specOf({ policy: "token-bucket", ratePerS: 1, burst: 3, maxKeys: 100 }));
+    expect(bucket.problems).toEqual([]);
+    expect(bucket.findings.map((finding) => finding["limiter"])).toEqual([[1, 3], [1]]);
   });
 });
