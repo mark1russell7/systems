@@ -26,6 +26,7 @@ export {
   SYSCTL,
   ZTUNNEL_PODS,
   deletes,
+  faultSpan,
   middleboxCommands,
   planOf,
   policyObject,

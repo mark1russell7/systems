@@ -265,6 +265,19 @@ export const emptyOf = (lines: readonly Line[], node: string, after: number): Ru
 export const sliceEmptyOf = (lines: readonly Line[], svc: string, after: number): number | null =>
   slicesOf(lines, svc).find((slice) => slice.t >= after && !slice.eps.some((endpoint) => endpoint.r === true))?.t ?? null;
 
+/** This function gives when an EndpointSlice of the Service first had a ready endpoint, after a time. */
+export const sliceReadyOf = (lines: readonly Line[], svc: string, after: number): number | null =>
+  slicesOf(lines, svc).find((slice) => slice.t >= after && slice.eps.some((endpoint) => endpoint.r === true))?.t ?? null;
+
+/**
+ * This function tells if the latest EndpointSlice of the Service at a time had a ready endpoint. A
+ * slice line comes only at a change, thus with no line before the time, it gives null.
+ */
+export const sliceReadyAt = (lines: readonly Line[], svc: string, at: number): boolean | null => {
+  const latest = slicesOf(lines, svc).filter((slice) => slice.t <= at).at(-1);
+  return latest === undefined ? null : latest.eps.some((endpoint) => endpoint.r === true);
+};
+
 /** This function gives when the endpoint of an address was first not ready in the EndpointSlice of the Service, after a time. */
 export const sliceDropOf = (lines: readonly Line[], svc: string, ip: string, after: number): number | null =>
   slicesOf(lines, svc).find((slice) => slice.t >= after && !slice.eps.some((endpoint) => endpoint.ip === ip && endpoint.r === true))?.t ?? null;

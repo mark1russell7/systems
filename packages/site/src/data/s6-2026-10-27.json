@@ -8566,7 +8566,7 @@
     {
       "incident": "a flapping dependency",
       "kind": "not measured",
-      "why": "No cell measures the candidates in this incident yet. Each trigger of the lab has one fault and one heal, thus no fault comes again in a run. The server of T07 has no dependency that can flap."
+      "why": "No copy of a kind run has a result of the cells of this incident yet."
     }
   ]
 }
