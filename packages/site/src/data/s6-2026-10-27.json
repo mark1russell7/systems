@@ -2,7 +2,7 @@
   "ranAt": "2026-10-27",
   "dimension": "how callers learn",
   "run": 40358038728,
-  "runs": [40358038728, 40380943331, 40394320219, 40406199754, 40419289511, 40430856093, 40440516571, 40464814086, 40500297695],
+  "runs": [40358038728, 40380943331, 40394320219, 40406199754, 40419289511, 40430856093, 40440516571, 40464814086, 40500297695, 40521784305],
   "criteria": [
     "time until callers know",
     "failed requests",
@@ -14060,8 +14060,1289 @@
     },
     {
       "incident": "a slow dependency (gray failure)",
-      "kind": "not measured",
-      "why": "No copy of a kind run has a result of the cells of this incident yet."
+      "kind": "scored",
+      "trigger": "latency",
+      "run": 40521784305,
+      "modes": [
+        {
+          "mode": "iptables",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.iptables.endpoints.slow",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "not measured",
+                  "why": "No candidate learns: each check of Redis passes in the delay of 0.3 s, thus no replica leaves, and no signal tells the callers. A slow dependency slows each replica at once, thus no routing candidate can go around it."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3487,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 3487,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3490,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3481,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3240,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 3744,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.iptables.endpoints.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Redis stays slow for 27 s, and no replica leaves the Service. No cell gives a delay that trips a check."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": -1.712342,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": -1.7152972,
+                      "unit": "s"
+                    },
+                    {
+                      "value": -1.712342,
+                      "unit": "s"
+                    },
+                    {
+                      "value": -1.7111396,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": -2.02,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": -1.74,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.iptables.endpoints.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "Each route of each replica is slow, and none fails. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.iptables.lame-duck.slow",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "not measured",
+                  "why": "No candidate learns: each check of Redis passes in the delay of 0.3 s, thus no replica leaves, and no signal tells the callers. A slow dependency slows each replica at once, thus no routing candidate can go around it."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3483,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 3486,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3483,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3482,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3240,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 3744,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.iptables.lame-duck.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Redis stays slow for 27 s, and no replica leaves the Service. No cell gives a delay that trips a check."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": -1.7079808,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": -1.7122042,
+                      "unit": "s"
+                    },
+                    {
+                      "value": -1.7079808,
+                      "unit": "s"
+                    },
+                    {
+                      "value": -1.7039086,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": -2.02,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": -1.74,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.iptables.lame-duck.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "Each route of each replica is slow, and none fails. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.iptables.goaway.slow",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "not measured",
+                  "why": "No candidate learns: each check of Redis passes in the delay of 0.3 s, thus no replica leaves, and no signal tells the callers. A slow dependency slows each replica at once, thus no routing candidate can go around it."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 0,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.iptables.goaway.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Redis stays slow for 27 s, and no replica leaves the Service. No cell gives a delay that trips a check."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "No request fails in the delay, thus the callers have nothing to recover from."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "C has no session check, and node:http2 sends a PING only when its caller asks for one. Thus the clients of C send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "Each route of each replica is slow, and none fails. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.iptables.session-check.slow",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "not measured",
+                  "why": "No candidate learns: each check of Redis passes in the delay of 0.3 s, thus no replica leaves, and no signal tells the callers. A slow dependency slows each replica at once, thus no routing candidate can go around it."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 0,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.iptables.session-check.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Redis stays slow for 27 s, and no replica leaves the Service. No cell gives a delay that trips a check."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "No request fails in the delay, thus the callers have nothing to recover from."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.iptables.session-check.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "Each route of each replica is slow, and none fails. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "C"
+        },
+        {
+          "mode": "ipvs",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.ipvs.endpoints.slow",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "not measured",
+                  "why": "No candidate learns: each check of Redis passes in the delay of 0.3 s, thus no replica leaves, and no signal tells the callers. A slow dependency slows each replica at once, thus no routing candidate can go around it."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3486,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 3486,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3488,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3483,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3240,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 3744,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.ipvs.endpoints.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Redis stays slow for 27 s, and no replica leaves the Service. No cell gives a delay that trips a check."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": -1.7158457,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": -1.7249315,
+                      "unit": "s"
+                    },
+                    {
+                      "value": -1.7158457,
+                      "unit": "s"
+                    },
+                    {
+                      "value": -1.7058181,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": -2.02,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": -1.74,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.ipvs.endpoints.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "Each route of each replica is slow, and none fails. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.ipvs.lame-duck.slow",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "not measured",
+                  "why": "No candidate learns: each check of Redis passes in the delay of 0.3 s, thus no replica leaves, and no signal tells the callers. A slow dependency slows each replica at once, thus no routing candidate can go around it."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3487,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 3487,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3484,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3487,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3240,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 3744,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.ipvs.lame-duck.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Redis stays slow for 27 s, and no replica leaves the Service. No cell gives a delay that trips a check."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": -1.7106291,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": -1.7167432,
+                      "unit": "s"
+                    },
+                    {
+                      "value": -1.7106291,
+                      "unit": "s"
+                    },
+                    {
+                      "value": -1.7093016,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": -2.02,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": -1.74,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.ipvs.lame-duck.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "Each route of each replica is slow, and none fails. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.ipvs.goaway.slow",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "not measured",
+                  "why": "No candidate learns: each check of Redis passes in the delay of 0.3 s, thus no replica leaves, and no signal tells the callers. A slow dependency slows each replica at once, thus no routing candidate can go around it."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 0,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.ipvs.goaway.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Redis stays slow for 27 s, and no replica leaves the Service. No cell gives a delay that trips a check."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "No request fails in the delay, thus the callers have nothing to recover from."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "C has no session check, and node:http2 sends a PING only when its caller asks for one. Thus the clients of C send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "Each route of each replica is slow, and none fails. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.ipvs.session-check.slow",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "not measured",
+                  "why": "No candidate learns: each check of Redis passes in the delay of 0.3 s, thus no replica leaves, and no signal tells the callers. A slow dependency slows each replica at once, thus no routing candidate can go around it."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 0,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.ipvs.session-check.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Redis stays slow for 27 s, and no replica leaves the Service. No cell gives a delay that trips a check."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "No request fails in the delay, thus the callers have nothing to recover from."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.ipvs.session-check.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "Each route of each replica is slow, and none fails. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "C"
+        },
+        {
+          "mode": "nftables",
+          "candidates": [
+            {
+              "candidate": "endpoints only",
+              "label": "A",
+              "cell": "S2.T07.nftables.endpoints.slow",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "not measured",
+                  "why": "No candidate learns: each check of Redis passes in the delay of 0.3 s, thus no replica leaves, and no signal tells the callers. A slow dependency slows each replica at once, thus no routing candidate can go around it."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3487,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 3487,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3486,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3487,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3240,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 3744,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.nftables.endpoints.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Redis stays slow for 27 s, and no replica leaves the Service. No cell gives a delay that trips a check."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": -1.7110821,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": -1.7134404,
+                      "unit": "s"
+                    },
+                    {
+                      "value": -1.7110821,
+                      "unit": "s"
+                    },
+                    {
+                      "value": -1.7019487,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": -2.02,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": -1.74,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.nftables.endpoints.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "Each route of each replica is slow, and none fails. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. A needs one opt-in setting: the option keepAlive of the transport gives true, thus each connection stays open."
+                }
+              ]
+            },
+            {
+              "candidate": "in band (lame duck)",
+              "label": "B",
+              "cell": "S2.T07.nftables.lame-duck.slow",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "not measured",
+                  "why": "No candidate learns: each check of Redis passes in the delay of 0.3 s, thus no replica leaves, and no signal tells the callers. A slow dependency slows each replica at once, thus no routing candidate can go around it."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 3482,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 3482,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3487,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 3482,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 3240,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 3744,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.nftables.lame-duck.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Redis stays slow for 27 s, and no replica leaves the Service. No cell gives a delay that trips a check."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "measured",
+                  "median": {
+                    "value": -1.7108847,
+                    "unit": "s"
+                  },
+                  "values": [
+                    {
+                      "value": -1.7147807,
+                      "unit": "s"
+                    },
+                    {
+                      "value": -1.7108847,
+                      "unit": "s"
+                    },
+                    {
+                      "value": -1.7046013,
+                      "unit": "s"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": -2.02,
+                      "unit": "s"
+                    },
+                    "hi": {
+                      "value": -1.74,
+                      "unit": "s"
+                    }
+                  },
+                  "from": "heal",
+                  "holds": false,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.nftables.lame-duck.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "HTTP/1.1 has no PING frame, and the clients of this candidate have no other probe. Thus they send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "Each route of each replica is slow, and none fails. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. B needs no setting: it is the default of the transport on HTTP/1.1."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 (GOAWAY)",
+              "label": "C",
+              "cell": "S2.T07.nftables.goaway.slow",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "not measured",
+                  "why": "No candidate learns: each check of Redis passes in the delay of 0.3 s, thus no replica leaves, and no signal tells the callers. A slow dependency slows each replica at once, thus no routing candidate can go around it."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 0,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.nftables.goaway.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Redis stays slow for 27 s, and no replica leaves the Service. No cell gives a delay that trips a check."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "No request fails in the delay, thus the callers have nothing to recover from."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "derived",
+                  "value": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "why": "C has no session check, and node:http2 sends a PING only when its caller asks for one. Thus the clients of C send no PING. Each candidate has the same readiness probe of the kubelet (2 s, 3 times) and the same poll of the service."
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "Each route of each replica is slow, and none fails. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. C needs no setting of the service: it is the default of the transport on an edge of HTTP/2. The clients use one session each."
+                }
+              ]
+            },
+            {
+              "candidate": "in band on HTTP/2 with a session check",
+              "label": "D",
+              "cell": "S2.T07.nftables.session-check.slow",
+              "scores": [
+                {
+                  "criterion": "time until callers know",
+                  "kind": "not measured",
+                  "why": "No candidate learns: each check of Redis passes in the delay of 0.3 s, thus no replica leaves, and no signal tells the callers. A slow dependency slows each replica at once, thus no routing candidate can go around it."
+                },
+                {
+                  "criterion": "failed requests",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0,
+                    "unit": "{request}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{request}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{request}"
+                    },
+                    "hi": {
+                      "value": 0,
+                      "unit": "{request}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.nftables.session-check.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "false removals on a blip",
+                  "kind": "not measured",
+                  "why": "Redis stays slow for 27 s, and no replica leaves the Service. No cell gives a delay that trips a check."
+                },
+                {
+                  "criterion": "time to recover",
+                  "kind": "not measured",
+                  "why": "No request fails in the delay, thus the callers have nothing to recover from."
+                },
+                {
+                  "criterion": "probe load",
+                  "kind": "measured",
+                  "median": {
+                    "value": 0,
+                    "unit": "{ping}"
+                  },
+                  "values": [
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  ],
+                  "prediction": {
+                    "lo": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    },
+                    "hi": {
+                      "value": 0,
+                      "unit": "{ping}"
+                    }
+                  },
+                  "holds": true,
+                  "evidence": {
+                    "run": 40521784305,
+                    "cell": "S2.T07.nftables.session-check.slow",
+                    "decision": "holds",
+                    "counted": 3
+                  }
+                },
+                {
+                  "criterion": "routes down",
+                  "kind": "not measured",
+                  "why": "Each route of each replica is slow, and none fails. The cell does not count the routes."
+                },
+                {
+                  "criterion": "complexity",
+                  "kind": "not measured",
+                  "why": "A run does not measure complexity. D is C, and each client needs one opt-in setting: the session check of the HTTP/2 client, with two knobs (keepalive_time and keepalive_timeout)."
+                }
+              ]
+            }
+          ],
+          "fewest": "C"
+        }
+      ]
     }
   ]
 }

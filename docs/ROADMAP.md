@@ -162,6 +162,10 @@ On 2026-10-17, Mark decided the design of the server stack (D1 to D18). These de
 
 [PR #238](https://github.com/mark1russell7/systems/pull/238) scores a seventh incident: a lost zone. The only node of the zone of the target is frozen for 70 s, thus the node lifecycle controller removes the target. Kind run [40494462562](https://github.com/mark1russell7/systems/actions/runs/40494462562) held 11 of the 12 cells, because one run started before the controller saw the node Ready. After commit 4ddc04d, kind run [40500297695](https://github.com/mark1russell7/systems/actions/runs/40500297695) held each of the 12 cells in 3 of 3 runs, in the bands of commit 9f53fbc. C failed until the 9th retransmission, up to 10,487 requests in a run, and D failed 285 at the most. Thus the decision of S6 does not change ([S6.md](S6.md#unified-or-separate-how-callers-learn)).
 
+[PR #240](https://github.com/mark1russell7/systems/pull/240) scores the eighth and last incident: a slow dependency. Each packet that Redis sends waits 300 ms for 27 s, and each check of Redis still passes. Kind run [40521784305](https://github.com/mark1russell7/systems/actions/runs/40521784305) held each of the 12 cells in 3 of 3 runs, and no replica left the Service.
+
+A and B failed 3,481 to 3,490 requests in each run, each one a timeout, because a connection of HTTP/1.1 queues its requests. C and D failed none. The last failure of A and B started up to 38 ms after its band of commit 93a58b6, in the noise of the judge. The rule gives no signal while the service stays ready, thus the decision of S6 does not change ([S6.md](S6.md#unified-or-separate-how-callers-learn)).
+
 ## The server stack in S6
 
 These items are the part of the server stack in this repository. The server stack is a plan across repositories: one service runner here, and one procedures server in the client. [Its tracker](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb) has the whole plan, with the same ids.
