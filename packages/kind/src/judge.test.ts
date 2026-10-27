@@ -130,6 +130,18 @@ describe("the judgement of a record again", () => {
     expect(FORMAT_V1).toBe("systems.kind-cell-record/1");
   });
 
+  it("gives a record from before the dataplane cilium the dataplane of its kube-proxy", () => {
+    const record = fixture(FIXTURES.fails);
+    const scenario = record.manifests[0]!.scenario as unknown as Record<string, unknown>;
+    expect(scenario["dataplane"]).toBeUndefined();
+    const read = readRecord(json(record));
+    for (const each of read.manifests) expect(each.scenario.dataplane).toBe(each.scenario.kubeProxy?.mode);
+    // a scenario of Cilium has no kube-proxy
+    const cilium = fixture(FIXTURES.fails);
+    const manifests = cilium.manifests.map((each) => ({ ...each, scenario: { ...each.scenario, dataplane: "cilium", kubeProxy: null, cni: "cilium" } }));
+    expect(readRecord(json({ ...cilium, manifests })).manifests.map((each) => each.scenario.dataplane)).toEqual(manifests.map(() => "cilium"));
+  });
+
   it("keeps the deletions of a window for each deleted replica when it reads a record again", () => {
     const fromV1 = readRecord(json(fixture(FIXTURES.fails)));
     const deletions = [

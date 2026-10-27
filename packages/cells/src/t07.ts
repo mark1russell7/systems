@@ -1,4 +1,4 @@
-import type { Declaration, KindCell, KubeProxyMode, Prediction, Propagation } from "@mark1russell7/kind";
+import type { Dataplane, Declaration, KindCell, KubeProxyMode, Prediction, Propagation } from "@mark1russell7/kind";
 import { KUBE_PROXY_MODES, deletionWindow, pausedWindow } from "@mark1russell7/kind";
 import { valueIn } from "@mark1russell7/quantity";
 import { CHART_READINESS, CLOSE, DESIGN, KUBE_PROBE, PROPAGATION, SYN_SENT, T07_WORKLOAD, WORKERS, afterSync, kubeDefaults, s, say, withHold } from "./kind.ts";
@@ -48,9 +48,10 @@ const base = (mode: KubeProxyMode): ServiceCell => ({
 
 /**
  * These modes keep the NAT of a flow in conntrack, thus a reset leaves a CLOSE entry to the pod
- * (`CLOSE`). IPVS keeps its own connection table, and the run gives what it does.
+ * (`CLOSE`). IPVS keeps its own connection table, and the run gives what it does. The socket LB of
+ * Cilium selects a backend at each `connect()`, thus a new connection meets no entry of an old one.
  */
-const CONNTRACK_NAT: ReadonlySet<KubeProxyMode> = new Set(["iptables", "nftables"]);
+const CONNTRACK_NAT: ReadonlySet<Dataplane> = new Set(["iptables", "nftables"]);
 
 /**
  * This function gives the prediction of a deletion from O04 with the hold: no failure, or a window

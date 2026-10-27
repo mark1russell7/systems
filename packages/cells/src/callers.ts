@@ -1,6 +1,6 @@
 import type { Recovery } from "@mark1russell7/algebra";
 import { recovery, timerOf } from "@mark1russell7/algebra";
-import type { Declaration, Flap, KindCell, KubeProxyMode, Workload } from "@mark1russell7/kind";
+import type { Dataplane, Declaration, Flap, KindCell, Workload } from "@mark1russell7/kind";
 import { KUBE_PROXY_MODES, NODE_LIFECYCLE, kubeletBand, latchBand, learnWindow, nodeLossBand, nodeReturnBand, removalBand, stallRemovalBand } from "@mark1russell7/kind";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { recoverSpan } from "@mark1russell7/service";
@@ -157,14 +157,18 @@ export type Candidate = "endpoints only" | "in band (lame duck)" | "in band on H
 export const CANDIDATES: readonly Candidate[] = ["endpoints only", "in band (lame duck)", "in band on HTTP/2 (GOAWAY)", "in band on HTTP/2 with a session check"];
 
 /** These are the modes of the S2 cells: each mode of kube-proxy. The type of `PROPAGATION` gives a calibrated propagation to each mode. */
-export const CALLERS_MODES: readonly KubeProxyMode[] = KUBE_PROXY_MODES;
+export const CALLERS_MODES: readonly Dataplane[] = KUBE_PROXY_MODES;
 
 /**
  * These are the ways that each mode selects the backend of a new connection. The rules of iptables
  * and nftables select at random (`statistic --mode random`, `numgen random`). IPVS selects in turn, because the
  * default scheduler of kube-proxy is `rr`.
+ *
+ * Cilium 1.20.4 selects at random. Its socket LB takes a slot of the service from `get_prandom_u32`
+ * at `connect()` (`bpf/bpf_sock.c`, lines 123–127 and 428). Its path of the packets does the same
+ * (`bpf/lib/lb.h`, line 2016). The default algorithm is `random`, not `maglev` (`pkg/loadbalancer/config.go`).
  */
-export const SELECTION: Readonly<Record<KubeProxyMode, "random" | "in turn">> = { iptables: "random", ipvs: "in turn", nftables: "random" };
+export const SELECTION: Readonly<Record<Dataplane, "random" | "in turn">> = { iptables: "random", ipvs: "in turn", nftables: "random", cilium: "random" };
 
 /** This count is the clients: one on each worker and one on the control plane. */
 const CLIENTS = WORKERS + 1;
@@ -205,7 +209,7 @@ const time = (value: number): Quantity => s(Math.round(value * 1e6) / 1e6);
  * ceiling of the half. At random, the count is binomial, and the band is the central band that has
  * the chance `COVER` at the least. A lost zone has fewer clients (`clients`): no client is in the lost zone.
  */
-export const targetConnections = (mode: KubeProxyMode, each: number = CONNECTIONS, clients: number = CLIENTS): Connections => {
+export const targetConnections = (mode: Dataplane, each: number = CONNECTIONS, clients: number = CLIENTS): Connections => {
   const total = clients * each;
   if (SELECTION[mode] === "in turn")
     return { lo: connections(clients * Math.floor(each / REPLICAS)), hi: connections(clients * Math.ceil(each / REPLICAS)), of: connections(total) };
@@ -250,7 +254,7 @@ const inBand = (candidate: Candidate): boolean => candidate !== "endpoints only"
  * connection. A client on the target fails each of its requests, and a client on the other replica
  * fails none.
  */
-export const expectedFailures = (candidate: Candidate, mode: KubeProxyMode, fault: CallerFault = "cannot serve"): Expected => {
+export const expectedFailures = (candidate: Candidate, mode: Dataplane, fault: CallerFault = "cannot serve"): Expected => {
   if (fault === "partition") return partitionOf(mode, candidate).expected;
   if (fault === "stall") return stallOf(mode, candidate).expected;
   if (fault === "false failure") return falseOf(mode, candidate).expected;
@@ -353,7 +357,7 @@ const chainOf = (total: number): number => {
  * The same arithmetic gives D in a stall (`stallOf`). The words of the fault and its removal come
  * from its silence. A removal ends each chain: a new session after it goes to the other replica.
  */
-const checkedOf = (mode: KubeProxyMode, workload: Workload, start: Band, silence: Silence, clients: number = CLIENTS): PartitionPrediction => {
+const checkedOf = (mode: Dataplane, workload: Workload, start: Band, silence: Silence, clients: number = CLIENTS): PartitionPrediction => {
   const { stays } = silence;
   const quiet = valueIn(SESSION_CHECK.keepalive_time, "s");
   const answer = valueIn(SESSION_CHECK.keepalive_timeout, "s");
@@ -419,7 +423,7 @@ interface Silence {
  * next pick comes one turn later. A chain of picks of the target ends at the first pick of the other
  * replica.
  */
-const picksOf = (mode: KubeProxyMode, candidate: Candidate, silence: Silence, clients: number = CLIENTS): PartitionPrediction => {
+const picksOf = (mode: Dataplane, candidate: Candidate, silence: Silence, clients: number = CLIENTS): PartitionPrediction => {
   const workload = workloadOf(candidate);
   const window = learnWindow(declarationOf(candidate), CHART_READINESS, PROPAGATION[mode], workload);
   const turn = valueIn(window.turn, "s");
@@ -483,7 +487,7 @@ const crossingOf = (hold: Quantity, lead: Band, turn: number): { readonly firing
  * - D: the session check closes each session on the target before its first stream timeout
  *   (`checkedOf`).
  */
-export const partitionOf = (mode: KubeProxyMode, candidate: Candidate): PartitionPrediction => {
+export const partitionOf = (mode: Dataplane, candidate: Candidate): PartitionPrediction => {
   const workload = workloadOf(candidate);
   const window = learnWindow(declarationOf(candidate), CHART_READINESS, PROPAGATION[mode], workload);
   const turn = valueIn(window.turn, "s");
@@ -518,7 +522,7 @@ export const partitionOf = (mode: KubeProxyMode, candidate: Candidate): Partitio
  *   idle close, with GOAWAY. The client sends each stream in flight again on a new session.
  * - D: the arithmetic of a partition (`checkedOf`), and the removal ends each chain.
  */
-export const stallOf = (mode: KubeProxyMode, candidate: Candidate): PartitionPrediction => {
+export const stallOf = (mode: Dataplane, candidate: Candidate): PartitionPrediction => {
   const workload = workloadOf(candidate);
   const every = valueIn(workload.every, "s");
   const timeout = valueIn(workload.timeout, "s");
@@ -574,7 +578,7 @@ export interface FalsePrediction {
  *   of picks of the target ends at the first pick of the other replica, as in a partition. The
  *   target answers at once, thus the session check of D closes no session, and D is the same as C.
  */
-export const falseOf = (mode: KubeProxyMode, candidate: Candidate): FalsePrediction => {
+export const falseOf = (mode: Dataplane, candidate: Candidate): FalsePrediction => {
   const workload = workloadOf(candidate);
   const propagation = PROPAGATION[mode];
   const window = learnWindow(declarationOf(candidate), CHART_READINESS, propagation, workload);
@@ -671,7 +675,7 @@ export interface DependencyPrediction {
  * - B, C and D: the lame duck closes each connection, and the empty Service refuses each new one.
  *   Thus they recover only when the kubelet and the propagation add the replicas again.
  */
-export const dependencyOf = (mode: KubeProxyMode, candidate: Candidate): DependencyPrediction => {
+export const dependencyOf = (mode: Dataplane, candidate: Candidate): DependencyPrediction => {
   const workload = workloadOf(candidate);
   const declaration = dependencyDeclarationOf(candidate);
   const knobs = declaration.redis!.knobs;
@@ -772,7 +776,7 @@ export interface FlappingPrediction extends DependencyPrediction {
  *   last failure starts up to one timeout before the heal.
  * - The heal of Redis comes `REDIS_HEAL_LEAD` after the hold, not `HEAL_LEAD`.
  */
-export const flappingOf = (mode: KubeProxyMode, candidate: Candidate): FlappingPrediction => {
+export const flappingOf = (mode: Dataplane, candidate: Candidate): FlappingPrediction => {
   const one = dependencyOf(mode, candidate);
   const workload = workloadOf(candidate);
   const every = valueIn(workload.every, "s");
@@ -847,7 +851,7 @@ export interface ZonePrediction extends PartitionPrediction {
  *   GOAWAY at the thaw ends C near the heal. Thus the end band starts one timeout before the heal.
  * - D: the arithmetic of a partition (`checkedOf`), and the removal ends each chain.
  */
-export const lostZoneOf = (mode: KubeProxyMode, candidate: Candidate): ZonePrediction => {
+export const lostZoneOf = (mode: Dataplane, candidate: Candidate): ZonePrediction => {
   const workload = workloadOf(candidate);
   const every = valueIn(workload.every, "s");
   const timeout = valueIn(workload.timeout, "s");
@@ -940,7 +944,7 @@ export interface SlowPrediction {
  * - C and D: each stream of a session waits for Redis on its own, thus no stream waits for another
  *   one. Each stream takes `SLOW_DELAY` and some milliseconds, far below the timeout. No request fails.
  */
-export const slowOf = (mode: KubeProxyMode, candidate: Candidate): SlowPrediction => {
+export const slowOf = (mode: Dataplane, candidate: Candidate): SlowPrediction => {
   // the mode does not change the prediction: no replica leaves the rules of a node
   void mode;
   const workload = workloadOf(candidate);
@@ -1023,7 +1027,7 @@ const pings = (value: number): Quantity => ({ value, unit: "{ping}" });
  * - A slow dependency: each replica answers each stream after the delay of Redis, shorter than a
  *   tick. Thus each session hears a frame in each tick. No PING.
  */
-export const pingsOf = (mode: KubeProxyMode, candidate: Candidate, fault: CallerFault): PingPrediction => {
+export const pingsOf = (mode: Dataplane, candidate: Candidate, fault: CallerFault): PingPrediction => {
   if (candidate !== "in band on HTTP/2 with a session check")
     return {
       lo: pings(0),
@@ -1118,7 +1122,7 @@ export const callerFaultOf = (cell: KindCell): CallerFault =>
           : "cannot serve";
 
 /** This function gives the cell of a candidate in a mode, for an incident. The cells of an incident share each setting but the trigger and the prediction. */
-const cellOf = (mode: KubeProxyMode, candidate: Candidate, fault: CallerFault): KindCell => {
+const cellOf = (mode: Dataplane, candidate: Candidate, fault: CallerFault): KindCell => {
   const declaration = declarationOf(candidate);
   const workload = workloadOf(candidate);
   const pod = { ...kubeDefaults(2), readiness: CHART_READINESS };

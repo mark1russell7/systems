@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { EdgeProtocol, KindRun, TriggerKind } from "./cell.ts";
 import type { KindCellRecord, KindCellRecordV1 } from "./record.ts";
 import { FORMAT, FORMAT_V1, upgrade } from "./record.ts";
-import type { KubeProxyMode } from "./scenario.ts";
+import type { Dataplane, KubeProxyMode } from "./scenario.ts";
 import { unitOf } from "./verdict.ts";
 
 /**
@@ -48,7 +48,8 @@ const TRIGGERS = [
   "zone-loss",
   "latency",
 ] as const satisfies readonly TriggerKind[];
-const MODES = ["iptables", "ipvs", "nftables"] as const satisfies readonly KubeProxyMode[];
+const KUBE_PROXY = ["iptables", "ipvs", "nftables"] as const satisfies readonly KubeProxyMode[];
+const MODES = [...KUBE_PROXY, "cilium"] as const satisfies readonly Dataplane[];
 
 const time = quantitySchema("time");
 const extent = extentSchema("time");
@@ -116,15 +117,19 @@ const run: z.ZodType<KindRun> = z.object({
 });
 const manifest = z.object({
   env: count,
-  scenario: z.object({
-    name: z.string(),
-    kubernetes: z.string(),
-    workers: count,
-    kubeProxy: z.object({ mode: z.enum(MODES), minSyncPeriod: time, syncPeriod: time }),
-    cni: z.literal("kindnet"),
-    podSubnet: z.string(),
-    serviceSubnet: z.string(),
-  }),
+  // A record from before the dataplane `cilium` has no `dataplane`: its dataplane is the mode of its kube-proxy.
+  scenario: z
+    .object({
+      name: z.string(),
+      kubernetes: z.string(),
+      workers: count,
+      dataplane: z.enum(MODES).optional(),
+      kubeProxy: z.object({ mode: z.enum(KUBE_PROXY), minSyncPeriod: time, syncPeriod: time }).nullable(),
+      cni: z.enum(["kindnet", "cilium"]),
+      podSubnet: z.string(),
+      serviceSubnet: z.string(),
+    })
+    .transform(({ dataplane, ...rest }) => ({ ...rest, dataplane: dataplane ?? rest.kubeProxy?.mode ?? "cilium" })),
   cluster: z.object({
     kind: z.string(),
     nodeImage: z.string(),

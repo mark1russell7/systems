@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { promisify } from "node:util";
+import { ciliumMode } from "./cilium.ts";
 import type { ClusterManifest } from "./record.ts";
 import type { KindScenario } from "./scenario.ts";
 import { NODE_IMAGES, cidrOverlap, kindConfig, nodeNames } from "./scenario.ts";
@@ -134,10 +135,10 @@ export const createCluster = async (scenario: KindScenario, dir: string): Promis
       const nodesJson = JSON.parse(await kubectl(["get", "nodes", "-o", "json"])) as {
         items: Array<{ metadata: { name: string }; status: { nodeInfo: Record<string, string> } }>;
       };
-      const proxy = JSON.parse(await kubectl(["-n", "kube-system", "get", "configmap", "kube-proxy", "-o", "json"])) as {
-        data: Record<string, string>;
-      };
-      const mode = /^mode:\s*(\S*)/m.exec(proxy.data["config.conf"] ?? "")?.[1] ?? "";
+      // the mode of kube-proxy from its configuration, or the version and the settings of Cilium
+      const config = scenario.kubeProxy === null ? "cilium-config" : "kube-proxy";
+      const data = (JSON.parse(await kubectl(["-n", "kube-system", "get", "configmap", config, "-o", "json"])) as { data: Record<string, string> }).data;
+      const mode = scenario.kubeProxy === null ? ciliumMode(data) : (/^mode:\s*(\S*)/m.exec(data["config.conf"] ?? "")?.[1] ?? "");
       const version = JSON.parse(await kubectl(["version", "-o", "json"])) as { serverVersion?: { gitVersion?: string } };
       return {
         kind: (await command(kind, ["version"])).trim(),
@@ -159,10 +160,8 @@ export const createCluster = async (scenario: KindScenario, dir: string): Promis
       await command("docker", ["network", "rm", network]).catch(() => undefined);
     },
   };
-  await command(
-    kind,
-    ["create", "cluster", "--name", scenario.name, "--config", file, "--kubeconfig", kubeconfig, "--wait", "180s"],
-    { env, timeout: 900_000 },
-  );
+  // With no CNI, no node is ready before the install of Cilium (`installCilium`), thus kind does not wait.
+  const wait = scenario.cni === "kindnet" ? ["--wait", "180s"] : [];
+  await command(kind, ["create", "cluster", "--name", scenario.name, "--config", file, "--kubeconfig", kubeconfig, ...wait], { env, timeout: 900_000 });
   return cluster;
 };

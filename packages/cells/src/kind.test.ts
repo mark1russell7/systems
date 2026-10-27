@@ -20,7 +20,7 @@ import { T18_CELLS } from "./t18.ts";
  * - KIND_WORK is the folder of the run folder of each cluster, outside the output: a kubeconfig holds credentials.
  * - KIND_ENVIRONMENTS is the number of new clusters for each group of cells (the default is 2).
  * - KIND_RUNS replaces the run count of each cell, for a smoke run.
- * - KIND_MODES names the kube-proxy modes that the runner can do. Each cell of another mode waits,
+ * - KIND_MODES names the dataplanes that the runner can do: the kube-proxy modes and `cilium`. Each cell of another mode waits,
  *   with the reason in KIND_WAITING, as a line of summary.ndjson.
  * - KIND_AMBIENT_WAITING, when it is not empty, is why the runner cannot do the ambient flavor of
  *   Istio: a module of istio-cni that does not load. Each ambient cell then waits with that reason.
@@ -37,7 +37,7 @@ const ONLY = new RegExp(process.env["KIND_ONLY"] ?? ".");
 const OUT = process.env["KIND_OUT"] ?? fileURLToPath(new URL("../out/kind/", import.meta.url));
 const ENVIRONMENTS = Number(process.env["KIND_ENVIRONMENTS"] ?? 2);
 const RUNS = process.env["KIND_RUNS"] === undefined || process.env["KIND_RUNS"] === "" ? null : Number(process.env["KIND_RUNS"]);
-const MODES = (process.env["KIND_MODES"] ?? "iptables,ipvs,nftables").split(",").filter((mode) => mode !== "");
+const MODES = (process.env["KIND_MODES"] ?? "iptables,ipvs,nftables,cilium").split(",").filter((mode) => mode !== "");
 const [shard, of] = (process.env["KIND_SHARD"] ?? "0/1").split("/").map(Number) as [number, number];
 
 const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T07_GRPC, ...T15_GRPC, ...CALLERS_CELLS, ...GATE_CELLS];

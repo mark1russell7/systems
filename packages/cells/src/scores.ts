@@ -1,4 +1,4 @@
-import type { Band, KubeProxyMode, Reference, TriggerKind } from "@mark1russell7/kind";
+import type { Band, Dataplane, Reference, TriggerKind } from "@mark1russell7/kind";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { CallerFault, Candidate } from "./callers.ts";
@@ -144,7 +144,7 @@ export interface CandidateScores {
 
 /** These are the scores of each candidate in one mode. `fewest` is the label of the candidate with the fewest failed requests in the median run, or null. */
 export interface ModeScores {
-  readonly mode: KubeProxyMode;
+  readonly mode: Dataplane;
   readonly candidates: readonly CandidateScores[];
   readonly fewest: string | null;
 }
@@ -340,7 +340,7 @@ const SHARED_PROBE = "Each candidate has the same readiness probe of the kubelet
  * This function gives the probe load of a candidate: the PINGs that its clients add. A, B and C send
  * no PING by their code. D gets the count of the first copy whose clients count each PING (`load`).
  */
-const loadOf = (candidate: Candidate, mode: KubeProxyMode, fault: CallerFault, id: string, load: CallerRun | undefined): Score => {
+const loadOf = (candidate: Candidate, mode: Dataplane, fault: CallerFault, id: string, load: CallerRun | undefined): Score => {
   const criterion = "probe load";
   const predicted = pingsOf(mode, candidate, fault);
   if (candidate !== "in band on HTTP/2 with a session check") return { criterion, kind: "derived", value: predicted.lo, why: `${predicted.why}. ${SHARED_PROBE}.` };
@@ -362,7 +362,7 @@ const loadOf = (candidate: Candidate, mode: KubeProxyMode, fault: CallerFault, i
 };
 
 /** This function gives the score of one criterion of a candidate whose cell has a result in the copy. The probe load comes from `loadOf`. */
-const scoreOf = (criterion: Criterion, candidate: Candidate, mode: KubeProxyMode, fault: CallerFault, result: CallerResult, run: number, load: CallerRun | undefined): Score => {
+const scoreOf = (criterion: Criterion, candidate: Candidate, mode: Dataplane, fault: CallerFault, result: CallerResult, run: number, load: CallerRun | undefined): Score => {
   if (criterion === "probe load") return loadOf(candidate, mode, fault, result.id, load);
   const evidence: Evidence = { run, cell: result.id, decision: result.decision, counted: result.counted };
   const seconds = (value: number): Quantity => ({ value, unit: "s" });

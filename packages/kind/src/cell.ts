@@ -2,7 +2,7 @@ import type { Extent, Quantity } from "@mark1russell7/quantity";
 import type { Coupling, Gate, Poll, Stage, Timing } from "@mark1russell7/service";
 import type { SessionCheckKnobs } from "@mark1russell7/service/http-client";
 import type { RedisKnobs } from "@mark1russell7/service/redis";
-import type { KubeProxyMode } from "./scenario.ts";
+import type { Dataplane } from "./scenario.ts";
 
 /**
  * A template is the topology of a cell:
@@ -481,7 +481,8 @@ export interface KindCell<A = Quantity> {
   readonly mesh?: Mesh | undefined;
   /** This text names a system of the plan that the cell replaces with the service of this repository, or null. */
   readonly substitutes: string | null;
-  readonly mode: KubeProxyMode;
+  /** This mode is the dataplane of the cluster of the cell: a mode of kube-proxy, or Cilium. */
+  readonly mode: Dataplane;
   readonly workers: number;
   readonly trigger: Trigger<A>;
   readonly pod: PodSettings;
