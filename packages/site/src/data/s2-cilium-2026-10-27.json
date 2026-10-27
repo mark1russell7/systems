@@ -1,0 +1,643 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-10-27",
+  "units": "s",
+  "runs": 11,
+  "kernel": "6.17.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.cilium.endpoints",
+      "template": "T07",
+      "name": "cilium, callers learn that a pod cannot serve: endpoints only",
+      "mode": "cilium",
+      "trigger": "cannot-serve",
+      "group": "callers",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 0 s to 6.16 s after the end of the fault. At least one request fails. Each failed request ends with an answer of 503."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 2810,
+      "values": [3517, 1889, 1579, 3026, 2730, 2805, 2124, 3783, 2988, 2810, 3085],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 2,810 failed requests. The counted runs had 1,579 to 3,783 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 6.16
+        },
+        "expected": {
+          "low": 1313,
+          "high": 3842
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      },
+      "lasts": [35.3807592, 33.7899465, 31.7403398, 32.4732223, 33.7984853, 34.7407757, 31.095217, 35.884565, 32.0420398, 34.8678749, 33.1192168],
+      "pings": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "acks": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "seconds": [42.7499501, 42.7052667, 42.744643, 42.6870541, 42.6904864, 42.7112322, 42.7086583, 42.7006551, 42.7367688, 42.696539, 42.7120679]
+    },
+    {
+      "id": "S2.T07.cilium.lame-duck",
+      "template": "T07",
+      "name": "cilium, callers learn that a pod cannot serve: in band (lame duck)",
+      "mode": "cilium",
+      "trigger": "cannot-serve",
+      "group": "callers",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 8 s to 24.766 s after the fault. At least one request fails. Each failed request ends with an answer of 503."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 956,
+      "values": [781, 1337, 605, 972, 925, 1146, 754, 956, 970, 979, 926],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 956 failed requests. The counted runs had 605 to 1,337 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 24.766
+        },
+        "expected": {
+          "low": 350,
+          "high": 1913
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      },
+      "lasts": [10.8368461, 14.8620568, 11.8319224, 12.5416046, 12.5415097, 15.6745754, 13.9383924, 11.3980677, 14.2704368, 15.9807064, 12.9467294],
+      "pings": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "acks": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "seconds": [37.0552423, 37.8008447, 37.0709357, 37.7927065, 37.3037828, 37.0926412, 39.5033732, 39.5277267, 39.254304, 37.5280642, 37.5533864]
+    },
+    {
+      "id": "S2.T07.cilium.goaway",
+      "template": "T07",
+      "name": "cilium, callers learn that a pod cannot serve: in band on HTTP/2 (GOAWAY)",
+      "mode": "cilium",
+      "trigger": "cannot-serve",
+      "group": "callers",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 8 s to 24.626 s after the fault. Each failed request ends with an answer of 503."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 622,
+      "values": [1732, 727, 453, 0, 0, 604, 622, 728, 535, 1274, 624],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 622 failed requests. The counted runs had 0 to 1,732 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 24.626
+        },
+        "expected": {
+          "low": 0,
+          "high": 2700
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      },
+      "lasts": [11.6458592, 14.603717, 9.0916394, null, null, 12.115653, 12.4853901, 14.6195593, 10.7444863, 12.8029058, 12.5343841],
+      "pings": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "acks": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "seconds": [39.3717281, 39.368988, 37.397389, 39.3236075, 39.59309, 37.3892103, 39.3852543, 39.3399754, 37.1362944, 37.6195658, 39.4278731]
+    },
+    {
+      "id": "S2.T07.cilium.session-check",
+      "template": "T07",
+      "name": "cilium, callers learn that a pod cannot serve: in band on HTTP/2 with a session check",
+      "mode": "cilium",
+      "trigger": "cannot-serve",
+      "group": "callers",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 8 s to 24.626 s after the fault. Each failed request ends with an answer of 503."
+      },
+      "decision": "holds",
+      "counted": 11,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 734,
+      "values": [729, 1243, 559, 1315, 626, 1590, 1563, 550, 1452, 734, 568],
+      "why": "Each of the 11 counted runs agrees with the prediction. The median run had 734 failed requests. The counted runs had 550 to 1,590 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 24.626
+        },
+        "expected": {
+          "low": 0,
+          "high": 2700
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      },
+      "lasts": [14.6262639, 12.4867665, 11.2403965, 13.2088016, 12.5880459, 16.0336851, 10.4888343, 11.0322584, 14.5860302, 14.7331304, 11.3889082],
+      "pings": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "acks": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      "seconds": [36.976736, 37.9971754, 37.4579048, 37.4952608, 37.0041898, 36.9776623, 36.9719458, 39.9834052, 39.5175266, 39.5329193, 37.2543209]
+    }
+  ],
+  "predictions": [
+    {
+      "id": "S2.T07.iptables.endpoints",
+      "mode": "iptables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 6.16
+        },
+        "expected": {
+          "low": 1313,
+          "high": 3842
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 24.265
+        },
+        "expected": {
+          "low": 350,
+          "high": 1913
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.goaway",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 24.125
+        },
+        "expected": {
+          "low": 0,
+          "high": 2700
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.session-check",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 24.125
+        },
+        "expected": {
+          "low": 0,
+          "high": 2700
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 6.16
+        },
+        "expected": {
+          "low": 2250,
+          "high": 2712
+        },
+        "connections": {
+          "low": 12,
+          "high": 12,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 24.469
+        },
+        "expected": {
+          "low": 600,
+          "high": 1350
+        },
+        "connections": {
+          "low": 12,
+          "high": 12,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.goaway",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 24.329
+        },
+        "expected": {
+          "low": 0,
+          "high": 2700
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.session-check",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 24.329
+        },
+        "expected": {
+          "low": 0,
+          "high": 2700
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.endpoints",
+      "mode": "nftables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 6.16
+        },
+        "expected": {
+          "low": 1313,
+          "high": 3842
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 24.239
+        },
+        "expected": {
+          "low": 350,
+          "high": 1913
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.goaway",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 24.099
+        },
+        "expected": {
+          "low": 0,
+          "high": 2700
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.session-check",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 24.099
+        },
+        "expected": {
+          "low": 0,
+          "high": 2700
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.endpoints",
+      "mode": "cilium",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 6.16
+        },
+        "expected": {
+          "low": 1313,
+          "high": 3842
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.lame-duck",
+      "mode": "cilium",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 24.766
+        },
+        "expected": {
+          "low": 350,
+          "high": 1913
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.goaway",
+      "mode": "cilium",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 24.626
+        },
+        "expected": {
+          "low": 0,
+          "high": 2700
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.session-check",
+      "mode": "cilium",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 8,
+          "high": 24.626
+        },
+        "expected": {
+          "low": 0,
+          "high": 2700
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    }
+  ]
+}

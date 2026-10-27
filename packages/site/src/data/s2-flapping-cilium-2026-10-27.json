@@ -1,0 +1,741 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-10-27",
+  "units": "s",
+  "runs": 3,
+  "kernel": "6.17.0 and 7.0.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.cilium.lame-duck.flapping",
+      "template": "T07",
+      "name": "cilium, callers learn that a shared dependency flaps: in band (lame duck)",
+      "mode": "cilium",
+      "trigger": "blackhole",
+      "group": "flapping",
+      "prediction": {
+        "kind": "removal",
+        "band": {
+          "low": 12,
+          "high": 26.606
+        },
+        "text": "The algebra predicts that the Service has no ready endpoint, and that the rules of each node have no backend. The band is 12 s to 26.606 s after the fault. Redis is black-holed 3 times for 27 s, with a rest of 15 s from each heal to the next fault. The heal comes 0 s–0.5 s after the hold. Each request needs Redis, thus each request fails from each fault until the callers recover. The kubelet and the propagation remove both replicas 12 s–26.606 s after each fault, thus the Service is empty in each fault. On the empty Service, each request waits for its connect, and it fails at the timeout of 2 s. Thus the slow failures go on until the heal. A request that waits for its connect succeeds when an endpoint comes back. Thus the last failure starts up to 2 s before the heal, and up to 11.866 s after it. Each recovery ends before the next fault. One success resets the readiness debounce, the kubelet probe and the retry window of the client of Redis. Thus each fault is the same as the first one. Each client sends a request each 20 ms, thus approximately 3567–5910 requests fail in each fault, and 10701–17730 in the run."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 18.707,
+      "values": [18.707, 19.684, 15.962],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median is 18.707 s. The counted runs measured 15.962 s to 19.684 s.",
+      "first": null,
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.866
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17730
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.606
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5910
+        }
+      },
+      "lasts": [116.7577457, 118.0514415, 116.3012557],
+      "failures": [14165, 14150, 13655],
+      "knows": [14.2023211, 15.4036709, 15.2077713, 13.9462231, 12.5561413, 14.7558944, 10.9288325, 11.1205948, 15.2900901],
+      "recovers": [5.5805597, 3.4467705, 4.8515467, 4.885389, 2.7579709, 6.1393816, 3.1191372, 2.7483175, 4.367123],
+      "emptied": [18.707, 20.002, 19.654, 19.684, 17.331, 19.294, 15.962, 16.23, 21.85],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [126.2272224, 126.2205435, 126.2666997]
+    }
+  ],
+  "predictions": [
+    {
+      "id": "S2.T07.iptables.endpoints.flapping",
+      "mode": "iptables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 11556,
+          "high": 16551
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        },
+        "each": {
+          "low": 3852,
+          "high": 5517
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck.flapping",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.365
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17505
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5835
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.goaway.flapping",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.225
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17442
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5814
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.session-check.flapping",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.225
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17442
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.105
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5814
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints.flapping",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 11556,
+          "high": 16551
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        },
+        "each": {
+          "low": 3852,
+          "high": 5517
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck.flapping",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.569
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17595
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5865
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.flapping",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.429
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17532
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5844
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.session-check.flapping",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.429
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17532
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12.073,
+          "high": 26.309
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5844
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.endpoints.flapping",
+      "mode": "nftables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 11556,
+          "high": 16551
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        },
+        "each": {
+          "low": 3852,
+          "high": 5517
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck.flapping",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.339
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17487
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5829
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.goaway.flapping",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.199
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17424
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5808
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.session-check.flapping",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.199
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17424
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.079
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5808
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.endpoints.flapping",
+      "mode": "cilium",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": 0,
+          "high": 9.26
+        },
+        "expected": {
+          "low": 11556,
+          "high": 16551
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.606
+        },
+        "knows": {
+          "from": "fault",
+          "low": 7.98,
+          "high": 22
+        },
+        "each": {
+          "low": 3852,
+          "high": 5517
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.lame-duck.flapping",
+      "mode": "cilium",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.866
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17730
+        },
+        "connections": {
+          "low": 24,
+          "high": 24,
+          "of": 24
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.606
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5910
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.goaway.flapping",
+      "mode": "cilium",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.726
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17667
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.606
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5889
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.session-check.flapping",
+      "mode": "cilium",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "heal",
+          "low": -2,
+          "high": 11.726
+        },
+        "expected": {
+          "low": 10701,
+          "high": 17667
+        },
+        "connections": {
+          "low": 3,
+          "high": 3,
+          "of": 3
+        },
+        "removal": {
+          "from": "fault",
+          "low": 12,
+          "high": 26.606
+        },
+        "knows": {
+          "from": "fault",
+          "low": 24.98,
+          "high": 27.5
+        },
+        "each": {
+          "low": 3567,
+          "high": 5889
+        }
+      }
+    }
+  ]
+}

@@ -82,12 +82,16 @@ describe("the components of the CI runs", () => {
     // D has the prediction of C, and its column links its own run
     expect(table).toContain("D: in band on HTTP/2 with a session check");
     expect(table).toContain("580 failed requests in the median run");
-    expect(table.split("The prediction: 0 to 2,700 failed requests, with 0 to 3 of the 3 connections on the target.").length - 1).toBe(6);
+    // C and D of Cilium have the prediction of C in iptables too
+    expect(table.split("The prediction: 0 to 2,700 failed requests, with 0 to 3 of the 3 connections on the target.").length - 1).toBe(8);
+    // the Cilium column: its own run, and its median runs
+    expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40558968382");
+    expect(table).toContain("2,810 failed requests in the median run");
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40394320219");
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40358038728");
-    expect(table.split("<tr>").length - 1).toBe(4);
+    expect(table.split("<tr>").length - 1).toBe(5);
     const frames = renderToString(<KindResults template="T07" group="callers" />);
-    expect(frames.split('class="sy-frame').length - 1).toBe(12);
+    expect(frames.split('class="sy-frame').length - 1).toBe(16);
     expect(frames).toContain("Each failed request ends with an answer of 503.");
   });
 
@@ -102,9 +106,9 @@ describe("the components of the CI runs", () => {
     // D: the session check closes each session on the target at its PING
     expect(table).toContain("158 failed requests in the median run");
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40394320219");
-    expect(table.split("<tr>").length - 1).toBe(4);
+    expect(table.split("<tr>").length - 1).toBe(5);
     const frames = renderToString(<KindResults template="T07" group="partition" />);
-    expect(frames.split('class="sy-frame').length - 1).toBe(12);
+    expect(frames.split('class="sy-frame').length - 1).toBe(16);
   });
 
   it("render the S2 candidates of a stalled pod side by side, with the frame of each cell", () => {
@@ -113,14 +117,16 @@ describe("the components of the CI runs", () => {
     expect(table).toContain("1,498 failed requests in the median run");
     expect(table).toContain("The prediction: 12 to 39 failed requests, with 7 to 17 of the 24 connections on the target.");
     expect(table).toContain("The prediction: 0 to 1,503 failed requests, with 0 to 3 of the 3 connections on the target.");
-    expect(table).not.toContain("disagree");
+    // C of Cilium failed in 1 of 3 runs, and each other cell held
+    expect(table.split("disagree").length - 1).toBe(1);
+    expect(table).toContain("1 of 3 runs disagrees.");
     expect(table).not.toContain("No run in the copy yet.");
     // D: the removal ends each chain of the session check
     expect(table).toContain("191 failed requests in the median run");
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40406199754");
-    expect(table.split("<tr>").length - 1).toBe(4);
+    expect(table.split("<tr>").length - 1).toBe(5);
     const frames = renderToString(<KindResults template="T07" group="stall" />);
-    expect(frames.split('class="sy-frame').length - 1).toBe(12);
+    expect(frames.split('class="sy-frame').length - 1).toBe(16);
   });
 
   it("render the S2 candidates of a failed prober side by side, with the failed requests and the false removal of the median run", () => {
@@ -131,9 +137,9 @@ describe("the components of the CI runs", () => {
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40419289511");
     expect(table).not.toContain("disagree");
     expect(table).not.toContain("No run in the copy yet.");
-    expect(table.split("<tr>").length - 1).toBe(4);
+    expect(table.split("<tr>").length - 1).toBe(5);
     const frames = renderToString(<KindResults template="T07" group="prober" />);
-    expect(frames.split('class="sy-frame').length - 1).toBe(12);
+    expect(frames.split('class="sy-frame').length - 1).toBe(16);
   });
 
   it("render the S2 candidates of a black-holed shared dependency side by side, with the failed requests and the empty Service of the median run", () => {
@@ -141,10 +147,11 @@ describe("the components of the CI runs", () => {
     expect(table).toContain("4,173 failed requests, and the empty Service 17.524 s after the fault, in the median run");
     expect(table).toContain("The Service is empty 12 s to 26.105 s after the fault.");
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40430856093");
-    expect(table).not.toContain("No run in the copy yet.");
-    expect(table.split("<tr>").length - 1).toBe(4);
+    // the run of Cilium has only B, thus A, C and D of Cilium have no run
+    expect(table.split("No run in the copy yet.").length - 1).toBe(3);
+    expect(table.split("<tr>").length - 1).toBe(5);
     const frames = renderToString(<KindResults template="T07" group="dependency" />);
-    expect(frames.split('class="sy-frame').length - 1).toBe(12);
+    expect(frames.split('class="sy-frame').length - 1).toBe(13);
   });
 
   it("render the S2 candidates of a flapping dependency side by side, with the empty Service after the first fault and the band of each fault", () => {
@@ -154,10 +161,11 @@ describe("the components of the CI runs", () => {
     expect(table).toContain("The Service is empty 12 s to 26.105 s after the fault, for each fault.");
     expect(table).toContain("Each fault has 3,567 to 5,835 failed requests.");
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40464814086");
-    expect(table).not.toContain("No run in the copy yet.");
-    expect(table.split("<tr>").length - 1).toBe(4);
+    // the run of Cilium has only B, thus A, C and D of Cilium have no run
+    expect(table.split("No run in the copy yet.").length - 1).toBe(3);
+    expect(table.split("<tr>").length - 1).toBe(5);
     const frames = renderToString(<KindResults template="T07" group="flapping" />);
-    expect(frames.split('class="sy-frame').length - 1).toBe(12);
+    expect(frames.split('class="sy-frame').length - 1).toBe(13);
   });
 
   it("render the S2 candidates of a lost zone side by side, with the removal of the target and its return after the heal", () => {
@@ -197,17 +205,19 @@ describe("the components of the CI runs", () => {
     // in the stall, B in iptables and nftables, and A in IPVS (a tie); for the failed prober, D in iptables and C in IPVS (a tie) and nftables.
     // In the shared dependency and in the flapping one, B has the fewest in each mode. In the lost zone, D in iptables, C in IPVS and A in nftables.
     // In the slow dependency, C and D tie at 0 in each mode, and C is the first
-    expect(table.split("The fewest in this mode.").length - 1).toBe(24);
+    expect.soft(table.split("The fewest in this mode.").length - 1).toBe(30);
     // in each of the three incidents, three criteria have no number in each mode, and the complexity has its own reason for each of the 4 candidates.
     // The failed prober measures its false removals, thus it has one criterion with no number less.
     // The shared dependency, the flapping one and the lost zone each have one criterion with no number, and the complexity of each of the 4 candidates
     // The slow dependency has three criteria with no number, the complexity of each of the 4 candidates, and the time to recover of C and D in each mode
-    expect(table.split("Not measured.").length - 1).toBe(55);
+    // The Cilium column adds its own rows. A, C and D of the two dependencies of Cilium have no cell in the run, thus each criterion of each one has no number
+    expect.soft(table.split("Not measured.").length - 1).toBe(139);
     expect(table).toContain("T07 has no blip");
     // A, B and C send no PING by their code, and the run 40440516571 counts the PINGs of D in each mode of each incident. The flapping run, the lost zone and the slow dependency count their own
-    expect(table.split("0 PINGs, by the code").length - 1).toBe(72);
+    // Cilium adds A, B and C of four incidents, and B of the two dependencies
+    expect.soft(table.split("0 PINGs, by the code").length - 1).toBe(86);
     expect(table).toContain("123 PINGs in the median run");
-    expect(table.match(/The prediction: 9 to 378\. The counted runs: \d+, \d+, \d+\./g)?.length).toBe(3);
+    expect.soft(table.match(/The prediction: 9 to 378\. The counted runs: \d+, \d+, \d+\./g)?.length).toBe(3);
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40440516571");
     expect(table).toContain("45 PINGs in the median run");
     expect(table).toContain("The prediction: 3 to 126. The counted runs: 33, 44, 51.");
@@ -217,7 +227,8 @@ describe("the components of the CI runs", () => {
     // the copies of D have the time of the last failure in each incident: 3 of a pod that cannot serve, 12 of the partition and 12 of the stall.
     // The failed prober gives 9: B, C and D in each mode, and A learns only after the heal.
     // The lost zone gives 11: D in iptables has no failed request in a counted run
-    expect(table.match(/the last failure [\d.]+ (?:ms|s) after the fault in the median run/g)?.length).toBe(47);
+    expect.soft(table.match(/the last failure [\d.]+ (?:ms|s) after the fault in the median run/g)?.length).toBe(61);
+    // Cilium adds 14: B, C and D of a pod that cannot serve and of the failed prober, and each candidate of the partition and of the stall
     expect(table).toContain("the last failure 26.4");
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40394320219");
     expect(table).toContain("S2.T07.ipvs.session-check.partition");
@@ -230,16 +241,17 @@ describe("the components of the CI runs", () => {
     expect(table).not.toContain("a flapping dependency: No cell");
     // the failed prober: its own run for each candidate, and the false removal of each one
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40419289511");
-    expect(table.match(/the false removal [\d.]+ s after the fault in the median run/g)?.length).toBe(12);
+    expect.soft(table.match(/the false removal [\d.]+ s after the fault in the median run/g)?.length).toBe(16);
     // the shared dependency: its own run, the empty Service, the last slow failure and the last failure after the heal
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40430856093");
     expect(table).toContain("S2.T07.nftables.lame-duck.dependency");
     // the flapping dependency: its own run, and the same 3 times, from the values of each fault
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40464814086");
     expect(table).toContain("S2.T07.nftables.lame-duck.flapping");
-    expect(table.match(/the empty Service [\d.]+ s after the fault in the median run/g)?.length).toBe(24);
-    expect(table.match(/the last slow failure [\d.]+ s after the fault in the median run/g)?.length).toBe(24);
-    expect(table.match(/the last failure [\d.]+ (?:ms|s) after the heal in the median run/g)?.length).toBe(24);
+    expect.soft(table.match(/the empty Service [\d.]+ s after the fault in the median run/g)?.length).toBe(26);
+    expect.soft(table.match(/the last slow failure [\d.]+ s after the fault in the median run/g)?.length).toBe(26);
+    expect.soft(table.match(/the last failure [\d.]+ (?:ms|s) after the heal in the median run/g)?.length).toBe(26);
+    // B of Cilium adds one to each of the three, in each dependency
     // the lost zone: its own run, and the removal of the target by the node lifecycle controller
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40500297695");
     expect(table).toContain("S2.T07.nftables.session-check.zone");
@@ -248,7 +260,7 @@ describe("the components of the CI runs", () => {
     expect(table).toContain("https://github.com/mark1russell7/systems/actions/runs/40521784305");
     expect(table).toContain("S2.T07.nftables.session-check.slow");
     expect(table).not.toContain("a slow dependency (gray failure): No copy");
-    expect(table.match(/the last failure [\d.]+ s before the heal in the median run/g)?.length).toBe(6);
+    expect.soft(table.match(/the last failure [\d.]+ s before the heal in the median run/g)?.length).toBe(6);
     expect(table).toContain("The prediction: 1.74 s to 2.02 s before the heal.");
   });
 });

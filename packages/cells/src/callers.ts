@@ -1,7 +1,7 @@
 import type { Recovery } from "@mark1russell7/algebra";
 import { recovery, timerOf } from "@mark1russell7/algebra";
 import type { Dataplane, Declaration, Flap, KindCell, Workload } from "@mark1russell7/kind";
-import { KUBE_PROXY_MODES, NODE_LIFECYCLE, kubeletBand, latchBand, learnWindow, nodeLossBand, nodeReturnBand, removalBand, stallRemovalBand } from "@mark1russell7/kind";
+import { DATAPLANES, NODE_LIFECYCLE, kubeletBand, latchBand, learnWindow, nodeLossBand, nodeReturnBand, removalBand, stallRemovalBand } from "@mark1russell7/kind";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { recoverSpan } from "@mark1russell7/service";
 import type { Extent, Quantity } from "@mark1russell7/quantity";
@@ -156,8 +156,12 @@ export type Candidate = "endpoints only" | "in band (lame duck)" | "in band on H
  */
 export const CANDIDATES: readonly Candidate[] = ["endpoints only", "in band (lame duck)", "in band on HTTP/2 (GOAWAY)", "in band on HTTP/2 with a session check"];
 
-/** These are the modes of the S2 cells: each mode of kube-proxy. The type of `PROPAGATION` gives a calibrated propagation to each mode. */
-export const CALLERS_MODES: readonly Dataplane[] = KUBE_PROXY_MODES;
+/**
+ * These are the modes of the S2 cells: each mode of kube-proxy, and Cilium with the replacement of
+ * kube-proxy. `PROPAGATION` gives each mode its propagation. The modes of kube-proxy have the
+ * calibrated propagation of the CAL cells. Cilium has the sum of the terms of its sources (`CILIUM_TERMS`).
+ */
+export const CALLERS_MODES: readonly Dataplane[] = DATAPLANES;
 
 /**
  * These are the ways that each mode selects the backend of a new connection. The rules of iptables

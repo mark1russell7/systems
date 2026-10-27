@@ -495,9 +495,14 @@ const fewestOf = (candidates: readonly CandidateScores[]): string | null => {
  * its kind runs. Each cell gets its result from the first copy that has one, and that run is its
  * evidence. Thus a later run can add a candidate, and the scores of the earlier cells stay. The
  * probe load comes from the first copy that counts the PINGs of the cell.
+ *
+ * A mode with no result of a cell of the incident in any copy is not in the scores. Thus a new mode,
+ * for example `cilium`, comes into an incident only with a run of its cells.
  */
 const modesOf = (fault: CallerFault, copies: readonly [CallerRun, ...CallerRun[]]): readonly ModeScores[] =>
-  CALLERS_MODES.map((mode): ModeScores => {
+  CALLERS_MODES.filter((mode) =>
+    CALLERS_CELLS.some((cell) => cell.mode === mode && callerFaultOf(cell) === fault && copies.some((copy) => copy.cells.some((result) => result.id === cell.id))),
+  ).map((mode): ModeScores => {
     const candidates = CANDIDATES.map((candidate, at): CandidateScores => {
       const cell = CALLERS_CELLS.find((each) => each.mode === mode && callerFaultOf(each) === fault && each.name.endsWith(`: ${candidate}`));
       if (cell === undefined) throw new Error(`${mode}, ${candidate}: no S2 cell of the catalog for ${fault}`);
