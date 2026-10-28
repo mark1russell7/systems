@@ -925,7 +925,7 @@ That wait had no bound. With this item, the wait stops after 5 min, and the run 
 - **Depends on:** SYS-43
 - **Started:** 2026-10-28
 - **Shipped:** 2026-10-28
-- **Links:** [#255](https://github.com/mark1russell7/systems/pull/255), [The hung run](https://github.com/mark1russell7/systems/actions/runs/40591832542), [The void run](https://github.com/mark1russell7/systems/actions/runs/40608863500), [The CI ledger](https://mark1russell7.github.io/systems/results/ci/)
+- **Links:** [#255](https://github.com/mark1russell7/systems/pull/255), [#258](https://github.com/mark1russell7/systems/pull/258), [The hung run](https://github.com/mark1russell7/systems/actions/runs/40591832542), [The void run](https://github.com/mark1russell7/systems/actions/runs/40608863500), [The CI ledger](https://mark1russell7.github.io/systems/results/ci/)
 
 The repo has no ledger of the CI runs that did not give a clean result. Thus the hang of SYS-42 is only a fact in the record of SYS-43. This item gives one ledger for each workflow of cells, with one entry for each event. An event is a void run, a hung or cancelled shard, or a step that hit its timeout. A job that failed for a cause outside the cell is also an event.
 
