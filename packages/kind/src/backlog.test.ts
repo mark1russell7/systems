@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { backlogEnd, drainBand, requestBand } from "./bands.ts";
+import { backlogEnd, drainBand, overshootBand, requestBand } from "./bands.ts";
 import type { BacklogTerm, KindCell, KindRun, WindowPrediction } from "./cell.ts";
 import { cellOf } from "./cells.fixture.ts";
 import type { Line } from "./lab.ts";
@@ -181,5 +181,69 @@ describe("the drain failures of the backlog term (SYS-43)", () => {
     const parsed = kindCellRecordSchema.safeParse(record);
     expect(parsed.success, parsed.success ? "" : parsed.error.message).toBe(true);
     if (parsed.success && parsed.data.cell.prediction.kind === "window") expect(parsed.data.cell.prediction.backlog).toEqual(DRAINS);
+  });
+});
+
+/** The term of SYS-45 is the term of SYS-43 with a slow session of up to 100 ms and the early start. */
+const TERMS: BacklogTerm = { ...DRAINS, slowest: ms(100), early: true };
+
+describe("the slow session and the early last failure of the backlog term (SYS-45)", () => {
+  it("closes the window up to (n − 1) × d.hi + the slowest drain after the band end", () => {
+    expect(backlogEnd(b(9.98, 10), TERMS, 1)).toEqual(b(9.99, 10.1));
+    expect(backlogEnd(b(9.98, 10), TERMS, 2)).toEqual(b(10, 10.145));
+    expect(backlogEnd(b(9.98, 10), TERMS, 6)).toEqual(b(10.04, 10.325));
+    expect(backlogEnd(b(9.98, 10), TERMS, 0)).toEqual(b(9.98, 10));
+    // a slowest drain below d.hi changes nothing
+    expect(backlogEnd(b(9.98, 10), { ...TERM, slowest: ms(20) }, 2)).toEqual(backlogEnd(b(9.98, 10), TERM, 2));
+  });
+
+  it("gives the overshoot band from n × d.lo, or with early from one turn less", () => {
+    // without the new fields, the band of SYS-42 and SYS-43: n × d after the band end
+    for (const n of [1, 2, 3, 6]) expect(overshootBand(b(9.98, 10), DRAINS, n)).toEqual(backlogEnd(b(0, 0), DRAINS, n));
+    expect(overshootBand(b(9.98, 10), { ...TERM, early: true }, 1)).toEqual(b(-0.01, 0.045));
+    expect(overshootBand(b(9.98, 10), TERMS, 1)).toEqual(b(-0.01, 0.1));
+    expect(overshootBand(b(9.98, 10), TERMS, 2)).toEqual(b(0, 0.145));
+    expect(overshootBand(b(9.98, 10), TERMS, 6)).toEqual(b(0.04, 0.325));
+  });
+
+  it("counts the drain failures of each session up to the close of the slow session", () => {
+    // a turn of 20 ms: 100 ms / 20 ms = 5 with 1 session, and 145 ms / 20 ms = 7.25, thus 8 with 2
+    expect(drainBand(TERMS, ms(10), 2, 1)).toEqual({ lo: 0, hi: 5 });
+    expect(drainBand(TERMS, ms(10), 2, 2)).toEqual({ lo: 0, hi: 8 });
+    expect(requestBand(TERMS, s(10), ms(10), 2, 1)).toEqual({ lo: 499, hi: 509 });
+    expect(requestBand(TERMS, s(10), ms(10), 2, 2)).toEqual({ lo: 998, hi: 1024 });
+    expect(requestBand(TERMS, s(10), ms(10.15), 2, 1)).toEqual({ lo: 491, hi: 502 });
+    // the terms of SYS-42 and SYS-43 stay as they were
+    expect(drainBand(DRAINS, ms(10), 2, 1)).toEqual({ lo: 0, hi: 3 });
+    expect(requestBand(DRAINS, s(10), ms(10), 2, 6)).toEqual({ lo: 2994, hi: 3108 });
+  });
+
+  it("holds a run whose last failure is 180 ms after the band end, which the term of SYS-43 fails", () => {
+    const run = runOf(10_180);
+    const old = checkRun({ ...STALL, prediction: { ...WINDOW, backlog: DRAINS } }, run);
+    expect(old.ok).toBe(false);
+    expect(old.why).toMatch(/failed requests outside/);
+    const check = checkRun({ ...STALL, prediction: { ...WINDOW, backlog: TERMS } }, run);
+    expect(check.ok, check.why).toBe(true);
+    expect(check.why).toMatch(/in the count \[491, 502\] of 1 session on the target at a mean period of 10\.15 ms$/);
+  });
+
+  it("observes the drain of the slow session after the window", () => {
+    // 10 s, then 45 ms + 100 ms, then the timeout of 2 s and δ
+    expect(observationAfter({ ...STALL, prediction: { ...WINDOW, backlog: TERMS } })).toEqual(s(12.245));
+    expect(observationAfter({ ...STALL, prediction: { ...WINDOW, backlog: DRAINS } })).toEqual(s(12.19));
+  });
+
+  it("is in the text, the schema of /2 and the upgrade of /1", () => {
+    expect(predictionText({ ...WINDOW, backlog: TERMS })).toMatch(/counted at the measured period, one session draining up to 100 ms, the last failure up to one turn before the end$/);
+    expect(predictionText({ ...WINDOW, backlog: DRAINS })).toMatch(/counted at the measured period$/);
+    const cell = { ...STALL, prediction: { ...WINDOW, backlog: TERMS } };
+    const record = { format: FORMAT, cell, runs: [], manifests: [], loads: [], at: "2026-10-28T00:00:00.000Z", verdict: { decision: "void", counted: 0, voided: 0, failed: 0, median: null, why: "a test", checks: [] } };
+    const parsed = kindCellRecordSchema.safeParse(record);
+    expect(parsed.success, parsed.success ? "" : parsed.error.message).toBe(true);
+    if (parsed.success && parsed.data.cell.prediction.kind === "window") expect(parsed.data.cell.prediction.backlog).toEqual(TERMS);
+    const old = { ...STALL, prediction: { ...WINDOW, start: { from: "fault", band: { lo: 0, hi: 0.02 } }, end: { from: "fault", band: { lo: 9.98, hi: 10 } }, backlog: { ...TERMS, drain: { lo: 0.01, hi: 0.045 }, slowest: 0.1 } } };
+    const upgraded = upgradeCell(old as unknown as Parameters<typeof upgradeCell>[0]);
+    expect(upgraded.prediction.kind === "window" && upgraded.prediction.backlog).toEqual({ ...TERMS, drain: b(0.01, 0.045), slowest: s(0.1) });
   });
 });

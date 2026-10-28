@@ -91,6 +91,12 @@ const upgradeTrigger = (trigger: TriggerV1): Trigger => {
   return cpuMax === undefined ? rest : { ...rest, cpuMax: { quota: microseconds(cpuMax.quota), period: microseconds(cpuMax.period) } };
 };
 
+/** The format `/1` has no backlog term, but its type does. Each time of the term is in seconds. */
+const upgradeBacklog = (backlog: NonNullable<WindowPrediction<number>["backlog"]>): NonNullable<WindowPrediction["backlog"]> => {
+  const { slowest, ...rest } = backlog;
+  return { ...rest, drain: band(backlog.drain), ...(slowest === undefined ? {} : { slowest: seconds(slowest) }) };
+};
+
 const upgradeWindow = (window: WindowPrediction<number>): WindowPrediction => {
   const { afterReset, propagation, backlog, ...rest } = window;
   return {
@@ -99,8 +105,7 @@ const upgradeWindow = (window: WindowPrediction<number>): WindowPrediction => {
     end: window.end === null ? null : { from: window.end.from, band: band(window.end.band) },
     ...(afterReset === undefined ? {} : { afterReset: { life: seconds(afterReset.life), outcome: afterReset.outcome } }),
     ...(propagation === undefined ? {} : { propagation: band(propagation) }),
-    // the format /1 has no backlog term, but its type does
-    ...(backlog === undefined ? {} : { backlog: { ...backlog, drain: band(backlog.drain) } }),
+    ...(backlog === undefined ? {} : { backlog: upgradeBacklog(backlog) }),
   };
 };
 

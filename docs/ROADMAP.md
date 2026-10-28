@@ -943,6 +943,30 @@ The result: Kind has 21 events in 21 of 80 shards, a flake rate of 26.3%. Of the
 
 The hang: the shard of 6 sessions waited for a quiet VM for approximately 78 of its 86 min, at 46% to 59% idle. Then a person cancelled the run. The void run: the wait stopped after 300 s at 59% idle.
 
+### SYS-45 · Two terms of the window band: the slow session and the early start
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** SYS-43
+- **Started:** 2026-10-28
+- **Links:** [SYS-43](#sys-43--the-count-band-carries-the-drain-failures-of-the-backlog)
+
+SYS-43 left two candidate terms of the window band. In SYS-42 and SYS-43, the window band missed 4 of 39 runs, each with 1 session. One run was below n × d.lo (9 ms). Three runs were above n × d.hi (50 ms, 58 ms and 90 ms). The signs differ, thus these misses are not a bias. This item tests the two terms with a new band version.
+
+The first term is the early start. The last failed request can start up to one turn before the window closes. Thus this term moves the low end of the band, not the high end. The end band of the judge already opens one turn before the band end, at 9.98 s. The overshoot band of SYS-42 opened at n × d.lo, without this turn. With the term, it opens at n × d.lo − c × p, 20 ms lower at the setting.
+
+The second term is the slow session. One session on the target can drain for more than d.hi, which is 45 ms. With n sessions, the drains of the other sessions average it out, thus it shows best with 1 session. In 15 runs with 1 session, the largest overshoot was 90 ms, in SYS-42. The term takes a slowest drain of 100 ms: 90 ms, rounded up to 0.1 s.
+
+With this term, the window closes up to (n − 1) × d.hi + 100 ms after the band end. Each session can also fail more requests in the drain: up to that time over the turn c × p, rounded up. The values d and r stay as in SYS-42. The terms are the optional fields `early` and `slowest` of `BacklogTerm` in the kind judge. A term without them gives the same bands as before.
+
+The test cells are `BACKLOG_TERMS_CELLS` in `packages/cells/src/backlog.ts`. They have 1 and 2 sessions on the target and 10 runs each, because the zones of the two terms are largest there. The old cells, bands and records stay as committed. An in-sample check is not the test. The new band contains each of the 39 overshoots and counts of SYS-42 and SYS-43.
+
+The prediction: with 1 session, the overshoot is −10 ms to 100 ms. With 2 sessions, it is 0 ms to 145 ms. At a mean period of 10.2 ms, 489 to 500 requests fail with 1 session, and 978 to 1006 with 2 sessions. With 1 session, 0 to 3 of 10 runs fall in the zone of the early start. Also with 1 session, 1 to 5 of 10 runs fall in the zone of the slow session.
+
+The decision rule: the band hits if every counted run of each n falls in its window band and in its count band. The zone of the early start is n × d.lo − c × p to n × d.lo. The zone of the slow session is n × d.hi to (n − 1) × d.hi + 100 ms. A term is confirmed if 1 or more runs fall in its zone and no run falls outside its edge. A miss with the same sign in each run is a bias, and the next band adds the missing term.
+
+If no run of the 20 falls in the zone of the slow session, the next band drops that term. The early start stays with no run in its zone, because it comes from the end band of the judge, not from a fit. The thresholds do not change after the result.
+
 The idle share of 60% holds for Cilium. Of 230 runs on Cilium, 2 are void or hung by the wait, approximately 0.9%. The limit is 5%. The page applies the rule again after each scan.
 
 ### SYS-46 · The service gaps of the graph plumbing

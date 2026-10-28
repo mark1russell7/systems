@@ -26,13 +26,40 @@ export const showBand = (band: Band): string => {
 const us = (value: number): number => Math.round(value * 1e6) / 1e6;
 
 /**
+ * This function gives the largest time after the band end at which the window of n sessions closes,
+ * in seconds. Each session drains in d, thus it is n × d.hi. With `slowest` (SYS-45), one of the n
+ * sessions can drain up to that time, thus it is (n − 1) × d.hi + the larger of `slowest` and d.hi.
+ */
+const closingOf = (term: Pick<BacklogTerm, "drain"> & Partial<Pick<BacklogTerm, "slowest">>, sessions: number): number => {
+  const hi = valueIn(term.drain.hi, "s");
+  if (term.slowest === undefined || sessions < 1) return sessions * hi;
+  return (sessions - 1) * hi + Math.max(valueIn(term.slowest, "s"), hi);
+};
+
+/**
  * This function gives the end band of a window with the backlog term (`BacklogTerm`). It adds n × d
  * to each end of `end`, the end band without the term. The value n is the sessions on the target.
+ * A term with `slowest` (SYS-45) adds (n − 1) × d.hi + `slowest` to the high end instead.
  */
-export const backlogEnd = (end: Band, term: Pick<BacklogTerm, "drain">, sessions: number): Band => {
+export const backlogEnd = (end: Band, term: Pick<BacklogTerm, "drain"> & Partial<Pick<BacklogTerm, "slowest">>, sessions: number): Band => {
   const ends = secondsOf(end);
   const drain = secondsOf(term.drain);
-  return bandOf(us(ends.lo + sessions * drain.lo), us(ends.hi + sessions * drain.hi));
+  return bandOf(us(ends.lo + sessions * drain.lo), us(ends.hi + closingOf(term, sessions)));
+};
+
+/**
+ * This function gives the band of the start of the last failed request of a window with the backlog
+ * term, from the band end (the high end of `end`). This is the overshoot of a run. Its high end is
+ * the high end of `backlogEnd`. Without `early`, its low end is n × d.lo (SYS-42). With `early`
+ * (SYS-45), the last failed request can start up to one turn before the window closes. Its low end
+ * is then the low end of `end` plus n × d.lo. The end band opens one turn before the band end.
+ */
+export const overshootBand = (end: Band, term: Pick<BacklogTerm, "drain"> & Partial<Pick<BacklogTerm, "slowest" | "early">>, sessions: number): Band => {
+  const ends = secondsOf(end);
+  const closes = secondsOf(backlogEnd(end, term, sessions));
+  const drain = secondsOf(term.drain);
+  const lo = term.early === true ? closes.lo - ends.hi : sessions * drain.lo;
+  return bandOf(us(lo), us(closes.hi - ends.hi));
 };
 
 /** A count band is a range of counts of requests. */
@@ -56,11 +83,12 @@ const turnOf = (mean: Quantity, connections: number): number => {
  * request each turn until the window closes. With n sessions on the target, the window closes up to
  * n × d.hi after the band end (`backlogEnd`). Thus one session fails 0 to ceil(n × d.hi / turn)
  * requests in the drain. The turn is the mean period of a client (`mean`) times its sessions
- * (`connections`). The term r is not in this band.
+ * (`connections`). The term r is not in this band. With `slowest` (SYS-45), the window closes up to
+ * (n − 1) × d.hi + `slowest` after the band end. Thus one session fails up to that time over the turn.
  */
-export const drainBand = (term: Pick<BacklogTerm, "drain">, mean: Quantity, connections: number, sessions: number): CountBand => {
+export const drainBand = (term: Pick<BacklogTerm, "drain"> & Partial<Pick<BacklogTerm, "slowest">>, mean: Quantity, connections: number, sessions: number): CountBand => {
   const turn = turnOf(mean, connections);
-  return { lo: 0, hi: Math.ceil(counted((sessions * valueIn(term.drain.hi, "s")) / turn)) };
+  return { lo: 0, hi: Math.ceil(counted(closingOf(term, sessions) / turn)) };
 };
 
 /**
@@ -73,7 +101,7 @@ export const drainBand = (term: Pick<BacklogTerm, "drain">, mean: Quantity, conn
  * A term with `drains` (SYS-43) also adds the drain failures of each session (`drainBand`).
  */
 export const requestBand = (
-  term: Pick<BacklogTerm, "requests"> & Partial<Pick<BacklogTerm, "drain" | "drains">>,
+  term: Pick<BacklogTerm, "requests"> & Partial<Pick<BacklogTerm, "drain" | "drains" | "slowest">>,
   span: Quantity,
   mean: Quantity,
   connections: number,
@@ -82,6 +110,6 @@ export const requestBand = (
   const turn = turnOf(mean, connections);
   const each = counted(valueIn(span, "s") / turn);
   if (term.drains === true && term.drain === undefined) throw new RangeError("a term with drains has no drain time d");
-  const drained = term.drains === true ? drainBand({ drain: term.drain! }, mean, connections, sessions) : { lo: 0, hi: 0 };
+  const drained = term.drains === true ? drainBand({ drain: term.drain!, slowest: term.slowest }, mean, connections, sessions) : { lo: 0, hi: 0 };
   return { lo: sessions * (Math.floor(each) - 1 + term.requests.lo + drained.lo), hi: sessions * (Math.ceil(each) + 1 + term.requests.hi + drained.hi) };
 };
