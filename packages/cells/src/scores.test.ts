@@ -399,9 +399,10 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
       expect(d, mode.mode).toBeLessThan(c! / 2);
       for (const candidate of mode.candidates) {
         const score = scoreOf(candidate, "time until callers know");
-        // the close of the session of C reaches its client about 70 ms after the resume at the most, thus its time is over the band of the prediction, in the noise of the judge (100 ms)
-        expect(score, candidate.cell).toMatchObject({ kind: "measured", from: "fault", holds: candidate.label !== "C" });
-        if (score.kind === "measured" && !score.holds) expect(Math.max(...score.values.map((each) => each.value)) - score.prediction.hi.value, candidate.cell).toBeLessThan(0.1);
+        // the close of the session of C reaches its client about 70 ms after the resume at the most. The band before SYS-48 ended at 10 s, and the backlog term
+        // of SYS-45 closes it up to (n − 1) × 45 ms + 100 ms later, 10.19 s with the 3 sessions of C. Thus each time is in the band
+        expect(score, candidate.cell).toMatchObject({ kind: "measured", from: "fault", holds: true });
+        if (candidate.label === "C") expect(score.kind === "measured" ? [score.prediction.lo.value, score.prediction.hi.value] : null, candidate.cell).toEqual([9.98, 10.19]);
       }
     }
   });
@@ -492,7 +493,7 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
     expect(PING_FRAME).toEqual({ value: 17, unit: "B" });
   });
 
-  it("score the Cilium column from the run 40558968382: each finding of kube-proxy holds, and the scores show two gaps", () => {
+  it("score the Cilium column from the run 40558968382: each finding of kube-proxy holds, and the scores show one gap", () => {
     const column = (name: Incident): ModeScores => ciliumOf(card, name);
     const counts = (name: Incident): (number | null)[] => column(name).candidates.map((each) => (scoreOf(each, "failed requests").kind === "measured" ? median(each) : null));
     // the failed requests of the median run. The runs of the dependencies have only B
@@ -516,17 +517,18 @@ describe("the scores of how callers learn, from the copies of kind runs 40358038
             const decision = candidate.cell === "S2.T07.cilium.goaway.stall" ? "fails" : "holds";
             expect(score.evidence, `${candidate.cell} ${score.criterion}`).toEqual({ run: CILIUM_RUN, cell: candidate.cell, decision, counted: name === "a pod that cannot serve" ? 11 : 3 });
           }
-    // the gap of the stall: the backlog of the target after the resume. One run of C had 1507 failed requests, over the band of 0 to 1503, and each run of C knew after the band of 9.98 s to 10 s
+    // the gap of the stall: the backlog of the target after the resume. One run of C had 1507 failed requests, over the band of 0 to 1503, and each run of C knew after the band of 9.98 s to 10 s.
+    // The judge of the run used that band, thus the copy keeps its decision. The band of SYS-48 has the backlog term of SYS-45: 0 to 1542 requests and 9.98 s to 10.19 s, and each value is in it
     const stall = column("a stalled pod (gray failure)").candidates[2]!;
     const failed = scoreOf(stall, "failed requests");
-    expect(failed.kind === "measured" ? [failed.holds, failed.values.map((each) => each.value), failed.prediction.hi.value] : null).toEqual([false, [1001, 499, 1507], 1503]);
+    expect(failed.kind === "measured" ? [failed.holds, failed.values.map((each) => each.value), failed.prediction.hi.value] : null).toEqual([true, [1001, 499, 1507], 1542]);
     const late = scoreOf(stall, "time until callers know");
-    expect(late.kind === "measured" ? [late.holds, late.values.every((each) => each.value > late.prediction.hi.value), late.prediction.hi.value] : null).toEqual([false, true, 10]);
-    // each other score of the failed requests holds
+    expect(late.kind === "measured" ? [late.holds, late.values.every((each) => each.value > 10), late.prediction.hi.value] : null).toEqual([true, true, 10.19]);
+    // each score of the failed requests holds
     for (const name of ["a pod that cannot serve", "a partitioned pod", "a stalled pod (gray failure)", "a failed prober", "a black-holed shared dependency", "a flapping dependency"] as const)
       for (const candidate of column(name).candidates) {
         const score = scoreOf(candidate, "failed requests");
-        if (score.kind === "measured") expect(score.holds, candidate.cell).toBe(candidate.cell !== "S2.T07.cilium.goaway.stall");
+        if (score.kind === "measured") expect(score.holds, candidate.cell).toBe(true);
       }
     // the false removal of each candidate is in its band, after the fault
     expect(column("a failed prober").candidates.map((each) => median(each, "false removals on a blip"))).toEqual([20.023, 18.528, 18.927, 19.227]);

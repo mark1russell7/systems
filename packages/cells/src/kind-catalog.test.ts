@@ -45,6 +45,7 @@ import {
   SLOW_DELAY,
   SLOW_HOLD,
   STALL_HOLD,
+  STALL_TERM,
   ZONE_CLIENTS,
   ZONE_HEAL_LEAD,
   ZONE_HOLD,
@@ -62,6 +63,7 @@ import {
 import type { CallerFault } from "./callers.ts";
 import { FAULT_LAG, GATE, GATE_CELLS, GATE_FAULTS, gateCannotServeOf, gateDependencyOf } from "./gate.ts";
 import { CHART_READINESS, CILIUM_PROPAGATION, CILIUM_TERMS, DESIGN_REDIS, KUBE_PROBE, PROPAGATION, SYN_SENT, afterSync, s } from "./kind.ts";
+import { BACKLOG_TERMS_TERM } from "./terms.ts";
 import { T07_CELLS } from "./t07.ts";
 import { T18_CELLS } from "./t18.ts";
 
@@ -411,15 +413,23 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
         const { lo, hi } = expectedFailures(candidate, mode, "stall");
         expect({ lo, hi }).toEqual(random ? requests(12, 39) : requests(21, 24));
       }
-      // C: the resume 12 s after the fault, less the timeout of 2 s and up to one request
-      expect([c.certain, c.start, c.end, c.outcomes]).toEqual([false, { from: "fault", band: band(0, 0.02) }, { from: "fault", band: band(9.98, 10) }, ["timeout"]]);
-      expect(expectedFailures("in band on HTTP/2 (GOAWAY)", mode, "stall")).toMatchObject(requests(0, 1503));
+      // C: the resume 12 s after the fault, less the timeout of 2 s and up to one request. The judge adds the backlog term of SYS-45 with n of each run (SYS-48)
+      expect([c.certain, c.start, c.end, c.outcomes, c.backlog]).toEqual([false, { from: "fault", band: band(0, 0.02) }, { from: "fault", band: band(9.98, 10) }, ["timeout"], STALL_TERM]);
+      // with 3 sessions on the target at the setting of 20 ms: 3 × (500 + 1 + 3 + ceil(190 ms / 20 ms)) at the most, 42 more than the band of 0 to 1503 before SYS-48
+      expect(expectedFailures("in band on HTTP/2 (GOAWAY)", mode, "stall")).toMatchObject(requests(0, 1542));
+      expect(c.why).toMatch(/Thus the window closes after the band end of 10 s, up to 10\.19 s after the fault with 3 sessions on the target/);
       // D: the arithmetic of the partition, and the removal ends the chains at random
       expect([d.certain, d.start, d.end, d.outcomes]).toEqual([false, { from: "fault", band: band(0, 0.02) }, { from: "fault", band: band(0, dEnd[mode]) }, undefined]);
       expect(d.why).toMatch(/its TCP connects, but the blocked loop sends no SETTINGS frame\. The check sends a PING, which gets no ACK, and it closes the session 1 s after its first stream|IPVS selects in turn/);
       const { lo, hi } = expectedFailures("in band on HTTP/2 with a session check", mode, "stall");
       expect({ lo, hi }).toEqual(random ? requests(0, 534) : requests(0, 228));
     }
+  });
+
+  it("gives only the stall cells of C the backlog term of SYS-45, with the most sessions of C on the target", () => {
+    expect(STALL_TERM).toEqual({ ...BACKLOG_TERMS_TERM, most: 3 });
+    const termed = CALLERS_CELLS.filter((cell) => cell.prediction.kind === "window" && cell.prediction.backlog !== undefined).map((cell) => cell.id);
+    expect(termed).toEqual(CALLERS_MODES.map((mode) => `S2.T07.${mode}.goaway.stall`));
   });
 
   it("fails the prober of the target while it can serve, with the cells of each candidate: only the trigger, the prediction and the runs change", () => {
