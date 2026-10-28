@@ -1003,12 +1003,12 @@ It comes as a PATCH before 1.0.0: new optional options, an optional member of an
 
 ### SYS-47 · The host entry runs on a real Windows and Linux runner
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** SYS-36
 - **Started:** 2026-10-28
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-10-28
+- **Links:** [#268](https://github.com/mark1russell7/systems/pull/268)
 
 Each unit test of the host entry uses the fake host, `fakeHost`. Thus no test used the real ports of Node (`nodeHostPorts`) on a real system before this item.
 
@@ -1019,6 +1019,8 @@ A new test, `src/host-it.test.ts`, runs the real ports in the job `process`, on 
 - **Probes and commands.** It sends probes to local servers and to a closed port. A command gives its exit code, 127 when its program is missing, and 124 at its timeout.
 - **A group.** The program `b` starts only after the probe of `a` passes. After a crash, `a` starts again after its backoff. The logs go to their files, and the stop leaves no process.
 - **An install.** It installs a real systemd user unit or Windows task, gets its status and removes it.
+
+In the first CI check, each test passed on the two runners. Thus the test found no bug in the real ports, and the package keeps its version 0.6.3. On Linux, a step of the job starts the systemd user manager with linger.
 
 ## The systems of S1
 
