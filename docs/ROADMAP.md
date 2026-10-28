@@ -122,7 +122,7 @@ A service declares its clients, timeouts, retries, checks and state machines as 
 
 On 2026-10-17, Mark decided the design of the server stack (D1 to D18). These decisions replace the co-design gate for the runner, its HTTP entry, the composition, the requests, the signals and the profiles. On 2026-10-25, Mark chose a shared core for the wrappers of the S1 clients. Each driver has a thin entry on that core. Mark asked for as much unification as possible. Thus the table of [S6.md](S6.md) gives a reason for each part that stays separate.
 
-The design of health and routing is decided. The kind cells scored the candidates A to E on eight incidents, from PR #194 to PR #242, and the rule of the service stays. S6 stays in progress for SYS-6, SYS-17 and SYS-36.
+The design of health and routing is decided. The kind cells scored the candidates A to E on eight incidents, from PR #194 to PR #242, and the rule of the service stays. S6 stays in progress for SYS-6 and SYS-17.
 
 [PR #157](https://github.com/mark1russell7/systems/pull/157) adds the PostgreSQL client (`./pg`) on the shared core of the clients, and moves the Redis client onto that core.
 
@@ -738,18 +738,20 @@ The watcher fixes changed `packages/kind/image/watch.mjs`. Thus a kind run on th
 
 ### SYS-36 · The service hosts a user service on Windows and Linux
 
-- **Status:** later
+- **Status:** done
 - **Area:** server stack
 - **Depends on:**
-- **Started:**
-- **Shipped:**
-- **Links:**
+- **Started:** 2026-10-28
+- **Shipped:** 2026-10-28
+- **Links:** [#266](https://github.com/mark1russell7/systems/pull/266)
 
 A review of duplicate code found the code that runs a program as a user service in four places. Two copies have approximately 200 lines that are almost the same. There are also four task files for Windows and five checks that a process runs.
 
 A new entry `@mark1russell7/service/host` gives this code one source. It installs a Windows task or a systemd user unit, and it keeps a discovery file. It also holds a lock for one instance and checks that a process runs. The service already has the runner, the backoff and the drain.
 
 It comes as a PATCH before 1.0.0: a new entry and new exports.
+
+The entry also has a group supervisor, `superviseGroup`. It starts programs in the sequence of `after`, with ready probes, and starts each again through `retrier`. Each program has its own lock, log, folder and environment. The stop goes in stages, and after the grace, the process tree stops by its ID.
 
 ### SYS-37 · The service has a logger port
 
