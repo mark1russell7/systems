@@ -118,6 +118,16 @@ export interface KeyedLimiter {
    * fails, it gives the decision of `onStoreFailure`, with the failure as text.
    */
   take(key: string): Promise<Decision>;
+  /**
+   * This method takes one unit for a key, and gives the decision at once, with no promise. Only a
+   * local store whose take gives its decision at once permits it, for example `memoryStore`. A shared store throws.
+   */
+  tryTakeSync?(key: string): Decision;
+}
+
+/** A local limiter is a keyed limiter on a memory store: its take can give the decision at once. */
+export interface LocalLimiter extends KeyedLimiter {
+  tryTakeSync(key: string): Decision;
 }
 
 /** This function gives the text of a failure. */
@@ -131,8 +141,11 @@ const failureOf = (error: unknown): string => (error instanceof Error ? error.me
  *   permitted with `remaining` 0. With `closed`, it is refused with the cause `store`.
  * - The `retryAfter` of the cause `store` is the longest `retryAfter` of the policy.
  * - A failure of a local store rejects the take, because a local store has no `onStoreFailure`.
+ * - `tryTakeSync` gives the decision at once. A shared store throws, and so does a local store that gives a promise.
  */
-export const keyedLimiter = (name: string, spec: LimiterSpec, store: LimiterStore): KeyedLimiter => {
+export function keyedLimiter(name: string, spec: LimiterSpec, store: MemoryStore): LocalLimiter;
+export function keyedLimiter(name: string, spec: LimiterSpec, store: LimiterStore): KeyedLimiter;
+export function keyedLimiter(name: string, spec: LimiterSpec, store: LimiterStore): KeyedLimiter {
   const problems = limiterProblems(name, spec);
   if (problems.length > 0) throw new Error(problems.join("; "));
   if (store.kind !== spec.store.kind)
@@ -152,6 +165,17 @@ export const keyedLimiter = (name: string, spec: LimiterSpec, store: LimiterStor
       return { allowed: false, retryAfter: { ...closedAfter }, cause: "store", failure };
     }
   };
+  const tryTakeSync = (key: string): Decision => {
+    if (store.kind === "shared")
+      throw new Error(`limiter ${name} has a shared store, which decides in a promise: tryTakeSync needs a memory store, thus use take()`);
+    const decision = store.take({ limiter: name, key, rule, maxKeys });
+    if (isPromise(decision)) {
+      // the take of the store happened: its promise has the decision, and its rejection is not left unhandled
+      decision.then(undefined, () => {});
+      throw new Error(`limiter ${name} has a store whose take gives a promise: tryTakeSync needs a memory store, thus use take()`);
+    }
+    return decision;
+  };
   return {
     name,
     spec: {
@@ -163,5 +187,10 @@ export const keyedLimiter = (name: string, spec: LimiterSpec, store: LimiterStor
     rule,
     maxKeys,
     take,
+    tryTakeSync,
   };
-};
+}
+
+/** This function tells if a decision of a store is a promise. */
+const isPromise = (value: Decision | Promise<Decision>): value is Promise<Decision> =>
+  typeof (value as { then?: unknown }).then === "function";

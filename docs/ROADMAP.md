@@ -945,6 +945,27 @@ The hang: the shard of 6 sessions waited for a quiet VM for approximately 78 of 
 
 The idle share of 60% holds for Cilium. Of 230 runs on Cilium, 2 are void or hung by the wait, approximately 0.9%. The limit is 5%. The page applies the rule again after each scan.
 
+### SYS-46 · The service gaps of the graph plumbing
+
+- **Status:** done
+- **Area:** server stack
+- **Depends on:** SYS-37
+- **Started:** 2026-10-28
+- **Shipped:** 2026-10-28
+- **Links:** [#260](https://github.com/mark1russell7/systems/pull/260)
+
+The graph session found five gaps in service 0.6.1 for the plumbing of its step W9. Each part of this item is a new option or a new export. Without them, each old call gives the same result.
+
+- **Uncaught errors.** `run({ uncaught: { exitCode, ignore } })` makes an uncaught exception or an unhandled rejection a trigger of the staged shutdown, as a signal is. The logger gets the error at `error`. `ignore` skips an error, for example an `ECONNRESET` of a peer socket, and the logger gets it at `warn`.
+- **A retrier.** `retrier({ base, factor, cap, jitter, clock, signal })` starts a function again after the `backoffDelay` of each try, on the injected clock. It has `schedule`, `reset`, `cancel` and `attempts`. The abort of its signal cancels it, for example the `signal` of the lifecycle in the drain.
+- **More probe paths.** `probeHandler(health, { prefix, paths: { liveness: ["/livez", "/healthz"], readiness: ["/readyz"] } })` answers each more path as its probe kind. `probeServer` takes the same option.
+- **A take with no promise.** `tryTakeSync(key)` gives the `Decision` of a memory store at once, with `retryAfter` as a quantity. It is optional on `KeyedLimiter`, and `keyedLimiter` on a `memoryStore` gives a `LocalLimiter` that has it. A shared store throws.
+- **Lines of JSON.** `consoleLogger({ level, format: "json" })` writes one line of JSON for each entry.
+
+The keys of `paths` are the probe kinds, and the decision is the `Decision` of `take()`. The names of the graph session were `live`, `ready`, `ok` and `retryAfterMs`. The package uses the names of its other calls, thus the new calls use them too.
+
+It comes as a PATCH before 1.0.0: new optional options, an optional member of an interface, and new exports.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue

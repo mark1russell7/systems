@@ -30,7 +30,7 @@ import type {
   RunOptions,
   TransportImpl,
 } from "./lifecycle.ts";
-import { STAGES, lifecycle, lifecycleProblems, stageRank } from "./lifecycle.ts";
+import { STAGES, lifecycle, lifecycleProblems, stageRank, uncaughtProblems } from "./lifecycle.ts";
 import type { Operation } from "./operation.ts";
 import { operationProblems } from "./operation.ts";
 import type { CheckFn } from "./poller.ts";
@@ -678,7 +678,7 @@ export const service = (name: string): ServiceBuilder => {
           choices,
           stopPollers: () => {},
         };
-        const problems = lifecycleProblems(description, components);
+        const problems = [...lifecycleProblems(description, components), ...uncaughtProblems(options.uncaught)];
         if (problems.length > 0) throw new Error(`${name}: ${problems.join("; ")}`);
         const made = makeRuntime(options);
         started = true;

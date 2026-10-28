@@ -44,6 +44,8 @@ export type { Heartbeat, HeartbeatOptions } from "./heartbeat.ts";
 export { detectionTime, heartbeat } from "./heartbeat.ts";
 export type { Backoff, DelayBand, Jitter } from "./backoff.ts";
 export { backoffBand, backoffDelay, backoffProblems } from "./backoff.ts";
+export type { Retrier, RetrierOptions } from "./retrier.ts";
+export { retrier } from "./retrier.ts";
 export type {
   Allowed,
   Decision,
@@ -57,6 +59,7 @@ export type {
   LimiterState,
   LimiterStore,
   LimiterStoreSpec,
+  LocalLimiter,
   MemoryStore,
   RefusalCause,
   Refused,
@@ -94,7 +97,7 @@ export type {
 export type { CheckMetrics, DurationHistogram, Episode, HealthMetrics } from "./metrics.ts";
 export { DURATION_FRACTIONS, EPISODES_KEPT, redact } from "./metrics.ts";
 export type { LifecycleEvent, MachineName, Recorder } from "./events.ts";
-export type { ConsoleLoggerOptions, ConsoleTarget, LogEntry, LogFields, LogLevel, Logger } from "./logger.ts";
+export type { ConsoleLoggerOptions, ConsoleTarget, LogEntry, LogFields, LogFormat, LogLevel, Logger } from "./logger.ts";
 export { LOG_LEVELS, atLeast, consoleLogger, logEvents } from "./logger.ts";
 export type {
   DependencyHandle,
@@ -107,6 +110,7 @@ export type {
   ShutdownOptions,
   Stage,
   TransportImpl,
+  UncaughtOptions,
 } from "./lifecycle.ts";
 export { STAGES, cooperativeAbortAt, stageRank } from "./lifecycle.ts";
 export type {
@@ -118,10 +122,12 @@ export type {
   ProcessHost,
   ProcessPort,
   ProcessTrigger,
+  UncaughtOrigin,
 } from "./process.ts";
 export {
   EXIT_SIGNALS,
   PROCESS_TRIGGERS,
+  UNCAUGHT_ORIGINS,
   embeddedProcess,
   isExitCode,
   isExitSignal,

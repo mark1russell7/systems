@@ -78,6 +78,10 @@ The format of a description is `mark1russell7.service/1`.
 - **The answers that did not go.** The event of that cap (`phase.cap`) gives the cause and the count, for example `answers not flushed: 2`. The close of the transports then destroys those sockets.
 - **Work that did not end.** A call whose end did not come, a transport that did not end its drain, or a step of an owner still fails the phase. The exit code is then 1, as before.
 - **Only the work of the drain.** The drain waits only for the streams that `life.request` of its lifecycle made, because only its cut ends them. A stream of another lifecycle, or of none, does not hold the drain. The record of the drain gives their count, for example `streams outside the lifecycle: 1`. Thus each exit code is the exit code of 0.5.4.
+- **Uncaught errors.** `run({ uncaught: { exitCode, ignore } })` adds a handler for `uncaughtException` and `unhandledRejection` from the start to the exit. Without the option, the runtime adds no handler, as before.
+- **An uncaught error starts the shutdown.** The error is an error of the lifecycle, and the logger gets it at `error`, with its stack. Then the staged shutdown starts with `exitCode`, as a signal does. The default code is 1.
+- **Skipped errors.** `ignore(error, origin)` tells if the runtime skips an error, for example an `ECONNRESET` or an `EPIPE` of a peer socket. The logger gets a skipped error at `warn`, and the service continues.
+- **The port of the errors.** The runtime adds the handler through `ProcessPort.onUncaught`, an optional method. `embeddedProcess()` does not have it, because the owner of the process keeps its errors.
 - **Exit codes.** `life.shutdown(cause, { code })` gives the exit code of the work, a whole number from 0 to 255. The first request with a code sets it. `svc.exitCode(trigger, code)` gives the code of a shutdown that a trigger starts, for example 130 for SIGINT. A code that is not 0 stays after an error. A code of 0, or no code, becomes 1 after an error.
 - **The output.** The stage `flush the output` comes last. The owners of the phase write their last output first, for example a log or a trace exporter. Then the `ProcessPort` writes the buffered output of stdout and stderr, in the cap of the stage. Without this phase, the process exits without a wait, as in 0.4.
 - **The hold.** The lifecycle holds its process from its start to its exit, through `ProcessPort.hold`, as a listening socket does. The hold is one timer of the event loop, and the exit releases it. The other timers of the runtime still do not keep the process alive (A14).
@@ -86,6 +90,7 @@ The format of a description is `mark1russell7.service/1`.
 - **The logger.** `run({ logger })` and `start({ logger })` give each transition of the machines to a logger, as an entry with a level and fields. The logger is one sink of the same stream as `record` (`logEvents`).
 - **The levels.** Each step of the startup, each phase with its cap, its outcome and its duration, and the exit code are `info`. A phase at its cap is `warn`, and an error of the lifecycle is `error`. The polls are `debug`.
 - **The logger port.** A `Logger` has one method, `log(level, message, fields)`, thus an adapter to another logger is a few lines. `consoleLogger({ level })` writes to the console at `info` and above by default.
+- **Lines of JSON.** `consoleLogger({ level, format: "json" })` writes one line of JSON for each entry, with `level`, `message` and each field. An error field gives its name, its message and its stack. The default format is `text`, as before.
 - **No logger.** Without a logger, the runtime writes no log, as before. `testLogger()` of `@mark1russell7/service/testing` keeps each entry, thus a test can examine the log.
 
 ## The machines
@@ -320,9 +325,13 @@ The clock, the heartbeat and the backoff have their own entries. Each entry impo
 - **The backoff.** `backoffDelay(policy, attempt, random)` gives the delay before a try: `base × factor^(attempt − 1)`, at most `cap`, with a jitter. The first try is 1.
 - **The jitter.** The jitter `subtract` takes a random part of the delay away, and a fraction of 1 is the full jitter. The jitter `add` adds a random time up to an amount.
 - **The band.** `backoffBand(policy, attempt)` gives the least and the most delay of one try. Without a try, it covers each try. The law reads the most delay from it. `backoffProblems(policy)` names each value that the delays cannot use.
+- **The retrier.** `retrier({ base, factor, cap, jitter, clock, signal })` starts a function again after the backoff of each try. The root of the package gives it, and the entry `./backoff` does not.
+- **The calls of a retrier.** `schedule(run)` counts one more try, and starts `run` after the delay of that try, on the clock. It gives the delay, and `attempts` gives the count. A second `schedule` stops the retry that waits.
+- **The end of a retrier.** `reset()` sets the count to 0, for example after a start that succeeded. `cancel()` stops the retry that waits. The abort of `signal` cancels the retrier, for example the `signal` of the lifecycle in the drain.
 - **Milliseconds.** These functions take times in milliseconds, as the clock does. The declaration and the law keep their amounts (`Quantity`).
 
 ```ts
+import { retrier } from "@mark1russell7/service";
 import { backoffDelay } from "@mark1russell7/service/backoff";
 import { heartbeat } from "@mark1russell7/service/heartbeat";
 
@@ -339,6 +348,15 @@ socket.addEventListener("message", (event) => {
 
 // full jitter: a random time from 0 to the backoff
 const delay = backoffDelay({ base: 1000, factor: 1.5, cap: 30_000, jitter: { kind: "subtract", fraction: 1 } }, attempt);
+
+// a watch that starts again after each failure, until the drain of the service
+const rewatch = retrier({ base: 1000, factor: 2, cap: 30_000, jitter: { kind: "subtract", fraction: 1 }, signal: life.signal });
+const watch = (): void => {
+  start().then(
+    () => rewatch.reset(),
+    () => rewatch.schedule(watch),
+  );
+};
 ```
 
 ## The keyed limiter
@@ -348,7 +366,7 @@ A keyed limiter gives each key its own limit, for example each tenant or each pr
 | Export | Function |
 | --- | --- |
 | `svc.limiter(name, spec)` | The declaration of a limiter, as data. `describe()` shows it in `limiters`. |
-| `keyedLimiter(name, spec, store)` | The runtime of a limiter: `take(key)` gives a `Decision` |
+| `keyedLimiter(name, spec, store)` | The runtime of a limiter: `take(key)` gives a `Decision`, and `tryTakeSync(key)` gives it at once on a memory store |
 | `memoryStore(clock)` | The store of one replica, on the injected monotonic clock |
 | `decide(rule, state, now)`, `limitRule(policy)`, `freeAt(rule, state)` | The arithmetic of each store, for a store of your own |
 | `idleSpan(policy)`, `longestRetryAfter(policy)`, `retryAfterSeconds(retryAfter)` | The times of a policy, and `Retry-After` in whole seconds |
@@ -362,6 +380,8 @@ A keyed limiter gives each key its own limit, for example each tenant or each pr
 - **A token bucket.** `{ type: "token-bucket", rate, burst }` gives a key `burst` takes at once, and then `rate` takes in each unit of time. The rate is a count for each unit of time, for example `count/s` or `count/min`.
 - **A sliding window.** `{ type: "sliding-window", limit, window }` gives a key at most `limit` takes in each window. Each take counts for one window from its time. Graph limits its writes with this policy.
 - **The decision.** `take(key)` gives `{ allowed: true, remaining }` or `{ allowed: false, retryAfter, cause }`. `retryAfter` is a `Quantity` above zero: the time until the limiter lets the same take in. The cause is `limit`, `cap` or `store`.
+- **A take with no promise.** `tryTakeSync(key)` gives the same `Decision` at once. `keyedLimiter` on a `memoryStore` gives a `LocalLimiter`, whose type has it. On `KeyedLimiter`, it is optional.
+- **Only a local store.** `tryTakeSync` throws for a shared store, before the take. It also throws for a local store whose take gives a promise. That take still counts, thus use `take()` with such a store.
 - **The clock.** `memoryStore(clock)` reads time only through its clock. Thus a step of the wall clock moves no count, and a fake clock gives exact decisions in a test.
 - **The store.** A `LimiterStore` decides each take in one atomic step, on its own clock. A store in another process does the arithmetic of `decide` in one step of its own. `redisLimiterStore` of `@mark1russell7/service/redis` is one script of Redis that reads `TIME`.
 - **No shared store.** With `{ kind: "local" }`, each replica keeps its own counts. For a limit L over N replicas, declare L / N on each replica.
@@ -414,8 +434,8 @@ if (!decision.allowed) return limitedResponse(decision); // 429, with Retry-Afte
 | Export | Function |
 | --- | --- |
 | `httpTransport(server, knobs, options)` | A server of `node:http` as a transport of the lifecycle, with a list of mounts |
-| `probeServer({ port, host, server_retry_after, kinds })` | A health server on a port of its own |
-| `probeHandler(health, { prefix, kinds })` | The probes as a request handler on the port of the application |
+| `probeServer({ port, host, server_retry_after, kinds, paths })` | A health server on a port of its own |
+| `probeHandler(health, { prefix, kinds, paths })` | The probes as a request handler on the port of the application |
 | `PROBE_KINDS` | The four probe kinds, the default of the option `kinds` |
 | `handle(controller, route, work, options)` | A request handler that does each request of a route through `life.request` |
 | `writeOutcome(res, stream, options)` | The stream of a request as a response of `node:http`, unary or a stream |
@@ -457,6 +477,9 @@ if (!decision.allowed) return limitedResponse(decision); // 429, with Retry-Afte
 - **The probe kinds.** The option `kinds` names the probes that answer, for example `["startup", "readiness", "liveness"]`. The default is all four of `PROBE_KINDS`.
 - **A kind that the list does not name.** Its path is not a probe. `probeHandler` gives it to the next handler, and `probeServer` answers it with 404. Thus a probe server can keep the report off its port.
 - **A bad list of kinds.** `probeHandler` and `probeServer` refuse an empty list, an unknown kind and a kind two times. The error names the bad part.
+- **More probe paths.** The option `paths` gives more paths to a probe kind, for example `{ liveness: ["/livez", "/healthz"], readiness: ["/readyz"] }`. Each probe path of a kind still answers.
+- **A more path is exact.** It is a whole path, and the prefix does not go before it. A more path of readiness has no controller after it. Without `paths`, the paths are the same as before.
+- **A bad option `paths`.** The two functions refuse an unknown kind, a kind that `kinds` does not name and a path two times. They also refuse a path that is not a whole path, and a probe path of a kind.
 - **A route through the request tracking.** `handle(controller, route, work, options)` gives a request handler. Each request that it takes goes through `life.request`, thus the service admits it, counts it and can cut it.
 - **The route of a handler.** A route name takes a request whose method and path are that name, for example `POST /orders`. A function gives the name of a route or of a pattern (`controller.pattern`), or null for a request of another handler. `options.detail` gives the detail of a request for the function of a pattern.
 - **The work.** The work gets the request and a signal. The signal aborts when the shutdown cuts the request, at the cooperative abort, or when the client goes away.

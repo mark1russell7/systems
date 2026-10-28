@@ -25,7 +25,7 @@ export type {
 } from "./http/transport.ts";
 export { httpTransport, pathOf } from "./http/transport.ts";
 export type { ProbeKind } from "./health.ts";
-export type { HealthSource, ProbeHandlerOptions, ProbeResponse, ProbeServer, ProbeServerOptions } from "./http/probes.ts";
+export type { HealthSource, ProbeHandlerOptions, ProbePaths, ProbeResponse, ProbeServer, ProbeServerOptions } from "./http/probes.ts";
 export { PROBE_KINDS, probeHandler, probeResponse, probeServer } from "./http/probes.ts";
 export type {
   HandleOptions,

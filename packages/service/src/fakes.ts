@@ -2,7 +2,7 @@
 // gives the same jitter on each run, and a fake process takes signals and keeps the exit codes.
 
 import type { Cancel, Clock } from "./clock.ts";
-import type { ExitSignal, ExitTrigger, ProcessPort } from "./process.ts";
+import type { ExitSignal, ExitTrigger, ProcessPort, UncaughtOrigin } from "./process.ts";
 
 /** A fake clock moves only when a test tells it to. */
 export interface FakeClock extends Clock {
@@ -77,6 +77,8 @@ export interface FakeProcess extends ProcessPort {
   trigger(name: ExitTrigger): void;
   /** This method sends a message of the IPC channel to each handler of the trigger `ipc-message`. */
   message(value: unknown): void;
+  /** This method sends an error that no code caught to each handler of `onUncaught`. The default origin is `uncaughtException`. */
+  uncaught(error: unknown, origin?: UncaughtOrigin): void;
   /** These are the exit codes, in sequence. A correct runtime exits one time. */
   readonly exits: readonly number[];
   /** This count is the number of handlers that are registered. */
@@ -104,6 +106,7 @@ export interface FakeProcessOptions {
 /** This function makes a fake process. */
 export const fakeProcess = (options: FakeProcessOptions = {}): FakeProcess => {
   const handlers = new Map<ExitTrigger, Set<(message?: unknown) => void>>();
+  const uncaughtHandlers = new Set<(error: unknown, origin: UncaughtOrigin) => void>();
   const exits: number[] = [];
   const log: string[] = [];
   let flushes = 0;
@@ -122,6 +125,14 @@ export const fakeProcess = (options: FakeProcessOptions = {}): FakeProcess => {
       handlers.set(trigger, set);
       return () => {
         set.delete(handler);
+      };
+    },
+    onUncaught(handler) {
+      // each registration is a handler of its own, as with `on`
+      const own = (error: unknown, origin: UncaughtOrigin): void => handler(error, origin);
+      uncaughtHandlers.add(own);
+      return () => {
+        uncaughtHandlers.delete(own);
       };
     },
     async flush() {
@@ -147,11 +158,14 @@ export const fakeProcess = (options: FakeProcessOptions = {}): FakeProcess => {
     signal: (name) => send(name),
     trigger: (name) => send(name),
     message: (value) => send("ipc-message", value),
+    uncaught: (error, origin = "uncaughtException") => {
+      for (const handler of [...uncaughtHandlers]) handler(error, origin);
+    },
     get exits() {
       return [...exits];
     },
     get handlers() {
-      let count = 0;
+      let count = uncaughtHandlers.size;
       for (const set of handlers.values()) count += set.size;
       return count;
     },
