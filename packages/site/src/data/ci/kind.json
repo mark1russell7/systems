@@ -1,0 +1,704 @@
+{
+  "workflow": "kind",
+  "file": ".github/workflows/kind.yml",
+  "idle": 0.6,
+  "runs": [
+    {
+      "run": 40316546643,
+      "at": "2026-10-26T11:38:19Z",
+      "event": "workflow_dispatch",
+      "branch": "sys-26-kind-image",
+      "conclusion": "success",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40316546643",
+      "shards": 1,
+      "runs": {
+        "iptables": 2
+      }
+    },
+    {
+      "run": 40335614261,
+      "at": "2026-10-26T14:00:19Z",
+      "event": "workflow_dispatch",
+      "branch": "s2-callers-learn",
+      "conclusion": "success",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40335614261",
+      "shards": 1,
+      "runs": {
+        "iptables": 4
+      }
+    },
+    {
+      "run": 40337740256,
+      "at": "2026-10-26T14:14:10Z",
+      "event": "workflow_dispatch",
+      "branch": "s2-callers-learn",
+      "conclusion": "success",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40337740256",
+      "shards": 1,
+      "runs": {
+        "iptables": 8
+      }
+    },
+    {
+      "run": 40345515219,
+      "at": "2026-10-26T15:03:19Z",
+      "event": "workflow_dispatch",
+      "branch": "s2-callers-modes",
+      "conclusion": "success",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40345515219",
+      "shards": 1,
+      "runs": {
+        "iptables": 8,
+        "ipvs": 8,
+        "nftables": 8
+      }
+    },
+    {
+      "run": 40358038728,
+      "at": "2026-10-26T16:19:40Z",
+      "event": "workflow_dispatch",
+      "branch": "s2-goaway",
+      "conclusion": "success",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40358038728",
+      "shards": 1,
+      "runs": {
+        "iptables": 12,
+        "ipvs": 12,
+        "nftables": 12
+      }
+    },
+    {
+      "run": 40380943331,
+      "at": "2026-10-26T18:47:56Z",
+      "event": "workflow_dispatch",
+      "branch": "s6-partition",
+      "conclusion": "success",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40380943331",
+      "shards": 3,
+      "runs": {
+        "iptables": 15,
+        "nftables": 15,
+        "ipvs": 15
+      }
+    },
+    {
+      "run": 40394320219,
+      "at": "2026-10-26T20:17:30Z",
+      "event": "workflow_dispatch",
+      "branch": "s6-h2-check",
+      "conclusion": "failure",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40394320219",
+      "shards": 3,
+      "runs": {
+        "nftables": 10,
+        "ipvs": 10,
+        "iptables": 10
+      }
+    },
+    {
+      "run": 40406199754,
+      "at": "2026-10-26T21:39:34Z",
+      "event": "workflow_dispatch",
+      "branch": "s6-stall",
+      "conclusion": "failure",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40406199754",
+      "shards": 6,
+      "runs": {
+        "iptables": 20,
+        "ipvs": 20,
+        "nftables": 20
+      }
+    },
+    {
+      "run": 40419289511,
+      "at": "2026-10-26T23:22:18Z",
+      "event": "workflow_dispatch",
+      "branch": "s6-zone",
+      "conclusion": "success",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40419289511",
+      "shards": 3,
+      "runs": {
+        "nftables": 20,
+        "iptables": 20,
+        "ipvs": 20
+      }
+    },
+    {
+      "run": 40430856093,
+      "at": "2026-10-27T01:09:12Z",
+      "event": "workflow_dispatch",
+      "branch": "s6-dep",
+      "conclusion": "success",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40430856093",
+      "shards": 3,
+      "runs": {
+        "iptables": 20,
+        "nftables": 20,
+        "ipvs": 20
+      }
+    },
+    {
+      "run": 40440516571,
+      "at": "2026-10-27T02:47:56Z",
+      "event": "workflow_dispatch",
+      "branch": "s6-load",
+      "conclusion": "success",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40440516571",
+      "shards": 3,
+      "runs": {
+        "nftables": 25,
+        "iptables": 25,
+        "ipvs": 25
+      }
+    },
+    {
+      "run": 40464814086,
+      "at": "2026-10-27T07:03:36Z",
+      "event": "workflow_dispatch",
+      "branch": "s6/flapping-dependency",
+      "conclusion": "success",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40464814086",
+      "shards": 3,
+      "runs": {
+        "nftables": 20,
+        "ipvs": 20,
+        "iptables": 20
+      }
+    },
+    {
+      "run": 40494462562,
+      "at": "2026-10-27T11:13:02Z",
+      "event": "workflow_dispatch",
+      "branch": "s6-lost-zone",
+      "conclusion": "success",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40494462562",
+      "shards": 3,
+      "runs": {
+        "nftables": 20,
+        "ipvs": 20,
+        "iptables": 20
+      }
+    },
+    {
+      "run": 40500297695,
+      "at": "2026-10-27T11:59:42Z",
+      "event": "workflow_dispatch",
+      "branch": "s6-lost-zone",
+      "conclusion": "success",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40500297695",
+      "shards": 3,
+      "runs": {
+        "iptables": 20,
+        "ipvs": 20,
+        "nftables": 20
+      }
+    },
+    {
+      "run": 40521784305,
+      "at": "2026-10-27T14:30:38Z",
+      "event": "workflow_dispatch",
+      "branch": "s6-slow-dependency",
+      "conclusion": "success",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40521784305",
+      "shards": 12,
+      "runs": {
+        "nftables": 20,
+        "ipvs": 20,
+        "iptables": 20
+      }
+    },
+    {
+      "run": 40533209929,
+      "at": "2026-10-27T15:39:53Z",
+      "event": "workflow_dispatch",
+      "branch": "s6-shared-gate",
+      "conclusion": "success",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40533209929",
+      "shards": 9,
+      "runs": {
+        "iptables": 15,
+        "ipvs": 15,
+        "nftables": 15
+      }
+    },
+    {
+      "run": 40558968382,
+      "at": "2026-10-27T18:19:56Z",
+      "event": "workflow_dispatch",
+      "branch": "s2-cilium-cells",
+      "conclusion": "failure",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40558968382",
+      "shards": 10,
+      "runs": {
+        "cilium": 137
+      }
+    },
+    {
+      "run": 40575359112,
+      "at": "2026-10-27T20:08:30Z",
+      "event": "workflow_dispatch",
+      "branch": "sys-40-test",
+      "conclusion": "success",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40575359112",
+      "shards": 4,
+      "runs": {
+        "cilium": 28
+      }
+    },
+    {
+      "run": 40585371947,
+      "at": "2026-10-27T21:16:29Z",
+      "event": "workflow_dispatch",
+      "branch": "sys-41-period",
+      "conclusion": "success",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40585371947",
+      "shards": 1,
+      "runs": {
+        "cilium": 4
+      }
+    },
+    {
+      "run": 40591832542,
+      "at": "2026-10-27T22:03:46Z",
+      "event": "workflow_dispatch",
+      "branch": "sys-42-band",
+      "conclusion": "cancelled",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40591832542",
+      "shards": 4,
+      "runs": {
+        "cilium": 26
+      }
+    },
+    {
+      "run": 40601022555,
+      "at": "2026-10-27T23:16:48Z",
+      "event": "workflow_dispatch",
+      "branch": "sys-42-band",
+      "conclusion": "success",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40601022555",
+      "shards": 1,
+      "runs": {
+        "cilium": 7
+      }
+    },
+    {
+      "run": 40608863500,
+      "at": "2026-10-28T00:27:21Z",
+      "event": "workflow_dispatch",
+      "branch": "sys-43-drain",
+      "conclusion": "success",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40608863500",
+      "shards": 4,
+      "runs": {
+        "cilium": 28
+      }
+    }
+  ],
+  "events": [
+    {
+      "run": 40394320219,
+      "job": 121823241739,
+      "shard": 0,
+      "kind": "failed",
+      "cause": "test",
+      "cell": null,
+      "dataplane": null,
+      "step": "The cells",
+      "env": null,
+      "index": null,
+      "duration": {
+        "value": 693,
+        "unit": "s"
+      },
+      "idle": null,
+      "detail": "AssertionError: S2.T07.iptables.session-check.partition: expected { …(3) } to match object { kind: 'measured', …(2) }",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40394320219/job/121823241739"
+    },
+    {
+      "run": 40394320219,
+      "job": 121823241650,
+      "shard": 1,
+      "kind": "failed",
+      "cause": "test",
+      "cell": null,
+      "dataplane": null,
+      "step": "The cells",
+      "env": null,
+      "index": null,
+      "duration": {
+        "value": 676,
+        "unit": "s"
+      },
+      "idle": null,
+      "detail": "AssertionError: S2.T07.iptables.session-check.partition: expected { …(3) } to match object { kind: 'measured', …(2) }",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40394320219/job/121823241650"
+    },
+    {
+      "run": 40394320219,
+      "job": 121823241613,
+      "shard": 2,
+      "kind": "failed",
+      "cause": "test",
+      "cell": null,
+      "dataplane": null,
+      "step": "The cells",
+      "env": null,
+      "index": null,
+      "duration": {
+        "value": 684,
+        "unit": "s"
+      },
+      "idle": null,
+      "detail": "AssertionError: S2.T07.iptables.session-check.partition: expected { …(3) } to match object { kind: 'measured', …(2) }",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40394320219/job/121823241613"
+    },
+    {
+      "run": 40406199754,
+      "job": 121864514454,
+      "shard": 0,
+      "kind": "failed",
+      "cause": "test",
+      "cell": null,
+      "dataplane": null,
+      "step": "The cells",
+      "env": null,
+      "index": null,
+      "duration": {
+        "value": 548,
+        "unit": "s"
+      },
+      "idle": null,
+      "detail": "AssertionError: expected { Object (dimension, run, ...) } to deeply equal { Object (dimension, run, ...) }",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40406199754/job/121864514454"
+    },
+    {
+      "run": 40406199754,
+      "job": 121864514426,
+      "shard": 1,
+      "kind": "failed",
+      "cause": "test",
+      "cell": null,
+      "dataplane": null,
+      "step": "The cells",
+      "env": null,
+      "index": null,
+      "duration": {
+        "value": 480,
+        "unit": "s"
+      },
+      "idle": null,
+      "detail": "AssertionError: expected { Object (dimension, run, ...) } to deeply equal { Object (dimension, run, ...) }",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40406199754/job/121864514426"
+    },
+    {
+      "run": 40406199754,
+      "job": 121864514482,
+      "shard": 2,
+      "kind": "failed",
+      "cause": "test",
+      "cell": null,
+      "dataplane": null,
+      "step": "The cells",
+      "env": null,
+      "index": null,
+      "duration": {
+        "value": 513,
+        "unit": "s"
+      },
+      "idle": null,
+      "detail": "AssertionError: expected { Object (dimension, run, ...) } to deeply equal { Object (dimension, run, ...) }",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40406199754/job/121864514482"
+    },
+    {
+      "run": 40406199754,
+      "job": 121864514709,
+      "shard": 3,
+      "kind": "failed",
+      "cause": "test",
+      "cell": null,
+      "dataplane": null,
+      "step": "The cells",
+      "env": null,
+      "index": null,
+      "duration": {
+        "value": 494,
+        "unit": "s"
+      },
+      "idle": null,
+      "detail": "AssertionError: expected { Object (dimension, run, ...) } to deeply equal { Object (dimension, run, ...) }",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40406199754/job/121864514709"
+    },
+    {
+      "run": 40406199754,
+      "job": 121864514488,
+      "shard": 4,
+      "kind": "failed",
+      "cause": "test",
+      "cell": null,
+      "dataplane": null,
+      "step": "The cells",
+      "env": null,
+      "index": null,
+      "duration": {
+        "value": 494,
+        "unit": "s"
+      },
+      "idle": null,
+      "detail": "AssertionError: expected { Object (dimension, run, ...) } to deeply equal { Object (dimension, run, ...) }",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40406199754/job/121864514488"
+    },
+    {
+      "run": 40406199754,
+      "job": 121864514483,
+      "shard": 5,
+      "kind": "failed",
+      "cause": "test",
+      "cell": null,
+      "dataplane": null,
+      "step": "The cells",
+      "env": null,
+      "index": null,
+      "duration": {
+        "value": 524,
+        "unit": "s"
+      },
+      "idle": null,
+      "detail": "AssertionError: expected { Object (dimension, run, ...) } to deeply equal { Object (dimension, run, ...) }",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40406199754/job/121864514483"
+    },
+    {
+      "run": 40558968382,
+      "job": 122382578279,
+      "shard": 0,
+      "kind": "failed",
+      "cause": "test",
+      "cell": null,
+      "dataplane": null,
+      "step": "The cells",
+      "env": null,
+      "index": null,
+      "duration": {
+        "value": 1064,
+        "unit": "s"
+      },
+      "idle": null,
+      "detail": "Error: Snapshot `the predictions of the catalogs > are the predictions of the snapshot, each cell on its own line 1` mismatched",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40558968382/job/122382578279"
+    },
+    {
+      "run": 40558968382,
+      "job": 122382578271,
+      "shard": 1,
+      "kind": "failed",
+      "cause": "test",
+      "cell": null,
+      "dataplane": null,
+      "step": "The cells",
+      "env": null,
+      "index": null,
+      "duration": {
+        "value": 998,
+        "unit": "s"
+      },
+      "idle": null,
+      "detail": "Error: Snapshot `the predictions of the catalogs > are the predictions of the snapshot, each cell on its own line 1` mismatched",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40558968382/job/122382578271"
+    },
+    {
+      "run": 40558968382,
+      "job": 122382578343,
+      "shard": 2,
+      "kind": "failed",
+      "cause": "test",
+      "cell": null,
+      "dataplane": null,
+      "step": "The cells",
+      "env": null,
+      "index": null,
+      "duration": {
+        "value": 1008,
+        "unit": "s"
+      },
+      "idle": null,
+      "detail": "Error: Snapshot `the predictions of the catalogs > are the predictions of the snapshot, each cell on its own line 1` mismatched",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40558968382/job/122382578343"
+    },
+    {
+      "run": 40558968382,
+      "job": 122382578221,
+      "shard": 3,
+      "kind": "failed",
+      "cause": "test",
+      "cell": null,
+      "dataplane": null,
+      "step": "The cells",
+      "env": null,
+      "index": null,
+      "duration": {
+        "value": 1408,
+        "unit": "s"
+      },
+      "idle": null,
+      "detail": "Error: Snapshot `the predictions of the catalogs > are the predictions of the snapshot, each cell on its own line 1` mismatched",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40558968382/job/122382578221"
+    },
+    {
+      "run": 40558968382,
+      "job": 122382578487,
+      "shard": 4,
+      "kind": "failed",
+      "cause": "test",
+      "cell": null,
+      "dataplane": null,
+      "step": "The cells",
+      "env": null,
+      "index": null,
+      "duration": {
+        "value": 972,
+        "unit": "s"
+      },
+      "idle": null,
+      "detail": "Error: Snapshot `the predictions of the catalogs > are the predictions of the snapshot, each cell on its own line 1` mismatched",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40558968382/job/122382578487"
+    },
+    {
+      "run": 40558968382,
+      "job": 122382578328,
+      "shard": 5,
+      "kind": "failed",
+      "cause": "test",
+      "cell": null,
+      "dataplane": null,
+      "step": "The cells",
+      "env": null,
+      "index": null,
+      "duration": {
+        "value": 724,
+        "unit": "s"
+      },
+      "idle": null,
+      "detail": "Error: Snapshot `the predictions of the catalogs > are the predictions of the snapshot, each cell on its own line 1` mismatched",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40558968382/job/122382578328"
+    },
+    {
+      "run": 40558968382,
+      "job": 122382578312,
+      "shard": 6,
+      "kind": "failed",
+      "cause": "test",
+      "cell": null,
+      "dataplane": null,
+      "step": "The cells",
+      "env": null,
+      "index": null,
+      "duration": {
+        "value": 1108,
+        "unit": "s"
+      },
+      "idle": null,
+      "detail": "Error: Snapshot `the predictions of the catalogs > are the predictions of the snapshot, each cell on its own line 1` mismatched",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40558968382/job/122382578312"
+    },
+    {
+      "run": 40558968382,
+      "job": 122382578201,
+      "shard": 7,
+      "kind": "failed",
+      "cause": "test",
+      "cell": null,
+      "dataplane": null,
+      "step": "The cells",
+      "env": null,
+      "index": null,
+      "duration": {
+        "value": 1166,
+        "unit": "s"
+      },
+      "idle": null,
+      "detail": "Error: Snapshot `the predictions of the catalogs > are the predictions of the snapshot, each cell on its own line 1` mismatched",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40558968382/job/122382578201"
+    },
+    {
+      "run": 40558968382,
+      "job": 122382578371,
+      "shard": 8,
+      "kind": "failed",
+      "cause": "test",
+      "cell": null,
+      "dataplane": null,
+      "step": "The cells",
+      "env": null,
+      "index": null,
+      "duration": {
+        "value": 1374,
+        "unit": "s"
+      },
+      "idle": null,
+      "detail": "Error: Snapshot `the predictions of the catalogs > are the predictions of the snapshot, each cell on its own line 1` mismatched",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40558968382/job/122382578371"
+    },
+    {
+      "run": 40558968382,
+      "job": 122382578346,
+      "shard": 9,
+      "kind": "failed",
+      "cause": "test",
+      "cell": null,
+      "dataplane": null,
+      "step": "The cells",
+      "env": null,
+      "index": null,
+      "duration": {
+        "value": 1341,
+        "unit": "s"
+      },
+      "idle": null,
+      "detail": "Error: Snapshot `the predictions of the catalogs > are the predictions of the snapshot, each cell on its own line 1` mismatched",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40558968382/job/122382578346"
+    },
+    {
+      "run": 40591832542,
+      "job": 122497806205,
+      "shard": 3,
+      "kind": "hung",
+      "cause": "quiet",
+      "cell": "S2.T07.cilium.goaway.backlog-band.n6",
+      "dataplane": "cilium",
+      "step": "The cells",
+      "env": 1,
+      "index": null,
+      "duration": {
+        "value": 5166,
+        "unit": "s"
+      },
+      "idle": {
+        "low": 0.46,
+        "high": 0.59
+      },
+      "detail": "The step waited for a quiet VM for approximately 78 of its 86 min, at 46% to 59% idle, under the share of 60%. A person cancelled the run.",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40591832542/job/122497806205"
+    },
+    {
+      "run": 40608863500,
+      "job": 122555167810,
+      "shard": 3,
+      "kind": "void",
+      "cause": "quiet",
+      "cell": "S2.T07.cilium.goaway.backlog-drain.n6",
+      "dataplane": "cilium",
+      "step": "The cells",
+      "env": 1,
+      "index": 0,
+      "duration": {
+        "value": 300,
+        "unit": "s"
+      },
+      "idle": {
+        "low": 0.59,
+        "high": 0.59
+      },
+      "detail": "the VM was not quiet in 300 s: 59% idle, other lab containers: none",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40608863500/job/122555167810"
+    }
+  ]
+}

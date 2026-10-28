@@ -53,6 +53,7 @@ export default defineConfig({
             "results/r3",
             "results/timers",
             "results/harness",
+            "results/ci",
           ],
         },
         { label: "About", items: ["about"] },

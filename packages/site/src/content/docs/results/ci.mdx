@@ -1,0 +1,46 @@
+---
+title: The CI ledger
+description: The runs of the cells in CI that did not give a clean result, and the flake rate of each workflow and each dataplane.
+---
+
+import { CiEvents, CiRates } from "../../../components/CiLedger.tsx";
+
+The cells operate on the runners of GitHub. Some runs do not give a clean result. This page gives one ledger for each workflow of cells, with one entry for each event.
+
+An event is one of these:
+
+- **A void run.** The run did not count. For example, the VM was not quiet in 300 s, or the cell was not at rest.
+- **A hung shard.** The shard was cancelled or hit its timeout, and its step waited for a quiet VM for half of its time or more.
+- **A cancelled shard.** A person or GitHub cancelled the shard.
+- **A step timeout.** The step hit its bound, `timeout-minutes`.
+- **A failed job.** The job failed for a cause outside the cells, for example a test of the snapshots. A cell that fails its prediction is a result, not an event.
+
+Each entry gives the run, the shard, the cell, the step, the duration, the cause and a link to the job. The flake rate of a workflow is the share of its shards with one event or more. The flake rate of a dataplane is the share of its runs with an event.
+
+## How the entries come
+
+No entry is written by hand. The script `scripts/ci.ts` of the site reads a run with `gh`. It reads the jobs, the artifacts, and the annotations and the log of each job that did not succeed. Then it adds the entries to `src/data/ci/<workflow>.json`.
+
+```sh
+pnpm exec tsx packages/site/scripts/ci.ts <run id>...
+```
+
+A second scan of a run adds no entry twice. The entry of a job stays after its log expires.
+
+## The kind workflow
+
+<CiRates workflow="kind" />
+
+<CiEvents workflow="kind" />
+
+## The cells workflow
+
+<CiRates workflow="cells" />
+
+<CiEvents workflow="cells" />
+
+## The idle share for Cilium
+
+Before each run, the lab waits for a quiet VM: 60% of the CPUs idle, and no lab container of another agent. Since SYS-43, the wait stops after 300 s, and the run is void with its reason.
+
+The share of 60% holds for a dataplane while 5% of its runs or fewer are void by this wait. A hung shard with this cause counts as one such run. The column "The share of 60% idle" of each table applies this rule.
