@@ -78,12 +78,13 @@ export const callerPredictions = (fault: CallerFault = "cannot serve") =>
 
 /**
  * This function gives the prediction of a cell of the backlog, or null for a cell with no placement.
- * A window with the term (`backlog`) is a cell of the backlog band (SYS-42). The others are of the first band (SYS-40).
+ * A window with the term (`backlog`) is a cell of the backlog band (SYS-42), or of the drain band
+ * (SYS-43) when its term has `drains`. The others are of the first band (SYS-40).
  */
 export const backlogPredictionOf = (cell: KindCell) => {
   const onTarget = cell.workload.onTarget;
   if (onTarget === undefined) return null;
-  return cell.prediction.kind === "window" && cell.prediction.backlog !== undefined ? backlogBandOf(cell.mode, onTarget) : backlogOf(cell.mode, onTarget);
+  return cell.prediction.kind === "window" && cell.prediction.backlog !== undefined ? backlogBandOf(cell.mode, onTarget, cell.prediction.backlog) : backlogOf(cell.mode, onTarget);
 };
 
 /**

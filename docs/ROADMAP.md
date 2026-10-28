@@ -887,6 +887,37 @@ The count band misses above in 9 of 20 runs, and in each run with 6 sessions. Th
 
 The missing term is the drain of each session. A session fails a request each c periods until the window closes, and the window closes n × d after the band end. Thus the failures in the drain are approximately n × d / (c × p) for each session, not 0 to 3. With 6 sessions and an overshoot of 117 ms, that is approximately 6 requests for each session. The next band counts the drain failures from the overshoot, thus the total term is approximately n² × d / (c × p).
 
+### SYS-43 · The count band carries the drain failures of the backlog
+
+- **Status:** done
+- **Area:** catalogs
+- **Depends on:** SYS-42
+- **Started:** 2026-10-28
+- **Shipped:** 2026-10-28
+- **Links:** [#255](https://github.com/mark1russell7/systems/pull/255), [The drain run](https://github.com/mark1russell7/systems/actions/runs/40608863500), [#256](https://github.com/mark1russell7/systems/pull/256)
+
+SYS-42 found one bias of the count band. The count was high in 9 of 20 runs, and in each run with 6 sessions. The window band held in 19 of 20 runs. This item gives a new band version with the missing term. The values d and r stay as in SYS-42.
+
+The term: a session fails a request each turn until the window closes. The turn is c × p, with c kept connections for each client and p the mean period of the run. The window closes up to n × d.hi after the band end. Thus each session fails 0 to ceil(n × d.hi / (c × p)) more requests in the drain. The total grows as n² × d / (c × p).
+
+The term is the optional `drains` flag of `BacklogTerm` in the kind judge, thus each later cell can use it. The new function `drainBand` gives the drain failures of one session. With the flag, `requestBand` adds them to the count band of each session. Without it, the band stays as in SYS-42.
+
+The test cells are `BACKLOG_DRAIN_CELLS` in `packages/cells/src/backlog.ts`. They are the cells of SYS-42 with new ids and names, thus the records of SYS-40 and SYS-42 keep their bands. The prediction and the decision rule are committed before the dispatch. The rule: the band hits if every counted run of each n falls in its window band and in its count band. A miss with the same sign in each run is a bias. Then the result names the missing term, and the old band stays as committed.
+
+An in-sample check is not the test. The new band contains each of the 20 counts of the SYS-42 record, at the mean period of each run. For example, 2975 failed requests with 6 sessions are in 2934 to 3054, at a period of 10.186 ms.
+
+The result, from the drain run: the count band hits, and the window band misses with 1 session. Thus the band misses by its rule. Each of the 4 cells holds in the judge. The cell of 6 sessions has 4 counted runs and 1 void run. Each counted run recorded n sessions on the target.
+
+The count band hits in 19 of 19 counted runs. The mean period of the runs was 10.13 ms to 10.23 ms. For example, 3010 failed requests with 6 sessions are in 2928 to 3048 at 10.21 ms. With 6 sessions, each session failed approximately 499 requests.
+
+The window band hits with 2, 3 and 6 sessions. The median overshoots were 37 ms, 36 ms, 54 ms and 171 ms for 1, 2, 3 and 6 sessions. With 1 session, 3 of 5 runs are outside 10 ms to 45 ms: 9 ms, 50 ms and 58 ms. The misses have two signs, thus they are not a bias by the rule.
+
+With the 90 ms of SYS-42, 3 of 10 runs with 1 session are above 45 ms. The band does not change. A later item can examine two terms. The last failed request can start up to one turn before the window closes. The drain time of one session can also be more than 45 ms.
+
+The SYS-42 run 40591832542 had a shard that did not end. The shard of 6 sessions stayed in the step The cells for approximately 86 min, and then it was cancelled. Its log gives the cause. Before each run, the lab waits for a quiet VM: 60% of the CPUs idle. The Cilium cluster at rest stayed at 47% to 59% idle. This wait took approximately 32 min before the warm-up, and approximately 38 min before run 1.
+
+That wait had no bound. With this item, the wait stops after 5 min, and the run is void with its reason. The step The cells of `kind.yml` also stops after 36 min, approximately 3 times the 12 min of a shard. The record of SYS-43 keeps the hang as a fact, because the repo has no ledger of flaky or void CI runs. In the drain run, the bound voided 1 run at 59% idle, and the shard of 6 sessions ended in approximately 22 min.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { requestBand } from "@mark1russell7/kind";
 import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
@@ -6,6 +7,8 @@ import {
   BACKLOG_CELLS,
   BACKLOG_CONNECTIONS,
   BACKLOG_DRAIN,
+  BACKLOG_DRAIN_CELLS,
+  BACKLOG_DRAIN_TERM,
   BACKLOG_REQUESTS,
   BACKLOG_SESSIONS,
   BACKLOG_TERM,
@@ -129,5 +132,65 @@ describe("the cells of the backlog band", () => {
     expect(span).toEqual({ value: 10, unit: "s" });
     expect(requestBand(BACKLOG_TERM, span!, { value: 10.15, unit: "ms" }, BACKLOG_CONNECTIONS, 1)).toEqual({ lo: 491, hi: 497 });
     expect(requestBand(BACKLOG_TERM, span!, { value: 10.15, unit: "ms" }, BACKLOG_CONNECTIONS, 6)).toEqual({ lo: 2946, hi: 2982 });
+  });
+});
+
+/** SYS-43: the cells of SYS-42 with the drain failures of each session in the count band. */
+describe("the cells of the drain band", () => {
+  it("are the cells of SYS-42 with new ids and names, thus the records of SYS-40 and SYS-42 keep their bands", () => {
+    expect(BACKLOG_DRAIN_CELLS.map((cell) => cell.id)).toEqual(BACKLOG_SESSIONS.map((n) => `S2.T07.cilium.goaway.backlog-drain.n${n}`));
+    expect(BACKLOG_DRAIN_CELLS[3]!.name).toBe("T07 cilium, callers learn that a pod is stalled, with 6 sessions on the target, by the drain band: in band on HTTP/2 (GOAWAY)");
+    const old = new Set([...CALLERS_CELLS, ...BACKLOG_CELLS, ...BACKLOG_BAND_CELLS].flatMap((cell) => [cell.id, cell.name]));
+    BACKLOG_DRAIN_CELLS.forEach((cell, at) => {
+      expect(old.has(cell.id)).toBe(false);
+      expect(old.has(cell.name)).toBe(false);
+      const second = BACKLOG_BAND_CELLS[at]!;
+      // only the term and its reason are new: the window, the workload and the trigger are those of SYS-42
+      expect({ ...cell, id: second.id, name: second.name, prediction: { ...cell.prediction, backlog: BACKLOG_TERM, why: "" } }).toEqual({ ...second, prediction: { ...second.prediction, why: "" } });
+    });
+    // a filter on the words of the names selects these cells and no other
+    const all = [...CALLERS_CELLS, ...BACKLOG_CELLS, ...BACKLOG_BAND_CELLS, ...BACKLOG_DRAIN_CELLS];
+    expect(all.filter((cell) => /by the drain band/.test(cell.name))).toEqual([...BACKLOG_DRAIN_CELLS]);
+    expect(all.filter((cell) => /by the backlog band/.test(cell.name))).toEqual([...BACKLOG_BAND_CELLS]);
+  });
+
+  it("carry the term of SYS-42 with drains: d and r are not fitted again", () => {
+    expect(BACKLOG_DRAIN_TERM).toEqual({ ...BACKLOG_TERM, drains: true });
+    for (const cell of BACKLOG_DRAIN_CELLS) if (cell.prediction.kind === "window") expect(cell.prediction.backlog).toEqual(BACKLOG_DRAIN_TERM);
+    // the term of SYS-42 stays as committed
+    expect(BACKLOG_TERM.drains).toBeUndefined();
+  });
+
+  it("give the count with 0 to ceil(n × 45 ms / turn) drain failures for each session", () => {
+    const at = (n: number) => backlogBandOf("cilium", n, BACKLOG_DRAIN_TERM);
+    // at the setting, a turn of 20 ms: 3, 5, 7 and 14 drain failures for each session at the most
+    expect(BACKLOG_SESSIONS.map((n) => [at(n).expected.lo.value, at(n).expected.hi.value])).toEqual([
+      [499, 507],
+      [998, 1018],
+      [1497, 1533],
+      [2994, 3108],
+    ]);
+    // the window is the window of SYS-42
+    expect([sec(at(6).overshoot.lo), sec(at(6).overshoot.hi)]).toEqual([0.06, 0.27]);
+    expect(at(6).why).toMatch(/It also fails a request each turn until the window closes: 0–14 more for each session at the setting/);
+    expect(backlogBandOf("cilium", 6).why).not.toMatch(/each turn until the window closes/);
+    // at a late timer of 10.15 ms
+    const span = { value: 10, unit: "s" };
+    expect(requestBand(BACKLOG_DRAIN_TERM, span, { value: 10.15, unit: "ms" }, BACKLOG_CONNECTIONS, 1)).toEqual({ lo: 491, hi: 500 });
+    expect(requestBand(BACKLOG_DRAIN_TERM, span, { value: 10.15, unit: "ms" }, BACKLOG_CONNECTIONS, 6)).toEqual({ lo: 2946, hi: 3066 });
+  });
+
+  // This check is in sample: the term came from the record of SYS-42, thus it is not the test.
+  it("contain each count of the record of SYS-42 at the mean period of its run (in sample)", () => {
+    interface Copy {
+      readonly cells: ReadonlyArray<{ readonly id: string; readonly failures: number[]; readonly sessions: number[]; readonly periods: number[] }>;
+    }
+    const copy = JSON.parse(readFileSync(new URL("../../site/src/data/s2-backlog-band-cilium-2026-10-27.json", import.meta.url), "utf8")) as Copy;
+    const span = { value: 10, unit: "s" };
+    const counts = copy.cells.flatMap((cell) => cell.failures.map((failed, run) => ({ id: cell.id, failed, band: requestBand(BACKLOG_DRAIN_TERM, span, { value: cell.periods[run]!, unit: "s" }, BACKLOG_CONNECTIONS, cell.sessions[run]!) })));
+    expect(counts).toHaveLength(20);
+    expect(counts.filter(({ failed, band }) => failed < band.lo || failed > band.hi)).toEqual([]);
+    // for example, 2975 failed requests with 6 sessions at 10.186 ms are in 2934 to 3054
+    expect(counts.find(({ id, failed }) => id.endsWith(".n6") && failed === 2975)?.band).toEqual({ lo: 2934, hi: 3054 });
   });
 });

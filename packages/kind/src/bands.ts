@@ -41,17 +41,47 @@ export interface CountBand {
   readonly hi: number;
 }
 
+/** This function gives a count rounded to six places, thus 10 s / 20 ms gives 500 and not 499.99999. */
+const counted = (value: number): number => Math.round(value * 1e6) / 1e6;
+
+/** This function gives the turn of a session in seconds: the mean period of a client times its sessions. */
+const turnOf = (mean: Quantity, connections: number): number => {
+  const turn = valueIn(mean, "s") * connections;
+  if (!(turn > 0)) throw new RangeError(`a turn of ${turn} s cannot count requests`);
+  return turn;
+};
+
+/**
+ * This function gives the drain failures of one session on the target (SYS-43). A session fails a
+ * request each turn until the window closes. With n sessions on the target, the window closes up to
+ * n × d.hi after the band end (`backlogEnd`). Thus one session fails 0 to ceil(n × d.hi / turn)
+ * requests in the drain. The turn is the mean period of a client (`mean`) times its sessions
+ * (`connections`). The term r is not in this band.
+ */
+export const drainBand = (term: Pick<BacklogTerm, "drain">, mean: Quantity, connections: number, sessions: number): CountBand => {
+  const turn = turnOf(mean, connections);
+  return { lo: 0, hi: Math.ceil(counted((sessions * valueIn(term.drain.hi, "s")) / turn)) };
+};
+
 /**
  * This function gives the failed requests that the backlog term predicts (`BacklogTerm`). Each of
  * the n sessions on the target gets a request each turn. The turn is the measured mean period of a
  * client (`mean`) times the sessions of the client (`connections`). The requests of a session fail
  * from the start of the window to the band end (`span`). That span holds `span / turn` requests, one
  * less at its low edge and one more at its high edge. Each session fails r more requests in its drain time.
+ *
+ * A term with `drains` (SYS-43) also adds the drain failures of each session (`drainBand`).
  */
-export const requestBand = (term: Pick<BacklogTerm, "requests">, span: Quantity, mean: Quantity, connections: number, sessions: number): CountBand => {
-  const turn = valueIn(mean, "s") * connections;
-  if (!(turn > 0)) throw new RangeError(`a turn of ${turn} s cannot count requests`);
-  // a count rounded to six places, thus 10 s / 20 ms gives 500
-  const each = Math.round((valueIn(span, "s") / turn) * 1e6) / 1e6;
-  return { lo: sessions * (Math.floor(each) - 1 + term.requests.lo), hi: sessions * (Math.ceil(each) + 1 + term.requests.hi) };
+export const requestBand = (
+  term: Pick<BacklogTerm, "requests"> & Partial<Pick<BacklogTerm, "drain" | "drains">>,
+  span: Quantity,
+  mean: Quantity,
+  connections: number,
+  sessions: number,
+): CountBand => {
+  const turn = turnOf(mean, connections);
+  const each = counted(valueIn(span, "s") / turn);
+  if (term.drains === true && term.drain === undefined) throw new RangeError("a term with drains has no drain time d");
+  const drained = term.drains === true ? drainBand({ drain: term.drain! }, mean, connections, sessions) : { lo: 0, hi: 0 };
+  return { lo: sessions * (Math.floor(each) - 1 + term.requests.lo + drained.lo), hi: sessions * (Math.ceil(each) + 1 + term.requests.hi + drained.hi) };
 };
