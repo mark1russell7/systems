@@ -6,7 +6,7 @@ import type { CooperativeFloor, Phase, ServiceDescription } from "./description.
 import { lateHolds, ownStream, takeOutside } from "./drains.ts";
 import type { MachineName } from "./events.ts";
 import type { Health, Runtime, StartOptions } from "./health.ts";
-import type { ExitTrigger, ProcessPort } from "./process.ts";
+import type { ExitTrigger, ProcessPort, UncaughtOrigin } from "./process.ts";
 import { EXIT_SIGNALS, isExitCode, isExitSignal, matchesMessage, nodeProcess } from "./process.ts";
 import type { RequestFn, RequestOptions, RequestStream } from "./requests.ts";
 import { tracker } from "./requests.ts";
@@ -107,10 +107,36 @@ export const cooperativeAbortAt = (cap: number, window: Extent, floor: Cooperati
   return Math.max(cap - before, floor === "none" ? 0 : cap / 2);
 };
 
+/**
+ * These options make each error that no code caught a trigger of the shutdown. They are an uncaught
+ * exception and an unhandled rejection.
+ */
+export interface UncaughtOptions {
+  /** This code is the exit code after an uncaught error, a whole number from 0 to 255. The default is 1. */
+  readonly exitCode?: number | undefined;
+  /**
+   * This function tells if the runtime skips an error, for example an `ECONNRESET` of a peer socket.
+   * The logger gets a skipped error at `warn`, and the service continues. A throw of this function skips nothing.
+   */
+  readonly ignore?: ((error: unknown, origin: UncaughtOrigin) => boolean) | undefined;
+}
+
 /** These options run the lifecycle. Without them, it uses the real clock and the process of Node. */
 export interface RunOptions extends StartOptions {
   readonly process?: ProcessPort | undefined;
+  /**
+   * With these options, the lifecycle adds a handler for the errors that no code caught, from its start
+   * to its exit. Each error that it does not skip is an error of the lifecycle at `error`. It then
+   * starts the shutdown with its exit code, as a signal does. Without them, the runtime adds no handler.
+   */
+  readonly uncaught?: UncaughtOptions | undefined;
 }
+
+/** This function gives the problems of the option `uncaught`: an exit code that is not from 0 to 255. */
+export const uncaughtProblems = (uncaught: UncaughtOptions | undefined): string[] => {
+  const code = uncaught?.exitCode;
+  return code === undefined || isExitCode(code) ? [] : [`the exit code ${code} of an uncaught error is not a whole number from 0 to 255`];
+};
 
 /** These options go with a request for the shutdown. */
 export interface ShutdownOptions {
@@ -172,6 +198,15 @@ export interface Components {
 
 const message = (error: unknown): string =>
   error instanceof Error ? error.message : String(error);
+
+/** This function gives the text of an error with its stack, when it has one. */
+const withStack = (error: unknown): string =>
+  error instanceof Error && typeof error.stack === "string" && error.stack.length > 0 ? error.stack : message(error);
+
+const UNCAUGHT_NAMES: Readonly<Record<UncaughtOrigin, string>> = {
+  uncaughtException: "an uncaught exception",
+  unhandledRejection: "an unhandled rejection",
+};
 
 /**
  * This function gives the problems of a declaration that the lifecycle cannot start: a stage with
@@ -313,6 +348,33 @@ export const lifecycle = (
     if (found === undefined) return;
     if (found.as === undefined) triggered("ipc-message");
     else triggered(found.as, `${found.as} (a message of the IPC channel)`);
+  };
+  const uncaught = options.uncaught;
+  const uncaughtCode = uncaught?.exitCode !== undefined && isExitCode(uncaught.exitCode) ? uncaught.exitCode : 1;
+  /**
+   * This function receives an error that no code caught. A skipped error goes to the logger at
+   * `warn`. Each other error is an error of the lifecycle, and it starts the shutdown with its code.
+   */
+  const caught = (error: unknown, origin: UncaughtOrigin): void => {
+    if (exitState === "exited") return;
+    const name = UNCAUGHT_NAMES[origin];
+    let skip = false;
+    try {
+      skip = uncaught?.ignore?.(error, origin) === true;
+    } catch {
+      // a throw of the function skips nothing
+    }
+    if (skip) {
+      try {
+        options.logger?.log("warn", `${name} was skipped: ${message(error)}`, { origin, error: withStack(error) });
+      } catch {
+        // the lifecycle does not depend on its logger
+      }
+      return;
+    }
+    // the error event goes to the logger at `error`, with the stack
+    fail(`${name}: ${withStack(error)}`);
+    void shutdown(`${name}: ${message(error)}`, { code: uncaughtCode });
   };
 
   /**
@@ -518,6 +580,8 @@ export const lifecycle = (
   offs = [...EXIT_SIGNALS, ...(description.shutdown.triggers ?? [])].map((trigger: ExitTrigger) =>
     port.on(trigger, trigger === "ipc-message" ? received : () => triggered(trigger)),
   );
+  // the handler of the uncaught errors goes at the exit, with the handlers of the triggers
+  if (uncaught !== undefined && port.onUncaught !== undefined) offs.push(port.onUncaught(caught));
 
   void (async (): Promise<void> => {
     const started = (what: string): void => record("gate", "starting", "starting", "component.started", what);

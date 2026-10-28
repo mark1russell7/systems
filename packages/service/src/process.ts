@@ -21,6 +21,15 @@ export const PROCESS_TRIGGERS: readonly ProcessTrigger[] = ["stdin-close", "ipc-
 /** An exit trigger is an event that starts the shutdown: an exit signal, or a declared process trigger. */
 export type ExitTrigger = ExitSignal | ProcessTrigger;
 
+/**
+ * An uncaught origin tells how an error that no code caught came to the process. It is an exception
+ * that no code caught, or a rejection of a promise that no code handled.
+ */
+export type UncaughtOrigin = "uncaughtException" | "unhandledRejection";
+
+/** These are the origins of the errors that the option `uncaught` of `run()` receives. */
+export const UNCAUGHT_ORIGINS: readonly UncaughtOrigin[] = ["uncaughtException", "unhandledRejection"];
+
 /** This function tells if a number is an exit code of a process: a whole number from 0 to 255. */
 export const isExitCode = (code: number): boolean => Number.isInteger(code) && code >= 0 && code <= 255;
 
@@ -70,6 +79,12 @@ export interface ProcessPort {
    * handler gets each message of the IPC channel, and the runtime matches it.
    */
   on(trigger: ExitTrigger, handler: (message?: unknown) => void): () => void;
+  /**
+   * This method adds a handler for each error that no code caught, and gives the function that
+   * removes it. The runtime asks for it only when `run()` gets the option `uncaught`. A port without
+   * this method gets no handler, as the embedded port.
+   */
+  onUncaught?(handler: (error: unknown, origin: UncaughtOrigin) => void): () => void;
   /**
    * This method writes each buffered line of the output, and its promise ends when the output is
    * written. The stage `flush the output` uses it, in the cap of that stage.
@@ -177,6 +192,20 @@ export const processPortOf = (find: () => ProcessHost | undefined): ProcessPort 
       host.on(trigger, handler);
       return () => {
         host.off(trigger, handler);
+      };
+    },
+    onUncaught(handler) {
+      const host = hostProcess();
+      // a handler of each origin: Node then does not end the process, and the runtime does the shutdown
+      const offs = UNCAUGHT_ORIGINS.map((origin) => {
+        const receive = (error?: unknown): void => handler(error, origin);
+        host.on(origin, receive);
+        return () => {
+          host.off(origin, receive);
+        };
+      });
+      return () => {
+        for (const off of offs) off();
       };
     },
     async flush() {

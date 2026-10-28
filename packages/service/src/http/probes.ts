@@ -42,6 +42,59 @@ const kindsOf = (kinds: readonly ProbeKind[] | undefined): readonly ProbeKind[] 
   return Object.freeze([...kinds]);
 };
 
+/**
+ * Probe paths are more paths for each probe kind, for example `{ liveness: ["/livez", "/healthz"] }`.
+ * Each path is a whole path, and the prefix does not go before it. The paths of `PROBE_KINDS` still answer.
+ */
+export type ProbePaths = Partial<Readonly<Record<ProbeKind, readonly string[]>>>;
+
+const NO_ALIASES: ReadonlyMap<string, ProbeKind> = new Map();
+
+/**
+ * This function gives the probe kind of each more path of an option `paths`. It refuses a key that is
+ * not a probe kind, and a kind that `kinds` does not name. It refuses a path that does not start
+ * with `/`, or ends with `/`. It also refuses a path two times, and a path of `PROBE_KINDS` after the prefix.
+ */
+const aliasesOf = (paths: ProbePaths | undefined, kinds: readonly ProbeKind[], prefix: string): ReadonlyMap<string, ProbeKind> => {
+  if (paths === undefined) return NO_ALIASES;
+  if (paths === null || typeof paths !== "object" || Array.isArray(paths))
+    throw new Error(`the probe paths ${JSON.stringify(paths)} are not an object of probe kinds`);
+  const aliases = new Map<string, ProbeKind>();
+  for (const [key, list] of Object.entries(paths)) {
+    const kind = key as ProbeKind;
+    if (!PROBE_KINDS.includes(kind)) throw new Error(`the probe paths name ${JSON.stringify(key)}, which is not one of ${named}`);
+    if (!kinds.includes(kind)) throw new Error(`the probe paths name "${kind}", but the probe kinds do not`);
+    if (!Array.isArray(list)) throw new Error(`the probe paths of "${kind}" are not a list`);
+    for (const path of list as readonly unknown[]) {
+      if (typeof path !== "string" || !path.startsWith("/") || path.length < 2 || path.endsWith("/") || /[?#]/.test(path))
+        throw new Error(`the probe path ${JSON.stringify(path)} of "${kind}" does not start with "/", ends with "/", or has a query`);
+      if (aliases.has(path)) throw new Error(`the probe path "${path}" is two times in the probe paths`);
+      if (PROBE_KINDS.some((each) => path === `${prefix}/${each}` || path.startsWith(`${prefix}/${each}/`)))
+        throw new Error(`the probe path "${path}" is a path of a probe kind after the prefix "${prefix}"`);
+      aliases.set(path, kind);
+    }
+  }
+  return aliases;
+};
+
+/** This function gives the probe kind and the controller of a path, or null for a path that is not a probe. */
+const probeTarget = (
+  path: string,
+  prefix: string,
+  kinds: readonly ProbeKind[],
+  aliases: ReadonlyMap<string, ProbeKind>,
+): { readonly kind: ProbeKind; readonly controller: string | undefined } | null => {
+  const alias = aliases.get(path);
+  if (alias !== undefined) return { kind: alias, controller: undefined };
+  if (!path.startsWith(`${prefix}/`)) return null;
+  const parts = path.slice(prefix.length + 1).split("/");
+  const kind = PROBE_KINDS.find((each) => each === parts[0] && kinds.includes(each));
+  if (kind === undefined) return null;
+  const controller = parts[1];
+  if (parts.length > 2 || (controller !== undefined && (kind !== "readiness" || controller === ""))) return null;
+  return { kind, controller };
+};
+
 const prefixProblem = (prefix: string): string | null =>
   prefix === "" || (prefix.startsWith("/") && !prefix.endsWith("/"))
     ? null
@@ -65,6 +118,8 @@ const json = (status: number, body: unknown): ProbeResponse => ({
  * that is not a probe, it gives null. The paths are `/startup`, `/readiness`, `/liveness` and
  * `/report` after the prefix. `/readiness/<controller>` gives the readiness of one controller.
  * `kinds` names the probes that answer. The path of a kind that it does not name is not a probe.
+ *
+ * `aliases` gives the probe kind of each more path. A more path of readiness has no controller.
  */
 export const probeResponse = (
   health: Health | null | undefined,
@@ -72,13 +127,11 @@ export const probeResponse = (
   path: string,
   prefix = "",
   kinds: readonly ProbeKind[] = PROBE_KINDS,
+  aliases: ReadonlyMap<string, ProbeKind> = NO_ALIASES,
 ): ProbeResponse | null => {
-  if (!path.startsWith(`${prefix}/`)) return null;
-  const parts = path.slice(prefix.length + 1).split("/");
-  const kind = PROBE_KINDS.find((each) => each === parts[0] && kinds.includes(each));
-  if (kind === undefined) return null;
-  const controller = parts[1];
-  if (parts.length > 2 || (controller !== undefined && (kind !== "readiness" || controller === ""))) return null;
+  const target = probeTarget(path, prefix, kinds, aliases);
+  if (target === null) return null;
+  const { kind, controller } = target;
   if (method !== "GET" && method !== "HEAD")
     return { status: 405, headers: { allow: "GET, HEAD", "content-length": "0" }, body: "" };
   // before the runtime exists, each probe fails: the service has not started
@@ -112,6 +165,11 @@ export interface ProbeHandlerOptions {
    * path of a kind that the list does not name goes to the next handler.
    */
   readonly kinds?: readonly ProbeKind[] | undefined;
+  /**
+   * These are more paths for each probe kind, for example `{ liveness: ["/livez", "/healthz"] }`. Each is
+   * a whole path, with no prefix. Without them, the handler answers only the paths of `PROBE_KINDS`.
+   */
+  readonly paths?: ProbePaths | undefined;
 }
 
 /**
@@ -123,9 +181,10 @@ export const probeHandler = (health: HealthSource, options: ProbeHandlerOptions)
   const problem = prefixProblem(options.prefix);
   if (problem !== null) throw new Error(problem);
   const kinds = kindsOf(options.kinds);
+  const aliases = aliasesOf(options.paths, kinds, options.prefix);
   const handler = (req: IncomingMessage, res: ServerResponse, context?: MountContext): boolean => {
     const runtime = typeof health === "function" ? health() : health;
-    const response = probeResponse(runtime, req.method, pathOf(req.url), options.prefix, kinds);
+    const response = probeResponse(runtime, req.method, pathOf(req.url), options.prefix, kinds, aliases);
     if (response === null) return false;
     // the transport gives server_retry_after through the context, and it adds the header to each 503 too
     const retryAfter = context?.retryAfter === undefined ? undefined : retryAfterOf({ server_retry_after: context.retryAfter }, "probeHandler");
@@ -151,6 +210,8 @@ export interface ProbeServerOptions extends ListenOptions {
    * of a kind that the list does not name gets 404, as each other path.
    */
   readonly kinds?: readonly ProbeKind[] | undefined;
+  /** These are more paths for each probe kind, as the option `paths` of `probeHandler`. */
+  readonly paths?: ProbePaths | undefined;
 }
 
 /** A probe server is a health server on its own port. Its server is visible for the address of the port. */
@@ -164,11 +225,12 @@ export interface ProbeServer extends HealthServer {
  * each 503 gets the `Retry-After` of `server_retry_after`.
  */
 export const probeServer = (options: ProbeServerOptions): ProbeServer => {
-  const { prefix = "", server = createServer(), server_retry_after, kinds: chosen, ...listen } = options;
+  const { prefix = "", server = createServer(), server_retry_after, kinds: chosen, paths, ...listen } = options;
   const retryAfter = retryAfterOf({ server_retry_after }, "probeServer");
   const problem = prefixProblem(prefix);
   if (problem !== null) throw new Error(problem);
   const kinds = kindsOf(chosen);
+  const aliases = aliasesOf(paths, kinds, prefix);
   if (server.listenerCount("request") > 0) throw new Error("the probe server has a request listener of its own");
   let health: Health | null = null;
   let closing: Promise<void> | null = null;
@@ -178,7 +240,7 @@ export const probeServer = (options: ProbeServerOptions): ProbeServer => {
     socket.once("close", () => sockets.delete(socket));
   });
   server.on("request", (req: IncomingMessage, res: ServerResponse) => {
-    const response = probeResponse(health, req.method, pathOf(req.url), prefix, kinds);
+    const response = probeResponse(health, req.method, pathOf(req.url), prefix, kinds, aliases);
     write(req, res, response ?? { status: 404, headers: { "content-type": "text/plain; charset=utf-8" }, body: "Not Found" }, retryAfter);
   });
   return {

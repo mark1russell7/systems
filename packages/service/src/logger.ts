@@ -32,25 +32,58 @@ export const atLeast = (level: LogLevel, least: LogLevel): boolean => LOG_LEVELS
 /** A console target has one method for each level, as the console of Node and of a browser has. */
 export type ConsoleTarget = Readonly<Record<LogLevel, (...data: unknown[]) => void>>;
 
+/**
+ * A log format tells how the console logger writes an entry.
+ * - `text`: the message, and then the fields as an object, when the entry has fields.
+ * - `json`: one line of JSON for each entry, with the level, the message and each field.
+ */
+export type LogFormat = "text" | "json";
+
 /** These options make the console logger. */
 export interface ConsoleLoggerOptions {
   /** This level is the least severe level that the logger writes. The default is `info`. */
   readonly level?: LogLevel | undefined;
   /** This target receives each entry. The default is the global console. */
   readonly console?: ConsoleTarget | undefined;
+  /** This format tells how the logger writes each entry. The default is `text`. */
+  readonly format?: LogFormat | undefined;
 }
+
+/** This function gives a value of a field that JSON can write: an error as its name, message and stack, and a bigint as text. */
+const jsonValue = (_key: string, value: unknown): unknown => {
+  if (typeof value === "bigint") return value.toString();
+  if (value instanceof Error) return { name: value.name, message: value.message, ...(value.stack === undefined ? {} : { stack: value.stack }) };
+  return value;
+};
+
+/**
+ * This function gives one line of JSON for an entry. A field named `level` or `message` does not
+ * replace the level or the message. A field that JSON cannot write, for example a cycle, gives its failure as text.
+ */
+const jsonLine = (level: LogLevel, message: string, fields: LogFields): string => {
+  const { level: _level, message: _message, ...rest } = fields;
+  try {
+    return JSON.stringify({ level, message, ...rest }, jsonValue);
+  } catch (error) {
+    return JSON.stringify({ level, message, unwritten: error instanceof Error ? error.message : String(error) });
+  }
+};
 
 /**
  * This function makes the console logger. It writes each entry at its level or more severe to the
- * method of that level, with the message first and then the fields.
+ * method of that level. In the format `text`, it writes the message first and then the fields. In
+ * the format `json`, it writes one line of JSON.
  */
 export const consoleLogger = (options: ConsoleLoggerOptions = {}): Logger => {
   const least = options.level ?? "info";
+  const format = options.format ?? "text";
+  if (format !== "text" && format !== "json") throw new Error(`the log format ${JSON.stringify(format)} is not "text" or "json"`);
   return {
     log(level, message, fields) {
       if (!atLeast(level, least)) return;
       const target = options.console ?? globalThis.console;
-      if (Object.keys(fields).length === 0) target[level](message);
+      if (format === "json") target[level](jsonLine(level, message, fields));
+      else if (Object.keys(fields).length === 0) target[level](message);
       else target[level](message, fields);
     },
   };

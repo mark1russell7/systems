@@ -8,7 +8,7 @@
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 import type { Backoff } from "../backoff.ts";
-import { backoffDelay } from "../backoff.ts";
+import { retrierOn } from "../retrier.ts";
 import type { ServiceBuilder } from "../builder.ts";
 import type { Cancel, Clock } from "../clock.ts";
 import type { Check, Dependency, Gate, ServiceDescription, Step } from "../description.ts";
@@ -422,28 +422,17 @@ export interface RetrySchedule {
 
 /** This function makes the retry schedule of a client, from its backoff and its random numbers. RabbitMQ and WebSocket use it. */
 export const retrySchedule = (clock: Clock, backoff: Backoff, random: () => number): RetrySchedule => {
-  let tries = 0;
-  let timer: Cancel | null = null;
+  // the public retrier does the same work: the schedule only names its count `tries`
+  const retry = retrierOn(clock, backoff, random);
   return {
     get tries() {
-      return tries;
+      return retry.attempts;
     },
     schedule(due) {
-      tries += 1;
-      const delay = Math.round(backoffDelay(backoff, tries, random));
-      timer?.();
-      timer = clock.after(delay, () => {
-        timer = null;
-        due();
-      });
+      retry.schedule(due);
     },
-    cancel() {
-      timer?.();
-      timer = null;
-    },
-    reset() {
-      tries = 0;
-    },
+    cancel: () => retry.cancel(),
+    reset: () => retry.reset(),
   };
 };
 
