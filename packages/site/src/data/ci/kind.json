@@ -304,6 +304,21 @@
       "runs": {
         "cilium": 24
       }
+    },
+    {
+      "run": 40643221421,
+      "at": "2026-10-28T06:20:12Z",
+      "event": "workflow_dispatch",
+      "branch": "sys-48-stall-band",
+      "conclusion": "success",
+      "link": "https://github.com/mark1russell7/systems/actions/runs/40643221421",
+      "shards": 4,
+      "runs": {
+        "cilium": 5,
+        "ipvs": 5,
+        "iptables": 5,
+        "nftables": 5
+      }
     }
   ],
   "events": [

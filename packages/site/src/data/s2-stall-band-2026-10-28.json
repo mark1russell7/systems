@@ -1,0 +1,643 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-10-28",
+  "units": "s",
+  "runs": 3,
+  "kernel": "6.17.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.iptables.goaway.stall",
+      "template": "T07",
+      "name": "iptables, callers learn that a pod is stalled: in band on HTTP/2 (GOAWAY)",
+      "mode": "iptables",
+      "trigger": "app-stall",
+      "group": "stall",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 9.98 s to 10 s after the fault. Each failed request ends with a timeout. With n sessions on the target at the fault, the window closes n × 10 ms to n × 45 ms later. The failed requests are those of the n sessions up to the end of the window without this term, at the measured mean period of the clients, and 0 to 3 more for each session. Each session also fails a request each turn until the window closes: 0 to n × the largest drain time over its turn, rounded up. One session can drain for up to 100 ms, thus the window closes up to (n − 1) × 45 ms + 100 ms later. The last failed request can start up to one turn before the window closes."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 1000,
+      "values": [499, 1000, 1005],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 1,000 failed requests. The counted runs had 499 to 1,005 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10
+        },
+        "expected": {
+          "low": 0,
+          "high": 1542
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      },
+      "lasts": [10.0441423, 10.0357099, 10.1025681],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [16.371608, 16.5720365, 16.3548114]
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.stall",
+      "template": "T07",
+      "name": "ipvs, callers learn that a pod is stalled: in band on HTTP/2 (GOAWAY)",
+      "mode": "ipvs",
+      "trigger": "app-stall",
+      "group": "stall",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 9.98 s to 10 s after the fault. Each failed request ends with a timeout. With n sessions on the target at the fault, the window closes n × 10 ms to n × 45 ms later. The failed requests are those of the n sessions up to the end of the window without this term, at the measured mean period of the clients, and 0 to 3 more for each session. Each session also fails a request each turn until the window closes: 0 to n × the largest drain time over its turn, rounded up. One session can drain for up to 100 ms, thus the window closes up to (n − 1) × 45 ms + 100 ms later. The last failed request can start up to one turn before the window closes."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 1502,
+      "values": [1502, 1503, 999],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 1,502 failed requests. The counted runs had 999 to 1,503 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10
+        },
+        "expected": {
+          "low": 0,
+          "high": 1542
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      },
+      "lasts": [10.0615909, 10.0644685, 10.0314104],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [16.2752881, 16.7675792, 16.0264897]
+    },
+    {
+      "id": "S2.T07.nftables.goaway.stall",
+      "template": "T07",
+      "name": "nftables, callers learn that a pod is stalled: in band on HTTP/2 (GOAWAY)",
+      "mode": "nftables",
+      "trigger": "app-stall",
+      "group": "stall",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 9.98 s to 10 s after the fault. Each failed request ends with a timeout. With n sessions on the target at the fault, the window closes n × 10 ms to n × 45 ms later. The failed requests are those of the n sessions up to the end of the window without this term, at the measured mean period of the clients, and 0 to 3 more for each session. Each session also fails a request each turn until the window closes: 0 to n × the largest drain time over its turn, rounded up. One session can drain for up to 100 ms, thus the window closes up to (n − 1) × 45 ms + 100 ms later. The last failed request can start up to one turn before the window closes."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 500,
+      "values": [501, 498, 500],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 500 failed requests. The counted runs had 498 to 501 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10
+        },
+        "expected": {
+          "low": 0,
+          "high": 1542
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      },
+      "lasts": [10.075508, 10.0219928, 10.0649018],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [16.4667155, 16.3765744, 16.38357]
+    },
+    {
+      "id": "S2.T07.cilium.goaway.stall",
+      "template": "T07",
+      "name": "cilium, callers learn that a pod is stalled: in band on HTTP/2 (GOAWAY)",
+      "mode": "cilium",
+      "trigger": "app-stall",
+      "group": "stall",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 9.98 s to 10 s after the fault. Each failed request ends with a timeout. With n sessions on the target at the fault, the window closes n × 10 ms to n × 45 ms later. The failed requests are those of the n sessions up to the end of the window without this term, at the measured mean period of the clients, and 0 to 3 more for each session. Each session also fails a request each turn until the window closes: 0 to n × the largest drain time over its turn, rounded up. One session can drain for up to 100 ms, thus the window closes up to (n − 1) × 45 ms + 100 ms later. The last failed request can start up to one turn before the window closes."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 998,
+      "values": [996, 999, 998],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 998 failed requests. The counted runs had 996 to 999 failed requests.",
+      "first": null,
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10
+        },
+        "expected": {
+          "low": 0,
+          "high": 1542
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      },
+      "lasts": [10.0367537, 10.0332867, 10.0410521],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [16.5900717, 16.2842852, 16.249053]
+    }
+  ],
+  "predictions": [
+    {
+      "id": "S2.T07.iptables.endpoints.stall",
+      "mode": "iptables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.lame-duck.stall",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.goaway.stall",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10
+        },
+        "expected": {
+          "low": 0,
+          "high": 1542
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.iptables.session-check.stall",
+      "mode": "iptables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 8.105
+        },
+        "expected": {
+          "low": 0,
+          "high": 534
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.endpoints.stall",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.64
+        },
+        "expected": {
+          "low": 21,
+          "high": 24
+        },
+        "connections": {
+          "low": 12,
+          "high": 12,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.lame-duck.stall",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.64
+        },
+        "expected": {
+          "low": 21,
+          "high": 24
+        },
+        "connections": {
+          "low": 12,
+          "high": 12,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.goaway.stall",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10
+        },
+        "expected": {
+          "low": 0,
+          "high": 1542
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.ipvs.session-check.stall",
+      "mode": "ipvs",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 1.5
+        },
+        "expected": {
+          "low": 0,
+          "high": 228
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.endpoints.stall",
+      "mode": "nftables",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.lame-duck.stall",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.goaway.stall",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10
+        },
+        "expected": {
+          "low": 0,
+          "high": 1542
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.nftables.session-check.stall",
+      "mode": "nftables",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 8.079
+        },
+        "expected": {
+          "low": 0,
+          "high": 534
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.endpoints.stall",
+      "mode": "cilium",
+      "candidate": {
+        "name": "endpoints only",
+        "label": "A",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.lame-duck.stall",
+      "mode": "cilium",
+      "candidate": {
+        "name": "in band (lame duck)",
+        "label": "B",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.16
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 2.24
+        },
+        "expected": {
+          "low": 12,
+          "high": 39
+        },
+        "connections": {
+          "low": 7,
+          "high": 17,
+          "of": 24
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.goaway.stall",
+      "mode": "cilium",
+      "candidate": {
+        "name": "in band on HTTP/2 (GOAWAY)",
+        "label": "C",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 9.98,
+          "high": 10
+        },
+        "expected": {
+          "low": 0,
+          "high": 1542
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    },
+    {
+      "id": "S2.T07.cilium.session-check.stall",
+      "mode": "cilium",
+      "candidate": {
+        "name": "in band on HTTP/2 with a session check",
+        "label": "D",
+        "start": {
+          "from": "fault",
+          "low": 0,
+          "high": 0.02
+        },
+        "end": {
+          "from": "fault",
+          "low": 0,
+          "high": 8.606
+        },
+        "expected": {
+          "low": 0,
+          "high": 534
+        },
+        "connections": {
+          "low": 0,
+          "high": 3,
+          "of": 3
+        }
+      }
+    }
+  ]
+}
