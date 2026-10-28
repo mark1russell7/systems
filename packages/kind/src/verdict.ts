@@ -327,8 +327,15 @@ const windowOf = (prediction: Prediction): WindowPrediction | null =>
 export const observationAfter = (cell: Pick<KindCell, "prediction" | "workload">): Quantity | null => {
   const window = windowOf(cell.prediction);
   if (window === null || window.end === null) return null;
-  // the backlog term closes the window up to n × d later, with n the most sessions on the target
-  const drained = window.backlog === undefined ? 0 : window.backlog.most * valueIn(window.backlog.drain.hi, "ms");
+  // the backlog term closes the window up to n × d later, with n the most sessions on the target,
+  // or (n − 1) × d.hi + the slowest drain of one session (SYS-45)
+  const backlog = window.backlog;
+  const drained =
+    backlog === undefined
+      ? 0
+      : backlog.slowest === undefined || backlog.most < 1
+        ? backlog.most * valueIn(backlog.drain.hi, "ms")
+        : (backlog.most - 1) * valueIn(backlog.drain.hi, "ms") + Math.max(valueIn(backlog.slowest, "ms"), valueIn(backlog.drain.hi, "ms"));
   return seconds(sec(valueIn(window.end.band.hi, "ms") + drained + valueIn(cell.workload.timeout, "ms") + NOISE));
 };
 

@@ -4,7 +4,7 @@
 // `node:` module, thus a program that only reads records can use it, in a browser too.
 
 export type { CountBand } from "./bands.ts";
-export { backlogEnd, bandOf, drainBand, requestBand, seconds, secondsOf, showBand } from "./bands.ts";
+export { backlogEnd, bandOf, drainBand, overshootBand, requestBand, seconds, secondsOf, showBand } from "./bands.ts";
 export type {
   BacklogTerm,
   Band,

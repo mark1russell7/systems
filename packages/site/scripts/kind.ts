@@ -32,7 +32,7 @@ import { T18_CELLS } from "../../cells/src/t18.ts";
 import { T15_GRPC } from "../../cells/src/grpc/t15.ts";
 import { CALLERS_CELLS, callerFaultOf } from "../../cells/src/callers.ts";
 import { GATE_CELLS } from "../../cells/src/gate.ts";
-import { BACKLOG_BAND_CELLS, BACKLOG_CELLS, BACKLOG_DRAIN_CELLS } from "../../cells/src/backlog.ts";
+import { BACKLOG_BAND_CELLS, BACKLOG_CELLS, BACKLOG_DRAIN_CELLS, BACKLOG_TERMS_CELLS } from "../../cells/src/backlog.ts";
 import type { Line } from "../../kind/src/observe.ts";
 import { failuresOf, slicesOf } from "../../kind/src/observe.ts";
 import { SERVER } from "../../kind/src/names.ts";
@@ -65,7 +65,7 @@ interface Summary {
   readonly median: number | Quantity | null;
 }
 
-const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T15_GRPC, ...CALLERS_CELLS, ...GATE_CELLS, ...BACKLOG_CELLS, ...BACKLOG_BAND_CELLS, ...BACKLOG_DRAIN_CELLS];
+const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T15_GRPC, ...CALLERS_CELLS, ...GATE_CELLS, ...BACKLOG_CELLS, ...BACKLOG_BAND_CELLS, ...BACKLOG_DRAIN_CELLS, ...BACKLOG_TERMS_CELLS];
 // A later folder replaces the run of each cell of the same id, also when the cell has a new name.
 const found = new Map<string, Found<KindRecord, Summary>>();
 for (const folder of folders)
@@ -160,7 +160,7 @@ const predictionOf = (cell: KindCell) => {
       if (p.outcomes !== undefined) parts.push(`Each failed request ends with ${listed(p.outcomes.map(outcome))}.`);
       if (p.backlog !== undefined)
         parts.push(
-          `With n sessions on the target at the fault, the window closes n × ${time(s(p.backlog.drain.lo))} to n × ${time(s(p.backlog.drain.hi))} later. The failed requests are those of the n sessions up to the end of the window without this term, at the measured mean period of the clients, and ${p.backlog.requests.lo} to ${p.backlog.requests.hi} more for each session.${p.backlog.drains === true ? " Each session also fails a request each turn until the window closes: 0 to n × the largest drain time over its turn, rounded up." : ""}`,
+          `With n sessions on the target at the fault, the window closes n × ${time(s(p.backlog.drain.lo))} to n × ${time(s(p.backlog.drain.hi))} later. The failed requests are those of the n sessions up to the end of the window without this term, at the measured mean period of the clients, and ${p.backlog.requests.lo} to ${p.backlog.requests.hi} more for each session.${p.backlog.drains === true ? " Each session also fails a request each turn until the window closes: 0 to n × the largest drain time over its turn, rounded up." : ""}${p.backlog.slowest === undefined ? "" : ` One session can drain for up to ${time(s(p.backlog.slowest))}, thus the window closes up to (n − 1) × ${time(s(p.backlog.drain.hi))} + ${time(s(p.backlog.slowest))} later.`}${p.backlog.early === true ? " The last failed request can start up to one turn before the window closes." : ""}`,
         );
       if (p.afterReset !== undefined)
         parts.push(
@@ -679,7 +679,17 @@ for (const name of names) {
                   : name === "s2-slow"
                     ? { predictions: callerPredictions("slow dependency") }
                     : name === "s2-backlog"
-                      ? { predictions: backlogPredictions(mine.some((cell) => cell.id.includes(".backlog-drain.")) ? BACKLOG_DRAIN_CELLS : mine.some((cell) => cell.id.includes(".backlog-band.")) ? BACKLOG_BAND_CELLS : BACKLOG_CELLS) }
+                      ? {
+                          predictions: backlogPredictions(
+                            mine.some((cell) => cell.id.includes(".backlog-terms."))
+                              ? BACKLOG_TERMS_CELLS
+                              : mine.some((cell) => cell.id.includes(".backlog-drain."))
+                                ? BACKLOG_DRAIN_CELLS
+                                : mine.some((cell) => cell.id.includes(".backlog-band."))
+                                  ? BACKLOG_BAND_CELLS
+                                  : BACKLOG_CELLS,
+                          ),
+                        }
                       : {};
   writeFileSync(out, stringify({ ...copy, cells: mine.map(({ copy: _copy, ...cell }) => cell), ...predictions }));
   process.stdout.write(`${mine.length} cells, ${mine.reduce((sum, cell) => sum + cell.counted + cell.voided, 0)} runs: ${out}\n`);

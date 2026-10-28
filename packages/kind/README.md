@@ -269,6 +269,8 @@ From 0.8.0, a prediction `ends` can be the end of the tunnel of each client (`of
 - The first request of each client after the heal must be `ok`, on a new tunnel. The main value is the middle of the ends, in `s`.
 - From 0.8.1, `ends` has the optional band `answer`. A change to CLOSE_WAIT in that band ± δ also agrees: the peer answers the close of the client, and its FIN comes first. Before the band, the peer closed first.
 
+In 0.12.5, the optional fields `slowest` and `early` of a backlog term and the function `overshootBand` are new features. With `slowest`, one session on the target can drain up to that time. Thus the window can close later, and each session can fail more requests in the drain. With `early`, the band of the last failed request opens one turn lower. A term without these fields gives the same bands, thus the version is a patch. The record format stays `/2`.
+
 In 0.12.4, a fix: the quiet wait before a run stops after 5 min, and the run is void with its reason. Before, the wait had no limit, and a cluster that did not become quiet held the job until its timeout. The optional field `drains` of a backlog term and the function `drainBand` are new features. They keep the old behavior, thus the version is a patch. The record format stays `/2`.
 
 In 0.12.0, `kubeProxy` of a scenario can be null, `cni` can be `cilium`, and the mode of a cell can be `cilium`. A reader of `kubeProxy.mode` breaks, thus this is a breaking change before 1.0.0. To migrate, examine `kubeProxy` for null, and read the mode from `dataplane`. The record format stays `/2`.

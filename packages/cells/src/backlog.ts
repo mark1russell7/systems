@@ -1,5 +1,5 @@
 import type { BacklogTerm, Dataplane, KindCell, Workload } from "@mark1russell7/kind";
-import { backlogEnd, drainBand, requestBand, stallRemovalBand } from "@mark1russell7/kind";
+import { backlogEnd, drainBand, overshootBand, requestBand, stallRemovalBand } from "@mark1russell7/kind";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Candidate, Connections, Expected } from "./callers.ts";
@@ -160,14 +160,15 @@ export interface BacklogBandPrediction {
   /** This band is the end of the window with the term, for n of the placement. */
   readonly end: { readonly lo: Quantity; readonly hi: Quantity };
   readonly bandEnd: Quantity;
-  /** This band is the term after the band end: n × d. */
+  /** This band is the term after the band end: n × d, the band of the last failed request (`overshootBand`). */
   readonly overshoot: { readonly lo: Quantity; readonly hi: Quantity };
   readonly why: string;
 }
 
 /**
  * This function gives the prediction of C in a stall with n sessions on the target, with the backlog
- * band of SYS-42. The window opens at the fault, and it closes one timeout before the resume, plus
+ * band of SYS-42. With the terms of SYS-45 (`BACKLOG_TERMS_TERM`), one session can drain up to
+ * `slowest`, and the band of the last failed request opens one turn lower. The window opens at the fault, and it closes one timeout before the resume, plus
  * n × d. Each of the n sessions fails its requests up to the band end, and r more. With the term of
  * SYS-43 (`BACKLOG_DRAIN_TERM`), each session also fails its requests in the drain of the n sessions.
  */
@@ -180,8 +181,14 @@ export const backlogBandOf = (mode: Dataplane, onTarget: number, term: BacklogTe
   const removal = stallRemovalBand(CHART_READINESS, PROPAGATION[mode]);
   const bare = { lo: time(bandEnd - turn), hi: time(bandEnd) };
   const end = backlogEnd(bare, term, onTarget);
-  const overshoot = backlogEnd({ lo: s(0), hi: s(0) }, term, onTarget);
+  // the window closes n × d.lo to its high end after the band end. With `early` (SYS-45), the last
+  // failed request can start up to one turn before the window closes, thus its band opens one turn lower
+  const closing = overshootBand(bare, { ...term, early: false }, onTarget);
+  const overshoot = overshootBand(bare, term, onTarget);
   const count = requestBand(term, bare.hi, BACKLOG_WORKLOAD.every, BACKLOG_CONNECTIONS, onTarget);
+  const slow = term.slowest === undefined ? "" : `, and one slow session up to ${say(term.slowest)}`;
+  const last = term.early === true ? ` The last failed request can start up to one turn before the window closes, thus it starts ${say(overshoot.lo)}–${say(overshoot.hi)} after the band end.` : "";
+  const over = term.slowest === undefined ? `n × ${say(term.drain.hi)}` : `(n − 1) × ${say(term.drain.hi)} + ${say(term.slowest)}`;
   const expected: Expected = { lo: requests(count.lo), hi: requests(count.hi), connections: { lo: sessions(onTarget), hi: sessions(onTarget), of: sessions(all) } };
   return {
     expected,
@@ -190,7 +197,7 @@ export const backlogBandOf = (mode: Dataplane, onTarget: number, term: BacklogTe
     end,
     bandEnd: time(bandEnd),
     overshoot,
-    why: `The event loop of the target is blocked for the hold (${say(STALL_HOLD)}). The readiness probe removes it from the rules ${say(removal.lo)}–${say(removal.hi)} after the fault, but each established session stays on it. The lab places ${onTarget} of the ${all} sessions on the target before the fault. Each stream on them fails at its timeout (${say(BACKLOG_WORKLOAD.timeout)}), thus the band of the stall ends ${say(time(bandEnd))} after the fault. After the resume, the target drains the backlog of each of its sessions, ${say(term.drain.lo)}–${say(term.drain.hi)} for each one. Thus the window closes ${say(overshoot.lo)}–${say(overshoot.hi)} after the band end. Each session on the target fails its requests up to the band end at the measured mean period of its client, and ${term.requests.lo}–${term.requests.hi} more in its drain${term.drains === true ? `. It also fails a request each turn until the window closes: 0–${drainBand(term, BACKLOG_WORKLOAD.every, BACKLOG_CONNECTIONS, onTarget).hi} more for each session at the setting, with n × ${say(term.drain.hi)} over a turn of ${say(time(turn))}` : ""}: approximately ${expected.lo.value}–${expected.hi.value} at the setting of ${say(BACKLOG_WORKLOAD.every)}`,
+    why: `The event loop of the target is blocked for the hold (${say(STALL_HOLD)}). The readiness probe removes it from the rules ${say(removal.lo)}–${say(removal.hi)} after the fault, but each established session stays on it. The lab places ${onTarget} of the ${all} sessions on the target before the fault. Each stream on them fails at its timeout (${say(BACKLOG_WORKLOAD.timeout)}), thus the band of the stall ends ${say(time(bandEnd))} after the fault. After the resume, the target drains the backlog of each of its sessions, ${say(term.drain.lo)}–${say(term.drain.hi)} for each one${slow}. Thus the window closes ${say(closing.lo)}–${say(closing.hi)} after the band end.${last} Each session on the target fails its requests up to the band end at the measured mean period of its client, and ${term.requests.lo}–${term.requests.hi} more in its drain${term.drains === true ? `. It also fails a request each turn until the window closes: 0–${drainBand(term, BACKLOG_WORKLOAD.every, BACKLOG_CONNECTIONS, onTarget).hi} more for each session at the setting, with ${over} over a turn of ${say(time(turn))}` : ""}: approximately ${expected.lo.value}–${expected.hi.value} at the setting of ${say(BACKLOG_WORKLOAD.every)}`,
   };
 };
 
@@ -244,3 +251,42 @@ export const backlogDrainCellOf = (mode: Dataplane, onTarget: number): KindCell 
 
 /** These are the cells of the drain band (SYS-43): the cells of SYS-42 with the third band. Their ids and names are new, thus the records of SYS-40 and SYS-42 keep their bands. */
 export const BACKLOG_DRAIN_CELLS: readonly KindCell[] = BACKLOG_MODES.flatMap((mode) => BACKLOG_SESSIONS.map((onTarget) => backlogDrainCellOf(mode, onTarget)));
+
+/**
+ * The terms band of SYS-45 is the fourth band of the stall of C. The bands above stay as committed.
+ * In SYS-42 and SYS-43, all 4 misses of the window band were with 1 session: 1 below n × d.lo
+ * (9 ms) and 3 above n × d.hi (50 ms, 58 ms and 90 ms). The signs differ, thus they are not a bias.
+ * This band tests two terms.
+ *
+ * - The early start (`early`): the last failed request can start up to one turn before the window
+ *   closes. The end band of the judge opens one turn before the band end, but the overshoot band
+ *   of SYS-42 opened at n × d.lo. Thus its low end goes down by one turn, 20 ms at the setting.
+ * - The slow session (`slowest`): one session can drain for more than d.hi. With n sessions, the
+ *   other sessions average it out, thus it shows best with 1 session. The largest drain of one session
+ *   was 90 ms in 15 runs with 1 session, in SYS-40, SYS-42 and SYS-43. The term rounds it up to 100 ms.
+ *
+ * The values d and r stay as in SYS-42. The cells have 1 and 2 sessions on the target, because the
+ * zones of the two terms are largest there, and 10 runs each.
+ */
+export const BACKLOG_TERMS_TERM: BacklogTerm = { ...BACKLOG_DRAIN_TERM, slowest: ms(100), early: true };
+
+/** These are the counts of the sessions on the target of the terms band. */
+export const BACKLOG_TERMS_SESSIONS: readonly number[] = [1, 2];
+
+/** This count is the runs of each cell of the terms band. */
+export const BACKLOG_TERMS_RUNS = 10;
+
+/** This function gives the cell of C in a stall with n sessions on the target, in a mode, with the terms band of SYS-45. */
+export const backlogTermsCellOf = (mode: Dataplane, onTarget: number): KindCell => {
+  const third = backlogDrainCellOf(mode, onTarget);
+  return {
+    ...third,
+    id: `S2.T07.${mode}.goaway.backlog-terms.n${onTarget}`,
+    name: `T07 ${mode}, callers learn that a pod is stalled, with ${sessionWords(onTarget)} on the target, by the terms band: ${CANDIDATE}`,
+    prediction: third.prediction.kind === "window" ? { ...third.prediction, backlog: BACKLOG_TERMS_TERM, why: backlogBandOf(mode, onTarget, BACKLOG_TERMS_TERM).why } : third.prediction,
+    runs: BACKLOG_TERMS_RUNS,
+  };
+};
+
+/** These are the cells of the terms band (SYS-45). Their ids and names are new, thus the records of SYS-40, SYS-42 and SYS-43 keep their bands. */
+export const BACKLOG_TERMS_CELLS: readonly KindCell[] = BACKLOG_MODES.flatMap((mode) => BACKLOG_TERMS_SESSIONS.map((onTarget) => backlogTermsCellOf(mode, onTarget)));

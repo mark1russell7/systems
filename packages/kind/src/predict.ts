@@ -264,4 +264,4 @@ export const learnWindow = (declaration: Declaration, readiness: KubeletProbe, p
  * the measured period. A window carries the term in `backlog` (`BacklogTerm`).
  */
 export type { CountBand } from "./bands.ts";
-export { backlogEnd, drainBand, requestBand, showBand } from "./bands.ts";
+export { backlogEnd, drainBand, overshootBand, requestBand, showBand } from "./bands.ts";
