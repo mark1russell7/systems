@@ -918,6 +918,20 @@ The SYS-42 run 40591832542 had a shard that did not end. The shard of 6 sessions
 
 That wait had no bound. With this item, the wait stops after 5 min, and the run is void with its reason. The step The cells of `kind.yml` also stops after 36 min, approximately 3 times the 12 min of a shard. The record of SYS-43 keeps the hang as a fact, because the repo has no ledger of flaky or void CI runs. In the drain run, the bound voided 1 run at 59% idle, and the shard of 6 sessions ended in approximately 22 min.
 
+### SYS-44 · A ledger of the flaky, void and hung CI runs
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-43
+- **Started:** 2026-10-28
+- **Links:** [#255](https://github.com/mark1russell7/systems/pull/255), [The hung run](https://github.com/mark1russell7/systems/actions/runs/40591832542)
+
+The repo has no ledger of the CI runs that did not give a clean result. Thus the hang of SYS-42 is only a fact in the record of SYS-43. This item gives one ledger for each workflow of cells, with one entry for each event. An event is a void run, a hung or cancelled shard, or a step that hit its timeout. A job that failed for a cause outside the cell is also an event.
+
+Each entry gives the run, the shard, the cell, the step, the duration, the cause, and the link. The site shows the flake rate of each workflow and each dataplane from the ledger. A script can add the entries from the artifacts of a run, thus no entry is written by hand.
+
+The first entries are the hang of run 40591832542 and the void run of run 40608863500. The quiet bound of SYS-43 can give more void runs on Cilium. Thus the ledger also tells if the idle threshold of 60% must change for Cilium.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue
