@@ -132,6 +132,15 @@ export interface HostPorts {
 /** This function joins the parts of a path with the separator of the platform. */
 export const joinPath = (platform: string, ...parts: readonly string[]): string => {
   const separator = platform === "win32" ? "\\" : "/";
-  const trimmed = parts.map((part, at) => (at === 0 ? part.replace(/[\\/]+$/, "") : part.replace(/^[\\/]+|[\\/]+$/g, "")));
+  // a scan and not a regular expression, thus a long run of separators takes linear time
+  const isSeparator = (char: string | undefined): boolean => char === "/" || char === "\\";
+  const trim = (part: string, head: boolean): string => {
+    let start = 0;
+    let end = part.length;
+    while (head && start < end && isSeparator(part[start])) start += 1;
+    while (end > start && isSeparator(part[end - 1])) end -= 1;
+    return part.slice(start, end);
+  };
+  const trimmed = parts.map((part, at) => trim(part, at !== 0));
   return trimmed.filter((part, at) => at === 0 || part !== "").join(separator);
 };
