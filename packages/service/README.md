@@ -2,7 +2,7 @@
 
 A service that you declare as data before it starts. You compose it with plain calls: its dependencies, its checks, its policies and its shutdown. `describe()` gives the whole graph as data, and it starts nothing. `lint()` then applies the timer-ordering law to that graph. `start()` gives the graph to the health runtime, and `run()` starts the whole lifecycle.
 
-This release has the declaration, its export, the law, the health runtime, the lifecycle and the edge of a service in Node (`@mark1russell7/service/http`). The wrappers of the clients come in a later release.
+This release has the declaration, its export, the law, the health runtime, the lifecycle and the edge of a service in Node (`@mark1russell7/service/http`). It also has the host of a program in Node (`@mark1russell7/service/host`). The wrappers of the clients come in a later release.
 
 ## What the package does
 
@@ -538,6 +538,89 @@ app.controller("orders").requires("db").route("POST /orders", { idempotent: fals
 const life = await app.run(); // the process exits after SIGTERM, with 0 or 1
 ```
 
+## The host
+
+`@mark1russell7/service/host` keeps programs alive on one computer, without a container platform. It installs a Windows scheduled task or a systemd user unit. A group supervisor then starts each program in sequence and starts it again after it stops. Of the modules of Node, the entry imports only `node:child_process`, `node:fs/promises`, `node:net`, `node:os` and `node:path`. The root of the package does not import it.
+
+Each effect goes through a port (`HostPorts`): the commands, the files, the processes, the network and the clock. `nodeHostPorts()` gives the ports of Node. A test gives `fakeHost()` from the testing subpath, thus it starts no process and installs no task.
+
+| Export | Function |
+| --- | --- |
+| `installService(spec, ports, { start })` | Writes the task or the unit, and registers it with `schtasks` or `systemctl --user` |
+| `uninstallService`, `startService`, `stopService` | Remove, start and stop the task or the unit |
+| `serviceStatus(spec, ports, { discovery })` | The state of the task or the unit, and the record of its instance |
+| `renderTaskXml`, `renderSystemdUnit`, `renderSystemdTimer` | The task and the units as text, with no effect |
+| `superviseGroup(spec, ports, options)` | The supervisor of a group of programs |
+| `startOrder`, `groupProblems` | The start sequence of a group, and the problems of its spec |
+| `acquireInstanceLock`, `inspectInstanceLock` | The lock of one instance: a file with the process ID and its start time |
+| `writeDiscovery`, `readDiscovery`, `removeDiscovery` | The discovery file: the process ID, the port, the address and the start time |
+| `stopTree(pid, ports)` | The stop of a process tree by its process ID |
+| `probeOnce`, `parseEnvFile`, `rotatingLog` | A ready probe, an env file and a log file with rotation |
+
+- **The task.** On Windows, `installService` writes the XML of a scheduled task and gives it to `schtasks /Create`. The task starts at logon or each day, as the user, without a window. It starts the program again after a failure.
+- **The unit.** On Linux, `installService` writes a systemd user unit in `$XDG_CONFIG_HOME/systemd/user` and enables it. A daily start also gets a timer. Other platforms get `unsupported`, and nothing changes.
+- **The outcomes.** Each operation gives data, not a throw: `done`, `failed` with each command and its output, `refused` with the problems of the spec, or `unsupported`.
+- **The lock.** The lock file has the process ID and its start time. Thus a new process with the same ID does not hold the lock. A lock whose process stopped is stale, and the next take removes it.
+- **The discovery file.** A client reads the port and the address of a running instance from it. `readDiscovery` tells `running`, `absent`, `stale` or `malformed`, and it does not throw.
+- **The sequence of a group.** A program starts when each program of its `after` is ready. A ready probe is an HTTP status, a TCP connection or a command that gives 0. The times of a probe are quantities.
+- **A program that stops.** It starts again after the backoff of its `retrier`. The count of tries goes back to 0 after the program is ready for `resetAfter`. A program also waits until its `after` programs are ready again.
+- **A program that is not ready in its time.** The supervisor stops it after `within`, and starts it again after the backoff. The state of the program tells the reason.
+- **One instance of each program.** Each program has its own lock. The supervisor holds the lock for its child, thus a second supervisor of the same group gets `held` and starts nothing.
+- **The files of a program.** Its output goes to `<stateDir>/logs/<name>.log`, which rotates at its size. Its environment is the host, then its env file, then its `env`. It also gets its own `cwd`.
+- **The staged stop.** The supervisor stops the programs in the reverse sequence. A program with an IPC channel gets the message `"shutdown"`, which `svc.trigger("ipc-message", …)` matches. Else Linux sends SIGTERM, and Windows starts `taskkill /T /PID` without `/F`.
+- **The stop of the tree.** After the grace, Windows starts `taskkill /T /F /PID <pid>`. Linux sends SIGKILL to the process group of the child. The host does not stop a process by its name or its command line at any time.
+
+```ts
+// group.js: the logon task starts this supervisor as the user
+import { daemon, service } from "@mark1russell7/service";
+import { nodeHostPorts, superviseGroup } from "@mark1russell7/service/host";
+
+const s = (value: number) => ({ value, unit: "s" });
+const ms = (value: number) => ({ value, unit: "ms" });
+const group = superviseGroup(
+  {
+    name: "stack",
+    stateDir: "/var/lib/stack",
+    programs: [
+      { name: "db", program: "/usr/bin/db", ready: { probe: { kind: "tcp", port: 5432 }, interval: ms(500), timeout: ms(250), within: s(30) } },
+      {
+        name: "api",
+        program: process.execPath,
+        args: ["api.js"],
+        cwd: "/srv/api",
+        envFile: "/var/lib/stack/api.env",
+        after: ["db"],
+        ipc: true,
+        ready: { probe: { kind: "http", url: "http://127.0.0.1:8080/health" }, interval: ms(500), timeout: ms(250), within: s(30) },
+        listen: { port: 8080, url: "http://127.0.0.1:8080/" },
+      },
+    ],
+  },
+  nodeHostPorts(),
+);
+
+const host = service("stack")
+  .profile(daemon)
+  .dependency("group", { system: null, knobs: {}, operations: {} }, { connect: () => group.start(), close: () => group.stop() })
+  .readiness({ type: "debounce", interval: s(5), failAfter: 3, recoverAfter: 1 })
+  .liveness({ type: "window", failAfter: s(45) })
+  .startup(s(60));
+await host.run();
+```
+
+```ts
+// install.js: the owner of the computer starts this one time
+import { installService, nodeHostPorts } from "@mark1russell7/service/host";
+
+const outcome = await installService(
+  { name: "stack", description: "The stack", program: process.execPath, args: ["group.js"], start: "logon", restart: { after: { value: 1, unit: "min" } }, stateDir: "/var/lib/stack" },
+  nodeHostPorts(),
+);
+console.log(outcome.kind);
+```
+
+- **The stop of the group.** The phase `tear down dependencies` caps `group.stop()`. Give that phase a cap above the sum of the graces of the programs.
+
 ## The testing subpath
 
 `@mark1russell7/service/testing` has the seams that a test of a service needs:
@@ -548,6 +631,7 @@ const life = await app.run(); // the process exits after SIGTERM, with 0 or 1
 - `scriptedCheck(behavior)` gives a check whose behavior a test sets: `"ok"`, `"error"`, `"indeterminate"`, `"throw"`, `"timeout"` or `"hang"`.
 - `quietServer()` starts a TCP echo server that can go quiet. Its connections stay open while it is quiet, as with a frozen peer.
 - `detachedLifecycle()` gives a lifecycle with no service, for the start of a transport in a test.
+- `fakeHost(options)` gives the ports of the host entry on a fake clock, a fake file system and fake processes. It records each command and each signal. A test ends a child with `exit(code)`, and `polite` makes each child obey a staged stop.
 - `transportConformance(make, options)` generates the conformance test of a transport. `make` gives a subject: the transport, a way to offer new work and a way to hold work in flight. The cases check that `stopIntake` refuses new work, and that the count is correct and comes from events. They also check that `drain` holds to its deadline and gives the cooperative abort, and that `close` is idempotent and bounded. The fake clock makes the cases fast, and the real clock measures them.
 - `contractCases(declare)` generates the contract test of a declaration. The cases are the service at rest, each dependency unavailable, each dependency degraded by 100 ms, each recovery, and a negative control. A dependency that no check exercises is a finding, and so is a check whose timeout a latency of 100 ms fails.
 
@@ -799,7 +883,7 @@ for await (const event of stream) {
 - **The gRPC client.** These tests use a fake channel and a fake clock. They cover the declaration, the outcome of each status code, the methods that the client sends again or not, the keepalive and the IDLE channel. They also cover a GOAWAY, the close, the checks and the manifestations. Seven scenarios replay against the document of the client. One test sends calls through grpc-js to a server of the loopback.
 - **F6 for Redis.** The fault matrix crosses each manifestation (a refusal, a frozen process, a black hole, a death without a close, and an app stall), each gating posture, two timings and two jitters. That is 60 cases on the fake. Each case holds the trip and the release of its policy to `failSpan` and `recoverSpan`. Five more cases shut the service down during each manifestation, and each one exits 0.
 - **The timers.** These tests use a fake clock, and they cover the hooks of the heartbeat and its two kinds of ping. A property test holds the death of a silent peer to `detectionTime` in 300 seeded cases. Another one compares the heartbeat with a WebSocket heartbeat that sends one ping at a time, on 300 schedules of pongs. The backoff gives the delays of three earlier backoffs, number for number, and each delay is in its band.
-- **The entries.** The timer entries reach no other package, no `node:` module and no zod. No entry of the service reaches zod, also through `quantity` and the replay of the algebra. The root reaches no `node:` module. The HTTP edge reaches only `node:http`, `node:net` and `quantity`. The worker loop and the queue drain reach only `quantity`.
+- **The entries.** The timer entries reach no other package, no `node:` module and no zod. No entry of the service reaches zod, also through `quantity` and the replay of the algebra. The root reaches no `node:` module. The HTTP edge reaches only `node:http`, `node:net` and `quantity`. The worker loop and the queue drain reach only `quantity`. The host reaches only `quantity` and five `node:` modules, and it loads none of its fakes.
 - **The requests.** A unary work is a stream of one item, and a stream gives each item when its reader asks. The drain waits for an open stream. The cooperative abort ends a stream through `return()`, and a cut or a failure after the first item ends in-band. A reader that stops early stops the work. The function of a route pattern decides the answer of each cut request.
 - **The options of the runner.** These tests cover the requests of a transport while the startup runs, the policy of a repeat signal, the profiles and the process triggers. They also cover the exit codes, a first Ctrl-C that aborts at once, and the flush of the output.
 - **The composition.** Two components, each with a transport, a dependency and a check, share one service and one `run()`. The parts start and stop in their sequence, and the process exits one time.
@@ -813,6 +897,8 @@ for await (const event of stream) {
 - **The worker loop.** These tests use the fake clock. They cover the sleep, `"more"`, the backoff and its jitter, `wake()`, the stop of the intake and the drain with its cooperative abort. They also cover the bound of an iteration, the lanes, the setup, the teardown, the close bound and the law (O20).
 - **The queue drain.** These tests cover the slots, the poll, the policy of A11 and the count of deliveries. They also cover a job that goes back at the stop, an async iterable and a failed take. A cut job of each kind of route, the close bound and the refusals of the service have tests too.
 - **The conformance of the helpers.** The worker loop passes each case of the kit with three lanes, and the queue drain with three slots. Each one passes with the request tracking and without it. With one lane, the loop passes each case that holds one work.
+- **The host.** These tests use `fakeHost()`, thus they start no process and install no task. They cover the text of the task and the units, each command of each operation, and the lock with its stale recovery. They also cover the discovery file, the probes, the env file and the rotation of the log.
+- **The group supervisor.** These tests cover the start sequence with its probes, the environment, the logs, and the lock of each program. They also cover the backoff and its reset, a restart that waits for its programs, and the deadline of a probe. Each stage of the stop has tests on Linux and on Windows.
 - **The IPC message.** A message that matches a declared shape starts the staged shutdown on the fake process, with the exit code of its signal. A second message obeys the policy of a repeat signal.
 - **On real sockets.** `HTTP_IT=1` starts the tests of the HTTP edge on the loopback. They cover the conformance on the fake clock and on the real clock, keep-alive and the stop of the intake. They also cover the upgrades, the probe server and a service after SIGTERM. They measure time, thus only CI starts them (`http.yml`), on Node 22.19, 24 and 26. CI keeps the raw records of each job as an artifact.
 - **On the real clock.** `WORKERS_IT=1` starts the kit of the worker loop and of the queue drain on the real clock, in the jobs of `http.yml`.
