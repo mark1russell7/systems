@@ -945,11 +945,12 @@ The hang: the shard of 6 sessions waited for a quiet VM for approximately 78 of 
 
 ### SYS-45 · Two terms of the window band: the slow session and the early start
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-43
 - **Started:** 2026-10-28
-- **Links:** [SYS-43](#sys-43--the-count-band-carries-the-drain-failures-of-the-backlog)
+- **Shipped:** 2026-10-28
+- **Links:** [#261](https://github.com/mark1russell7/systems/pull/261), [The terms run](https://github.com/mark1russell7/systems/actions/runs/40622388164), [SYS-43](#sys-43--the-count-band-carries-the-drain-failures-of-the-backlog)
 
 SYS-43 left two candidate terms of the window band. In SYS-42 and SYS-43, the window band missed 4 of 39 runs, each with 1 session. One run was below n × d.lo (9 ms). Three runs were above n × d.hi (50 ms, 58 ms and 90 ms). The signs differ, thus these misses are not a bias. This item tests the two terms with a new band version.
 
@@ -966,6 +967,14 @@ The prediction: with 1 session, the overshoot is −10 ms to 100 ms. With 2 sess
 The decision rule: the band hits if every counted run of each n falls in its window band and in its count band. The zone of the early start is n × d.lo − c × p to n × d.lo. The zone of the slow session is n × d.hi to (n − 1) × d.hi + 100 ms. A term is confirmed if 1 or more runs fall in its zone and no run falls outside its edge. A miss with the same sign in each run is a bias, and the next band adds the missing term.
 
 If no run of the 20 falls in the zone of the slow session, the next band drops that term. The early start stays with no run in its zone, because it comes from the end band of the judge, not from a fit. The thresholds do not change after the result.
+
+The result of kind run 40622388164: the band hits. Both cells hold, with 10 of 10 counted runs each and no void run. Each overshoot and each count is in its band. The record is `packages/site/src/data/s2-backlog-terms-cilium-2026-10-28.json`.
+
+With 1 session, the overshoot was 3 ms to 78 ms, with a median of 16 ms. With 2 sessions, it was 30 ms to 94 ms, with a median of 54 ms. The counts were 493 to 497 with 1 session and 987 to 992 with 2 sessions. The mean periods were 10.11 ms to 10.24 ms.
+
+Both terms are confirmed. The early start: 5 of 10 runs with 1 session were below 10 ms (3 ms to 8 ms), and no run was below −10 ms. The slow session: one run with 1 session was at 78 ms, above 45 ms. One run with 2 sessions was at 94 ms, above 90 ms. No run was above its edge. The band of SYS-43 misses these 7 runs.
+
+One quantity missed. The prediction was 0 to 3 runs in the zone of the early start, and the result was 5. The miss changes no band. All 5 runs are in the band, thus it is not a bias by the rule. The term is larger in this run than in SYS-42 and SYS-43, which had 1 run of 10 with 1 session in that zone.
 
 The idle share of 60% holds for Cilium. Of 230 runs on Cilium, 2 are void or hung by the wait, approximately 0.9%. The limit is 5%. The page applies the rule again after each scan.
 
