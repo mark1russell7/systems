@@ -4,6 +4,10 @@
 # A control shows the difference: a SIGTERM of the parent stops the child in stages only on Linux.
 # ci.yml runs the same trigger on the fake process only.
 #
+# The same job runs the host entry on the real ports of Node (SYS-47): processes, the lock, the
+# discovery file, the network probes, the group supervisor and a real Windows task or systemd user unit.
+# The unit tests of the host entry use the fake host only.
+#
 # These tests start real processes, thus they run only here.
 # A pull request that changes the service package or this file runs them.
 # Start it with: gh workflow run process.yml -R mark1russell7/systems
@@ -32,7 +36,7 @@ jobs:
   process:
     name: process (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -53,3 +57,21 @@ jobs:
         env:
           PROCESS_IT: "1"
         run: pnpm --filter @mark1russell7/service exec vitest run src/process-it.test.ts
+      # The install test of SYS-47 needs a systemd user manager. Linger starts it for the user of the runner.
+      - name: A systemd user manager for the install test (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo loginctl enable-linger "$(id -un)"
+          uid="$(id -u)"
+          for _ in $(seq 1 30); do test -S "/run/user/$uid/bus" && break; sleep 1; done
+          echo "XDG_RUNTIME_DIR=/run/user/$uid" >> "$GITHUB_ENV"
+          if XDG_RUNTIME_DIR="/run/user/$uid" systemctl --user show-environment > /dev/null; then
+            echo "The systemd user manager runs."
+          else
+            echo "The systemd user manager does not run. The install test skips, and it tells why."
+          fi
+      - name: The host entry on the real ports of Node (SYS-47)
+        if: ${{ !cancelled() }}
+        env:
+          HOST_IT: "1"
+        run: pnpm --filter @mark1russell7/service exec vitest run src/host-it.test.ts
