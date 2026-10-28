@@ -164,7 +164,8 @@ describe("the ledger", () => {
 
   it("gives the flake rate of the workflow by shard, and of each dataplane by run", () => {
     const rates = ratesOf(merged(EMPTY, run, events));
-    expect([rates.runs, rates.shards, rates.flaky, rates.rate, rates.events]).toEqual([1, 5, 5, 1, 6]);
+    expect([rates.runs, rates.shards, rates.flaky, rates.failed, rates.events]).toEqual([1, 5, 4, 1, 6]);
+    expect(rates.rate).toBe(4 / 5);
     expect(rates.causes).toEqual({ quiet: 2, rest: 1, person: 1, timeout: 1, test: 1 });
     expect(rates.dataplanes).toEqual([
       { dataplane: "cilium", runs: 6, events: 3, rate: 0.5, quiet: 2, quietRate: 2 / 6, lowest: 0.5, threshold: "change" },

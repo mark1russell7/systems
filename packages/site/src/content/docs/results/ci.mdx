@@ -15,7 +15,7 @@ An event is one of these:
 - **A step timeout.** The step hit its bound, `timeout-minutes`.
 - **A failed job.** The job failed for a cause outside the cells, for example a test of the snapshots. A cell that fails its prediction is a result, not an event.
 
-Each entry gives the run, the shard, the cell, the step, the duration, the cause and a link to the job. The flake rate of a workflow is the share of its shards with one event or more. The flake rate of a dataplane is the share of its runs with an event.
+Each entry gives the run, the shard, the cell, the step, the duration, the cause and a link to the job. A failed test is a fault of the code under test, thus it is an entry but not a flake. The flake rate of a workflow is the share of its shards with one flake or more. The flake rate of a dataplane is the share of its runs with an event.
 
 ## How the entries come
 
