@@ -254,8 +254,8 @@ export const BACKLOG_DRAIN_CELLS: readonly KindCell[] = BACKLOG_MODES.flatMap((m
 
 /**
  * The terms band of SYS-45 is the fourth band of the stall of C. The bands above stay as committed.
- * In SYS-42 and SYS-43, all 4 misses of the window band were with 1 session: 1 below n × d.lo
- * (9 ms) and 3 above n × d.hi (50 ms, 58 ms and 90 ms). The signs differ, thus they are not a bias.
+ * In SYS-42 and SYS-43, the window band missed 4 runs, each with 1 session. One was below n × d.lo
+ * (9 ms), and 3 were above n × d.hi (50 ms, 58 ms and 90 ms). The signs differ, thus they are not a bias.
  * This band tests two terms.
  *
  * - The early start (`early`): the last failed request can start up to one turn before the window

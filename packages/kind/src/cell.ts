@@ -466,14 +466,14 @@ export interface BacklogTerm<A = Quantity> {
   /**
    * This time (SYS-45) is the largest drain time of one slow session. In a run, at most one session on
    * the target drains longer than d.hi, up to this time. Thus the window closes up to
-   * (n − 1) × d.hi + this time after the band end (`backlogEnd`), and with `drains` each session
+   * (n − 1) × d.hi + this time after the band end (`backlogEnd`). With `drains`, each session
    * can fail more requests in the drain (`drainBand`). Without it, each session drains in d.
    */
   readonly slowest?: A | undefined;
   /**
-   * With this flag (SYS-45), the band of the last failed request after the band end (`overshootBand`)
-   * opens at the low end of the end band, plus n × d.lo. The last failed request can start up to one
-   * turn before the window closes, and the end band opens one turn before the band end. The judge
+   * With this flag (SYS-45), the band of the last failed request (`overshootBand`) opens at the
+   * low end of the end band, plus n × d.lo. The last failed request can start up to one
+   * turn before the window closes. The end band also opens one turn before the band end. The judge
    * already checks the last failure from that low end. Without it, that band opens at n × d.lo.
    */
   readonly early?: boolean | undefined;

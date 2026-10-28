@@ -51,8 +51,8 @@ export const backlogEnd = (end: Band, term: Pick<BacklogTerm, "drain"> & Partial
  * This function gives the band of the start of the last failed request of a window with the backlog
  * term, from the band end (the high end of `end`). This is the overshoot of a run. Its high end is
  * the high end of `backlogEnd`. Without `early`, its low end is n × d.lo (SYS-42). With `early`
- * (SYS-45), the last failed request can start up to one turn before the window closes. Thus its low end
- * is the low end of `end` plus n × d.lo: one turn less, because the end band opens one turn before the band end.
+ * (SYS-45), the last failed request can start up to one turn before the window closes. Its low end
+ * is then the low end of `end` plus n × d.lo. The end band opens one turn before the band end.
  */
 export const overshootBand = (end: Band, term: Pick<BacklogTerm, "drain"> & Partial<Pick<BacklogTerm, "slowest" | "early">>, sessions: number): Band => {
   const ends = secondsOf(end);
@@ -84,7 +84,7 @@ const turnOf = (mean: Quantity, connections: number): number => {
  * n × d.hi after the band end (`backlogEnd`). Thus one session fails 0 to ceil(n × d.hi / turn)
  * requests in the drain. The turn is the mean period of a client (`mean`) times its sessions
  * (`connections`). The term r is not in this band. With `slowest` (SYS-45), the window closes up to
- * (n − 1) × d.hi + `slowest` after the band end, thus one session fails up to that time over the turn.
+ * (n − 1) × d.hi + `slowest` after the band end. Thus one session fails up to that time over the turn.
  */
 export const drainBand = (term: Pick<BacklogTerm, "drain"> & Partial<Pick<BacklogTerm, "slowest">>, mean: Quantity, connections: number, sessions: number): CountBand => {
   const turn = turnOf(mean, connections);

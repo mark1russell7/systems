@@ -184,7 +184,7 @@ describe("the drain failures of the backlog term (SYS-43)", () => {
   });
 });
 
-/** This is the term of SYS-45: the term of SYS-43 with one slow session of up to 100 ms and the early start of the last failure. */
+/** The term of SYS-45 is the term of SYS-43 with a slow session of up to 100 ms and the early start. */
 const TERMS: BacklogTerm = { ...DRAINS, slowest: ms(100), early: true };
 
 describe("the slow session and the early last failure of the backlog term (SYS-45)", () => {
