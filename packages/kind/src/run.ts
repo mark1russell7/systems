@@ -225,14 +225,27 @@ const sample = async (ctx: Context, ours: ReadonlySet<string>): Promise<LoadSamp
   return { t: Date.now(), idle, top, foreign };
 };
 
-/** This function waits until the VM is quiet: no lab container of another agent, and an idle share of the CPUs. */
-const quiet = async (ctx: Context, ours: ReadonlySet<string>): Promise<LoadSample> => {
+/**
+ * A run waits for a quiet VM for this time at the most, the bound of the wait for rest. Then the run
+ * is void with its reason. In a run of SYS-42, a Cilium cluster at rest stayed at 47% to 59% idle.
+ * This is below the share of 60%. That wait had no bound, and it took approximately 30 min.
+ */
+const QUIET_WITHIN = 300_000;
+
+/**
+ * This function waits until the VM is quiet: no lab container of another agent, and an idle share of
+ * the CPUs. It gives null, or the reason when the VM is not quiet in `within` ms.
+ */
+const quiet = async (ctx: Context, ours: ReadonlySet<string>, within = QUIET_WITHIN): Promise<string | null> => {
+  const end = Date.now() + within;
   for (;;) {
     // the prober and the watcher start again with new names, thus the names of this lab come at each sample
     const load = await sample(ctx, new Set([...ours, ...ctx.lab.own(), ctx.loader.getName().replace(/^\//, "")]));
     ctx.loads.push(load);
-    if (load.foreign.length === 0 && load.idle >= ctx.idle) return load;
-    ctx.log(`  waiting: ${Math.round(load.idle * 100)}% idle, other lab containers: ${load.foreign.join("; ") || "none"}`);
+    if (load.foreign.length === 0 && load.idle >= ctx.idle) return null;
+    const why = `${Math.round(load.idle * 100)}% idle, other lab containers: ${load.foreign.join("; ") || "none"}`;
+    if (Date.now() >= end) return `the VM was not quiet in ${within / 1000} s: ${why}`;
+    ctx.log(`  waiting: ${why}`);
     await sleep(30_000);
   }
 };
@@ -627,7 +640,11 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
   if (atRest !== null) return empty(`the cell was not at rest: ${atRest}`, await lab.now());
   await probeThePods(ctx);
   await pollListeners(ctx);
-  await quiet(ctx, ours);
+  const loud = await quiet(ctx, ours);
+  if (loud !== null) {
+    ctx.log(`  ${loud}`);
+    return empty(loud, await lab.now());
+  }
   const zoneLoss = cell.trigger.kind === "zone-loss";
   // the node of a zone loss must be ready for the node lifecycle controller too, with no taint of the last loss
   const lost = zoneLoss ? await nodeSteady(cluster, lostNodeOf(cluster), 300_000) : null;

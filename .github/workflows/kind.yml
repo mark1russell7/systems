@@ -16,6 +16,10 @@
 # The shards keep the cells of one kube-proxy mode and one mesh flavor together (shardOf).
 # A pull request that changes this file runs a smoke: the calibration of each mode, 2 runs, one cluster.
 #
+# The step The cells stops after `minutes` (36 by default), approximately 3 times the 12 min of a
+# shard of the backlog cells. Thus a shard that does not end fails fast, and the job still uploads
+# its records. A dispatch of a long catalog sets a larger bound, for example -f minutes=300.
+#
 # A runner has 4 CPUs and 16 GB. A cluster of one control plane and 2 workers idles at about 1.2 GB
 # and a quarter of a CPU, thus each job makes one cluster at a time.
 name: Kind
@@ -38,6 +42,9 @@ on:
       capture:
         description: Also capture the services of the agent of Cilium (true or false)
         default: "false"
+      minutes:
+        description: The bound of the step The cells on each runner, in minutes (5 to 330)
+        default: "36"
   pull_request:
     paths: [".github/workflows/kind.yml"]
 
@@ -55,12 +62,19 @@ jobs:
       - id: shards
         env:
           SHARDS: ${{ github.event_name == 'workflow_dispatch' && inputs.shards || '1' }}
+          MINUTES: ${{ github.event_name == 'workflow_dispatch' && inputs.minutes || '36' }}
         run: |
           case "$SHARDS" in
             ''|*[!0-9]*) echo "::error::shards must be a whole number"; exit 1 ;;
           esac
           if [ "$SHARDS" -lt 1 ] || [ "$SHARDS" -gt 20 ]; then
             echo "::error::shards must be 1 to 20"; exit 1
+          fi
+          case "$MINUTES" in
+            ''|*[!0-9]*) echo "::error::minutes must be a whole number"; exit 1 ;;
+          esac
+          if [ "$MINUTES" -lt 5 ] || [ "$MINUTES" -gt 330 ]; then
+            echo "::error::minutes must be 5 to 330"; exit 1
           fi
           echo "count=$SHARDS" >> "$GITHUB_OUTPUT"
           echo "list=$(seq -s, 0 $((SHARDS - 1)) | sed 's/^/[/; s/$/]/')" >> "$GITHUB_OUTPUT"
@@ -226,6 +240,8 @@ jobs:
             echo "::warning::a kernel feature of the borders of T15 is missing, see borders.txt"
           fi
       - name: The cells
+        # a bound for a shard that does not end (SYS-43): the step fails, and the steps below still run
+        timeout-minutes: ${{ fromJSON(github.event_name == 'workflow_dispatch' && inputs.minutes || '36') }}
         env:
           KIND_LAB: "1"
           KIND_SHARD: ${{ matrix.shard }}/${{ needs.plan.outputs.count }}

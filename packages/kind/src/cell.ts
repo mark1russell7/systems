@@ -456,6 +456,13 @@ export interface BacklogTerm<A = Quantity> {
   readonly requests: { readonly lo: number; readonly hi: number };
   /** This count is the most sessions on the target in a run. The observation of a run waits for their drain. */
   readonly most: number;
+  /**
+   * With this flag (SYS-43), the count also has the drain failures of each session. A session fails
+   * a request each turn until the window closes, and the window closes up to n × d.hi after the band
+   * end. Thus each session fails 0 to ceil(n × d.hi / turn) more requests, and r more (`drainBand`).
+   * Without it, the drain adds only r, as in SYS-42.
+   */
+  readonly drains?: boolean | undefined;
 }
 
 /** A replica is one pod of the service at the start of a run. */
