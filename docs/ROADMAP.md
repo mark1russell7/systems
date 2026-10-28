@@ -920,17 +920,30 @@ That wait had no bound. With this item, the wait stops after 5 min, and the run 
 
 ### SYS-44 · A ledger of the flaky, void and hung CI runs
 
-- **Status:** later
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-43
 - **Started:** 2026-10-28
-- **Links:** [#255](https://github.com/mark1russell7/systems/pull/255), [The hung run](https://github.com/mark1russell7/systems/actions/runs/40591832542)
+- **Shipped:** 2026-10-28
+- **Links:** [#255](https://github.com/mark1russell7/systems/pull/255), [#258](https://github.com/mark1russell7/systems/pull/258), [The hung run](https://github.com/mark1russell7/systems/actions/runs/40591832542), [The void run](https://github.com/mark1russell7/systems/actions/runs/40608863500), [The CI ledger](https://mark1russell7.github.io/systems/results/ci/)
 
 The repo has no ledger of the CI runs that did not give a clean result. Thus the hang of SYS-42 is only a fact in the record of SYS-43. This item gives one ledger for each workflow of cells, with one entry for each event. An event is a void run, a hung or cancelled shard, or a step that hit its timeout. A job that failed for a cause outside the cell is also an event.
 
 Each entry gives the run, the shard, the cell, the step, the duration, the cause, and the link. The site shows the flake rate of each workflow and each dataplane from the ledger. A script can add the entries from the artifacts of a run, thus no entry is written by hand.
 
 The first entries are the hang of run 40591832542 and the void run of run 40608863500. The quiet bound of SYS-43 can give more void runs on Cilium. Thus the ledger also tells if the idle threshold of 60% must change for Cilium.
+
+The ledgers are `packages/site/src/data/ci/kind.json` and `packages/site/src/data/ci/cells.json`. Each file has the runs that the script examined, and one entry for each event. The functions are in `packages/site/src/lib/ci.ts`. The page The CI ledger of the site shows the flake rates.
+
+The script is `packages/site/scripts/ci.ts`. It reads a run with `gh`: the jobs, the artifacts, and the annotations and the log of each job that did not succeed. A void run comes from the raw records. A hung shard comes from the log: the step waited for a quiet VM for half of its time or more. A second scan of a run adds no entry twice.
+
+The first scan examined 22 runs of Kind from 2026-10-26 to 2026-10-28, with 80 shards. It also examined 12 runs of Cells from 2026-10-24 to 2026-10-27, with 47 shards.
+
+The result: Kind has 21 events in 21 of 80 shards, a flake rate of 26.3%. Of these, 19 are the jobs of 3 runs that failed in a test outside the cells. These tests were a snapshot of the predictions and an assertion of the catalogs. The other two events are the first entries. Cells has no event in its 3074 runs of the harness.
+
+The hang: the shard of 6 sessions waited for a quiet VM for approximately 78 of its 86 min, at 46% to 59% idle. Then a person cancelled the run. The void run: the wait stopped after 300 s at 59% idle.
+
+The idle share of 60% holds for Cilium. Of 230 runs on Cilium, 2 are void or hung by the wait, approximately 0.9%. The limit is 5%. The page applies the rule again after each scan.
 
 ## The systems of S1
 
