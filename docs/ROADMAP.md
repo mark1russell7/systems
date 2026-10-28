@@ -1001,6 +1001,25 @@ The keys of `paths` are the probe kinds, and the decision is the `Decision` of `
 
 It comes as a PATCH before 1.0.0: new optional options, an optional member of an interface, and new exports.
 
+### SYS-47 · The host entry runs on a real Windows and Linux runner
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** SYS-36
+- **Started:** 2026-10-28
+- **Shipped:**
+- **Links:**
+
+Each unit test of the host entry uses the fake host, `fakeHost`. Thus no test used the real ports of Node (`nodeHostPorts`) on a real system before this item.
+
+A new test, `src/host-it.test.ts`, runs the real ports in the job `process`, on Linux and on Windows. Only CI starts it, with `HOST_IT=1`.
+
+- **Processes.** It starts a child, gets its start time and sends it a signal. A tree stop ends a child and its grandchild, and a different process stays alive.
+- **The lock and the discovery file.** The lock of a live child gives `held`. After the end of the child, a new take recovers the lock, and its discovery file reads `stale`.
+- **Probes and commands.** It sends probes to local servers and to a closed port. A command gives its exit code, 127 when its program is missing, and 124 at its timeout.
+- **A group.** The program `b` starts only after the probe of `a` passes. After a crash, `a` starts again after its backoff. The logs go to their files, and the stop leaves no process.
+- **An install.** It installs a real systemd user unit or Windows task, gets its status and removes it.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue
