@@ -1,4 +1,5 @@
 import type { Band, Dataplane, Reference, TriggerKind } from "@mark1russell7/kind";
+import { backlogEnd } from "@mark1russell7/kind";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { CallerFault, Candidate } from "./callers.ts";
@@ -292,14 +293,15 @@ const NO_RUN = "No copy of a kind run has a result of the cells of this incident
 /**
  * This function gives the window of the last failure of a candidate from its cell: the reference
  * event and the band after it. A false failure has its window in its departure, and a shared
- * dependency has its window in its removal.
+ * dependency has its window in its removal. A window with the backlog term (SYS-48) closes later with
+ * each session on the target. Thus its band is the band of each n from 0 to the most sessions (`backlogEnd`).
  */
 const windowOf = (id: string): Window => {
   const cell = CALLERS_CELLS.find((each) => each.id === id);
   if (cell === undefined) throw new Error(`${id}: no S2 cell of the catalog`);
   const p = cell.prediction.kind === "leaves" || cell.prediction.kind === "removal" ? cell.prediction.window : cell.prediction;
   if (p === undefined || p.kind !== "window" || p.end === null) throw new Error(`${id}: an S2 cell has a window that ends`);
-  return { from: p.end.from, band: p.end.band };
+  return { from: p.end.from, band: p.backlog === undefined ? p.end.band : { lo: p.end.band.lo, hi: backlogEnd(p.end.band, p.backlog, p.backlog.most).hi } };
 };
 
 /** This function gives the band of the removal of a candidate from its cell, after the fault. It is the departure of a false failure, or the empty Service of a shared dependency. */

@@ -1022,6 +1022,33 @@ A new test, `src/host-it.test.ts`, runs the real ports in the job `process`, on 
 
 In the first CI check, each test passed on the two runners. Thus the test found no bug in the real ports, and the package keeps its version 0.6.3. On Linux, a step of the job starts the systemd user manager with linger.
 
+### SYS-48 · The stall cells of C get the backlog band
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** SYS-45
+- **Started:** 2026-10-28
+- **Shipped:**
+- **Links:** [SYS-45](#sys-45--two-terms-of-the-window-band-the-slow-session-and-the-early-start), [The Cilium run](https://github.com/mark1russell7/systems/actions/runs/40558968382)
+
+In kind run 40558968382, C in the stall of Cilium failed 1507 requests in one run. The band was 0 to 1503. The last failure came 166 ms after the band end of 10 s, with 3 sessions on the target. This miss is the backlog of the target after the resume. SYS-42 to SYS-45 measured that backlog in their own cells.
+
+This item gives the stall cells of C (`S2.T07.<mode>.goaway.stall`) the term of SYS-45. The term is `STALL_TERM` in `packages/cells/src/callers.ts`. It has d of 10 ms to 45 ms, r of 0 to 3, a slowest drain of 100 ms and the early start. The most sessions is 3, one for each client of C.
+
+The cells use the functions of the kind judge, `requestBand` and `backlogEnd`. The terms moved to `packages/cells/src/terms.ts`, because `backlog.ts` imports `callers.ts`. The values of the terms do not change.
+
+The band before: the window ends 9.98 s to 10 s after the fault, and 0 to 1503 requests fail. The band after: the bare end stays 9.98 s to 10 s. With n sessions on the target, the window closes up to (n − 1) × 45 ms + 100 ms later, 10.19 s with 3 sessions. 0 to 1542 requests fail at the setting of 20 ms.
+
+Only C gets the term. A and B do not wait for the resume: their last pick of a chain comes before the earliest removal. The session check of D closes each session on the target long before the resume. Thus no other cell has a session on the target when the target drains its backlog.
+
+The old records are not the test. Each old record of the 4 cells holds with the new band: kind runs 40406199754 and 40558968382, 12 runs.
+
+The prediction: each of the 4 cells holds in each of its 3 counted runs, 12 of 12. With n sessions on the target, the last failure comes no later than (n − 1) × 45 ms + 100 ms after 10 s.
+
+The decision rule: a run counts if it is not a warmup and the wait for a quiet runner does not void it. Each cell needs 3 counted runs. A cell with a void run starts again once, alone, and its first 3 counted runs count. A run holds if the kind judge finds each failure in the window and the count in its band.
+
+The band hits if each counted run of the 4 cells holds. A cell that fails in a run is a miss. A miss with the same sign in each run is a bias, and the next band adds the missing term. The band of this item stays as committed, and the thresholds do not change after the result.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue

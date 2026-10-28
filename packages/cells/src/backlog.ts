@@ -5,12 +5,16 @@ import { valueIn } from "@mark1russell7/quantity";
 import type { Candidate, Connections, Expected } from "./callers.ts";
 import { CANNOT_SERVE, STALL_HOLD } from "./callers.ts";
 import { CHART_READINESS, PROPAGATION, T07_WORKLOAD, WORKERS, kubeDefaults, ms, s, say } from "./kind.ts";
+import { BACKLOG_CONNECTIONS, BACKLOG_DRAIN_TERM, BACKLOG_TERM, BACKLOG_TERMS_TERM } from "./terms.ts";
+
+// the terms are in `terms.ts`, thus `callers.ts` can use them with no cycle of imports
+export { BACKLOG_CONNECTIONS, BACKLOG_DRAIN_TERM, BACKLOG_TERM, BACKLOG_TERMS_TERM } from "./terms.ts";
 
 /**
  * The cells of SYS-40: the backlog of a stalled target after its resume, from the sessions on the
  * target. The Cilium run of the stall (#246) had failed requests of C after the band end of 10 s, in
  * each of 3 runs. These cells test the term of that overshoot. The band of the stall in `callers.ts`
- * stays as committed, and its records are judged with it.
+ * stayed as committed until SYS-48. SYS-48 gives the stall cells of C the term of SYS-45.
  *
  * The term: with n sessions on the target, the window of the stall closes up to n × d after the band
  * end. The failed requests grow by up to n × r. The value d is the drain time of one session after
@@ -30,8 +34,6 @@ import { CHART_READINESS, PROPAGATION, T07_WORKLOAD, WORKERS, kubeDefaults, ms, 
 /** These are the counts of the sessions on the target, one cell for each. */
 export const BACKLOG_SESSIONS: readonly number[] = [1, 2, 3, 6];
 
-/** This count is the sessions of each client. Three clients have 6, thus the cell with 6 sessions on the target has each session there. */
-export const BACKLOG_CONNECTIONS = 2;
 
 /**
  * This workload is the workload of C with two sessions for each client. A client sends a request each
@@ -135,20 +137,6 @@ export const backlogCellOf = (mode: Dataplane, onTarget: number): KindCell => {
 /** These are the cells of the backlog: one for each count of the sessions on the target, in each mode. */
 export const BACKLOG_CELLS: readonly KindCell[] = BACKLOG_MODES.flatMap((mode) => BACKLOG_SESSIONS.map((onTarget) => backlogCellOf(mode, onTarget)));
 
-/**
- * The backlog band of SYS-42 is the second band of the stall of C. The bands above stay as
- * committed. The cells of SYS-40 found two biases of the first band.
- *
- * - The drain of a session after the resume is 10 ms to 45 ms (a fit gave approximately 26 ms), not
- *   40 ms to 70 ms. The overshoot is linear in n.
- * - The failed requests come from the measured period of the clients, not from `every`. The timer of
- *   a client of 10 ms fired each 10.10 ms to 10.26 ms. Thus the band counts from the mean period
- *   of the run, not from its median. The mean period is `period` of the facts (SYS-41).
- *
- * The term is in the window of the cell (`backlog`), thus the judge applies it to each run. The value
- * n is the sessions on the target at the fault (`sessions` of the facts), not the placement.
- */
-export const BACKLOG_TERM: BacklogTerm = { drain: { lo: ms(10), hi: ms(45) }, requests: { lo: 0, hi: 3 }, most: (WORKERS + 1) * BACKLOG_CONNECTIONS };
 
 /** This is the prediction of a cell of the backlog band. It is the prediction of the first band with the term of SYS-42. */
 export interface BacklogBandPrediction {
@@ -225,18 +213,6 @@ export const backlogBandCellOf = (mode: Dataplane, onTarget: number): KindCell =
 /** These are the cells of the backlog band (SYS-42): the cells of SYS-40 with the second band. Their ids and names are new, thus the records of SYS-40 keep the first band. */
 export const BACKLOG_BAND_CELLS: readonly KindCell[] = BACKLOG_MODES.flatMap((mode) => BACKLOG_SESSIONS.map((onTarget) => backlogBandCellOf(mode, onTarget)));
 
-/**
- * The drain band of SYS-43 is the third band of the stall of C. The bands above stay as committed.
- * The cells of SYS-42 found one bias of the second band: the count was high, in each run with 6
- * sessions. The window band held in 19 of 20 runs.
- *
- * The second band did not have this term: a session fails a request each turn until the window
- * closes. The window closes up to n × d.hi after the band end. Thus each session fails 0 to
- * ceil(n × d.hi / turn) more requests in the drain, and the total grows as n² × d / turn. The turn
- * is c × p: the kept connections of a client times the mean period of the run. The values d and r
- * are the values of SYS-42. They are not fitted again.
- */
-export const BACKLOG_DRAIN_TERM: BacklogTerm = { ...BACKLOG_TERM, drains: true };
 
 /** This function gives the cell of C in a stall with n sessions on the target, in a mode, with the drain band of SYS-43. */
 export const backlogDrainCellOf = (mode: Dataplane, onTarget: number): KindCell => {
@@ -252,23 +228,6 @@ export const backlogDrainCellOf = (mode: Dataplane, onTarget: number): KindCell 
 /** These are the cells of the drain band (SYS-43): the cells of SYS-42 with the third band. Their ids and names are new, thus the records of SYS-40 and SYS-42 keep their bands. */
 export const BACKLOG_DRAIN_CELLS: readonly KindCell[] = BACKLOG_MODES.flatMap((mode) => BACKLOG_SESSIONS.map((onTarget) => backlogDrainCellOf(mode, onTarget)));
 
-/**
- * The terms band of SYS-45 is the fourth band of the stall of C. The bands above stay as committed.
- * In SYS-42 and SYS-43, the window band missed 4 runs, each with 1 session. One was below n × d.lo
- * (9 ms), and 3 were above n × d.hi (50 ms, 58 ms and 90 ms). The signs differ, thus they are not a bias.
- * This band tests two terms.
- *
- * - The early start (`early`): the last failed request can start up to one turn before the window
- *   closes. The end band of the judge opens one turn before the band end, but the overshoot band
- *   of SYS-42 opened at n × d.lo. Thus its low end goes down by one turn, 20 ms at the setting.
- * - The slow session (`slowest`): one session can drain for more than d.hi. With n sessions, the
- *   other sessions average it out, thus it shows best with 1 session. The largest drain of one session
- *   was 90 ms in 15 runs with 1 session, in SYS-40, SYS-42 and SYS-43. The term rounds it up to 100 ms.
- *
- * The values d and r stay as in SYS-42. The cells have 1 and 2 sessions on the target, because the
- * zones of the two terms are largest there, and 10 runs each.
- */
-export const BACKLOG_TERMS_TERM: BacklogTerm = { ...BACKLOG_DRAIN_TERM, slowest: ms(100), early: true };
 
 /** These are the counts of the sessions on the target of the terms band. */
 export const BACKLOG_TERMS_SESSIONS: readonly number[] = [1, 2];

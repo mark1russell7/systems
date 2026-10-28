@@ -4354,12 +4354,12 @@
                       "unit": "s"
                     },
                     "hi": {
-                      "value": 10,
+                      "value": 10.19,
                       "unit": "s"
                     }
                   },
                   "from": "fault",
-                  "holds": false,
+                  "holds": true,
                   "evidence": {
                     "run": 40406199754,
                     "cell": "S2.T07.iptables.goaway.stall",
@@ -4394,7 +4394,7 @@
                       "unit": "{request}"
                     },
                     "hi": {
-                      "value": 1503,
+                      "value": 1542,
                       "unit": "{request}"
                     }
                   },
@@ -4850,12 +4850,12 @@
                       "unit": "s"
                     },
                     "hi": {
-                      "value": 10,
+                      "value": 10.19,
                       "unit": "s"
                     }
                   },
                   "from": "fault",
-                  "holds": false,
+                  "holds": true,
                   "evidence": {
                     "run": 40406199754,
                     "cell": "S2.T07.ipvs.goaway.stall",
@@ -4890,7 +4890,7 @@
                       "unit": "{request}"
                     },
                     "hi": {
-                      "value": 1503,
+                      "value": 1542,
                       "unit": "{request}"
                     }
                   },
@@ -5346,12 +5346,12 @@
                       "unit": "s"
                     },
                     "hi": {
-                      "value": 10,
+                      "value": 10.19,
                       "unit": "s"
                     }
                   },
                   "from": "fault",
-                  "holds": false,
+                  "holds": true,
                   "evidence": {
                     "run": 40406199754,
                     "cell": "S2.T07.nftables.goaway.stall",
@@ -5386,7 +5386,7 @@
                       "unit": "{request}"
                     },
                     "hi": {
-                      "value": 1503,
+                      "value": 1542,
                       "unit": "{request}"
                     }
                   },
@@ -5842,12 +5842,12 @@
                       "unit": "s"
                     },
                     "hi": {
-                      "value": 10,
+                      "value": 10.19,
                       "unit": "s"
                     }
                   },
                   "from": "fault",
-                  "holds": false,
+                  "holds": true,
                   "evidence": {
                     "run": 40558968382,
                     "cell": "S2.T07.cilium.goaway.stall",
@@ -5882,11 +5882,11 @@
                       "unit": "{request}"
                     },
                     "hi": {
-                      "value": 1503,
+                      "value": 1542,
                       "unit": "{request}"
                     }
                   },
-                  "holds": false,
+                  "holds": true,
                   "evidence": {
                     "run": 40558968382,
                     "cell": "S2.T07.cilium.goaway.stall",

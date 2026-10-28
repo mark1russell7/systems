@@ -1,7 +1,7 @@
 import type { Recovery } from "@mark1russell7/algebra";
 import { recovery, timerOf } from "@mark1russell7/algebra";
-import type { Dataplane, Declaration, Flap, KindCell, Workload } from "@mark1russell7/kind";
-import { DATAPLANES, NODE_LIFECYCLE, kubeletBand, latchBand, learnWindow, nodeLossBand, nodeReturnBand, removalBand, stallRemovalBand } from "@mark1russell7/kind";
+import type { BacklogTerm, Dataplane, Declaration, Flap, KindCell, Workload } from "@mark1russell7/kind";
+import { DATAPLANES, NODE_LIFECYCLE, backlogEnd, kubeletBand, latchBand, learnWindow, nodeLossBand, nodeReturnBand, removalBand, requestBand, stallRemovalBand } from "@mark1russell7/kind";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { recoverSpan } from "@mark1russell7/service";
 import type { Extent, Quantity } from "@mark1russell7/quantity";
@@ -9,6 +9,7 @@ import { isUnbounded, valueIn } from "@mark1russell7/quantity";
 import type { SessionCheckKnobs } from "@mark1russell7/service/http-client";
 import { LINUX_66, given, seconds } from "./catalog.ts";
 import { CHART_READINESS, DESIGN, DESIGN_REDIS, PROPAGATION, T07_WORKLOAD, WORKERS, kubeDefaults, ms, s, say } from "./kind.ts";
+import { BACKLOG_TERMS_TERM } from "./terms.ts";
 
 /**
  * The S2 cells of the dimension "how callers learn that a pod cannot serve". Clients send requests
@@ -177,6 +178,17 @@ export const SELECTION: Readonly<Record<Dataplane, "random" | "in turn">> = { ip
 /** This count is the clients: one on each worker and one on the control plane. */
 const CLIENTS = WORKERS + 1;
 
+/**
+ * This term (SYS-48) is the backlog of the target after the resume, in the stall cells of C (GOAWAY).
+ * It is the term of SYS-45 (`BACKLOG_TERMS_TERM`), which kind run 40622388164 confirmed. Each client of C has one
+ * session, thus the most sessions on the target is the count of the clients.
+ *
+ * Only C gets the term. A and B do not wait for the resume: their last pick of a chain comes before
+ * the earliest removal. The session check of D closes each session on the target long before the
+ * resume. Thus no other candidate has a session on the target when it drains its backlog.
+ */
+export const STALL_TERM: BacklogTerm = { ...BACKLOG_TERMS_TERM, most: CLIENTS };
+
 /** This count is the replicas of the S2 cells. One of them is the target. */
 const REPLICAS = 2;
 
@@ -289,6 +301,8 @@ export interface PartitionPrediction {
   readonly start: Band;
   readonly end: Band;
   readonly outcomes?: readonly string[];
+  /** This term is the backlog of the target after the resume (SYS-48). The judge adds it to `end` with n of each run. */
+  readonly backlog?: BacklogTerm;
   readonly why: string;
 }
 
@@ -544,18 +558,23 @@ export const stallOf = (mode: Dataplane, candidate: Candidate): PartitionPredict
     if (lastPick >= removed.lo) throw new Error(`the last pick of a chain comes ${lastPick} s after the fault, after the earliest removal (${removed.lo} s)`);
     return { ...picks, why: `${picks.why}. The last pick of a chain comes ${say(time(lastPick))} after the fault at the latest, before the removal. Thus the removal changes nothing` };
   }
-  // C: the established flow keeps the session on the target, and its streams fail until one timeout before the resume
+  // C: the established flow keeps the session on the target, and its streams fail until one timeout before the resume.
+  // After the resume, the target drains the backlog of each session (SYS-48). The judge adds the term with n of each run
   const on = targetConnections(mode, 1);
   const end = { lo: time(hold - timeout - every), hi: time(hold - timeout) };
-  // a count rounded to six places, thus 10 s / 20 ms gives 500
-  const of = (span: number): number => Math.round((span / every) * 1e6) / 1e6;
-  const expected = { lo: requests(on.lo.value * Math.floor(of(hold - timeout - every))), hi: requests(on.hi.value * (Math.ceil(of(hold - timeout)) + 1)), connections: on };
+  const turns = workload.connections ?? 1;
+  const fewest = requestBand(STALL_TERM, end.hi, workload.every, turns, on.lo.value);
+  const most = requestBand(STALL_TERM, end.hi, workload.every, turns, on.hi.value);
+  const expected = { lo: requests(fewest.lo), hi: requests(most.hi), connections: on };
+  const closes = backlogEnd(end, STALL_TERM, on.hi.value);
+  const slowest = STALL_TERM.slowest === undefined ? "" : `, and one slow session up to ${say(STALL_TERM.slowest)}`;
   return {
     expected,
     start: { lo: s(0), hi: time(every) },
     end,
     outcomes: ["timeout"],
-    why: `${stays}. A client with its session on the target gets no frame, and each stream fails at its timeout (${say(workload.timeout)}). The established flow keeps the session on the target after the removal. The loop resumes ${say(STALL_HOLD)} after the fault, and its timers come before its reads. Thus the server closes each quiet session at its idle close, with GOAWAY. Each stream in flight is above the last stream of the GOAWAY, thus the client sends it again on a new session, to the other replica. ${on.lo.value}–${on.hi.value} of the ${on.of.value} sessions are on the target, thus about ${expected.lo.value}–${expected.hi.value} requests fail`,
+    backlog: STALL_TERM,
+    why: `${stays}. A client with its session on the target gets no frame, and each stream fails at its timeout (${say(workload.timeout)}). The established flow keeps the session on the target after the removal. The loop resumes ${say(STALL_HOLD)} after the fault, and its timers come before its reads. Thus the server closes each quiet session at its idle close, with GOAWAY. Each stream in flight is above the last stream of the GOAWAY, thus the client sends it again on a new session, to the other replica. Before the close, the target drains the backlog of each of its sessions, ${say(STALL_TERM.drain.lo)}–${say(STALL_TERM.drain.hi)} for each one${slowest}. Thus the window closes after the band end of ${say(end.hi)}, up to ${say(closes.hi)} after the fault with ${on.hi.value} sessions on the target. Each session on the target fails ${STALL_TERM.requests.lo}–${STALL_TERM.requests.hi} more requests in its drain, and one request each turn until the window closes. ${on.lo.value}–${on.hi.value} of the ${on.of.value} sessions are on the target, thus about ${expected.lo.value}–${expected.hi.value} requests fail at the setting of ${say(workload.every)}`,
   };
 };
 
@@ -1309,6 +1328,7 @@ const cellOf = (mode: Dataplane, candidate: Candidate, fault: CallerFault): Kind
         end: { from: "fault", band: predicted.end },
         certain: predicted.expected.connections.lo.value > 0,
         ...(predicted.outcomes !== undefined ? { outcomes: predicted.outcomes } : {}),
+        ...(predicted.backlog !== undefined ? { backlog: predicted.backlog } : {}),
         why: predicted.why,
       },
       calibrates: false,
