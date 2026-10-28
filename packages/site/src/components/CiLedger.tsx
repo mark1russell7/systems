@@ -65,8 +65,12 @@ export function CiRates(props: { readonly workflow: string }): ReactElement {
           <dd>{count(rates.shards)}</dd>
         </div>
         <div>
-          <dt>Shards with an event</dt>
+          <dt>Shards with a flake</dt>
           <dd>{count(rates.flaky)}</dd>
+        </div>
+        <div>
+          <dt>Shards with only failed tests</dt>
+          <dd>{count(rates.failed)}</dd>
         </div>
         <div>
           <dt>Flake rate</dt>

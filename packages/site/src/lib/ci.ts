@@ -404,12 +404,21 @@ export interface DataplaneRate {
   readonly threshold: "holds" | "change";
 }
 
-/** The flake rate of one workflow: the shards with at least one event, of all its shards, and the rate of each dataplane. */
+/**
+ * A failed test is a fault of the code under test, not of CI. Thus its event is in the ledger, but it is not a flake.
+ */
+export const isFlake = (event: LedgerEvent): boolean => event.cause !== "test";
+
+/**
+ * The flake rate of one workflow: the shards with at least one flake, of all its shards, and the rate of each dataplane.
+ * `failed` counts the shards that have only events of failed tests.
+ */
 export interface WorkflowRate {
   readonly workflow: string;
   readonly runs: number;
   readonly shards: number;
   readonly flaky: number;
+  readonly failed: number;
   readonly rate: number;
   readonly events: number;
   readonly causes: Readonly<Partial<Record<Cause, number>>>;
@@ -419,7 +428,11 @@ export interface WorkflowRate {
 /** This function gives the flake rates of a ledger. A rate with no runs is 0. */
 export const ratesOf = (ledger: Ledger): WorkflowRate => {
   const shards = ledger.runs.reduce((sum, run) => sum + run.shards, 0);
-  const flaky = new Set(ledger.events.filter((event) => event.shard !== null).map((event) => `${event.run}/${event.job}`)).size;
+  const shardOf = (event: LedgerEvent): string => `${event.run}/${event.job}`;
+  const inShard = ledger.events.filter((event) => event.shard !== null);
+  const flakes = new Set(inShard.filter(isFlake).map(shardOf));
+  const flaky = flakes.size;
+  const failed = new Set(inShard.map(shardOf).filter((shard) => !flakes.has(shard))).size;
   const causes: Partial<Record<Cause, number>> = {};
   for (const event of ledger.events) causes[event.cause] = (causes[event.cause] ?? 0) + 1;
   const names = [...new Set([...ledger.runs.flatMap((run) => Object.keys(run.runs)), ...ledger.events.flatMap((event) => (event.dataplane === null ? [] : [event.dataplane]))])].sort();
@@ -440,5 +453,5 @@ export const ratesOf = (ledger: Ledger): WorkflowRate => {
       threshold: quietRate > QUIET_LIMIT ? "change" : "holds",
     };
   });
-  return { workflow: ledger.workflow, runs: ledger.runs.length, shards, flaky, rate: shards === 0 ? 0 : flaky / shards, events: ledger.events.length, causes, dataplanes };
+  return { workflow: ledger.workflow, runs: ledger.runs.length, shards, flaky, failed, rate: shards === 0 ? 0 : flaky / shards, events: ledger.events.length, causes, dataplanes };
 };
