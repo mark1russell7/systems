@@ -4,6 +4,14 @@ This file is the source of truth for the work of the program. A live tracker sho
 
 Each item has an id, a status, an area, the items that it needs, its dates and its links. The statuses are `done`, `in progress`, `blocked`, `waiting on Mark` and `later`. An item that waits on Mark says what Mark does.
 
+## The handoff (2026-10-28)
+
+The program is paused. The fleet works on Graph first. The program starts again when a consumer finds a gap in the service or kind packages. That gap comes first, and it is released as a PATCH when its checks pass.
+
+- **S2:** After SYS-48, no cell of S2 fails. Kind supports kube-proxy in each mode, Cilium and Istio. The next step is a design of the cells for CoreDNS. kube-vip, MetalLB and Pulsar come after it. Do one intermediary in each context. Write the prediction before the dispatch.
+- **S6:** SYS-36, SYS-46 and SYS-47 are done, in service 0.6.3. SYS-6 and SYS-17 stay later, because no consumer waits on them. The next step is SYS-6 when a consumer needs streams.
+- **SITE-UX round 3:** It is due approximately 2026-11-01. The next step is a visual on the kind page. It shows the C-stall band of SYS-48 against the count of each mode.
+
 ## The slices of the program
 
 ### R · The research rounds R1 to R5
