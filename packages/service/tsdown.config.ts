@@ -11,7 +11,7 @@ export default defineConfig({
   // the HTTP client, which loads node:http only when it connects, the WebSocket client, which loads ws
   // only when it connects, the gRPC client, which loads @grpc/grpc-js only when it connects, the timers without node: or zod,
   // the edge of a service in Node (node:http and node:net only), the keyed limiter, which loads only quantity,
-  // and the drain rules as data, which load no module
+  // the drain rules as data, which load no module, and the host of a program in Node, which uses only node: built-ins
   entry: [
     "src/index.ts",
     "src/testing.ts",
@@ -28,6 +28,7 @@ export default defineConfig({
     "src/http.ts",
     "src/limiter.ts",
     "src/rules.ts",
+    "src/host.ts",
   ],
   outDir: "build",
   format: "esm",

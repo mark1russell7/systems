@@ -9,6 +9,7 @@ import { statusLineJudge } from "./client/dial.ts";
 import * as clockEntry from "./clock.ts";
 import * as grpcEntry from "./grpc.ts";
 import * as heartbeatEntry from "./heartbeat.ts";
+import * as hostEntry from "./host.ts";
 import * as httpEntry from "./http.ts";
 import * as httpClientEntry from "./http-client.ts";
 import * as root from "./index.ts";
@@ -82,7 +83,7 @@ const reachAll = (entry: string, from = here): string[] => {
 
 describe("zod is an optional peer: no entry of the service loads it (SYS-12)", () => {
   it("reaches no zod from any entry, through quantity and the replay of the algebra too", () => {
-    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "websocket.ts", "grpc.ts", "clock.ts", "heartbeat.ts", "backoff.ts", "limiter.ts", "rules.ts"])
+    for (const entry of ["index.ts", "testing.ts", "redis.ts", "pg.ts", "mongodb.ts", "rabbitmq.ts", "http-client.ts", "websocket.ts", "grpc.ts", "clock.ts", "heartbeat.ts", "backoff.ts", "limiter.ts", "rules.ts", "host.ts"])
       expect(reachAll(entry), entry).not.toContain("zod");
     // the root loads no other package and no node: module at run time
     expect(reachAll("index.ts")).toEqual([]);
@@ -354,6 +355,64 @@ describe("the rules entry: the drain rules as data, without kind and its Testcon
     };
     expect(manifest.exports["./rules"]).toBe("./src/rules.ts");
     expect(manifest.publishConfig.exports["./rules"]).toEqual({ types: "./build/rules.d.ts", default: "./build/rules.js" });
+  });
+});
+
+describe("the host entry: Node only, and its effects go through ports (SYS-36)", () => {
+  it("loads only node: built-ins and quantity, and no fakes of its tests", () => {
+    const { files, packages } = reach("host.ts");
+    expect(packages).toEqual(["@mark1russell7/quantity", "node:child_process", "node:fs/promises", "node:net", "node:os", "node:path"]);
+    expect(files.filter((file) => file.includes("fake"))).toEqual([]);
+  });
+
+  it("gives its functions, and the root does not give them", () => {
+    expect(Object.keys(hostEntry).sort()).toEqual([
+      "DEFAULT_RESTART",
+      "START_MARGIN_MS",
+      "acquireInstanceLock",
+      "discoveryOf",
+      "groupProblems",
+      "inspectInstanceLock",
+      "installService",
+      "joinPath",
+      "lockText",
+      "nodeHostPorts",
+      "parseDiscovery",
+      "parseEnvFile",
+      "parseLockOwner",
+      "probeOnce",
+      "probeProblems",
+      "readDiscovery",
+      "removeDiscovery",
+      "renderSystemdTimer",
+      "renderSystemdUnit",
+      "renderTaskXml",
+      "rotatingLog",
+      "sameProcess",
+      "servicePaths",
+      "serviceProblems",
+      "serviceStatus",
+      "startOrder",
+      "startService",
+      "stopService",
+      "stopTree",
+      "superviseGroup",
+      "systemdArg",
+      "uninstallService",
+      "utf16le",
+      "windowsArg",
+      "writeDiscovery",
+    ]);
+    for (const name of Object.keys(hostEntry)) expect(root, name).not.toHaveProperty(name);
+  });
+
+  it("is in the manifest, for the source and for npm", () => {
+    const manifest = JSON.parse(readFileSync(join(here, "..", "package.json"), "utf8")) as {
+      exports: Record<string, string>;
+      publishConfig: { exports: Record<string, { types: string; default: string }> };
+    };
+    expect(manifest.exports["./host"]).toBe("./src/host.ts");
+    expect(manifest.publishConfig.exports["./host"]).toEqual({ types: "./build/host.d.ts", default: "./build/host.js" });
   });
 });
 

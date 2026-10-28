@@ -45,6 +45,7 @@
     "./http": "./src/http.ts",
     "./limiter": "./src/limiter.ts",
     "./rules": "./src/rules.ts",
+    "./host": "./src/host.ts",
     "./package.json": "./package.json"
   },
   "files": [
@@ -174,6 +175,10 @@
       "./rules": {
         "types": "./build/rules.d.ts",
         "default": "./build/rules.js"
+      },
+      "./host": {
+        "types": "./build/host.d.ts",
+        "default": "./build/host.js"
       },
       "./package.json": "./package.json"
     }
