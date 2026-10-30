@@ -22,7 +22,7 @@ concurrency:
 
 jobs:
   checks:
-    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@739fefae6b0dd5a86a1fc54985dcd7fa0c515f5f # main
+    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@787183c2d49e3bb10031457cb36fc4ae8975eeb2 # main
     permissions:
       contents: read
     with:
@@ -37,7 +37,7 @@ jobs:
   # this job runs only in a run of CI itself: two jobs of one run cannot upload the artifact "release".
   pack:
     if: github.workflow == 'CI'
-    uses: mark1russell7/template/.github/workflows/reusable-release-build.yml@739fefae6b0dd5a86a1fc54985dcd7fa0c515f5f # main
+    uses: mark1russell7/template/.github/workflows/reusable-release-build.yml@787183c2d49e3bb10031457cb36fc4ae8975eeb2 # main
     permissions:
       contents: read
     with:
