@@ -1,5 +1,5 @@
-import type { Rational } from "./rational.ts";
-import { ONE, div, fromDecimal, mul, pow, rational } from "./rational.ts";
+import type { Rational } from "@mark1russell7/rational";
+import { ONE, div, fromDecimal, mul, pow, rational } from "@mark1russell7/rational";
 
 /**
  * These are the base dimensions. A dimension is an exponent vector over them, as in SI, with two

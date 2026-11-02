@@ -1,7 +1,7 @@
 import type { Unit } from "./parse.ts";
 import { UnitError, isCanonicalUnit, parseUnit, sameVector } from "./parse.ts";
-import type { Rational } from "./rational.ts";
-import * as q from "./rational.ts";
+import type { Rational } from "@mark1russell7/rational";
+import * as q from "@mark1russell7/rational";
 import type { Kind } from "./units.ts";
 
 /** A quantity is an amount in a unit: `{ "value": 7200, "unit": "s" }`. Its unit is always canonical. */
