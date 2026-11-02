@@ -44,15 +44,20 @@ const reach = (entry: string): { files: string[]; packages: string[] } => {
   return { files: [...files].map((file) => file.slice(here.length + 1).replaceAll("\\", "/")).sort(), packages: [...packages].sort() };
 };
 
-const require = createRequire(import.meta.url);
 const SCOPE = "@mark1russell7/";
 
-/** This function gives the source file of a specifier of a package of this repository, from the exports of its manifest. */
-const sourceOf = (specifier: string): string => {
+/**
+ * This function gives the file of a specifier of the scope, from the exports of its manifest. It resolves the
+ * specifier from the file `from`. A package of this repository exports its source. A package from npm exports its
+ * build, and the function takes its `default` target.
+ */
+const sourceOf = (specifier: string, from: string = fileURLToPath(import.meta.url)): string => {
   const [scope, name, ...rest] = specifier.split("/");
-  const manifest = require.resolve(`${scope}/${name}/package.json`);
-  const exports = (JSON.parse(readFileSync(manifest, "utf8")) as { exports: Record<string, string> }).exports;
-  const target = exports[rest.length === 0 ? "." : `./${rest.join("/")}`];
+  const manifest = createRequire(from).resolve(`${scope}/${name}/package.json`);
+  type Target = string | { default?: string };
+  const exports = (JSON.parse(readFileSync(manifest, "utf8")) as { exports: Record<string, Target> }).exports;
+  const entry = exports[rest.length === 0 ? "." : `./${rest.join("/")}`];
+  const target = typeof entry === "string" ? entry : entry?.default;
   if (target === undefined) throw new Error(`${specifier} is not an export of its package`);
   return resolve(dirname(manifest), target);
 };
@@ -73,7 +78,7 @@ const reachAll = (entry: string, from = here): string[] => {
       if (match[2] !== undefined) continue;
       const specifier = match[3]!;
       if (specifier.startsWith(".")) visit(resolve(dirname(file), specifier));
-      else if (specifier.startsWith(SCOPE)) visit(sourceOf(specifier));
+      else if (specifier.startsWith(SCOPE)) visit(sourceOf(specifier, file));
       else outside.add(specifier);
     }
   };
