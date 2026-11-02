@@ -4,13 +4,17 @@ This file is the source of truth for the work of the program. A live tracker sho
 
 Each item has an id, a status, an area, the items that it needs, its dates and its links. The statuses are `done`, `in progress`, `blocked`, `waiting on Mark` and `later`. An item that waits on Mark says what Mark does.
 
-## The handoff (2026-10-28)
+## The order of the work (2026-11-02)
 
-The program is paused. The fleet works on Graph first. The program starts again when a consumer finds a gap in the service or kind packages. That gap comes first, and it is released as a PATCH when its checks pass.
+The program started again on 2026-11-02, after the pause of 2026-10-28. A gap that a consumer finds in the service or kind packages still comes first. It is released as a PATCH when its checks pass. The order of the other work is:
 
-- **S2:** After SYS-48, no cell of S2 fails. Kind supports kube-proxy in each mode, Cilium and Istio. The next step is a design of the cells for CoreDNS. kube-vip, MetalLB and Pulsar come after it. Do one intermediary in each context. Write the prediction before the dispatch.
-- **S6:** SYS-36, SYS-46 and SYS-47 are done, in service 0.6.3. SYS-6 and SYS-17 stay later, because no consumer waits on them. The next step is SYS-6 when a consumer needs streams.
-- **SITE-UX round 3:** It is due approximately 2026-11-01. The next step is a visual on the kind page. It shows the C-stall band of SYS-48 against the count of each mode.
+1. **S6:** SYS-6 completes the streams of the requests in `@mark1russell7/service`. SYS-17 is done, with SYS-18.
+2. **SYS-49:** The statistics of the cells and the time verdicts come from the rigor packages, not from local copies.
+   <!-- ste-disable-next latin-abbreviation -- VIZ is the ID of the item, not the Latin abbreviation -->
+3. **VIZ:** The site gets an interactive demo of the path of a request, from the process to the NIC. The packages of this repository run live in the browser.
+4. **S2:** The next step is a design of the cells for CoreDNS. kube-vip, MetalLB and Pulsar come after it. Do one intermediary in each context. Write the prediction before the dispatch.
+
+SITE-UX round 3 is late. Its visual shows the C-stall band of SYS-48 against the count of each mode, on the kind page.
 
 ## The slices of the program
 
@@ -130,7 +134,7 @@ A service declares its clients, timeouts, retries, checks and state machines as 
 
 On 2026-10-17, Mark decided the design of the server stack (D1 to D18). These decisions replace the co-design gate for the runner, its HTTP entry, the composition, the requests, the signals and the profiles. On 2026-10-25, Mark chose a shared core for the wrappers of the S1 clients. Each driver has a thin entry on that core. Mark asked for as much unification as possible. Thus the table of [S6.md](S6.md) gives a reason for each part that stays separate.
 
-The design of health and routing is decided. The kind cells scored the candidates A to E on eight incidents, from PR #194 to PR #242, and the rule of the service stays. S6 stays in progress for SYS-6 and SYS-17.
+The design of health and routing is decided. The kind cells scored the candidates A to E on eight incidents, from PR #194 to PR #242, and the rule of the service stays. S6 stays in progress for SYS-6.
 
 [PR #157](https://github.com/mark1russell7/systems/pull/157) adds the PostgreSQL client (`./pg`) on the shared core of the clients, and moves the Redis client onto that core.
 
@@ -319,7 +323,7 @@ A controller can declare a path pattern, and a function gives the idempotency of
 
 ### SYS-6 · Each request is a stream
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** server stack
 - **Depends on:** S6
 - **Started:** 2026-10-17
@@ -466,16 +470,16 @@ This release publishes `workerLoop`, `queueDrain`, `redeliverOnce`, the trigger 
 
 ### SYS-17 · The harness takes its test subjects as data
 
-- **Status:** later
+- **Status:** done
 - **Area:** server stack
 - **Depends on:** S6
 - **Started:** 2026-10-18
-- **Shipped:**
+- **Shipped:** 2026-10-24
 - **Links:** [#65](https://github.com/mark1russell7/systems/pull/65), [The WS, WST and PG run](https://github.com/mark1russell7/systems/actions/runs/39101123561), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 `@mark1russell7/harness` accepts the image of a subject as data (D16). Thus another repository can give its own subject, with its own release in it.
 
-The source of an image is an image pinned by digest, a build context, or an image that the harness ships. Each build has a digest on each `FROM` and a lockfile for each manifest. The procedures image is the shipped subject `SUBJECTS.procedures`. The WS and WST catalogs take a subject, and `cells.yml` takes one as JSON (`subject`). #65 has the change, and `image/procedures` stays until SYS-18.
+The source of an image is an image pinned by digest, a build context, or an image that the harness ships. Each build has a digest on each `FROM` and a lockfile for each manifest. The procedures image is the shipped subject `SUBJECTS.procedures`. The WS and WST catalogs take a subject, and `cells.yml` takes one as JSON (`subject`). #65 has the change. With SYS-18 on 2026-10-24, the client owns its subject, and the item is done.
 
 ### SYS-18 · The procedures image leaves the harness
 
@@ -1062,6 +1066,19 @@ The result of kind run 40643221421: the band hits. Each of the 4 cells holds, wi
 The median counts were 1000 for iptables, 1502 for ipvs, 500 for nftables and 998 for Cilium. Each count is in its band at the mean period of its run.
 
 Each last failure came after the bare end of 10 s and before the close of its sessions. The latest was 10.103 s, in iptables with 2 sessions, against a close of 10.145 s. With 3 sessions, the latest was 10.064 s, against 10.19 s. With 1 session, the latest was 10.076 s, against 10.1 s.
+
+### SYS-49 · The statistics of the cells come from the rigor packages
+
+- **Status:** in progress
+- **Area:** server stack
+- **Depends on:** S6
+- **Started:** 2026-11-02
+- **Shipped:**
+- **Links:** [@mark1russell7/rigor-statistics](https://www.npmjs.com/package/@mark1russell7/rigor-statistics)
+
+The statistics have one home, `@mark1russell7/rigor-statistics`, and the bench harness has one home, `@mark1russell7/rigor-bench`. The kind and cells packages keep their own quantile, median and median interval. This item moves each of these functions to the home package, one function at a time.
+
+If the home package does not have a function, a pull request adds it to the rigor repository. The test of each move is that the records of the site stay byte-equal. If a time comparison of two arms fits the A/A verdict of rigor-bench, it uses that verdict.
 
 ## The systems of S1
 
@@ -1769,14 +1786,18 @@ Each week, one round makes the site and the tracker easier to read, with a visua
 
 ### VIZ · Interactive visuals and docs: from processes and the kernel to the NIC
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** site
 - **Depends on:**
-- **Started:**
+- **Started:** 2026-11-02
 - **Shipped:**
 - **Links:**
 
-After the coding work, this item makes interactive visuals and documents that show how the systems operate, from end to end. Examples are the network calls, the processes that hold memory, the kernel and the NIC. Mark gives many ideas and examples (Mark, 2026-10-20). Before the work starts, Mark and the program agree on its scope.
+This item makes interactive visuals and documents that show how the systems operate, from end to end. Examples are the network calls, the processes that hold memory, the kernel and the NIC. Mark gives many ideas and examples (Mark, 2026-10-20).
+
+On 2026-11-02, Mark asked for an interactive demo on each site, with the library live in the browser. Thus the first scope is one page: the path of one request. The page shows the process, the socket, the TCP state and its timers, conntrack and kube-proxy, and the NIC.
+
+Controls set the timeouts, the retries, the probe periods and the sysctls. Other controls start a fault, for example a black hole, a stall or a partition. The algebra and quantity packages compute, in the browser, when each layer detects the fault. Where a cell measured a value, the page shows the measured value and links to its cell. Mark can change this scope at any time.
 
 ## Decisions for Mark
 
