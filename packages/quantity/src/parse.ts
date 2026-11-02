@@ -1,5 +1,5 @@
-import type { Rational } from "./rational.ts";
-import { ONE, mul, pow } from "./rational.ts";
+import type { Rational } from "@mark1russell7/rational";
+import { ONE, mul, pow } from "@mark1russell7/rational";
 import type { Atom, Base, Kind, Vector } from "./units.ts";
 import { BASES, KINDS, SPELLINGS, lookupAtom } from "./units.ts";
 

@@ -8,9 +8,9 @@
 // This entry does not import zod. The schemas are in the entry "@mark1russell7/quantity/schema":
 // a bundle that uses only the amounts does not get zod (approximately 95 kB of gzip).
 
-export type { Rational } from "./rational.ts";
+export type { Rational } from "@mark1russell7/rational";
 // the exact arithmetic itself, for an engine that computes with amounts
-export * as rationals from "./rational.ts";
+export * as rationals from "@mark1russell7/rational";
 export type { Atom, Base, Kind, Vector } from "./units.ts";
 export { ATOMS, BASES, KINDS, KIND_NAMES, SPELLINGS, atomBySymbol, lookupAtom } from "./units.ts";
 export type { Component, Unit } from "./parse.ts";
