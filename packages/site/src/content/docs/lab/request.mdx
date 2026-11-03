@@ -20,7 +20,9 @@ A program sends one request to a pod behind a Service. Then a fault starts on th
 
 ## Where the numbers come from
 
-Each time comes from the algebra of this repository, `@mark1russell7/algebra`. The algebra runs on the machine documents of `@mark1russell7/machines`: the TCP stack of Linux 6.6 and its <Term name="conntrack" /> table. The page adds two small documents of its own. One is the call of the program, with a <Term name="deadline" /> and its retries. The other is the <Term name="readiness probe" /> of the <Term name="kubelet" />.
+Each time comes from the algebra of this repository, `@mark1russell7/algebra`. The algebra operates on four machine documents of `@mark1russell7/machines`. Two are the TCP stack of Linux 6.6 and its <Term name="conntrack" /> table. One is the call of the program, with a <Term name="deadline" /> and its retries. The last is the <Term name="readiness probe" /> of the <Term name="kubelet" /> of Kubernetes 1.37.0.
+
+A probe that takes longer than its period starts the next probe at once, because the kubelet probes in sequence. Thus the probes come at intervals of the longer of the period and the timeout.
 
 Each amount prints through `format` of `@mark1russell7/quantity`. The page does no timer arithmetic of its own.
 

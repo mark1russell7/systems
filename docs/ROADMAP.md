@@ -1950,11 +1950,18 @@ The first scope is one page: the path of one request (Mark, 2026-11-02). The pag
 
 - A program sends one request to a pod behind a Service. The user starts a black hole, a stalled peer or a partition.
 - Five layers find the fault: the program, the socket, TCP, Kubernetes and the NIC. Sliders and selects set the deadline, the retries, the keepalive sysctls, `tcp_retries2`, `TCP_USER_TIMEOUT`, the probes, the dataplane and the queue of the NIC.
-- `@mark1russell7/algebra` computes each time in the browser, on the documents of `@mark1russell7/machines`. Each amount prints through `format` of `@mark1russell7/quantity`. The page adds two small documents: the call of the program and the readiness probe of the kubelet.
+- `@mark1russell7/algebra` computes each time in the browser, on the documents of `@mark1russell7/machines`. Each amount prints through `format` of `@mark1russell7/quantity`.
 - An animated timeline marks the fault and the time when each layer knows. A cell that measured a value shows its median next to the computed band, with a link to the cell.
 - A tooltip explains each term. The home and the navigation link the page.
 
-The next step: move the two small documents of the page into `@mark1russell7/machines`. Then move the timer arithmetic of the detection lab into the algebra.
+The second step moved the documents and the arithmetic of the two labs into the packages (2026-11-02):
+
+- `@mark1russell7/machines` has two new documents. `DEADLINE_CALL` is the call of a program, with a deadline and retries. `KUBELET_READINESS` is the readiness probe of Kubernetes 1.37.0, and each fact cites the source at the tag v1.37.0.
+- `@mark1russell7/algebra` has three new functions: `timerBand`, `firings` and `probeTrain`. The two labs use them, and they do no timer arithmetic of their own.
+- A test compares the two labs with the results of the code before the move. It has 87 cases of the page and 92 cases of the detection lab, and the results are the same.
+- The source changed one value. A probe that takes longer than its period starts the next probe at once. Thus the interval of the probes is the longer of the period and the timeout. At a period of 2 s and a timeout of 5 s, the pod is unready at 17 s, not 11 s.
+
+The next step: Mark's next page of the item.
 
 ## Decisions for Mark
 

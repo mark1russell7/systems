@@ -1,11 +1,12 @@
 /**
- * The closed forms of the Linux TCP timers that tell a client that its peer is gone, at v6.6. Each
- * form uses the rules of the kernel: integer jiffies, the doubling of the retransmission timeout (RTO)
- * and the granularity of the timer wheel.
- *
- * These forms are a copy of the algebra in jarvis (`domain-systems/src/algebra.ts`). The tests hold
- * both to the same figures until the algebra moves into this repository.
+ * The model of the detection lab: the Linux TCP timers that tell a client that its peer is gone, at
+ * v6.6. The times come from the algebra (`@mark1russell7/algebra`) over the document `LINUX_TCP` of
+ * `@mark1russell7/machines`. This module only turns the knobs of the lab into the values of that
+ * document, and the bounds of the algebra into milliseconds.
  */
+import { firings, probeTrain, timerOf, type KnobValues, type TimerBounds } from "@mark1russell7/algebra";
+import { LINUX_TCP } from "@mark1russell7/machines";
+import { isUnbounded, quantity, valueIn, type Extent, type Quantity, type Unknown } from "@mark1russell7/quantity";
 
 /** The settings that the forms read. The times are in milliseconds. */
 export interface Knobs {
@@ -33,87 +34,62 @@ export const LINUX_66: Knobs = {
   hz: 250,
 };
 
-/** `TCP_RTO_MIN` and `TCP_RTO_MAX` in milliseconds. */
-export const RTO_MIN = 200;
-export const RTO_MAX = 120_000;
-
-/** A time that a timer can take: the closed form, and how late or early the timer can fire. */
+/** A time that a timer can take: the closed form, and how late or early the timer can fire, in milliseconds. */
 export interface Bounds {
   readonly duration: number;
   readonly early: number;
   readonly late: number;
 }
 
-/** The count of whole jiffies for a time, rounded up as `msecs_to_jiffies` rounds it. */
-export const jiffiesOf = (ms: number, hz: number): number => Math.ceil((ms * hz) / 1000 - 1e-9);
+/** This function gives the values of the knobs of `LINUX_TCP` from the knobs of the lab, and the defaults of the document. */
+const valuesOf =
+  (knobs: Knobs): KnobValues =>
+  (name) => {
+    const given: Readonly<Record<string, Quantity>> = {
+      keepidle: quantity(knobs.keepidle, "ms"),
+      keepintvl: quantity(knobs.keepintvl, "ms"),
+      keepcnt: quantity(knobs.keepcnt, "count"),
+      tcp_retries2: quantity(knobs.retries, "count"),
+      rtt: quantity(knobs.rtt, "ms"),
+      hz: quantity(knobs.hz, "Hz"),
+    };
+    const own = given[name];
+    if (own !== undefined) return own;
+    const knob = LINUX_TCP.knobs[name];
+    return knob === undefined || knob.default === null ? undefined : quantity(knob.default, knob.unit ?? "count");
+  };
 
-/**
- * The granularity of the timer wheel, in jiffies, for a timer that is due in `jiffies`. The wheel
- * keeps a timer that is due in fewer than 63 jiffies at level 0. Each level above keeps timers that
- * are 8 times longer, with 8 times the granularity. The wheel rounds a timer up to its granularity.
- */
-export const granularity = (jiffies: number): number => {
-  let level = 0;
-  while (level < 8 && jiffies >= 63 * 8 ** level) level += 1;
-  return 8 ** level;
-};
+/** This function gives an amount in milliseconds. An amount that is not a known time is 0. */
+const msOf = (extent: Extent | Unknown | undefined): number =>
+  extent === undefined || "unknown" in extent || isUnbounded(extent) ? 0 : valueIn(extent, "ms");
+
+const boundsOf = (bounds: TimerBounds): Bounds => ({ duration: msOf(bounds.duration), early: msOf(bounds.early), late: msOf(bounds.lateness) });
 
 /**
  * Keepalive: the idle time, and then one interval for each probe without an answer. The idle
- * timer and each interval can fire late by their granularity. The count starts in the jiffy
- * before the last segment, so the timer can fire one jiffy early.
+ * timer and each interval can fire late by the granularity of the timer wheel. The count starts in
+ * the jiffy before the last segment, so the timer can fire one jiffy early.
  */
 export const keepalive = (knobs: Knobs): Bounds & { readonly probes: readonly number[] } => {
-  const tick = 1000 / knobs.hz;
-  const idle = granularity(jiffiesOf(knobs.keepidle, knobs.hz));
-  const interval = granularity(jiffiesOf(knobs.keepintvl, knobs.hz));
-  const probes = Array.from({ length: knobs.keepcnt }, (_, n) => knobs.keepidle + n * knobs.keepintvl);
-  return {
-    duration: knobs.keepidle + knobs.keepcnt * knobs.keepintvl,
-    early: tick,
-    late: (idle + knobs.keepcnt * interval) * tick,
-    probes,
-  };
+  const probes = probeTrain(quantity(knobs.keepidle, "ms"), quantity(knobs.keepintvl, "ms"), knobs.keepcnt);
+  return { ...boundsOf(timerOf(LINUX_TCP, "keepalive", valuesOf(knobs))), probes: probes.map(msOf) };
 };
 
 /**
- * The retransmission budget of `tcp_model_timeout`: the waits double from `TCP_RTO_MIN`, until a
- * wait passes `TCP_RTO_MAX`, and then each wait is `TCP_RTO_MAX`.
- */
-export const budget = (retries: number): number => {
-  let thresh = 0;
-  while (RTO_MIN * 2 ** (thresh + 1) <= RTO_MAX) thresh += 1;
-  if (retries <= thresh) return RTO_MIN * (2 ** (retries + 1) - 1);
-  return RTO_MIN * (2 ** (thresh + 1) - 1) + (retries - thresh) * RTO_MAX;
-};
-
-/**
- * The retransmission give-up. The budget starts at the first retransmission of the RTO timer.
- * The real RTO is the round trip plus `TCP_RTO_MIN`, in whole jiffies, and each firing doubles it.
- * The give-up comes at the first firing at or after the budget. Thus the give-up is late by at most
- * one step, plus the rounding of each firing on the wheel.
+ * The retransmission give-up. The budget of `tcp_retries2` starts at the first retransmission of
+ * the RTO timer. The give-up comes at the first firing at or after the budget. Thus the give-up is
+ * late by at most one step, plus the rounding of each firing on the wheel. The firings count from
+ * the first retransmission, without the rounding of the wheel.
  */
 export const retransmission = (
   knobs: Knobs,
 ): Bounds & { readonly firings: readonly number[]; readonly giveUp: number } => {
-  const tick = 1000 / knobs.hz;
-  const base = jiffiesOf(RTO_MIN + knobs.rtt, knobs.hz);
-  const cap = jiffiesOf(RTO_MAX, knobs.hz);
-  const total = budget(knobs.retries);
-  let step = base;
-  let wheel = 0;
-  for (let k = 1; k <= knobs.retries + 1; k += 1) {
-    step = Math.min(base * 2 ** k, cap);
-    wheel += granularity(step);
-  }
-  // the firings after the first retransmission of the RTO timer, without the rounding of the wheel
-  const firings: number[] = [];
-  let at = 0;
-  for (let k = 1; at < total && k <= 64; k += 1) {
-    at += Math.min(base * 2 ** k, cap) * tick;
-    firings.push(at);
-  }
-  return { duration: total, early: 0, late: (step + wheel) * tick, firings, giveUp: at };
+  const values = valuesOf(knobs);
+  const giveUp = timerOf(LINUX_TCP, "retrans_giveup", values);
+  // wait 0 ends in the tail loss probe and wait 1 in the first retransmission: the budget counts from wait 2
+  const sends = firings(LINUX_TCP, "retransmit", values, { from: 2, count: 64, reach: giveUp.duration as Extent });
+  const times = sends.map((firing) => msOf(firing.at));
+  return { ...boundsOf(giveUp), firings: times, giveUp: times.at(-1) ?? 0 };
 };
 
 /** What the connection did when the failure started. */
