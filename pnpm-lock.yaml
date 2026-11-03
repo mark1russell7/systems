@@ -167,8 +167,8 @@ importers:
   .:
     devDependencies:
       '@mark1russell7/conventions':
-        specifier: ^0.23.0
-        version: 0.23.0
+        specifier: ^0.24.0
+        version: 0.24.0
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#e737619231ee976251a0a2d5ff61aec113d22a10
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/e737619231ee976251a0a2d5ff61aec113d22a10
@@ -1117,8 +1117,8 @@ packages:
   '@kwsites/file-exists@1.1.1':
     resolution: {integrity: sha512-m9/5YGR18lIwxSFDwfE3oA7bWuq9kdau6ugN4H2rJeyhFQZcG9AgSHkQtSD15a8WvTgfz9aikZMrKPHvbpqFiw==}
 
-  '@mark1russell7/conventions@0.23.0':
-    resolution: {integrity: sha512-VFrPq12jxlLGaX5yLzULf0rRa/7TXp5mmb8H2x2zfQS19tcyY1IYcanDKkQIikf8SjUDNzisDLmspUgPucy16A==}
+  '@mark1russell7/conventions@0.24.0':
+    resolution: {integrity: sha512-odYM5KJ0ADqPoY+G02j4UMBqYK+X3cZhpYbV71hyLrI6QOo0U6uTgniyECxY5qzR/8GowD/awhE4M7g7c17c5w==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -3962,7 +3962,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@mark1russell7/conventions@0.23.0': {}
+  '@mark1russell7/conventions@0.24.0': {}
 
   '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/9c99ad65d51cefcba5a8b6dc89358d7a94758ca7': {}
 
