@@ -29,7 +29,7 @@
     "@mark1russell7/algebra": "workspace:^",
     "@mark1russell7/machines": "workspace:^",
     "@mark1russell7/quantity": "workspace:^",
-    "@mark1russell7/rigor-statistics": "^0.1.2",
+    "@mark1russell7/rigor-statistics": "^0.1.3",
     "astro": "^7.3.8",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
