@@ -81,7 +81,7 @@ describe("the MongoDB cells, for the harness", () => {
       for (const band of cell.prediction.group?.stages ?? []) expect(REPLICA_SET_STAGES, cell.name).toContain(band.stage);
     }
     expect(named("T11.border-off.48").replicaSet?.settings).toEqual({ ...SET_DEFAULTS, electionTimeoutMillis: 40000 });
-    const partial = sets.find((cell) => cell.faultAt !== undefined && "cuts" in cell.faultAt && cell.faultAt.cuts === "one")!;
+    const partial = sets.find((cell) => typeof cell.faultAt === "object" && "cuts" in cell.faultAt && cell.faultAt.cuts === "one")!;
     expect(partial.prediction.group).toMatchObject({ lands: "same", failover: false, quiet: ["elected", "written-off"] });
     expect(partial.hold).toEqual({ value: 40, unit: "s" });
     const cut = sets.find((cell) => cell.stall !== undefined)!;

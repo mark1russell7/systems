@@ -149,7 +149,7 @@ const cells = CATALOG.flatMap((catalog) => {
   const named = nameOf(cell.name);
   const group = cell.group;
   if (group === undefined) throw new Error(`${cell.name}: no group`);
-  const place = cell.faultAt !== undefined && "role" in cell.faultAt ? cell.faultAt : null;
+  const place = typeof cell.faultAt === "object" && "role" in cell.faultAt ? cell.faultAt : null;
   return [
     {
       ...named,

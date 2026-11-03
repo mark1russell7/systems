@@ -1367,26 +1367,29 @@ The changes that the rules gave:
 
 The exceptions, each with its reason in the `conventions` field of the root `package.json`:
 
-- **tsconfig-test and typed-files:** the tests of cells and the scripts of the site have type errors (SYS-55).
+- **tsconfig-test and typed-files:** the tests of cells and the scripts of the site had type errors. SYS-55 removed these exceptions, and `typed-files` keeps only `src/content.config.ts` of the site.
 - **typed-scripts:** the release scripts, the files that run in containers, the child processes of the service tests, `shots.mjs` and `astro.config.mjs`.
 - **no-local-paths:** three files of `packages/service/src/host/` name the home folder of the fake host of the service tests, not the folder of a real user.
 
 ### SYS-55 · The tests of cells and the scripts of the site pass a typecheck
 
-- **Status:** not started
+- **Status:** done
 - **Area:** CI
 - **Depends on:** SYS-54
-- **Links:** [#310](https://github.com/mark1russell7/systems/pull/310)
+- **Started:** 2026-11-03
+- **Shipped:** 2026-11-03
+- **Links:** [#310](https://github.com/mark1russell7/systems/pull/310), [#322](https://github.com/mark1russell7/systems/pull/322)
 
-The tests of cells have 15 type errors in 4 files. The scripts of the site have 5 type errors in 3 files. Thus the two packages have no `tsconfig.test.json`, and the conventions check keeps two exceptions for them.
+The tests of cells had 15 type errors in 4 files. The scripts of the site had 5 type errors in 3 files. Each one is corrected, and each test checks the same values.
 
-The fix:
+The changes:
 
-1. Correct the 20 type errors.
-2. Add a `tsconfig.test.json` to cells and to the site, from the cue preset.
-3. Remove the exceptions `tsconfig-test` and `typed-files` for these files from the root `package.json`.
+- **tsconfig.test.json:** the file of cells has no excludes. The site has a new file for its scripts, and its `typecheck` script examines it. Each file also includes `vitest.config.ts`.
+- **The limiter cells:** `limiterTarget` gives a `LimiterTarget`, with a command and a build. `limiterPrediction` gives a detection. Thus the tests of the limiter need no casts.
+- **The text of a verdict:** a detection with no counted run has no band and no window. The site scripts wrote a window for it. They write "No run counted." instead.
+- **The image of a hop:** `topologies.ts` stops with the name of the hop at an image that is not a stock image.
 
-The check `conventions check` then passes with no exception for the types.
+The `conventions` field keeps one exception for the types. `src/content.config.ts` of the site imports `astro:content`, a module that only the Astro build makes.
 
 ## The systems of S1
 

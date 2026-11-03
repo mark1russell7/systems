@@ -72,9 +72,12 @@ const ALL: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...CALLERS_CELLS, 
 /** This function gives the propagation that a cell meets. It is the pause of kube-proxy on one node, the wait after a sync in a rolling update, or the calibration of its mode. */
 const propagationOf = (cell: KindCell) => {
   const e = PROPAGATION[cell.mode];
-  if (cell.template === "T07" && cell.trigger.kind === "rolling-update") return afterSync(cell.mode);
+  if (cell.template === "T07" && cell.trigger.kind === "rolling-update") {
+    if (cell.mode === "cilium") throw new Error(`${cell.name}: afterSync takes only a mode of kube-proxy`);
+    return afterSync(cell.mode);
+  }
   if (cell.template !== "T07" || cell.trigger.kind !== "freeze-process") return e;
-  const window = pausedWindow(cell.declaration, cell.pod.preStop, cell.trigger.lead!, cell.trigger.hold!, e);
+  const window = pausedWindow(cell.declaration!, cell.pod.preStop, cell.trigger.lead!, cell.trigger.hold!, e);
   return { ...e, hi: s(valueIn(window.resume, "s") + valueIn(e.hi, "s")) };
 };
 
@@ -221,6 +224,7 @@ describe("the S2 cells: how callers learn that a pod cannot serve", () => {
       const { declaration: c, id: _c, name: _nc, prediction: _pc, workload: workloadC, ...restC } = goaway;
       expect(restA).toEqual(restB);
       expect(a).toEqual({ ...b, lameDuck: false });
+      if (b === null) throw new Error(`${lameDuck.name}: no declaration`);
       expect(b.lameDuck).toBeUndefined();
       expect(b.protocol).toBeUndefined();
       expect(b.flag).toBe("readiness");
