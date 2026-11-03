@@ -487,7 +487,7 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     };
   }
   if (cell.prediction.detects === null && cell.prediction.queue !== undefined)
-    return measureQueue(cell, run, cell.prediction.queue);
+    return measureQueue(run, cell.prediction.queue);
   // a driver with more than one socket: its bands name their socket and their line
   if (cell.prediction.detects !== null && cell.prediction.driver !== undefined) return measureDriver(cell, run);
   const { events, kernel } = run;

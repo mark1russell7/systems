@@ -1,6 +1,6 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
-import type { Cell, KernelRecord, ProbeEvent, QueueBand, QueueConnection, QueuePrediction, Run } from "./cell.ts";
+import type { KernelRecord, ProbeEvent, QueueBand, QueueConnection, QueuePrediction, Run } from "./cell.ts";
 import type { Measured } from "./observe.ts";
 
 /** This bit is the SYN of the flags of an `rx` record of the prober. */
@@ -144,7 +144,7 @@ const connectionFindings = (
  * counters at the two ends of the run. The target lines give the count of the queue. The records of
  * the prober give the waits of each socket.
  */
-export const measureQueue = (cell: Cell, run: Run, expected: QueuePrediction): Measured => {
+export const measureQueue = (run: Run, expected: QueuePrediction): Measured => {
   const { events, kernel } = run;
   const lineOf = (ev: string): ProbeEvent | undefined => events.find((event) => event.ev === ev);
   const base = {
