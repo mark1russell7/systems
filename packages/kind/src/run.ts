@@ -66,8 +66,8 @@ interface Images {
  */
 const clusterKey = (cell: KindCell): string =>
   (cell.mesh !== undefined ? `${cell.mode}-${cell.workers}-${cell.mesh.flavor}` : zoned(cell) ? `${cell.mode}-${cell.workers}-zones` : `${cell.mode}-${cell.workers}`) +
-  // a cell with a VIP gets a cluster with its announcer: kube-vip, or MetalLB
-  (cell.vip === undefined ? "" : cell.vip.announcer === "metallb" ? "-vip-metallb" : "-vip");
+  // a cell with a VIP gets a cluster with its announcer: kube-vip, or MetalLB ("mlb", as a kind name has 32 characters at most)
+  (cell.vip === undefined ? "" : cell.vip.announcer === "metallb" ? "-vip-mlb" : "-vip");
 
 /** This function tells if a cell needs a cluster with zones: a zone loss. */
 const zoned = (cell: KindCell): boolean => cell.trigger.kind === "zone-loss";
