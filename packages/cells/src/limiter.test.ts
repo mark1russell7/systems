@@ -1,7 +1,23 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { Measured } from "@mark1russell7/harness";
+import { firstArm } from "@mark1russell7/rigor-bench";
 import { describe, expect, it } from "vitest";
-import { LIMITER_BUILD, LIMITER_CELLS, LIMITER_SERVICE, LIMITER_SPECS, limiterPair, limiterPrediction, limiterTarget, pairOf, retryPlan } from "./limiter.ts";
+import {
+  benchTimes,
+  LIMITER_BUILD,
+  LIMITER_CELLS,
+  LIMITER_SERVICE,
+  LIMITER_SPECS,
+  limiterBench,
+  limiterPrediction,
+  limiterTarget,
+  PAIR_ROUNDS,
+  pairedLines,
+  pairedTimeOf,
+  pairOf,
+  retryPlan,
+} from "./limiter.ts";
 
 /** The check of the declaration of the target, from its script. The import has no types, thus this type gives them. */
 interface TargetLint {
@@ -92,39 +108,92 @@ describe("the cells of the keyed limiter", () => {
     expect(limiterTarget(30).command).not.toContain("--lint");
   });
 
-  it("builds the catalog of a pair: the control cell of each spec, then its candidate cell, on the same shard", () => {
+  it("builds the rounds of a pair: the A/B pair and the A/A pair of each spec, with the order of firstArm, on the same shard", () => {
     const builds = pairOf("0.5.6,0.6.0", "/pair");
     expect(builds.map((build) => [build.service, build.label, build.lint])).toEqual([
       ["0.5.6", "0.5.6", false],
       ["0.6.0", "0.6.0", true],
     ]);
     for (const shards of [1, 2, 3, 6]) {
-      const cells = limiterPair(builds, shards);
-      expect(cells.length).toBe(12);
-      // the runner gives cell k of the selection to shard k % n (run.test.ts)
-      for (let k = 0; k < 6; k += 1) {
-        const [control, candidate] = [cells[k]!, cells[k + 6]!];
-        expect(k % shards, control.name).toBe((k + 6) % shards);
-        expect(control.name.split(" ")[0]).toBe(LIMITER_SPECS[k]!.plan);
-        expect(candidate.name.replace("service 0.6.0,", "service 0.5.6,")).toBe(control.name);
-        expect(control.prediction).toEqual(candidate.prediction);
-        // only the candidate checks its declaration: the control can lack that lint()
-        expect(control.target.command.slice(-2)).toEqual(["--lint", "off"]);
-        expect(candidate.target.command).not.toContain("--lint");
-        const [ofControl, ofCandidate] = [control.target.subject, candidate.target.subject] as Array<{ name: string; context: string }>;
-        expect([ofControl.name, ofCandidate.name]).toEqual(["service-limiter-0.5.6", "service-limiter-0.6.0"]);
-        expect([ofControl.context, ofCandidate.context]).toEqual([join("/pair", "0.5.6"), join("/pair", "0.6.0")]);
+      const bench = limiterBench(builds, shards);
+      // 6 specs, 7 rounds, 2 pairs of 2 arms
+      expect(bench.length).toBe(6 * PAIR_ROUNDS * 4);
+      expect(new Set(bench.map((each) => each.cell.name)).size).toBe(bench.length);
+      // the runner gives cell k of the selection to shard k % n (run.test.ts): each spec stays on one shard
+      bench.forEach((each, at) => expect(at % shards, each.cell.name).toBe(each.slot.offset % shards));
+      for (const [offset, spec] of LIMITER_SPECS.entries()) {
+        const own = bench.filter((each) => each.slot.offset === offset);
+        expect(own.every((each) => each.cell.name.startsWith(`${spec.plan} `) && each.slot.plan === spec.plan)).toBe(true);
+        // each round runs the A/B pair, then the A/A pair, and the first arm of each pair is firstArm(round, offset)
+        expect(own.map((each) => [each.slot.round, each.slot.block, each.slot.arm])).toEqual(
+          Array.from({ length: PAIR_ROUNDS }, (_, round) => {
+            const first = firstArm(round, offset);
+            const second = first === "a" ? "b" : "a";
+            return [[round, "ab", first], [round, "ab", second], [round, "aa", first], [round, "aa", second]];
+          }).flat(),
+        );
+        // the order turns each round: a pair starts with each arm in 3 or 4 of its 7 rounds
+        const firsts = own.filter((each) => each.slot.block === "ab" && each.slot.arm === "a").map((each) => each.slot.first);
+        expect(Math.abs(firsts.filter((arm) => arm === "a").length * 2 - PAIR_ROUNDS)).toBe(1);
+        for (const each of own) {
+          // arm b of the A/B pair is the candidate, and each other arm is the control
+          const candidate = each.slot.block === "ab" && each.slot.arm === "b";
+          expect(each.slot.service, each.cell.name).toBe(candidate ? "0.6.0" : "0.5.6");
+          expect([each.cell.runs, each.cell.environments]).toEqual([1, 1]);
+          expect(each.cell.prediction).toEqual(limiterPrediction(spec));
+          const subject = each.cell.target.subject as { name: string; context: string };
+          expect([subject.name, subject.context]).toEqual([`service-limiter-${each.slot.service}`, join("/pair", each.slot.service)]);
+          // only the candidate checks its declaration: the control can lack that lint()
+          if (candidate) expect(each.cell.target.command).not.toContain("--lint");
+          else expect(each.cell.target.command.slice(-2)).toEqual(["--lint", "off"]);
+          expect(each.cell.name).toContain(`service ${each.slot.service}, `);
+          expect(each.cell.name).toMatch(new RegExp(`[(]${each.slot.block === "ab" ? "A/B" : "A/A"} round ${each.slot.round + 1}, arm ${each.slot.arm}[)]$`));
+        }
       }
     }
     // a selection keeps the pairs: O30 on 2 shards
-    expect(limiterPair(builds, 2, /^O30[.]/).map((cell) => cell.name.split(" ")[0])).toEqual(["O30.1", "O30.2", "O30.1", "O30.2"]);
-    // a count of shards that does not divide the specs puts the two cells of a spec on two runners
-    expect(() => limiterPair(builds, 4)).toThrow(/divides 6/);
-    expect(() => limiterPair(builds, 3, /^O30[.]/)).toThrow(/divides 2/);
-    expect(() => limiterPair(builds, 1, /service 0[.]6[.]0/)).toThrow(/selection/);
+    expect(new Set(limiterBench(builds, 2, /^O30[.]/).map((each) => each.slot.plan))).toEqual(new Set(["O30.1", "O30.2"]));
+    // a count of shards that does not divide the specs puts the cells of a spec on two runners
+    expect(() => limiterBench(builds, 4)).toThrow(/divides 6/);
+    expect(() => limiterBench(builds, 3, /^O30[.]/)).toThrow(/divides 2/);
+    expect(() => limiterBench(builds, 1, /service 0[.]6[.]0/)).toThrow(/selection/);
+    expect(() => limiterBench(builds, 1, /./, 1)).toThrow(/2 rounds or more/);
     for (const bad of ["0.6.0", "0.6.0,0.6.0", "^0.5.6,0.6.0", "0.5,0.6.0", "0.5.6,0.6.0,0.7.0"]) expect(() => pairOf(bad, "/pair"), bad).toThrow(/two different versions/);
     // the standing catalog keeps its target
     expect(LIMITER_CELLS.every((cell) => (cell.target.subject as { name: string }).name === "service-limiter")).toBe(true);
     expect(LIMITER_BUILD).toMatchObject({ service: LIMITER_SERVICE, label: "0.6", lint: true });
+  });
+
+  it("gives a time of each band of a run, and the PairedTime lines of the two arms of a pair", () => {
+    const spec = (plan: string) => LIMITER_SPECS.find((each) => each.plan === plan)!;
+    const at = (value: number) => ({ value, unit: "s" });
+    const run = (elapsed: number | null, steps: (number | null)[], voided: string | null = null) =>
+      ({ elapsed: elapsed === null ? null : at(elapsed), driver: { steps: steps.map((value) => ({ what: "", name: null, elapsed: value === null ? null : at(value) })) }, void: voided }) as unknown as Measured;
+    // O30.2: retry 1 is the first band, retry 2 is a later band, and the 200 is the answer
+    expect(benchTimes(spec("O30.2"), run(30.0044, [30.0037, 0.0003]))).toEqual([
+      { case: "O30.2 retry 1", measure: "retry", time: at(30.0044) },
+      { case: "O30.2 retry 2", measure: "retry", time: at(30.0037) },
+      { case: "O30.2 answer", measure: "answer", time: at(0.0003) },
+    ]);
+    expect(benchTimes(spec("O29.2"), run(30, [30, 30, 30, 30, 0.0004])).map((each) => each.case)).toEqual([
+      "O29.2 retry 1", "O29.2 retry 2", "O29.2 retry 3", "O29.2 retry 4", "O29.2 retry 5", "O29.2 answer",
+    ]);
+    // a client that does not retry: the 429 is the answer
+    expect(benchTimes(spec("O29.4"), run(0.0019, []))).toEqual([{ case: "O29.4 answer", measure: "answer", time: at(0.0019) }]);
+    // a void run and a band that never came give no time
+    expect(benchTimes(spec("O29.4"), run(0.0019, [], "the prober dropped 3 records"))).toEqual([]);
+    expect(benchTimes(spec("O30.1"), run(null, [0.0003])).map((each) => each.case)).toEqual(["O30.1 answer"]);
+
+    const bench = limiterBench(pairOf("0.5.6,0.6.0", "/pair"), 6);
+    const slotOf = (arm: "a" | "b", round = 2) => bench.find((each) => each.slot.plan === "O30.1" && each.slot.block === "aa" && each.slot.round === round && each.slot.arm === arm)!.slot;
+    const a = { slot: slotOf("a"), times: benchTimes(spec("O30.1"), run(30.007, [0.0003])) };
+    const b = { slot: slotOf("b"), times: benchTimes(spec("O30.1"), run(30.008, [null])) };
+    // the order of the arguments does not count, and a case that one arm did not time gets no line
+    expect(pairedLines(b, a)).toEqual([{ pair: "aa", measure: "retry", case: "O30.1 retry 1", round: 2, first: "a", a: at(30.007), b: at(30.008) }]);
+    expect(pairedLines(a, b).map(pairedTimeOf)).toEqual([{ case: "O30.1 retry 1", round: 2, first: "a", a: 30.007, b: 30.008 }]);
+    expect(() => pairedLines(a, { ...b, slot: slotOf("b", 3) })).toThrow(/not the two arms of one pair/);
+    expect(() => pairedLines(a, a)).toThrow(/not the two arms of one pair/);
+    // rigor-bench refuses a time that is not above 0
+    expect(() => pairedLines(a, { ...b, times: [{ case: "O30.1 retry 1", measure: "retry", time: at(0) }] })).toThrow(RangeError);
   });
 });
