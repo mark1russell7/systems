@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { backoffDelay, retrier } from "./index.ts";
+import { backoffDelay, retrier, retry, retryAfterDelay } from "./index.ts";
 import { fakeClock, seeded } from "./testing.ts";
 
 /** SYS-46: a retrier over `backoffDelay`, on the injected clock. No test here uses a real timer. */
@@ -104,5 +104,105 @@ describe("retrier: the next attempt after its backoff (SYS-46)", () => {
   it("refuses a policy with a problem", () => {
     expect(() => retrier({ base: 1000, cap: 500 })).toThrow("the retrier has a bad backoff: the cap 500 is below the base 1000");
     expect(() => retrier({ base: -1 })).toThrow("the base -1 is not a time of zero or more");
+  });
+});
+
+describe("retry: one async call with a count of tries", () => {
+  const failing = (fails: number, error: (n: number) => unknown = (n) => new Error(`fail ${n}`)) => {
+    const starts: number[] = [];
+    return {
+      starts,
+      run: async (attempt: number) => {
+        starts.push(attempt);
+        if (attempt <= fails) throw error(attempt);
+        return `ok on ${attempt}`;
+      },
+    };
+  };
+
+  it("gives the value of the first try that succeeds, after the backoff of each failed try", async () => {
+    const clock = fakeClock();
+    const call = failing(2);
+    const at: number[] = [];
+    const result = retry(async (n) => (at.push(clock.now()), call.run(n)), { tries: 4, base: 1000, factor: 2, clock });
+    await clock.advance(999);
+    expect(call.starts).toEqual([1]);
+    await clock.advance(1);
+    await clock.advance(2000);
+    await expect(result).resolves.toBe("ok on 3");
+    expect(at).toEqual([0, 1000, 3000]);
+  });
+
+  it("throws the last error after the count of tries", async () => {
+    const clock = fakeClock();
+    const call = failing(9);
+    const result = retry(call.run, { tries: 3, base: 10, clock });
+    const seen = result.catch((e: unknown) => e);
+    await clock.advance(1000);
+    expect(((await seen) as Error).message).toBe("fail 3");
+    expect(call.starts).toEqual([1, 2, 3]);
+  });
+
+  it("does not start again after an error that is not retryable", async () => {
+    const clock = fakeClock();
+    const call = failing(9, (n) => ({ status: 403, n }));
+    await expect(retry(call.run, { tries: 5, base: 10, clock, retryable: (e) => (e as { status: number }).status >= 500 })).rejects.toEqual({ status: 403, n: 1 });
+    expect(call.starts).toEqual([1]);
+  });
+
+  it("waits the delay of delayOf in place of the backoff, and the backoff when delayOf gives null", async () => {
+    const clock = fakeClock();
+    const call = failing(2, (n) => ({ after: n === 1 ? 5000 : null }));
+    const at: number[] = [];
+    const result = retry(async (n) => (at.push(clock.now()), call.run(n)), {
+      tries: 3,
+      base: 100,
+      clock,
+      delayOf: (e) => (e as { after: number | null }).after,
+    });
+    await clock.advance(5000);
+    await clock.advance(200);
+    await expect(result).resolves.toBe("ok on 3");
+    expect(at).toEqual([0, 5000, 5200]);
+  });
+
+  it("takes the jitter of the policy from the random of the options", async () => {
+    const clock = fakeClock();
+    const call = failing(1);
+    const at: number[] = [];
+    const result = retry(async (n) => (at.push(clock.now()), call.run(n)), { tries: 2, base: 1000, jitter: { kind: "subtract", fraction: 1 }, random: () => 0.25, clock });
+    await clock.advance(1000);
+    await result;
+    expect(at).toEqual([0, backoffDelay({ base: 1000, jitter: { kind: "subtract", fraction: 1 } }, 1, () => 0.25)]);
+  });
+
+  it("stops the wait at the abort of the signal, and throws the last error", async () => {
+    const clock = fakeClock();
+    const control = new AbortController();
+    const call = failing(9);
+    const result = retry(call.run, { tries: 5, base: 1000, clock, signal: control.signal });
+    const seen = result.catch((e: unknown) => e);
+    await clock.advance(10);
+    control.abort();
+    expect(((await seen) as Error).message).toBe("fail 1");
+    await clock.advance(10000);
+    expect(call.starts).toEqual([1]);
+  });
+
+  it("refuses a bad count of tries and a bad backoff", async () => {
+    await expect(retry(async () => 1, { tries: 0, base: 10 })).rejects.toThrow(/tries/);
+    await expect(retry(async () => 1, { tries: 2.5, base: 10 })).rejects.toThrow(/tries/);
+    await expect(retry(async () => 1, { tries: 2, base: -1 })).rejects.toThrow(/bad backoff/);
+  });
+});
+
+describe("retryAfterDelay: the wait of a Retry-After header", () => {
+  const now = Date.parse("2026-01-01T00:00:00Z");
+  it("reads seconds and HTTP dates, and gives null for no valid value", () => {
+    expect(retryAfterDelay("5", now)).toBe(5000);
+    expect(retryAfterDelay(" 0 ", now)).toBe(0);
+    expect(retryAfterDelay("Thu, 01 Jan 2026 00:00:10 GMT", now)).toBe(10_000);
+    expect(retryAfterDelay("Wed, 31 Dec 2025 23:59:00 GMT", now)).toBe(0);
+    for (const bad of ["soon", "-3", "1.5", "", null, undefined]) expect(retryAfterDelay(bad, now), String(bad)).toBeNull();
   });
 });

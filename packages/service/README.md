@@ -328,10 +328,13 @@ The clock, the heartbeat and the backoff have their own entries. Each entry impo
 - **The retrier.** `retrier({ base, factor, cap, jitter, clock, signal })` starts a function again after the backoff of each try. The root of the package gives it, and the entry `./backoff` does not.
 - **The calls of a retrier.** `schedule(run)` counts one more try, and starts `run` after the delay of that try, on the clock. It gives the delay, and `attempts` gives the count. A second `schedule` stops the retry that waits.
 - **The end of a retrier.** `reset()` sets the count to 0, for example after a start that succeeded. `cancel()` stops the retry that waits. The abort of `signal` cancels the retrier, for example the `signal` of the lifecycle in the drain.
+- **One call with retries.** `retry(run, { tries, retryable, delayOf, ...backoff })` starts an async `run`, and starts it again after an error. It stops at `tries` tries, the first included.
+- **The errors of a retry.** `retryable(error)` tells which errors get a new try. After the last try, `retry` throws the last error. The abort of `signal` stops the wait.
+- **Retry-After.** `delayOf(error, attempt)` gives a delay in place of the backoff. `retryAfterDelay(header, now)` reads the seconds or the HTTP date of a `Retry-After` header.
 - **Milliseconds.** These functions take times in milliseconds, as the clock does. The declaration and the law keep their amounts (`Quantity`).
 
 ```ts
-import { retrier } from "@mark1russell7/service";
+import { retrier, retry, retryAfterDelay } from "@mark1russell7/service";
 import { backoffDelay } from "@mark1russell7/service/backoff";
 import { heartbeat } from "@mark1russell7/service/heartbeat";
 
@@ -357,6 +360,28 @@ const watch = (): void => {
     () => rewatch.schedule(watch),
   );
 };
+
+// one read with 4 tries at most: a 429 or a 5xx gets a new try, and a 429 waits for its Retry-After
+class Busy extends Error {
+  constructor(readonly response: Response) {
+    super(`HTTP ${response.status}`);
+  }
+}
+const response = await retry(
+  async () => {
+    const res = await fetch(url);
+    if (res.status === 429 || res.status >= 500) throw new Busy(res);
+    return res;
+  },
+  {
+    tries: 4,
+    base: 1000,
+    factor: 2,
+    cap: 15_000,
+    jitter: { kind: "subtract", fraction: 1 },
+    delayOf: (error) => (error instanceof Busy ? retryAfterDelay(error.response.headers.get("retry-after"), Date.now()) : null),
+  },
+);
 ```
 
 ## The keyed limiter
