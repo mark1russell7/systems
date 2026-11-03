@@ -365,7 +365,8 @@ const probeThePods = async (ctx: Context): Promise<void> => {
   if (key === ctx.probed) return;
   const netns: number[] = [];
   for (const pod of pods) {
-    const container = pod.labels["app"] === SERVER ? "app" : pod.labels["app"] === CLIENT ? CLIENT : REDIS;
+    // a producer of a broker has one container of its name
+    const container = pod.labels["app"] === SERVER ? "app" : pod.labels["app"] === CLIENT ? CLIENT : pod.labels["app"] === PRODUCER ? PRODUCER : REDIS;
     const pid = await ctx.lab.pidOf(pod.node!, ctx.namespace, pod.name, container);
     netns.push(await ctx.lab.netnsOf(pod.node!, pid));
   }

@@ -26,7 +26,7 @@ import { fileURLToPath } from "node:url";
 import type { Quantity } from "../../quantity/src/index.ts";
 import { valueIn } from "../../quantity/src/index.ts";
 import type { KindCell, KindCellRecord, KindCellRecordV1, KindRun, KindVerdict, Prediction, Reference, TimeSpread } from "../../kind/src/index.ts";
-import { FORMAT, FORMAT_V1, calibrationOf, cyclesOf, judgeKind, propagationOf, referenceOf, requestBand, seconds, upgrade } from "../../kind/src/index.ts";
+import { FORMAT, FORMAT_V1, KIND_NOISE, calibrationOf, cyclesOf, judgeKind, judgeReconnects, propagationOf, referenceOf, requestBand, seconds, upgrade } from "../../kind/src/index.ts";
 import { T07_CELLS } from "../../cells/src/t07.ts";
 import { T18_CELLS } from "../../cells/src/t18.ts";
 import { T15_GRPC } from "../../cells/src/grpc/t15.ts";
@@ -385,6 +385,7 @@ const groupOf = (cell: KindCell): string => {
     if (cell.id.includes(".shared-gate")) return "gate";
     if (cell.id.includes(".backlog")) return "backlog";
     if (cell.trigger.kind === "dns-blackhole") return "dns";
+    if (cell.pulsar !== undefined) return "broker";
     if (cell.trigger.kind === "cannot-serve") return cell.trigger.serves === true ? "prober" : "callers";
     if (cell.trigger.kind === "zone-loss") return "zone";
     if (cell.trigger.kind === "latency") return "slow";
@@ -419,12 +420,14 @@ const spread = (value: TimeSpread | null) =>
  * The cells of a slow dependency get s2-slow, and the cells of the shared gate (E) get s2-gate. The
  * cells of the backlog of a stall (SYS-40) get s2-backlog, and the cells of a black hole of DNS
  * (SYS-50) get s2-dns. The cells of a VIP of kube-vip (SYS-51) get s2-vip, and those of MetalLB (SYS-53) get s2-metallb.
+ * The cells of a broker of Pulsar (SYS-56) get s2-pulsar.
  */
 const copyOf = (
   cell: KindCell,
-): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" | "s2-prober" | "s2-dependency" | "s2-flapping" | "s2-zone" | "s2-slow" | "s2-gate" | "s2-backlog" | "s2-dns" | "s2-vip" | "s2-metallb" => {
+): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" | "s2-prober" | "s2-dependency" | "s2-flapping" | "s2-zone" | "s2-slow" | "s2-gate" | "s2-backlog" | "s2-dns" | "s2-vip" | "s2-metallb" | "s2-pulsar" => {
   if (cell.template === "T15") return "t15";
   if (!cell.id.startsWith("S2.")) return "kind";
+  if (cell.pulsar !== undefined) return "s2-pulsar";
   if (cell.id.includes(".shared-gate")) return "s2-gate";
   if (cell.id.includes(".backlog")) return "s2-backlog";
   if (cell.trigger.kind === "dns-blackhole") return "s2-dns";
@@ -696,6 +699,74 @@ const metallbBandsOf = () => {
   return { probe: band(probe), dead: band(dead), naive: band(naive), arp: band(arp), end: band(end), thaw: band(thaw) };
 };
 
+/** These are the figures of one producer in one counted run of a broker of Pulsar (SYS-56), in seconds from the fault. */
+interface PulsarReturn {
+  readonly pod: string;
+  /** This time is the first call of the backoff after the fault. */
+  readonly disconnect: number | null;
+  /** These are the delays of the backoff up to the try that succeeded, in seconds. */
+  readonly delays: number[];
+  /** This time is the producer on the new owner. */
+  readonly back: number | null;
+  /** This time is from the try that succeeded to the producer on the new owner. */
+  readonly setup: number | null;
+  readonly tries: number;
+}
+
+/** These are the figures of one counted run of a broker of Pulsar (SYS-56), in seconds from the fault. */
+interface PulsarRun {
+  /** This time is the first lookup that names another owner. */
+  readonly flip: number | null;
+  /** This time is from the last lookup before that change to it. */
+  readonly gap: number | null;
+  readonly returns: PulsarReturn[];
+  /** These counts are the failed sends of the producers by outcome, and the failed requests of the control. */
+  readonly failed: { readonly sends: Record<string, number>; readonly control: number };
+  readonly ok: boolean;
+  readonly why: string;
+}
+
+/** This function gives the figures of each counted run of a broker of Pulsar (SYS-56), from the judge of the reconnects. */
+const pulsarRunsOf = (cell: KindCell, runs: readonly KindRun[]): { pulsar: PulsarRun[] } => {
+  const prediction = cell.prediction;
+  if (prediction.kind !== "reconnects") throw new Error(`${cell.name}: the prediction is not reconnects`);
+  const sends = { timeout: valueIn(cell.workload.timeout, "ms"), every: valueIn(cell.workload.every, "ms") };
+  return {
+    pulsar: runs
+      .filter((run) => !run.warmup && run.void === null)
+      .map((run) => {
+        const fault = referenceOf(run, "fault");
+        if (fault === null || run.broker === undefined) throw new Error(`run ${run.env}/${run.index}: no fault or no broker`);
+        const judged = judgeReconnects(prediction, { fault, broker: run.broker, lines: run.lines as readonly Line[] }, sends, valueIn(KIND_NOISE, "ms"));
+        const sec = (value: number | null) => (value === null ? null : round(value / 1000));
+        const control = failuresOf(run.lines as readonly Line[]).filter((request) => request.t >= run.start && request.t <= run.end).length;
+        return {
+          flip: sec(judged.flip),
+          gap: sec(judged.gap),
+          returns: judged.returns.map((each) => ({
+            pod: each.pod,
+            disconnect: sec(each.disconnect),
+            delays: each.schedules.map((schedule) => round(schedule.delay / 1000)),
+            back: sec(each.back),
+            setup: sec(each.setup),
+            tries: each.tries,
+          })),
+          failed: { sends: { ...judged.failures }, control },
+          ok: judged.ok,
+          why: judged.why,
+        };
+      }),
+  };
+};
+
+/** This function gives the bands of the cell of Pulsar from the fault, in seconds (SYS-56). They are the change of the owner, the first call and the setup. */
+const pulsarBandsOf = () => {
+  const prediction = PULSAR_CELLS[0]!.prediction;
+  if (prediction.kind !== "reconnects") throw new Error("the cell of Pulsar does not predict reconnects");
+  const band = (each: { lo: Quantity; hi: Quantity }) => ({ low: s(each.lo), high: s(each.hi) });
+  return { flip: band(prediction.flip), disconnect: band(prediction.disconnect), setup: band(prediction.setup), probe: s(prediction.probe) };
+};
+
 /**
  * This function gives the band of the last failure of the black hole of DNS, from the heal (SYS-50).
  * The band is true if the threads of each client stay in phase with the fault. The judge does not use it.
@@ -889,7 +960,7 @@ const cells = CATALOG.flatMap((cell) => {
       // a pooled cell: the workflow run of each dispatch, its counts and the counted runs that the copy takes
       ...(joined === null ? {} : { dispatches: joined.dispatches }),
       // the shared gate (E) is not a candidate of the table of S2, thus its cells have no candidate
-      ...(copyOf(cell).startsWith("s2") ? { ...(copyOf(cell) === "s2-gate" || copyOf(cell) === "s2-dns" || copyOf(cell) === "s2-vip" || copyOf(cell) === "s2-metallb" ? {} : { candidate: candidateOf(cell) }), lasts: lastsOf(record.runs, verdict) } : {}),
+      ...(copyOf(cell).startsWith("s2") ? { ...(copyOf(cell) === "s2-gate" || copyOf(cell) === "s2-dns" || copyOf(cell) === "s2-vip" || copyOf(cell) === "s2-metallb" || copyOf(cell) === "s2-pulsar" ? {} : { candidate: candidateOf(cell) }), lasts: lastsOf(record.runs, verdict) } : {}),
       // the main value of a false failure is the time of its removal, thus the copy keeps the failed requests of each counted run apart
       ...(copyOf(cell) === "s2-prober" || copyOf(cell) === "s2-dependency" || copyOf(cell) === "s2-flapping" || copyOf(cell) === "s2-zone" || copyOf(cell) === "s2-gate"
         ? { failures: verdict.checks.map((check) => check.facts.failures) }
@@ -908,6 +979,8 @@ const cells = CATALOG.flatMap((cell) => {
       ...(copyOf(cell) === "s2-vip" ? vipRunsOf(record.runs) : {}),
       // a VIP of MetalLB: the death in memberlist, the ARP of each outside client, its last failure, and the withdrawal after the heal
       ...(copyOf(cell) === "s2-metallb" ? metallbRunsOf(record.runs) : {}),
+      // a broker of Pulsar: the change of the owner, and the tries and the return of each producer
+      ...(copyOf(cell) === "s2-pulsar" ? pulsarRunsOf(cell, record.runs) : {}),
       // the backlog of a stall: the sessions on the target and the stall of each counted run
       ...(copyOf(cell) === "s2-backlog" ? backlogRunsOf(cell, verdict) : {}),
       // the PINGs of the clients, when their image counts them
@@ -980,7 +1053,9 @@ for (const name of names) {
                           ? { bands: vipBandsOf() }
                           : name === "s2-metallb"
                             ? { bands: metallbBandsOf() }
-                            : {};
+                            : name === "s2-pulsar"
+                              ? { bands: pulsarBandsOf() }
+                              : {};
   writeFileSync(out, stringify({ ...copy, cells: mine.map(({ copy: _copy, ...cell }) => cell), ...predictions }));
   process.stdout.write(`${mine.length} cells, ${mine.reduce((sum, cell) => sum + cell.counted + cell.voided, 0)} runs: ${out}\n`);
 }
