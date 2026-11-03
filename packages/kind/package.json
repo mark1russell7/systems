@@ -69,7 +69,7 @@
   "dependencies": {
     "@mark1russell7/harness": "workspace:^",
     "@mark1russell7/quantity": "workspace:^",
-    "@mark1russell7/rigor-statistics": "^0.1.2",
+    "@mark1russell7/rigor-statistics": "^0.1.3",
     "@mark1russell7/service": "workspace:^",
     "testcontainers": "12.2.0"
   },
