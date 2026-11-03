@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
-    "@mark1russell7/cue": "github:mark1russell7/cue",
+    "@mark1russell7/cue": "github:mark1russell7/cue#9c99ad65d51cefcba5a8b6dc89358d7a94758ca7",
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

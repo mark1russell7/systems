@@ -166,11 +166,14 @@ importers:
 
   .:
     devDependencies:
+      '@mark1russell7/conventions':
+        specifier: ^0.22.0
+        version: 0.22.0
       '@mark1russell7/cue':
-        specifier: github:mark1russell7/cue
+        specifier: github:mark1russell7/cue#e737619231ee976251a0a2d5ff61aec113d22a10
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/e737619231ee976251a0a2d5ff61aec113d22a10
       '@mark1russell7/ste-lint':
-        specifier: github:mark1russell7/ste-lint
+        specifier: github:mark1russell7/ste-lint#f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7
         version: https://codeload.github.com/mark1russell7/ste-lint/tar.gz/f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7
       '@mark1russell7/template-cli':
         specifier: ^0.1.2
@@ -189,7 +192,7 @@ importers:
         version: link:../quantity
     devDependencies:
       '@mark1russell7/cue':
-        specifier: github:mark1russell7/cue
+        specifier: github:mark1russell7/cue#da04dd56699a2ae806ab64da5b1d677476afe69e
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/da04dd56699a2ae806ab64da5b1d677476afe69e
       '@types/node':
         specifier: ^26.6.4
@@ -238,7 +241,7 @@ importers:
         version: 4.6.7
     devDependencies:
       '@mark1russell7/cue':
-        specifier: github:mark1russell7/cue
+        specifier: github:mark1russell7/cue#da04dd56699a2ae806ab64da5b1d677476afe69e
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/da04dd56699a2ae806ab64da5b1d677476afe69e
       '@types/node':
         specifier: ^26.6.4
@@ -266,7 +269,7 @@ importers:
         version: 12.2.0
     devDependencies:
       '@mark1russell7/cue':
-        specifier: github:mark1russell7/cue
+        specifier: github:mark1russell7/cue#da04dd56699a2ae806ab64da5b1d677476afe69e
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/da04dd56699a2ae806ab64da5b1d677476afe69e
       '@types/node':
         specifier: ^26.6.4
@@ -303,7 +306,7 @@ importers:
         version: 12.2.0
     devDependencies:
       '@mark1russell7/cue':
-        specifier: github:mark1russell7/cue
+        specifier: github:mark1russell7/cue#da04dd56699a2ae806ab64da5b1d677476afe69e
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/da04dd56699a2ae806ab64da5b1d677476afe69e
       '@types/node':
         specifier: ^26.6.4
@@ -331,7 +334,7 @@ importers:
         version: link:../quantity
     devDependencies:
       '@mark1russell7/cue':
-        specifier: github:mark1russell7/cue
+        specifier: github:mark1russell7/cue#da04dd56699a2ae806ab64da5b1d677476afe69e
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/da04dd56699a2ae806ab64da5b1d677476afe69e
       '@types/node':
         specifier: ^26.6.4
@@ -356,7 +359,7 @@ importers:
         version: link:../quantity
     devDependencies:
       '@mark1russell7/cue':
-        specifier: github:mark1russell7/cue
+        specifier: github:mark1russell7/cue#da04dd56699a2ae806ab64da5b1d677476afe69e
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/da04dd56699a2ae806ab64da5b1d677476afe69e
       '@types/node':
         specifier: ^26.6.4
@@ -381,7 +384,7 @@ importers:
         version: 0.1.0
     devDependencies:
       '@mark1russell7/cue':
-        specifier: github:mark1russell7/cue
+        specifier: github:mark1russell7/cue#da04dd56699a2ae806ab64da5b1d677476afe69e
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/da04dd56699a2ae806ab64da5b1d677476afe69e
       '@types/node':
         specifier: ^26.6.4
@@ -427,7 +430,7 @@ importers:
         specifier: 1.14.6
         version: 1.14.6
       '@mark1russell7/cue':
-        specifier: github:mark1russell7/cue
+        specifier: github:mark1russell7/cue#da04dd56699a2ae806ab64da5b1d677476afe69e
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/da04dd56699a2ae806ab64da5b1d677476afe69e
       '@mark1russell7/harness':
         specifier: workspace:^
@@ -494,7 +497,7 @@ importers:
         version: 19.3.0(react@19.3.0)
     devDependencies:
       '@mark1russell7/cue':
-        specifier: github:mark1russell7/cue
+        specifier: github:mark1russell7/cue#9c99ad65d51cefcba5a8b6dc89358d7a94758ca7
         version: https://codeload.github.com/mark1russell7/cue/tar.gz/9c99ad65d51cefcba5a8b6dc89358d7a94758ca7
       '@types/node':
         specifier: ^26.6.4
@@ -1113,6 +1116,11 @@ packages:
 
   '@kwsites/file-exists@1.1.1':
     resolution: {integrity: sha512-m9/5YGR18lIwxSFDwfE3oA7bWuq9kdau6ugN4H2rJeyhFQZcG9AgSHkQtSD15a8WvTgfz9aikZMrKPHvbpqFiw==}
+
+  '@mark1russell7/conventions@0.22.0':
+    resolution: {integrity: sha512-MtNaOnUyG9trSTY0S9In5+JtGwNpYHRGYxvDgncGtn50VBE75fJ7aSFNOxZDcDY4F0+AoG2pOJbnQd+bSSX13Q==}
+    engines: {node: '>=22'}
+    hasBin: true
 
   '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/9c99ad65d51cefcba5a8b6dc89358d7a94758ca7':
     resolution: {gitHosted: true, integrity: sha512-hEpr79iwUOLCP6Pn6m8KHq200u4c2jM1npz+SIJQGrrT1fdUUAwgKCZgwOPiyiH5SA4QPXID7f1wCDz7T9HP7A==, tarball: https://codeload.github.com/mark1russell7/cue/tar.gz/9c99ad65d51cefcba5a8b6dc89358d7a94758ca7}
@@ -3953,6 +3961,8 @@ snapshots:
       debug: 4.4.3
     transitivePeerDependencies:
       - supports-color
+
+  '@mark1russell7/conventions@0.22.0': {}
 
   '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/9c99ad65d51cefcba5a8b6dc89358d7a94758ca7': {}
 
