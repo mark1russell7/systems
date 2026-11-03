@@ -17,10 +17,9 @@ name: HTTP
 
 on:
   workflow_dispatch:
+  # Each pull request starts this workflow, so its summary check is always there. The job changes skips the
+  # work when the pull request changes no file of the gate (CI.md of the template, "A gate with paths").
   pull_request:
-    paths:
-      - ".github/workflows/http.yml"
-      - "packages/service/**"
   push:
     branches: [main]
     paths:
@@ -35,11 +34,30 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      match: ${{ steps.changes.outputs.match }}
+    steps:
+      - id: changes
+        uses: mark1russell7/template/.github/actions/changes@f05c6eeb35e33a040bdfdcd7d07a1d2c00640f8d # main
+        with:
+          paths: |
+            .github/workflows/http.yml
+            packages/service/**
+
   http:
+    needs: changes
+    if: needs.changes.outputs.match == 'true'
     name: http (Node ${{ matrix.node }})
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
+      max-parallel: 3
       fail-fast: false
       matrix:
         # the floor of "engines", the current LTS, and the version of ci.yml
@@ -72,3 +90,15 @@ jobs:
           name: http-records-node-${{ matrix.node }}
           path: ${{ runner.temp }}/http-records
           if-no-files-found: warn
+
+  http-ok:
+    name: HTTP OK
+    if: always()
+    needs: [changes, http]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - uses: mark1russell7/template/.github/actions/gate-summary@f05c6eeb35e33a040bdfdcd7d07a1d2c00640f8d # main
+        with:
+          needs: ${{ toJSON(needs) }}

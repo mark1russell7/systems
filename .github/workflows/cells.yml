@@ -44,9 +44,10 @@ on:
         description: Two versions of @mark1russell7/service, the control and the candidate, for example 0.5.6,0.6.0 (empty for the catalogs)
         default: ""
   schedule:
-    - cron: "40 3 * * *"
+    - cron: "30 3 * * *"
+  # Each pull request starts this workflow, so its summary check is always there. The job changes skips the
+  # work when the pull request changes no file of the gate (CI.md of the template, "A gate with paths").
   pull_request:
-    paths: [".github/workflows/cells.yml"]
 
 permissions:
   contents: read
@@ -56,8 +57,32 @@ env:
   # @procedures/client 0.22.0 and two PATCHes after it (packages/cells/src/subjects.ts holds the same)
   CLIENT_REF: 2408cea460d84dc7577b69c4ae68a559f2dc2bdd
 
+# The runs of a pull request share a group, and a newer push cancels the older run. Each dispatch and each
+# schedule has a group of its own. GitHub keeps only one waiting run of a group, so a shared group cancels a
+# dispatch of other cells.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      match: ${{ steps.changes.outputs.match }}
+    steps:
+      - id: changes
+        uses: mark1russell7/template/.github/actions/changes@f05c6eeb35e33a040bdfdcd7d07a1d2c00640f8d # main
+        with:
+          paths: |
+            .github/workflows/cells.yml
+
   probe:
+    needs: changes
+    if: needs.changes.outputs.match == 'true'
     runs-on: ubuntu-24.04
     # the lab builds the harness's images on the runner, the Rust one among them
     timeout-minutes: 60
@@ -128,7 +153,8 @@ jobs:
           sudo dmesg | tail -n 40 || true
 
   plan:
-    if: github.event_name != 'pull_request'
+    needs: changes
+    if: ${{ needs.changes.outputs.match == 'true' && (github.event_name != 'pull_request') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -151,9 +177,10 @@ jobs:
           echo "list=$(seq -s, 0 $((SHARDS - 1)) | sed 's/^/[/; s/$/]/')" >> "$GITHUB_OUTPUT"
 
   cells:
-    needs: [probe, plan]
-    if: github.event_name != 'pull_request'
+    needs: [changes, probe, plan]
+    if: ${{ needs.changes.outputs.match == 'true' && (github.event_name != 'pull_request') }}
     strategy:
+      max-parallel: 3
       fail-fast: false
       matrix:
         shard: ${{ fromJSON(needs.plan.outputs.shards) }}
@@ -283,3 +310,16 @@ jobs:
           path: ${{ runner.temp }}/cells/
           if-no-files-found: warn
           retention-days: 30
+
+  cells-ok:
+    name: Cells OK
+    if: always()
+    needs: [changes, probe, plan, cells]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - uses: mark1russell7/template/.github/actions/gate-summary@f05c6eeb35e33a040bdfdcd7d07a1d2c00640f8d # main
+        with:
+          needs: ${{ toJSON(needs) }}
+          allow-skip: plan cells
