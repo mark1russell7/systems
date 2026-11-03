@@ -1098,6 +1098,54 @@ The exports `middle`, `quantileOf` and `seeded` stay, as wrappers of the home fu
 
 The next step, after rigor-bench is on npm, is to write PairedTime records. The spec is the case, and the run is the round. `firstArm` turns the order, and an A/A pair of the candidate measures the noise. Then `timeVerdict` decides. The S6 gate compares counts of failed requests, not times, thus it does not need rigor-bench.
 
+### SYS-50 · CoreDNS: a client by name when the cluster DNS stops answering
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** S2
+- **Started:** 2026-11-02
+- **Shipped:**
+- **Links:** [S2](#s2--intermediaries-and-kubernetes)
+
+CoreDNS is the next intermediary of S2. In this item, a client resolves the name of the Service for each new connection. Then no answer of DNS gets to it for a hold. The question: when do its failures start and end, and which timer sets the end?
+
+**The family.** Two cells in iptables, with the trigger `dns-blackhole` and a hold of 6 s. The cells are `DNS_CELLS` in `packages/cells/src/dns.ts`.
+
+- `S2.T07.iptables.dns.blackhole`: each client sends a request each 20 ms on a new connection, to the short name `server`, with a timeout of 1 s.
+- `S2.T07.iptables.dns.kept`: the same requests on 2 connections that each client keeps. This control shows that only a new connection does a lookup.
+
+The fault drops each answer from port 53 in INPUT of the network namespace of each client pod (`dnsCommands` of the kind package). Each query still goes out, and CoreDNS answers it. Only the answer is lost. Thus the fault is the same as a cluster DNS with no route back, and no other pod sees it.
+
+This family is the smallest one that answers the question. These faults are not in it, for these reasons:
+
+- A scale of CoreDNS to 0 adds the propagation of its endpoints and its lame duck of 5 s. Those are the terms of other cells.
+- A SIGSTOP of CoreDNS adds the buffer of its socket, and its pods are in kube-system.
+- The race of conntrack on UDP gives a rare tail, not a window.
+- The search list of ndots does not act here: the first name answers, and a timeout stops the search.
+- A slow upstream does not act: the zone `cluster.local` does not go to the upstream.
+
+**The terms and their sources.** Each band comes from these timers:
+
+- The kubelet gives a pod with `ClusterFirst` the nameserver of the cluster DNS, the search list of its namespace and `options ndots:5` only. The source is `pkg/kubelet/network/dns/dns.go` of v1.37.0, line 44 and lines 164–173. Thus the pod keeps the defaults of its resolver.
+- The client is Node on Alpine, thus its resolver is musl. By default, musl stops a lookup at 5 s, and it sends each query 2 times (`src/network/resolvconf.c` of v1.2.5). Thus it sends each query again 5 / 2 = 2.5 s after the first send (`res_msend.c`). It accepts an answer to any send.
+- With no answer, musl gives EAI_AGAIN, and the search stops (`lookup_name.c`).
+- musl has no cache. Thus the TTL of 30 s of the kubernetes plugin and the cache of CoreDNS do not act at the client. The Corefile of kubeadm also disables the cache for `cluster.local` (`cmd/kubeadm/app/phases/addons/dns/manifests.go` of v1.37.0, lines 177–191).
+- Node runs each `dns.lookup()` as a blocking `getaddrinfo` on the threadpool of libuv. The pool has 4 threads at the default `UV_THREADPOOL_SIZE`. The other lookups wait in a queue, and a timeout of a request does not stop its lookup.
+- The lab changes the drops of all client pods at the same time. `DNS_ACT` gives each act up to 0.5 s after its stamp. `DNS_DRAIN` gives the queue up to 0.5 s to drain. These two are assumptions, and a run measures them.
+
+**The bands.** For the cell with new connections (`dnsOf`), the window opens at the fault: 0 to 0.52 s. The window ends from −1 s to 2.5 s after the heal. Each failure is a timeout.
+
+- Each request that starts more than one timeout before the heal fails. Thus the last failure comes 1 s before the heal at the earliest.
+- After the heal, a thread is free at its next send, or at the end of its lookup. Either comes in 2.5 s. Then the queue drains. Thus the last failure starts at most 2.5 − 1 + 0.5 + 0.5 = 2.5 s after the heal.
+
+The cell with kept connections predicts no failed request.
+
+**The phase.** Each thread starts its lookups at the fault, and again each 5 s. If the threads stay in this phase, they are free 7.5 s after the fault, 1.5 s after the heal. Then the last failure starts 0.5 s to 1.5 s after the heal. The judge does not use this band. The prediction tests it.
+
+**The prediction.** Each cell holds in each counted run. In the cell with new connections, the median last failure is 0.5 s to 1.5 s after the heal. Approximately 900 to 1050 requests fail in each run.
+
+The decision rule: a run counts if it is not a warmup and the wait for a quiet runner does not void it. The cell with new connections needs 4 counted runs, and the control needs 3. A cell with a void run starts again once, alone. The band of the law hits if each counted run holds. The bands of this item stay as committed, and the thresholds do not change after the result.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue

@@ -47,6 +47,7 @@ const TRIGGERS = [
   "cannot-serve",
   "zone-loss",
   "latency",
+  "dns-blackhole",
 ] as const satisfies readonly TriggerKind[];
 const KUBE_PROXY = ["iptables", "ipvs", "nftables"] as const satisfies readonly KubeProxyMode[];
 const MODES = [...KUBE_PROXY, "cilium"] as const satisfies readonly Dataplane[];
@@ -208,6 +209,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
       connections: count.optional(),
       sessionCheck: z.object({ keepalive_time: extent, keepalive_timeout: time }).optional(),
       onTarget: count.optional(),
+      byName: z.boolean().optional(),
     }),
     prediction,
     calibrates: z.boolean(),

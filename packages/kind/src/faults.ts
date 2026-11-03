@@ -20,8 +20,8 @@ import { HBONE_PORT } from "./observe.ts";
  *   Each one acts in the network namespace of each replica, with each client pod as a peer. A REJECT
  *   resets only the sender of the segment that it matches, thus the rule goes where the segments of
  *   the clients arrive.
- * - `clients` is the process of each client pod. Only a signal and a sysctl take it: the gap of the
- *   trigger `idle`, and a sysctl of the namespace of each client pod.
+ * - `clients` is the process of each client pod. Only a signal, a sysctl and a drop of DNS take it.
+ *   They are the gap of `idle`, a sysctl of the namespace of each client pod, and `dns-blackhole`.
  */
 export type Target = "server" | "redis" | "kube-proxy" | "servers" | "clients";
 
@@ -85,7 +85,12 @@ export type Step =
    * each slot. `onTarget` of the sessions of all clients go to the target. The next SIGHUP of the
    * clients opens each slot again until its first answer comes from its backend.
    */
-  | { readonly do: "place"; readonly onTarget: number };
+  | { readonly do: "place"; readonly onTarget: number }
+  /**
+   * This step drops each answer of a DNS server in the network namespace of each client pod
+   * (`clients`), the nodes at the same time (`dnsCommands`). With `on` false, it removes the drops.
+   */
+  | { readonly do: "dns"; readonly target: Target; readonly on: boolean };
 
 /**
  * A fault plan is the steps of a run:
@@ -190,6 +195,21 @@ export const sysctlCommand = (key: string, value: string): string[] => {
   if (!/^net\.[a-z0-9_.]+$/.test(key)) throw new Error(`not a sysctl of a network namespace: ${key}`);
   if (!/^\d+$/.test(value)) throw new Error(`not a whole number: ${value}`);
   return ["sysctl", "-w", `${key}=${value}`];
+};
+
+/** This port is the port of a DNS server: each answer of the cluster DNS comes from it. */
+export const DNS_PORT = 53;
+
+/**
+ * This function gives the commands of the injector that drop each answer of a DNS server in its
+ * network namespace, on UDP and on TCP. With `on` false, they remove the drops. The rules go in
+ * INPUT, thus each query still goes out, and CoreDNS answers it. Only the answer is lost. A send of
+ * the resolver gets no error, as for a DNS server with no route back. The rules match the source port,
+ * thus each DNS server of the namespace is in the fault.
+ */
+export const dnsCommands = (on: boolean): string[][] => {
+  const op = on ? "-I" : "-D";
+  return (["udp", "tcp"] as const).map((protocol) => ["iptables", op, "INPUT", "-p", protocol, "--sport", String(DNS_PORT), "-j", "DROP"]);
 };
 
 /**
@@ -544,6 +564,15 @@ const stepsOf = (cell: KindCell): FaultPlan => {
         restore: back,
       };
     }
+    case "dns-blackhole":
+      // the drops of each client pod, and their removal at the heal. A restore after a good heal
+      // would find no rule to delete, thus the plan has none
+      return {
+        inject: [{ do: "dns", target: "clients", on: true }],
+        hold: needs(trigger.hold, "a hold, the time that no answer of DNS gets to a client"),
+        heal: [{ do: "dns", target: "clients", on: false }],
+        restore: [],
+      };
   }
 };
 
