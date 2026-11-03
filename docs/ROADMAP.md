@@ -8,7 +8,7 @@ Each item has an id, a status, an area, the items that it needs, its dates and i
 
 The program started again on 2026-11-02, after the pause of 2026-10-28. A gap that a consumer finds in the service or kind packages still comes first. It is released as a PATCH when its checks pass. The order of the other work is:
 
-1. **S6:** SYS-6 is done: the conformance kit has the cases of the streams, in service 0.6.4. SYS-17 is done, with SYS-18.
+1. **S6:** S6 is done. SYS-6 put the cases of the streams in the conformance kit, in service 0.6.4. SYS-17 is done, with SYS-18.
 2. **SYS-49:** The statistics of the cells and the time verdicts come from the rigor packages, not from local copies.
    <!-- ste-disable-next latin-abbreviation -- VIZ is the ID of the item, not the Latin abbreviation -->
 3. **VIZ:** The site gets an interactive demo of the path of a request, from the process to the NIC. The packages of this repository run live in the browser.
@@ -123,18 +123,18 @@ From the layout of a CMOS cell to the routing fabric of an FPGA, with the real g
 
 ### S6 · The service abstraction
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** program
 - **Depends on:** S1
 - **Started:** 2026-10-08
-- **Shipped:**
+- **Shipped:** 2026-11-02
 - **Links:** [@mark1russell7/service](https://www.npmjs.com/package/@mark1russell7/service), [The requirements](S6.md), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
 A service declares its clients, timeouts, retries, checks and state machines as data that the algebra reads. `@mark1russell7/service` has the declaration, the law, the health runtime, the lifecycle and the Redis client. Version 0.5.0 adds the HTTP edge (`./http`), the runner options and the requests as streams.
 
 On 2026-10-17, Mark decided the design of the server stack (D1 to D18). These decisions replace the co-design gate for the runner, its HTTP entry, the composition, the requests, the signals and the profiles. On 2026-10-25, Mark chose a shared core for the wrappers of the S1 clients. Each driver has a thin entry on that core. Mark asked for as much unification as possible. Thus the table of [S6.md](S6.md) gives a reason for each part that stays separate.
 
-The design of health and routing is decided. The kind cells scored the candidates A to E on eight incidents, from PR #194 to PR #242, and the rule of the service stays. SYS-6 and SYS-17 are done.
+The design of health and routing is decided. The kind cells scored the candidates A to E on eight incidents, from PR #194 to PR #242, and the rule of the service stays. SYS-6 and SYS-17 are done, thus S6 has no open item. A gap that a consumer finds in the service gets a new item, released as a PATCH.
 
 [PR #157](https://github.com/mark1russell7/systems/pull/157) adds the PostgreSQL client (`./pg`) on the shared core of the clients, and moves the Redis client onto that core.
 
