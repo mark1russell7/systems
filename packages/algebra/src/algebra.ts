@@ -714,6 +714,120 @@ export const recovery = (
   return { unknown: `${FIRINGS} firings do not outlast the stall`, unit: "s" };
 };
 
+// ---------------------------------------------------------------------------------------------
+// the times on a timeline: the band of a timer, the firings of a backoff timer, a train of probes
+// ---------------------------------------------------------------------------------------------
+
+/** A band is the range of times in which a timer fires, from its arming. */
+export interface Band {
+  /** This time is the duration less how early the timer can fire. */
+  readonly low: Extent;
+  /** This time is the duration plus how late the timer can fire. */
+  readonly high: Extent;
+}
+
+/** This function gives an amount as an exact value in seconds. Without an amount, it gives zero. */
+const secondsOf = (extent: Extent | Unknown | undefined): Value => {
+  if (extent === undefined) return exact(r.ZERO);
+  if ("unknown" in extent) return unknown(extent.unknown);
+  if (isUnbounded(extent)) return INFINITE;
+  return exact(convertExact(r.fromNumber(extent.value), extent.unit, "s"));
+};
+
+/**
+ * This function gives the band of a timer from its bounds, exactly, in `unit`. The band goes from
+ * its duration less its early bound to its duration plus its lateness. A bound that the document
+ * does not give is zero. A duration without an end gives a band without an end. A keepalive of 11 s, 4 ms early and 352 ms
+ * late, gives 10.996 s to 11.352 s.
+ */
+export const timerBand = (bounds: TimerBounds, unit = "s"): Band | Unknown => {
+  const duration = secondsOf(bounds.duration);
+  const early = secondsOf(bounds.early);
+  const late = secondsOf(bounds.lateness);
+  const lost = unknownOf([duration, early, late]);
+  if (lost !== undefined) return out(lost, unit) as Unknown;
+  if (duration.kind !== "exact") return { low: unbounded(unit), high: unbounded(unit) };
+  if (early.kind !== "exact") return { unknown: "an early bound without an end", unit };
+  const low = r.sub(duration.n, early.n);
+  const at = (n: Rational): Quantity => quantity(r.toNumber(convertExact(n, "s", unit)), unit);
+  return { low: at(low), high: late.kind === "exact" ? at(r.add(duration.n, late.n)) : unbounded(unit) };
+};
+
+/** A scheduled firing is one firing of a backoff timer, and its time on the timeline. */
+export interface Scheduled {
+  /** This count is the wait that ends in this firing: the wait after `fired` firings. */
+  readonly fired: number;
+  /** This time is the sum of the waits to this firing, from the first wait of the schedule, in seconds. */
+  readonly at: Quantity;
+}
+
+/** These options tell where the firings of a schedule start and stop. Each stop that they give applies. */
+export interface ScheduleOptions {
+  /** This count is the first wait of the schedule. The default is 0, the wait from the arming. */
+  readonly from?: number | undefined;
+  /** This count is the most firings to give. */
+  readonly count?: number | undefined;
+  /** This time stops the schedule: the schedule keeps no firing after it. */
+  readonly until?: Extent | undefined;
+  /** This time stops the schedule after the first firing at it or after it. That firing is in the schedule. */
+  readonly reach?: Extent | undefined;
+}
+
+/**
+ * This function gives the firings of a backoff timer on a timeline: the sum of its waits, exactly,
+ * from the wait `from`. It stops at the first wait that is not a known amount, or at a stop of the
+ * options, or after 4096 firings. Each time is the duration of the waits, without how early or
+ * late each can fire.
+ *
+ * Two examples: the retransmission timer of Linux gives the send of each retransmission. The
+ * retry of a call with a deadline gives the start of each try.
+ */
+export const firings = (
+  doc: Machine,
+  timer: string,
+  values: KnobValues,
+  options: ScheduleOptions,
+): Scheduled[] => {
+  const def = doc.timers[timer];
+  if (def === undefined) throw new Error(`${doc.title} has no timer ${timer}`);
+  if (def.backoff === undefined) throw new Error(`${doc.title}'s ${timer} has no backoff`);
+  if (options.count === undefined && options.until === undefined && options.reach === undefined) {
+    throw new Error(`the firings of ${timer} need a stop: a count, until or reach`);
+  }
+  const limit = (extent: Extent | undefined): Value | undefined => (extent === undefined ? undefined : secondsOf(extent));
+  const until = limit(options.until);
+  const reach = limit(options.reach);
+  const from = options.from ?? 0;
+  const count = Math.min(options.count ?? FIRINGS, FIRINGS);
+  const result: Scheduled[] = [];
+  let at = r.ZERO;
+  for (let fired = from; result.length < count; fired += 1) {
+    const wait = secondsOf(timerOf(doc, timer, values, fired).duration);
+    if (wait.kind !== "exact") break;
+    at = r.add(at, wait.n);
+    if (until?.kind === "exact" && r.cmp(at, until.n) > 0) break;
+    result.push({ fired, at: quantity(r.toNumber(at), "s") });
+    if (reach?.kind === "exact" && r.cmp(at, reach.n) >= 0) break;
+  }
+  return result;
+};
+
+/**
+ * This function gives the times of a train of probes, exactly, in seconds. The first probe is at
+ * `first`, and each next probe is one `interval` later, `count` probes in all. A first time without
+ * an end gives no probe. An interval without an end gives only the first probe. Keepalive at its
+ * defaults sends its probes at 7200 s, 7275 s, and so on to 7800 s.
+ */
+export const probeTrain = (first: Extent, interval: Extent, count: number): Quantity[] => {
+  const start = secondsOf(first);
+  const step = secondsOf(interval);
+  if (start.kind !== "exact" || count < 1) return [];
+  const times = [quantity(r.toNumber(start.n), "s")];
+  if (step.kind !== "exact") return times;
+  for (let k = 1; k < count; k += 1) times.push(quantity(r.toNumber(r.add(start.n, r.mul(step.n, whole(BigInt(k))))), "s"));
+  return times;
+};
+
 /**
  * This function gives how long a mechanism takes where a machine operates, from the realization
  * of its document. The realization is one of its timers, whole, or its own duration, lateness and

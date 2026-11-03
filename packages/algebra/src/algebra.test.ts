@@ -6,13 +6,16 @@ import {
   detection,
   errnoOf,
   evaluate,
+  firings,
   modelSource,
   overValues,
   parseExpr,
+  probeTrain,
   realizationKnobs,
   realizationOf,
   recovery,
   stackedDetection,
+  timerBand,
   timerOf,
   timerUnder,
   transitionOn,
@@ -638,5 +641,94 @@ describe("a knob that turns its timers off (0.7.0)", () => {
       lateness: secs(0.5),
     });
     expect(machineProblems(IDLE)).toEqual([]);
+  });
+});
+
+describe("the times on a timeline: timerBand, firings and probeTrain", () => {
+  const ms = (value: number) => ({ value, unit: "ms" });
+  const INFINITE = { value: "infinite" as const, unit: "s" };
+  /** a retry that waits min(base × 2^fired, cap), and a timer without a backoff */
+  const RETRY: Machine = {
+    format: "mark1russell7.machine/1",
+    id: "test.machine.retry",
+    title: "A retry",
+    layer: "driver",
+    version: "1",
+    sources: [{ ref: "this test", rung: "derived" }],
+    states: { waiting: { initial: true }, trying: {} },
+    events: { "timer.retry": { kind: "timer" }, "rx.reply": { kind: "rx" } },
+    knobs: { base: knob("ms", 100), cap: knob("ms", 1000) },
+    timers: {
+      retry: {
+        duration: { expr: "min(base * pow(2, fired), cap)", unit: "ms" },
+        arms: ["enter:trying"],
+        cancels: ["rx.reply"],
+        fires: "timer.retry",
+        backoff: { resets: ["rx.reply"] },
+      },
+      once: { duration: { knob: "base", unit: "ms" }, arms: ["enter:trying"], fires: "timer.retry" },
+    },
+    transitions: [
+      { id: "retry", from: "trying", on: "timer.retry", to: "trying" },
+      { id: "reply", from: "trying", on: "rx.reply", to: "waiting" },
+    ],
+  };
+  const AT_DEFAULTS = given({ base: ms(100), cap: ms(1000) });
+  const times = (list: ReadonlyArray<{ readonly at: { readonly value: number } }>) => list.map((f) => f.at.value);
+
+  it("gives the band of a timer: its duration less its early bound, to its duration plus its lateness", () => {
+    expect(machineProblems(RETRY)).toEqual([]);
+    expect(timerBand({ duration: s(11), early: ms(4), lateness: ms(352) })).toEqual({ low: s(10.996), high: s(11.352) });
+    expect(timerBand({ duration: s(11), early: ms(4), lateness: ms(352) }, "ms")).toEqual({ low: ms(10996), high: ms(11352) });
+    // keepalive at the defaults of Linux 6.6 and HZ 250: 7875 s, 4 ms early, 149.504 s late
+    expect(timerBand(timerOf(SOCKET, "keepalive", given(HERE)))).toEqual({ low: s(7874.996), high: s(8024.504) });
+    // a bound that the document does not give is zero
+    expect(timerBand({ duration: ms(1500) })).toEqual({ low: s(1.5), high: s(1.5) });
+    expect(timerBand({ duration: INFINITE })).toEqual({ low: INFINITE, high: INFINITE });
+    expect(timerBand({ duration: s(5), lateness: INFINITE })).toEqual({ low: s(5), high: INFINITE });
+    // an unknown bound gives an unknown band, with the reason
+    expect(timerBand(timerOf(SOCKET, "keepalive", given(LINUX_66)))).toEqual({ unknown: "nothing gives hz's value", unit: "s" });
+  });
+
+  it("gives the firings of a backoff timer as sums of its waits, and stops at a count, until or reach", () => {
+    // waits of 0.1, 0.2, 0.4, 0.8, then 1 s at the cap
+    expect(firings(RETRY, "retry", AT_DEFAULTS, { count: 6 })).toEqual(
+      [0.1, 0.3, 0.7, 1.5, 2.5, 3.5].map((at, fired) => ({ fired, at: s(at) })),
+    );
+    expect(firings(RETRY, "retry", AT_DEFAULTS, { from: 2, count: 2 })).toEqual([
+      { fired: 2, at: s(0.4) },
+      { fired: 3, at: s(1.2) },
+    ]);
+    // until keeps the firings at it or before it, and reach keeps the first firing at it or after it
+    expect(times(firings(RETRY, "retry", AT_DEFAULTS, { until: s(1.5) }))).toEqual([0.1, 0.3, 0.7, 1.5]);
+    expect(times(firings(RETRY, "retry", AT_DEFAULTS, { until: ms(1499) }))).toEqual([0.1, 0.3, 0.7]);
+    expect(times(firings(RETRY, "retry", AT_DEFAULTS, { reach: s(1) }))).toEqual([0.1, 0.3, 0.7, 1.5]);
+    expect(times(firings(RETRY, "retry", AT_DEFAULTS, { reach: s(0.7) }))).toEqual([0.1, 0.3, 0.7]);
+    expect(times(firings(RETRY, "retry", AT_DEFAULTS, { count: 2, reach: s(10) }))).toEqual([0.1, 0.3]);
+    // a wait that is not known ends the schedule
+    expect(firings(RETRY, "retry", given({}), { count: 3 })).toEqual([]);
+    expect(() => firings(RETRY, "once", AT_DEFAULTS, { count: 1 })).toThrow(/has no backoff/);
+    expect(() => firings(RETRY, "retry", AT_DEFAULTS, {})).toThrow(/need a stop/);
+  });
+
+  it("gives the sends of the retransmissions of Linux as the sums of the RTO waits", () => {
+    const sends = firings(SOCKET, "retransmit", given(HERE), { count: 4 });
+    let at = 0;
+    for (const [fired, send] of sends.entries()) {
+      at += (timerOf(SOCKET, "retransmit", given(HERE), fired).duration as { value: number }).value;
+      expect(send.at.value).toBeCloseTo(at, 9);
+    }
+    expect(sends).toHaveLength(4);
+  });
+
+  it("gives a train of probes: the first, then one each interval", () => {
+    // keepalive at its defaults: 7200 s idle, then 9 probes 75 s apart
+    const train = probeTrain(s(7200), s(75), 9);
+    expect(train).toHaveLength(9);
+    expect([train[0], train[8]]).toEqual([s(7200), s(7800)]);
+    expect(probeTrain(ms(500), s(1), 2)).toEqual([s(0.5), s(1.5)]);
+    expect(probeTrain(INFINITE, s(1), 3)).toEqual([]);
+    expect(probeTrain(s(1), INFINITE, 3)).toEqual([s(1)]);
+    expect(probeTrain(s(1), s(1), 0)).toEqual([]);
   });
 });

@@ -2,7 +2,7 @@ import { recovery, timerOf } from "@mark1russell7/algebra";
 import { LINUX_TCP } from "@mark1russell7/machines";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
-import { CALL, DEFAULTS, KUBELET_READINESS, PRESETS, documentProblems, requestPath, say, tcpValues, type LayerId, type Settings } from "./request.ts";
+import { DEFAULTS, PRESETS, requestPath, say, tcpValues, type LayerId, type Settings } from "./request.ts";
 
 const preset = (id: string): Settings => {
   const found = PRESETS.find((p) => p.id === id);
@@ -19,20 +19,23 @@ const seconds = (band: { low: { value: number; unit: string }; high: { value: nu
   return [valueIn(band.low, "s"), valueIn(band.high, "s")];
 };
 
-describe("the documents of the page", () => {
-  it("have no problems", () => {
-    expect(documentProblems()).toEqual([]);
+describe("the readiness probe of the kubelet, from @mark1russell7/machines", () => {
+  const probes = (settings: Settings) =>
+    layer(settings, "kube")
+      .marks.filter((mark) => mark.kind === "probe")
+      .map((mark) => valueIn(mark.t, "s"));
+
+  it("gives the band of the defaults of 1.37.0: 21 s to 31 s", () => {
+    const stalled: Settings = { ...DEFAULTS, fault: "stall", dataplane: "cilium" };
+    expect(seconds(layer(stalled, "kube").band)).toEqual([21, 31]);
+    expect(probes(stalled)).toEqual([1, 11, 21]);
   });
-  it("give the readiness band of the kubelet at the design of KUBE_PROBE: 21 s to 31 s", () => {
-    const bounds = timerOf(KUBELET_READINESS, "unready", (name) => ({ period: quantity(10, "s"), threshold: quantity(3, "count"), timeout: quantity(1, "s") })[name]);
-    expect(bounds.duration).toEqual(quantity(31, "s"));
-    expect(bounds.early).toEqual(quantity(10, "s"));
-  });
-  it("give the waits of the retries of a call: deadline plus a doubled backoff, up to its cap", () => {
-    const values = (name: string) => ({ timeout: quantity(1000, "ms"), backoff: quantity(200, "ms"), backoff_cap: quantity(500, "ms") })[name];
-    expect(valueIn(timerOf(CALL, "retry", values, 0).duration as never, "ms")).toBe(1200);
-    expect(valueIn(timerOf(CALL, "retry", values, 1).duration as never, "ms")).toBe(1400);
-    expect(valueIn(timerOf(CALL, "retry", values, 2).duration as never, "ms")).toBe(1500);
+
+  it("starts the next probe at once after a probe longer than a period, as the kubelet does", () => {
+    const slow: Settings = { ...DEFAULTS, fault: "stall", dataplane: "cilium", period: quantity(2, "s"), probeTimeout: quantity(5, "s") };
+    // 2 + 2 × 5 + 5 = 17 s, and one period early. The page before the move gave 3 × 2 + 5 = 11 s.
+    expect(seconds(layer(slow, "kube").band)).toEqual([15, 17]);
+    expect(probes(slow)).toEqual([5, 10, 15]);
   });
 });
 

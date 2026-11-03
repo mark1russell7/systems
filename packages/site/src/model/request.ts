@@ -3,11 +3,11 @@
  * fault starts on the path. Each layer, from the program to the NIC, can find the fault, or it stays
  * silent. This module computes when each layer finds it.
  *
- * The times come from the algebra (`@mark1russell7/algebra`) over the machine documents of
- * `@mark1russell7/machines`: Linux TCP and conntrack. Two small documents of this module describe the
- * call of the program and the readiness probe of the kubelet. The algebra evaluates them as it
- * evaluates each other document. Each amount is a quantity of `@mark1russell7/quantity`, and each
- * amount prints through its `format`.
+ * The times come from the algebra (`@mark1russell7/algebra`) over four machine documents of
+ * `@mark1russell7/machines`. They are Linux TCP, conntrack, the call of the program with a
+ * deadline, and the readiness probe of the kubelet. The bands, the firings and the trains of probes
+ * come from `timerBand`, `firings` and `probeTrain` of the algebra. Each amount is a quantity of
+ * `@mark1russell7/quantity`, and each amount prints through its `format`.
  *
  * The measured values come from the copies of the cells (`src/data`). A value shows only when the
  * settings of the page are the settings of that cell.
@@ -15,18 +15,19 @@
 import {
   detection,
   errnoOf,
-  machineProblems,
+  firings,
+  probeTrain,
   recovery,
   stackedDetection,
+  timerBand,
   timerOf,
   type Detection,
   type KnobValues,
-  type Machine,
   type Manifestation,
   type TimerBounds,
 } from "@mark1russell7/algebra";
-import { LINUX_TCP, MANIFESTATIONS, NF_CONNTRACK_TCP } from "@mark1russell7/machines";
-import { add, convert, format, formatDuration, isUnbounded, quantity, sub, sum, valueIn, type Extent, type Quantity, type Unknown } from "@mark1russell7/quantity";
+import { DEADLINE_CALL, KUBELET_READINESS, LINUX_TCP, MANIFESTATIONS, NF_CONNTRACK_TCP } from "@mark1russell7/machines";
+import { add, convert, format, formatDuration, isUnbounded, quantity, valueIn, type Extent, type Quantity, type Unknown } from "@mark1russell7/quantity";
 import harness from "../data/harness-2026-10-13.json";
 import kind from "../data/kind-2026-10-18.json";
 import stall from "../data/s2-stall-2026-10-26.json";
@@ -109,95 +110,6 @@ export const DEFAULTS: Settings = {
   mtu: quantity(1500, "B"),
   rate: quantity(10, "Gbit/s"),
 };
-
-// ---------------------------------------------------------------------------------------------
-// the two documents of this page
-// ---------------------------------------------------------------------------------------------
-
-/**
- * This document is one call of a program on its socket: a deadline, and a retry after each deadline.
- * Each try waits its deadline, then a wait of `backoff` that doubles at each retry, up to
- * `backoff_cap`. Thus the retry timer gives the time from one try to the next.
- */
-export const CALL: Machine = {
-  format: "mark1russell7.machine/1",
-  id: "site.call",
-  title: "One call of a program, with a deadline and retries",
-  layer: "self",
-  version: "1",
-  sources: [{ ref: "a call with a deadline and retries with an exponential backoff, as a program sets it", rung: "derived" }],
-  states: {
-    POOLED: { initial: true, note: "the connection waits in the pool, and no call is open" },
-    WAITING: { note: "the request is sent, and the call waits for the reply" },
-    DONE: { final: true },
-    FAILED: { final: true },
-  },
-  events: {
-    "app.send": { kind: "app" },
-    "rx.reply": { kind: "rx" },
-    "timer.deadline": { kind: "timer" },
-    "timer.retry": { kind: "timer" },
-    "socket.end": { kind: "local", note: "the socket below ends, with its errno" },
-  },
-  knobs: {
-    timeout: { key: "the deadline of one call", scope: "call", unit: "ms", default: 0, off: 0 },
-    backoff: { key: "the first wait between two tries", scope: "call", unit: "ms", default: 200 },
-    backoff_cap: { key: "the longest wait between two tries", scope: "call", unit: "ms", default: 10000 },
-  },
-  timers: {
-    deadline: { duration: { knob: "timeout", unit: "ms" }, arms: ["enter:WAITING"], cancels: ["rx.reply"], fires: "timer.deadline" },
-    retry: {
-      duration: { expr: "timeout + min(backoff * pow(2, fired), backoff_cap)", unit: "ms" },
-      arms: ["timer.deadline"],
-      cancels: ["rx.reply"],
-      fires: "timer.retry",
-      backoff: { resets: ["enter:WAITING"] },
-      note: "the time from the send of one try to the send of the next: its deadline, then the wait",
-    },
-  },
-  over: { machine: LINUX_TCP.id, states: { POOLED: "ESTABLISHED", WAITING: "ESTABLISHED" }, sets: {}, ends: "socket.end" },
-  transitions: [
-    { id: "send", from: "POOLED", to: "WAITING", on: "app.send" },
-    { id: "reply", from: "WAITING", to: "DONE", on: "rx.reply" },
-    { id: "deadline", from: "WAITING", to: "FAILED", on: "timer.deadline", errno: "ETIMEDOUT" },
-    { id: "end", from: ["POOLED", "WAITING"], to: "FAILED", on: "socket.end" },
-  ],
-};
-
-/**
- * This document is the readiness probe of the kubelet for one pod. The pod stops to answer. The next
- * probe comes within one period, and each probe fails at its timeout. After `threshold` failures, the
- * kubelet marks the pod not ready.
- */
-export const KUBELET_READINESS: Machine = {
-  format: "mark1russell7.machine/1",
-  id: "site.kubelet-readiness",
-  title: "The readiness probe of the kubelet, Kubernetes 1.37",
-  layer: "canary",
-  version: "1.37.0",
-  sources: [{ ref: "kubernetes v1.37.0 pkg/kubelet/prober/worker.go doProbe: a result changes after failureThreshold probes in a row", rung: "implemented" }],
-  states: { READY: { initial: true }, UNREADY: {} },
-  events: { "probe.fail": { kind: "local" }, "probe.pass": { kind: "local" }, "timer.unready": { kind: "timer" } },
-  knobs: {
-    period: { key: "readinessProbe.periodSeconds", scope: "pod", unit: "s", default: 10 },
-    threshold: { key: "readinessProbe.failureThreshold", scope: "pod", unit: "count", default: 3 },
-    timeout: { key: "readinessProbe.timeoutSeconds", scope: "pod", unit: "s", default: 1 },
-  },
-  timers: {
-    unready: {
-      duration: { expr: "threshold * period + timeout", unit: "s" },
-      early: { knob: "period", unit: "s" },
-      arms: ["probe.fail"],
-      cancels: ["probe.pass"],
-      fires: "timer.unready",
-      note: "the first probe after the stall comes within one period, thus the band is one period wide",
-    },
-  },
-  transitions: [{ id: "unready", from: "READY", to: "UNREADY", on: "timer.unready" }],
-};
-
-/** This function gives the problems of the two documents of the page. A test holds them to none. */
-export const documentProblems = (): string[] => [...machineProblems(CALL), ...machineProblems(KUBELET_READINESS)];
 
 // ---------------------------------------------------------------------------------------------
 // the values of the knobs
@@ -340,35 +252,19 @@ const ZERO = s(0);
 const bandOf = (low: Quantity, high: Quantity = low): Band => ({ low: convert(low, "s"), high: convert(high, "s") });
 const atLeast = (a: Quantity, b: Quantity): boolean => valueIn(a, "s") >= valueIn(b, "s");
 
-/** This function gives the band of a timer: its duration less its early bound, to its duration plus its lateness. */
-const timerBand = (bounds: TimerBounds, offset: Quantity = ZERO): Band | null => {
-  if (!finite(bounds.duration)) return null;
-  const early = finite(bounds.early) ? bounds.early : ZERO;
-  const late = finite(bounds.lateness) ? bounds.lateness : ZERO;
-  return bandOf(add(offset, sub(convert(bounds.duration, "s"), convert(early, "s"))), add(offset, add(convert(bounds.duration, "s"), convert(late, "s"))));
+/** This function gives the band of a timer from `timerBand` of the algebra. If an end of the band is not a known time, it gives null. */
+const bandOfTimer = (bounds: TimerBounds): Band | null => {
+  const band = timerBand(bounds);
+  return "unknown" in band || !finite(band.low) || !finite(band.high) ? null : bandOf(band.low, band.high);
 };
 
 /** This function gives the times of the firings of the retransmission timer from the send, up to `until` or 24 firings. */
-export const rtoFirings = (settings: Settings, until: Quantity): Quantity[] => {
-  const values = tcpValues(settings);
-  const out: Quantity[] = [];
-  let at = ZERO;
-  for (let fired = 0; fired < 24; fired += 1) {
-    const wait = timerOf(LINUX_TCP, "retransmit", values, fired).duration;
-    if (!finite(wait)) break;
-    at = add(at, convert(wait, "s"));
-    if (!atLeast(until, at)) break;
-    out.push(at);
-  }
-  return out;
-};
+export const rtoFirings = (settings: Settings, until: Quantity): Quantity[] =>
+  firings(LINUX_TCP, "retransmit", tcpValues(settings), { count: 24, until }).map((firing) => firing.at);
 
 /** This function gives the time of the first retransmission of the RTO timer from the send: the second firing, after the loss probe. */
-const firstRetransmission = (settings: Settings): Quantity => {
-  const values = tcpValues(settings);
-  const waits = [0, 1].map((fired) => timerOf(LINUX_TCP, "retransmit", values, fired).duration);
-  return waits.every(finite) ? sum(waits.map((w) => convert(w as Quantity, "s")), "s") : ZERO;
-};
+const firstRetransmission = (settings: Settings): Quantity =>
+  firings(LINUX_TCP, "retransmit", tcpValues(settings), { count: 2 })[1]?.at ?? ZERO;
 
 const TCP_NAMES: Readonly<Record<string, string>> = {
   keepalive: "keepalive",
@@ -431,7 +327,7 @@ const tcpLayer = (settings: Settings): { layer: LayerResult; found: Detection; g
   const found = detection(LINUX_TCP, { state: "ESTABLISHED", inFlight: settings.inFlight }, manifestation, values);
   const first = found.first;
   const offset = first?.timer === "retrans_giveup" || first?.timer === "user_timeout" ? firstRetransmission(settings) : ZERO;
-  const own = first === null ? null : timerBand(timerOf(LINUX_TCP, first.timer, values));
+  const own = first === null ? null : bandOfTimer(timerOf(LINUX_TCP, first.timer, values));
   const band = own === null ? null : bandOf(add(own.low, offset), add(own.high, offset));
   const marks: Mark[] = [];
   const facts: Fact[] = [];
@@ -453,10 +349,7 @@ const tcpLayer = (settings: Settings): { layer: LayerResult; found: Detection; g
     facts.push({ label: "Retransmissions", value: format(count(Math.max(firings.length - 1, 0))) });
   }
   if (!settings.inFlight && settings.fault !== "stall" && settings.keepaliveOn) {
-    marks.push({ t: convert(settings.keepidle, "s"), label: "Keepalive probe 1", kind: "probe" });
-    for (let n = 1; n < settings.keepcnt; n += 1) {
-      marks.push({ t: add(convert(settings.keepidle, "s"), convert(quantity(valueIn(settings.keepintvl, "s") * n, "s"), "s")), label: `Keepalive probe ${n + 1}`, kind: "probe" });
-    }
+    probeTrain(settings.keepidle, settings.keepintvl, settings.keepcnt).forEach((t, n) => marks.push({ t, label: `Keepalive probe ${n + 1}`, kind: "probe" }));
   }
   const delack = timerOf(LINUX_TCP, "delayed_ack", values).duration;
   facts.push({ label: "Delayed ACK, at most", value: say(delack) });
@@ -488,25 +381,19 @@ const tcpLayer = (settings: Settings): { layer: LayerResult; found: Detection; g
 };
 
 /** This function gives the time of the send of each try of the call, from the first send, for the retries of the settings. */
-const attemptStarts = (settings: Settings): Quantity[] => {
-  const values = callValues(settings);
-  const starts: Quantity[] = [ZERO];
-  for (let fired = 0; fired < settings.retries; fired += 1) {
-    const wait = timerOf(CALL, "retry", values, fired).duration;
-    if (!finite(wait)) break;
-    starts.push(add(starts.at(-1)!, convert(wait, "s")));
-  }
-  return starts;
-};
+const attemptStarts = (settings: Settings): Quantity[] => [
+  ZERO,
+  ...firings(DEADLINE_CALL, "retry", callValues(settings), { count: settings.retries }).map((firing) => firing.at),
+];
 
 /** This function gives what the program does: its deadline, its retries, and the time that the call ends. */
 const processLayer = (settings: Settings, tcp: { found: Detection; layer: LayerResult }): LayerResult => {
   const values = callValues(settings);
-  const deadline = timerOf(CALL, "deadline", values).duration;
+  const deadline = timerOf(DEADLINE_CALL, "deadline", values).duration;
   const facts: Fact[] = [{ label: "Deadline", value: finite(deadline) ? say(deadline) : "none" }];
   const marks: Mark[] = [{ t: ZERO, label: "The program sends the request", kind: "send" }];
   if (!settings.inFlight) {
-    const stacked = stackedDetection(CALL, LINUX_TCP, { state: "POOLED", inFlight: false }, manifestationOf(settings.fault), values, tcpValues(settings));
+    const stacked = stackedDetection(DEADLINE_CALL, LINUX_TCP, { state: "POOLED", inFlight: false }, manifestationOf(settings.fault), values, tcpValues(settings));
     const below = stacked.first;
     return {
       id: "process",
@@ -569,7 +456,7 @@ const processLayer = (settings: Settings, tcp: { found: Detection; layer: LayerR
     const heal = convert(settings.heal, "s");
     const after = starts.find((start) => atLeast(start, heal));
     if (after !== undefined) {
-      const back = recovery(CALL, "retry", values, settings.heal);
+      const back = recovery(DEADLINE_CALL, "retry", values, settings.heal);
       const band = "unknown" in back ? bandOf(after) : bandOf(back.low, back.high);
       marks.push({ t: band.low, label: "The first try after the heal gets through", kind: "recover" });
       return {
@@ -648,20 +535,21 @@ const kubeLayer = (settings: Settings): LayerResult => {
   facts.push({ label: `Propagation, ${settings.dataplane}`, value: propagation === null ? "not calibrated" : `${sayBand(propagation)} (measured)` });
   // conntrack: the flow of this connection, and its timeout
   const ct = detection(NF_CONNTRACK_TCP, { state: "ESTABLISHED", inFlight: settings.inFlight }, { name: "blackhole", passes: settings.inFlight ? ["orig.ack"] : [] }, conntrackValues(settings));
-  const forgets = ct.first === null ? null : timerBand(timerOf(NF_CONNTRACK_TCP, ct.first.timer, conntrackValues(settings)));
+  const forgets = ct.first === null ? null : bandOfTimer(timerOf(NF_CONNTRACK_TCP, ct.first.timer, conntrackValues(settings)));
   facts.push({ label: "conntrack keeps this flow", value: forgets === null ? "while packets pass" : `for ${say(forgets.low)} of silence` });
   let warning: string | null = null;
   if (settings.keepaliveOn && !atLeast(settings.ctEstablished, settings.keepidle)) {
     warning = `The keepalive idle time (${say(settings.keepidle)}) is longer than the conntrack timeout (${say(settings.ctEstablished)}). An idle connection loses its NAT entry before its first probe.`;
   }
   if (settings.fault === "stall") {
-    const probe = timerOf(KUBELET_READINESS, "unready", probeValues(settings));
-    const kubelet = timerBand(probe);
+    const values = probeValues(settings);
+    const kubelet = bandOfTimer(timerOf(KUBELET_READINESS, "unready", values));
     if (kubelet === null) throw new Error("the readiness probe has no time");
     const band = propagation === null ? kubelet : bandOf(add(kubelet.low, propagation.low), add(kubelet.high, propagation.high));
-    for (let n = 1; n <= settings.threshold; n += 1) {
-      marks.push({ t: add(convert(settings.probeTimeout, "s"), quantity(valueIn(settings.period, "s") * (n - 1), "s")), label: `Readiness probe ${n} fails`, kind: "probe" });
-    }
+    // the first probe after the fault fails at its timeout, and each next probe comes one interval later
+    const interval = timerOf(KUBELET_READINESS, "probe", values, 0).duration;
+    if ("unknown" in interval) throw new Error("the readiness probe has no interval");
+    probeTrain(settings.probeTimeout, interval, settings.threshold).forEach((t, n) => marks.push({ t, label: `Readiness probe ${n + 1} fails`, kind: "probe" }));
     marks.push({ t: band.low, label: "The pod leaves the Service", kind: "detect" });
     facts.push({ label: "The kubelet marks it not ready", value: sayBand(kubelet) });
     const t18 = kind.cells.find((cell) => cell.trigger === "app-stall");

@@ -66,9 +66,13 @@ The algebra reads these documents. It gives the closed form of each timer, the f
 | `ISTIO_SIDECAR_OUTBOUND` | `istio-sidecar-outbound` | The client sidecar of Istio 1.31.3: Envoy 1.39.4 between the app and the mesh, its retries, an update of LDS and the SIGKILL | proxy | 31 implemented |
 | `ISTIO_SIDECAR_INBOUND` | `istio-sidecar-inbound` | The server sidecar of Istio 1.31.3: Envoy 1.39.4 between the mesh and the app, the policy, an update of LDS and the SIGKILL | proxy | 31 implemented |
 | `PILOT_AGENT` | `pilot-agent` | pilot-agent of Istio 1.31.3: the drain and the SIGKILL of the Envoy of a sidecar at the stop of its pod | proxy | 12 implemented |
+| `DEADLINE_CALL` | `deadline-call` | One call of a program, with a deadline and retries after a capped exponential backoff | self | 1 derived |
+| `KUBELET_READINESS` | `kubelet-readiness` | The readiness probe of the kubelet of Kubernetes 1.37.0, for one container | canary | 9 implemented, 1 documented |
 | `ZTUNNEL_HBONE` | `ztunnel-hbone` | ztunnel 1.31.3 in in-pod mode: one HBONE connection from a client pod to a server pod, its PING, its drain and the close of each flow of the app | proxy | 15 implemented, 3 derived |
 
-Thirty-three documents operate on Linux TCP (`over`). Eight documents operate on no other document. They are Linux TCP, conntrack, the Sentinel, the replication of mongod, aten, the member of Ra, the `RetryAgent` of undici and pilot-agent.
+Thirty-four documents operate on Linux TCP (`over`). Nine documents operate on no other document. They are Linux TCP, conntrack, the Sentinel, the replication of mongod, aten, the member of Ra, the `RetryAgent` of undici, pilot-agent and the kubelet probe.
+
+The call with a deadline is a generic client that the program configures, thus its knobs have no defaults. The readiness probe of the kubelet probes in sequence, thus its probes come at intervals of the longer of the period and the timeout.
 
 The `RetryAgent` is one request above the sockets of a `Client`. Its timer is the delay of a retry. Each retry can go on a new socket. The `conditions` of each document give the range where it holds, for example a range of kernels.
 
