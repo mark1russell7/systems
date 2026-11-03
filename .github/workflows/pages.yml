@@ -1,79 +1,53 @@
-# Builds packages/site and publishes it to GitHub Pages at https://mark1russell7.github.io/systems/.
+# Builds packages/site and publishes it to GitHub Pages at https://mark1russell7.github.io/systems/, with the
+# shared Pages workflow of mark1russell7 (reusable-pages.yml of mark1russell7/template, its CI.md).
 # The Pages source of the repository is "GitHub Actions" (Settings > Pages).
 name: Pages
 
 on:
   push:
     branches: [main]
-  # Every 3 hours, so that the Status page shows the open pull requests and issues of now
+  # A pull request builds the site and runs the site check, with no deploy.
+  pull_request:
+  # Every 3 hours, so that the Status page shows the open pull requests and issues of the day
   schedule:
     - cron: "28 */3 * * *"
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+permissions: {}
 
-# One deployment at a time. A newer push cancels a deployment that waits.
+# One deployment at a time. A deployment in progress ends, and GitHub keeps only the newest deployment that waits.
+# Each pull request has its own group, and a newer push cancels its run.
 concurrency:
-  group: pages
+  group: pages-${{ github.event_name == 'pull_request' && github.ref || 'deploy' }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    # The build runs the code of the repository, so it gets only read permissions. The deploy job
-    # keeps the Pages permissions of the workflow.
+  pages:
+    uses: mark1russell7/template/.github/workflows/reusable-pages.yml@7a443ac1a463886c675b3eaf45d5d170b1c6354c # main
+    # The build job of the shared workflow gets only the read permissions. Only its deploy job,
+    # which runs no code of the repository, writes to Pages.
     permissions:
       contents: read
-      # green-main reads the Actions runs. site-pages reads the pull requests, the issues and their checks.
       actions: read
       issues: read
       pull-requests: read
       checks: read
       statuses: read
-    steps:
-      # A scheduled build takes the newest commit of main, or the newest green one if CI failed on it
-      - id: green
-        if: github.event_name == 'schedule'
-        uses: mark1russell7/template/.github/actions/green-main@4df6a2d5a4de464ab3f8b50c20df52c234794af6 # main
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ steps.green.outputs.sha || github.sha }}
-          # The whole history: site-pages reads the dates of the release tags
-          fetch-depth: 0
-          persist-credentials: false
-      # The pnpm version comes from "packageManager" in package.json
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 26
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @systems/site run build
-        env:
-          SITE_BASE: /${{ github.event.repository.name }}
-          ASTRO_TELEMETRY_DISABLED: "1"
-      # The Releases page and the Status page (releases/, status/ and their data/*.json), at deploy time
-      - uses: mark1russell7/template/.github/actions/site-pages@4df6a2d5a4de464ab3f8b50c20df52c234794af6 # main
-        with:
-          out: packages/site/dist
-          roadmap: docs/ROADMAP.md
-          packages: "@mark1russell7/algebra,@mark1russell7/harness,@mark1russell7/kind,@mark1russell7/machines,@mark1russell7/prober,@mark1russell7/quantity,@mark1russell7/service"
-          site-name: systems
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: packages/site/dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+      pages: write
+      id-token: write
+    with:
+      # The site is an Astro site in packages/site.
+      build: pnpm --filter @systems/site run build
+      out: packages/site/dist
+      env: '{"SITE_BASE": "/${{ github.event.repository.name }}", "ASTRO_TELEMETRY_DISABLED": "1"}'
+      # The site-pages action adds releases/, status/, data/releases.json and data/status.json to the built site.
+      # The Status page shows the items of docs/ROADMAP.md, and the open pull requests and issues.
+      site-pages: true
+      roadmap: docs/ROADMAP.md
+      packages: "@mark1russell7/algebra,@mark1russell7/harness,@mark1russell7/kind,@mark1russell7/machines,@mark1russell7/prober,@mark1russell7/quantity,@mark1russell7/service"
+      site-name: systems
+      # The site check: a browser opens each page at 360, 400 and 1280 px, in light and dark, before the deploy.
+      # A failure stops the deploy.
+      site-check: true
+      site-check-pages: /,/releases/,/status/
+      deploy: ${{ github.event_name != 'pull_request' }}
