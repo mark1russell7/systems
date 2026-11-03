@@ -1,0 +1,39 @@
+---
+title: The path of one request
+description: A program sends one request, and a fault starts on the path. See which layer knows first, from the program down to the NIC, and when.
+tableOfContents: false
+---
+
+import RequestPath from "../../../components/RequestPath.tsx";
+import Term from "../../../components/Term.tsx";
+
+A program sends one request to a pod behind a Service. Then a fault starts on the path: a <Term name="black hole" />, a <Term name="stall">stalled peer</Term> or a <Term name="partition" />. Five layers can find the fault, and each one has its own timers. This page computes, in your browser, when each layer knows.
+
+<RequestPath client:visible />
+
+## How to read the page
+
+- **The headline** tells which layer knows first, and when.
+- **The timeline** has one lane for each layer, in the sequence of the path. Press **Play** to see the story. A layer lights when it finds the fault.
+- **The cards** below the timeline give each layer, with its knobs. Change a knob, and each time on the page changes.
+- **An orange dot** is the median that a cell of the harness or of kind measured. It shows only when your settings are the settings of that cell. Its link opens the cell.
+
+## Where the numbers come from
+
+Each time comes from the algebra of this repository, `@mark1russell7/algebra`. The algebra runs on the machine documents of `@mark1russell7/machines`: the TCP stack of Linux 6.6 and its <Term name="conntrack" /> table. The page adds two small documents of its own. One is the call of the program, with a <Term name="deadline" /> and its retries. The other is the <Term name="readiness probe" /> of the <Term name="kubelet" />.
+
+Each amount prints through `format` of `@mark1russell7/quantity`. The page does no timer arithmetic of its own.
+
+## What each layer can see
+
+- **The program** knows only what its own deadline tells it. Without a deadline, it waits for a layer below.
+- **The socket** has no timer. A write goes into the <Term name="send buffer" /> at once. The error of TCP comes at the next read or write.
+- **TCP** sends again on each <Term name="RTO" />, and it stops after <Term name="tcp_retries2" /> retransmissions. On an idle connection, only <Term name="keepalive" /> can find the fault.
+- **Kubernetes** probes the pod from its own node. A probe finds a stalled pod, but it does not find a black hole between two nodes. After the pod leaves the Service, <Term name="kube-proxy" /> changes the rules of each node. New connections go to other pods. A connection that is open stays on the old pod, because conntrack keeps its <Term name="NAT" />.
+- **The NIC** sends each segment and sees no error. The loss is past its wire.
+
+## Limits
+
+The propagation of a change to the rules of each node has no closed form. The page adds the band that the kind cells measured for each mode. Cilium has no measured band, thus the page shows only the time of the kubelet for Cilium.
+
+The page assumes one round trip. A cell assumes a range of round trips. Thus a band of a cell can differ from the band of the page by a few milliseconds.

@@ -1819,13 +1819,19 @@ Each week, one round makes the site and the tracker easier to read, with a visua
 - **Depends on:**
 - **Started:** 2026-11-02
 - **Shipped:**
-- **Links:**
+- **Links:** [The path of one request](https://mark1russell7.github.io/systems/lab/request/)
 
-This item makes interactive visuals and documents that show how the systems operate, from end to end. Examples are the network calls, the processes that hold memory, the kernel and the NIC. Mark gives many ideas and examples (Mark, 2026-10-20).
+After the coding work, this item makes interactive visuals and documents that show how the systems operate, from end to end. Examples are the network calls, the processes that hold memory, the kernel and the NIC. Mark gives many ideas and examples (Mark, 2026-10-20).
 
-On 2026-11-02, Mark asked for an interactive demo on each site, with the library live in the browser. Thus the first scope is one page: the path of one request. The page shows the process, the socket, the TCP state and its timers, conntrack and kube-proxy, and the NIC.
+The first scope is one page: the path of one request (Mark, 2026-11-02). The page shipped on 2026-11-02:
 
-Controls set the timeouts, the retries, the probe periods and the sysctls. Other controls start a fault, for example a black hole, a stall or a partition. The algebra and quantity packages compute, in the browser, when each layer detects the fault. Where a cell measured a value, the page shows the measured value and links to its cell. Mark can change this scope at any time.
+- A program sends one request to a pod behind a Service. The user starts a black hole, a stalled peer or a partition.
+- Five layers find the fault: the program, the socket, TCP, Kubernetes and the NIC. Sliders and selects set the deadline, the retries, the keepalive sysctls, `tcp_retries2`, `TCP_USER_TIMEOUT`, the probes, the dataplane and the queue of the NIC.
+- `@mark1russell7/algebra` computes each time in the browser, on the documents of `@mark1russell7/machines`. Each amount prints through `format` of `@mark1russell7/quantity`. The page adds two small documents: the call of the program and the readiness probe of the kubelet.
+- An animated timeline marks the fault and the time when each layer knows. A cell that measured a value shows its median next to the computed band, with a link to the cell.
+- A tooltip explains each term. The home and the navigation link the page.
+
+The next step: move the two small documents of the page into `@mark1russell7/machines`. Then move the timer arithmetic of the detection lab into the algebra.
 
 ## Decisions for Mark
 
