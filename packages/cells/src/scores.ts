@@ -2,6 +2,7 @@ import type { Band, Dataplane, Reference, TriggerKind } from "@mark1russell7/kin
 import { backlogEnd } from "@mark1russell7/kind";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
+import { median as middle } from "@mark1russell7/rigor-statistics";
 import type { CallerFault, Candidate } from "./callers.ts";
 import {
   CALLERS_CELLS,
@@ -327,12 +328,6 @@ const timesOf = (criterion: Criterion, times: readonly (number | null)[] | undef
     holds: values.length === counted && values.every((value) => value >= lo && value <= hi),
     evidence,
   };
-};
-
-/** This function gives the median of sorted values: the middle value, or the mean of the two middle values. */
-const middle = (sorted: readonly number[]): number => {
-  const half = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 1 ? sorted[half]! : (sorted[half - 1]! + sorted[half]!) / 2;
 };
 
 /** This text is the part of the probe load that each candidate shares. */

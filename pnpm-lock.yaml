@@ -224,6 +224,9 @@ importers:
       '@mark1russell7/quantity':
         specifier: workspace:^
         version: link:../quantity
+      '@mark1russell7/rigor-statistics':
+        specifier: ^0.1.2
+        version: 0.1.2
       '@mark1russell7/service':
         specifier: workspace:^
         version: link:../service
@@ -252,6 +255,9 @@ importers:
       '@mark1russell7/quantity':
         specifier: workspace:^
         version: link:../quantity
+      '@mark1russell7/rigor-statistics':
+        specifier: ^0.1.2
+        version: 0.1.2
       testcontainers:
         specifier: 12.2.0
         version: 12.2.0
@@ -283,6 +289,9 @@ importers:
       '@mark1russell7/quantity':
         specifier: workspace:^
         version: link:../quantity
+      '@mark1russell7/rigor-statistics':
+        specifier: ^0.1.2
+        version: 0.1.2
       '@mark1russell7/service':
         specifier: workspace:^
         version: link:../service
@@ -395,6 +404,9 @@ importers:
       '@mark1russell7/quantity':
         specifier: workspace:^
         version: link:../quantity
+      '@mark1russell7/rigor-generators':
+        specifier: ^0.1.0
+        version: 0.1.0
       amqplib:
         specifier: ^2.2.0
         version: 2.2.0
@@ -453,6 +465,9 @@ importers:
       '@fontsource/ibm-plex-mono':
         specifier: ^5.3.0
         version: 5.3.0
+      '@mark1russell7/rigor-statistics':
+        specifier: ^0.1.2
+        version: 0.1.2
       astro:
         specifier: ^7.3.8
         version: 7.3.8(@types/node@26.6.4)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)
@@ -1104,6 +1119,14 @@ packages:
 
   '@mark1russell7/rational@0.1.0':
     resolution: {integrity: sha512-kYUuKI9STA4mlCpJCx/FpUSe8sokryDJzSuyd/Abev9Len7lotztPEOPH4A8WoxLvEsKEwHA33kg7lbLVjGZWw==}
+    engines: {node: '>=22'}
+
+  '@mark1russell7/rigor-generators@0.1.0':
+    resolution: {integrity: sha512-xhXvLzZQlDH6ysAbqEjbha6fs1GbvO9RflSXwYbA3QMryxu4zEikbxahEDQCIxVSis+2pfX/18PHU3+X+jJmPw==}
+    engines: {node: '>=22'}
+
+  '@mark1russell7/rigor-statistics@0.1.2':
+    resolution: {integrity: sha512-7bKs05nViGfA9vH8RoaYI0PUOgsohEt0lxhzEI6cAC/CXaLyCTMIvx0dYZ9T6lq6f429ofa47tGrEEWmRV482Q==}
     engines: {node: '>=22'}
 
   '@mark1russell7/ste-lint@https://codeload.github.com/mark1russell7/ste-lint/tar.gz/f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7':
@@ -3919,6 +3942,12 @@ snapshots:
   '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/e737619231ee976251a0a2d5ff61aec113d22a10': {}
 
   '@mark1russell7/rational@0.1.0': {}
+
+  '@mark1russell7/rigor-generators@0.1.0': {}
+
+  '@mark1russell7/rigor-statistics@0.1.2':
+    dependencies:
+      '@mark1russell7/rigor-generators': 0.1.0
 
   '@mark1russell7/ste-lint@https://codeload.github.com/mark1russell7/ste-lint/tar.gz/f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7':
     dependencies:

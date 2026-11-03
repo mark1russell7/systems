@@ -103,6 +103,7 @@
   "dependencies": {
     "@mark1russell7/prober": "workspace:^",
     "@mark1russell7/quantity": "workspace:^",
+    "@mark1russell7/rigor-statistics": "^0.1.2",
     "testcontainers": "12.2.0"
   },
   "peerDependencies": {

@@ -3,6 +3,7 @@
  * containers of the VM share that clock: the clients, the service, the agents, the injector, the
  * watcher and the prober.
  */
+import { middle } from "./stats.ts";
 
 /**
  * A line is one JSON line of a source of a run, with its stamp `t` in milliseconds on
@@ -222,11 +223,6 @@ export interface Period<A = number> {
   readonly byClient: Readonly<Record<string, A>>;
 }
 
-const medianOf = (sorted: readonly number[]): number => {
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 1 ? sorted[middle]! : (sorted[middle - 1]! + sorted[middle]!) / 2;
-};
-
 /**
  * This function gives the measured period of the clients from their request lines that start from
  * `from` to `to`. The timer of a client is late by a different amount at each tick. Thus the median
@@ -252,11 +248,11 @@ export const periodOf = (lines: readonly Line[], from: number, to: number): Peri
     const intervals = mine.slice(1).map((t, at) => t - mine[at]!);
     span += mine.at(-1)! - mine[0]!;
     all.push(...intervals);
-    byClient[client] = medianOf(intervals.sort((a, b) => a - b));
+    byClient[client] = middle(intervals.sort((a, b) => a - b));
   }
   if (all.length === 0) return null;
   all.sort((a, b) => a - b);
-  return { median: medianOf(all), mean: span / all.length, low: all[0]!, high: all.at(-1)!, intervals: all.length, byClient };
+  return { median: middle(all), mean: span / all.length, low: all[0]!, high: all.at(-1)!, intervals: all.length, byClient };
 };
 
 /** This function gives the requests of each node, by the name of the node. */

@@ -1074,11 +1074,29 @@ Each last failure came after the bare end of 10 s and before the close of its se
 - **Depends on:** S6
 - **Started:** 2026-11-02
 - **Shipped:**
-- **Links:** [@mark1russell7/rigor-statistics](https://www.npmjs.com/package/@mark1russell7/rigor-statistics)
+- **Links:** [@mark1russell7/rigor-statistics](https://www.npmjs.com/package/@mark1russell7/rigor-statistics), [rigor#17](https://github.com/mark1russell7/rigor/pull/17)
 
-The statistics have one home, `@mark1russell7/rigor-statistics`, and the bench harness has one home, `@mark1russell7/rigor-bench`. The kind and cells packages keep their own quantile, median and median interval. This item moves each of these functions to the home package, one function at a time.
+The statistics have one home, `@mark1russell7/rigor-statistics`, and the bench harness has one home, `@mark1russell7/rigor-bench`. The kind and cells packages kept their own quantile, median and median interval. This item moves each of these functions to the home package, one function at a time.
 
 If the home package does not have a function, a pull request adds it to the rigor repository. The test of each move is that the records of the site stay byte-equal. If a time comparison of two arms fits the A/A verdict of rigor-bench, it uses that verdict.
+
+**What moved.** These functions come from the home packages of npm:
+
+- The median of kind, the harness, cells and the site scripts is `median` of rigor-statistics 0.1.2.
+- The nearest-rank quantile of kind and the harness is `quantileSorted(sorted, p, "nearest-rank")` of rigor-statistics.
+- The seeded random of the fakes of the service is `mulberry32` of rigor-generators 0.1.0.
+
+The exports `middle`, `quantileOf` and `seeded` stay, as wrappers of the home functions. An empty list, a NaN or a p out of range throws a RangeError. Each caller tests for an empty list first. The committed records of the site did not change, and the tests of kind, the harness, cells, the service and the site pass.
+
+**What waits on a release of rigor.** Pull request rigor#17 adds `medianInterval`, `binomialInterval` and `negativeBinomialInterval` to rigor-statistics 0.1.3. Its tests hold each function to the copy in systems. After the release, `medianInterval` of kind and the harness and the two count intervals of the cells move. Each copy has a `TODO(npm)` note. The harness, kind and the service need a PATCH release for their new dependencies.
+
+**The fit of rigor-bench.** The limiter pair of SYS-28 is the only time comparison of two arms. It compares 0.5.6 and 0.6.0 by the difference of their medians, with a bootstrap outside the repository. It does not fit the A/A verdict yet, for these reasons:
+
+- The control always runs first, thus the order does not turn.
+- The 11 runs of the control come before the 11 runs of the candidate.
+- No A/A pair measures the noise.
+
+The next step, after rigor-bench is on npm, is to write PairedTime records. The spec is the case, and the run is the round. `firstArm` turns the order, and an A/A pair of the candidate measures the noise. Then `timeVerdict` decides. The S6 gate compares counts of failed requests, not times, thus it does not need rigor-bench.
 
 ## The systems of S1
 

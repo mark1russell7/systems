@@ -225,6 +225,7 @@ const time = (value: number): Quantity => s(Math.round(value * 1e6) / 1e6);
  * ceiling of the half. At random, the count is binomial, and the band is the central band that has
  * the chance `COVER` at the least. A lost zone has fewer clients (`clients`): no client is in the lost zone.
  */
+// TODO(npm): use binomialInterval of @mark1russell7/rigor-statistics 0.1.3 (mark1russell7/rigor#17) after its release.
 export const targetConnections = (mode: Dataplane, each: number = CONNECTIONS, clients: number = CLIENTS): Connections => {
   const total = clients * each;
   if (SELECTION[mode] === "in turn")
@@ -338,6 +339,7 @@ const inTurn = (each: number): { readonly lo: number; readonly hi: number; reado
  * This function gives the central band of a negative binomial count, with the chance `COVER` at
  * the least. The count is the failures before `successes` successes, with the chance `p` of each.
  */
+// TODO(npm): use negativeBinomialInterval of @mark1russell7/rigor-statistics 0.1.3 (mark1russell7/rigor#17) after its release.
 export const negativeBinomial = (successes: number, p: number): { readonly lo: number; readonly hi: number } => {
   const tail = (1 - COVER) / 2;
   let chance = p ** successes;

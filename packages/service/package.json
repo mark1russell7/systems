@@ -65,7 +65,8 @@
   },
   "dependencies": {
     "@mark1russell7/algebra": "workspace:^",
-    "@mark1russell7/quantity": "workspace:^"
+    "@mark1russell7/quantity": "workspace:^",
+    "@mark1russell7/rigor-generators": "^0.1.0"
   },
   "peerDependencies": {
     "@grpc/grpc-js": "^1.14.6",
