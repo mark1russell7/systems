@@ -483,6 +483,9 @@ export interface StageBand {
  * - `errors` are the errors that the client must meet on the way, each with the band of its
  *   first occurrence. An example is the error of the offline queue when it gives up.
  * - `quiet` are the stages that must not occur after the fault. Each one that a run shows is a finding.
+ * - `lost` is the band of the count of accepted writes that the group did not keep, in each run. A
+ *   count outside it is a finding. A measurement-only cell with this band gets its decision from
+ *   the findings of its runs, thus the law of the count judges the cell.
  */
 export interface GroupPrediction {
   readonly lands: "new" | "same";
@@ -491,6 +494,7 @@ export interface GroupPrediction {
   readonly stamps?: Quantity;
   readonly errors?: ReadonlyArray<{ readonly name: string; readonly low: Quantity; readonly high: Quantity }>;
   readonly quiet?: readonly Stage[];
+  readonly lost?: { readonly low: number; readonly high: number };
 }
 
 /**
