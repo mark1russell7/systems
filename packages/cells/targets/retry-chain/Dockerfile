@@ -7,4 +7,4 @@ WORKDIR /srv
 COPY package.json ./
 COPY npm-lock.json ./package-lock.json
 RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
-COPY chain.mjs ./
+COPY chain.ts ./

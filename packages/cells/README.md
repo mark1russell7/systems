@@ -180,7 +180,7 @@ These cells start Q18 of S3 (`src/retries.ts`, SYS-67). The question: how many t
 - **The law.** `lawOf` goes from the deepest listener up, because each answer sets the tries of the caller above it. Each term cites its source by file and line, in the comment of the module.
 - **The verdict.** The prediction gives an exact count for each listener (`counts`). A count that differs is a finding of its run. The times have no band, because a count reads no timer. Thus a loaded runner cannot move a count.
 - **The delays.** `T14.count.2` and `T14.count.3` are one chain at two delays, 500 ms and 1 ms. The second chain shows that the delays do not enter the count, thus the other cells use 1 ms.
-- **The late lines.** The lines of the target come on their own stream. Thus a run with counts waits for them after the end of its client, up to 5 s, and a pause catches a line above a count.
+- **The late lines.** The lines of the target come on their own stream. Thus a run with counts waits for them after the end of its client, up to 5 s. A pause catches a line above a count.
 
 ## The WS catalog
 

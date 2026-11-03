@@ -7,7 +7,7 @@ import { NODE_IMAGE } from "./http/cells.ts";
 /**
  * This module holds the first cells of Q18 (SYS-67): how many tries does one request cost across
  * hops? The answer of law O08 is a product. The deepest listener sees `A = t0 × t1 × … × tn` tries
- * for one logical request, where `ti` is the tries of caller i against the answer of the listener below it.
+ * for one logical request. The term `ti` is the tries of caller i against the answer of the listener below it.
  *
  * Each term comes from a pinned source:
  * - The RetryAgent of undici 8.12.2. The defaults are `maxRetries` 5, the methods GET HEAD OPTIONS
@@ -23,7 +23,7 @@ import { NODE_IMAGE } from "./http/cells.ts";
  *   throws (packages/service/src/retrier.ts:121-125).
  *
  * The record shows each term. Each listener writes a line for each arrival, with the trail of the
- * tries above it (`targets/retry-chain/chain.mjs`). The count at listener k is the product of the
+ * tries above it (`targets/retry-chain/chain.ts`). The count at listener k is the product of the
  * tries of its callers. The hops share one process and talk over loopback: a count reads no
  * network term and no timer, thus a loaded runner cannot move it. The delays differ across the
  * cells for that reason, and `T14.count.2` and `T14.count.3` are the same chain at two delays.
@@ -36,7 +36,7 @@ import { NODE_IMAGE } from "./http/cells.ts";
 const CONTEXT = fileURLToPath(new URL("../targets/retry-chain/", import.meta.url));
 
 /** These are the files of the build context. */
-const FILES = ["Dockerfile", "package.json", "npm-lock.json", "chain.mjs"];
+const FILES = ["Dockerfile", "package.json", "npm-lock.json", "chain.ts"];
 
 /** This port is the port of listener 0, and each next listener has the next port. */
 const PORT = 8080;
@@ -145,7 +145,7 @@ export const chainTarget = (chain: Chain): Target => ({
   port: PORT,
   ready: '"ev":"listening"',
   lines: true,
-  command: ["node", "/srv/chain.mjs", "--port", String(PORT), "--chain", JSON.stringify(chainArgument(chain))],
+  command: ["node", "/srv/chain.ts", "--port", String(PORT), "--chain", JSON.stringify(chainArgument(chain))],
 });
 
 /** This function gives the flags of the client of a chain. */
