@@ -466,6 +466,12 @@ export interface PermittedWindow<A = Quantity> {
   readonly band: Band<A>;
   /** These outcomes are the only failures that the window permits. */
   readonly outcomes: readonly string[];
+  /**
+   * This time is the least observation after the reference (SYS-53). The record runs at least this
+   * long after it. Thus a failure that comes later than the band still shows, and fails the run.
+   * Without it, the record ends a timeout after the band.
+   */
+  readonly watch?: A | undefined;
   readonly why: string;
 }
 
@@ -579,15 +585,20 @@ export interface KindCell<A = Quantity> {
   readonly calibrates: boolean;
   readonly runs: number;
   /**
-   * This VIP is a Service of type LoadBalancer with an address of kube-vip in ARP mode (SYS-51). With
+   * This VIP is a Service of type LoadBalancer with an address of kube-vip in ARP mode (SYS-51) or of MetalLB in L2 mode (SYS-53). With
    * it, `clients` more clients run outside the cluster, on the Docker network of the nodes, and send
    * each request to the VIP. Without it, the cell has no VIP.
    */
   readonly vip?: VipSettings | undefined;
 }
 
+/** This name is an announcer of a VIP: kube-vip in ARP mode (SYS-51), or MetalLB in L2 mode (SYS-53). */
+export type VipAnnouncerName = "kube-vip" | "metallb";
+
 /** These are the settings of the VIP of a cell (`KindCell.vip`). */
 export interface VipSettings {
   /** This count is the clients outside the cluster. Each one is a container on the Docker network of the nodes. */
   readonly clients: number;
+  /** This name is the announcer of the VIP (`announcer.ts`). Without it, the announcer is kube-vip. */
+  readonly announcer?: VipAnnouncerName | undefined;
 }

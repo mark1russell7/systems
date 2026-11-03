@@ -161,7 +161,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     flaps: z.boolean().optional(),
     outcomes: z.array(z.string()).optional(),
     backlog: z.object({ drain: band, requests: z.object({ lo: count, hi: count }), most: count, drains: z.boolean().optional(), slowest: a.optional(), early: z.boolean().optional() }).optional(),
-    permits: z.object({ from: reference, band, outcomes: z.array(z.string()), why: z.string() }).optional(),
+    permits: z.object({ from: reference, band, outcomes: z.array(z.string()), watch: a.optional(), why: z.string() }).optional(),
     why: z.string(),
   });
   const none = z.object({ kind: z.literal("none"), outcomes: z.array(z.string()).optional(), why: z.string() });
@@ -215,7 +215,7 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     prediction,
     calibrates: z.boolean(),
     runs: count,
-    vip: z.object({ clients: count }).optional(),
+    vip: z.object({ clients: count, announcer: z.enum(["kube-vip", "metallb"]).optional() }).optional(),
   });
   const facts = z.object({
     failures: count,

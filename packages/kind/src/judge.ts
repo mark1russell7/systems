@@ -30,6 +30,7 @@ export type {
   Template,
   Trigger,
   TriggerKind,
+  VipAnnouncerName,
   VipSettings,
   WindowPrediction,
   Workload,

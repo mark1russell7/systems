@@ -373,6 +373,8 @@ export const observationEnd = (cell: KindCell, run: Pick<KindRun, "start" | "act
   if (permits !== undefined) {
     const at = referenceOf(run, permits.from, run.target?.pod);
     if (at !== null) ends.push(at + valueIn(permits.band.hi, "ms") + valueIn(cell.workload.timeout, "ms") + NOISE);
+    // the least observation after the reference (SYS-53): a late failure then shows in the record
+    if (at !== null && permits.watch !== undefined) ends.push(at + valueIn(permits.watch, "ms") + NOISE);
   }
   return ends.length === 0 ? null : Math.max(...ends);
 };

@@ -214,6 +214,26 @@ describe("the judgement of a record again", () => {
     expect(kindCellRecordSchema.safeParse(json(unknown)).success).toBe(false);
   });
 
+  it("reads a record of /2 of a VIP of MetalLB: its announcer, and the watch of its permitted window (SYS-53)", () => {
+    const s = (value: number) => ({ value, unit: "s" }) as const;
+    const fromV1 = readRecord(json(fixture(FIXTURES.fails)));
+    const prediction = {
+      kind: "window",
+      nodes: "all",
+      start: { from: "fault", band: { lo: s(0), hi: s(1.52) } },
+      end: { from: "fault", band: { lo: s(4.98), hi: s(7) } },
+      certain: true,
+      outcomes: ["timeout"],
+      permits: { from: "heal", band: { lo: s(0), hi: s(0.5) }, outcomes: ["timeout", "reset"], watch: s(10), why: "a test" },
+      why: "a test",
+    } as const;
+    const vip: KindCellRecord = { ...fromV1, cell: { ...fromV1.cell, prediction, vip: { clients: 3, announcer: "metallb" } } };
+    const read = readRecord(json(vip));
+    expect(read.cell.vip).toEqual({ clients: 3, announcer: "metallb" });
+    expect(read.cell.prediction).toMatchObject({ permits: { watch: s(10) } });
+    expect(kindCellRecordSchema.safeParse(json({ ...vip, cell: { ...vip.cell, vip: { clients: 3, announcer: "cilium" } } })).success).toBe(false);
+  });
+
   it("reads a record of /2 of a policy: its trigger and account, a window from the heal with its outcomes, and the LDS updates", () => {
     const fromV1 = readRecord(json(fixture(FIXTURES.fails)));
     const s = (value: number) => ({ value, unit: "s" });

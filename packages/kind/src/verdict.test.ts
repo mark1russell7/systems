@@ -452,6 +452,27 @@ describe("the judgement of a kind run", () => {
     expect(observationEnd(vip, run([]))).toBeGreaterThanOrEqual(40_000 + 3500 + 1000 + 100);
     expect(predictionText(window)).toMatch(/, and timeout or reset permitted at the heal \+ \[0, 3\.5\] s$/);
   });
+
+  it("observes for the watch of a permitted window past its band, and a late failure in it fails the run (SYS-53)", () => {
+    const window = {
+      kind: "window",
+      nodes: "all",
+      start: { from: "fault", band: b(0, 0.52) },
+      end: { from: "fault", band: b(4.98, 7) },
+      certain: true,
+      outcomes: ["timeout"],
+      permits: { from: "heal", band: b(0, 0.5), outcomes: ["timeout", "reset"], watch: s(9), why: "a thawed speaker can reconcile" },
+      why: "a test",
+    } as const;
+    const vip: KindCell = { ...cellOf("zone-loss"), prediction: window, vip: { clients: 3, announcer: "metallb" } };
+    const run = (extra: Line[]): KindRun => ({ ...runWith(extra), target: null, acts: { fault: 5000, heal: 40_000, resume: null } });
+    // the watch is longer than the band, the timeout and δ, thus it sets the end of the observation
+    expect(observationEnd(vip, run([]))).toBeGreaterThanOrEqual(40_000 + 9000 + 100);
+    expect(observationEnd({ ...vip, prediction: { ...window, permits: { ...window.permits, watch: undefined } } }, run([]))).toBeLessThan(40_000 + 9000);
+    expect(checkRun(vip, run([request(5100, "timeout", "outside"), request(11_000, "timeout", "outside")])).ok).toBe(true);
+    expect(checkRun(vip, run([request(5100, "timeout", "outside"), request(11_000, "timeout", "outside"), request(46_000, "timeout", "outside")])).ok).toBe(false);
+    expect(predictionText(window)).toMatch(/permitted at the heal \+ \[0, 0\.5\] s, the record at least 9 s after the heal$/);
+  });
 });
 
 describe("the observation of a kind run", () => {

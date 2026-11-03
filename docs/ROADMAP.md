@@ -72,7 +72,9 @@ Cilium is the fourth mode of the T07 cells. It replaces kube-proxy in a cluster 
 
 CoreDNS is the next intermediary ([SYS-50](#sys-50--coredns-a-client-by-name-when-the-cluster-dns-stops-answering)). A client by name on musl fails each new connection while no DNS answer gets to it. Its failures end one retry interval of musl after the fault plus its timeout, not at the heal. Kind run 41559060726 held both cells in each counted run, and the last failure came a median of 0.71 s after the heal. A kept connection does no lookup, thus it fails no request.
 
-kube-vip is the intermediary after it ([SYS-51](#sys-51--kube-vip-callers-outside-the-cluster-when-the-holder-of-a-vip-is-gone)). Callers outside the cluster learn that the holder of a VIP is gone only at the first gratuitous ARP of the new holder. That comes one take of the Lease and up to one ARP tick after the fault. Kind run 41568679669 held the cell in each counted run, with takes 15.1 s to 19.3 s after the fault. Each take is in the band of the election law, but only 2 of 4 are in the naive band. The next intermediaries are MetalLB and Pulsar.
+kube-vip is the intermediary after it ([SYS-51](#sys-51--kube-vip-callers-outside-the-cluster-when-the-holder-of-a-vip-is-gone)). Callers outside the cluster learn that the holder of a VIP is gone only at the first gratuitous ARP of the new holder. That comes one take of the Lease and up to one ARP tick after the fault. Kind run 41568679669 held the cell in each counted run, with takes 15.1 s to 19.3 s after the fault. Each take is in the band of the election law, but only 2 of 4 are in the naive band.
+
+MetalLB is in progress ([SYS-53](#sys-53--metallb-callers-outside-the-cluster-when-the-announcer-of-a-vip-is-gone)). Its speakers answer ARP for a VIP in user space, and memberlist finds a lost speaker. The law gives the new announcer 5 s to 7 s after the fault: one probe, its deadline and a suspicion timeout of 4 s. Pulsar is the intermediary after it.
 
 ### S3 · Outcomes under failure and load
 
@@ -1224,6 +1226,52 @@ The prediction hit in 7 of 10 claims. The naive law missed, as predicted. The cl
 The miss after the heal is a bias of one sign, and its missing term is the old holder. During the fault, no client saw a gratuitous ARP of the old holder. At the heal, it sent one at once. Then both nodes sent a gratuitous ARP for the VIP each 3 s until the record stopped, 4.8 s after the heal. No request failed after the first change, because the old holder serves the VIP again.
 
 The record does not show why the old holder stops its ARP during the fault. A later band adds one change at the heal, with its failures for the time of the heal act. A later record continues past the heal by more than one lease, to show when the old holder stops.
+
+### SYS-53 · MetalLB: callers outside the cluster when the announcer of a VIP is gone
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** SYS-51
+- **Started:** 2026-11-02
+- **Links:** [S2](#s2--intermediaries-and-kubernetes), [SYS-51](#sys-51--kube-vip-callers-outside-the-cluster-when-the-holder-of-a-vip-is-gone)
+
+MetalLB is the intermediary after kube-vip. In L2 mode, a speaker on each node answers ARP for the VIP of a Service, if its node owns the VIP. The speakers find each other with memberlist. The question: when do callers outside the cluster see the new announcer, and which timer sets that time?
+
+**The setup.** The lab installs MetalLB 0.16.1 from its Helm chart, pinned by sha256, with each image pinned by digest (`packages/kind/src/metallb.ts`). The tag v0.16.1 is the commit `791dfcc6`. Each value of the install is set, with its source:
+
+- No FRR and no frr-k8s: L2 mode needs no BGP. The chart enables frr-k8s by default (`charts/metallb/values.yaml`, lines 368–370).
+- A speaker runs only on each worker, and the controller runs on the control plane. Thus memberlist has two members, and a zone loss does not take away the controller.
+- The install makes no memberlist config file. A file `/etc/metallb/memberlist/config.json` replaces `DefaultLANConfig` (`internal/speakerlist/speakerlist.go`, lines 72 and 77–84). The chart mounts the ConfigMap `metallb-memberlist-config` there only if it exists (`charts/metallb/templates/speaker.yaml`, lines 195–198). The install asserts that it does not exist.
+- The pool of the VIP has only the VIP, and an L2Advertisement announces it. The Service of the VIP is the Service of SYS-51, with the annotation `metallb.io/loadBalancerIPs` and no class of load balancer.
+- The owner of the VIP is the first usable speaker in the order of sha256(node + "#" + VIP) (`speaker/layer2_controller.go`, lines 115–123). The lab chooses the VIP so that the last worker owns it. It looks down from the sixth address from the end of the Docker network.
+
+The lab code of the VIP is one path for kube-vip and MetalLB (`packages/kind/src/announcer.ts`). Each announcer gives its images, its Service, its install, its hold before each run and its record. The clients outside the cluster, their ARP watch and the judge are the same. Before each run, the hold makes the owner the only node that announces the Service, from the objects ServiceL2Status. Then it annotates the Service, and the owner sends its gratuitous ARPs. The run starts only when each outside client has the MAC address of the owner (`/proc/net/arp`), and after the gratuitous ARPs stop.
+
+**The family.** One cell in iptables: `S2.T07.iptables.metallb.zone-loss` (`METALLB_CELLS` in `packages/cells/src/metallb.ts`). The clients and the zone loss of 35 s are those of SYS-51. Three clients outside the cluster send a request to the VIP each 20 ms on a new connection, with a timeout of 1 s.
+
+**The terms and their sources.** Each value is the default of hashicorp/memberlist v0.5.1 (`config.go`, lines 302–341) or the source of MetalLB v0.16.1:
+
+- The speaker answers ARP in user space, and the VIP is on no interface (`internal/layer2/arp.go`, lines 54–66). The zone loss freezes the speaker of the lost node, thus no node answers ARP for the VIP.
+- A usable speaker is a member that is not dead, after the filters of NetworkUnavailable and of the label that excludes a node (`speakerlist.go`, lines 303–320, and `internal/k8s/nodes/nodes.go`, lines 10–12 and 30–39). `Members()` leaves out only the dead members (`memberlist.go`, lines 607–619). Thus a suspect node keeps the VIP.
+- The other speaker probes the lost node each `ProbeInterval` of 1 s (`config.go`, line 318). The probe waits `ProbeTimeout`, 500 ms, for the ack (line 317). With two members there is no peer for an indirect probe (`state.go`, lines 417–449). The TCP fallback ends at the deadline of the probe, one probe interval after its start (lines 340 and 461–492). Then the node is suspect (lines 520–523).
+- The suspicion timeout is SuspicionMult × max(1, log10 n) × ProbeInterval (`util.go`, lines 71–76), 4 × 1 × 1 s = 4 s for n = 2. `suspectNode` waits for k = SuspicionMult − 2 confirmations, and k = 0 if n − 2 < k (`state.go`, lines 1216–1228). With k = 0, the timer fires at its minimum (`suspicion.go`, lines 70–76).
+- The dead node calls `NotifyLeave` (`state.go`, lines 1310–1311). Each event of memberlist calls `ForceSync` (`speakerlist.go`, lines 339–349). `ForceSync` reconciles each Service at once (`internal/k8s/k8s.go`, lines 181–192, and `internal/k8s/controllers/service_controller_reload.go`, lines 62–118).
+- The new owner announces the VIP in `SetBalancer`. It sends a gratuitous ARP at once, then one each 1100 ms for 5 s (`internal/layer2/announcer.go`, lines 157–197).
+- Thus the first failed probe starts 0 s to 1.5 s after the fault: one probe interval and the act of the drops. The node is dead 5 s to 6.5 s after the fault. The first gratuitous ARP comes up to a setup of 0.5 s later.
+- A request that starts before the gratuitous ARP goes to the lost node, and it fails at its timeout. Thus the last failure starts 4.98 s to 7 s after the fault.
+
+The naive law reads the comment of `suspicionTimeout`: 4 × log(N + 1) × Interval. It gives a suspicion of approximately 1.9 s, and the death approximately 2.9 s to 3.9 s after the fault. The code uses max(1, log10 N), not log10(N + 1).
+
+**The other paths.** Two other paths can move the VIP. Neither one comes first:
+
+- The node condition. A speaker leaves out a node with the condition NetworkUnavailable (`nodes.go`, lines 10–12, and `speaker/main.go`, lines 622–654). The node lifecycle controller marks a lost node NotReady after 40 s, and NotReady is not NetworkUnavailable. The hold of 35 s ends before that time.
+- The endpoints. With the Cluster policy, a speaker needs one ready endpoint in the cluster (`layer2_controller.go`, lines 84 and 200–211). Each replica is in the kept zone, thus the endpoints do not change.
+
+**The heal.** SYS-51 found that the old holder sent a gratuitous ARP at the heal. The old speaker of MetalLB did not stop its announce. It gets no event of memberlist at the thaw, thus it sends no gratuitous ARP. Its push and pull of state is late, and it starts at the thaw. Then it sees that it is dead in the view of the other speaker, and it refutes that. The other speaker sees the join, and it stops its announce. The clients keep the MAC address of the other node, and its kube-proxy still sends the VIP to a replica. Thus no request fails after the heal.
+
+**The bands.** The window opens at the fault (0 to 0.52 s), and it closes 4.98 s to 7 s after the fault. Each failure is a timeout. After the heal, the judge permits timeouts and resets for 0.5 s. The reason: a speaker that froze in its gratuitous ARPs sends the next one at the thaw. The record continues to 10 s after the heal (`permits.watch`). That is past the band of the gratuitous ARP from the fault. Thus a failure after the rejoin is a finding.
+
+**The prediction.** The cell holds in each of its 4 counted runs. The lost node is dead 5 s to 6.5 s after the fault in each run, and the naive band misses. Each client sees the new owner up to 0.5 s after the death. Approximately 750 to 1050 requests fail in each run before the heal, and none after it. The other speaker stops its announce up to 5 s after the heal. The decision rule is the rule of SYS-51, with 4 counted runs.
 
 ## The systems of S1
 

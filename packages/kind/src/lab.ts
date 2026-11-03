@@ -41,6 +41,19 @@ export interface LdsSpec {
   readonly pods: ReadonlyArray<{ readonly node: string; readonly pod: string; readonly pid: number }>;
 }
 
+/**
+ * This function gives the MAC address of `ip` in a table of /proc/net/arp, in lower case. It gives
+ * null if the table has no row for `ip`, or if the row has the flags 0x0: no MAC yet. The ARP watch
+ * of `client.mjs` reads the table the same way.
+ */
+export const arpMacOf = (table: string, ip: string): string | null => {
+  for (const row of table.split("\n").slice(1)) {
+    const [address, , flags, mac] = row.trim().split(/\s+/);
+    if (address === ip) return flags === "0x0" || mac === undefined ? null : mac.toLowerCase();
+  }
+  return null;
+};
+
 /** An outside spec is the clients outside the cluster: their target, interval, timeout and count, and the address whose MAC they watch. */
 export interface OutsideSpec {
   readonly target: string;
@@ -87,6 +100,8 @@ export interface KindLab {
    * call stops the clients of the last call first. With null, it only stops them.
    */
   outside(spec: OutsideSpec | null): Promise<void>;
+  /** This method gives the MAC address of `ip` in the neighbour table of each client outside the cluster. It is null for a client with no MAC for it. */
+  outsideMacs(ip: string): Promise<ReadonlyArray<{ readonly client: string; readonly mac: string | null }>>;
   /** This method asks each agent to poll the backends of a Service in the rules of its node, `every` apart, or to stop with null. */
   rules(rule: (ServiceRule & { readonly every: Quantity }) | null): Promise<void>;
   /**
@@ -324,6 +339,14 @@ export const openKindLab = async (cluster: Cluster, image: string): Promise<Kind
           .start();
         outsiders.push(client);
       }
+    },
+    async outsideMacs(ip) {
+      const found: Array<{ readonly client: string; readonly mac: string | null }> = [];
+      for (const [k, client] of outsiders.entries()) {
+        const { output } = await client.exec(["cat", "/proc/net/arp"]);
+        found.push({ client: `${OUTSIDE}-${k}`, mac: arpMacOf(output, ip) });
+      }
+      return found;
     },
     async stopProbe() {
       if (prober !== null) await prober.stop({ timeout: 0 }).catch(() => undefined);
