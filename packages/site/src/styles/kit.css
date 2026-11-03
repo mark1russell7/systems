@@ -989,6 +989,85 @@ code.sy-tag {
   line-height: 1.5;
 }
 
+/* ------------------------------------------------------------------ the stall band of SYS-48 */
+
+.sy-stall-figure {
+  display: grid;
+  gap: var(--space-3);
+  margin-block: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.sy-stall-figure figcaption {
+  margin: 0;
+  color: var(--color-ink-muted);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.sy-stall-figure .sy-legend {
+  margin: 0;
+}
+
+.sy-stall-old rect,
+.sy-stall-old-fill {
+  fill: color-mix(in srgb, var(--status-neutral) 22%, transparent);
+}
+
+.sy-stall-old line,
+.sy-stall-old-edge {
+  stroke: var(--status-neutral);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2;
+}
+
+.sy-strip .sy-stall-mode {
+  fill: var(--color-ink-secondary);
+  font-weight: 600;
+}
+
+.sy-strip .sy-stall-note {
+  fill: var(--status-critical-ink);
+  font-weight: 600;
+}
+
+.sy-stall-miss circle {
+  fill: var(--status-critical);
+  stroke: var(--color-surface);
+  stroke-width: 1.5;
+}
+
+.sy-stall-miss path {
+  fill: none;
+  stroke: var(--color-surface);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+/* The ring of the focused dot shows the focus, thus a dot has no outline of its own. */
+.sy-stall a:focus-visible {
+  outline: none;
+}
+
+/* each header of the table is two short lines, so the table fits the card */
+.sy-stall-table thead th span {
+  display: block;
+}
+
+.sy-stall-table td {
+  white-space: nowrap;
+}
+
+.sy-stall .sy-caption {
+  margin-top: var(--space-2);
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+}
+
 /* ------------------------------------------------------------------ a narrow page */
 
 @media (max-width: 30rem) {

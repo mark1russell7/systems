@@ -10,6 +10,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { quantity, valueIn, type Quantity } from "@mark1russell7/quantity";
+import { spacedLabels } from "../lib/format.ts";
 import { link } from "./Ledger.tsx";
 import { useWidth } from "./Strip.tsx";
 import Term, { type TermName } from "./Term.tsx";
@@ -294,6 +295,8 @@ const axisOf = (result: PathResult, scale: Scale): Axis => {
 const MARK_CLASS: Readonly<Record<Mark["kind"], string>> = { send: "rp-send", fire: "rp-fire", probe: "rp-probe", detect: "rp-detect", recover: "rp-recover" };
 
 const LANE = 50;
+/** the width of one character of the mono font at 11 px, for the labels of the ticks */
+const CHARACTER = 6.7;
 const TOP = 30;
 const BOTTOM = 30;
 
@@ -310,9 +313,14 @@ function Timeline(props: { readonly result: PathResult; readonly scale: Scale; r
   const cursorX = gutter + plot * progress;
   const now = axis.t(progress);
   const seen = (t: number): boolean => axis.x(t) <= progress + 1e-9;
-  // the ticks, without two labels closer than 46 px
+  // the ticks, without two grid lines closer than 46 px
   const ticks: number[] = [];
   for (const t of axis.ticks) if (ticks.length === 0 || X(t) - X(ticks.at(-1)!) >= 46) ticks.push(t);
+  // the labels of the ticks: a label that would touch the label before it is dropped, and a label at the right edge ends at the edge
+  const labels = spacedLabels(
+    ticks.map((t) => ({ t, x: X(t), text: say(s(t)), width: say(s(t)).length * CHARACTER })),
+    width,
+  );
   const heal = result.heal === null ? null : sec(result.heal);
   const label = `${result.headline} The timeline shows each layer from the program to the NIC.`;
 
@@ -333,12 +341,12 @@ function Timeline(props: { readonly result: PathResult; readonly scale: Scale; r
 
         {/* the grid and the axis */}
         {ticks.map((t) => (
-          <g key={t}>
-            <line className="rp-grid" x1={X(t)} x2={X(t)} y1={TOP - 6} y2={TOP + LANE * result.layers.length} />
-            <text className="rp-tick" x={X(t)} y={height - 10} textAnchor={X(t) > width - 30 ? "end" : "middle"}>
-              {say(s(t))}
-            </text>
-          </g>
+          <line key={t} className="rp-grid" x1={X(t)} x2={X(t)} y1={TOP - 6} y2={TOP + LANE * result.layers.length} />
+        ))}
+        {labels.map((label) => (
+          <text key={label.t} className="rp-tick" x={label.at} y={height - 10} textAnchor={label.anchor}>
+            {label.text}
+          </text>
         ))}
 
         {result.layers.map((layer, row) => (

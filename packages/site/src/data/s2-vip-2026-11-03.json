@@ -1,0 +1,119 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-11-03",
+  "units": "s",
+  "runs": 4,
+  "kernel": "7.0.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.iptables.vip.zone-loss",
+      "template": "T07",
+      "name": "iptables, kube-vip loses the holder of its VIP: clients outside the cluster",
+      "mode": "iptables",
+      "trigger": "zone-loss",
+      "group": "zone",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 12.98 s to 27.3 s after the fault. At least one request fails. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 4,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 2659.5,
+      "values": [2660, 3090, 2659, 2652],
+      "why": "Each of the 4 counted runs agrees with the prediction. The median run had 2,659.5 failed requests. The counted runs had 2,652 to 3,090 failed requests.",
+      "first": null,
+      "lasts": [35.221909, 35.2469905, 35.264469, 35.2101817],
+      "vip": [
+        {
+          "take": 17.6482382,
+          "arp": [17.8442385, 17.8416906, 17.8402812],
+          "last": [35.1815214, 35.1767322, 35.1727099],
+          "failed": {
+            "outside": 2663,
+            "thaw": 6,
+            "inside": 0
+          },
+          "outcomes": {
+            "timeout": 2669
+          },
+          "thawLast": 0.0363898
+        },
+        {
+          "take": 19.3196391,
+          "arp": [20.7246299, 20.732966, 20.7246213],
+          "last": [20.7088397, 20.7171707, 20.7172484],
+          "failed": {
+            "outside": 3090,
+            "thaw": 9,
+            "inside": 0
+          },
+          "outcomes": {
+            "timeout": 3099
+          },
+          "thawLast": 0.0525072
+        },
+        {
+          "take": 16.9835426,
+          "arp": [17.8494461, 17.8505639, 17.8467282],
+          "last": [35.2035467, 35.2117152, 35.2094924],
+          "failed": {
+            "outside": 2662,
+            "thaw": 7,
+            "inside": 0
+          },
+          "outcomes": {
+            "timeout": 2669
+          },
+          "thawLast": 0.0477983
+        },
+        {
+          "take": 15.142522,
+          "arp": [17.8013223, 17.7957302, 17.797892],
+          "last": [17.7786694, 17.7820057, 17.7832429],
+          "failed": {
+            "outside": 2652,
+            "thaw": 6,
+            "inside": 0
+          },
+          "outcomes": {
+            "timeout": 2658
+          },
+          "thawLast": 0.0330691
+        }
+      ],
+      "pings": [0, 0, 0, 0],
+      "acks": [0, 0, 0, 0],
+      "seconds": [43.6611843, 43.7158464, 43.6147883, 43.6204846]
+    }
+  ],
+  "bands": {
+    "take": {
+      "low": 13,
+      "high": 23.8
+    },
+    "naive": {
+      "low": 13,
+      "high": 17
+    },
+    "arp": {
+      "low": 13,
+      "high": 27.3
+    },
+    "end": {
+      "low": 12.98,
+      "high": 27.3
+    },
+    "thaw": {
+      "low": 0,
+      "high": 3.5
+    }
+  }
+}

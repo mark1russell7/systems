@@ -40,6 +40,10 @@ The documents of the systems program are in [`@mark1russell7/machines`](https://
   - the errno that replaces ETIMEDOUT at a timeout (`errno`). An ICMP error on an established socket is a soft error, and the timeout gives it (`errnoOf`).
   - the durations that the failure changes, by timer (`replaces`). `timerUnder` gives the bounds of a timer under the failure.
 - **Recovery.** `recovery` tells when a backoff timer moves a connection again after a stall. The connection moves at the first firing at the end of the stall or after it. A stall of 3.5 s on Linux TCP holds a request for approximately 6.5 s.
+- **The times on a timeline.** These functions give exact times, in seconds:
+  - `timerBand` gives the band of a timer: its duration less its early bound, to its duration plus its lateness.
+  - `firings` gives the firings of a backoff timer as the sums of its waits. Examples are the retransmissions of Linux TCP, or the tries of a call with a deadline. It stops at a count, at a time (`until`), or at the first firing at a time or after it (`reach`).
+  - `probeTrain` gives a train of probes: the first probe, then one probe each interval. An example is the probes of keepalive.
 
 ## The replay
 

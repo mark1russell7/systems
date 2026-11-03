@@ -170,6 +170,31 @@ const flush = () => {
 setInterval(flush, 100);
 const say = (line) => pending.push(`${JSON.stringify({ ...line, p: pod, n: node })}\n`);
 
+// With ARP_WATCH, the client reads the MAC address of that IPv4 address in the neighbour table each
+// 10 ms, and it writes a line `arp` at each change (SYS-51). A gratuitous ARP of a new holder of a VIP
+// changes the MAC, thus the line gives the time of the move. An entry with the flags 0x0 has no MAC yet
+const watched = process.env.ARP_WATCH ?? "";
+if (watched !== "") {
+  let seen;
+  setInterval(() => {
+    let mac = null;
+    try {
+      for (const row of readFileSync("/proc/net/arp", "utf8").split("\n").slice(1)) {
+        const [ip, , flags, hw] = row.trim().split(/\s+/);
+        if (ip === watched) {
+          mac = flags === "0x0" ? null : hw.toLowerCase();
+          break;
+        }
+      }
+    } catch {
+      return;
+    }
+    if (mac === seen) return;
+    seen = mac;
+    say({ ev: "arp", t: now(), ip: watched, mac });
+  }, 10);
+}
+
 const outcomeOf = (error) => {
   const code = error?.code ?? "";
   if (code === "ECONNREFUSED") return "refused";

@@ -9,12 +9,12 @@ Each item has an id, a status, an area, the items that it needs, its dates and i
 The program started again on 2026-11-02, after the pause of 2026-10-28. A gap that a consumer finds in the service or kind packages still comes first. It is released as a PATCH when its checks pass. The order of the other work is:
 
 1. **S6:** S6 is done. SYS-6 put the cases of the streams in the conformance kit, in service 0.6.4. SYS-17 is done, with SYS-18.
-2. **SYS-49:** The statistics of the cells and the time verdicts come from the rigor packages, not from local copies.
+2. **SYS-49:** The statistics of the cells and the time verdicts come from the rigor packages, not from local copies. SYS-52 is done: the limiter pair gives its time verdict through rigor-bench.
    <!-- ste-disable-next latin-abbreviation -- VIZ is the ID of the item, not the Latin abbreviation -->
 3. **VIZ:** The site gets an interactive demo of the path of a request, from the process to the NIC. The packages of this repository run live in the browser.
-4. **S2:** The next step is a design of the cells for CoreDNS. kube-vip, MetalLB and Pulsar come after it. Do one intermediary in each context. Write the prediction before the dispatch.
+4. **S2:** CoreDNS (SYS-50) and kube-vip (SYS-51) are done. The next step is MetalLB, then Pulsar. Do one intermediary in each context. Write the prediction before the dispatch.
 
-SITE-UX round 3 is late. Its visual shows the C-stall band of SYS-48 against the count of each mode, on the kind page.
+SITE-UX round 3 is done. Its chart shows the C-stall band of SYS-48 against the count of each mode, on the kind page.
 
 ## The slices of the program
 
@@ -70,7 +70,9 @@ Kind run 40358038728 held all 9 cells in 3 of 3 runs. With iptables, the median 
 
 Cilium is the fourth mode of the T07 cells. It replaces kube-proxy in a cluster of kind with no kube-proxy, from a pinned chart. Kind run 40558968382 started 21 cells of Cilium, and 20 held in each counted run. C in the stall failed in 1 of 3 runs, by a bias that the next band must add. SYS-48 adds the backlog term, and the 4 stall cells of C held in each counted run of kind run 40643221421. Each finding of kube-proxy holds in Cilium, thus the rule of the service does not change ([S6](S6.md#the-cilium-column)).
 
-CoreDNS is the next intermediary ([SYS-50](#sys-50--coredns-a-client-by-name-when-the-cluster-dns-stops-answering)). A client by name on musl fails each new connection while no DNS answer gets to it. Its failures end one retry interval of musl after the fault plus its timeout, not at the heal. Kind run 41559060726 held both cells in each counted run, and the last failure came a median of 0.71 s after the heal. A kept connection does no lookup, thus it fails no request. The next intermediaries are kube-vip, MetalLB and Pulsar.
+CoreDNS is the next intermediary ([SYS-50](#sys-50--coredns-a-client-by-name-when-the-cluster-dns-stops-answering)). A client by name on musl fails each new connection while no DNS answer gets to it. Its failures end one retry interval of musl after the fault plus its timeout, not at the heal. Kind run 41559060726 held both cells in each counted run, and the last failure came a median of 0.71 s after the heal. A kept connection does no lookup, thus it fails no request.
+
+kube-vip is the intermediary after it ([SYS-51](#sys-51--kube-vip-callers-outside-the-cluster-when-the-holder-of-a-vip-is-gone)). Callers outside the cluster learn that the holder of a VIP is gone only at the first gratuitous ARP of the new holder. That comes one take of the Lease and up to one ARP tick after the fault. Kind run 41568679669 held the cell in each counted run, with takes 15.1 s to 19.3 s after the fault. Each take is in the band of the election law, but only 2 of 4 are in the naive band. The next intermediaries are MetalLB and Pulsar.
 
 ### S3 · Outcomes under failure and load
 
@@ -1175,6 +1177,56 @@ The prediction hit in 6 of 7 claims. The miss is the build claim, because the fi
 
 The last failure is approximately the low edge of the phase plus one act: 0.5 + 0.24 s. Thus the threads stay in phase with the fault, and the queue drains in approximately 0 s. `DNS_DRAIN` gives 0.5 s, thus the band is wide on its high edge. This is not a bias, because each run is in the band. A later band can use a measured drain.
 
+### SYS-51 · kube-vip: callers outside the cluster when the holder of a VIP is gone
+
+- **Status:** done
+- **Area:** catalogs
+- **Depends on:** S2
+- **Started:** 2026-11-02
+- **Shipped:** 2026-11-03
+- **Links:** [S2](#s2--intermediaries-and-kubernetes), [kind run 41568679669](https://github.com/mark1russell7/systems/actions/runs/41568679669)
+
+kube-vip is the next intermediary of S2. A node holds a virtual address (the VIP) on its link, and it announces the VIP with a gratuitous ARP. A Lease elects that node. The question: when do callers outside the cluster learn that the holder is gone, and which timer sets that time?
+
+**The setup.** The lab installs kube-vip 1.3.1 in ARP mode, with its image pinned by digest (`packages/kind/src/kubevip.ts`). Each value of the install is set, with its source:
+
+- The VIP is the VIP of a Service of type LoadBalancer, not the VIP of the control plane. A VIP of the control plane needs three control-plane nodes and TLS on port 6443. A VIP of a Service needs one DaemonSet on the workers, and it serves the server of the cell.
+- The VIP is the sixth address from the end of the subnet of the Docker network of kind. Docker gives each container an address from the start of the subnet, thus no container takes the VIP. The nodes and the clients are on this one network, thus ARP is the only path to the VIP.
+- One election of the Lease `plndr-svcs-lock` gives each VIP to one node, with the identity of the node name. The times are the defaults of v1.3.1 (`cmd/kube-vip.go`, lines 91–94): a lease of 15 s, a renew deadline of 10 s and a retry period of 2 s. The install sets each one in the environment, thus a new default cannot change the cell.
+- The ARP manager sends a gratuitous ARP for each VIP at each tick of `vip_arpRate`, 3 s.
+- Before each run, the lab moves the Lease to the last worker (`holdVip`). The zone loss then takes away that worker for 35 s. The drops of the zone loss are on IP, thus the lost node still answers ARP.
+
+**The family.** One cell in iptables: `S2.T07.iptables.vip.zone-loss` (`VIP_CELLS` in `packages/cells/src/vip.ts`). Three clients on the Docker network are outside the cluster. Each one sends a request to the VIP each 20 ms on a new connection, with a timeout of 1 s. The clients in the cluster call the ClusterIP of the same Service, as a control. Each outside client records each change of the MAC address of the VIP in its ARP table.
+
+**The terms and their sources.** The election is `leaderelection.RunOrDie` of client-go v0.37.1:
+
+- A follower tries the Lease each retry period with a jitter factor of 1.2, thus each 2 s to 4.4 s.
+- The holder renews each 2 s, thus its last renew is 0 s to 2 s before the fault.
+- A follower sees the Lease as free one lease after its first try that saw the last renew (`isLeaseValid`). That try comes up to 4.4 s after the renew.
+- Thus the Lease is free 13 s to 19.4 s after the fault. The try that takes it comes up to 4.4 s later. The band of the take is 13 s to 23.8 s after the fault.
+- The new holder adds the VIP at once. It sends the first gratuitous ARP at its next tick, up to 3 s and a setup of 0.5 s later.
+- A request that starts before the gratuitous ARP goes to the lost node, and it fails at its timeout. Thus the last failure starts 12.98 s to 27.3 s after the fault.
+
+The naive law takes the Lease L to L + R after the last renew: 13 s to 17 s after the fault. It does not include the jitter and the try that sees the free Lease.
+
+**The bands.** The window opens at the fault (0 to 0.52 s), and it closes 12.98 s to 27.3 s after the fault. Each failure is a timeout. After the heal, the judge permits timeouts and resets for 3.5 s, because an old holder can send one more gratuitous ARP. The judge puts these failures in its reason, not in the tail.
+
+**The prediction.** The cell holds in each counted run. The take is in the band of the law in each run, and the naive band holds in each run only by chance. Each client sees the new holder 0 s to 3.5 s after the take, and its last failure is at that change. Approximately 2400 to 3600 requests fail in each run before the heal, and none after it. The decision rule is the rule of SYS-50, with 4 counted runs.
+
+**The result.** Kind run 41568679669 held the cell in 4 of 4 counted runs, with no void run. The copy is `packages/site/src/data/s2-vip-2026-11-03.json`.
+
+- The new holder took the Lease 17.648, 19.320, 16.984 and 15.143 s after the fault. Each take is in the band of the law. Only 2 of 4 are in the naive band.
+- Each outside client changed to the MAC address of the new holder 0.19 s to 2.66 s after the take. The 3 clients of a run changed in the same 10 ms, because one gratuitous ARP gets to each of them.
+- Before the heal, the runs failed 2663, 3090, 2662 and 2652 requests, with a median of 2662.5. Each failure was a timeout. The clients in the cluster failed no request.
+- In runs 2 and 4, the last failure started 7 ms to 25 ms before the ARP change of its client.
+- At the heal, each client changed back to the old holder, within 18 ms of the heal stamp. Then 6 to 9 requests failed in each run, in the 0.05 s of the heal act, each with a timeout. In runs 1 and 3, some of these started up to 9 ms before the heal stamp.
+
+The prediction hit in 7 of 10 claims. The naive law missed, as predicted. The claim of the last failure missed, because the failures at the heal of runs 1 and 3 started before the heal stamp. The claim of no failure after the heal missed in each run.
+
+The miss after the heal is a bias of one sign, and its missing term is the old holder. During the fault, no client saw a gratuitous ARP of the old holder. At the heal, it sent one at once. Then both nodes sent a gratuitous ARP for the VIP each 3 s until the record stopped, 4.8 s after the heal. No request failed after the first change, because the old holder serves the VIP again.
+
+The record does not show why the old holder stops its ARP during the fault. A later band adds one change at the heal, with its failures for the time of the heal act. A later record continues past the heal by more than one lease, to show when the old holder stops.
+
 ### SYS-52 · The limiter pair gives its time verdict through rigor-bench
 
 - **Status:** done
@@ -1915,7 +1967,7 @@ Five cells put the idle close of Redis against the keepalive of the kernel, both
 - **Depends on:**
 - **Started:** 2026-10-18
 - **Shipped:**
-- **Links:** [#88](https://github.com/mark1russell7/systems/pull/88), [#89](https://github.com/mark1russell7/systems/pull/89)
+- **Links:** [#88](https://github.com/mark1russell7/systems/pull/88), [#89](https://github.com/mark1russell7/systems/pull/89), [#298](https://github.com/mark1russell7/systems/pull/298)
 
 Each week, one round makes the site and the tracker easier to read, with a visual where it makes a result clear (Mark, 2026-10-18).
 
@@ -1923,6 +1975,12 @@ Each week, one round makes the site and the tracker easier to read, with a visua
   - The tracker shows the count of the done items first, and the items that can start. The record of each item shows as steps. The map lights the chain of the item under the pointer, and a chart shows the items shipped each day.
   - CI takes a screenshot of each page of the site at 390 px and at 1280 px, in light and in dark (#88). Its report names each page that is wider than its screen, and each error of a page. No page is wider than a phone, and no page has an error. The pages of results are long: 33,241 px for PostgreSQL on a phone, and 74,767 px for R3.
   - Each page of results has a map of its cells under its summary, and each tile links to the frame of its cell. The PostgreSQL page has a chart for each of its 8 borders (#89).
+- Round 3, 2026-11-03:
+  - The kind page has a chart of the C-stall band of SYS-48 for each mode. The band without the backlog term, 0 to 1,503, is next to the band with it, 0 to 1,542.
+  - Each counted run is a dot on one axis. The only miss is a red cross: Cilium, 1,507 failed requests in CI run 40558968382, 4 over the old band.
+  - A tooltip gives the run, the cell, the value and the two bands. Each dot links to the frame of its cell, and the 4 cells of SYS-48 (CI run 40643221421) have frames on the page.
+  - A switch shows the top end of the axis, from 1,400, where the miss is clear. A second switch shows the same data as a table.
+  - On the page of the path of one request, the time axis drops a label if it covers the label before it. At 1280 px, "10 min" covered "20 min".
 
 <!-- ste-disable-next latin-abbreviation -- VIZ is the ID of the item, not the Latin abbreviation -->
 
@@ -1941,11 +1999,18 @@ The first scope is one page: the path of one request (Mark, 2026-11-02). The pag
 
 - A program sends one request to a pod behind a Service. The user starts a black hole, a stalled peer or a partition.
 - Five layers find the fault: the program, the socket, TCP, Kubernetes and the NIC. Sliders and selects set the deadline, the retries, the keepalive sysctls, `tcp_retries2`, `TCP_USER_TIMEOUT`, the probes, the dataplane and the queue of the NIC.
-- `@mark1russell7/algebra` computes each time in the browser, on the documents of `@mark1russell7/machines`. Each amount prints through `format` of `@mark1russell7/quantity`. The page adds two small documents: the call of the program and the readiness probe of the kubelet.
+- `@mark1russell7/algebra` computes each time in the browser, on the documents of `@mark1russell7/machines`. Each amount prints through `format` of `@mark1russell7/quantity`.
 - An animated timeline marks the fault and the time when each layer knows. A cell that measured a value shows its median next to the computed band, with a link to the cell.
 - A tooltip explains each term. The home and the navigation link the page.
 
-The next step: move the two small documents of the page into `@mark1russell7/machines`. Then move the timer arithmetic of the detection lab into the algebra.
+The second step moved the documents and the arithmetic of the two labs into the packages (2026-11-02):
+
+- `@mark1russell7/machines` has two new documents. `DEADLINE_CALL` is the call of a program, with a deadline and retries. `KUBELET_READINESS` is the readiness probe of Kubernetes 1.37.0, and each fact cites the source at the tag v1.37.0.
+- `@mark1russell7/algebra` has three new functions: `timerBand`, `firings` and `probeTrain`. The two labs use them, and they do no timer arithmetic of their own.
+- A test compares the two labs with the results of the code before the move. It has 87 cases of the page and 92 cases of the detection lab, and the results are the same.
+- The source changed one value. A probe that takes longer than its period starts the next probe at once. Thus the interval of the probes is the longer of the period and the timeout. At a period of 2 s and a timeout of 5 s, the pod is unready at 17 s, not 11 s.
+
+The next step: Mark's next page of the item.
 
 ## Decisions for Mark
 

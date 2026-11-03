@@ -5,6 +5,7 @@
 // (a citation) or from a measurement (a run).
 
 import type { Machine } from "@mark1russell7/algebra";
+import { DEADLINE_CALL } from "./call.ts";
 import { ETCD_SERVER, GRPC_GO_SERVER } from "./grpc/grpc-go-server.ts";
 import { GRPC_JS } from "./grpc/grpc-js.ts";
 import { GO_TRANSPORT } from "./http/go-transport.ts";
@@ -14,6 +15,7 @@ import { UNDICI_CLIENT } from "./http/undici.ts";
 import { UNDICI_RETRY } from "./http/undici-retry.ts";
 import { IOREDIS_SENTINEL } from "./ioredis-sentinel.ts";
 import { IOREDIS_STATUS, LINUX_TCP, NF_CONNTRACK_TCP, REDIS_CLIENT } from "./json.ts";
+import { KUBELET_READINESS } from "./k8s/kubelet-readiness.ts";
 import { MONGOD_REPL } from "./mongo/mongod-replication.ts";
 import { MONGOD_SESSION } from "./mongo/mongod-session.ts";
 import { MONGODB_NODE } from "./mongo/mongodb-node.ts";
@@ -44,6 +46,7 @@ export {
   AMQPLIB,
   ATEN_DETECTOR,
   CADDY_HTTP2,
+  DEADLINE_CALL,
   DOCKER_PROXY_LINK,
   ENVOY_HTTP2,
   ETCD_SERVER,
@@ -56,6 +59,7 @@ export {
   IOREDIS_STATUS,
   ISTIO_SIDECAR_INBOUND,
   ISTIO_SIDECAR_OUTBOUND,
+  KUBELET_READINESS,
   LINUX_TCP,
   MONGOD_REPL,
   MONGOD_SESSION,
@@ -156,4 +160,6 @@ export const MACHINES: Readonly<Record<string, Machine>> = byId([
   ISTIO_SIDECAR_INBOUND,
   PILOT_AGENT,
   ZTUNNEL_HBONE,
+  DEADLINE_CALL,
+  KUBELET_READINESS,
 ]);

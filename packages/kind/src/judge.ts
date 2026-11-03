@@ -19,6 +19,7 @@ export type {
   MeshFlavor,
   MeshMode,
   NonePrediction,
+  PermittedWindow,
   PodSettings,
   Prediction,
   RedisDeclaration,
@@ -29,10 +30,11 @@ export type {
   Template,
   Trigger,
   TriggerKind,
+  VipSettings,
   WindowPrediction,
   Workload,
 } from "./cell.ts";
-export { CLIENT, HEALTH_PORT, LOG_LABEL, PORT, REDIS, SERVER } from "./names.ts";
+export { CLIENT, HEALTH_PORT, LB_CLASS, LOG_LABEL, OUTSIDE, PORT, REDIS, SERVER, VIP_ANNOTATION } from "./names.ts";
 export * from "./observe.ts";
 export type {
   BandV1,
