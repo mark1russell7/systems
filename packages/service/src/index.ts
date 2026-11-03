@@ -44,8 +44,8 @@ export type { Heartbeat, HeartbeatOptions } from "./heartbeat.ts";
 export { detectionTime, heartbeat } from "./heartbeat.ts";
 export type { Backoff, DelayBand, Jitter } from "./backoff.ts";
 export { backoffBand, backoffDelay, backoffProblems } from "./backoff.ts";
-export type { Retrier, RetrierOptions } from "./retrier.ts";
-export { retrier } from "./retrier.ts";
+export type { Retrier, RetrierOptions, RetryOptions } from "./retrier.ts";
+export { retrier, retry, retryAfterDelay } from "./retrier.ts";
 export type {
   Allowed,
   Decision,

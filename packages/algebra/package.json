@@ -61,7 +61,7 @@
     }
   },
   "devDependencies": {
-    "@mark1russell7/cue": "github:mark1russell7/cue",
+    "@mark1russell7/cue": "github:mark1russell7/cue#da04dd56699a2ae806ab64da5b1d677476afe69e",
     "@types/node": "^26.6.4",
     "tsdown": "^0.23.1",
     "typescript": "^7.0.2",

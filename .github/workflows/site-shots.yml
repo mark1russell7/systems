@@ -7,8 +7,9 @@
 name: Site shots
 
 on:
+  # Each pull request starts this workflow, so its summary check is always there. The job changes skips the
+  # work when the pull request changes no file of the gate (CI.md of the template, "A gate with paths").
   pull_request:
-    paths: ["packages/site/**", ".github/workflows/site-shots.yml"]
   workflow_dispatch:
 
 permissions:
@@ -19,7 +20,25 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      match: ${{ steps.changes.outputs.match }}
+    steps:
+      - id: changes
+        uses: mark1russell7/template/.github/actions/changes@f05c6eeb35e33a040bdfdcd7d07a1d2c00640f8d # main
+        with:
+          paths: |
+            packages/site/**
+            .github/workflows/site-shots.yml
+
   shots:
+    needs: changes
+    if: needs.changes.outputs.match == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -54,3 +73,15 @@ jobs:
           path: ${{ runner.temp }}/shots/
           if-no-files-found: warn
           retention-days: 14
+
+  site-shots-ok:
+    name: Site shots OK
+    if: always()
+    needs: [changes, shots]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - uses: mark1russell7/template/.github/actions/gate-summary@f05c6eeb35e33a040bdfdcd7d07a1d2c00640f8d # main
+        with:
+          needs: ${{ toJSON(needs) }}

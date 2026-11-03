@@ -45,14 +45,38 @@ on:
       minutes:
         description: The bound of the step The cells on each runner, in minutes (5 to 330)
         default: "36"
+  # Each pull request starts this workflow, so its summary check is always there. The job changes skips the
+  # work when the pull request changes no file of the gate (CI.md of the template, "A gate with paths").
   pull_request:
-    paths: [".github/workflows/kind.yml"]
 
 permissions:
   contents: read
 
+# The runs of a pull request share a group, and a newer push cancels the older run. Each dispatch has a group
+# of its own. GitHub keeps only one waiting run of a group, so a shared group cancels a dispatch of other cells.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      match: ${{ steps.changes.outputs.match }}
+    steps:
+      - id: changes
+        uses: mark1russell7/template/.github/actions/changes@f05c6eeb35e33a040bdfdcd7d07a1d2c00640f8d # main
+        with:
+          paths: |
+            .github/workflows/kind.yml
+
   plan:
+    needs: changes
+    if: needs.changes.outputs.match == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -80,8 +104,10 @@ jobs:
           echo "list=$(seq -s, 0 $((SHARDS - 1)) | sed 's/^/[/; s/$/]/')" >> "$GITHUB_OUTPUT"
 
   kind:
-    needs: plan
+    if: needs.changes.outputs.match == 'true'
+    needs: [changes, plan]
     strategy:
+      max-parallel: 3
       fail-fast: false
       matrix:
         shard: ${{ fromJSON(needs.plan.outputs.shards) }}
@@ -266,7 +292,8 @@ jobs:
           retention-days: 30
 
   capture:
-    if: github.event_name == 'pull_request' || inputs.capture == 'true'
+    needs: changes
+    if: ${{ needs.changes.outputs.match == 'true' && (github.event_name == 'pull_request' || inputs.capture == 'true') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
@@ -310,3 +337,16 @@ jobs:
           path: ${{ runner.temp }}/cilium-capture/
           if-no-files-found: warn
           retention-days: 30
+
+  kind-ok:
+    name: Kind OK
+    if: always()
+    needs: [changes, plan, kind, capture]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions: {}
+    steps:
+      - uses: mark1russell7/template/.github/actions/gate-summary@f05c6eeb35e33a040bdfdcd7d07a1d2c00640f8d # main
+        with:
+          needs: ${{ toJSON(needs) }}
+          allow-skip: capture

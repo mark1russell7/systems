@@ -13,13 +13,58 @@
     "build": "pnpm --filter \"@mark1russell7/*\" run build",
     "test": "pnpm -r run test",
     "typecheck": "pnpm -r run typecheck",
-    "lint:ste": "ste-lint"
+    "lint:ste": "ste-lint",
+    "check:conventions": "conventions check"
   },
   "devDependencies": {
-    "@mark1russell7/cue": "github:mark1russell7/cue",
-    "@mark1russell7/ste-lint": "github:mark1russell7/ste-lint",
+    "@mark1russell7/conventions": "^0.24.0",
+    "@mark1russell7/cue": "github:mark1russell7/cue#e737619231ee976251a0a2d5ff61aec113d22a10",
+    "@mark1russell7/ste-lint": "github:mark1russell7/ste-lint#f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7",
     "@mark1russell7/template-cli": "^0.1.2",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
+  },
+  "conventions": {
+    "rules": {
+      "tsconfig-test": {
+        "ignore": [
+          "packages/cells/tsconfig.test.json",
+          "packages/site/tsconfig.test.json"
+        ],
+        "reason": "The tests of cells have 15 type errors in 4 files, and the scripts of the site have 5 type errors in 3 files. A tsconfig.test.json comes with the fix of these errors."
+      },
+      "typed-files": {
+        "ignore": [
+          "packages/cells/src/**/*.test.ts",
+          "packages/cells/vitest.config.ts",
+          "packages/site/scripts/**",
+          "packages/site/vitest.config.ts",
+          "packages/site/src/content.config.ts"
+        ],
+        "reason": "The tests of cells and the scripts of the site have type errors, and a typecheck comes with their fix. src/content.config.ts of the site imports astro:content, a module that only the Astro build makes."
+      },
+      "typed-scripts": {
+        "ignore": [
+          "scripts/smoke.mjs",
+          "scripts/publish-guard.mjs",
+          "packages/harness/image/**",
+          "packages/kind/image/**",
+          "packages/prober/image/**",
+          "packages/cells/targets/**",
+          "packages/service/test/**",
+          "packages/site/astro.config.mjs",
+          "packages/site/scripts/shots.mjs"
+        ],
+        "reason": "release.yml and the pack scripts are owned by the release process. The files of image/ and targets/ run in containers with no build, on Node.js or a shell. The tests start the files of packages/service/test/ as child processes, with no build. The Playwright of shots.mjs comes from PW_DIR, outside the workspace. The Astro build loads astro.config.mjs."
+      },
+      "no-local-paths": {
+        "ignore": [
+          "packages/service/src/host/fakes.ts",
+          "packages/service/src/host/install.test.ts",
+          "packages/service/src/host/render.test.ts"
+        ],
+        "reason": "/home/test is the home folder of the fake host of the tests, not the folder of a real user."
+      }
+    }
   }
 }

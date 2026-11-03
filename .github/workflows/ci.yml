@@ -4,7 +4,7 @@
 #           typecheck, the tests, the build of each published package and the writing rules.
 #   pack    The tarballs of a release, packed and tested in an empty project, as release.yml does it
 #           (reusable-release-build.yml of the template, with the release scripts of the template).
-#   site    The site, as pages.yml builds it for GitHub Pages.
+#   site    The conventions check (check:conventions), and the site, as pages.yml builds it for GitHub Pages.
 #   ci      The required check of main. It fails when a different job of this file fails.
 name: CI
 
@@ -18,7 +18,7 @@ permissions:
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   checks:
@@ -54,6 +54,8 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          # The whole history, so that check:conventions reads each commit of a pull request
+          fetch-depth: 0
       # The pnpm version comes from "packageManager" in package.json
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -61,6 +63,9 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # The conventions of the repositories of mark1russell7 (@mark1russell7/conventions). The job checks out
+      # the whole repository, so it examines them. The jobs checks and pack come from the template.
+      - run: pnpm check:conventions
       - run: pnpm --filter @systems/site run build
         env:
           ASTRO_TELEMETRY_DISABLED: "1"
