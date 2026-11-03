@@ -70,6 +70,8 @@ Kind run 40358038728 held all 9 cells in 3 of 3 runs. With iptables, the median 
 
 Cilium is the fourth mode of the T07 cells. It replaces kube-proxy in a cluster of kind with no kube-proxy, from a pinned chart. Kind run 40558968382 started 21 cells of Cilium, and 20 held in each counted run. C in the stall failed in 1 of 3 runs, by a bias that the next band must add. SYS-48 adds the backlog term, and the 4 stall cells of C held in each counted run of kind run 40643221421. Each finding of kube-proxy holds in Cilium, thus the rule of the service does not change ([S6](S6.md#the-cilium-column)).
 
+CoreDNS is the next intermediary ([SYS-50](#sys-50--coredns-a-client-by-name-when-the-cluster-dns-stops-answering)). A client by name on musl fails each new connection while no DNS answer gets to it. Its failures end one retry interval of musl after the fault plus its timeout, not at the heal. Kind run 41559060726 held both cells in each counted run, and the last failure came a median of 0.71 s after the heal. A kept connection does no lookup, thus it fails no request. The next intermediaries are kube-vip, MetalLB and Pulsar.
+
 ### S3 · Outcomes under failure and load
 
 - **Status:** later
@@ -1100,12 +1102,12 @@ The next step, after rigor-bench is on npm, is to write PairedTime records. The 
 
 ### SYS-50 · CoreDNS: a client by name when the cluster DNS stops answering
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** S2
 - **Started:** 2026-11-02
-- **Shipped:**
-- **Links:** [S2](#s2--intermediaries-and-kubernetes)
+- **Shipped:** 2026-11-03
+- **Links:** [S2](#s2--intermediaries-and-kubernetes), [kind run 41559060726](https://github.com/mark1russell7/systems/actions/runs/41559060726)
 
 CoreDNS is the next intermediary of S2. In this item, a client resolves the name of the Service for each new connection. Then no answer of DNS gets to it for a hold. The question: when do its failures start and end, and which timer sets the end?
 
@@ -1145,6 +1147,21 @@ The cell with kept connections predicts no failed request.
 **The prediction.** Each cell holds in each counted run. In the cell with new connections, the median last failure is 0.5 s to 1.5 s after the heal. Approximately 900 to 1050 requests fail in each run.
 
 The decision rule: a run counts if it is not a warmup and the wait for a quiet runner does not void it. The cell with new connections needs 4 counted runs, and the control needs 3. A cell with a void run starts again once, alone. The band of the law hits if each counted run holds. The bands of this item stay as committed, and the thresholds do not change after the result.
+
+**The first dispatch.** Kind run 41554939433 gave no run of a cell. The server did not get ready in 300 s, thus the deploy of the first cell failed. The cause is in the lab image, not in the cells.
+
+The Dockerfile unpacks the tarballs of quantity, algebra and service with no install. Since quantity uses `@mark1russell7/rational` and service uses `@mark1russell7/rigor-generators`, the server stopped at start. The image manifest lists them, and `image.test.ts` checks each dependency from npm of those packages. The bands did not change.
+
+**The result.** Kind run 41559060726 held each cell in each counted run. The copy is `packages/site/src/data/s2-dns-2026-11-03.json`.
+
+- The black hole held in 4 of 4 runs. The runs failed 1000, 997, 1000 and 997 requests, and each failure was a timeout.
+- The last failure came 0.752, 0.699, 0.699 and 0.728 s after the heal, with a median of 0.713 s. This is in the band of the phase.
+- The control held in 3 of 3 runs, with no failed request.
+- Each of the 42 acts changed the drops of its pod in 0.29 s or less.
+
+The prediction hit in 6 of 7 claims. The miss is the build claim, because the first dispatch failed in the lab image. The phase and the count hit, at confidences of 0.45 and 0.4.
+
+The last failure is approximately the low edge of the phase plus one act: 0.5 + 0.24 s. Thus the threads stay in phase with the fault, and the queue drains in approximately 0 s. `DNS_DRAIN` gives 0.5 s, thus the band is wide on its high edge. This is not a bias, because each run is in the band. A later band can use a measured drain.
 
 ## The systems of S1
 

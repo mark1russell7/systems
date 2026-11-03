@@ -33,8 +33,9 @@ import { T15_GRPC } from "../../cells/src/grpc/t15.ts";
 import { CALLERS_CELLS, callerFaultOf } from "../../cells/src/callers.ts";
 import { GATE_CELLS } from "../../cells/src/gate.ts";
 import { BACKLOG_BAND_CELLS, BACKLOG_CELLS, BACKLOG_DRAIN_CELLS, BACKLOG_TERMS_CELLS } from "../../cells/src/backlog.ts";
+import { DNS_CELLS, dnsOf } from "../../cells/src/dns.ts";
 import type { Line } from "../../kind/src/observe.ts";
-import { failuresOf, slicesOf } from "../../kind/src/observe.ts";
+import { failuresOf, outcomesOf, slicesOf } from "../../kind/src/observe.ts";
 import { SERVER } from "../../kind/src/names.ts";
 import { backlogPredictionOf, backlogPredictions, callerPredictions, candidateOf } from "./callers.ts";
 import type { Found } from "./records.ts";
@@ -65,7 +66,7 @@ interface Summary {
   readonly median: number | Quantity | null;
 }
 
-const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T15_GRPC, ...CALLERS_CELLS, ...GATE_CELLS, ...BACKLOG_CELLS, ...BACKLOG_BAND_CELLS, ...BACKLOG_DRAIN_CELLS, ...BACKLOG_TERMS_CELLS];
+const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T15_GRPC, ...CALLERS_CELLS, ...GATE_CELLS, ...BACKLOG_CELLS, ...BACKLOG_BAND_CELLS, ...BACKLOG_DRAIN_CELLS, ...BACKLOG_TERMS_CELLS, ...DNS_CELLS];
 // A later folder replaces the run of each cell of the same id, also when the cell has a new name.
 const found = new Map<string, Found<KindRecord, Summary>>();
 for (const folder of folders)
@@ -342,6 +343,7 @@ const groupOf = (cell: KindCell): string => {
   if (cell.template === "T07") {
     if (cell.id.includes(".shared-gate")) return "gate";
     if (cell.id.includes(".backlog")) return "backlog";
+    if (cell.trigger.kind === "dns-blackhole") return "dns";
     if (cell.trigger.kind === "cannot-serve") return cell.trigger.serves === true ? "prober" : "callers";
     if (cell.trigger.kind === "zone-loss") return "zone";
     if (cell.trigger.kind === "latency") return "slow";
@@ -374,13 +376,15 @@ const spread = (value: TimeSpread | null) =>
  * cells of a false failure of the prober get s2-prober, and those of a shared dependency get
  * s2-dependency. The cells of a flapping dependency get s2-flapping, and those of a lost zone get s2-zone.
  * The cells of a slow dependency get s2-slow, and the cells of the shared gate (E) get s2-gate. The
- * cells of the backlog of a stall (SYS-40) get s2-backlog.
+ * cells of the backlog of a stall (SYS-40) get s2-backlog, and the cells of a black hole of DNS
+ * (SYS-50) get s2-dns.
  */
-const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" | "s2-prober" | "s2-dependency" | "s2-flapping" | "s2-zone" | "s2-slow" | "s2-gate" | "s2-backlog" => {
+const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" | "s2-prober" | "s2-dependency" | "s2-flapping" | "s2-zone" | "s2-slow" | "s2-gate" | "s2-backlog" | "s2-dns" => {
   if (cell.template === "T15") return "t15";
   if (!cell.id.startsWith("S2.")) return "kind";
   if (cell.id.includes(".shared-gate")) return "s2-gate";
   if (cell.id.includes(".backlog")) return "s2-backlog";
+  if (cell.trigger.kind === "dns-blackhole") return "s2-dns";
   const fault = callerFaultOf(cell);
   if (fault === "lost zone") return "s2-zone";
   if (fault === "slow dependency") return "s2-slow";
@@ -474,6 +478,34 @@ const slowTimesOf = (runs: readonly KindRun[]): { recovers: Array<number | null>
       return heal === null || last === undefined ? null : round((last.t - heal) / 1000);
     }),
 });
+
+/**
+ * This function gives the figures of each counted run of a black hole of DNS (SYS-50). They are the
+ * outcomes of the failed requests, by name, and the time of each act in the client pods, in seconds.
+ * An act is one change of the drops in one pod: from its stamp to the end of its command.
+ */
+const dnsRunsOf = (runs: readonly KindRun[]): { outcomes: Array<Record<string, number>>; acts: number[][] } => {
+  const counted = runs.filter((run) => !run.warmup && run.void === null);
+  return {
+    outcomes: counted.map((run) => outcomesOf(failuresOf(run.lines as readonly Line[]).filter((each) => each.t >= run.start && each.t <= run.end))),
+    acts: counted.map((run) =>
+      run.lines
+        .filter((line) => line.ev === "act" && (line["spec"] as { readonly op?: string } | undefined)?.op === "netns")
+        .map((line) => round((Number(line["t1"]) - line.t) / 1000)),
+    ),
+  };
+};
+
+/**
+ * This function gives the band of the last failure of the black hole of DNS, from the heal (SYS-50).
+ * The band is true if the threads of each client stay in phase with the fault. The judge does not use it.
+ */
+const dnsPhaseOf = (): { low: number; high: number } => {
+  const cell = DNS_CELLS[0]!;
+  if (cell.trigger.hold === undefined) throw new Error(`${cell.name}: no hold`);
+  const { phase } = dnsOf(cell.workload, cell.trigger.hold);
+  return { low: s(phase.lo), high: s(phase.hi) };
+};
 
 /**
  * This function gives a time for each counted run of a lost zone, in seconds. It starts at the heal,
@@ -614,7 +646,7 @@ const cells = CATALOG.flatMap((cell) => {
       why: whyOf(cell, verdict, values, measured),
       first: entry.first,
       // the shared gate (E) is not a candidate of the table of S2, thus its cells have no candidate
-      ...(copyOf(cell).startsWith("s2") ? { ...(copyOf(cell) === "s2-gate" ? {} : { candidate: candidateOf(cell) }), lasts: lastsOf(record.runs, verdict) } : {}),
+      ...(copyOf(cell).startsWith("s2") ? { ...(copyOf(cell) === "s2-gate" || copyOf(cell) === "s2-dns" ? {} : { candidate: candidateOf(cell) }), lasts: lastsOf(record.runs, verdict) } : {}),
       // the main value of a false failure is the time of its removal, thus the copy keeps the failed requests of each counted run apart
       ...(copyOf(cell) === "s2-prober" || copyOf(cell) === "s2-dependency" || copyOf(cell) === "s2-flapping" || copyOf(cell) === "s2-zone" || copyOf(cell) === "s2-gate"
         ? { failures: verdict.checks.map((check) => check.facts.failures) }
@@ -627,6 +659,8 @@ const cells = CATALOG.flatMap((cell) => {
       ...(copyOf(cell) === "s2-flapping" || (copyOf(cell) === "s2-gate" && callerFaultOf(cell) === "flapping dependency") ? flappingTimesOf(cell, record.runs, verdict) : {}),
       // a slow dependency: the main value is the failed requests, and the last one comes near the heal
       ...(copyOf(cell) === "s2-slow" ? slowTimesOf(record.runs) : {}),
+      // a black hole of DNS: the last failure from the heal, the outcomes, and the time of each act in the client pods
+      ...(copyOf(cell) === "s2-dns" ? { ...slowTimesOf(record.runs), ...dnsRunsOf(record.runs) } : {}),
       // the backlog of a stall: the sessions on the target and the stall of each counted run
       ...(copyOf(cell) === "s2-backlog" ? backlogRunsOf(cell, verdict) : {}),
       // the PINGs of the clients, when their image counts them
@@ -640,11 +674,13 @@ if (unknown.length > 0) throw new Error(`no catalog has the cells ${unknown.join
 const records = [...found.values()].map((entry) => entry.record);
 const runner = runnerOf(folders);
 const date = dateOf(records.map((record) => record.at));
+// the control of the DNS cells has fewer runs than the black hole: thus that copy gives the most, and each cell gives its counted runs
+const dnsOnly = records.every((record) => DNS_CELLS.some((cell) => cell.name === record.cell.name));
 const copy = {
   source: "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
   ranAt: date,
   units: "s",
-  runs: Number(only("the count of runs", records.map((record) => String(record.cell.runs)))),
+  runs: dnsOnly ? Math.max(...records.map((record) => record.cell.runs)) : Number(only("the count of runs", records.map((record) => String(record.cell.runs)))),
   kernel: runner.kernel,
   hz: runner.hz,
   kubernetes: only("the version of Kubernetes", records.flatMap((record) => record.manifests.map((manifest) => manifest.cluster.server))),
@@ -690,7 +726,9 @@ for (const name of names) {
                                   : BACKLOG_CELLS,
                           ),
                         }
-                      : {};
+                      : name === "s2-dns"
+                        ? { phase: dnsPhaseOf() }
+                        : {};
   writeFileSync(out, stringify({ ...copy, cells: mine.map(({ copy: _copy, ...cell }) => cell), ...predictions }));
   process.stdout.write(`${mine.length} cells, ${mine.reduce((sum, cell) => sum + cell.counted + cell.voided, 0)} runs: ${out}\n`);
 }
