@@ -166,6 +166,20 @@ describe("retry: one async call with a count of tries", () => {
     expect(at).toEqual([0, 5000, 5200]);
   });
 
+  it("waits the backoff when delayOf gives NaN, an infinite or a negative number", async () => {
+    for (const bad of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, -5]) {
+      const clock = fakeClock();
+      const call = failing(1);
+      const at: number[] = [];
+      const result = retry(async (n) => (at.push(clock.now()), call.run(n)), { tries: 2, base: 300, clock, delayOf: () => bad });
+      await clock.advance(299);
+      expect(at, String(bad)).toEqual([0]);
+      await clock.advance(1);
+      await expect(result).resolves.toBe("ok on 2");
+      expect(at, String(bad)).toEqual([0, 300]);
+    }
+  });
+
   it("takes the jitter of the policy from the random of the options", async () => {
     const clock = fakeClock();
     const call = failing(1);

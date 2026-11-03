@@ -88,7 +88,8 @@ export interface RetryOptions extends RetrierOptions {
   readonly retryable?: ((error: unknown) => boolean) | undefined;
   /**
    * This function gives the delay in milliseconds before the next try, in place of the backoff. An example
-   * is the `Retry-After` header of an HTTP 429. Null or undefined keeps the backoff delay.
+   * is the `Retry-After` header of an HTTP 429. Null, undefined, NaN, an infinite or a negative number keeps
+   * the backoff delay. The retry puts no cap on this delay, so the caller caps it, for example at 60 s.
    */
   readonly delayOf?: ((error: unknown, attempt: number) => number | null | undefined) | undefined;
 }
@@ -123,7 +124,9 @@ export const retry = async <T>(run: (attempt: number) => Promise<T>, options: Re
     } catch (error) {
       if (attempt >= tries || signal?.aborted === true || !retryable(error)) throw error;
       const own = delayOf?.(error, attempt);
-      const delay = Math.max(0, Math.round(own ?? backoffDelay(backoff, attempt, random)));
+      // A bad delay (NaN, an infinite or a negative number) gets the backoff, so that it cannot start the tries at once.
+      const valid = typeof own === "number" && Number.isFinite(own) && own >= 0;
+      const delay = Math.round(valid ? own : backoffDelay(backoff, attempt, random));
       await new Promise<void>((resume, stop) => {
         const abort = (): void => {
           cancel();
