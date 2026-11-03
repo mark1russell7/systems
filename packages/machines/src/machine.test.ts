@@ -4,8 +4,10 @@ import { machineSchema } from "@mark1russell7/algebra/schema";
 import { describe, expect, it } from "vitest";
 import * as root from "./index.ts";
 import {
+  DEADLINE_CALL,
   HAPROXY_TCP,
   IOREDIS_STATUS,
+  KUBELET_READINESS,
   LINUX_TCP,
   MACHINES,
   MANIFESTATIONS,
@@ -28,7 +30,7 @@ describe("the machine documents", () => {
     const documents = Object.values(root).filter(
       (value): value is Machine => typeof value === "object" && value !== null && "format" in value,
     );
-    expect(documents.length).toBe(42);
+    expect(documents.length).toBe(44);
     expect(Object.keys(MACHINES).sort()).toEqual(documents.map((doc) => doc.id).sort());
     for (const [id, doc] of Object.entries(MACHINES)) {
       expect(doc.id, id).toBe(id);
@@ -187,5 +189,36 @@ describe("the machine documents", () => {
       "timer retransmit: reads fired, but has no backoff",
       "timer keepalive: backoff resets on rx.nonesuch",
     ]);
+  });
+});
+
+describe("the call with a deadline, and the readiness probe of the kubelet", () => {
+  const s = (value: number) => ({ value, unit: "s" });
+  const values = (given: Readonly<Record<string, { value: number; unit: string }>>) => (name: string) => given[name];
+
+  it("gives the time from one try of a call to the next: its deadline, then a backoff that doubles up to its cap", () => {
+    expect(DEADLINE_CALL.knobs["timeout"]).toMatchObject({ default: null, off: 0 });
+    const call = values({ timeout: { value: 1000, unit: "ms" }, backoff: { value: 200, unit: "ms" }, backoff_cap: { value: 500, unit: "ms" } });
+    const waits = [0, 1, 2, 3].map((fired) => timerOf(DEADLINE_CALL, "retry", call, fired).duration);
+    expect(waits).toEqual([1200, 1400, 1500, 1500].map((value) => ({ value, unit: "ms" })));
+    expect(timerOf(DEADLINE_CALL, "deadline", call).duration).toEqual({ value: 1000, unit: "ms" });
+    // a timeout of 0 is no deadline
+    expect(timerOf(DEADLINE_CALL, "deadline", values({ timeout: { value: 0, unit: "ms" } })).duration).toEqual({ value: "infinite", unit: "ms" });
+    expect(DEADLINE_CALL.over?.machine).toBe("systems.machine.linux-tcp");
+  });
+
+  it("marks a pod unready one period, then threshold - 1 intervals, then a timeout after the fault, at the defaults of 1.37.0", () => {
+    const probe = defaults(KUBELET_READINESS);
+    expect([probe("period"), probe("threshold"), probe("timeout")]).toEqual([s(10), { value: 3, unit: "count" }, s(1)]);
+    // 10 + 2 × 10 + 1: the first probe within one period, thus 21 s to 31 s
+    expect(timerOf(KUBELET_READINESS, "unready", probe)).toMatchObject({ duration: s(31), early: s(10) });
+    expect(timerOf(KUBELET_READINESS, "probe", probe, 0).duration).toEqual(s(10));
+  });
+
+  it("starts the next probe at once after a probe longer than a period, as a Go ticker keeps one tick", () => {
+    const slow = values({ period: s(2), threshold: { value: 3, unit: "count" }, timeout: s(5) });
+    expect(timerOf(KUBELET_READINESS, "probe", slow, 0).duration).toEqual(s(5));
+    // 2 + 2 × 5 + 5, not 3 × 2 + 5
+    expect(timerOf(KUBELET_READINESS, "unready", slow).duration).toEqual(s(17));
   });
 });
