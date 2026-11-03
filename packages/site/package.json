@@ -26,6 +26,9 @@
     "@astrojs/starlight": "^0.42.6",
     "@fontsource-variable/ibm-plex-sans": "^5.3.0",
     "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@mark1russell7/algebra": "workspace:^",
+    "@mark1russell7/machines": "workspace:^",
+    "@mark1russell7/quantity": "workspace:^",
     "astro": "^7.3.8",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"

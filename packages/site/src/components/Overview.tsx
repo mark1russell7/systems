@@ -20,7 +20,10 @@ export default function Overview(): ReactElement {
         </p>
         <p className="sy-hero-note">The program starts at the TCP stack of Linux. It continues through proxies, databases and Kubernetes.</p>
         <div className="sy-actions">
-          <a className="sy-action" data-primary="" href={link("lab/detection/")}>
+          <a className="sy-action" data-primary="" href={link("lab/request/")}>
+            Follow one request
+          </a>
+          <a className="sy-action" href={link("lab/detection/")}>
             Open the lab
           </a>
           <a className="sy-action" href={link("thesis/")}>

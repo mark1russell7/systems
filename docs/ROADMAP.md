@@ -1769,14 +1769,24 @@ Each week, one round makes the site and the tracker easier to read, with a visua
 
 ### VIZ · Interactive visuals and docs: from processes and the kernel to the NIC
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** site
 - **Depends on:**
-- **Started:**
+- **Started:** 2026-11-02
 - **Shipped:**
-- **Links:**
+- **Links:** [The path of one request](https://mark1russell7.github.io/systems/lab/request/)
 
-After the coding work, this item makes interactive visuals and documents that show how the systems operate, from end to end. Examples are the network calls, the processes that hold memory, the kernel and the NIC. Mark gives many ideas and examples (Mark, 2026-10-20). Before the work starts, Mark and the program agree on its scope.
+After the coding work, this item makes interactive visuals and documents that show how the systems operate, from end to end. Examples are the network calls, the processes that hold memory, the kernel and the NIC. Mark gives many ideas and examples (Mark, 2026-10-20).
+
+The first scope is one page: the path of one request (Mark, 2026-11-02). The page shipped on 2026-11-02:
+
+- A program sends one request to a pod behind a Service. The user starts a black hole, a stalled peer or a partition.
+- Five layers find the fault: the program, the socket, TCP, Kubernetes and the NIC. Sliders and selects set the deadline, the retries, the keepalive sysctls, `tcp_retries2`, `TCP_USER_TIMEOUT`, the probes, the dataplane and the queue of the NIC.
+- `@mark1russell7/algebra` computes each time in the browser, on the documents of `@mark1russell7/machines`. Each amount prints through `format` of `@mark1russell7/quantity`. The page adds two small documents: the call of the program and the readiness probe of the kubelet.
+- An animated timeline marks the fault and the time when each layer knows. A cell that measured a value shows its median next to the computed band, with a link to the cell.
+- A tooltip explains each term. The home and the navigation link the page.
+
+The next step: move the two small documents of the page into `@mark1russell7/machines`. Then move the timer arithmetic of the detection lab into the algebra.
 
 ## Decisions for Mark
 

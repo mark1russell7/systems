@@ -453,6 +453,15 @@ importers:
       '@fontsource/ibm-plex-mono':
         specifier: ^5.3.0
         version: 5.3.0
+      '@mark1russell7/algebra':
+        specifier: workspace:^
+        version: link:../algebra
+      '@mark1russell7/machines':
+        specifier: workspace:^
+        version: link:../machines
+      '@mark1russell7/quantity':
+        specifier: workspace:^
+        version: link:../quantity
       astro:
         specifier: ^7.3.8
         version: 7.3.8(@types/node@26.6.4)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1)

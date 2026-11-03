@@ -27,6 +27,7 @@ export default defineConfig({
         "./src/styles/theme.css",
         "./src/styles/kit.css",
         "./src/styles/home.css",
+        "./src/styles/path.css",
       ],
       components: {
         Hero: "./src/components/Hero.astro",
@@ -34,7 +35,7 @@ export default defineConfig({
       },
       sidebar: [
         { label: "Thesis", items: ["thesis"] },
-        { label: "Lab", items: ["lab/detection"] },
+        { label: "Lab", items: ["lab/request", "lab/detection"] },
         {
           label: "Results",
           items: [
