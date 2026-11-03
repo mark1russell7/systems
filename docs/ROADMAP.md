@@ -1274,6 +1274,50 @@ The prediction hit in each of its five claims. Thus 0.6.0 does not change the re
 
 This item has no release, because the cells and the site are private packages.
 
+### SYS-54 · CI runs the conventions check of the repositories
+
+- **Status:** done
+- **Area:** CI
+- **Depends on:** CI-2
+- **Started:** 2026-11-03
+- **Shipped:** 2026-11-03
+- **Links:** [#309](https://github.com/mark1russell7/systems/pull/309), [#310](https://github.com/mark1russell7/systems/pull/310), [@mark1russell7/conventions](https://www.npmjs.com/package/@mark1russell7/conventions)
+
+The root has `@mark1russell7/conventions` ^0.22.0 as a dev dependency. The `site` job of `ci.yml` runs `pnpm check:conventions`. Thus the check examines each new workflow and each later edit, not only the files of today.
+
+The changes that the rules gave:
+
+- **main-runs-finish:** a workflow that starts on push cancels only the run of a pull request (#309).
+- **runner-budget:** the matrices of cells, http, kind and process operate 3 jobs at a time. Each dispatch of cells and kind has a concurrency group of its own, thus a second dispatch does not cancel the first.
+- **gate-trigger:** cells, http, kind, process, redis and site-shots start on each pull request. A `changes` job skips the work if no file of the gate changed, and a `<Name> OK` job gives one check.
+- **trust-policy:** an install fails if a new version has less trust evidence than an earlier version.
+- **pinned-git-deps:** each `github:` dependency names a commit.
+- **license-file:** the root has the MIT license of the packages.
+- **pages-site:** the Pages workflow calls `reusable-pages.yml` of the template. A pull request builds the site and runs the site check, with no deploy.
+
+The exceptions, each with its reason in the `conventions` field of the root `package.json`:
+
+- **tsconfig-test and typed-files:** the tests of cells and the scripts of the site have type errors (SYS-55).
+- **typed-scripts:** the release scripts, the files that run in containers, the child processes of the service tests, `shots.mjs` and `astro.config.mjs`.
+- **no-local-paths:** three files of `packages/service/src/host/` name the home folder of the fake host of the service tests, not the folder of a real user.
+
+### SYS-55 · The tests of cells and the scripts of the site pass a typecheck
+
+- **Status:** not started
+- **Area:** CI
+- **Depends on:** SYS-54
+- **Links:** [#310](https://github.com/mark1russell7/systems/pull/310)
+
+The tests of cells have 15 type errors in 4 files. The scripts of the site have 5 type errors in 3 files. Thus the two packages have no `tsconfig.test.json`, and the conventions check keeps two exceptions for them.
+
+The fix:
+
+1. Correct the 20 type errors.
+2. Add a `tsconfig.test.json` to cells and to the site, from the cue preset.
+3. Remove the exceptions `tsconfig-test` and `typed-files` for these files from the root `package.json`.
+
+The check `conventions check` then passes with no exception for the types.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue
