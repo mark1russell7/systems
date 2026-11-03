@@ -311,6 +311,9 @@ describe("the judgement of a record again", () => {
       },
     ];
     for (const cell of borders) expect(readRecord(json({ ...hole, cell })).cell).toEqual(cell);
+    // the black hole of DNS, with clients that resolve the name of the Service (SYS-50)
+    const dns: KindCellRecord["cell"] = { ...hole.cell, trigger: { kind: "dns-blackhole", hold: s(6) }, workload: { ...hole.cell.workload, byName: true } };
+    expect(readRecord(json({ ...hole, cell: dns })).cell).toEqual(dns);
     expect(kindCellRecordSchema.safeParse(json({ ...hole, cell: { ...hole.cell, prediction: { ...hole.cell.prediction, of: "stream" } } })).success).toBe(false);
   });
 

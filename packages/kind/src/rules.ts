@@ -44,7 +44,7 @@ export type Verdicts = Readonly<Record<string, Verdict>>;
  * - A deletion, a rolling update, a node drain, a scale-in and a rollout delete a pod with its grace.
  * - In T07 a pause of kube-proxy comes before a deletion. In T18 the pause is on Redis.
  * - The crash of the lab is SIGKILL from the node. Like a crash, it has no preStop hook and no drain.
- * - The other faults are on a link, on Redis or on the process. The kubelet can restart a pod after them.
+ * - The other faults are on a link, on Redis, on the DNS of the clients or on the process. The kubelet can restart a pod after them.
  *   A zone loss freezes the pods of its node and deletes none of them in its hold.
  */
 export const stopOf = (cell: KindCell): StopWay | null => {
@@ -73,6 +73,7 @@ export const stopOf = (cell: KindCell): StopWay | null => {
     case "cannot-serve":
     case "zone-loss":
     case "latency":
+    case "dns-blackhole":
       return null;
   }
 };

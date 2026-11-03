@@ -1,0 +1,101 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-11-03",
+  "units": "s",
+  "runs": 4,
+  "kernel": "7.0.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.iptables.dns.blackhole",
+      "template": "T07",
+      "name": "iptables, a black hole of CoreDNS: a client by name with new connections",
+      "mode": "iptables",
+      "trigger": "dns-blackhole",
+      "group": "dns",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes −1 s to 2.5 s after the end of the fault. At least one request fails. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 4,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 998.5,
+      "values": [1000, 997, 1000, 997],
+      "why": "Each of the 4 counted runs agrees with the prediction. The median run had 998.5 failed requests. The counted runs had 997 to 1,000 failed requests.",
+      "first": null,
+      "lasts": [7.0688654, 7.0446759, 7.03877, 7.0414187],
+      "recovers": [0.7523044, 0.6992601, 0.6990698, 0.7275129],
+      "outcomes": [
+        {
+          "timeout": 1000
+        },
+        {
+          "timeout": 997
+        },
+        {
+          "timeout": 1000
+        },
+        {
+          "timeout": 997
+        }
+      ],
+      "acts": [
+        [0.2338447, 0.235339, 0.245372, 0.2452799, 0.2320865, 0.2582306],
+        [0.2196682, 0.2529996, 0.2422348, 0.2174584, 0.2454243, 0.2353623],
+        [0.2196392, 0.2281923, 0.230914, 0.230754, 0.2294828, 0.2382394],
+        [0.2417571, 0.2349192, 0.2378392, 0.2339569, 0.2293234, 0.2363284]
+      ],
+      "pings": [0, 0, 0, 0],
+      "acks": [0, 0, 0, 0],
+      "seconds": [10.5448045, 10.5359403, 10.604827, 10.5607001]
+    },
+    {
+      "id": "S2.T07.iptables.dns.kept",
+      "template": "T07",
+      "name": "iptables, a black hole of CoreDNS: a client by name with kept connections",
+      "mode": "iptables",
+      "trigger": "dns-blackhole",
+      "group": "dns",
+      "prediction": {
+        "kind": "none",
+        "band": null,
+        "text": "The algebra predicts that no request fails."
+      },
+      "decision": "holds",
+      "counted": 3,
+      "voided": 0,
+      "failed": 0,
+      "unit": "requests",
+      "median": 0,
+      "values": [0, 0, 0],
+      "why": "Each of the 3 counted runs agrees with the prediction. The median run had 0 failed requests.",
+      "first": null,
+      "lasts": [null, null, null],
+      "recovers": [null, null, null],
+      "outcomes": [
+        {},
+        {},
+        {}
+      ],
+      "acts": [
+        [0.2240604, 0.2497319, 0.23099, 0.2272243, 0.2393855, 0.2484194],
+        [0.2225952, 0.2207668, 0.2480694, 0.2192754, 0.2523788, 0.2606046],
+        [0.2458474, 0.2672518, 0.2862017, 0.2710029, 0.2660184, 0.2280131]
+      ],
+      "pings": [0, 0, 0],
+      "acks": [0, 0, 0],
+      "seconds": [10.4069984, 10.4057598, 10.4214746]
+    }
+  ],
+  "phase": {
+    "low": 0.5,
+    "high": 1.5
+  }
+}

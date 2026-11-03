@@ -11,7 +11,7 @@ import { CILIUM_IMAGES, CILIUM_VERSION, installCilium } from "./cilium.ts";
 import type { Cluster } from "./cluster.ts";
 import { command, createCluster } from "./cluster.ts";
 import type { Step, Target } from "./faults.ts";
-import { NODE, POD, POD_LINK, VERSION, deletes as deletesAPod, faultSpan, middleboxCommands, placementOf, planOf, sysctlCommand } from "./faults.ts";
+import { NODE, POD, POD_LINK, VERSION, deletes as deletesAPod, dnsCommands, faultSpan, middleboxCommands, placementOf, planOf, sysctlCommand } from "./faults.ts";
 import { labImage } from "./image.ts";
 import type { MeshImages } from "./istio.ts";
 import { EDS_EVERY, ISTIO_IMAGES, LDS_EVERY, MESH_IMAGES, followsZtunnel, installMesh, meshKey, pollsListeners, serverCluster, setZtunnelEnv, ztunnelCertificates } from "./istio.ts";
@@ -266,7 +266,8 @@ const deploy = async (lab: KindLab, cluster: Cluster, cell: KindCell, namespace:
   if (grpc && images.grpc === undefined) throw new Error(`${cell.name}: the cluster has no image of grpc-go`);
   await cluster.apply(serverObjects(cell, namespace, grpc ? images.grpc! : lab.image));
   const clusterIp = (await cluster.kubectl(["-n", namespace, "get", "service", SERVER, "-o", "jsonpath={.spec.clusterIP}"])).trim();
-  const clients = clientObjects(cell, namespace, lab.image, `${clusterIp}:80`);
+  // a client by name resolves the short name of the Service: the search list of its namespace gives it
+  const clients = clientObjects(cell, namespace, lab.image, `${cell.workload.byName === true ? SERVER : clusterIp}:80`);
   if (!grpc) await cluster.apply(clients);
   await cluster.kubectl(["-n", namespace, "rollout", "status", `deployment/${SERVER}`, "--timeout=300s"]);
   if (grpc) await cluster.apply(clients);
@@ -561,6 +562,14 @@ const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], ba
       const command = sysctlCommand(step.key, step.value);
       const t0 = await lab.now();
       await Promise.all((await namespacesOf(ctx, step.target, replicas)).map(({ node, pid }) => lab.netns(node, pid, [command])));
+      return { t0, t1: await lab.now() };
+    }
+    case "dns": {
+      if (step.target !== "clients") throw new Error(`a drop of DNS takes the target clients, not ${step.target}`);
+      // the namespaces first, then the rules of all nodes at the same time: the stamp is near the rules
+      const each = await namespacesOf(ctx, step.target, replicas);
+      const t0 = await lab.now();
+      await Promise.all(each.map(({ node, pid }) => lab.netns(node, pid, dnsCommands(step.on))));
       return { t0, t1: await lab.now() };
     }
     case "certificates": {

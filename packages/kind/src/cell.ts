@@ -75,6 +75,9 @@ export type Stack = "service" | "grpc";
  * - `latency` delays each packet that Redis sends by `delay`, for the hold (T07). Thus each command
  *   of each replica takes that much longer, but Redis answers it. The heal sets the delay to zero.
  * - `none` injects nothing: a calibration measures the path itself.
+ * - `dns-blackhole` drops each answer of a DNS server in the network namespace of each client pod,
+ *   for the hold (S2, CoreDNS). CoreDNS still answers, but no answer gets to a client. The heal
+ *   removes the rules. A client that resolves the name of the Service (`byName`) sees it.
  */
 export type TriggerKind =
   | "pod-deletion"
@@ -96,7 +99,8 @@ export type TriggerKind =
   | "certificate-expiry"
   | "cannot-serve"
   | "zone-loss"
-  | "latency";
+  | "latency"
+  | "dns-blackhole";
 
 /**
  * A trigger is its kind and the settings of its fault. The parameter `A` is the form of an amount:
@@ -284,6 +288,12 @@ export interface Workload {
    * until its first answer comes from its backend. With no value, the rules pick the backend of each session.
    */
   readonly onTarget?: number | undefined;
+  /**
+   * This flag gives each client the name of the Service as its target, not the ClusterIP. Thus each
+   * new connection of a client starts with a lookup of the name in the cluster DNS (S2, CoreDNS).
+   * With no value, the target is the ClusterIP, and a client does no lookup.
+   */
+  readonly byName?: boolean | undefined;
 }
 
 /**

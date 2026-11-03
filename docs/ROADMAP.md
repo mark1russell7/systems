@@ -70,6 +70,8 @@ Kind run 40358038728 held all 9 cells in 3 of 3 runs. With iptables, the median 
 
 Cilium is the fourth mode of the T07 cells. It replaces kube-proxy in a cluster of kind with no kube-proxy, from a pinned chart. Kind run 40558968382 started 21 cells of Cilium, and 20 held in each counted run. C in the stall failed in 1 of 3 runs, by a bias that the next band must add. SYS-48 adds the backlog term, and the 4 stall cells of C held in each counted run of kind run 40643221421. Each finding of kube-proxy holds in Cilium, thus the rule of the service does not change ([S6](S6.md#the-cilium-column)).
 
+CoreDNS is the next intermediary ([SYS-50](#sys-50--coredns-a-client-by-name-when-the-cluster-dns-stops-answering)). A client by name on musl fails each new connection while no DNS answer gets to it. Its failures end one retry interval of musl after the fault plus its timeout, not at the heal. Kind run 41559060726 held both cells in each counted run, and the last failure came a median of 0.71 s after the heal. A kept connection does no lookup, thus it fails no request. The next intermediaries are kube-vip, MetalLB and Pulsar.
+
 ### S3 · Outcomes under failure and load
 
 - **Status:** later
@@ -1107,6 +1109,69 @@ The exports `middle`, `quantileOf`, `medianInterval`, `negativeBinomial` and `se
 Thus this item does not use the A/A verdict. A new measurement of the limiter pair needs new cells in CI, thus it is not part of this item.
 
 rigor-bench 0.1.0 is on npm. That new measurement can write PairedTime records. The spec is the case, and the run is the round. `firstArm` turns the order, and an A/A pair of the candidate measures the noise. Then `timeVerdict` decides. The S6 gate compares counts of failed requests, not times, thus it does not need rigor-bench.
+
+### SYS-50 · CoreDNS: a client by name when the cluster DNS stops answering
+
+- **Status:** done
+- **Area:** catalogs
+- **Depends on:** S2
+- **Started:** 2026-11-02
+- **Shipped:** 2026-11-03
+- **Links:** [S2](#s2--intermediaries-and-kubernetes), [kind run 41559060726](https://github.com/mark1russell7/systems/actions/runs/41559060726)
+
+CoreDNS is the next intermediary of S2. In this item, a client resolves the name of the Service for each new connection. Then no answer of DNS gets to it for a hold. The question: when do its failures start and end, and which timer sets the end?
+
+**The family.** Two cells in iptables, with the trigger `dns-blackhole` and a hold of 6 s. The cells are `DNS_CELLS` in `packages/cells/src/dns.ts`.
+
+- `S2.T07.iptables.dns.blackhole`: each client sends a request each 20 ms on a new connection, to the short name `server`, with a timeout of 1 s.
+- `S2.T07.iptables.dns.kept`: the same requests on 2 connections that each client keeps. This control shows that only a new connection does a lookup.
+
+The fault drops each answer from port 53 in INPUT of the network namespace of each client pod (`dnsCommands` of the kind package). Each query still goes out, and CoreDNS answers it. Only the answer is lost. Thus the fault is the same as a cluster DNS with no route back, and no other pod sees it.
+
+This family is the smallest one that answers the question. These faults are not in it, for these reasons:
+
+- A scale of CoreDNS to 0 adds the propagation of its endpoints and its lame duck of 5 s. Those are the terms of other cells.
+- A SIGSTOP of CoreDNS adds the buffer of its socket, and its pods are in kube-system.
+- The race of conntrack on UDP gives a rare tail, not a window.
+- The search list of ndots does not act here: the first name answers, and a timeout stops the search.
+- A slow upstream does not act: the zone `cluster.local` does not go to the upstream.
+
+**The terms and their sources.** Each band comes from these timers:
+
+- The kubelet gives a pod with `ClusterFirst` the nameserver of the cluster DNS, the search list of its namespace and `options ndots:5` only. The source is `pkg/kubelet/network/dns/dns.go` of v1.37.0, line 44 and lines 164–173. Thus the pod keeps the defaults of its resolver.
+- The client is Node on Alpine, thus its resolver is musl. By default, musl stops a lookup at 5 s, and it sends each query 2 times (`src/network/resolvconf.c` of v1.2.5). Thus it sends each query again 5 / 2 = 2.5 s after the first send (`res_msend.c`). It accepts an answer to any send.
+- With no answer, musl gives EAI_AGAIN, and the search stops (`lookup_name.c`).
+- musl has no cache. Thus the TTL of 30 s of the kubernetes plugin and the cache of CoreDNS do not act at the client. The Corefile of kubeadm also disables the cache for `cluster.local` (`cmd/kubeadm/app/phases/addons/dns/manifests.go` of v1.37.0, lines 177–191).
+- Node runs each `dns.lookup()` as a blocking `getaddrinfo` on the threadpool of libuv. The pool has 4 threads at the default `UV_THREADPOOL_SIZE`. The other lookups wait in a queue, and a timeout of a request does not stop its lookup.
+- The lab changes the drops of all client pods at the same time. `DNS_ACT` gives each act up to 0.5 s after its stamp. `DNS_DRAIN` gives the queue up to 0.5 s to drain. These two are assumptions, and a run measures them.
+
+**The bands.** For the cell with new connections (`dnsOf`), the window opens at the fault: 0 to 0.52 s. The window ends from −1 s to 2.5 s after the heal. Each failure is a timeout.
+
+- Each request that starts more than one timeout before the heal fails. Thus the last failure comes 1 s before the heal at the earliest.
+- After the heal, a thread is free at its next send, or at the end of its lookup. Either comes in 2.5 s. Then the queue drains. Thus the last failure starts at most 2.5 − 1 + 0.5 + 0.5 = 2.5 s after the heal.
+
+The cell with kept connections predicts no failed request.
+
+**The phase.** Each thread starts its lookups at the fault, and again each 5 s. If the threads stay in this phase, they are free 7.5 s after the fault, 1.5 s after the heal. Then the last failure starts 0.5 s to 1.5 s after the heal. The judge does not use this band. The prediction tests it.
+
+**The prediction.** Each cell holds in each counted run. In the cell with new connections, the median last failure is 0.5 s to 1.5 s after the heal. Approximately 900 to 1050 requests fail in each run.
+
+The decision rule: a run counts if it is not a warmup and the wait for a quiet runner does not void it. The cell with new connections needs 4 counted runs, and the control needs 3. A cell with a void run starts again once, alone. The band of the law hits if each counted run holds. The bands of this item stay as committed, and the thresholds do not change after the result.
+
+**The first dispatch.** Kind run 41554939433 gave no run of a cell. The server did not get ready in 300 s, thus the deploy of the first cell failed. The cause is in the lab image, not in the cells.
+
+The Dockerfile unpacks the tarballs of quantity, algebra and service with no install. Since quantity uses `@mark1russell7/rational` and service uses `@mark1russell7/rigor-generators`, the server stopped at start. The image manifest lists them, and `image.test.ts` checks each dependency from npm of those packages. The bands did not change.
+
+**The result.** Kind run 41559060726 held each cell in each counted run. The copy is `packages/site/src/data/s2-dns-2026-11-03.json`.
+
+- The black hole held in 4 of 4 runs. The runs failed 1000, 997, 1000 and 997 requests, and each failure was a timeout.
+- The last failure came 0.752, 0.699, 0.699 and 0.728 s after the heal, with a median of 0.713 s. This is in the band of the phase.
+- The control held in 3 of 3 runs, with no failed request.
+- Each of the 42 acts changed the drops of its pod in 0.29 s or less.
+
+The prediction hit in 6 of 7 claims. The miss is the build claim, because the first dispatch failed in the lab image. The phase and the count hit, at confidences of 0.45 and 0.4.
+
+The last failure is approximately the low edge of the phase plus one act: 0.5 + 0.24 s. Thus the threads stay in phase with the fault, and the queue drains in approximately 0 s. `DNS_DRAIN` gives 0.5 s, thus the band is wide on its high edge. This is not a bias, because each run is in the band. A later band can use a measured drain.
 
 ## The systems of S1
 
