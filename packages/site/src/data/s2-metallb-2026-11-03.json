@@ -1,0 +1,99 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-11-03",
+  "units": "s",
+  "runs": 4,
+  "kernel": "7.0.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.iptables.metallb.zone-loss",
+      "template": "T07",
+      "name": "iptables, MetalLB loses the announcer of its VIP: clients outside the cluster",
+      "mode": "iptables",
+      "trigger": "zone-loss",
+      "group": "zone",
+      "prediction": {
+        "kind": "window",
+        "band": null,
+        "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 4.98 s to 7 s after the fault. At least one request fails. Each failed request ends with a timeout."
+      },
+      "decision": "holds",
+      "counted": 2,
+      "voided": 2,
+      "failed": 0,
+      "unit": "requests",
+      "median": 881.5,
+      "values": [1001, 762],
+      "why": "Each of the 2 counted runs agrees with the prediction. The median run had 881.5 failed requests. The counted runs had 762 to 1,001 failed requests.",
+      "first": null,
+      "lasts": [6.7220203, 5.104755],
+      "metallb": [
+        {
+          "dead": 6.7371444,
+          "suspect": 2.7367603,
+          "withdraw": 1.124725,
+          "arp": [6.7431137, 6.7411622, 6.7392871],
+          "last": [6.7220203, 6.7171045, 6.718216],
+          "failed": {
+            "outside": 1001,
+            "thaw": 0,
+            "inside": 0
+          },
+          "outcomes": {
+            "timeout": 1001
+          },
+          "moves": 0
+        },
+        {
+          "dead": 5.1071473,
+          "suspect": 1.106296,
+          "withdraw": 1.0180015,
+          "arp": [5.1092414, 5.1080182, 5.1151409],
+          "last": [5.104755, 5.0899796, 5.0989422],
+          "failed": {
+            "outside": 762,
+            "thaw": 0,
+            "inside": 0
+          },
+          "outcomes": {
+            "timeout": 762
+          },
+          "moves": 0
+        }
+      ],
+      "pings": [0, 0],
+      "acks": [0, 0],
+      "seconds": [49.2710832, 49.2008552]
+    }
+  ],
+  "bands": {
+    "probe": {
+      "low": 0,
+      "high": 1.5
+    },
+    "dead": {
+      "low": 5,
+      "high": 6.5
+    },
+    "naive": {
+      "low": 2.908485,
+      "high": 3.908485
+    },
+    "arp": {
+      "low": 5,
+      "high": 7
+    },
+    "end": {
+      "low": 4.98,
+      "high": 7
+    },
+    "thaw": {
+      "low": 0,
+      "high": 0.5
+    }
+  }
+}
