@@ -1079,7 +1079,7 @@ Each last failure came after the bare end of 10 s and before the close of its se
 - **Depends on:** S6
 - **Started:** 2026-11-02
 - **Shipped:** 2026-11-03
-- **Links:** [@mark1russell7/rigor-statistics](https://www.npmjs.com/package/@mark1russell7/rigor-statistics), [rigor#17](https://github.com/mark1russell7/rigor/pull/17), [#287](https://github.com/mark1russell7/systems/pull/287)
+- **Links:** [@mark1russell7/rigor-statistics](https://www.npmjs.com/package/@mark1russell7/rigor-statistics), [rigor#17](https://github.com/mark1russell7/rigor/pull/17), [#287](https://github.com/mark1russell7/systems/pull/287), [#292](https://github.com/mark1russell7/systems/pull/292)
 
 The statistics have one home, `@mark1russell7/rigor-statistics`, and the bench harness has one home, `@mark1russell7/rigor-bench`. The kind and cells packages kept their own quantile, median and median interval. This item moves each of these functions to the home package, one function at a time.
 
