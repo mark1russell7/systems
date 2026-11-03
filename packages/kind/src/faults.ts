@@ -16,6 +16,7 @@ import { HBONE_PORT } from "./observe.ts";
  *   its network namespace only, with each client pod as a peer: the partition of one replica.
  * - `redis` is the Redis pod.
  * - `kube-proxy` is kube-proxy on the first worker.
+ * - `broker` is the JVM of the Pulsar broker that owns the topic of the cell (`KindCell.pulsar`).
  * - `servers` is each replica of the service. Only the injector, a middlebox and a sysctl take it.
  *   Each one acts in the network namespace of each replica, with each client pod as a peer. A REJECT
  *   resets only the sender of the segment that it matches, thus the rule goes where the segments of
@@ -23,7 +24,7 @@ import { HBONE_PORT } from "./observe.ts";
  * - `clients` is the process of each client pod. Only a signal, a sysctl and a drop of DNS take it.
  *   They are the gap of `idle`, a sysctl of the namespace of each client pod, and `dns-blackhole`.
  */
-export type Target = "server" | "redis" | "kube-proxy" | "servers" | "clients";
+export type Target = "server" | "redis" | "kube-proxy" | "broker" | "servers" | "clients";
 
 /** A step is one act of a fault, in the sequence of the plan. */
 export type Step =
@@ -386,7 +387,8 @@ const stepsOf = (cell: KindCell): FaultPlan => {
         restore: [{ do: "kubectl", args: [...ns, "scale", `deployment/${SERVER}`, `--replicas=${replicas}`] }],
       };
     case "crash":
-      return { inject: [{ do: "signal", target: "server", signal: "SIGKILL" }], hold: null, heal: [], restore: [] };
+      // a cell with a broker stops the broker that owns its topic, not a replica of the service
+      return { inject: [{ do: "signal", target: cell.pulsar === undefined ? "server" : "broker", signal: "SIGKILL" }], hold: null, heal: [], restore: [] };
     case "liveness-restart":
       // the container that the kubelet starts again has a new /tmp, thus the flag ends with it
       return { inject: [{ do: "flag", target: "server", on: true }], hold: null, heal: [], restore: [] };

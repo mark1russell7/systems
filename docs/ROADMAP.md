@@ -12,7 +12,8 @@ The program started again on 2026-11-02, after the pause of 2026-10-28. A gap th
 2. **SYS-49:** The statistics of the cells and the time verdicts come from the rigor packages, not from local copies. SYS-52 is done: the limiter pair gives its time verdict through rigor-bench.
    <!-- ste-disable-next latin-abbreviation -- VIZ is the ID of the item, not the Latin abbreviation -->
 3. **VIZ:** The site gets an interactive demo of the path of a request, from the process to the NIC. The packages of this repository run live in the browser.
-4. **S2:** CoreDNS (SYS-50), kube-vip (SYS-51) and MetalLB (SYS-53) are done. The next step is Pulsar. Do one intermediary in each context. Write the prediction before the dispatch.
+4. **S2:** CoreDNS (SYS-50), kube-vip (SYS-51) and MetalLB (SYS-53) are done. Do one intermediary in each context. Write the prediction before the dispatch.
+   - Pulsar ([SYS-56](#sys-56--pulsar-producers-when-the-broker-that-owns-their-topic-is-gone)) is in progress. A crash of the owner of a topic tests the expiry of its session and the backoff of each producer.
 
 SITE-UX round 3 is done. Its chart shows the C-stall band of SYS-48 against the count of each mode, on the kind page.
 
@@ -1384,6 +1385,61 @@ The fix:
 3. Remove the exceptions `tsconfig-test` and `typed-files` for these files from the root `package.json`.
 
 The check `conventions check` then passes with no exception for the types.
+
+### SYS-56 · Pulsar: producers when the broker that owns their topic is gone
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** SYS-53
+- **Started:** 2026-11-03
+- **Links:** [S2](#s2--intermediaries-and-kubernetes), [SYS-53](#sys-53--metallb-callers-outside-the-cluster-when-the-announcer-of-a-vip-is-gone)
+
+Pulsar is the intermediary after MetalLB. One broker owns the bundle of a topic through its session in ZooKeeper. A producer finds the owner by a lookup, and it tries again on a backoff after a loss. The question: when does each producer send again after a crash of the owner, and which terms set that time?
+
+**The setup.** The lab installs Pulsar 5.0.0 from the Helm chart 4.8.0, pinned by sha256, with the image pinned by digest (`packages/kind/src/pulsar.ts`). The install has one ZooKeeper, one bookie and two brokers, and no other part. Each value of the install is set, with its reason:
+
+- The ensemble, the write quorum and the ack quorum are 1, because there is one bookie.
+- The shedding of the load and the automatic split of bundles are off. Thus only the crash moves the bundle.
+- The session timeout is the default, 30 s (`conf/broker.conf`, line 187, and the chart `values.yaml`, line 1474). The values do not set it.
+- The load manager is the default, `ModularLoadManagerImpl` (`conf/broker.conf`, line 1809).
+- The chart starts a broker again only after its old znode is gone (`templates/broker-statefulset.yaml`, lines 296–302). Thus the restart does not take the bundle back before the expiry.
+
+A producer runs on each worker. It is a script of the Python client 3.13.0, over the C++ client 4.2.0, in the Pulsar image. It sends to the topic each 200 ms, with the defaults of `create_producer`. In the same pod, a probe asks the HTTP lookup for the owner each 250 ms. Each line has the monotonic clock of the node, in ms, as the other cells do. The script also writes the lines of the client log that give each try of the backoff. Before each run, the hold finds the owner from the lookups, and each producer must send with no failure.
+
+**The family.** One cell in iptables: `S2.T07.iptables.pulsar.broker-crash` (`PULSAR_CELLS` in `packages/cells/src/pulsar.ts`). The crash sends SIGKILL to the JVM of the broker that owns the topic. The clients in the cluster of the other cells are the control. The fault does not touch their service, thus they must fail no request.
+
+**The terms and their sources.** Each value is the source of Pulsar 5.0.0, of the C++ client 4.2.0 or of ZooKeeper 3.9.6:
+
+- The session of the broker expires 30 s after the last packet that ZooKeeper got from it. The server rounds each expiry up to its tick of 2 s (`ExpiryQueue.java`, lines 53–54 and 87, and `conf/zookeeper.conf`, line 21).
+- The client of ZooKeeper pings after 9 s with no other packet: half of the read timeout of 2/3 of the session timeout, less 1 s (`ClientCnxn.java`, lines 422, 1184 and 1263–1268). Thus the last packet comes 0 s to 9 s before the crash, and the expiry comes 21 s to 32 s after it.
+- Up to the expiry, a lookup gives the owner from the cache, with no check of its life (`NamespaceService.java`, lines 489–508). After it, the other broker takes the bundle.
+- The backoff of the producer starts at 100 ms, and it doubles up to 60 s. Its mandatory stop is the send timeout of 30 s less 100 ms (`lib/ProducerImpl.cc`, lines 55–57, and `pulsar/__init__.py`, line 1015).
+- The mandatory stop cuts one delay, once, so that the try comes 29.9 s after the first call. Each delay can be up to 9 % less, from the jitter (`lib/Backoff.cc`, lines 33–57).
+- Thus the tries come 0.1 s, 0.3 s, 0.7 s, 1.5 s, 3.1 s, 6.3 s, 12.7 s, 25.5 s, 29.9 s and 81.1 s after the first call, with no jitter.
+- The first try after the change of the owner succeeds, and the client resets its backoff (`lib/ProducerImpl.cc`, line 236). Each earlier try fails.
+
+**The law.** A lookup names the other broker 20.5 s to 33 s after the crash. That band is the expiry, with 0.5 s before it and 1 s after it. Each producer is back at the first try of its backoff after that change, with a setup of up to 3 s. The judge reads each try of each producer from its log, and checks each delay against the backoff. Thus the law tests the grid of the backoff in each run, not only the time of the return.
+
+The return falls in one of three modes. In the mode of 25.5 s, the change comes before the eighth try. In the mode of 29.9 s, it comes between the eighth try and the mandatory stop. In the mode of 81.1 s, it comes after the stop. Their shares are approximately 0.27, 0.58 and 0.16.
+
+The naive law puts each return at the expiry of the session, approximately 28 s to 32 s after the crash. It misses the modes of 25.5 s and of 81.1 s.
+
+**The bands.** The first lookup with another owner is in the band of the change, and the gap of the lookups before it is at most 1.25 s. Each producer starts its backoff 0 s to 1 s after the crash. Its last try comes after the last lookup of the old owner. The try before it comes no later than the first lookup of the new owner. The setup of the last try is 0 s to 3 s. Each failed send is `late` or `timeout`, and it comes in the time from the fault to the return. The record continues to the latest return of the law, 85.2 s after the fault.
+
+**The prediction.** Before the dispatch, the prediction `sys-56-pulsar` gives the probability of each claim:
+
+| Claim | Probability |
+| --- | --- |
+| The first dispatch builds and runs the cell with no code bug | 0.4 |
+| The owner changes in its band in each counted run | 0.8 |
+| Each producer follows the grid of the backoff in each counted run | 0.7 |
+| The control fails no request | 0.8 |
+| Each failed send is `late` or `timeout` | 0.8 |
+| Each return is 28 s to 32 s after the crash, in each run (the naive law) | 0.15 |
+| At least one run is in the mode of 81.1 s | 0.45 |
+| The cell holds in each of its 4 counted runs | 0.5 |
+
+The decision rule: the cell needs 4 counted runs. A void run, or a run that fails for a reason of the infrastructure, permits one re-dispatch, and the first counted runs count. A first run that stops on a code bug is a miss of the build. The thresholds do not change after a result is read.
 
 ## The systems of S1
 

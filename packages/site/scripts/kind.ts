@@ -36,6 +36,7 @@ import { BACKLOG_BAND_CELLS, BACKLOG_CELLS, BACKLOG_DRAIN_CELLS, BACKLOG_TERMS_C
 import { DNS_CELLS, dnsOf } from "../../cells/src/dns.ts";
 import { VIP_CELLS, VIP_WORKLOAD, VIP_HOLD, vipOf } from "../../cells/src/vip.ts";
 import { METALLB_CELLS, metallbOf } from "../../cells/src/metallb.ts";
+import { PULSAR_CELLS } from "../../cells/src/pulsar.ts";
 import type { Line } from "../../kind/src/observe.ts";
 import { failuresOf, outcomesOf, slicesOf } from "../../kind/src/observe.ts";
 import { OUTSIDE, SERVER } from "../../kind/src/names.ts";
@@ -86,7 +87,7 @@ interface Summary {
   readonly median: number | Quantity | null;
 }
 
-const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T15_GRPC, ...CALLERS_CELLS, ...GATE_CELLS, ...BACKLOG_CELLS, ...BACKLOG_BAND_CELLS, ...BACKLOG_DRAIN_CELLS, ...BACKLOG_TERMS_CELLS, ...DNS_CELLS, ...VIP_CELLS, ...METALLB_CELLS];
+const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T15_GRPC, ...CALLERS_CELLS, ...GATE_CELLS, ...BACKLOG_CELLS, ...BACKLOG_BAND_CELLS, ...BACKLOG_DRAIN_CELLS, ...BACKLOG_TERMS_CELLS, ...DNS_CELLS, ...VIP_CELLS, ...METALLB_CELLS, ...PULSAR_CELLS];
 // A later folder replaces the run of each cell of the same id, also when the cell has a new name.
 const found = new Map<string, Found<KindRecord, Summary>>();
 /** When `--pool` joins the folders, a part is the record of a cell in one folder, with its summary and its workflow run. */
@@ -240,6 +241,12 @@ const predictionOf = (cell: KindCell) => {
             : p.failures.kind === "none"
               ? "The algebra predicts that each replica stays in the Service, and that no request fails."
               : `The algebra predicts that each replica stays in the Service, and that no request is refused. Each failed request starts ${time(s(p.failures.start.band.lo))} after ${REFERENCES[p.failures.start.from]} or later${p.failures.end === null ? "" : `, and the last one starts ${s(p.failures.end.band.hi) <= 0 ? `${time(-s(p.failures.end.band.hi))} to ${time(-s(p.failures.end.band.lo))} before` : `${time(s(p.failures.end.band.lo))} to ${time(s(p.failures.end.band.hi))} after`} ${REFERENCES[p.failures.end.from]}`}.${p.failures.outcomes === undefined ? "" : ` Each failed request ends with ${listed(p.failures.outcomes.map(outcome))}.`}`,
+      };
+    case "reconnects":
+      return {
+        kind: p.kind,
+        band: band(p.flip.lo, p.flip.hi),
+        text: `The algebra predicts that a lookup names another owner of the topic ${time(s(p.flip.lo))} to ${time(s(p.flip.hi))} after the fault. Each producer is back at the first try of its backoff after that change, up to ${time(s(p.setup.hi))} later. Each failed send ends with ${listed(p.outcomes.map(outcome))}.`,
       };
     case "stalls":
       return {
