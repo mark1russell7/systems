@@ -2231,14 +2231,22 @@ New flows drop at `nf_conntrack_max`. The table is global, not for each network 
 
 ### SYS-67 · Retry amplification: an exact count
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** S1
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
-- **Links:**
+- **Links:** [The law](S3.md#the-first-count-sys-67)
 
 The tries of each hop multiply (law O08). T14 counts the tries at the target in an outage. This count needs no load generator, thus it is the first result of Q18.
+
+The design: one target process holds a chain of listeners on loopback, each with a real retry client. Each listener writes a line for each arrival, with the trail of the tries above it. Thus each term is visible, and a loaded runner cannot move a count.
+
+The law: the target sees the product of the tries of each caller. A `RetryAgent` of undici 8.12.2 gives 6 tries (`lib/handler/retry-handler.js:125-133`, `:348`, `:380`). A method or a status out of its lists gives 1 (`:332`, `:338`). The `Transport` of Go 1.27.2 gives 1 for a status, and 2 for a GET that meets a close on a reused connection (`src/net/http/transport.go:727-737`, `:858`, `:877-881`). `retry` of service 0.6.5 gives its `tries` (`packages/service/src/retrier.ts:121-125`).
+
+The prediction: nine cells, `T14.count.1` to `T14.count.9`, with 6, 36, 36, 108, 6, 1, 6, 36 and 2 arrivals at the target. Each listener has its own exact count.
+
+The rule: each cell has 4 counted runs. A void or infrastructure run gets one more dispatch, and the first counted runs count. A count that differs in a counted run fails its cell. The counts do not change after a result.
 
 ### SYS-68 · An open-loop load schedule
 

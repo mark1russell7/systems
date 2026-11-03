@@ -17,6 +17,7 @@ import { T02_CELLS } from "./t02.ts";
 import { T03_CELLS } from "./t03.ts";
 import { PROCEDURES } from "./subjects.ts";
 import { T12_CAL, T12_CELLS } from "./t12.ts";
+import { COUNT_CELLS } from "./retries.ts";
 import { TOX_CELLS } from "./toxiproxy.ts";
 import { wstCells } from "./ws-topologies.ts";
 import { wsCells } from "./ws.ts";
@@ -37,7 +38,8 @@ export interface Subjects {
  * with the calibration of the handling time of the Node clients. The WS cells follow, then the
  * WST cells: the same client through a router or a proxy. The MongoDB cells of T01, T03 and T11
  * come next, then the PostgreSQL cells of T01, T03 and T10. The RabbitMQ cells of T01 and T11 come
- * next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter (O29 and O30) are last.
+ * next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter (O29 and O30) come
+ * next, and the retry count of T14 (O08) is last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
@@ -65,6 +67,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...T03_GRPC,
     ...T02_GRPC,
     ...LIMITER_CELLS,
+    ...COUNT_CELLS,
   ];
 };
 

@@ -1,0 +1,10 @@
+{
+  "name": "loom-cells-retry-chain",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@mark1russell7/service": "0.6.5",
+    "undici": "8.12.2",
+    "zod": "4.6.6"
+  }
+}

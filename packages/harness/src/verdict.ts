@@ -477,6 +477,19 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
         times.length === 0
           ? "no time"
           : `median ${s(middle(times)).value} s from ${prediction.from}, range [${s(times[0]!).value}, ${s(times.at(-1)!).value}] s`;
+      // exact counts judge the cell: the times have no band
+      const { counts } = prediction;
+      if (counts !== undefined) {
+        const exact = counts.map((each) => `${each.what} ${each.count}`).join(", ");
+        return {
+          ...empty,
+          decision: outside.length === 0 ? "holds" : "fails",
+          band: null,
+          outside,
+          median: times.length === 0 ? null : s(middle(times)),
+          why: `${counted.length - outside.length} of ${counted.length} runs gave the exact counts (${exact}); ${outcomes}; ${timed}. ${prediction.why}`,
+        };
+      }
       // the end has no band, but each wait of the reconnect has one: a wait outside it is a finding of its run
       const missed = outside.filter((each) => counted.some((run) => name(run) === each.run && run.reconnect !== undefined));
       const late = missed.length === 0 ? "" : ` ${missed.length} runs had a wait of the reconnect outside its band.`;
