@@ -1325,7 +1325,7 @@ The naive law reads the comment of `suspicionTimeout`: 4 × log(N + 1) × Interv
 
 **The result.** Two kind runs held the cell in each of 4 counted runs. The copy is `packages/site/src/data/s2-metallb-2026-11-03.json`, and it names both runs.
 
-- Kind run 41654669260 gave 2 counted runs and 2 void runs. Before the second run of each cluster, the runner stayed at 51% to 58% idle for 300 s. That is below the idle share of 60% of the wait for rest (`quiet` in `packages/kind/src/run.ts`).
+- Kind run 41654669260 gave 2 counted runs and 2 void runs. Before the second run of each cluster, the runner stayed at 51% to 58% idle for 300 s. That is below the idle share of 60% of the wait for rest (`quiet` in `packages/kind/src/run.ts`). The copy names each cause in `dispatches[].voids`: the quiet check ended at 52% and 55% idle, with no other lab container.
 - The decision rule needs 4 counted runs, and it permits one re-dispatch. The first counted runs count. Kind run 41696343708 gave 4 counted runs. The result takes its 2 runs on the first cluster. Its 2 runs on the second cluster are extra, and the result does not use them.
 - The other speaker marked the lost node dead 6.737 s, 5.107 s, 5.813 s and 6.960 s after the fault. Only the second and the third times are in the band of the law. No time is in the naive band.
 - In each run, the death came 4.000 s or 4.001 s after the first suspicion. Thus the suspicion timeout is the timeout of the law, with no confirmation.
