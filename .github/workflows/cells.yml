@@ -12,10 +12,12 @@
 #           With `subject`, a subject as JSON (the harness's Subject) replaces it, for example a
 #           pinned image of another release.
 #           With `pair`, two versions of @mark1russell7/service, for example 0.5.6,0.6.0, the
-#           cells of the keyed limiter on the control, then on the candidate, replace the catalogs.
-#           The job copies the target of the limiter for each version and makes its lockfile. The
-#           count of shards must divide the count of selected limiter specs. Then the two cells of
-#           a spec operate on the same runner, one after the other.
+#           rounds of the keyed limiter replace the catalogs: in each round, the A/B pair of the
+#           control and the candidate, then the A/A pair of the control (SYS-52). The order of
+#           each pair turns each round. The job copies the target of the limiter for each version
+#           and makes its lockfile. The count of shards must divide the count of selected limiter
+#           specs. Then each cell of a spec operates on the same runner, and paired.ndjson gets
+#           the PairedTime records of rigor-bench.
 #
 # Start it with: gh workflow run cells.yml -R mark1russell7/systems -f only='^T12' -f shards=4
 # A pair: gh workflow run cells.yml -R mark1russell7/systems -f pair=0.5.6,0.6.0 -f only='^O(29|30)[.]' -f shards=6

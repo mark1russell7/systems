@@ -1,0 +1,6062 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again by the harness, and the time verdict of rigor-bench of each measure",
+  "workflow": 41572390043,
+  "date": "2026-11-03",
+  "pair": {
+    "control": "0.5.6",
+    "candidate": "0.6.0"
+  },
+  "only": "^O(29|30)[.]",
+  "shards": 6,
+  "rounds": 7,
+  "bench": {
+    "package": "@mark1russell7/rigor-bench",
+    "version": "0.2.4",
+    "options": {
+      "rule": "difference",
+      "margin": 0.05
+    }
+  },
+  "unit": "s",
+  "runners": {
+    "cells-0": {
+      "image": "ubuntu24 20261026.354.1",
+      "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": 4,
+      "hz": 1000
+    },
+    "cells-1": {
+      "image": "ubuntu24 20261026.354.1",
+      "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": 4,
+      "hz": 1000
+    },
+    "cells-2": {
+      "image": "ubuntu24 20261026.354.1",
+      "cpu": "AMD EPYC 7763 64-Core Processor",
+      "cpus": 4,
+      "hz": 1000
+    },
+    "cells-3": {
+      "image": "ubuntu24 20261026.354.1",
+      "cpu": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+      "cpus": 4,
+      "hz": 1000
+    },
+    "cells-4": {
+      "image": "ubuntu24 20261026.354.1",
+      "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "cpus": 4,
+      "hz": 1000
+    },
+    "cells-5": {
+      "image": "ubuntu24 20261026.354.1",
+      "cpu": "AMD EPYC 9V74 80-Core Processor",
+      "cpus": 4,
+      "hz": 1000
+    }
+  },
+  "cells": {
+    "count": 168,
+    "holds": 168,
+    "again": 0,
+    "decisions": [
+      "holds"
+    ]
+  },
+  "verdicts": [
+    {
+      "measure": "retry",
+      "outcome": "same",
+      "reason": "The interval of the candidate median over the A/A median is [1, 1]. The interval is in the margin of 0.05.",
+      "interval": {
+        "estimate": 1.000004,
+        "low": 0.9999838,
+        "high": 1.000025,
+        "level": 0.95,
+        "runs": 10000,
+        "finite": 10000,
+        "seed": 1
+      },
+      "band": {
+        "cases": 13,
+        "kind": "median",
+        "noise": 0.00001199657,
+        "low": 0.999988,
+        "high": 1.000012,
+        "median": 0.9999987
+      },
+      "cases": {
+        "ab": 13,
+        "aa": 13
+      },
+      "ratios": [
+        {
+          "case": "O30.1 retry 1",
+          "ratio": 0.9999606,
+          "rounds": 7
+        },
+        {
+          "case": "O30.2 retry 1",
+          "ratio": 1.0000209,
+          "rounds": 7
+        },
+        {
+          "case": "O30.2 retry 2",
+          "ratio": 1.0000123,
+          "rounds": 7
+        },
+        {
+          "case": "O29.1 retry 1",
+          "ratio": 1.0000007,
+          "rounds": 7
+        },
+        {
+          "case": "O29.1 retry 2",
+          "ratio": 0.9999747,
+          "rounds": 7
+        },
+        {
+          "case": "O29.1 retry 3",
+          "ratio": 1.0000023,
+          "rounds": 7
+        },
+        {
+          "case": "O29.1 retry 4",
+          "ratio": 1.0000017,
+          "rounds": 7
+        },
+        {
+          "case": "O29.1 retry 5",
+          "ratio": 0.9999703,
+          "rounds": 7
+        },
+        {
+          "case": "O29.2 retry 1",
+          "ratio": 1.0000375,
+          "rounds": 7
+        },
+        {
+          "case": "O29.2 retry 2",
+          "ratio": 1.0000277,
+          "rounds": 7
+        },
+        {
+          "case": "O29.2 retry 3",
+          "ratio": 0.9999947,
+          "rounds": 7
+        },
+        {
+          "case": "O29.2 retry 4",
+          "ratio": 1.0000528,
+          "rounds": 7
+        },
+        {
+          "case": "O29.2 retry 5",
+          "ratio": 1.0000094,
+          "rounds": 7
+        }
+      ]
+    },
+    {
+      "measure": "answer",
+      "outcome": "cannot decide",
+      "reason": "The interval of the candidate median over the A/A median is [0.9008, 1.1396]. The interval holds 1 and crosses the margin of 0.05.",
+      "interval": {
+        "estimate": 1.032137,
+        "low": 0.9007665,
+        "high": 1.139569,
+        "level": 0.95,
+        "runs": 10000,
+        "finite": 10000,
+        "seed": 1
+      },
+      "band": {
+        "cases": 6,
+        "kind": "median",
+        "noise": 0.1303762,
+        "low": 0.8777652,
+        "high": 1.139257,
+        "median": 0.9389039
+      },
+      "cases": {
+        "ab": 6,
+        "aa": 6
+      },
+      "ratios": [
+        {
+          "case": "O30.1 answer",
+          "ratio": 0.9603659,
+          "rounds": 7
+        },
+        {
+          "case": "O30.2 answer",
+          "ratio": 1.0583942,
+          "rounds": 7
+        },
+        {
+          "case": "O29.1 answer",
+          "ratio": 0.9778672,
+          "rounds": 7
+        },
+        {
+          "case": "O29.2 answer",
+          "ratio": 1.0117845,
+          "rounds": 7
+        },
+        {
+          "case": "O29.3 answer",
+          "ratio": 0.9375918,
+          "rounds": 7
+        },
+        {
+          "case": "O29.4 answer",
+          "ratio": 0.8248175,
+          "rounds": 7
+        }
+      ]
+    }
+  ],
+  "slots": [
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/B round 1, arm a)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 0,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/B round 1, arm b)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 0,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/B round 1, arm a)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 0,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/B round 1, arm b)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 0,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 1, arm a)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 0,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.6.0, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 1, arm b)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 0,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/B round 1, arm b)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 0,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/B round 1, arm a)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 0,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/B round 1, arm b)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 0,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/B round 1, arm a)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 0,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.6.0, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 1, arm b)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 0,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 1, arm a)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 0,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/A round 1, arm a)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 0,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/A round 1, arm b)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 0,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/A round 1, arm a)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 0,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/A round 1, arm b)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 0,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 1, arm a)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 0,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 1, arm b)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 0,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/A round 1, arm b)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 0,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/A round 1, arm a)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 0,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/A round 1, arm b)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 0,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/A round 1, arm a)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 0,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 1, arm b)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 0,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 1, arm a)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 0,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/B round 2, arm b)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 1,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/B round 2, arm a)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 1,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/B round 2, arm b)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 1,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/B round 2, arm a)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 1,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.6.0, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 2, arm b)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 1,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 2, arm a)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 1,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/B round 2, arm a)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 1,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/B round 2, arm b)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 1,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/B round 2, arm a)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 1,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/B round 2, arm b)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 1,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 2, arm a)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 1,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.6.0, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 2, arm b)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 1,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/A round 2, arm b)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 1,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/A round 2, arm a)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 1,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/A round 2, arm b)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 1,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/A round 2, arm a)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 1,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 2, arm b)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 1,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 2, arm a)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 1,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/A round 2, arm a)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 1,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/A round 2, arm b)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 1,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/A round 2, arm a)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 1,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/A round 2, arm b)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 1,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 2, arm a)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 1,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 2, arm b)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 1,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/B round 3, arm a)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 2,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/B round 3, arm b)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 2,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/B round 3, arm a)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 2,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/B round 3, arm b)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 2,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 3, arm a)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 2,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.6.0, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 3, arm b)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 2,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/B round 3, arm b)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 2,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/B round 3, arm a)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 2,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/B round 3, arm b)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 2,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/B round 3, arm a)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 2,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.6.0, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 3, arm b)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 2,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 3, arm a)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 2,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/A round 3, arm a)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 2,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/A round 3, arm b)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 2,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/A round 3, arm a)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 2,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/A round 3, arm b)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 2,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 3, arm a)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 2,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 3, arm b)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 2,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/A round 3, arm b)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 2,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/A round 3, arm a)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 2,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/A round 3, arm b)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 2,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/A round 3, arm a)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 2,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 3, arm b)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 2,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 3, arm a)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 2,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/B round 4, arm b)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 3,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/B round 4, arm a)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 3,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/B round 4, arm b)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 3,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/B round 4, arm a)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 3,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.6.0, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 4, arm b)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 3,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 4, arm a)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 3,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/B round 4, arm a)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 3,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/B round 4, arm b)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 3,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/B round 4, arm a)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 3,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/B round 4, arm b)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 3,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 4, arm a)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 3,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.6.0, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 4, arm b)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 3,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/A round 4, arm b)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 3,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/A round 4, arm a)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 3,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/A round 4, arm b)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 3,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/A round 4, arm a)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 3,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 4, arm b)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 3,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 4, arm a)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 3,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/A round 4, arm a)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 3,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/A round 4, arm b)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 3,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/A round 4, arm a)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 3,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/A round 4, arm b)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 3,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 4, arm a)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 3,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 4, arm b)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 3,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/B round 5, arm a)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 4,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/B round 5, arm b)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 4,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/B round 5, arm a)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 4,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/B round 5, arm b)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 4,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 5, arm a)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 4,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.6.0, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 5, arm b)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 4,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/B round 5, arm b)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 4,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/B round 5, arm a)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 4,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/B round 5, arm b)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 4,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/B round 5, arm a)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 4,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.6.0, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 5, arm b)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 4,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 5, arm a)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 4,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/A round 5, arm a)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 4,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/A round 5, arm b)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 4,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/A round 5, arm a)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 4,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/A round 5, arm b)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 4,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 5, arm a)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 4,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 5, arm b)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 4,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/A round 5, arm b)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 4,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/A round 5, arm a)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 4,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/A round 5, arm b)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 4,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/A round 5, arm a)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 4,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 5, arm b)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 4,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 5, arm a)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 4,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/B round 6, arm b)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 5,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/B round 6, arm a)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 5,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/B round 6, arm b)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 5,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/B round 6, arm a)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 5,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.6.0, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 6, arm b)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 5,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 6, arm a)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 5,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/B round 6, arm a)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 5,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/B round 6, arm b)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 5,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/B round 6, arm a)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 5,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/B round 6, arm b)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 5,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 6, arm a)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 5,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.6.0, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 6, arm b)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 5,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/A round 6, arm b)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 5,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/A round 6, arm a)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 5,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/A round 6, arm b)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 5,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/A round 6, arm a)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 5,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 6, arm b)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 5,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 6, arm a)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 5,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/A round 6, arm a)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 5,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/A round 6, arm b)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 5,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/A round 6, arm a)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 5,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/A round 6, arm b)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 5,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 6, arm a)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 5,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 6, arm b)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 5,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/B round 7, arm a)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 6,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/B round 7, arm b)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 6,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/B round 7, arm a)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 6,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/B round 7, arm b)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 6,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 7, arm a)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 6,
+      "block": "ab",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.6.0, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 7, arm b)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 6,
+      "block": "ab",
+      "arm": "b",
+      "first": "b",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/B round 7, arm b)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 6,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/B round 7, arm a)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 6,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.6.0, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/B round 7, arm b)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 6,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/B round 7, arm a)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 6,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.6.0, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 7, arm b)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 6,
+      "block": "ab",
+      "arm": "b",
+      "first": "a",
+      "service": "0.6.0",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/B round 7, arm a)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 6,
+      "block": "ab",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/A round 7, arm a)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 6,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/A round 7, arm b)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 6,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/A round 7, arm a)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 6,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/A round 7, arm b)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 6,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 7, arm a)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 6,
+      "block": "aa",
+      "arm": "a",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 7, arm b)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 6,
+      "block": "aa",
+      "arm": "b",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 30 s: the retry waits 30 s, and the limiter lets it in (A/A round 7, arm b)",
+      "plan": "O30.1",
+      "offset": 0,
+      "round": 6,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O30.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 60 s: its cap of 30 s sends the retry 30 s early, the limiter refuses it again, and the second retry gets in (A/A round 7, arm a)",
+      "plan": "O30.2",
+      "offset": 1,
+      "round": 6,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.1 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 150 s: five retries of 30 s, and the last one gets in (A/A round 7, arm b)",
+      "plan": "O29.1",
+      "offset": 2,
+      "round": 6,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.2 undici 8.12 to the keyed limiter of service 0.5.6, the RetryAgent of undici at its defaults, Retry-After 151 s: five retries of 30 s end before the window, and the caller gets UND_ERR_REQ_RETRY with the 429 (A/A round 7, arm a)",
+      "plan": "O29.2",
+      "offset": 3,
+      "round": 6,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.3 undici 8.12 to the keyed limiter of service 0.5.6, a Client of undici at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 7, arm b)",
+      "plan": "O29.3",
+      "offset": 4,
+      "round": 6,
+      "block": "aa",
+      "arm": "b",
+      "first": "a",
+      "service": "0.5.6",
+      "decision": "holds"
+    },
+    {
+      "name": "O29.4 go net/http 1.27 to the keyed limiter of service 0.5.6, the Transport of Go at its defaults: the caller gets the 429 at once, and the client sends nothing again (A/A round 7, arm a)",
+      "plan": "O29.4",
+      "offset": 5,
+      "round": 6,
+      "block": "aa",
+      "arm": "a",
+      "first": "b",
+      "service": "0.5.6",
+      "decision": "holds"
+    }
+  ],
+  "records": [
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.1 retry 1",
+      "round": 0,
+      "first": "a",
+      "a": {
+        "value": 30.007307,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.002319,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O30.1 answer",
+      "round": 0,
+      "first": "a",
+      "a": {
+        "value": 0.00031,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000391,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.2 retry 1",
+      "round": 0,
+      "first": "b",
+      "a": {
+        "value": 30.007034,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007667,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.2 retry 2",
+      "round": 0,
+      "first": "b",
+      "a": {
+        "value": 30.003486,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.003261,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O30.2 answer",
+      "round": 0,
+      "first": "b",
+      "a": {
+        "value": 0.000296,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000267,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 1",
+      "round": 0,
+      "first": "a",
+      "a": {
+        "value": 30.008089,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008431,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 2",
+      "round": 0,
+      "first": "a",
+      "a": {
+        "value": 30.003794,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.004055,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 3",
+      "round": 0,
+      "first": "a",
+      "a": {
+        "value": 30.001878,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.002958,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 4",
+      "round": 0,
+      "first": "a",
+      "a": {
+        "value": 30.00801,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007725,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 5",
+      "round": 0,
+      "first": "a",
+      "a": {
+        "value": 30.004365,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005325,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.1 answer",
+      "round": 0,
+      "first": "a",
+      "a": {
+        "value": 0.000445,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000526,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 1",
+      "round": 0,
+      "first": "b",
+      "a": {
+        "value": 30.005821,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007209,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 2",
+      "round": 0,
+      "first": "b",
+      "a": {
+        "value": 30.003482,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.004999,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 3",
+      "round": 0,
+      "first": "b",
+      "a": {
+        "value": 30.002406,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.001802,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 4",
+      "round": 0,
+      "first": "b",
+      "a": {
+        "value": 30.002274,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008288,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 5",
+      "round": 0,
+      "first": "b",
+      "a": {
+        "value": 30.005102,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005384,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.2 answer",
+      "round": 0,
+      "first": "b",
+      "a": {
+        "value": 0.000657,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000688,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.3 answer",
+      "round": 0,
+      "first": "a",
+      "a": {
+        "value": 0.001436,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.001518,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.4 answer",
+      "round": 0,
+      "first": "b",
+      "a": {
+        "value": 0.000851,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000584,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.1 retry 1",
+      "round": 0,
+      "first": "a",
+      "a": {
+        "value": 30.008012,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007957,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O30.1 answer",
+      "round": 0,
+      "first": "a",
+      "a": {
+        "value": 0.000296,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000291,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.2 retry 1",
+      "round": 0,
+      "first": "b",
+      "a": {
+        "value": 30.003397,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007874,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.2 retry 2",
+      "round": 0,
+      "first": "b",
+      "a": {
+        "value": 30.00392,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005179,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O30.2 answer",
+      "round": 0,
+      "first": "b",
+      "a": {
+        "value": 0.000267,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000365,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 1",
+      "round": 0,
+      "first": "a",
+      "a": {
+        "value": 30.00742,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008417,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 2",
+      "round": 0,
+      "first": "a",
+      "a": {
+        "value": 30.000422,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.004927,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 3",
+      "round": 0,
+      "first": "a",
+      "a": {
+        "value": 30.002863,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.001504,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 4",
+      "round": 0,
+      "first": "a",
+      "a": {
+        "value": 30.007602,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008113,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 5",
+      "round": 0,
+      "first": "a",
+      "a": {
+        "value": 30.005892,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.001133,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.1 answer",
+      "round": 0,
+      "first": "a",
+      "a": {
+        "value": 0.000523,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000551,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 1",
+      "round": 0,
+      "first": "b",
+      "a": {
+        "value": 30.009244,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.009008,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 2",
+      "round": 0,
+      "first": "b",
+      "a": {
+        "value": 30.004236,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005189,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 3",
+      "round": 0,
+      "first": "b",
+      "a": {
+        "value": 30.002388,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.003038,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 4",
+      "round": 0,
+      "first": "b",
+      "a": {
+        "value": 30.008131,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007313,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 5",
+      "round": 0,
+      "first": "b",
+      "a": {
+        "value": 30.005219,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.001821,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.2 answer",
+      "round": 0,
+      "first": "b",
+      "a": {
+        "value": 0.000681,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000613,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.3 answer",
+      "round": 0,
+      "first": "a",
+      "a": {
+        "value": 0.001535,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.001361,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.4 answer",
+      "round": 0,
+      "first": "b",
+      "a": {
+        "value": 0.000692,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.001738,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.1 retry 1",
+      "round": 1,
+      "first": "b",
+      "a": {
+        "value": 30.008125,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007609,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O30.1 answer",
+      "round": 1,
+      "first": "b",
+      "a": {
+        "value": 0.000328,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000342,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.2 retry 1",
+      "round": 1,
+      "first": "a",
+      "a": {
+        "value": 30.002011,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.006571,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.2 retry 2",
+      "round": 1,
+      "first": "a",
+      "a": {
+        "value": 30.004181,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.00455,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O30.2 answer",
+      "round": 1,
+      "first": "a",
+      "a": {
+        "value": 0.000272,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000299,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 1",
+      "round": 1,
+      "first": "b",
+      "a": {
+        "value": 30.008707,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.006928,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 2",
+      "round": 1,
+      "first": "b",
+      "a": {
+        "value": 30.004629,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.002979,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 3",
+      "round": 1,
+      "first": "b",
+      "a": {
+        "value": 30.001759,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.001828,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 4",
+      "round": 1,
+      "first": "b",
+      "a": {
+        "value": 30.007328,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008381,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 5",
+      "round": 1,
+      "first": "b",
+      "a": {
+        "value": 30.005134,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.003905,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.1 answer",
+      "round": 1,
+      "first": "b",
+      "a": {
+        "value": 0.000497,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000486,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 1",
+      "round": 1,
+      "first": "a",
+      "a": {
+        "value": 30.007734,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.00886,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 2",
+      "round": 1,
+      "first": "a",
+      "a": {
+        "value": 30.004591,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005423,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 3",
+      "round": 1,
+      "first": "a",
+      "a": {
+        "value": 30.00216,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.001407,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 4",
+      "round": 1,
+      "first": "a",
+      "a": {
+        "value": 30.007364,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005075,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 5",
+      "round": 1,
+      "first": "a",
+      "a": {
+        "value": 30.005694,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.003419,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.2 answer",
+      "round": 1,
+      "first": "a",
+      "a": {
+        "value": 0.000755,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000635,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.3 answer",
+      "round": 1,
+      "first": "b",
+      "a": {
+        "value": 0.001403,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.001401,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.4 answer",
+      "round": 1,
+      "first": "a",
+      "a": {
+        "value": 0.000831,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000744,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.1 retry 1",
+      "round": 1,
+      "first": "b",
+      "a": {
+        "value": 30.007462,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008284,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O30.1 answer",
+      "round": 1,
+      "first": "b",
+      "a": {
+        "value": 0.000291,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000293,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.2 retry 1",
+      "round": 1,
+      "first": "a",
+      "a": {
+        "value": 30.007756,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.006464,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.2 retry 2",
+      "round": 1,
+      "first": "a",
+      "a": {
+        "value": 30.002104,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.004239,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O30.2 answer",
+      "round": 1,
+      "first": "a",
+      "a": {
+        "value": 0.000283,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000316,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 1",
+      "round": 1,
+      "first": "b",
+      "a": {
+        "value": 30.010145,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008171,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 2",
+      "round": 1,
+      "first": "b",
+      "a": {
+        "value": 30.003834,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.003429,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 3",
+      "round": 1,
+      "first": "b",
+      "a": {
+        "value": 30.001771,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.001956,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 4",
+      "round": 1,
+      "first": "b",
+      "a": {
+        "value": 30.00334,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007273,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 5",
+      "round": 1,
+      "first": "b",
+      "a": {
+        "value": 30.005089,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.004845,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.1 answer",
+      "round": 1,
+      "first": "b",
+      "a": {
+        "value": 0.000558,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000557,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 1",
+      "round": 1,
+      "first": "a",
+      "a": {
+        "value": 30.007745,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008008,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 2",
+      "round": 1,
+      "first": "a",
+      "a": {
+        "value": 30.004515,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.003807,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 3",
+      "round": 1,
+      "first": "a",
+      "a": {
+        "value": 30.000607,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.001406,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 4",
+      "round": 1,
+      "first": "a",
+      "a": {
+        "value": 30.007417,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.00289,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 5",
+      "round": 1,
+      "first": "a",
+      "a": {
+        "value": 30.002922,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.002791,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.2 answer",
+      "round": 1,
+      "first": "a",
+      "a": {
+        "value": 0.000705,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000572,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.3 answer",
+      "round": 1,
+      "first": "b",
+      "a": {
+        "value": 0.001502,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.001261,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.4 answer",
+      "round": 1,
+      "first": "a",
+      "a": {
+        "value": 0.000987,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000614,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.1 retry 1",
+      "round": 2,
+      "first": "a",
+      "a": {
+        "value": 30.008112,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.006506,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O30.1 answer",
+      "round": 2,
+      "first": "a",
+      "a": {
+        "value": 0.000328,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000315,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.2 retry 1",
+      "round": 2,
+      "first": "b",
+      "a": {
+        "value": 30.007291,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007308,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.2 retry 2",
+      "round": 2,
+      "first": "b",
+      "a": {
+        "value": 30.004437,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.003727,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O30.2 answer",
+      "round": 2,
+      "first": "b",
+      "a": {
+        "value": 0.000321,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000301,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 1",
+      "round": 2,
+      "first": "a",
+      "a": {
+        "value": 30.008939,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008481,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 2",
+      "round": 2,
+      "first": "a",
+      "a": {
+        "value": 30.004726,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.003843,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 3",
+      "round": 2,
+      "first": "a",
+      "a": {
+        "value": 30.002026,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.00167,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 4",
+      "round": 2,
+      "first": "a",
+      "a": {
+        "value": 30.007622,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007672,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 5",
+      "round": 2,
+      "first": "a",
+      "a": {
+        "value": 30.005636,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.004225,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.1 answer",
+      "round": 2,
+      "first": "a",
+      "a": {
+        "value": 0.000469,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000458,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 1",
+      "round": 2,
+      "first": "b",
+      "a": {
+        "value": 30.007569,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007959,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 2",
+      "round": 2,
+      "first": "b",
+      "a": {
+        "value": 30.004349,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.004809,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 3",
+      "round": 2,
+      "first": "b",
+      "a": {
+        "value": 30.001962,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.001802,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 4",
+      "round": 2,
+      "first": "b",
+      "a": {
+        "value": 30.004554,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008009,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 5",
+      "round": 2,
+      "first": "b",
+      "a": {
+        "value": 30.005152,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005626,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.2 answer",
+      "round": 2,
+      "first": "b",
+      "a": {
+        "value": 0.000594,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000601,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.3 answer",
+      "round": 2,
+      "first": "a",
+      "a": {
+        "value": 0.001864,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.001398,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.4 answer",
+      "round": 2,
+      "first": "b",
+      "a": {
+        "value": 0.000849,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000627,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.1 retry 1",
+      "round": 2,
+      "first": "a",
+      "a": {
+        "value": 30.008312,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008717,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O30.1 answer",
+      "round": 2,
+      "first": "a",
+      "a": {
+        "value": 0.000281,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000313,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.2 retry 1",
+      "round": 2,
+      "first": "b",
+      "a": {
+        "value": 30.005362,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008857,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.2 retry 2",
+      "round": 2,
+      "first": "b",
+      "a": {
+        "value": 30.003876,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.002378,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O30.2 answer",
+      "round": 2,
+      "first": "b",
+      "a": {
+        "value": 0.000377,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000299,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 1",
+      "round": 2,
+      "first": "a",
+      "a": {
+        "value": 30.006592,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.00356,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 2",
+      "round": 2,
+      "first": "a",
+      "a": {
+        "value": 30.003695,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.004638,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 3",
+      "round": 2,
+      "first": "a",
+      "a": {
+        "value": 30.002445,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.002364,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 4",
+      "round": 2,
+      "first": "a",
+      "a": {
+        "value": 30.002049,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008743,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 5",
+      "round": 2,
+      "first": "a",
+      "a": {
+        "value": 30.005457,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.004663,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.1 answer",
+      "round": 2,
+      "first": "a",
+      "a": {
+        "value": 0.000576,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000409,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 1",
+      "round": 2,
+      "first": "b",
+      "a": {
+        "value": 30.007029,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008231,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 2",
+      "round": 2,
+      "first": "b",
+      "a": {
+        "value": 30.004628,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.004132,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 3",
+      "round": 2,
+      "first": "b",
+      "a": {
+        "value": 30.002133,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.00176,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 4",
+      "round": 2,
+      "first": "b",
+      "a": {
+        "value": 30.008536,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007569,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 5",
+      "round": 2,
+      "first": "b",
+      "a": {
+        "value": 30.006429,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005403,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.2 answer",
+      "round": 2,
+      "first": "b",
+      "a": {
+        "value": 0.000601,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000753,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.3 answer",
+      "round": 2,
+      "first": "a",
+      "a": {
+        "value": 0.001961,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.001484,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.4 answer",
+      "round": 2,
+      "first": "b",
+      "a": {
+        "value": 0.001036,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000658,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.1 retry 1",
+      "round": 3,
+      "first": "b",
+      "a": {
+        "value": 30.007104,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007654,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O30.1 answer",
+      "round": 3,
+      "first": "b",
+      "a": {
+        "value": 0.000309,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000277,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.2 retry 1",
+      "round": 3,
+      "first": "a",
+      "a": {
+        "value": 30.006598,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.003268,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.2 retry 2",
+      "round": 3,
+      "first": "a",
+      "a": {
+        "value": 30.004461,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.003627,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O30.2 answer",
+      "round": 3,
+      "first": "a",
+      "a": {
+        "value": 0.000277,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000327,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 1",
+      "round": 3,
+      "first": "b",
+      "a": {
+        "value": 30.008222,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008244,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 2",
+      "round": 3,
+      "first": "b",
+      "a": {
+        "value": 30.004695,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.003937,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 3",
+      "round": 3,
+      "first": "b",
+      "a": {
+        "value": 30.001064,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.002116,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 4",
+      "round": 3,
+      "first": "b",
+      "a": {
+        "value": 30.007245,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007648,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 5",
+      "round": 3,
+      "first": "b",
+      "a": {
+        "value": 30.005082,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.003126,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.1 answer",
+      "round": 3,
+      "first": "b",
+      "a": {
+        "value": 0.000482,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000426,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 1",
+      "round": 3,
+      "first": "a",
+      "a": {
+        "value": 30.009047,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008626,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 2",
+      "round": 3,
+      "first": "a",
+      "a": {
+        "value": 30.00407,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.003612,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 3",
+      "round": 3,
+      "first": "a",
+      "a": {
+        "value": 30.00097,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.000718,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 4",
+      "round": 3,
+      "first": "a",
+      "a": {
+        "value": 30.004678,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.006263,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 5",
+      "round": 3,
+      "first": "a",
+      "a": {
+        "value": 30.004463,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005806,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.2 answer",
+      "round": 3,
+      "first": "a",
+      "a": {
+        "value": 0.000618,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000867,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.3 answer",
+      "round": 3,
+      "first": "b",
+      "a": {
+        "value": 0.001337,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.001438,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.4 answer",
+      "round": 3,
+      "first": "a",
+      "a": {
+        "value": 0.000959,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000791,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.1 retry 1",
+      "round": 3,
+      "first": "b",
+      "a": {
+        "value": 30.008068,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007093,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O30.1 answer",
+      "round": 3,
+      "first": "b",
+      "a": {
+        "value": 0.000288,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000295,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.2 retry 1",
+      "round": 3,
+      "first": "a",
+      "a": {
+        "value": 30.006886,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.006954,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.2 retry 2",
+      "round": 3,
+      "first": "a",
+      "a": {
+        "value": 30.003809,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.004165,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O30.2 answer",
+      "round": 3,
+      "first": "a",
+      "a": {
+        "value": 0.000273,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000294,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 1",
+      "round": 3,
+      "first": "b",
+      "a": {
+        "value": 30.009558,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007626,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 2",
+      "round": 3,
+      "first": "b",
+      "a": {
+        "value": 30.004793,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.004255,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 3",
+      "round": 3,
+      "first": "b",
+      "a": {
+        "value": 30.002179,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.00176,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 4",
+      "round": 3,
+      "first": "b",
+      "a": {
+        "value": 30.007248,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.001869,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 5",
+      "round": 3,
+      "first": "b",
+      "a": {
+        "value": 30.004374,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005818,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.1 answer",
+      "round": 3,
+      "first": "b",
+      "a": {
+        "value": 0.00059,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.00048,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 1",
+      "round": 3,
+      "first": "a",
+      "a": {
+        "value": 30.007876,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007817,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 2",
+      "round": 3,
+      "first": "a",
+      "a": {
+        "value": 30.004736,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005204,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 3",
+      "round": 3,
+      "first": "a",
+      "a": {
+        "value": 30.001841,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.001801,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 4",
+      "round": 3,
+      "first": "a",
+      "a": {
+        "value": 30.0041,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.00755,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 5",
+      "round": 3,
+      "first": "a",
+      "a": {
+        "value": 30.005897,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005433,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.2 answer",
+      "round": 3,
+      "first": "a",
+      "a": {
+        "value": 0.000883,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000637,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.3 answer",
+      "round": 3,
+      "first": "b",
+      "a": {
+        "value": 0.001423,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.001477,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.4 answer",
+      "round": 3,
+      "first": "a",
+      "a": {
+        "value": 0.001123,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000725,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.1 retry 1",
+      "round": 4,
+      "first": "a",
+      "a": {
+        "value": 30.00759,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005053,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O30.1 answer",
+      "round": 4,
+      "first": "a",
+      "a": {
+        "value": 0.000316,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000344,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.2 retry 1",
+      "round": 4,
+      "first": "b",
+      "a": {
+        "value": 30.005042,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.006417,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.2 retry 2",
+      "round": 4,
+      "first": "b",
+      "a": {
+        "value": 30.002725,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.00368,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O30.2 answer",
+      "round": 4,
+      "first": "b",
+      "a": {
+        "value": 0.000283,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.00032,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 1",
+      "round": 4,
+      "first": "a",
+      "a": {
+        "value": 30.007035,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008887,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 2",
+      "round": 4,
+      "first": "a",
+      "a": {
+        "value": 30.004337,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.003734,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 3",
+      "round": 4,
+      "first": "a",
+      "a": {
+        "value": 30.001705,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.001804,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 4",
+      "round": 4,
+      "first": "a",
+      "a": {
+        "value": 30.008581,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007569,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 5",
+      "round": 4,
+      "first": "a",
+      "a": {
+        "value": 30.004967,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005683,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.1 answer",
+      "round": 4,
+      "first": "a",
+      "a": {
+        "value": 0.00044,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000381,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 1",
+      "round": 4,
+      "first": "b",
+      "a": {
+        "value": 30.007813,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007942,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 2",
+      "round": 4,
+      "first": "b",
+      "a": {
+        "value": 30.003674,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005363,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 3",
+      "round": 4,
+      "first": "b",
+      "a": {
+        "value": 30.001332,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.002633,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 4",
+      "round": 4,
+      "first": "b",
+      "a": {
+        "value": 30.006462,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005106,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 5",
+      "round": 4,
+      "first": "b",
+      "a": {
+        "value": 30.005737,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.006494,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.2 answer",
+      "round": 4,
+      "first": "b",
+      "a": {
+        "value": 0.000722,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000629,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.3 answer",
+      "round": 4,
+      "first": "a",
+      "a": {
+        "value": 0.001568,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.001382,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.4 answer",
+      "round": 4,
+      "first": "b",
+      "a": {
+        "value": 0.000787,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000808,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.1 retry 1",
+      "round": 4,
+      "first": "a",
+      "a": {
+        "value": 30.008568,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008104,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O30.1 answer",
+      "round": 4,
+      "first": "a",
+      "a": {
+        "value": 0.000306,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000296,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.2 retry 1",
+      "round": 4,
+      "first": "b",
+      "a": {
+        "value": 30.004415,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007549,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.2 retry 2",
+      "round": 4,
+      "first": "b",
+      "a": {
+        "value": 30.004242,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.004643,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O30.2 answer",
+      "round": 4,
+      "first": "b",
+      "a": {
+        "value": 0.000324,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000342,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 1",
+      "round": 4,
+      "first": "a",
+      "a": {
+        "value": 30.007462,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.00843,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 2",
+      "round": 4,
+      "first": "a",
+      "a": {
+        "value": 30.003849,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.004202,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 3",
+      "round": 4,
+      "first": "a",
+      "a": {
+        "value": 30.001932,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.001421,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 4",
+      "round": 4,
+      "first": "a",
+      "a": {
+        "value": 30.002123,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.00862,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 5",
+      "round": 4,
+      "first": "a",
+      "a": {
+        "value": 30.004237,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005049,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.1 answer",
+      "round": 4,
+      "first": "a",
+      "a": {
+        "value": 0.000574,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000627,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 1",
+      "round": 4,
+      "first": "b",
+      "a": {
+        "value": 30.007867,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008627,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 2",
+      "round": 4,
+      "first": "b",
+      "a": {
+        "value": 30.004262,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005188,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 3",
+      "round": 4,
+      "first": "b",
+      "a": {
+        "value": 30.001342,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.001836,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 4",
+      "round": 4,
+      "first": "b",
+      "a": {
+        "value": 30.006218,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007839,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 5",
+      "round": 4,
+      "first": "b",
+      "a": {
+        "value": 30.005271,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.006009,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.2 answer",
+      "round": 4,
+      "first": "b",
+      "a": {
+        "value": 0.000685,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000607,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.3 answer",
+      "round": 4,
+      "first": "a",
+      "a": {
+        "value": 0.001258,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.001309,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.4 answer",
+      "round": 4,
+      "first": "b",
+      "a": {
+        "value": 0.00093,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.001039,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.1 retry 1",
+      "round": 5,
+      "first": "b",
+      "a": {
+        "value": 30.007976,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.006795,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O30.1 answer",
+      "round": 5,
+      "first": "b",
+      "a": {
+        "value": 0.000302,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000283,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.2 retry 1",
+      "round": 5,
+      "first": "a",
+      "a": {
+        "value": 30.007181,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007444,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.2 retry 2",
+      "round": 5,
+      "first": "a",
+      "a": {
+        "value": 30.003389,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.004528,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O30.2 answer",
+      "round": 5,
+      "first": "a",
+      "a": {
+        "value": 0.000274,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.00029,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 1",
+      "round": 5,
+      "first": "b",
+      "a": {
+        "value": 30.008612,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008373,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 2",
+      "round": 5,
+      "first": "b",
+      "a": {
+        "value": 30.004674,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.004484,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 3",
+      "round": 5,
+      "first": "b",
+      "a": {
+        "value": 30.002673,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.00192,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 4",
+      "round": 5,
+      "first": "b",
+      "a": {
+        "value": 30.00745,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.006875,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 5",
+      "round": 5,
+      "first": "b",
+      "a": {
+        "value": 30.006281,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.00539,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.1 answer",
+      "round": 5,
+      "first": "b",
+      "a": {
+        "value": 0.000507,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000518,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 1",
+      "round": 5,
+      "first": "a",
+      "a": {
+        "value": 30.002523,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007615,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 2",
+      "round": 5,
+      "first": "a",
+      "a": {
+        "value": 30.004609,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005007,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 3",
+      "round": 5,
+      "first": "a",
+      "a": {
+        "value": 30.002313,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.002433,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 4",
+      "round": 5,
+      "first": "a",
+      "a": {
+        "value": 30.001654,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007833,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 5",
+      "round": 5,
+      "first": "a",
+      "a": {
+        "value": 30.004863,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005026,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.2 answer",
+      "round": 5,
+      "first": "a",
+      "a": {
+        "value": 0.000556,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000632,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.3 answer",
+      "round": 5,
+      "first": "b",
+      "a": {
+        "value": 0.001768,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.001279,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.4 answer",
+      "round": 5,
+      "first": "a",
+      "a": {
+        "value": 0.000826,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000698,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.1 retry 1",
+      "round": 5,
+      "first": "b",
+      "a": {
+        "value": 30.007263,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.003246,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O30.1 answer",
+      "round": 5,
+      "first": "b",
+      "a": {
+        "value": 0.000304,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000268,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.2 retry 1",
+      "round": 5,
+      "first": "a",
+      "a": {
+        "value": 30.006947,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.006881,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.2 retry 2",
+      "round": 5,
+      "first": "a",
+      "a": {
+        "value": 30.004406,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.003075,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O30.2 answer",
+      "round": 5,
+      "first": "a",
+      "a": {
+        "value": 0.000319,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000318,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 1",
+      "round": 5,
+      "first": "b",
+      "a": {
+        "value": 30.007587,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008432,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 2",
+      "round": 5,
+      "first": "b",
+      "a": {
+        "value": 30.003713,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.004685,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 3",
+      "round": 5,
+      "first": "b",
+      "a": {
+        "value": 30.002144,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.001806,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 4",
+      "round": 5,
+      "first": "b",
+      "a": {
+        "value": 30.007155,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008058,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 5",
+      "round": 5,
+      "first": "b",
+      "a": {
+        "value": 30.005293,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005335,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.1 answer",
+      "round": 5,
+      "first": "b",
+      "a": {
+        "value": 0.000498,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000433,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 1",
+      "round": 5,
+      "first": "a",
+      "a": {
+        "value": 30.008399,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008759,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 2",
+      "round": 5,
+      "first": "a",
+      "a": {
+        "value": 30.00479,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.002602,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 3",
+      "round": 5,
+      "first": "a",
+      "a": {
+        "value": 30.002172,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.001578,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 4",
+      "round": 5,
+      "first": "a",
+      "a": {
+        "value": 30.007699,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008467,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 5",
+      "round": 5,
+      "first": "a",
+      "a": {
+        "value": 30.00489,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005642,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.2 answer",
+      "round": 5,
+      "first": "a",
+      "a": {
+        "value": 0.000686,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000587,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.3 answer",
+      "round": 5,
+      "first": "b",
+      "a": {
+        "value": 0.001391,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.001569,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.4 answer",
+      "round": 5,
+      "first": "a",
+      "a": {
+        "value": 0.000524,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.00083,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.1 retry 1",
+      "round": 6,
+      "first": "a",
+      "a": {
+        "value": 30.005816,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.009267,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O30.1 answer",
+      "round": 6,
+      "first": "a",
+      "a": {
+        "value": 0.000341,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.0003,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.2 retry 1",
+      "round": 6,
+      "first": "b",
+      "a": {
+        "value": 30.006818,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007445,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O30.2 retry 2",
+      "round": 6,
+      "first": "b",
+      "a": {
+        "value": 30.004028,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005103,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O30.2 answer",
+      "round": 6,
+      "first": "b",
+      "a": {
+        "value": 0.000298,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000301,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 1",
+      "round": 6,
+      "first": "a",
+      "a": {
+        "value": 30.003855,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007659,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 2",
+      "round": 6,
+      "first": "a",
+      "a": {
+        "value": 30.004816,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.002418,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 3",
+      "round": 6,
+      "first": "a",
+      "a": {
+        "value": 30.0019,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.000982,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 4",
+      "round": 6,
+      "first": "a",
+      "a": {
+        "value": 30.006553,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008004,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.1 retry 5",
+      "round": 6,
+      "first": "a",
+      "a": {
+        "value": 30.004804,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.00518,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.1 answer",
+      "round": 6,
+      "first": "a",
+      "a": {
+        "value": 0.000429,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.00054,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 1",
+      "round": 6,
+      "first": "b",
+      "a": {
+        "value": 30.004083,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007759,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 2",
+      "round": 6,
+      "first": "b",
+      "a": {
+        "value": 30.003579,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005083,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 3",
+      "round": 6,
+      "first": "b",
+      "a": {
+        "value": 30.00135,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.002574,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 4",
+      "round": 6,
+      "first": "b",
+      "a": {
+        "value": 30.006541,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007785,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "retry",
+      "case": "O29.2 retry 5",
+      "round": 6,
+      "first": "b",
+      "a": {
+        "value": 30.005395,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005117,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.2 answer",
+      "round": 6,
+      "first": "b",
+      "a": {
+        "value": 0.00068,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000635,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.3 answer",
+      "round": 6,
+      "first": "a",
+      "a": {
+        "value": 0.001362,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.001277,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "ab",
+      "measure": "answer",
+      "case": "O29.4 answer",
+      "round": 6,
+      "first": "b",
+      "a": {
+        "value": 0.001141,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000719,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.1 retry 1",
+      "round": 6,
+      "first": "a",
+      "a": {
+        "value": 30.007145,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.006878,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O30.1 answer",
+      "round": 6,
+      "first": "a",
+      "a": {
+        "value": 0.000331,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000328,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.2 retry 1",
+      "round": 6,
+      "first": "b",
+      "a": {
+        "value": 30.007296,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007484,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O30.2 retry 2",
+      "round": 6,
+      "first": "b",
+      "a": {
+        "value": 30.005614,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.00446,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O30.2 answer",
+      "round": 6,
+      "first": "b",
+      "a": {
+        "value": 0.000285,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000266,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 1",
+      "round": 6,
+      "first": "a",
+      "a": {
+        "value": 30.008729,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008065,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 2",
+      "round": 6,
+      "first": "a",
+      "a": {
+        "value": 30.003732,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.004268,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 3",
+      "round": 6,
+      "first": "a",
+      "a": {
+        "value": 30.002039,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.000608,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 4",
+      "round": 6,
+      "first": "a",
+      "a": {
+        "value": 30.006967,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.003045,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.1 retry 5",
+      "round": 6,
+      "first": "a",
+      "a": {
+        "value": 30.005874,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005012,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.1 answer",
+      "round": 6,
+      "first": "a",
+      "a": {
+        "value": 0.000558,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000409,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 1",
+      "round": 6,
+      "first": "b",
+      "a": {
+        "value": 30.007662,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.008081,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 2",
+      "round": 6,
+      "first": "b",
+      "a": {
+        "value": 30.004111,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.00463,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 3",
+      "round": 6,
+      "first": "b",
+      "a": {
+        "value": 30.002312,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.001711,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 4",
+      "round": 6,
+      "first": "b",
+      "a": {
+        "value": 30.007992,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.007005,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "retry",
+      "case": "O29.2 retry 5",
+      "round": 6,
+      "first": "b",
+      "a": {
+        "value": 30.001319,
+        "unit": "s"
+      },
+      "b": {
+        "value": 30.005267,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.2 answer",
+      "round": 6,
+      "first": "b",
+      "a": {
+        "value": 0.000626,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.000677,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.3 answer",
+      "round": 6,
+      "first": "a",
+      "a": {
+        "value": 0.00132,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.001765,
+        "unit": "s"
+      }
+    },
+    {
+      "pair": "aa",
+      "measure": "answer",
+      "case": "O29.4 answer",
+      "round": 6,
+      "first": "b",
+      "a": {
+        "value": 0.000933,
+        "unit": "s"
+      },
+      "b": {
+        "value": 0.00083,
+        "unit": "s"
+      }
+    }
+  ]
+}

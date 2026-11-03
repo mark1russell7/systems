@@ -28,6 +28,7 @@ export {
 export type { Replayable, ReplayOptions, Transition } from "./replay.ts";
 export { replay } from "./replay.ts";
 export type {
+  Band,
   Detection,
   Detector,
   Firing,
@@ -35,6 +36,8 @@ export type {
   Manifestation,
   Node,
   Recovery,
+  Scheduled,
+  ScheduleOptions,
   Situation,
   TimerBounds,
 } from "./algebra.ts";
@@ -43,13 +46,16 @@ export {
   detection,
   errnoOf,
   evaluate,
+  firings,
   modelSource,
   overValues,
   parseExpr,
+  probeTrain,
   realizationKnobs,
   realizationOf,
   recovery,
   stackedDetection,
+  timerBand,
   timerOf,
   timerUnder,
   transitionOn,

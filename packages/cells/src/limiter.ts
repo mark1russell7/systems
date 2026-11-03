@@ -1,9 +1,11 @@
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { timerOf } from "@mark1russell7/algebra";
-import type { Cell, DriverStep, LineMatch, Prediction, Target } from "@mark1russell7/harness";
+import type { Cell, DriverStep, LineMatch, Measured, Prediction, Target } from "@mark1russell7/harness";
 import { UNDICI_RETRY } from "@mark1russell7/machines";
+import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
+import { type Arm, checkPairedTime, firstArm, type PairedTime } from "@mark1russell7/rigor-bench";
 import { retryAfterSeconds } from "@mark1russell7/service";
 import { HZ, RUNS, s } from "./catalog.ts";
 import { NODE_IMAGE } from "./http/cells.ts";
@@ -256,19 +258,134 @@ export const pairOf = (text: string, dir: string): readonly [LimiterBuild, Limit
 };
 
 /**
- * This function gives the cells of a pair that `only` selects. They are each spec on the control,
- * then the same specs on the candidate, in the same order. The runner gives cell k of a selection to shard
- * k % n. Thus if n divides the count of specs, the two cells of a spec operate on the same runner,
- * one after the other. The function stops with an error if the halves differ. It also stops if n does not divide them.
+ * This count is the rounds of a pair (SYS-52). Each round runs each arm of the A/B pair and of the
+ * A/A pair once. A run of O29.1 takes approximately 157 s with its warm-up, thus 7 rounds take
+ * approximately 2.5 hours on its runner.
  */
-export const limiterPair = (builds: readonly [LimiterBuild, LimiterBuild], shards: number, only: RegExp = /./): readonly Cell[] => {
-  const [control, candidate] = builds.map((build) =>
-    LIMITER_SPECS.map((spec) => ({ plan: spec.plan, cell: limiterCell(spec, build) })).filter((each) => only.test(each.cell.name)),
-  ) as [{ plan: string; cell: Cell }[], { plan: string; cell: Cell }[]];
-  const plans = (half: { plan: string }[]) => half.map((each) => each.plan).join(",");
-  if (control.length === 0 || plans(control) !== plans(candidate))
-    throw new Error(`the selection takes the specs ${plans(control) || "none"} of the control and ${plans(candidate) || "none"} of the candidate`);
-  if (!Number.isInteger(shards) || shards < 1 || control.length % shards !== 0)
-    throw new Error(`a pair of ${control.length} specs needs a count of shards that divides ${control.length}, and it has ${shards}`);
-  return [...control, ...candidate].map((each) => each.cell);
+export const PAIR_ROUNDS = 7;
+
+/** A pair block is the A/B pair (arm a is the control, arm b is the candidate) or the A/A pair (the control in both arms). */
+export type PairBlock = "ab" | "aa";
+
+/**
+ * A pair slot tells what one cell of a paired run is: its spec, its round, its block and its arm.
+ * The offset is the index of the spec in the selection. `firstArm(round, offset)` of rigor-bench gives
+ * the arm that runs first in the round, thus the order turns each round.
+ */
+export interface PairSlot {
+  readonly plan: string;
+  readonly offset: number;
+  readonly round: number;
+  readonly block: PairBlock;
+  readonly arm: Arm;
+  readonly first: Arm;
+  readonly service: string;
+}
+
+/** A pair cell is one cell of a paired run, with its slot. */
+export interface PairCell {
+  readonly cell: Cell;
+  readonly slot: PairSlot;
+}
+
+/**
+ * This function gives the cells of a paired run of the specs that `only` selects. In each round,
+ * each spec runs the two arms of its A/B pair, then the two arms of its A/A pair. Each arm is a cell
+ * of one run in a new environment. In each pair, `firstArm(round, offset)` gives the arm that runs first.
+ *
+ * The list puts the cells of each step of the rounds in the order of the specs. The runner gives
+ * cell k of a selection to shard k % n. Thus if n divides the count of specs, each cell of a spec
+ * operates on the same runner, in the order of its rounds. The function stops with an error if the
+ * selection takes other specs of the control than of the candidate. It also stops if n does not divide them.
+ */
+export const limiterBench = (builds: readonly [LimiterBuild, LimiterBuild], shards: number, only: RegExp = /./, rounds: number = PAIR_ROUNDS): readonly PairCell[] => {
+  const [control, candidate] = builds;
+  const [ofControl, ofCandidate] = builds.map((build) => LIMITER_SPECS.filter((spec) => only.test(limiterCell(spec, build).name))) as [LimiterSpec[], LimiterSpec[]];
+  const plans = (specs: LimiterSpec[]) => specs.map((spec) => spec.plan).join(",");
+  if (ofControl.length === 0 || plans(ofControl) !== plans(ofCandidate))
+    throw new Error(`the selection takes the specs ${plans(ofControl) || "none"} of the control and ${plans(ofCandidate) || "none"} of the candidate`);
+  if (!Number.isInteger(shards) || shards < 1 || ofControl.length % shards !== 0)
+    throw new Error(`a pair of ${ofControl.length} specs needs a count of shards that divides ${ofControl.length}, and it has ${shards}`);
+  if (!Number.isInteger(rounds) || rounds < 2) throw new Error(`a pair needs 2 rounds or more, and it has ${rounds}`);
+  const armsOf: Readonly<Record<PairBlock, Readonly<Record<Arm, LimiterBuild>>>> = { ab: { a: control, b: candidate }, aa: { a: control, b: control } };
+  const steps = Array.from({ length: rounds }, (_, round) => round).flatMap((round) =>
+    (["ab", "aa"] as const).flatMap((block) => [0, 1].map((order) => ({ round, block, order }))),
+  );
+  return steps.flatMap(({ round, block, order }) =>
+    ofControl.map((spec, offset) => {
+      const first = firstArm(round, offset);
+      const arm: Arm = order === 0 ? first : first === "a" ? "b" : "a";
+      const build = armsOf[block][arm];
+      const base = limiterCell(spec, build);
+      const slot: PairSlot = { plan: spec.plan, offset, round, block, arm, first, service: build.service };
+      const name = `${base.name} (${block === "ab" ? "A/B" : "A/A"} round ${round + 1}, arm ${arm})`;
+      return { cell: { ...base, name, runs: 1, environments: 1 }, slot };
+    }),
+  );
+};
+
+/** A measure of a pair: the delay of a retry after the refusal before it, or the time of the answer that ends the cell. */
+export type PairMeasure = "retry" | "answer";
+
+/** A bench time is one time of one run of a pair cell: its case (the spec and the band), its measure and the time. */
+export interface BenchTime {
+  readonly case: string;
+  readonly measure: PairMeasure;
+  readonly time: Quantity;
+}
+
+/**
+ * This function gives the times of one run of a spec, one for each band of its prediction. A case is a
+ * spec and a band. For the RetryAgent, the first band and each later retry are the measure `retry`,
+ * and the end of the cell is the measure `answer`. For a client that does not retry, the 429 is the
+ * measure `answer`. A void run gives no time. A band whose line did not come gives no time.
+ */
+export const benchTimes = (spec: LimiterSpec, run: Measured): readonly BenchTime[] => {
+  if (run.void !== null) return [];
+  const times: BenchTime[] = [];
+  if (spec.client !== "undici-retry") {
+    if (run.elapsed !== null) times.push({ case: `${spec.plan} answer`, measure: "answer", time: run.elapsed });
+    return times;
+  }
+  const retries = retryPlan(spec.window).delays.length;
+  if (run.elapsed !== null) times.push({ case: `${spec.plan} retry 1`, measure: "retry", time: run.elapsed });
+  (run.driver?.steps ?? []).forEach((step, at) => {
+    if (step.elapsed === null) return;
+    const retry = at < retries - 1;
+    times.push(retry ? { case: `${spec.plan} retry ${at + 2}`, measure: "retry", time: step.elapsed } : { case: `${spec.plan} answer`, measure: "answer", time: step.elapsed });
+  });
+  return times;
+};
+
+/** A paired line is one PairedTime of rigor-bench in the records of a run: its pair, its measure, and each time as an amount. */
+export interface PairedLine {
+  readonly pair: PairBlock;
+  readonly measure: PairMeasure;
+  readonly case: string;
+  readonly round: number;
+  readonly first: Arm;
+  readonly a: Quantity;
+  readonly b: Quantity;
+}
+
+/** This function gives the PairedTime of rigor-bench of a paired line, in seconds. `checkPairedTime` refuses a time that is not above 0. */
+export const pairedTimeOf = (line: PairedLine): PairedTime =>
+  checkPairedTime({ case: line.case, round: line.round, first: line.first, a: valueIn(line.a, "s"), b: valueIn(line.b, "s") });
+
+/**
+ * This function gives the paired lines of the two arms of one pair in one round: a line for each case
+ * that each arm timed. It stops with an error if the two slots are not the two arms of one pair.
+ */
+export const pairedLines = (one: { readonly slot: PairSlot; readonly times: readonly BenchTime[] }, two: { readonly slot: PairSlot; readonly times: readonly BenchTime[] }): readonly PairedLine[] => {
+  const [a, b] = one.slot.arm === "a" ? [one, two] : [two, one];
+  const same = (key: keyof PairSlot) => a.slot[key] === b.slot[key];
+  if (!same("plan") || !same("round") || !same("block") || !same("first") || a.slot.arm !== "a" || b.slot.arm !== "b")
+    throw new Error(`the slots ${JSON.stringify(one.slot)} and ${JSON.stringify(two.slot)} are not the two arms of one pair`);
+  return a.times.flatMap((time) => {
+    const other = b.times.find((each) => each.case === time.case);
+    if (other === undefined) return [];
+    const line: PairedLine = { pair: a.slot.block, measure: time.measure, case: time.case, round: a.slot.round, first: a.slot.first, a: time.time, b: other.time };
+    pairedTimeOf(line);
+    return [line];
+  });
 };
