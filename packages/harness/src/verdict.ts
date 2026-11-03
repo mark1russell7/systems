@@ -1,6 +1,6 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
-import { median as middle, quantileSorted } from "@mark1russell7/rigor-statistics";
+import { medianInterval as intervalOfMedian, median as middle, quantileSorted } from "@mark1russell7/rigor-statistics";
 import type { Prediction, Run, Stage } from "./cell.ts";
 import type { Measured, Reordering } from "./observe.ts";
 
@@ -260,28 +260,15 @@ const spreadWords = (spread: Spread | null): string => {
   return `median ${ms(spread.median)} ms, p99 ${ms(spread.p99)} ms, p99.9 ${ms(spread.p999)} ms, max ${ms(spread.max)} ms of ${spread.count}`;
 };
 
-/** This function gives P(X ≤ j) for X ~ Binomial(n, 1/2), exactly. */
-const below = (n: number, j: number): number => {
-  let term = 1;
-  let sum = 0;
-  for (let i = 0; i <= j; i += 1) {
-    sum += term;
-    term = (term * (n - i)) / (i + 1);
-  }
-  return sum / 2 ** n;
-};
-
 /**
  * This function gives the distribution-free interval of a median: [x_(k), x_(n+1−k)], for the
  * largest k whose two tails each hold 2.5 % or less. For eleven runs, it gives [x_(2), x_(10)],
- * at 98.8 %.
+ * at 98.8 %. It is `medianInterval` of @mark1russell7/rigor-statistics at the level 0.95. An
+ * empty list throws a RangeError.
  */
-// TODO(npm): use medianInterval of @mark1russell7/rigor-statistics 0.1.3 (mark1russell7/rigor#17) after its release.
 export const medianInterval = (sorted: readonly number[]): [number, number] => {
-  const n = sorted.length;
-  let k = 0;
-  while (k + 1 <= n / 2 && below(n, k) <= 0.025) k += 1;
-  return k === 0 ? [sorted[0]!, sorted[n - 1]!] : [sorted[k - 1]!, sorted[n - k]!];
+  const interval = intervalOfMedian(sorted, 0.95);
+  return [interval.low, interval.high];
 };
 
 /**

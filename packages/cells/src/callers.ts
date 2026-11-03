@@ -6,6 +6,7 @@ import { LINUX_TCP } from "@mark1russell7/machines";
 import { recoverSpan } from "@mark1russell7/service";
 import type { Extent, Quantity } from "@mark1russell7/quantity";
 import { isUnbounded, valueIn } from "@mark1russell7/quantity";
+import { binomialInterval, negativeBinomialInterval } from "@mark1russell7/rigor-statistics";
 import type { SessionCheckKnobs } from "@mark1russell7/service/http-client";
 import { LINUX_66, given, seconds } from "./catalog.ts";
 import { CHART_READINESS, DESIGN, DESIGN_REDIS, PROPAGATION, T07_WORKLOAD, WORKERS, kubeDefaults, ms, s, say } from "./kind.ts";
@@ -223,24 +224,15 @@ const time = (value: number): Quantity => s(Math.round(value * 1e6) / 1e6);
  * count of connections of each client. In turn, each client puts half of its connections on each
  * replica. The first pick of each node is not known, thus an odd count gives the floor to the
  * ceiling of the half. At random, the count is binomial, and the band is the central band that has
- * the chance `COVER` at the least. A lost zone has fewer clients (`clients`): no client is in the lost zone.
+ * the chance `COVER` at the least. It is `binomialInterval` of @mark1russell7/rigor-statistics. A
+ * lost zone has fewer clients (`clients`): no client is in the lost zone.
  */
-// TODO(npm): use binomialInterval of @mark1russell7/rigor-statistics 0.1.3 (mark1russell7/rigor#17) after its release.
 export const targetConnections = (mode: Dataplane, each: number = CONNECTIONS, clients: number = CLIENTS): Connections => {
   const total = clients * each;
   if (SELECTION[mode] === "in turn")
     return { lo: connections(clients * Math.floor(each / REPLICAS)), hi: connections(clients * Math.ceil(each / REPLICAS)), of: connections(total) };
-  const p = 1 / REPLICAS;
-  const choose = (k: number): number => (k === 0 ? 1 : (choose(k - 1) * (total - k + 1)) / k);
-  const chance = Array.from({ length: total + 1 }, (_, k) => choose(k) * p ** k * (1 - p) ** (total - k));
-  const below = (k: number): number => chance.slice(0, k).reduce((sum, each) => sum + each, 0);
-  const above = (k: number): number => chance.slice(k + 1).reduce((sum, each) => sum + each, 0);
-  const tail = (1 - COVER) / 2;
-  let lo = 0;
-  while (below(lo + 1) <= tail) lo += 1;
-  let hi = total;
-  while (above(hi - 1) <= tail) hi -= 1;
-  return { lo: connections(lo), hi: connections(hi), of: connections(total) };
+  const band = binomialInterval(total, 1 / REPLICAS, COVER);
+  return { lo: connections(band.low), hi: connections(band.high), of: connections(total) };
 };
 
 /** This function tells if a candidate operates on HTTP/2: C and D. The session check of D is in the client. Thus the server of D is the server of C. */
@@ -338,19 +330,11 @@ const inTurn = (each: number): { readonly lo: number; readonly hi: number; reado
 /**
  * This function gives the central band of a negative binomial count, with the chance `COVER` at
  * the least. The count is the failures before `successes` successes, with the chance `p` of each.
+ * It is `negativeBinomialInterval` of @mark1russell7/rigor-statistics.
  */
-// TODO(npm): use negativeBinomialInterval of @mark1russell7/rigor-statistics 0.1.3 (mark1russell7/rigor#17) after its release.
 export const negativeBinomial = (successes: number, p: number): { readonly lo: number; readonly hi: number } => {
-  const tail = (1 - COVER) / 2;
-  let chance = p ** successes;
-  let below = 0;
-  let lo = 0;
-  for (let k = 0; ; k += 1) {
-    if (below <= tail) lo = k;
-    if (below + chance >= 1 - tail) return { lo, hi: k };
-    below += chance;
-    chance *= ((k + successes) / (k + 1)) * (1 - p);
-  }
+  const band = negativeBinomialInterval(successes, p, COVER);
+  return { lo: band.low, hi: band.high };
 };
 
 /**
