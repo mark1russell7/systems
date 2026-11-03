@@ -16,7 +16,7 @@ import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { median } from "@mark1russell7/rigor-statistics";
-import type { Cell, Hop, Manifest, Measured, ProxyHop, Run, Verdict } from "../../harness/src/index.ts";
+import type { Cell, FaultPlace, Hop, Manifest, Measured, ProxyHop, Run, Verdict } from "../../harness/src/index.ts";
 import { judge, measure, NOISE } from "../../harness/src/index.ts";
 import { duration } from "../src/lib/format.ts";
 
@@ -123,6 +123,7 @@ const PRODUCTS: Readonly<Record<string, string>> = {
 const hopOf = (hop: Hop) => {
   if (hop.kind === "router")
     return { name: hop.name, kind: hop.kind, form: hop.form, idle: secondsOf(hop.idle), product: null, mode: null, settings: [], sysctls: [] };
+  if (typeof hop.image !== "string") throw new Error(`no product for the image of the hop ${hop.name}: it is not a stock image`);
   const image = hop.image.replace(/@.*$/, "");
   const product = PRODUCTS[image];
   if (product === undefined) throw new Error(`no product for the image ${image}`);
@@ -131,7 +132,7 @@ const hopOf = (hop: Hop) => {
   return { name: hop.name, kind: hop.kind, form: null, idle: null, product, mode, settings: entries(hop.settings), sysctls: changed(hop.sysctls) };
 };
 
-type Place = "client" | "target" | { readonly hop: string; readonly toward: "client" | "target" | null };
+type Place = FaultPlace | { readonly hop: string; readonly toward: null };
 
 /** This function gives the place of the fault of a cell: an end, a hop, or one side of a hop. */
 const placeOf = (cell: Cell): Place => {
@@ -260,6 +261,8 @@ const whyOf = (cell: Cell, verdict: Verdict, measured: readonly Measured[]): str
     return `The median is ${time(median ?? 0)} from ${FROM[p.from] ?? p.from}, and the counted runs measured ${time(times[0] ?? 0)} to ${time(times.at(-1) ?? 0)}.`;
   }
   if (verdict.band === null) {
+    // a detection has no band only if no run counted, and it has no window
+    if (p.detects) return "No run counted.";
     const detected = verdict.outside.length;
     return detected === 0
       ? `Nothing detected the fault in the ${counted.length} counted runs, each of ${time(secondsOf(p.window)!)}.`

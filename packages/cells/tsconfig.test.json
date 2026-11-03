@@ -6,6 +6,6 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src/**/*"],
-  "exclude": ["src/backlog.test.ts", "src/kind-catalog.test.ts", "src/limiter.test.ts", "src/mongo/harness.test.ts"]
+  "include": ["src/**/*", "*.config.ts"],
+  "exclude": []
 }
