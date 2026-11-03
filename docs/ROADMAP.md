@@ -1866,7 +1866,7 @@ Five cells put the idle close of Redis against the keepalive of the kernel, both
 - **Depends on:**
 - **Started:** 2026-10-18
 - **Shipped:**
-- **Links:** [#88](https://github.com/mark1russell7/systems/pull/88), [#89](https://github.com/mark1russell7/systems/pull/89)
+- **Links:** [#88](https://github.com/mark1russell7/systems/pull/88), [#89](https://github.com/mark1russell7/systems/pull/89), [#298](https://github.com/mark1russell7/systems/pull/298)
 
 Each week, one round makes the site and the tracker easier to read, with a visual where it makes a result clear (Mark, 2026-10-18).
 
