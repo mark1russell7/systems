@@ -97,6 +97,11 @@ const upgradeBacklog = (backlog: NonNullable<WindowPrediction<number>["backlog"]
   return { ...rest, drain: band(backlog.drain), ...(slowest === undefined ? {} : { slowest: seconds(slowest) }) };
 };
 
+const upgradePermits = (permits: NonNullable<WindowPrediction<number>["permits"]>): NonNullable<WindowPrediction["permits"]> => {
+  const { watch, ...rest } = permits;
+  return { ...rest, band: band(permits.band), ...(watch === undefined ? {} : { watch: seconds(watch) }) };
+};
+
 const upgradeWindow = (window: WindowPrediction<number>): WindowPrediction => {
   const { afterReset, propagation, backlog, permits, ...rest } = window;
   return {
@@ -107,7 +112,7 @@ const upgradeWindow = (window: WindowPrediction<number>): WindowPrediction => {
     ...(propagation === undefined ? {} : { propagation: band(propagation) }),
     ...(backlog === undefined ? {} : { backlog: upgradeBacklog(backlog) }),
     // the format /1 has no permitted window, but its type does
-    ...(permits === undefined ? {} : { permits: { ...permits, band: band(permits.band) } }),
+    ...(permits === undefined ? {} : { permits: upgradePermits(permits) }),
   };
 };
 

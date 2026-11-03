@@ -81,9 +81,35 @@ export {
   vipOf,
   vipServed,
 } from "./kubevip.ts";
+export type { VipAnnouncer, VipService } from "./announcer.ts";
+export { KUBE_VIP_ANNOUNCER, METALLB_ANNOUNCER, announcerOf, macsAt } from "./announcer.ts";
+export type { PinnedChart } from "./helm.ts";
+export { ensurePinnedChart, helmInstall } from "./helm.ts";
+export type { Announcement, MetallbImages } from "./metallb.ts";
+export {
+  ANNOUNCE_ANNOTATION,
+  MEMBERLIST,
+  METALLB_ANNOTATION,
+  METALLB_CHART,
+  METALLB_IMAGES,
+  METALLB_NAMESPACE,
+  METALLB_POOL,
+  METALLB_SPAM,
+  METALLB_VERSION,
+  announcementsOf,
+  holdMetallb,
+  installMetallb,
+  metallbObjects,
+  metallbRecord,
+  metallbValues,
+  metallbVipOf,
+  ownerOrder,
+  speakersReady,
+  suspicionOf,
+} from "./metallb.ts";
 export type { ListenerCounts } from "./lds.ts";
 export { LDS_FILTER, listenerCountsOf } from "./lds.ts";
-export { KEPT_KERNEL, keptKernel, localPin, openKindLab } from "./lab.ts";
+export { KEPT_KERNEL, arpMacOf, keptKernel, localPin, openKindLab } from "./lab.ts";
 export { REDIS_IMAGE, clientObjects, namespaceObject, namespaceOf, probeOf, redisObjects, serverObjects, stackOf, vipService } from "./manifests.ts";
 export type { DeletionWindow, LearnWindow, NodeLifecycle, Propagation } from "./predict.ts";
 export {

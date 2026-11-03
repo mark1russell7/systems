@@ -3,6 +3,8 @@ import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { KindCell, KubeletProbe, MeshMode, Stack } from "./cell.ts";
 import { CLIENT, HEALTH_PORT, LOG_LABEL, PORT, REDIS, SERVER } from "./names.ts";
+import type { VipService } from "./announcer.ts";
+import { announcerOf } from "./announcer.ts";
 import { LB_CLASS, VIP_ANNOTATION } from "./names.ts";
 import { ZONE_LABEL, ZONE_LOST } from "./scenario.ts";
 
@@ -177,16 +179,23 @@ const keptZone = {
 };
 
 /**
- * This function gives the Service of a VIP (`kubevip.ts`). It is of type LoadBalancer, with the
- * class of kube-vip and the address of the VIP in its annotation. The policy `Cluster` lets each node
+ * This function gives the Service of a VIP (`announcer.ts`). It is of type LoadBalancer, with the
+ * class of its announcer, if the announcer has one. The annotation of the announcer has the address
+ * of the VIP. Without `service`, the announcer is kube-vip. The policy `Cluster` lets each node
  * send a request to a replica on another node. The holder writes the address to the status of the
  * Service. Then kube-proxy has the rules of the address on each node.
  */
-export const vipService = (namespace: string, vip: string, ports: readonly unknown[]): unknown => ({
+export const vipService = (namespace: string, vip: string, ports: readonly unknown[], service: VipService = { loadBalancerClass: LB_CLASS, annotation: VIP_ANNOTATION }): unknown => ({
   apiVersion: "v1",
   kind: "Service",
-  metadata: { name: SERVER, namespace, annotations: { [VIP_ANNOTATION]: vip } },
-  spec: { type: "LoadBalancer", loadBalancerClass: LB_CLASS, externalTrafficPolicy: "Cluster", selector: { app: SERVER }, ports },
+  metadata: { name: SERVER, namespace, annotations: { [service.annotation]: vip } },
+  spec: {
+    type: "LoadBalancer",
+    ...(service.loadBalancerClass === null ? {} : { loadBalancerClass: service.loadBalancerClass }),
+    externalTrafficPolicy: "Cluster",
+    selector: { app: SERVER },
+    ports,
+  },
 });
 
 /**
@@ -194,7 +203,7 @@ export const vipService = (namespace: string, vip: string, ports: readonly unkno
  * settings of the cell. The image is the lab image for the service, or the image of grpc-go.
  *
  * With a VIP (`KindCell.vip`), the Service is of type LoadBalancer, with the address `vip` and the
- * class of kube-vip (`vipService`). No replica is in the lost zone. Thus a zone loss takes away
+ * class of its announcer (`vipService`). No replica is in the lost zone. Thus a zone loss takes away
  * only the holder of the VIP.
  */
 export const serverObjects = (cell: KindCell, namespace: string, image: string, version = 1, vip: string | null = null): unknown[] => {
@@ -206,7 +215,7 @@ export const serverObjects = (cell: KindCell, namespace: string, image: string, 
   return [
     vip === null
       ? { apiVersion: "v1", kind: "Service", metadata: { name: SERVER, namespace }, spec: { selector: { app: SERVER }, ports } }
-      : vipService(namespace, vip, ports),
+      : vipService(namespace, vip, ports, announcerOf(cell).service),
     {
       apiVersion: "apps/v1",
       kind: "Deployment",

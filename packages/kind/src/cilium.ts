@@ -1,8 +1,7 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import type { Cluster } from "./cluster.ts";
-import { command } from "./cluster.ts";
-import { HELM, cacheFolder, download, ensureTool, sha256 } from "./tools.ts";
+import type { PinnedChart } from "./helm.ts";
+import { ensurePinnedChart, helmInstall } from "./helm.ts";
+import { cacheFolder } from "./tools.ts";
 
 /**
  * This module installs Cilium 1.20.4 in a kind cluster with Helm, from images pinned by digest.
@@ -14,7 +13,9 @@ import { HELM, cacheFolder, download, ensureTool, sha256 } from "./tools.ts";
 export const CILIUM_VERSION = "1.20.4";
 
 /** This chart is the Helm chart of Cilium 1.20.4. The sha256 is of the file on `helm.cilium.io` (read on 2026-10-27). */
-export const CILIUM_CHART: { readonly url: string; readonly sha256: string } = {
+export const CILIUM_CHART: PinnedChart = {
+  name: "cilium",
+  version: CILIUM_VERSION,
   url: "https://helm.cilium.io/cilium-1.20.4.tgz",
   sha256: "505abff8385811df1a949776fc42e9f10697989a332acc86d6e8933efcb855ed",
 };
@@ -71,17 +72,7 @@ export const ciliumValues = (clusterName: string, images: CiliumImages): Record<
 export const CILIUM_WORKLOADS: readonly string[] = ["daemonset/cilium", "deployment/cilium-operator", "daemonset/cilium-envoy"];
 
 /** This function gives the path of the chart in the cache, after a download when the cache does not have it. It refuses a file whose sha256 is not the pinned value. */
-export const ensureChart = async (cache: string = cacheFolder()): Promise<string> => {
-  const path = join(cache, "charts", `cilium-${CILIUM_VERSION}.tgz`);
-  const bytes = existsSync(path) ? readFileSync(path) : await download(CILIUM_CHART.url);
-  const found = sha256(bytes);
-  if (found !== CILIUM_CHART.sha256) throw new Error(`the chart of Cilium has the sha256 ${found}, not the pinned ${CILIUM_CHART.sha256}`);
-  if (!existsSync(path)) {
-    mkdirSync(join(cache, "charts"), { recursive: true });
-    writeFileSync(path, bytes);
-  }
-  return path;
-};
+export const ensureChart = (cache: string = cacheFolder()): Promise<string> => ensurePinnedChart(CILIUM_CHART, cache);
 
 /**
  * This function installs Cilium in a cluster with no CNI and no kube-proxy. Helm keeps its own
@@ -90,14 +81,8 @@ export const ensureChart = async (cache: string = cacheFolder()): Promise<string
  * lines of the log of the agent.
  */
 export const installCilium = async (cluster: Cluster, images: CiliumImages): Promise<void> => {
-  const helm = await ensureTool(HELM);
-  const chart = await ensureChart();
-  const file = join(cluster.dir, "cilium-values.json");
-  writeFileSync(file, `${JSON.stringify(ciliumValues(cluster.scenario.name, images), null, 2)}\n`);
-  const home = join(cluster.dir, "helm");
-  const env = { HELM_CACHE_HOME: join(home, "cache"), HELM_CONFIG_HOME: join(home, "config"), HELM_DATA_HOME: join(home, "data") };
   try {
-    await command(helm, ["install", "cilium", chart, "-n", "kube-system", "--kubeconfig", cluster.kubeconfig, "-f", file, "--wait", "--timeout", "10m"], { env, timeout: 900_000 });
+    await helmInstall(cluster, "cilium", CILIUM_CHART, "kube-system", ciliumValues(cluster.scenario.name, images));
     for (const workload of CILIUM_WORKLOADS) await cluster.kubectl(["-n", "kube-system", "rollout", "status", workload, "--timeout=300s"]);
     await cluster.kubectl(["wait", "--for=condition=Ready", "nodes", "--all", "--timeout=300s"]);
     await cluster.kubectl(["-n", "kube-system", "rollout", "status", "deployment/coredns", "--timeout=300s"]);
