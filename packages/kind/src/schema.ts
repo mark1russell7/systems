@@ -215,7 +215,13 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     prediction,
     calibrates: z.boolean(),
     runs: count,
-    vip: z.object({ clients: count, announcer: z.enum(["kube-vip", "metallb"]).optional() }).optional(),
+    vip: z
+      .object({
+        clients: count,
+        announcer: z.enum(["kube-vip", "metallb"]).optional(),
+        memberlist: z.object({ probeInterval: time, probeTimeout: time, suspicionMult: count }).optional(),
+      })
+      .optional(),
   });
   const facts = z.object({
     failures: count,

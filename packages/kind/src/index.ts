@@ -89,6 +89,7 @@ export type { Announcement, MetallbImages } from "./metallb.ts";
 export {
   ANNOUNCE_ANNOTATION,
   MEMBERLIST,
+  MEMBERLIST_FILE,
   METALLB_ANNOTATION,
   METALLB_CHART,
   METALLB_IMAGES,
@@ -99,6 +100,8 @@ export {
   announcementsOf,
   holdMetallb,
   installMetallb,
+  memberlistFileOf,
+  memberlistTermsOf,
   metallbObjects,
   metallbRecord,
   metallbValues,
@@ -131,7 +134,7 @@ export {
 export type { Verdicts } from "./rules.ts";
 export { DRAIN_RULES, O04, O09, O10, O16, describeCell, lintCell, scenarioOf, stopOf, verdictsOf } from "./rules.ts";
 export type { RunOptions } from "./run.ts";
-export { RULES_EVERY, estimatedTime, runKindCells, shardOf, writeResult } from "./run.ts";
+export { RULES_EVERY, clusterNameOf, estimatedTime, runKindCells, shardOf, writeResult } from "./run.ts";
 export type { KindConfig, KindScenario, NodeImage } from "./scenario.ts";
 export {
   DATAPLANES,

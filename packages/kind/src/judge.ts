@@ -32,6 +32,7 @@ export type {
   TriggerKind,
   VipAnnouncerName,
   VipSettings,
+  MemberlistSettings,
   WindowPrediction,
   Workload,
 } from "./cell.ts";

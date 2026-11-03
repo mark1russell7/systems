@@ -16,6 +16,7 @@ import { HBONE_PORT } from "./observe.ts";
  *   its network namespace only, with each client pod as a peer: the partition of one replica.
  * - `redis` is the Redis pod.
  * - `kube-proxy` is kube-proxy on the first worker.
+ * - `speaker` is the speaker of MetalLB on the owner of the VIP (SYS-57). Only a signal takes it.
  * - `servers` is each replica of the service. Only the injector, a middlebox and a sysctl take it.
  *   Each one acts in the network namespace of each replica, with each client pod as a peer. A REJECT
  *   resets only the sender of the segment that it matches, thus the rule goes where the segments of
@@ -23,7 +24,7 @@ import { HBONE_PORT } from "./observe.ts";
  * - `clients` is the process of each client pod. Only a signal, a sysctl and a drop of DNS take it.
  *   They are the gap of `idle`, a sysctl of the namespace of each client pod, and `dns-blackhole`.
  */
-export type Target = "server" | "redis" | "kube-proxy" | "servers" | "clients";
+export type Target = "server" | "redis" | "kube-proxy" | "servers" | "clients" | "speaker";
 
 /** A step is one act of a fault, in the sequence of the plan. */
 export type Step =
@@ -391,6 +392,15 @@ const stepsOf = (cell: KindCell): FaultPlan => {
       // the container that the kubelet starts again has a new /tmp, thus the flag ends with it
       return { inject: [{ do: "flag", target: "server", on: true }], hold: null, heal: [], restore: [] };
     case "freeze-process":
+      // a cell with a VIP freezes the speaker of the owner, with no other fault (SYS-57). Each flap is one more pause
+      if (cell.vip !== undefined) {
+        return {
+          inject: [{ do: "signal", target: "speaker", signal: "SIGSTOP" }],
+          hold: needs(trigger.hold, "a hold, the time that the speaker is frozen"),
+          heal: [{ do: "signal", target: "speaker", signal: "SIGCONT" }],
+          restore: [{ do: "signal", target: "speaker", signal: "SIGCONT" }],
+        };
+      }
       if (cell.template === "T07") {
         return {
           inject: [
@@ -579,7 +589,7 @@ const stepsOf = (cell: KindCell): FaultPlan => {
 /** This function tells if a trigger stops a pod of the service with its grace: a deletion, an eviction, a scale-in or a rollout. */
 export const deletes = (cell: KindCell): boolean =>
   ["pod-deletion", "rolling-update", "node-drain", "scale-in"].includes(cell.trigger.kind) ||
-  (cell.template === "T07" && cell.trigger.kind === "freeze-process");
+  (cell.template === "T07" && cell.trigger.kind === "freeze-process" && cell.vip === undefined);
 
 /** These are the names of the objects of a cell that a plan names. */
 export const OBJECTS: { readonly server: typeof SERVER; readonly client: typeof CLIENT; readonly redis: typeof REDIS } = {

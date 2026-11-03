@@ -1,5 +1,5 @@
-import type { KindCell, Workload } from "@mark1russell7/kind";
-import { MEMBERLIST, suspicionOf } from "@mark1russell7/kind";
+import type { KindCell, MemberlistSettings, Workload } from "@mark1russell7/kind";
+import { memberlistTermsOf, suspicionOf } from "@mark1russell7/kind";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import { DESIGN, WORKERS, kubeDefaults, s, say } from "./kind.ts";
@@ -66,6 +66,18 @@ export interface MetallbPrediction {
 }
 
 /**
+ * These are the terms of a law of MetalLB that a cell can change (SYS-57):
+ * - `memberlist` is the settings of memberlist. Without it, each term is the default of `DefaultLANConfig`.
+ * - `ticks` is the most probe intervals from the act to the first failed probe. The law of SYS-53
+ *   has 1. The later law has 2, because a tick after the shuffle of the members can probe no node
+ *   (state.go, lines 232–274).
+ */
+export interface MetallbTerms {
+  readonly memberlist?: MemberlistSettings | undefined;
+  readonly ticks?: 1 | 2 | undefined;
+}
+
+/**
  * This function gives the bands of the loss of the announcer of a VIP of MetalLB from the terms of the module:
  * - The first failure is the first request after the drops, up to one interval and the act later.
  * - The first failed probe starts from the fault, up to the act and one probe interval later.
@@ -75,33 +87,45 @@ export interface MetallbPrediction {
  *   permitted failures are up to the setup after the heal. The record goes on past the band of the
  *   gratuitous ARP from the fault, because the thawed speaker rejoins memberlist.
  */
-export const metallbOf = (workload: Workload, hold: Quantity, speakers = SPEAKERS): MetallbPrediction => {
+export const metallbOf = (workload: Workload, hold: Quantity, speakers = SPEAKERS, terms: MetallbTerms = {}): MetallbPrediction => {
+  const memberlist = memberlistTermsOf(terms.memberlist);
+  const ticks = terms.ticks ?? 1;
   const every = valueIn(workload.every, "s");
-  const interval = valueIn(MEMBERLIST.probeInterval, "s");
-  const suspicion = valueIn(suspicionOf(speakers), "s");
+  const interval = valueIn(memberlist.probeInterval, "s");
+  const suspicion = valueIn(suspicionOf(speakers, memberlist), "s");
   const setup = valueIn(VIP_SETUP, "s");
   const act = valueIn(VIP_ACT, "s");
-  const probe = { lo: s(0), hi: time(act + interval) };
+  const probe = { lo: s(0), hi: time(act + ticks * interval) };
   const dead = { lo: time(interval + suspicion), hi: time(valueIn(probe.hi, "s") + interval + suspicion) };
   const arp = { lo: dead.lo, hi: time(valueIn(dead.hi, "s") + setup) };
   if (valueIn(hold, "s") <= valueIn(arp.hi, "s") + valueIn(workload.timeout, "s"))
     throw new RangeError(`the hold of the loss of a VIP is more than ${say(arp.hi)} and the timeout, not ${say(hold)}`);
   const start = { lo: s(0), hi: time(every + act) };
   const end = { lo: time(valueIn(dead.lo, "s") - every), hi: arp.hi };
-  const naiveSuspicion = MEMBERLIST.suspicionMult * Math.log10(speakers + 1) * interval;
+  const naiveSuspicion = memberlist.suspicionMult * Math.log10(speakers + 1) * interval;
   const naive = { lo: time(interval + naiveSuspicion), hi: time(2 * interval + naiveSuspicion) };
   const thaw = { lo: s(0), hi: VIP_SETUP };
   const watch = time(Math.ceil(valueIn(arp.hi, "s") + valueIn(workload.timeout, "s") + 2));
-  const why = `${VIP_CLIENTS} clients outside the cluster call the VIP of MetalLB, on a new connection each ${say(workload.every)}. The zone loss freezes the speaker that answers ARP for the VIP. Thus each request from the fault fails at its timeout of ${say(workload.timeout)}. The other speaker probes the lost node each ${say(MEMBERLIST.probeInterval)}. A probe fails at its deadline, and the node is suspect. With ${speakers} members no peer can confirm, thus the node is dead ${say(suspicionOf(speakers))} later, ${say(dead.lo)}–${say(dead.hi)} after the fault. The new owner sends its first gratuitous ARP at once, up to ${say(VIP_SETUP)} later. Thus the last failure starts ${say(end.lo)}–${say(end.hi)} after the fault. The naive law, 4 × log10(n + 1) × ProbeInterval, gives the death ${say(naive.lo)}–${say(naive.hi)} after the fault`;
+  const why = `${VIP_CLIENTS} clients outside the cluster call the VIP of MetalLB, on a new connection each ${say(workload.every)}. The zone loss freezes the speaker that answers ARP for the VIP. Thus each request from the fault fails at its timeout of ${say(workload.timeout)}. The other speaker probes the lost node each ${say(memberlist.probeInterval)}${ticks === 2 ? ", and a tick with no probe can come first" : ""}. A probe fails at its deadline, and the node is suspect. With ${speakers} members no peer can confirm, thus the node is dead ${say(suspicionOf(speakers, memberlist))} later, ${say(dead.lo)}–${say(dead.hi)} after the fault. The new owner sends its first gratuitous ARP at once, up to ${say(VIP_SETUP)} later. Thus the last failure starts ${say(end.lo)}–${say(end.hi)} after the fault. The naive law, 4 × log10(n + 1) × ProbeInterval, gives the death ${say(naive.lo)}–${say(naive.hi)} after the fault`;
   return { start, probe, dead, naive, arp, end, thaw, watch, why };
 };
 
-/** This function gives the cell of the loss of the announcer of a VIP of MetalLB. */
-const metallbCellOf = (): KindCell => {
-  const predicted = metallbOf(VIP_WORKLOAD, VIP_HOLD);
+/** This function gives the tag of settings of memberlist in the id of a cell, for example `i500-m2`: the probe interval in ms and the multiplier. */
+export const settingsTag = (settings: MemberlistSettings): string => `i${valueIn(settings.probeInterval, "ms")}-m${settings.suspicionMult}`;
+
+/**
+ * This function gives the cell of the loss of the announcer of a VIP of MetalLB. Without settings, it
+ * is the cell of SYS-53, with its law. With settings of memberlist (SYS-57), the install writes them
+ * to the config file of memberlist, and the law is the later law of SYS-53 (`ticks` 2).
+ */
+export const metallbCellOf = (settings?: MemberlistSettings): KindCell => {
+  const predicted = metallbOf(VIP_WORKLOAD, VIP_HOLD, SPEAKERS, settings === undefined ? {} : { memberlist: settings, ticks: 2 });
   return {
-    id: "S2.T07.iptables.metallb.zone-loss",
-    name: "T07 iptables, MetalLB loses the announcer of its VIP: clients outside the cluster",
+    id: settings === undefined ? "S2.T07.iptables.metallb.zone-loss" : `S2.T07.iptables.metallb.zone-loss.${settingsTag(settings)}`,
+    name:
+      settings === undefined
+        ? "T07 iptables, MetalLB loses the announcer of its VIP: clients outside the cluster"
+        : `T07 iptables, MetalLB detection ${say(settings.probeInterval)} x ${settings.suspicionMult} loses the announcer of its VIP: clients outside the cluster`,
     template: "T07",
     substitutes: null,
     mode: "iptables",
@@ -110,7 +134,7 @@ const metallbCellOf = (): KindCell => {
     declaration: DESIGN,
     workload: VIP_WORKLOAD,
     trigger: { kind: "zone-loss", hold: VIP_HOLD },
-    vip: { clients: VIP_CLIENTS, announcer: "metallb" },
+    vip: settings === undefined ? { clients: VIP_CLIENTS, announcer: "metallb" } : { clients: VIP_CLIENTS, announcer: "metallb", memberlist: settings },
     calibrates: false,
     runs: 4,
     prediction: {
