@@ -1,8 +1,8 @@
-import { rmSync, unlinkSync, writeFileSync } from "node:fs";
+import { readFileSync, rmSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { planOf } from "@mark1russell7/harness";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { labImage, labSource, stageLabImage } from "./image.ts";
+import { WORKSPACE_PACKAGES, labImage, labSource, stageLabImage } from "./image.ts";
 
 type Done = (error: Error | null, stdout: string, stderr: string) => void;
 
@@ -63,6 +63,15 @@ describe("the lab image", () => {
     } finally {
       rmSync(context, { recursive: true, force: true });
     }
+  });
+
+  it("installs each dependency from npm of the packages that it unpacks over node_modules", () => {
+    // the Dockerfile unpacks each tarball with no install, thus npm ci must get its dependencies (on 11-02 the server stopped at start without rational)
+    const read = (path: string) => JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8")) as { dependencies?: Record<string, string> };
+    const image = read("../image/package.json").dependencies ?? {};
+    const needed = WORKSPACE_PACKAGES.flatMap((name) => Object.keys(read(`../../${name}/package.json`).dependencies ?? {}));
+    const missing = needed.filter((name) => !WORKSPACE_PACKAGES.some((each) => name === `@mark1russell7/${each}`) && image[name] === undefined);
+    expect(missing).toEqual([]);
   });
 
   it("builds through the CLI of Docker, tries again after each wait, and builds again after a build that failed each try", async () => {

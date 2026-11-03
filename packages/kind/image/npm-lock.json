@@ -7,6 +7,8 @@
       "name": "systems-kind-lab",
       "dependencies": {
         "@grpc/grpc-js": "1.14.6",
+        "@mark1russell7/rational": "0.1.0",
+        "@mark1russell7/rigor-generators": "0.1.0",
         "ioredis": "6.0.0",
         "zod": "4.6.6"
       }
@@ -56,6 +58,24 @@
       "funding": {
         "type": "opencollective",
         "url": "https://opencollective.com/js-sdsl"
+      }
+    },
+    "node_modules/@mark1russell7/rational": {
+      "version": "0.1.0",
+      "resolved": "https://registry.npmjs.org/@mark1russell7/rational/-/rational-0.1.0.tgz",
+      "integrity": "sha512-kYUuKI9STA4mlCpJCx/FpUSe8sokryDJzSuyd/Abev9Len7lotztPEOPH4A8WoxLvEsKEwHA33kg7lbLVjGZWw==",
+      "license": "MIT",
+      "engines": {
+        "node": ">=22"
+      }
+    },
+    "node_modules/@mark1russell7/rigor-generators": {
+      "version": "0.1.0",
+      "resolved": "https://registry.npmjs.org/@mark1russell7/rigor-generators/-/rigor-generators-0.1.0.tgz",
+      "integrity": "sha512-xhXvLzZQlDH6ysAbqEjbha6fs1GbvO9RflSXwYbA3QMryxu4zEikbxahEDQCIxVSis+2pfX/18PHU3+X+jJmPw==",
+      "license": "MIT",
+      "engines": {
+        "node": ">=22"
       }
     },
     "node_modules/@protobufjs/aspromise": {
