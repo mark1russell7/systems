@@ -17,7 +17,7 @@
     "check:conventions": "conventions check"
   },
   "devDependencies": {
-    "@mark1russell7/conventions": "^0.24.0",
+    "@mark1russell7/conventions": "^0.25.0",
     "@mark1russell7/cue": "github:mark1russell7/cue#e737619231ee976251a0a2d5ff61aec113d22a10",
     "@mark1russell7/ste-lint": "github:mark1russell7/ste-lint#f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7",
     "@mark1russell7/template-cli": "^0.1.2",
