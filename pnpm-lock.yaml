@@ -381,7 +381,7 @@ importers:
     dependencies:
       '@mark1russell7/rational':
         specifier: ^0.1.0
-        version: 0.1.0
+        version: 0.1.1
     devDependencies:
       '@mark1russell7/cue':
         specifier: github:mark1russell7/cue#da04dd56699a2ae806ab64da5b1d677476afe69e
@@ -1140,8 +1140,8 @@ packages:
     engines: {node: '>=25.0.0', npm: '>=11.0.0'}
     hasBin: true
 
-  '@mark1russell7/rational@0.1.0':
-    resolution: {integrity: sha512-kYUuKI9STA4mlCpJCx/FpUSe8sokryDJzSuyd/Abev9Len7lotztPEOPH4A8WoxLvEsKEwHA33kg7lbLVjGZWw==}
+  '@mark1russell7/rational@0.1.1':
+    resolution: {integrity: sha512-bVpsMxiNi3CKjEVbL7bcQG2daR5nVY47Wz5MIQxI/9fpkuvlB/EwkJ30jw15BcBEiAfvoLjtWqLC00wrU7tsZQ==}
     engines: {node: '>=22'}
 
   '@mark1russell7/rigor-bench@0.2.5':
@@ -3970,7 +3970,7 @@ snapshots:
 
   '@mark1russell7/cue@https://codeload.github.com/mark1russell7/cue/tar.gz/e737619231ee976251a0a2d5ff61aec113d22a10': {}
 
-  '@mark1russell7/rational@0.1.0': {}
+  '@mark1russell7/rational@0.1.1': {}
 
   '@mark1russell7/rigor-bench@0.2.5':
     dependencies:
