@@ -1299,7 +1299,7 @@ The exceptions, each with its reason in the `conventions` field of the root `pac
 
 - **tsconfig-test and typed-files:** the tests of cells and the scripts of the site have type errors (SYS-55).
 - **typed-scripts:** the release scripts, the files that run in containers, the child processes of the service tests, `shots.mjs` and `astro.config.mjs`.
-- **no-local-paths:** `/home/test` is the home folder of the fake host of the service tests.
+- **no-local-paths:** three files of `packages/service/src/host/` name the home folder of the fake host of the service tests, not the folder of a real user.
 
 ### SYS-55 · The tests of cells and the scripts of the site pass a typecheck
 
