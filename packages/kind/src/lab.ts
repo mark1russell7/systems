@@ -6,6 +6,7 @@ import type { ServiceRule } from "./backends.ts";
 import { deletedOf } from "./conntrack.ts";
 import type { Cluster } from "./cluster.ts";
 import { command } from "./cluster.ts";
+import { OUTSIDE } from "./names.ts";
 import type { Line } from "./observe.ts";
 import { isTunnelState } from "./observe.ts";
 
@@ -40,6 +41,15 @@ export interface LdsSpec {
   readonly pods: ReadonlyArray<{ readonly node: string; readonly pod: string; readonly pid: number }>;
 }
 
+/** An outside spec is the clients outside the cluster: their target, interval, timeout and count, and the address whose MAC they watch. */
+export interface OutsideSpec {
+  readonly target: string;
+  readonly every: Quantity;
+  readonly timeout: Quantity;
+  readonly count: number;
+  readonly arp: string;
+}
+
 /** These are the sidecars of one node: the agent of the lab and the injector of the harness, in the PID namespace of the node. */
 interface Sidecars {
   readonly agent: StartedTestContainer;
@@ -70,6 +80,13 @@ export interface KindLab {
   watch(namespaces: readonly string[], options?: { readonly ztunnel?: boolean | undefined }): Promise<void>;
   probe(netns: readonly number[]): Promise<void>;
   stopProbe(): Promise<void>;
+  /**
+   * This method starts the clients outside the cluster of a VIP (`KindCell.vip`). Each one is a
+   * container of the lab image on the Docker network of the nodes, and runs `client.mjs`. Its lines
+   * have the node `outside`, and a line `arp` at each change of the MAC address of the VIP. A
+   * call stops the clients of the last call first. With null, it only stops them.
+   */
+  outside(spec: OutsideSpec | null): Promise<void>;
   /** This method asks each agent to poll the backends of a Service in the rules of its node, `every` apart, or to stop with null. */
   rules(rule: (ServiceRule & { readonly every: Quantity }) | null): Promise<void>;
   /**
@@ -175,6 +192,11 @@ export const openKindLab = async (cluster: Cluster, image: string): Promise<Kind
   const opened: StartedTestContainer[] = [];
   let watcher: StartedTestContainer | null = null;
   let prober: StartedTestContainer | null = null;
+  let outsiders: StartedTestContainer[] = [];
+  const stopOutside = async (): Promise<void> => {
+    for (const container of outsiders) await container.stop({ timeout: 0 }).catch(() => undefined);
+    outsiders = [];
+  };
   try {
     for (const node of cluster.nodes) {
       const agent = await new Shared(image)
@@ -230,7 +252,7 @@ export const openKindLab = async (cluster: Cluster, image: string): Promise<Kind
     },
     dropped,
     own() {
-      return [...opened, ...(watcher === null ? [] : [watcher]), ...(prober === null ? [] : [prober])].map((container) => container.getName().replace(/^\//, ""));
+      return [...opened, ...(watcher === null ? [] : [watcher]), ...(prober === null ? [] : [prober]), ...outsiders].map((container) => container.getName().replace(/^\//, ""));
     },
     take() {
       const out = lines;
@@ -282,6 +304,26 @@ export const openKindLab = async (cluster: Cluster, image: string): Promise<Kind
         ready,
         new Promise((_, reject) => setTimeout(() => reject(new Error("no begin line from the prober in 60 s")), 60_000)),
       ]);
+    },
+    async outside(spec) {
+      await stopOutside();
+      if (spec === null) return;
+      for (let k = 0; k < spec.count; k += 1) {
+        const client = await new GenericContainer(image)
+          .withNetworkMode(cluster.network)
+          .withEnvironment({
+            TARGET: spec.target,
+            EVERY_MS: String(valueIn(spec.every, "ms")),
+            TIMEOUT_MS: String(valueIn(spec.timeout, "ms")),
+            POD_NAME: `${OUTSIDE}-${k}`,
+            NODE_NAME: OUTSIDE,
+            ARP_WATCH: spec.arp,
+          })
+          .withCommand(["node", "client.mjs"])
+          .withLogConsumer(consume((line) => push(line as unknown as Line)))
+          .start();
+        outsiders.push(client);
+      }
     },
     async stopProbe() {
       if (prober !== null) await prober.stop({ timeout: 0 }).catch(() => undefined);
@@ -383,6 +425,7 @@ export const openKindLab = async (cluster: Cluster, image: string): Promise<Kind
     },
     async close() {
       await lab.stopProbe();
+      await stopOutside();
       if (watcher !== null) await watcher.stop({ timeout: 0 }).catch(() => undefined);
       watcher = null;
       for (const container of opened.reverse()) await container.stop({ timeout: 0 }).catch(() => undefined);

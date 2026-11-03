@@ -425,6 +425,33 @@ describe("the judgement of a kind run", () => {
       "1 failed requests after the window, the last 0.2 s after it on w1, before the rules of w1 dropped the target; 1 drops after the propagation of 1 s at the most, the latest: the rules of w1 dropped the target 3 s after its deletion",
     );
   });
+
+  it("does not count a failure of the permitted window after the heal, and counts each one outside it (SYS-51)", () => {
+    const window = {
+      kind: "window",
+      nodes: "all",
+      start: { from: "fault", band: b(0, 0.52) },
+      end: { from: "fault", band: b(12.98, 27.3) },
+      certain: true,
+      outcomes: ["timeout"],
+      permits: { from: "heal", band: b(0, 3.5), outcomes: ["timeout", "reset"], why: "a thaw sends a gratuitous ARP" },
+      why: "a test",
+    } as const;
+    const vip: KindCell = { ...cellOf("zone-loss"), prediction: window, vip: { clients: 3 } };
+    const run = (extra: Line[]): KindRun => ({ ...runWith(extra), target: null, acts: { fault: 5000, heal: 40_000, resume: null } });
+    const held = checkRun(vip, run([request(5100, "timeout", "outside"), request(25_000, "timeout", "outside"), request(41_000, "reset", "outside")]));
+    expect(held.ok).toBe(true);
+    expect(held.tail).toBeUndefined();
+    expect(held.why).toMatch(/2 failed requests, all in the window .*; 1 failed requests in the permitted window after the heal: \{"reset":1\}$/);
+    // a failure after the permitted window, or an outcome that it does not permit, is a finding
+    expect(checkRun(vip, run([request(5100, "timeout", "outside"), request(25_000, "timeout", "outside"), request(44_000, "timeout", "outside")])).ok).toBe(false);
+    expect(checkRun(vip, run([request(5100, "timeout", "outside"), request(25_000, "timeout", "outside"), request(41_000, "refused", "outside")])).ok).toBe(false);
+    // a run with no heal has no reference for the permitted window
+    expect(checkRun(vip, { ...run([request(5100, "timeout", "outside")]), acts: { fault: 5000, heal: null, resume: null } }).ok).toBe(false);
+    // the run observes until a request of the permitted window can end: the heal, the band, the timeout and δ
+    expect(observationEnd(vip, run([]))).toBeGreaterThanOrEqual(40_000 + 3500 + 1000 + 100);
+    expect(predictionText(window)).toMatch(/, and timeout or reset permitted at the heal \+ \[0, 3\.5\] s$/);
+  });
 });
 
 describe("the observation of a kind run", () => {
