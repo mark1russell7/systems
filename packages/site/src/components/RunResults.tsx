@@ -26,6 +26,7 @@ import s2Prober from "../data/s2-prober-2026-10-26.json";
 import s2Zone from "../data/s2-zone-2026-10-27.json";
 import s2Slow from "../data/s2-slow-2026-10-27.json";
 import s2Gate from "../data/s2-gate-2026-10-27.json";
+import s2Metallb from "../data/s2-metallb-2026-11-03.json";
 import s2Checked from "../data/s2-session-check-2026-10-26.json";
 import s2Cilium from "../data/s2-cilium-2026-10-27.json";
 import s2PartitionCilium from "../data/s2-partition-cilium-2026-10-27.json";
@@ -463,12 +464,37 @@ export function RaceBorder(): ReactElement {
 const KIND_CELLS = [...kind.cells, ...t15.cells, ...S2.cells, ...s2Checked.cells, ...s2Partition.cells, ...s2PartitionChecked.cells, ...s2Stall.cells, ...s2Prober.cells, ...s2Dependency.cells, ...s2Flapping.cells, ...s2Zone.cells, ...s2Slow.cells, ...s2Gate.cells, ...s2Cilium.cells, ...s2PartitionCilium.cells, ...s2StallCilium.cells, ...s2ProberCilium.cells, ...s2DependencyCilium.cells, ...s2FlappingCilium.cells, ...s2GateCilium.cells];
 
 /**
- * A later copy of the kind page judges cells of an earlier copy again, with a new band. Its cells have the
- * IDs of the earlier cells, thus a page shows them apart: SYS-48 gives the stall cells of C the backlog band.
+ * A later copy of the kind page has cells that a page shows apart. SYS-48 judges the stall cells of C again
+ * with the backlog band, thus its cells have the IDs of the earlier cells. SYS-53 is the MetalLB cell, whose
+ * group is the lost zone, but whose section is its own.
  */
-const LATER_COPIES = { "sys-48": s2StallBand.cells } as const;
+const LATER_COPIES = { "sys-48": s2StallBand.cells, "sys-53": s2Metallb.cells } as const;
 export type LaterCopy = keyof typeof LATER_COPIES;
-type KindCell = (typeof KIND_CELLS)[number] | (typeof s2StallBand.cells)[number];
+type KindCell = (typeof KIND_CELLS)[number] | (typeof s2StallBand.cells)[number] | (typeof s2Metallb.cells)[number];
+
+/** A dispatch is one workflow run of a pooled cell, with the reason of each of its void runs. */
+interface Dispatch {
+  readonly run: string;
+  readonly counted: number;
+  readonly voided: number;
+  readonly taken: number;
+  readonly voids: ReadonlyArray<{ readonly env: number; readonly index: number; readonly why: string }>;
+}
+
+/** This component lists the workflow runs of a pooled cell: the counted runs that the copy takes, and why each void run is void. */
+function Dispatches(props: { readonly dispatches: readonly Dispatch[] }): ReactElement {
+  return (
+    <ul className="sy-muted">
+      {props.dispatches.map((dispatch) => (
+        <li key={dispatch.run}>
+          Kind run <a href={`https://github.com/mark1russell7/systems/actions/runs/${dispatch.run}`}>{dispatch.run}</a>: {count(dispatch.counted, "counted run")}, of which the
+          copy takes {digits(dispatch.taken)}, and {count(dispatch.voided, "void run")}.
+          {dispatch.voids.map((each) => ` Cluster ${each.env + 1}, run ${each.index + 1}: ${each.why}.`).join("")}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 /**
  * This function gives the ID of the frame of a kind cell on its page. A catalog ID of T07 can name a cell
@@ -561,6 +587,7 @@ export function KindResults(props: { readonly template: "T07" | "T18" | "T15"; r
               <p className="sy-muted">The failed requests of each counted run: {cell.values.map(digits).join(", ")}.</p>
             ) : null}
             <p className="sy-muted">{cell.why}</p>
+            {"dispatches" in cell ? <Dispatches dispatches={cell.dispatches} /> : null}
             {"first" in cell && cell.first === "fails" ? <p className="sy-muted">The first run of this cell failed. These runs are of its next run, after the fix that the page gives.</p> : null}
           </Frame>
         );

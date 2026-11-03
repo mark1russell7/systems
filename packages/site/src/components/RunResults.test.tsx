@@ -263,4 +263,13 @@ describe("the components of the CI runs", () => {
     expect.soft(table.match(/the last failure [\d.]+ s before the heal in the median run/g)?.length).toBe(6);
     expect(table).toContain("The prediction: 1.74 s to 2.02 s before the heal.");
   });
+
+  it("render the MetalLB cell of SYS-53 with its two kind runs and the quiet check that voided 2 runs", () => {
+    const html = renderToString(<KindResults template="T07" group="zone" copy="sys-53" />);
+    expect(html.split('class="sy-frame').length - 1).toBe(1);
+    expect(html).toContain("41654669260");
+    expect(html).toContain("41696343708");
+    expect(html).toContain("Cluster 1, run 2: the VM was not quiet in 300 s: 52% idle, other lab containers: none.");
+    expect(html).toContain("Cluster 2, run 2: the VM was not quiet in 300 s: 55% idle, other lab containers: none.");
+  });
 });

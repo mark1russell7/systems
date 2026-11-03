@@ -24,10 +24,22 @@ describe("the copy of the MetalLB cell of SYS-53 holds the figures of its two ki
   });
 
   it("names the two dispatches, and takes the first 4 counted runs", () => {
-    expect(cell.dispatches).toEqual([
+    expect(cell.dispatches).toMatchObject([
       { run: "41654669260", decision: "holds", counted: 2, voided: 2, taken: 2 },
       { run: "41696343708", decision: "holds", counted: 4, voided: 0, taken: 2 },
     ]);
+  });
+
+  it("names the cause of each void run: the quiet check before the fault, not the measured value", () => {
+    for (const dispatch of cell.dispatches) expect(dispatch.voids).toHaveLength(dispatch.voided);
+    // the second counted run of each cluster waited 300 s for a quiet VM, and the VM stayed below the idle share of 60 %
+    expect(cell.dispatches[0]!.voids.map(({ env, index }) => [env, index])).toEqual([
+      [0, 1],
+      [1, 1],
+    ]);
+    const quiet = /^the VM was not quiet in 300 s: (\d+)% idle, other lab containers: none$/;
+    for (const each of cell.dispatches.flatMap((dispatch) => dispatch.voids)) expect(each.why).toMatch(quiet);
+    expect(cell.dispatches[0]!.voids.map((each) => Number(quiet.exec(each.why)![1]))).toEqual([52, 55]);
   });
 
   it("gives the bands of the probe, the law, the naive law, the ARP and the thaw", () => {

@@ -36,14 +36,27 @@
           "decision": "holds",
           "counted": 2,
           "voided": 2,
-          "taken": 2
+          "taken": 2,
+          "voids": [
+            {
+              "env": 0,
+              "index": 1,
+              "why": "the VM was not quiet in 300 s: 52% idle, other lab containers: none"
+            },
+            {
+              "env": 1,
+              "index": 1,
+              "why": "the VM was not quiet in 300 s: 55% idle, other lab containers: none"
+            }
+          ]
         },
         {
           "run": "41696343708",
           "decision": "holds",
           "counted": 4,
           "voided": 0,
-          "taken": 2
+          "taken": 2,
+          "voids": []
         }
       ],
       "lasts": [6.7220203, 5.104755, 5.8110317, 6.9563866],
