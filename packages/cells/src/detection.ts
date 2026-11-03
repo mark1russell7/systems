@@ -21,13 +21,13 @@ import { VIP_CLIENTS, VIP_WORKLOAD } from "./vip.ts";
  *   after its start, and the paused speaker is suspect (state.go, lines 306–524).
  * - With two members, a tick after the shuffle of the members can probe no node (state.go, lines
  *   232–274). Thus a gap between two probes is 1 or 2 ticks. In the steady chain of the ticks, a
- *   gap of 1 tick has the share 1/4, and a gap of 2 ticks has the share 3/4.
+ *   gap of 1 tick has the share 1/4. A gap of 2 ticks has the share 3/4.
  * - The suspicion timer fires S after the suspicion, with no confirmation (suspicion.go, lines 70–76).
  * - At the SIGCONT, the paused speaker reads the suspicion in its queue and refutes it. The refute
  *   gets to the other speaker in approximately one gossip interval, 200 ms.
- * Thus a pause of length p from a random phase gives a death if p is more than φ + I + S. The time φ
- * is from the SIGSTOP to the next probe, in 0 to 2I. The least pause that can kill a live speaker is
- * I + S, and that is also the least failure time of the zone loss. This is the trade-off in one number.
+ * Thus a pause of length p from a random phase gives a death if p is more than φ + I + S, with φ
+ * from the SIGSTOP to the next probe, in 0 to 2I. The sum I + S is the least pause that gives a
+ * false death, and also the least failure time of the zone loss. This is the trade-off in one number.
  */
 
 /** These are the settings of the sweep: the probe intervals 1 s and 500 ms, and the multipliers 4 and 2. The probe timeout is half the interval. */
@@ -41,7 +41,7 @@ export const DETECTION_SETTINGS: readonly MemberlistSettings[] = [
 /** These are the pauses of the speaker of the owner in each run, in their sequence. The same schedule is the load of each setting. */
 export const PAUSES: readonly Quantity[] = [s(1), s(2), s(4), s(6), s(9)];
 
-/** This time is the rest from the SIGCONT of a pause to the SIGSTOP of the next one: a rejoin of memberlist and a move back of the VIP. */
+/** This time is the rest from the SIGCONT of a pause to the SIGSTOP of the next one. It covers a rejoin of memberlist and a move back of the VIP. */
 export const PAUSE_REST: Quantity = s(20);
 
 /** This time is the most from the end of a hold to the SIGCONT: the act of the lab. The pause of the record can be this much longer than its hold. */
@@ -63,7 +63,7 @@ export interface PausePrediction {
   readonly p: number;
 }
 
-/** This is the prediction of a setting: the least failure time I + S, each pause, and the band and the mean of the deaths in a run. */
+/** This is the prediction of a setting. It has the least failure time I + S, each pause, and the band and the mean of the deaths in a run. */
 export interface DetectionPrediction {
   readonly floor: Quantity;
   readonly pauses: readonly PausePrediction[];
@@ -75,7 +75,7 @@ const round = (value: number): number => Math.round(value * 1e6) / 1e6;
 /**
  * This function gives the share of pauses with the next probe in `x` of the SIGSTOP, from a random
  * phase. The gap of 1 tick has the share 1/4 and the gap of 2 ticks 3/4. A random phase is in a gap
- * by its length, thus in a gap of 1 tick with the probability 1/7, and in a gap of 2 ticks with 6/7.
+ * by its length. Thus it is in a gap of 1 tick with the probability 1/7, and in a gap of 2 ticks with 6/7.
  */
 export const nextProbeShare = (x: number, interval: number): number => {
   if (x <= 0) return 0;

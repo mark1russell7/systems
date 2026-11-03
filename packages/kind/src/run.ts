@@ -80,7 +80,7 @@ const clusterKey = (cell: KindCell): string =>
 /** This function gives the name of the cluster of a cell in an environment. Kind permits 32 characters at most: lowercase letters, digits and dashes. */
 export const clusterNameOf = (cell: KindCell, env: number): string => `lab-${clusterKey(cell)}-${env}`;
 
-/** This function tells if a cell needs a cluster with zones: a zone loss, or a cell with settings of memberlist, that shares the cluster of its zone loss. */
+/** This function tells if a cell needs a cluster with zones. A zone loss needs one, and so does a cell with settings of memberlist, that shares the cluster of its zone loss. */
 const zoned = (cell: KindCell): boolean => cell.trigger.kind === "zone-loss" || cell.vip?.memberlist !== undefined;
 
 /**

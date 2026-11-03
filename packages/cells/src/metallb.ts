@@ -110,7 +110,7 @@ export const metallbOf = (workload: Workload, hold: Quantity, speakers = SPEAKER
   return { start, probe, dead, naive, arp, end, thaw, watch, why };
 };
 
-/** This function gives the tag of settings of memberlist in the id of a cell, for example `i500-m2`: the probe interval in ms and the multiplier. */
+/** This function gives the tag of settings of memberlist in the id of a cell, for example `i500-m2`. The tag has the probe interval in ms and the multiplier. */
 export const settingsTag = (settings: MemberlistSettings): string => `i${valueIn(settings.probeInterval, "ms")}-m${settings.suspicionMult}`;
 
 /**

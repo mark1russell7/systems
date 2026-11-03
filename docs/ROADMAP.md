@@ -1393,9 +1393,9 @@ The check `conventions check` then passes with no exception for the types.
 - **Started:** 2026-11-03
 - **Links:** [S2](#s2--intermediaries-and-kubernetes), [SYS-53](#sys-53--metallb-callers-outside-the-cluster-when-the-announcer-of-a-vip-is-gone)
 
-SYS-53 measured the failure time of MetalLB with the defaults of memberlist. A shorter probe interval or a smaller suspicion multiplier gives a shorter failure time. It also kills a live speaker that stops for a short time. The question: how do the two settings trade the failure time against false deaths?
+SYS-53 measured the failure time of MetalLB with the defaults of memberlist. A shorter probe interval or a smaller suspicion multiplier gives a shorter failure time. It also gives a false death to a live speaker that stops for a short time. The question: how do the two settings trade the failure time against false deaths?
 
-**The settings.** Four settings of the probe interval I and the multiplier m, with the probe timeout at I / 2: 1 s × 4, 1 s × 2, 500 ms × 4 and 500 ms × 2. The setting 1 s × 4 is the default. It is the control of the path of the file.
+**The settings.** The sweep has four settings of the probe interval I and the multiplier m: 1 s × 4, 1 s × 2, 500 ms × 4 and 500 ms × 2. The probe timeout is I / 2. The setting 1 s × 4 is the default. It is the control of the path of the file.
 
 - The install writes each setting to the ConfigMap `metallb-memberlist-config`, with the key `config.json`, before the speakers start (`installMetallb` in `packages/kind/src/metallb.ts`).
 - The file has each of the 19 fields of `memberlistFileConfig` (`internal/speakerlist/speakerlist.go` of v0.16.1, lines 355–432). Each other value is the default of `DefaultLANConfig` of memberlist v0.5.1 (`config.go`, lines 302–341).
@@ -1412,15 +1412,15 @@ SYS-53 measured the failure time of MetalLB with the defaults of memberlist. A s
 
 - The failure time is the later law of SYS-53. A tick after the shuffle of the members can probe no node (`state.go`, lines 232–274). Thus the death comes T0 to the act, 2I and T0 after the fault: 5–7.5 s, 3–5.5 s, 2.5–4 s and 1.5–3 s.
 - With two members, a gap between two probes is 1 tick or 2 ticks. In the steady chain of the ticks, the share of a gap of 1 tick is 1/4. Thus the next probe from a random phase is 0 to 2I later, and 4/7 of the phases have it in I.
-- A paused speaker is suspect at the deadline of the next probe, and dead S later. At the SIGCONT it refutes the suspicion in approximately one gossip interval, 200 ms. Thus a pause kills a live speaker if it is longer than the next probe and T0.
-- The least pause that kills a live speaker is T0. That is also the least failure time. Thus one number gives the trade-off.
+- A paused speaker is suspect at the deadline of the next probe, and dead S later. At the SIGCONT it refutes the suspicion in approximately one gossip interval, 200 ms. Thus a pause gives a false death if it is longer than the next probe and T0.
+- The least pause that gives a false death is T0. That is also the least failure time. Thus one number gives the trade-off.
 
 **The prediction.** The prediction is `sys-57-detection-sweep` in the predictions of the strategy.
 
 - The failure time is in the band of its setting in each counted run. The death comes m × I after the first suspicion. The medians rise with T0.
 - A pause gives no death if its end and the refute come before T0. A pause longer than T0, 2I and 0.1 s gives a death. Each other pause gives a death with the probability 4/7.
 - Thus the false deaths in each run are 1–2 (1 s × 4), 2–3 (1 s × 2), 3 (500 ms × 4) and 3–4 (500 ms × 2).
-- The clients in the cluster fail no request. The thawed speaker never marks the other speaker dead.
+- The clients in the cluster fail no request. The thawed speaker does not mark the other speaker dead at any time.
 
 **The decision rule.** The rule of SYS-53: 4 counted runs for each cell, and one re-dispatch of a cell with a void run. Each claim is a hit or a miss by its range on the raw records. The class of a pause comes from its measured length. A bias of one sign in each run names a missing term, and no band changes after a result.
 

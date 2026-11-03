@@ -609,7 +609,7 @@ export interface VipSettings {
   readonly memberlist?: MemberlistSettings | undefined;
 }
 
-/** These are the settings of memberlist that a cell can change: the probe interval, the wait for an ack, and the multiplier of the suspicion timeout. */
+/** A cell can change these settings of memberlist: the probe interval, the wait for an ack, and the multiplier of the suspicion timeout. */
 export interface MemberlistSettings {
   readonly probeInterval: Quantity;
   readonly probeTimeout: Quantity;
