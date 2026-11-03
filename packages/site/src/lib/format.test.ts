@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { count, duration, reading, ticks, ticksBetween } from "./format.ts";
+import { count, countTicks, duration, reading, spacedLabels, ticks, ticksBetween } from "./format.ts";
 
 describe("the formats of the site", () => {
   it("writes a time with the units of its size, and no zeros at the end", () => {
@@ -36,5 +36,36 @@ describe("the formats of the site", () => {
     const wide = ticksBetween(0, 30_000, 3);
     expect(wide.unit.name).toBe("s");
     expect(wide.values).toEqual([0, 10_000, 20_000, 30_000]);
+  });
+
+  it("puts the ticks of an axis of counts on round values", () => {
+    expect(countTicks(0, 1600, 4)).toEqual([0, 500, 1000, 1500]);
+    expect(countTicks(1400, 1600, 4)).toEqual([1400, 1450, 1500, 1550, 1600]);
+    expect(countTicks(0, 3, 10)).toEqual([0, 1, 2, 3]);
+  });
+
+  it("drops a label of an axis that would touch the label before it, and ends a label at the edge of the chart", () => {
+    // the log axis of the path of a request: 10 min and 20 min are 52 px apart, and 20 min ends at the edge
+    const labels = spacedLabels(
+      [
+        { x: 700, width: 40.2 },
+        { x: 752, width: 40.2 },
+      ],
+      760,
+    );
+    expect(labels.map((label) => [label.x, label.anchor])).toEqual([[700, "middle"]]);
+    const apart = spacedLabels(
+      [
+        { x: 5, width: 20 },
+        { x: 400, width: 40 },
+        { x: 790, width: 40 },
+      ],
+      800,
+    );
+    expect(apart.map((label) => [label.anchor, label.at])).toEqual([
+      ["start", 0],
+      ["middle", 400],
+      ["end", 800],
+    ]);
   });
 });

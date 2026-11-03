@@ -19,6 +19,7 @@ import S2 from "../data/s2-2026-10-26.json";
 import s2Partition from "../data/s2-partition-2026-10-26.json";
 import s2PartitionChecked from "../data/s2-partition-session-check-2026-10-26.json";
 import s2Stall from "../data/s2-stall-2026-10-26.json";
+import s2StallBand from "../data/s2-stall-band-2026-10-28.json";
 import s2Dependency from "../data/s2-dependency-2026-10-27.json";
 import s2Flapping from "../data/s2-flapping-2026-10-27.json";
 import s2Prober from "../data/s2-prober-2026-10-26.json";
@@ -115,11 +116,17 @@ export const COPIES: Readonly<Record<Copy, readonly RunCell[]>> = {
  * This function gives the ID of the frame of a cell on its page. One plan ID can name more than one cell:
  * a border of HTTP has two. Thus the ID also has a short hash of the client and the name of the cell.
  */
-export const cellId = (cell: RunCell): string => {
+export const cellId = (cell: RunCell): string => `cell-${slugOf(cell.plan ?? cell.catalog)}-${hashOf(`${cell.client ?? ""} ${cell.name}`)}`;
+
+/** This function gives a short hash of a text, in base 36. */
+const hashOf = (text: string): string => {
   let hash = 5381;
-  for (const char of `${cell.client ?? ""} ${cell.name}`) hash = ((hash * 33) ^ char.charCodeAt(0)) >>> 0;
-  return `cell-${(cell.plan ?? cell.catalog).toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${hash.toString(36)}`;
+  for (const char of text) hash = ((hash * 33) ^ char.charCodeAt(0)) >>> 0;
+  return hash.toString(36);
 };
+
+/** This function writes an ID of a plan or a catalog in the form of an ID of HTML: "S2.T07.ipvs" becomes "s2-t07-ipvs". */
+const slugOf = (id: string): string => id.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 
 const ms = (s: number): number => s * 1000;
 const time = (s: number): string => duration(ms(s));
@@ -454,7 +461,22 @@ export function RaceBorder(): ReactElement {
 
 /** The kind cells of each copy: T07 and T18, T15 over gRPC through Istio, and the S2 cells of each incident. The later run of D adds its cells, and the run of the shared gate (E) adds its cells. */
 const KIND_CELLS = [...kind.cells, ...t15.cells, ...S2.cells, ...s2Checked.cells, ...s2Partition.cells, ...s2PartitionChecked.cells, ...s2Stall.cells, ...s2Prober.cells, ...s2Dependency.cells, ...s2Flapping.cells, ...s2Zone.cells, ...s2Slow.cells, ...s2Gate.cells, ...s2Cilium.cells, ...s2PartitionCilium.cells, ...s2StallCilium.cells, ...s2ProberCilium.cells, ...s2DependencyCilium.cells, ...s2FlappingCilium.cells, ...s2GateCilium.cells];
-type KindCell = (typeof KIND_CELLS)[number];
+
+/**
+ * A later copy of the kind page judges cells of an earlier copy again, with a new band. Its cells have the
+ * IDs of the earlier cells, thus a page shows them apart: SYS-48 gives the stall cells of C the backlog band.
+ */
+const LATER_COPIES = { "sys-48": s2StallBand.cells } as const;
+export type LaterCopy = keyof typeof LATER_COPIES;
+type KindCell = (typeof KIND_CELLS)[number] | (typeof s2StallBand.cells)[number];
+
+/**
+ * This function gives the ID of the frame of a kind cell on its page. A catalog ID of T07 can name a cell
+ * in each mode, thus the ID also has a short hash of the name. A cell of a later copy has the name of its
+ * copy at the end.
+ */
+export const kindCellId = (cell: { readonly id: string; readonly name: string }, copy?: LaterCopy): string =>
+  `cell-${slugOf(cell.id)}-${hashOf(cell.name)}${copy === undefined ? "" : `-${copy}`}`;
 
 /** This function writes the main value of a kind cell: a count of failed requests, of replicas, or a time. */
 const valueOf = (cell: KindCell, value: number): string =>
@@ -497,9 +519,10 @@ function ValueTable(props: { readonly cell: KindCell }): ReactElement {
   );
 }
 
-/** The cells of one group of a kind catalog, in the sequence of the catalog. */
-export function KindResults(props: { readonly template: "T07" | "T18" | "T15"; readonly group: string }): ReactElement {
-  const cells = KIND_CELLS.filter((cell) => cell.template === props.template && cell.group === props.group);
+/** The cells of one group of a kind catalog, in the sequence of the catalog. With `copy`, the cells of that later copy. */
+export function KindResults(props: { readonly template: "T07" | "T18" | "T15"; readonly group: string; readonly copy?: LaterCopy }): ReactElement {
+  const all: readonly KindCell[] = props.copy === undefined ? KIND_CELLS : LATER_COPIES[props.copy];
+  const cells = all.filter((cell) => cell.template === props.template && cell.group === props.group);
   if (cells.length === 0) throw new Error(`no cell of ${props.template} has the group ${props.group}`);
   return (
     <div className="not-content sy-cells">
@@ -514,6 +537,7 @@ export function KindResults(props: { readonly template: "T07" | "T18" | "T15"; r
         return (
           <Frame
             key={cell.name}
+            id={kindCellId(cell, props.copy)}
             name={cell.name}
             label={cell.name}
             tag={cell.id}
