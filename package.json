@@ -26,22 +26,11 @@
   },
   "conventions": {
     "rules": {
-      "tsconfig-test": {
-        "ignore": [
-          "packages/cells/tsconfig.test.json",
-          "packages/site/tsconfig.test.json"
-        ],
-        "reason": "The tests of cells have 15 type errors in 4 files, and the scripts of the site have 5 type errors in 3 files. A tsconfig.test.json comes with the fix of these errors."
-      },
       "typed-files": {
         "ignore": [
-          "packages/cells/src/**/*.test.ts",
-          "packages/cells/vitest.config.ts",
-          "packages/site/scripts/**",
-          "packages/site/vitest.config.ts",
           "packages/site/src/content.config.ts"
         ],
-        "reason": "The tests of cells and the scripts of the site have type errors, and a typecheck comes with their fix. src/content.config.ts of the site imports astro:content, a module that only the Astro build makes."
+        "reason": "src/content.config.ts of the site imports astro:content, a module that only the Astro build makes."
       },
       "typed-scripts": {
         "ignore": [

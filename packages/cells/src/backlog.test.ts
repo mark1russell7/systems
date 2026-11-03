@@ -44,7 +44,7 @@ describe("the cells of the backlog", () => {
   });
 
   it("are the stall cell of C with the sessions placed", () => {
-    const c = CALLERS_CELLS.find((cell) => cell.mode === "cilium" && cell.trigger.kind === "app-stall" && cell.declaration.protocol === "h2c" && cell.name.endsWith("(GOAWAY)"));
+    const c = CALLERS_CELLS.find((cell) => cell.mode === "cilium" && cell.trigger.kind === "app-stall" && cell.declaration?.protocol === "h2c" && cell.name.endsWith("(GOAWAY)"));
     expect(c).toBeDefined();
     for (const cell of BACKLOG_CELLS) {
       expect(cell.trigger).toEqual(c!.trigger);
@@ -73,7 +73,7 @@ describe("the cells of the backlog", () => {
     expect(at(3).expected.connections).toEqual({ lo: { value: 3, unit: "{connection}" }, hi: { value: 3, unit: "{connection}" }, of: { value: 6, unit: "{connection}" } });
     // the cell takes its window from the prediction
     const cell = backlogCellOf("cilium", 2);
-    expect(cell.prediction.kind === "window" && cell.prediction.end.band).toEqual(at(2).end);
+    expect(cell.prediction.kind === "window" && cell.prediction.end?.band).toEqual(at(2).end);
   });
 
   it("refuse a count that the sessions of the clients cannot hold", () => {

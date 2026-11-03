@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { timerOf } from "@mark1russell7/algebra";
-import type { Cell, DriverStep, LineMatch, Measured, Prediction, Target } from "@mark1russell7/harness";
+import type { BuildImage, Cell, DriverStep, LineMatch, Measured, Prediction, Target } from "@mark1russell7/harness";
 import { UNDICI_RETRY } from "@mark1russell7/machines";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
@@ -55,8 +55,14 @@ export const LIMITER_BUILD: LimiterBuild = { service: LIMITER_SERVICE, label: LI
 /** This port is the port of the server in the target. */
 const PORT = 8080;
 
+/** A limiter target always has a command, and its subject is a build with its files. */
+export interface LimiterTarget extends Target {
+  readonly command: readonly string[];
+  readonly subject: BuildImage & { readonly files: readonly string[] };
+}
+
 /** This function gives the target: the limiter of a build over node:http, one take in `window` seconds for each key. */
-export const limiterTarget = (window: number, build: LimiterBuild = LIMITER_BUILD): Target => ({
+export const limiterTarget = (window: number, build: LimiterBuild = LIMITER_BUILD): LimiterTarget => ({
   image: NODE_IMAGE,
   subject: { kind: "build", name: build === LIMITER_BUILD ? "service-limiter" : `service-limiter-${build.service}`, context: build.context, files: FILES },
   port: PORT,
@@ -155,8 +161,8 @@ const ANSWER = 0.02;
 const attempt = (n: number): LineMatch => ({ ev: "attempt", where: { i: 2, n }, name: "why" });
 const round = (value: number): number => Math.round(value * 1e6) / 1e6;
 
-/** This function gives the prediction of a spec, from the documents of the limiter and of the client. */
-export const limiterPrediction = (spec: LimiterSpec): Prediction => {
+/** This function gives the prediction of a spec, from the documents of the limiter and of the client. Each spec is a detection. */
+export const limiterPrediction = (spec: LimiterSpec): Extract<Prediction, { readonly detects: true }> => {
   if (spec.client !== "undici-retry") {
     // no retry: the caller gets the 429 of the second request, and nothing is sent again
     const quiet: LineMatch[] = spec.client === "go" ? [{ ev: "retry", where: { i: 2 } }] : [attempt(2)];

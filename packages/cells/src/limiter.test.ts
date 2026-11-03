@@ -43,20 +43,18 @@ describe("the cells of the keyed limiter", () => {
   it("gives each retry its band from the refusal before it, and the end of the cell", () => {
     const o302 = limiterPrediction(LIMITER_SPECS.find((spec) => spec.plan === "O30.2")!);
     expect(o302).toMatchObject({ detects: true, errno: "retry", from: "last-reply", driver: { socket: "pool", ends: { ev: "attempt", where: { i: 2, n: 2 } } } });
-    const band = o302 as { low: { value: number }; high: { value: number } };
     // 30 s, early by at most the loop clock and one jiffy, late by the slack of epoll, the loop clock, a jiffy and the handling of the refusal
-    expect(band.low.value).toBeLessThan(30);
-    expect(band.low.value).toBeGreaterThan(29.99);
-    expect(band.high.value).toBeGreaterThan(30.03);
-    expect(band.high.value).toBeLessThan(30.05);
-    const steps = (o302 as { driver: { then: Array<{ what: string; name: string; ends: { ev: string } }> } }).driver.then;
-    expect(steps.map((step) => [step.name, step.ends.ev])).toEqual([
+    expect(o302.low.value).toBeLessThan(30);
+    expect(o302.low.value).toBeGreaterThan(29.99);
+    expect(o302.high.value).toBeGreaterThan(30.03);
+    expect(o302.high.value).toBeLessThan(30.05);
+    expect(o302.driver?.then?.map((step) => [step.name, step.ends.ev])).toEqual([
       ["retry", "attempt"],
       ["200", "response"],
     ]);
-    const o292 = limiterPrediction(LIMITER_SPECS.find((spec) => spec.plan === "O29.2")!) as { driver: { then: Array<{ name: string }>; quiet: unknown[] } };
-    expect(o292.driver.then.map((step) => step.name)).toEqual(["retry", "retry", "retry", "retry", "UND_ERR_REQ_RETRY"]);
-    expect(o292.driver.quiet).toEqual([{ ev: "attempt", where: { i: 2, n: 7 }, name: "why" }]);
+    const o292 = limiterPrediction(LIMITER_SPECS.find((spec) => spec.plan === "O29.2")!);
+    expect(o292.driver?.then?.map((step) => step.name)).toEqual(["retry", "retry", "retry", "retry", "UND_ERR_REQ_RETRY"]);
+    expect(o292.driver?.quiet).toEqual([{ ev: "attempt", where: { i: 2, n: 7 }, name: "why" }]);
     // a client that does not retry gives the 429 to the caller at once
     expect(limiterPrediction(LIMITER_SPECS.find((spec) => spec.plan === "O29.4")!)).toMatchObject({ errno: "429", from: "request-sent", driver: { quiet: [{ ev: "retry", where: { i: 2 } }] } });
   });
@@ -66,7 +64,7 @@ describe("the cells of the keyed limiter", () => {
     const target = limiterTarget(30);
     expect(target.command).toContain("--window-ms");
     expect(target.command[target.command.indexOf("--window-ms") + 1]).toBe("30000");
-    const subject = target.subject as { kind: string; context: string; files: string[] };
+    const subject = target.subject;
     expect(subject.kind).toBe("build");
     for (const file of subject.files) expect(existsSync(join(subject.context, file)), file).toBe(true);
     for (const cell of LIMITER_CELLS) expect(cell.probe.http?.options?.["limiter-key"], cell.name).toBe(1);
@@ -74,7 +72,7 @@ describe("the cells of the keyed limiter", () => {
   });
 
   it("names the version of the service of the target in each cell, as its package and its lockfile pin it", () => {
-    const context = (limiterTarget(30).subject as { context: string }).context;
+    const context = limiterTarget(30).subject.context;
     const manifest = JSON.parse(readFileSync(join(context, "package.json"), "utf8")) as { dependencies: Record<string, string> };
     const lock = JSON.parse(readFileSync(join(context, "npm-lock.json"), "utf8")) as { packages: Record<string, { version?: string }> };
     expect(manifest.dependencies["@mark1russell7/service"]).toBe(LIMITER_SERVICE);
@@ -104,7 +102,7 @@ describe("the cells of the keyed limiter", () => {
     expect(server).not.toMatch(/^import .*declaration[.]mjs/m);
     expect(server).toContain('flag("--lint") === "off"');
     expect(readFileSync(new URL("../targets/service-limiter/spec.mjs", import.meta.url), "utf8")).not.toMatch(/^import /m);
-    expect((limiterTarget(30).subject as { files: string[] }).files).toContain("spec.mjs");
+    expect(limiterTarget(30).subject.files).toContain("spec.mjs");
     expect(limiterTarget(30).command).not.toContain("--lint");
   });
 
@@ -145,7 +143,7 @@ describe("the cells of the keyed limiter", () => {
           expect([subject.name, subject.context]).toEqual([`service-limiter-${each.slot.service}`, join("/pair", each.slot.service)]);
           // only the candidate checks its declaration: the control can lack that lint()
           if (candidate) expect(each.cell.target.command).not.toContain("--lint");
-          else expect(each.cell.target.command.slice(-2)).toEqual(["--lint", "off"]);
+          else expect(each.cell.target.command?.slice(-2)).toEqual(["--lint", "off"]);
           expect(each.cell.name).toContain(`service ${each.slot.service}, `);
           expect(each.cell.name).toMatch(new RegExp(`[(]${each.slot.block === "ab" ? "A/B" : "A/A"} round ${each.slot.round + 1}, arm ${each.slot.arm}[)]$`));
         }
