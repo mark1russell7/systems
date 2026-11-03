@@ -2319,14 +2319,14 @@ The lease ends at its TTL, and a contender gets the lock. The frozen holder can 
 
 ### SYS-74 · etcd: a watcher after a compaction
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
-- **Depends on:** SYS-73
-- **Started:**
+- **Depends on:** SYS-67
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
-A resume from a compacted revision fails with a compaction error (DV-44).
+A resume from a compacted revision fails with a compaction error (DV-44). A stall alone loses nothing, and a compaction alone loses nothing. The cells `WC.1` to `WC.7` test the two together, and the exact border of 132 and 133 long writes. The target has its own etcd, thus this item does not need SYS-73.
 
 ### SYS-75 · etcd: linearizable reads under a partition
 
