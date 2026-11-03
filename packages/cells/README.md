@@ -170,6 +170,20 @@ These cells (`src/limiter.ts`, SYS-28) put a real client against the 429 of the 
 - **Each retry.** Each retry counts from the refusal before it (the reference `last-reply` of the harness). It can go on a new connection, because undici closes an idle socket 3 s after a reply of a Node server at its defaults.
 - **The names.** The plan of R3 does not have these laws yet, thus each cell takes the name of its law and a number. A cell of the plan for the same pair becomes an alias when the corpus of the law gets these pairs.
 
+## The cells of the accept queue
+
+These cells (`src/accept-queue.ts`, SYS-63) give the law of an accept queue on the kernel of the runner. Each term of the law is visible in a record. The source of each term is in the comment of the catalog, at Linux v7.0.
+
+- **The two ends.** The native program `queue` is a listener that does not accept, and a client of many connections. The harness ships it in its image. Its target takes commands on its control port, thus each run starts with an empty queue.
+- **The count.** `AQ.1` to `AQ.3` connect one at a time, with no accept. The queue holds the limit plus one, and each later SYN is one overflow. `listen(2)` clamps the backlog to `somaxconn`, and a backlog of 0 still holds one connection.
+- **A SYN at a full queue.** `AQ.4` follows one connect through the 10 retransmissions of its SYN to ETIMEDOUT at 131 s. Each of the 11 SYNs is one overflow.
+- **A final ACK at a full queue.** A burst of 3 connections has its SYNs inside one round trip, thus each SYN finds a place in the queue. `in` takes the last place. A run where it does not is void.
+- **The client that the target forgot.** `AQ.5` keeps `busy` and `quiet` as `ESTABLISHED` sockets that the target does not have. The target forgets them at 63 s. The next segment of each one meets a reset.
+- **The reset of an overflow.** `AQ.6` sets `tcp_abort_on_overflow`. The client connects, and it gets ECONNRESET one round trip later. A SYN at the full queue stays silent.
+- **The recovery.** `AQ.7` accepts 3 connections at 2.5 s. The SYN-ACK at 3 s brings a challenge ACK, which is a new final ACK. No connection fails, and the target accepts all 8.
+- **The counters.** `ListenOverflows`, `EmbryonicRsts` and `TCPReqQFullDoCookies` are the changes in the run, from `/proc/net/netstat` of the namespace of the target. The law has no SYN cookie, thus one cookie is a finding.
+- **The time.** `TCPTimeouts` counts each firing of a SYN-ACK timer, thus its 12th change dates the expiry of two requests in `AQ.5`.
+
 ## The WS catalog
 
 The WS catalog has the WebSocket client and server of `@procedures/client` 0.7.0 on a direct pair (`src/ws.ts`). The client is the harness client `procedures-ws`, and the server is a script in its image. Each cell gives each setting of the client and of the server.

@@ -2190,14 +2190,29 @@ A `SET` hides a duplicate, and an append to one list shows it. Duplicates are at
 
 ### SYS-63 · The accept queue: its count and what a client sees
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** S1
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
-- **Links:**
+- **Links:** [The cells](../packages/cells/README.md#the-cells-of-the-accept-queue)
 
 The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the retransmission ladder of the kernel. A target that does not accept gives the exact count.
+
+**The design.** Seven harness cells (`AQ.1` to `AQ.7`) use one listener that does not accept and one client of many connections. Each cell uses 2 containers and one set of sysctls of a namespace, thus one runner is sufficient and a kind lab adds nothing. A new native program, `queue`, is the two ends. Its target reads the count of the queue from `TCP_INFO` each 5 ms, and the counters from `/proc/net/netstat`. The prober gives each SYN, each SYN-ACK and each retransmission.
+
+**The law.** The sources are Linux v7.0, the kernel of the runners.
+
+- **The count.** [`sk_acceptq_is_full`](https://github.com/torvalds/linux/blob/v7.0/include/net/sock.h#L1097-L1100) compares with `>`, thus the queue holds the limit plus one. [`listen(2)`](https://github.com/torvalds/linux/blob/v7.0/net/socket.c#L1922-L1924) clamps the backlog to `somaxconn`.
+- **A SYN at a full queue.** The kernel [drops it](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_input.c#L7679-L7682) with no answer. The client retransmits at 1, 2, 3, 4, 5, 7, 11, 19, 35 and 67 s, and it [gets ETIMEDOUT at 131 s](https://github.com/torvalds/linux/blob/v7.0/Documentation/networking/ip-sysctl.rst#L1061-L1067).
+- **A final ACK at a full queue.** With `tcp_abort_on_overflow` 0, the target [keeps the request](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_minisocks.c#L947-L955) and drops the ACK. The client is `ESTABLISHED` and the target has no connection. With 1, the target sends a reset.
+- **The SYN-ACK ladder.** The target [sends the SYN-ACK again](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/inet_connection_sock.c#L1099-L1107) at 1, 3, 7, 15 and 31 s. It [forgets the request](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/inet_connection_sock.c#L1139-L1141) at 63 s.
+- **The answer of the client.** A SYN-ACK at an `ESTABLISHED` socket gets a [challenge ACK](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_input.c#L6472-L6476). That ACK is a new final ACK, thus a place in the queue recovers the connection.
+- **After the expiry.** A segment of the client [meets the listener](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_ipv4.c#L1907-L1915) and gets a reset.
+
+**The prediction.** It was written before the first dispatch, and its record is outside this repository. Each count of `AQ.1` to `AQ.3` is exact. The timer bands use the document of Linux TCP and the timer wheel at the HZ of the runner.
+
+**The rule.** A run counts if it is not a warmup and the harness does not void it. Each cell needs 4 counted runs. A void or infrastructure cell gets one more dispatch, and its first counted runs count. The thresholds do not change after a result is read.
 
 ### SYS-64 · The port range: its count and its error
 
