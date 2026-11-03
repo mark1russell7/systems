@@ -55,6 +55,35 @@ export const ticks = (max: number, count = 5): number[] => {
   return out;
 };
 
+/** This function gives the ticks of an axis of counts from `from` to `to`. The step is 1, 2 or 5 times a power of 10, and at least 1. */
+export const countTicks = (from: number, to: number, count = 5): number[] => {
+  if (to <= from) return [from];
+  const step = Math.max(1, stepFor(to - from, count));
+  const values: number[] = [];
+  for (let t = Math.ceil(from / step - 1e-9) * step; t <= to + step * 1e-9; t += step) values.push(Number(t.toPrecision(12)));
+  return values;
+};
+
+/**
+ * This function keeps the labels of an axis that do not collide. Each label has its place in pixels and
+ * its width. A label at an edge of the chart ends at that edge. The labels go from left to right, and a
+ * label that comes nearer than `gap` to the last kept label is dropped.
+ */
+export const spacedLabels = <T extends { readonly x: number; readonly width: number }>(labels: readonly T[], chart: number, gap = 8): Array<T & { readonly anchor: "start" | "middle" | "end"; readonly at: number }> => {
+  const kept: Array<T & { readonly anchor: "start" | "middle" | "end"; readonly at: number }> = [];
+  let right = -Infinity;
+  for (const label of [...labels].sort((a, b) => a.x - b.x)) {
+    const half = label.width / 2;
+    const anchor = label.x + half > chart ? "end" : label.x - half < 0 ? "start" : "middle";
+    const at = anchor === "end" ? chart : anchor === "start" ? 0 : label.x;
+    const left = anchor === "end" ? chart - label.width : anchor === "start" ? 0 : label.x - half;
+    if (left - right < gap) continue;
+    kept.push({ ...label, anchor, at });
+    right = left + label.width;
+  }
+  return kept;
+};
+
 /** This function gives the ticks of an axis from `from` to `to` milliseconds, in a unit that suits the end of the axis. */
 export const ticksBetween = (from: number, to: number, count = 5): { readonly unit: TickUnit; readonly values: number[] } => {
   const unit = unitFor(to);

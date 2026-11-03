@@ -7,6 +7,7 @@ description: The T07, T18 and S2 cells in kind on the runners of GitHub, with th
 
 import { CallersScores, CallersTable, KindResults, ModeTable, Propagation } from "../../../components/RunResults.tsx";
 import { Summary } from "../../../components/Ledger.tsx";
+import StallBand from "../../../components/StallBand.tsx";
 
 <Summary of="kind" />
 
@@ -144,6 +145,20 @@ D learns from its session check. A next session on the target connects, but its 
 <CallersTable incident="stall" />
 
 <KindResults template="T07" group="stall" client:visible />
+
+#### The backlog band of C (SYS-48)
+
+In the run [40558968382](https://github.com/mark1russell7/systems/actions/runs/40558968382), C in the stall of Cilium failed 1,507 requests in one run. The band was 0 to 1,503. The last failure came 166 ms after the end of the window, with 3 sessions on the target. This miss is the backlog of the target after the resume.
+
+For the 4 stall cells of C, SYS-48 adds the backlog term to the band. With n sessions on the target, the window closes up to (n − 1) × 45 ms + 100 ms later. At the setting of 20 ms, the band goes from 0 to 1,503 to 0 to 1,542.
+
+The cells come from the run [40643221421](https://github.com/mark1russell7/systems/actions/runs/40643221421). Each of the 4 cells held in 3 of 3 counted runs. Each run of the earlier copies is in the new band too.
+
+The chart puts the two bands of each mode on one axis. The grey bar is the band without the term, with the runs of the earlier copy. The blue bar is the band with the term, with the runs of SYS-48. Select a dot to go to its cell. "The top end" shows where the two bands end.
+
+<StallBand client:visible />
+
+<KindResults template="T07" group="stall" copy="sys-48" client:visible />
 
 ### A failed prober
 

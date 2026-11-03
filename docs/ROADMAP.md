@@ -14,7 +14,7 @@ The program started again on 2026-11-02, after the pause of 2026-10-28. A gap th
 3. **VIZ:** The site gets an interactive demo of the path of a request, from the process to the NIC. The packages of this repository run live in the browser.
 4. **S2:** The next step is a design of the cells for CoreDNS. kube-vip, MetalLB and Pulsar come after it. Do one intermediary in each context. Write the prediction before the dispatch.
 
-SITE-UX round 3 is late. Its visual shows the C-stall band of SYS-48 against the count of each mode, on the kind page.
+SITE-UX round 3 is done. Its chart shows the C-stall band of SYS-48 against the count of each mode, on the kind page.
 
 ## The slices of the program
 
@@ -1874,6 +1874,12 @@ Each week, one round makes the site and the tracker easier to read, with a visua
   - The tracker shows the count of the done items first, and the items that can start. The record of each item shows as steps. The map lights the chain of the item under the pointer, and a chart shows the items shipped each day.
   - CI takes a screenshot of each page of the site at 390 px and at 1280 px, in light and in dark (#88). Its report names each page that is wider than its screen, and each error of a page. No page is wider than a phone, and no page has an error. The pages of results are long: 33,241 px for PostgreSQL on a phone, and 74,767 px for R3.
   - Each page of results has a map of its cells under its summary, and each tile links to the frame of its cell. The PostgreSQL page has a chart for each of its 8 borders (#89).
+- Round 3, 2026-11-03:
+  - The kind page has a chart of the C-stall band of SYS-48 for each mode. The band without the backlog term, 0 to 1,503, is next to the band with it, 0 to 1,542.
+  - Each counted run is a dot on one axis. The only miss is a red cross: Cilium, 1,507 failed requests in CI run 40558968382, 4 over the old band.
+  - A tooltip gives the run, the cell, the value and the two bands. Each dot links to the frame of its cell, and the 4 cells of SYS-48 (CI run 40643221421) have frames on the page.
+  - A switch shows the top end of the axis, from 1,400, where the miss is clear. A second switch shows the same data as a table.
+  - On the page of the path of one request, the time axis drops a label if it covers the label before it. At 1280 px, "10 min" covered "20 min".
 
 <!-- ste-disable-next latin-abbreviation -- VIZ is the ID of the item, not the Latin abbreviation -->
 
