@@ -6,6 +6,7 @@
  * `Border` is the table of DV-12 on each side of the border of O03.
  */
 import type { ReactElement, ReactNode } from "react";
+import { median } from "@mark1russell7/rigor-statistics";
 import topologies from "../data/topologies-2026-10-17.json";
 import { duration } from "../lib/format.ts";
 import CellFrame, { code, joined, setting, sysctl } from "./CellFrame.tsx";
@@ -194,12 +195,7 @@ const find = (catalog: string, name: string): Cell => {
 };
 
 /** This function gives the median of a set of numbers. */
-const middle = (values: readonly number[]): number | null => {
-  const sorted = [...values].sort((a, b) => a - b);
-  const half = Math.floor(sorted.length / 2);
-  if (sorted.length === 0) return null;
-  return sorted.length % 2 === 1 ? sorted[half]! : (sorted[half - 1]! + sorted[half]!) / 2;
-};
+const middle = (values: readonly number[]): number | null => (values.length === 0 ? null : median(values));
 
 /**
  * The table of DV-12 as the program sees it. It puts the keepalive of the client on each side of the

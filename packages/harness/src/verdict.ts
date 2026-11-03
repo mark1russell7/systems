@@ -1,5 +1,6 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
+import { median as middle, quantileSorted } from "@mark1russell7/rigor-statistics";
 import type { Prediction, Run, Stage } from "./cell.ts";
 import type { Measured, Reordering } from "./observe.ts";
 
@@ -199,9 +200,11 @@ export interface GroupVerdict {
 const s = (value: number): Quantity => quantity(Math.round(value * 1e6) / 1e6, "s");
 const name = (run: Measured): string => `env ${run.environment} run ${run.index}`;
 
-/** This function gives the value at quantile p of sorted values, by nearest rank: x_(⌈p·n⌉). */
-export const quantileOf = (sorted: readonly number[], p: number): number =>
-  sorted[Math.min(sorted.length, Math.max(1, Math.ceil(p * sorted.length))) - 1]!;
+/**
+ * This function gives the value at quantile p of sorted values, by nearest rank: x_(⌈p·n⌉). It is
+ * `quantileSorted` of @mark1russell7/rigor-statistics with the method `"nearest-rank"`.
+ */
+export const quantileOf = (sorted: readonly number[], p: number): number => quantileSorted(sorted, p, "nearest-rank");
 
 /** This function gives the spread of a set of times, or null for none. */
 export const spreadOf = (times: readonly Quantity[]): Spread | null => {
@@ -273,16 +276,12 @@ const below = (n: number, j: number): number => {
  * largest k whose two tails each hold 2.5 % or less. For eleven runs, it gives [x_(2), x_(10)],
  * at 98.8 %.
  */
+// TODO(npm): use medianInterval of @mark1russell7/rigor-statistics 0.1.3 (mark1russell7/rigor#17) after its release.
 export const medianInterval = (sorted: readonly number[]): [number, number] => {
   const n = sorted.length;
   let k = 0;
   while (k + 1 <= n / 2 && below(n, k) <= 0.025) k += 1;
   return k === 0 ? [sorted[0]!, sorted[n - 1]!] : [sorted[k - 1]!, sorted[n - k]!];
-};
-
-const middle = (sorted: readonly number[]): number => {
-  const half = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 1 ? sorted[half]! : (sorted[half - 1]! + sorted[half]!) / 2;
 };
 
 /**

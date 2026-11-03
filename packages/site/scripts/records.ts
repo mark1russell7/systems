@@ -7,6 +7,7 @@
 
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { median } from "@mark1russell7/rigor-statistics";
 import { duration } from "../src/lib/format.ts";
 
 /** A found cell is the raw record of a cell, its line of summary.ndjson, and the decision of a run that a re-run replaced. */
@@ -170,12 +171,7 @@ export const stringify = (copy: unknown): string => `${JSON.stringify(copy, null
 export const dateOf = (ended: readonly string[]): string => ended.map((each) => each.slice(0, 10)).sort().at(-1)!;
 
 /** This function gives the median of a set of numbers, or null for none. */
-export const middle = (values: readonly number[]): number | null => {
-  if (values.length === 0) return null;
-  const sorted = [...values].sort((a, b) => a - b);
-  const half = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 1 ? sorted[half]! : (sorted[half - 1]! + sorted[half]!) / 2;
-};
+export const middle = (values: readonly number[]): number | null => (values.length === 0 ? null : median(values));
 
 /** This form is the reason of a void run whose timer the VM delayed. */
 const DELAYED = /^its (retransmit|keepalive) timer ran (\d+) jiffies behind its wheel slot: the VM delayed it, not the kernel$/;

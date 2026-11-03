@@ -1,9 +1,13 @@
 import type { Clock } from "./clock.ts";
 import { realClock } from "./clock.ts";
 import type { ContractCase } from "./contract.ts";
+import { ownStream } from "./drains.ts";
 import { fakeClock } from "./fakes.ts";
 import type { Health } from "./health.ts";
+import { pushedSource } from "./http/fake-server.ts";
 import type { Lifecycle, TransportImpl } from "./lifecycle.ts";
+import type { RequestEnd, RequestFn, Tracker } from "./requests.ts";
+import { tracker } from "./requests.ts";
 
 /** A held work is one unit of work that stays in flight until the test releases it. */
 export interface HeldWork {
@@ -25,8 +29,44 @@ export interface TransportSubject {
   offer(): Promise<boolean>;
   /** This method starts one unit of work that stays in flight until its release. The promise ends when the transport has it. */
   hold(): Promise<HeldWork>;
+  /**
+   * This method sends one call through the transport, for the stream cases (option `streams`). The
+   * handler of the call gives `call.work` to `life.request(call.controller, call.route, ...)` of the
+   * lifecycle of the start, and writes its stream to the caller. It gives what the caller sees.
+   */
+  call?(call: StreamCall): CallerView | Promise<CallerView>;
   /** This method frees what the subject holds outside the transport: its clients and their sockets. */
   dispose?(): Promise<void> | void;
+}
+
+/** A stream call is one request of the stream cases. The kit gives its work, and the subject sends it. */
+export interface StreamCall {
+  /** This name is the controller of the request in the lifecycle of the kit. */
+  readonly controller: string;
+  /** This name is the route of the request in the lifecycle of the kit. */
+  readonly route: string;
+  /** This function is the work of the request: one value, or a stream of values. */
+  readonly work: RequestFn<unknown>;
+  /** True tells that the answer is a stream of items. False tells that the answer is unary: one status and one value. */
+  readonly stream: boolean;
+}
+
+/** A seen end is the end of a call, as its caller read it. */
+export interface SeenEnd {
+  readonly kind: RequestEnd["kind"];
+  /**
+   * True tells that the end came in the body of the answer, after its status, for example as the
+   * last line of a stream. False tells that the end came as the status of the answer.
+   */
+  readonly inBand: boolean;
+}
+
+/** A caller view is what the caller of a call has read so far. The kit reads it again until it changes. */
+export interface CallerView {
+  /** These values are the items that the caller read, in their sequence. */
+  readonly items: readonly unknown[];
+  /** This end is the end that the caller read, or null while the call is open. */
+  readonly end: SeenEnd | null;
 }
 
 /**
@@ -52,6 +92,25 @@ export const detachedLifecycle = (): Lifecycle => {
     inFlight: () => 0,
     keepAlive: () => true,
   };
+};
+
+/** These names are the controller and the route of each call of the stream cases. */
+const CALLS = { controller: "conformance", route: "call" } as const;
+
+/**
+ * This function gives a lifecycle with request tracking for the stream cases, and its tracker. The
+ * kit uses the tracker for the stages of the shutdown, as the lifecycle of a service does. Its
+ * requests are not idempotent, and it admits each request until the stop of its intake.
+ */
+const trackedLifecycle = (clock: Clock): { readonly life: Lifecycle; readonly requests: Tracker } => {
+  const requests = tracker([{ name: CALLS.controller, requires: [], routes: { [CALLS.route]: { idempotent: false } } }], clock, () => null);
+  const life: Lifecycle = {
+    ...detachedLifecycle(),
+    // the lifecycle owns each stream that it makes, thus the drain of the transport waits for the end of its cut
+    request: (controller, route, work, options) => ownStream(requests.request(controller, route, work, options), life),
+    inFlight: (controller) => requests.inFlight(controller),
+  };
+  return { life, requests };
 };
 
 /** A subject factory makes a new subject for each case, on the clock of the case. */
@@ -83,6 +142,11 @@ export interface ConformanceOptions {
   readonly cooperative?: boolean | undefined;
   /** This count is the number of works that the count case holds. The default is 3. */
   readonly holds?: number | undefined;
+  /**
+   * True adds the stream cases (S6 D4). Then the subject gives `call`, and the kit gives the
+   * transport a lifecycle with request tracking. The default is false.
+   */
+  readonly streams?: boolean | undefined;
   /** This function receives each measurement, for the raw records of a run. */
   readonly record?: ((record: ConformanceRecord) => void) | undefined;
 }
@@ -151,6 +215,16 @@ const track = (promise: Promise<unknown>): Tracked => {
  *   past it. It gives the cooperative abort to the work, and it does not throw.
  * - `close` ends the work in flight in its bound, and a second close has no effect.
  * - The stages in their sequence, as the lifecycle does them.
+ *
+ * The option `streams` adds the cases of the streams (S6 D4). Each request is a stream, and a
+ * unary call is a stream of one item. The kit gives the transport a lifecycle with request
+ * tracking. It also does the stages of the shutdown on the tracker, as the lifecycle does them.
+ * - A unary call gives one value, and its end comes as the status of the answer.
+ * - A stream stays in flight until its end, not until its first item.
+ * - A failure after the first item ends the stream with an error line in the body, not a status.
+ *   A failure before the first item gets a status.
+ * - `drain` waits for an open stream. The cooperative abort ends the stream, and its caller gets the end.
+ * - At the deadline of the drain, the cut ends an open stream, and its caller gets the end.
  */
 export const transportConformance = (make: SubjectFactory, options: ConformanceOptions = {}): ContractCase[] => {
   const name = options.name ?? "transport";
@@ -347,5 +421,190 @@ export const transportConformance = (make: SubjectFactory, options: ConformanceO
       await count(subject, 0, "close left work in flight");
     }),
   ];
-  return cases;
+  if (!(options.streams ?? false)) return cases;
+
+  /** A fed stream is a stream call whose items, end and failure the case gives. */
+  interface Fed {
+    readonly view: CallerView;
+    push(value: unknown): void;
+    finish(): void;
+    fail(error: Error): void;
+    /** This flag tells if the work got the abort of its signal. */
+    readonly aborted: boolean;
+  }
+
+  const eachStream = (
+    title: string,
+    body: (subject: TransportSubject, time: Time, requests: Tracker) => Promise<void>,
+  ): ContractCase => ({
+    name: `${name}: ${title}`,
+    async run() {
+      const time = timeOf();
+      const subject = await make(time.clock);
+      const { life, requests } = trackedLifecycle(time.clock);
+      try {
+        await subject.impl.start(new AbortController().signal, life);
+        check(subject.call !== undefined, "the option streams needs a subject that gives call()");
+        await body(subject, time, requests);
+      } finally {
+        // each work of the case ends, thus no stream stays open after the case
+        requests.stopIntake();
+        requests.cooperativeAbort();
+        try {
+          await subject.impl.close();
+        } finally {
+          await subject.dispose?.();
+        }
+      }
+    },
+  });
+
+  const call = (subject: TransportSubject, given: StreamCall): Promise<CallerView> => Promise.resolve(subject.call!(given));
+
+  const openStream = async (subject: TransportSubject): Promise<Fed> => {
+    const source = pushedSource<unknown>();
+    let started = false;
+    let signal: AbortSignal | null = null;
+    const view = await call(subject, {
+      ...CALLS,
+      stream: true,
+      work: (given) => {
+        started = true;
+        signal = given;
+        return source.iterable;
+      },
+    });
+    check(await within(slack, () => started), "the work of a stream call did not start");
+    return {
+      view,
+      push: (value) => source.push(value),
+      finish: () => source.finish(),
+      fail: (error) => source.fail(error),
+      get aborted() {
+        return (signal as AbortSignal | null)?.aborted === true;
+      },
+    };
+  };
+
+  const pushes = async (fed: Fed, value: number, what: string): Promise<void> => {
+    const before = fed.view.items.length;
+    fed.push(value);
+    check(await within(slack, () => fed.view.items.length > before), `${what}: the caller did not get the item ${value}`);
+  };
+
+  const ends = async (view: CallerView, kind: RequestEnd["kind"], inBand: boolean, what: string): Promise<void> => {
+    check(await within(slack, () => view.end !== null), `${what}: the caller got no end`);
+    const end = view.end!;
+    const where = (body: boolean): string => (body ? "in the body" : "as a status");
+    check(
+      end.kind === kind && end.inBand === inBand,
+      `${what}: the caller got the end ${end.kind} ${where(end.inBand)}, not ${kind} ${where(inBand)}`,
+    );
+  };
+
+  /** This function stops the intake of the tracker and of the transport, as the stage `stop intake` does. */
+  const stopBoth = async (subject: TransportSubject, requests: Tracker): Promise<void> => {
+    requests.stopIntake();
+    await subject.impl.stopIntake();
+  };
+
+  /**
+   * This function starts the drain of the transport and of the tracker, as the stage `drain` does.
+   * The abort of `signal` is also the cooperative abort of the tracker. It tracks the drain of the transport.
+   */
+  const drainBoth = (subject: TransportSubject, requests: Tracker, deadline: number, signal: AbortSignal): Tracked => {
+    if (signal.aborted) requests.cooperativeAbort();
+    else signal.addEventListener("abort", () => requests.cooperativeAbort(), { once: true });
+    void requests.drain(deadline);
+    return track(attempt(() => subject.impl.drain(deadline, signal)));
+  };
+
+  const failure = (): Error => new Error("the failure of the conformance kit");
+
+  const streamCases: ContractCase[] = [
+    eachStream("a unary call is a stream of one item: one value, and its end as the status", async (subject) => {
+      let started = false;
+      let give: (value: unknown) => void = () => {};
+      const view = await call(subject, {
+        ...CALLS,
+        stream: false,
+        work: () => {
+          started = true;
+          return new Promise<unknown>((resolve) => {
+            give = resolve;
+          });
+        },
+      });
+      check(await within(slack, () => started), "the work of a unary call did not start");
+      await count(subject, 1, "a unary call is in flight");
+      give(7);
+      await ends(view, "done", false, "a unary call");
+      check(view.items.length === 1 && view.items[0] === 7, `a unary call gave the items ${JSON.stringify(view.items)}, not [7]`);
+      await count(subject, 0, "a unary call ended");
+    }),
+
+    eachStream("a stream stays in flight until its end, not until its first item", async (subject) => {
+      const fed = await openStream(subject);
+      await count(subject, 1, "a stream is open");
+      for (const value of [1, 2]) {
+        await pushes(fed, value, "an open stream");
+        await count(subject, 1, `a stream is open after its item ${value}`);
+      }
+      check(fed.view.end === null, "the caller got an end before the end of the stream");
+      fed.finish();
+      await ends(fed.view, "done", true, "a stream that ended");
+      check(JSON.stringify(fed.view.items) === "[1,2]", `a stream gave the items ${JSON.stringify(fed.view.items)}, not [1,2]`);
+      await count(subject, 0, "a stream ended");
+    }),
+
+    eachStream("a failure after the first item ends the stream with an error line, not a status", async (subject) => {
+      const fed = await openStream(subject);
+      await pushes(fed, 1, "a stream before its failure");
+      fed.fail(failure());
+      await ends(fed.view, "failed", true, "a stream that failed after its first item");
+      await count(subject, 0, "a stream failed");
+    }),
+
+    eachStream("a failure before the first item gets a status, not an error line", async (subject) => {
+      const fed = await openStream(subject);
+      fed.fail(failure());
+      await ends(fed.view, "failed", false, "a stream that failed before its first item");
+      check(fed.view.items.length === 0, `a stream that failed before its first item gave ${fed.view.items.length} items`);
+      await count(subject, 0, "a stream failed");
+    }),
+
+    eachStream("drain waits for an open stream, and the cooperative abort ends the stream with its end", async (subject, time, requests) => {
+      const fed = await openStream(subject);
+      await pushes(fed, 1, "a stream before the drain");
+      await stopBoth(subject, requests);
+      const abort = new AbortController();
+      const deadline = time.clock.now() + cap;
+      const drained = drainBoth(subject, requests, deadline, abort.signal);
+      await time.pass(cap / 4);
+      await quiet();
+      check(!drained.settled, "drain ended while a stream was open, before its deadline");
+      check(fed.view.end === null, "the caller got an end before the cooperative abort");
+      await count(subject, 1, "a stream is open in the drain");
+      abort.abort(new Error("the cooperative abort of the conformance kit"));
+      check(await within(slack, () => fed.aborted), "the work of the stream did not get the cooperative abort");
+      await ends(fed.view, "cut", true, "a stream after the cooperative abort");
+      check(await within(slack, () => drained.settled), "drain did not end when the stream ended");
+      check(!drained.failed, `drain threw: ${String(drained.error)}`);
+      check(time.clock.now() < deadline, "drain waited until its deadline after the stream ended");
+      await count(subject, 0, "the cooperative abort left a stream in flight");
+    }),
+
+    eachStream("drain cuts an open stream at its deadline, and the caller gets the end of the cut", async (subject, time, requests) => {
+      const fed = await openStream(subject);
+      await pushes(fed, 1, "a stream before the drain");
+      await stopBoth(subject, requests);
+      const drained = drainBoth(subject, requests, time.clock.now() + cap, new AbortController().signal);
+      await time.pass(cap);
+      await ends(fed.view, "cut", true, "a stream at the deadline of the drain");
+      check(await within(slack, () => drained.settled), "drain did not end after the cut of the stream");
+      check(!drained.failed, `drain threw at its deadline: ${String(drained.error)}`);
+      await count(subject, 0, "the cut left a stream in flight");
+    }),
+  ];
+  return [...cases, ...streamCases];
 };
