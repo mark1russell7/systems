@@ -34,9 +34,10 @@ import { CALLERS_CELLS, callerFaultOf } from "../../cells/src/callers.ts";
 import { GATE_CELLS } from "../../cells/src/gate.ts";
 import { BACKLOG_BAND_CELLS, BACKLOG_CELLS, BACKLOG_DRAIN_CELLS, BACKLOG_TERMS_CELLS } from "../../cells/src/backlog.ts";
 import { DNS_CELLS, dnsOf } from "../../cells/src/dns.ts";
+import { VIP_CELLS, VIP_WORKLOAD, VIP_HOLD, vipOf } from "../../cells/src/vip.ts";
 import type { Line } from "../../kind/src/observe.ts";
 import { failuresOf, outcomesOf, slicesOf } from "../../kind/src/observe.ts";
-import { SERVER } from "../../kind/src/names.ts";
+import { OUTSIDE, SERVER } from "../../kind/src/names.ts";
 import { backlogPredictionOf, backlogPredictions, callerPredictions, candidateOf } from "./callers.ts";
 import type { Found } from "./records.ts";
 import { dateOf, only, readFolders, runnerOf, round, stringify, time, timeAt } from "./records.ts";
@@ -66,7 +67,7 @@ interface Summary {
   readonly median: number | Quantity | null;
 }
 
-const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T15_GRPC, ...CALLERS_CELLS, ...GATE_CELLS, ...BACKLOG_CELLS, ...BACKLOG_BAND_CELLS, ...BACKLOG_DRAIN_CELLS, ...BACKLOG_TERMS_CELLS, ...DNS_CELLS];
+const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T15_GRPC, ...CALLERS_CELLS, ...GATE_CELLS, ...BACKLOG_CELLS, ...BACKLOG_BAND_CELLS, ...BACKLOG_DRAIN_CELLS, ...BACKLOG_TERMS_CELLS, ...DNS_CELLS, ...VIP_CELLS];
 // A later folder replaces the run of each cell of the same id, also when the cell has a new name.
 const found = new Map<string, Found<KindRecord, Summary>>();
 for (const folder of folders)
@@ -377,14 +378,17 @@ const spread = (value: TimeSpread | null) =>
  * s2-dependency. The cells of a flapping dependency get s2-flapping, and those of a lost zone get s2-zone.
  * The cells of a slow dependency get s2-slow, and the cells of the shared gate (E) get s2-gate. The
  * cells of the backlog of a stall (SYS-40) get s2-backlog, and the cells of a black hole of DNS
- * (SYS-50) get s2-dns.
+ * (SYS-50) get s2-dns. The cells of a VIP of kube-vip (SYS-51) get s2-vip.
  */
-const copyOf = (cell: KindCell): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" | "s2-prober" | "s2-dependency" | "s2-flapping" | "s2-zone" | "s2-slow" | "s2-gate" | "s2-backlog" | "s2-dns" => {
+const copyOf = (
+  cell: KindCell,
+): "kind" | "t15" | "s2" | "s2-partition" | "s2-stall" | "s2-prober" | "s2-dependency" | "s2-flapping" | "s2-zone" | "s2-slow" | "s2-gate" | "s2-backlog" | "s2-dns" | "s2-vip" => {
   if (cell.template === "T15") return "t15";
   if (!cell.id.startsWith("S2.")) return "kind";
   if (cell.id.includes(".shared-gate")) return "s2-gate";
   if (cell.id.includes(".backlog")) return "s2-backlog";
   if (cell.trigger.kind === "dns-blackhole") return "s2-dns";
+  if (cell.vip !== undefined) return "s2-vip";
   const fault = callerFaultOf(cell);
   if (fault === "lost zone") return "s2-zone";
   if (fault === "slow dependency") return "s2-slow";
@@ -494,6 +498,71 @@ const dnsRunsOf = (runs: readonly KindRun[]): { outcomes: Array<Record<string, n
         .map((line) => round((Number(line["t1"]) - line.t) / 1000)),
     ),
   };
+};
+
+/** These are the figures of one counted run of a VIP of kube-vip (SYS-51), in seconds from the fault. */
+interface VipRun {
+  /** This time is the take of the Lease by the new holder: its `acquireTime` on the clock of the lab. */
+  readonly take: number | null;
+  /** This time is the first change of each outside client to the MAC address of the new holder. */
+  readonly arp: Array<number | null>;
+  /** This time is the start of the last failed request of each outside client before the heal. */
+  readonly last: Array<number | null>;
+  /** These counts are the failed requests of the outside clients before the heal, those after the heal, and those of the clients in the cluster. */
+  readonly failed: { readonly outside: number; readonly thaw: number; readonly inside: number };
+  readonly outcomes: Record<string, number>;
+  /** This time is from the heal to the last failed request after the heal, or null. */
+  readonly thawLast: number | null;
+}
+
+/**
+ * This function gives the figures of each counted run of a VIP of kube-vip (SYS-51). The line `vip`
+ * of a run has the Lease and the wall clock of the runner with its monotonic clock. Thus the
+ * `acquireTime` of the Lease goes on the clock of the lab. The new holder is the holder in the Lease.
+ * The lines `arp` of each outside client give the time of its change to the MAC of that node.
+ */
+const vipRunsOf = (runs: readonly KindRun[]): { vip: VipRun[] } => ({
+  vip: runs
+    .filter((run) => !run.warmup && run.void === null)
+    .map((run) => {
+      const fault = referenceOf(run, "fault");
+      const heal = referenceOf(run, "heal");
+      if (fault === null || heal === null) throw new Error(`run ${run.env}/${run.index}: no fault or no heal`);
+      const at = (t: number) => round((t - fault) / 1000);
+      const record = run.lines.find((line) => line.ev === "vip");
+      const lease = record?.["lease"] as { readonly holder?: string | null; readonly acquireTime?: string | null } | null | undefined;
+      const macs = (record?.["macs"] ?? {}) as Record<string, string>;
+      const acquired = lease?.acquireTime === undefined || lease.acquireTime === null ? Number.NaN : Date.parse(lease.acquireTime);
+      const take = record === undefined || Number.isNaN(acquired) ? null : at(record.t + (acquired - Number(record["wall"])));
+      const mac = lease?.holder === undefined || lease.holder === null ? undefined : macs[lease.holder];
+      const failures = failuresOf(run.lines as readonly Line[]).filter((request) => request.t >= run.start && request.t <= run.end);
+      const outside = failures.filter((request) => request.n === OUTSIDE);
+      const clients = [...new Set(run.lines.filter((line) => line["n"] === OUTSIDE && typeof line["p"] === "string").map((line) => String(line["p"])))].sort();
+      const arp = clients.map((client) => {
+        const moved = run.lines.find((line) => line.ev === "arp" && line["p"] === client && line.t >= fault && mac !== undefined && line["mac"] === mac);
+        return moved === undefined ? null : at(moved.t);
+      });
+      const last = clients.map((client) => {
+        const mine = outside.filter((request) => request.p === client && request.t < heal).at(-1);
+        return mine === undefined ? null : at(mine.t);
+      });
+      const thaw = outside.filter((request) => request.t >= heal);
+      return {
+        take,
+        arp,
+        last,
+        failed: { outside: outside.length - thaw.length, thaw: thaw.length, inside: failures.length - outside.length },
+        outcomes: outcomesOf(failures),
+        thawLast: thaw.length === 0 ? null : round((thaw.at(-1)!.t - heal) / 1000),
+      };
+    }),
+});
+
+/** This function gives the bands of the cell of kube-vip from the fault, in seconds (SYS-51). They are the law, the naive law, the ARP and the thaw. */
+const vipBandsOf = () => {
+  const { take, naive, arp, end, thaw } = vipOf(VIP_WORKLOAD, VIP_HOLD);
+  const band = (each: { lo: Quantity; hi: Quantity }) => ({ low: s(each.lo), high: s(each.hi) });
+  return { take: band(take), naive: band(naive), arp: band(arp), end: band(end), thaw: band(thaw) };
 };
 
 /**
@@ -646,7 +715,7 @@ const cells = CATALOG.flatMap((cell) => {
       why: whyOf(cell, verdict, values, measured),
       first: entry.first,
       // the shared gate (E) is not a candidate of the table of S2, thus its cells have no candidate
-      ...(copyOf(cell).startsWith("s2") ? { ...(copyOf(cell) === "s2-gate" || copyOf(cell) === "s2-dns" ? {} : { candidate: candidateOf(cell) }), lasts: lastsOf(record.runs, verdict) } : {}),
+      ...(copyOf(cell).startsWith("s2") ? { ...(copyOf(cell) === "s2-gate" || copyOf(cell) === "s2-dns" || copyOf(cell) === "s2-vip" ? {} : { candidate: candidateOf(cell) }), lasts: lastsOf(record.runs, verdict) } : {}),
       // the main value of a false failure is the time of its removal, thus the copy keeps the failed requests of each counted run apart
       ...(copyOf(cell) === "s2-prober" || copyOf(cell) === "s2-dependency" || copyOf(cell) === "s2-flapping" || copyOf(cell) === "s2-zone" || copyOf(cell) === "s2-gate"
         ? { failures: verdict.checks.map((check) => check.facts.failures) }
@@ -661,6 +730,8 @@ const cells = CATALOG.flatMap((cell) => {
       ...(copyOf(cell) === "s2-slow" ? slowTimesOf(record.runs) : {}),
       // a black hole of DNS: the last failure from the heal, the outcomes, and the time of each act in the client pods
       ...(copyOf(cell) === "s2-dns" ? { ...slowTimesOf(record.runs), ...dnsRunsOf(record.runs) } : {}),
+      // a VIP of kube-vip: the take of the Lease, the ARP of each outside client, and its last failure
+      ...(copyOf(cell) === "s2-vip" ? vipRunsOf(record.runs) : {}),
       // the backlog of a stall: the sessions on the target and the stall of each counted run
       ...(copyOf(cell) === "s2-backlog" ? backlogRunsOf(cell, verdict) : {}),
       // the PINGs of the clients, when their image counts them
@@ -728,6 +799,8 @@ for (const name of names) {
                         }
                       : name === "s2-dns"
                         ? { phase: dnsPhaseOf() }
+                        : name === "s2-vip"
+                          ? { bands: vipBandsOf() }
                         : {};
   writeFileSync(out, stringify({ ...copy, cells: mine.map(({ copy: _copy, ...cell }) => cell), ...predictions }));
   process.stdout.write(`${mine.length} cells, ${mine.reduce((sum, cell) => sum + cell.counted + cell.voided, 0)} runs: ${out}\n`);
