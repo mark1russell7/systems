@@ -16,9 +16,12 @@ export { fakeClock, fakeProcess, seeded } from "./fakes.ts";
 export type { ContractCase, ContractOptions } from "./contract.ts";
 export { contractCases } from "./contract.ts";
 export type {
+  CallerView,
   ConformanceOptions,
   ConformanceRecord,
   HeldWork,
+  SeenEnd,
+  StreamCall,
   SubjectFactory,
   TransportSubject,
 } from "./conformance.ts";

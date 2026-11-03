@@ -8,7 +8,7 @@ Each item has an id, a status, an area, the items that it needs, its dates and i
 
 The program started again on 2026-11-02, after the pause of 2026-10-28. A gap that a consumer finds in the service or kind packages still comes first. It is released as a PATCH when its checks pass. The order of the other work is:
 
-1. **S6:** SYS-6 completes the streams of the requests in `@mark1russell7/service`. SYS-17 is done, with SYS-18.
+1. **S6:** SYS-6 is done: the conformance kit has the cases of the streams, in service 0.6.4. SYS-17 is done, with SYS-18.
 2. **SYS-49:** The statistics of the cells and the time verdicts come from the rigor packages, not from local copies.
    <!-- ste-disable-next latin-abbreviation -- VIZ is the ID of the item, not the Latin abbreviation -->
 3. **VIZ:** The site gets an interactive demo of the path of a request, from the process to the NIC. The packages of this repository run live in the browser.
@@ -134,7 +134,7 @@ A service declares its clients, timeouts, retries, checks and state machines as 
 
 On 2026-10-17, Mark decided the design of the server stack (D1 to D18). These decisions replace the co-design gate for the runner, its HTTP entry, the composition, the requests, the signals and the profiles. On 2026-10-25, Mark chose a shared core for the wrappers of the S1 clients. Each driver has a thin entry on that core. Mark asked for as much unification as possible. Thus the table of [S6.md](S6.md) gives a reason for each part that stays separate.
 
-The design of health and routing is decided. The kind cells scored the candidates A to E on eight incidents, from PR #194 to PR #242, and the rule of the service stays. S6 stays in progress for SYS-6.
+The design of health and routing is decided. The kind cells scored the candidates A to E on eight incidents, from PR #194 to PR #242, and the rule of the service stays. SYS-6 and SYS-17 are done.
 
 [PR #157](https://github.com/mark1russell7/systems/pull/157) adds the PostgreSQL client (`./pg`) on the shared core of the clients, and moves the Redis client onto that core.
 
@@ -323,14 +323,19 @@ A controller can declare a path pattern, and a function gives the idempotency of
 
 ### SYS-6 · Each request is a stream
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** server stack
-- **Depends on:** S6
+- **Depends on:** S6, SYS-4
 - **Started:** 2026-10-17
-- **Shipped:**
-- **Links:** [#50](https://github.com/mark1russell7/systems/pull/50), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
+- **Shipped:** 2026-11-02
+- **Links:** [#50](https://github.com/mark1russell7/systems/pull/50), [#286](https://github.com/mark1russell7/systems/pull/286), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-A request stays in flight until its stream ends. A failure after the first item ends the stream with an error line, not a 503. The cooperative abort ends the stream. This change breaks the API, thus it comes in service 0.5.0. #50 gives the server side. On it, 25 of the 31 cells in kind hold, and the one failure is a finding of conntrack (KIND-LONE). The client streams and the conformance kit of SYS-4 complete the item.
+A request stays in flight until its stream ends. A failure after the first item ends the stream with an error line, not a 503. The cooperative abort ends the stream. This change breaks the API, thus it comes in service 0.5.0. #50 gives the server side. On it, 25 of the 31 cells in kind hold, and the one failure is a finding of conntrack (KIND-LONE).
+
+The two other parts of the item are done:
+
+- **The client streams.** The procedures host of the client sends each call through `life.request`, as a stream (CLI-7, `@procedures/peer`). A stream call stays in flight until its last item, and an end after the first item is an error line. The HTTP transport of `@procedures/client` reads each NDJSON stream to its end line or its error line.
+- **The conformance kit.** The option `streams` of `transportConformance` adds six cases. A unary call gives one value and its status. A stream stays in flight until its end. A failure after the first item is an error line, and a failure before it gets a status. The drain waits for an open stream. Its cooperative abort and its cut give the end to the caller. The reference transport passes, and each of five mutations of a stream fails its case. `httpTransport` passes the cases on a fake server.
 
 ### SYS-7 · A stop when stdin closes, and a minimal profile
 
