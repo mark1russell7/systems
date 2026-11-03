@@ -84,6 +84,10 @@ const text = (list: readonly PairedLine[]) => list.map((line) => JSON.stringify(
 if (JSON.stringify(text(lines)) !== JSON.stringify(text(written)))
   throw new Error(`the raw records give ${lines.length} paired lines, and paired.ndjson gives ${written.length} lines that are not the same`);
 
+/** This function keeps 7 significant digits of each number of an object, so that the copy stays small. */
+const digits = <T extends object>(object: T): T =>
+  Object.fromEntries(Object.entries(object).map(([key, value]) => [key, typeof value === "number" ? Number(value.toPrecision(7)) : value])) as T;
+
 const copied = lines.map((line) => ({ ...line, a: seconds(line.a), b: seconds(line.b) }));
 const measures: readonly PairMeasure[] = ["retry", "answer"];
 const verdicts = measures.map((measure) => {
@@ -93,8 +97,8 @@ const verdicts = measures.map((measure) => {
     measure,
     outcome: verdict.outcome,
     reason: verdict.reason,
-    interval: verdict.interval ?? null,
-    band: verdict.band ?? null,
+    interval: verdict.interval === undefined ? null : digits(verdict.interval),
+    band: verdict.band === undefined ? null : digits(verdict.band),
     cases: { ab: new Set(of("ab").map((each) => each.case)).size, aa: new Set(of("aa").map((each) => each.case)).size },
     ratios: verdict.cases.map((each) => ({ case: each.case, ratio: Number(each.ratio.toFixed(7)), rounds: each.rounds })),
   };

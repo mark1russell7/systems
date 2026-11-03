@@ -610,6 +610,8 @@ The column "Runs needed" gives the runs of each version that put the interval in
 
 The standing catalog is the six cells of 0.6.0. The input `pair` of `cells.yml` starts a paired run of two versions on demand. The cells README tells how. #229 has no release, because the cells and the site are private packages.
 
+[SYS-52](#sys-52--the-limiter-pair-gives-its-time-verdict-through-rigor-bench) measures the pair again in rounds, with an A/A pair, and `timeVerdict` of rigor-bench decides.
+
 ### SYS-29 · The drain of httpTransport waits for the answers of the cut calls
 
 - **Status:** done
@@ -1172,6 +1174,53 @@ The Dockerfile unpacks the tarballs of quantity, algebra and service with no ins
 The prediction hit in 6 of 7 claims. The miss is the build claim, because the first dispatch failed in the lab image. The phase and the count hit, at confidences of 0.45 and 0.4.
 
 The last failure is approximately the low edge of the phase plus one act: 0.5 + 0.24 s. Thus the threads stay in phase with the fault, and the queue drains in approximately 0 s. `DNS_DRAIN` gives 0.5 s, thus the band is wide on its high edge. This is not a bias, because each run is in the band. A later band can use a measured drain.
+
+### SYS-52 · The limiter pair gives its time verdict through rigor-bench
+
+- **Status:** done
+- **Area:** server stack
+- **Depends on:** SYS-28, SYS-49
+- **Started:** 2026-11-02
+- **Shipped:** 2026-11-03
+- **Links:** [#299](https://github.com/mark1russell7/systems/pull/299), [cells run 41572390043](https://github.com/mark1russell7/systems/actions/runs/41572390043), [rigor#28](https://github.com/mark1russell7/rigor/pull/28), [@mark1russell7/rigor-bench](https://www.npmjs.com/package/@mark1russell7/rigor-bench)
+
+The first limiter pair of SYS-28 did not fit the A/A verdict of rigor-bench (SYS-49). Its order did not turn, and no A/A pair measured the noise. This item measures the pair of service 0.5.6 and 0.6.0 again, so that `timeVerdict` decides.
+
+**The rounds.** `limiterBench` in `packages/cells/src/limiter.ts` replaces `limiterPair`. A pair has 7 rounds. In each round, each of the six specs operates two pairs:
+
+- The A/B pair: arm a is the control 0.5.6, and arm b is the candidate 0.6.0.
+- The A/A pair: the control in both arms, on the same shard.
+
+Each arm is a cell of one run in a new environment. `firstArm(round, offset)` gives the arm that operates first, thus the order turns each round. That is 168 cells on 6 shards, one spec on each shard.
+
+**The cases.** Each band of a prediction is a case (`benchTimes`). The runner writes a PairedTime line of each case to `paired.ndjson`, with each time as an amount in seconds.
+
+- The measure `retry` is the delay of each retry of the `RetryAgent`: 13 cases (O30.1 retry 1, O30.2 retries 1–2, O29.1 and O29.2 retries 1–5).
+- The measure `answer` is the end of the cell or the 429: 6 cases (the last reply of the four agent cells, and the 429 of O29.3 and O29.4).
+
+Each measure has 13 or 6 A/A cases, more than the 5 that the verdict needs.
+
+**The prediction.** The retry delays do not change: `same`. The answers take approximately 0.3 to 2 ms, and their noise is approximately 10 % or more. Thus their verdict is `cannot decide`. The decision rule: the verdicts come from `timeVerdict` with its defaults (rule `difference`, margin 0.05) on the landed lines.
+
+**The result.** Cells run 41572390043 held each of the 168 cells. No run was void, thus no cell operated again. Each runner had the image ubuntu24 20261026.354.1, 4 CPUs and HZ 1000. The copy is `packages/site/src/data/limiter-bench-2026-11-03.json`, and its test gives each verdict again from the lines.
+
+| Measure | Cases | Interval of the candidate over the A/A | A/A noise | Verdict       |
+| ------- | ----: | -------------------------------------- | --------: | ------------- |
+| retry   |    13 | 0.999984 to 1.000025                   |  0.000012 | same          |
+| answer  |     6 | 0.9008 to 1.1396                       |     0.130 | cannot decide |
+
+The reason sentences of rigor-bench 0.2.4:
+
+- retry: "The interval of the candidate median over the A/A median is [1, 1]. The interval is in the margin of 0.05."
+- answer: "The interval of the candidate median over the A/A median is [0.9008, 1.1396]. The interval holds 1 and crosses the margin of 0.05."
+
+The prediction hit in each of its five claims. Thus 0.6.0 does not change the retry delays by more than approximately 0.003 %. The answers of 1 ms or less have a noise of approximately 13 % between runs. Thus 7 rounds cannot decide a change of the answer within 5 %.
+
+**The version of rigor-bench.** The verdicts come from rigor-bench 0.2.4 (the range `^0.2.3`). Since 0.2.0 (rigor#25), the rule `difference` tests the margin before `faster` and `slower`. Thus a small `faster` is `same`. Neither verdict is near that edge. rigor#28 made `rigor-generators` a dependency of rigor-bench, because `power.ts` imports it.
+
+**Why no tolerance and no limit verdict.** The old view of SYS-28 gave d, the difference of the medians, against a tolerance of 1 ms or 0.5 ms. This item does not keep it. The band of each cell checks the absolute bounds of O29 and O30 in each run, and each cell holds. `limitVerdict` is not used, because no law claims a limit on the ratio of two versions. The record of the first pair stays as history.
+
+This item has no release, because the cells and the site are private packages.
 
 ## The systems of S1
 
