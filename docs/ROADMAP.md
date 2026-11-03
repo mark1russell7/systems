@@ -12,7 +12,7 @@ The program started again on 2026-11-02, after the pause of 2026-10-28. A gap th
 2. **SYS-49:** The statistics of the cells and the time verdicts come from the rigor packages, not from local copies.
    <!-- ste-disable-next latin-abbreviation -- VIZ is the ID of the item, not the Latin abbreviation -->
 3. **VIZ:** The site gets an interactive demo of the path of a request, from the process to the NIC. The packages of this repository run live in the browser.
-4. **S2:** The next step is a design of the cells for CoreDNS. kube-vip, MetalLB and Pulsar come after it. Do one intermediary in each context. Write the prediction before the dispatch.
+4. **S2:** CoreDNS (SYS-50) and kube-vip (SYS-51) are done. The next step is MetalLB, then Pulsar. Do one intermediary in each context. Write the prediction before the dispatch.
 
 SITE-UX round 3 is done. Its chart shows the C-stall band of SYS-48 against the count of each mode, on the kind page.
 
