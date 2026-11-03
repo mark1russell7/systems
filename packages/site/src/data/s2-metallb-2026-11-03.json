@@ -22,15 +22,31 @@
         "text": "The algebra predicts that each failed request starts in a window. The window opens at the fault, and it closes 4.98 s to 7 s after the fault. At least one request fails. Each failed request ends with a timeout."
       },
       "decision": "holds",
-      "counted": 2,
+      "counted": 4,
       "voided": 2,
       "failed": 0,
       "unit": "requests",
-      "median": 881.5,
-      "values": [1001, 762],
-      "why": "Each of the 2 counted runs agrees with the prediction. The median run had 881.5 failed requests. The counted runs had 762 to 1,001 failed requests.",
+      "median": 934,
+      "values": [1001, 762, 867, 1036],
+      "why": "Each of the 4 counted runs agrees with the prediction. The median run had 934 failed requests. The counted runs had 762 to 1,036 failed requests.",
       "first": null,
-      "lasts": [6.7220203, 5.104755],
+      "dispatches": [
+        {
+          "run": "41654669260",
+          "decision": "holds",
+          "counted": 2,
+          "voided": 2,
+          "taken": 2
+        },
+        {
+          "run": "41696343708",
+          "decision": "holds",
+          "counted": 4,
+          "voided": 0,
+          "taken": 2
+        }
+      ],
+      "lasts": [6.7220203, 5.104755, 5.8110317, 6.9563866],
       "metallb": [
         {
           "dead": 6.7371444,
@@ -63,11 +79,43 @@
             "timeout": 762
           },
           "moves": 0
+        },
+        {
+          "dead": 5.8125309,
+          "suspect": 1.8118153,
+          "withdraw": 1.0939096,
+          "arp": [5.8144777, 5.8190015, 5.8213395],
+          "last": [5.8110317, 5.8019052, 5.8033162],
+          "failed": {
+            "outside": 867,
+            "thaw": 0,
+            "inside": 0
+          },
+          "outcomes": {
+            "timeout": 867
+          },
+          "moves": 0
+        },
+        {
+          "dead": 6.9597997,
+          "suspect": 2.9590436,
+          "withdraw": 1.0801482,
+          "arp": [6.9657738, 6.9614909, 6.9674407],
+          "last": [6.9563866, 6.951083, 6.944851],
+          "failed": {
+            "outside": 1036,
+            "thaw": 0,
+            "inside": 0
+          },
+          "outcomes": {
+            "timeout": 1036
+          },
+          "moves": 0
         }
       ],
-      "pings": [0, 0],
-      "acks": [0, 0],
-      "seconds": [49.2710832, 49.2008552]
+      "pings": [0, 0, 0, 0],
+      "acks": [0, 0, 0, 0],
+      "seconds": [49.2710832, 49.2008552, 49.1595375, 49.1072786]
     }
   ],
   "bands": {

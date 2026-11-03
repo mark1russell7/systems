@@ -1,7 +1,7 @@
 // The export of the kind cells for the site: src/data/kind-<date>.json, src/data/t15-<date>.json for
 // the cells of T15, or src/data/s2-<date>.json for the S2 cells.
 //
-//   pnpm exec tsx packages/site/scripts/kind.ts [--tag <word>] <folder>...
+//   pnpm exec tsx packages/site/scripts/kind.ts [--tag <word>] [--pool <id>,<id>...] <folder>...
 //
 // One run can hold the S2 cells of both incidents. Then the script writes one copy for each
 // incident. The tag goes in the name of each copy, for example s2-session-check-<date>.json.
@@ -46,13 +46,31 @@ import { dateOf, only, readFolders, runnerOf, round, stringify, time, timeAt } f
 /** This function writes a time of a cell of T15 to the ms: its bands are minutes long and their edges are milliseconds apart. */
 const fine = timeAt(3);
 
-// `--tag <word>` puts the word in the name of each copy, thus a later run of the same date has its own file
+// `--tag <word>` puts the word in the name of each copy, thus a later run of the same date has its own file.
+// `--pool <id>,<id>...` gives the ID of the workflow run of each folder, in the order of the folders. Then a later
+// folder does not replace a cell: the runs of the cell join in the order of the folders, until the counted runs
+// are as many as the catalog asks. This is the re-dispatch that a pre-registered rule permits, and the first counted runs count.
 const args = process.argv.slice(2);
-const tagAt = args.indexOf("--tag");
-const tag = tagAt === -1 ? null : (args[tagAt + 1] ?? "");
-const folders = tagAt === -1 ? args : args.filter((_, at) => at !== tagAt && at !== tagAt + 1);
-if (folders.length === 0 || (tag !== null && !/^[a-z0-9-]+$/.test(tag))) {
-  process.stderr.write("usage: pnpm exec tsx packages/site/scripts/kind.ts [--tag <word>] <folder>...\n");
+const flagOf = (flag: string): string | null => {
+  const at = args.indexOf(flag);
+  return at === -1 ? null : (args[at + 1] ?? "");
+};
+const tag = flagOf("--tag");
+const poolText = flagOf("--pool");
+const pool = poolText === null ? null : poolText.split(",");
+const flagged = new Set(
+  ["--tag", "--pool"].flatMap((flag) => {
+    const at = args.indexOf(flag);
+    return at === -1 ? [] : [at, at + 1];
+  }),
+);
+const folders = args.filter((_, at) => !flagged.has(at));
+if (
+  folders.length === 0 ||
+  (tag !== null && !/^[a-z0-9-]+$/.test(tag)) ||
+  (pool !== null && (pool.length !== folders.length || !pool.every((id) => /^\d+$/.test(id))))
+) {
+  process.stderr.write("usage: pnpm exec tsx packages/site/scripts/kind.ts [--tag <word>] [--pool <id>,<id>...] <folder>...\n");
   process.exit(2);
 }
 
@@ -71,13 +89,27 @@ interface Summary {
 const CATALOG: readonly KindCell[] = [...T07_CELLS, ...T18_CELLS, ...T15_GRPC, ...CALLERS_CELLS, ...GATE_CELLS, ...BACKLOG_CELLS, ...BACKLOG_BAND_CELLS, ...BACKLOG_DRAIN_CELLS, ...BACKLOG_TERMS_CELLS, ...DNS_CELLS, ...VIP_CELLS, ...METALLB_CELLS];
 // A later folder replaces the run of each cell of the same id, also when the cell has a new name.
 const found = new Map<string, Found<KindRecord, Summary>>();
-for (const folder of folders)
+/** When `--pool` joins the folders, a part is the record of a cell in one folder, with its summary and its workflow run. */
+interface Part {
+  readonly run: string;
+  readonly record: KindRecord;
+  readonly summary: Summary;
+}
+const parts = new Map<string, Part[]>();
+folders.forEach((folder, at) => {
   for (const entry of readFolders<KindRecord, Summary>([folder]).values()) {
     const before = [...found].find(([, each]) => each.record.cell.id === entry.record.cell.id);
+    if (pool !== null) {
+      if (before !== undefined && before[0] !== entry.record.cell.name) throw new Error(`${entry.record.cell.name}: --pool joins only the runs of one name`);
+      if (before === undefined) found.set(entry.record.cell.name, entry);
+      parts.set(entry.record.cell.name, [...(parts.get(entry.record.cell.name) ?? []), { run: pool[at]!, record: entry.record, summary: entry.summary }]);
+      continue;
+    }
     if (before !== undefined) found.delete(before[0]);
     found.set(entry.record.cell.name, { ...entry, first: before === undefined ? null : (before[1].first ?? before[1].summary.decision) });
   }
-for (const entry of found.values()) {
+});
+for (const entry of [...found.values(), ...[...parts.values()].flat()]) {
   // the file can hold another format than its type says
   const { format, cell } = entry.record as { readonly format: string; readonly cell: { readonly name: string } };
   if (format !== FORMAT && format !== FORMAT_V1) throw new Error(`${cell.name}: the format ${format}`);
@@ -749,13 +781,8 @@ const backlogRunsOf = (cell: KindCell, verdict: KindVerdict) => {
   };
 };
 
-const propagation: Record<string, unknown> = {};
-const cells = CATALOG.flatMap((cell) => {
-  const entry = found.get(cell.name);
-  if (entry === undefined) return [];
-  const { summary } = entry;
-  const record = upgrade(entry.record);
-  const verdict = judgeKind(cell, record.runs);
+/** This function stops when the verdict of the catalog disagrees with the summary of the run. */
+const agree = (cell: KindCell, verdict: KindVerdict, summary: Summary): void => {
   const summed = summary.median === null || typeof summary.median === "number" ? summary.median : summary.median.value;
   if (
     verdict.decision !== summary.decision ||
@@ -764,6 +791,52 @@ const cells = CATALOG.flatMap((cell) => {
     (verdict.median?.value ?? null) !== summed
   )
     throw new Error(`${cell.name}: the catalog now gives ${verdict.decision} (${verdict.why}), and summary.ndjson gives ${summary.decision}`);
+};
+
+/** A dispatch is one workflow run of a pooled cell: what its summary gives, and how many of its counted runs the copy takes. */
+interface Dispatch {
+  readonly run: string;
+  readonly decision: string;
+  readonly counted: number;
+  readonly voided: number;
+  readonly taken: number;
+}
+
+/**
+ * This function joins the parts of a cell. Each part must agree with its own summary. The runs join in the order of the
+ * folders and of their start. The join stops when the counted runs are as many as the catalog asks. A later
+ * counted run is extra, and the copy ignores it.
+ */
+const joinOf = (cell: KindCell, pieces: readonly Part[]) => {
+  const runs: KindRun[] = [];
+  const dispatches: Dispatch[] = [];
+  let counted = 0;
+  for (const piece of pieces) {
+    const record = upgrade(piece.record);
+    agree(cell, judgeKind(cell, record.runs), piece.summary);
+    let taken = 0;
+    for (const run of [...record.runs].sort((a, b) => a.start - b.start)) {
+      if (counted === cell.runs) break;
+      runs.push(run);
+      if (!run.warmup && run.void === null) {
+        counted += 1;
+        taken += 1;
+      }
+    }
+    dispatches.push({ run: piece.run, decision: piece.summary.decision, counted: piece.summary.counted, voided: piece.summary.voided, taken });
+  }
+  return { record: { ...upgrade(pieces[0]!.record), runs }, dispatches };
+};
+
+const propagation: Record<string, unknown> = {};
+const cells = CATALOG.flatMap((cell) => {
+  const entry = found.get(cell.name);
+  if (entry === undefined) return [];
+  const pieces = parts.get(cell.name) ?? [];
+  const joined = pieces.length > 1 ? joinOf(cell, pieces) : null;
+  const record = joined?.record ?? upgrade(entry.record);
+  const verdict = judgeKind(cell, record.runs);
+  if (joined === null) agree(cell, verdict, entry.summary);
   const values = verdict.checks.flatMap((check) => (check.value === null ? [] : [check.value.value]));
   let measured = "";
   if (cell.calibrates && cell.template === "T15") {
@@ -806,6 +879,8 @@ const cells = CATALOG.flatMap((cell) => {
       values,
       why: whyOf(cell, verdict, values, measured),
       first: entry.first,
+      // a pooled cell: the workflow run of each dispatch, its counts and the counted runs that the copy takes
+      ...(joined === null ? {} : { dispatches: joined.dispatches }),
       // the shared gate (E) is not a candidate of the table of S2, thus its cells have no candidate
       ...(copyOf(cell).startsWith("s2") ? { ...(copyOf(cell) === "s2-gate" || copyOf(cell) === "s2-dns" || copyOf(cell) === "s2-vip" || copyOf(cell) === "s2-metallb" ? {} : { candidate: candidateOf(cell) }), lasts: lastsOf(record.runs, verdict) } : {}),
       // the main value of a false failure is the time of its removal, thus the copy keeps the failed requests of each counted run apart
@@ -836,7 +911,8 @@ const cells = CATALOG.flatMap((cell) => {
 const unknown = [...found.keys()].filter((name) => !CATALOG.some((cell) => cell.name === name));
 if (unknown.length > 0) throw new Error(`no catalog has the cells ${unknown.join(", ")}`);
 
-const records = [...found.values()].map((entry) => entry.record);
+// a pooled cell gives the record of each dispatch: the date is of the last, and the versions must agree
+const records = [...found.values()].map((entry) => entry.record).concat([...parts.values()].flatMap((pieces) => pieces.slice(1).map((piece) => piece.record)));
 const runner = runnerOf(folders);
 const date = dateOf(records.map((record) => record.at));
 // the control of the DNS cells has fewer runs than the black hole: thus that copy gives the most, and each cell gives its counted runs

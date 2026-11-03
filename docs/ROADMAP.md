@@ -74,7 +74,7 @@ CoreDNS is the next intermediary ([SYS-50](#sys-50--coredns-a-client-by-name-whe
 
 kube-vip is the intermediary after it ([SYS-51](#sys-51--kube-vip-callers-outside-the-cluster-when-the-holder-of-a-vip-is-gone)). Callers outside the cluster learn that the holder of a VIP is gone only at the first gratuitous ARP of the new holder. That comes one take of the Lease and up to one ARP tick after the fault. Kind run 41568679669 held the cell in each counted run, with takes 15.1 s to 19.3 s after the fault. Each take is in the band of the election law, but only 2 of 4 are in the naive band.
 
-MetalLB is the intermediary after kube-vip ([SYS-53](#sys-53--metallb-callers-outside-the-cluster-when-the-announcer-of-a-vip-is-gone)). Its speakers answer ARP for a VIP in user space, and memberlist finds a lost speaker. The law gives the new announcer 5 s to 7 s after the fault: one probe, its deadline and a suspicion timeout of 4 s. Kind run 41654669260 held the cell in each counted run, and the clients saw the new announcer 5.1 s and 6.7 s after the fault. A tick with no probe of memberlist put one death past the band of the law. Pulsar is the next intermediary.
+MetalLB is the intermediary after kube-vip ([SYS-53](#sys-53--metallb-callers-outside-the-cluster-when-the-announcer-of-a-vip-is-gone)). Its speakers answer ARP for a VIP in user space, and memberlist finds a lost speaker. The law gives the new announcer 5 s to 7 s after the fault: one probe, its deadline and a suspicion timeout of 4 s. Two kind runs held the cell in each of 4 counted runs, and the clients saw the new announcer 5.1 s to 7.0 s after the fault. A tick with no probe of memberlist put two deaths past the band of the law. Pulsar is the next intermediary.
 
 ### S3 · Outcomes under failure and load
 
@@ -1283,7 +1283,7 @@ This item has no release, because the cells and the site are private packages.
 - **Depends on:** SYS-51
 - **Started:** 2026-11-02
 - **Shipped:** 2026-11-03
-- **Links:** [S2](#s2--intermediaries-and-kubernetes), [SYS-51](#sys-51--kube-vip-callers-outside-the-cluster-when-the-holder-of-a-vip-is-gone), [kind run 41654669260](https://github.com/mark1russell7/systems/actions/runs/41654669260)
+- **Links:** [S2](#s2--intermediaries-and-kubernetes), [SYS-51](#sys-51--kube-vip-callers-outside-the-cluster-when-the-holder-of-a-vip-is-gone), [kind run 41654669260](https://github.com/mark1russell7/systems/actions/runs/41654669260), [kind run 41696343708](https://github.com/mark1russell7/systems/actions/runs/41696343708)
 
 MetalLB is the intermediary after kube-vip. In L2 mode, a speaker on each node answers ARP for the VIP of a Service, if its node owns the VIP. The speakers find each other with memberlist. The question: when do callers outside the cluster see the new announcer, and which timer sets that time?
 
@@ -1323,20 +1323,21 @@ The naive law reads the comment of `suspicionTimeout`: 4 × log(N + 1) × Interv
 
 **The prediction.** The cell holds in each of its 4 counted runs. The lost node is dead 5 s to 6.5 s after the fault in each run, and the naive band misses. Each client sees the new owner up to 0.5 s after the death. Approximately 750 to 1050 requests fail in each run before the heal, and none after it. The other speaker stops its announce up to 5 s after the heal. The decision rule is the rule of SYS-51, with 4 counted runs.
 
-**The result.** Kind run 41654669260 held the cell in 2 of 2 counted runs. The copy is `packages/site/src/data/s2-metallb-2026-11-03.json`.
+**The result.** Two kind runs held the cell in each of 4 counted runs. The copy is `packages/site/src/data/s2-metallb-2026-11-03.json`, and it names both runs.
 
-- Two runs were void. Before the second run of each cluster, the runner stayed at 51% to 58% idle for 300 s. That is below the idle share of 60% of the wait for rest (`quiet` in `packages/kind/src/run.ts`).
-- The other speaker marked the lost node dead 6.737 s and 5.107 s after the fault. Only the second time is in the band of the law. Neither time is in the naive band.
-- In each run, the death came 4.000 s after the first suspicion. Thus the suspicion timeout is the timeout of the law, with no confirmation.
-- Each outside client changed to the MAC address of the other worker 2 ms to 8 ms after the death. Its last failure started 4 ms to 24 ms before that change.
-- Before the heal, the runs failed 1001 and 762 requests, with a median of 881.5. Each failure was a timeout. The clients in the cluster failed no request.
-- After the heal, no request failed, and no client changed its MAC address. The other speaker stopped its announce 1.125 s and 1.018 s after the heal.
+- Kind run 41654669260 gave 2 counted runs and 2 void runs. Before the second run of each cluster, the runner stayed at 51% to 58% idle for 300 s. That is below the idle share of 60% of the wait for rest (`quiet` in `packages/kind/src/run.ts`).
+- The decision rule needs 4 counted runs, and it permits one re-dispatch. The first counted runs count. Kind run 41696343708 gave 4 counted runs. The result takes its 2 runs on the first cluster. Its 2 runs on the second cluster are extra, and the result does not use them.
+- The other speaker marked the lost node dead 6.737 s, 5.107 s, 5.813 s and 6.960 s after the fault. Only the second and the third times are in the band of the law. No time is in the naive band.
+- In each run, the death came 4.000 s or 4.001 s after the first suspicion. Thus the suspicion timeout is the timeout of the law, with no confirmation.
+- Each outside client changed to the MAC address of the other worker 1 ms to 9 ms after the death. Its last failure started 3 ms to 24 ms before that change.
+- Before the heal, the runs failed 1001, 762, 867 and 1036 requests, with a median of 934. Each failure was a timeout. The clients in the cluster failed no request.
+- After the heal, no request failed, and no client changed its MAC address. The other speaker stopped its announce 1.018 s to 1.125 s after the heal.
 
-The prediction hit in 9 of 12 claims. The naive law missed, as predicted. The claim of the build missed: the first dispatch stopped before a cell started, because the name of its cluster had 34 characters. Kind permits 32. The claim of the death missed in run 1.
+The prediction hit in 9 of 12 claims. The naive law missed, as predicted. The claim of the build missed: the first dispatch stopped before a cell started, because the name of its cluster had 34 characters. Kind permits 32. Then the 2 void runs caused the re-dispatch. The claim of the death missed in runs 1 and 4.
 
-The miss of run 1 is not a bias of one sign, because run 2 is in the band. Its missing term is a tick with no probe. In run 1, the first failed probe started 1.737 s after the fault, past the probe band of 1.5 s.
+The misses of runs 1 and 4 are not a bias of one sign, because runs 2 and 3 are in the band. Their missing term is a tick with no probe. In runs 1 and 4, the first failed probe started 1.737 s and 1.959 s after the fault. Both times are past the probe band of 1.5 s.
 
-At the end of its list of members, memberlist shuffles the list (`state.go`, lines 232–274). The local node can then be next in the list. With two members, that tick then checks each member once and probes no node. Thus the first failed probe starts up to 2 probe intervals and the act after the fault, 0 s to 2.5 s. The death of a later band is 5 s to 7.5 s after the fault.
+At the end of its list of members, memberlist shuffles the list (`state.go`, lines 232–274). The local node can then be next in the list. With two members, that tick then checks each member once and probes no node. Thus the first failed probe starts up to 2 probe intervals and the act after the fault, 0 s to 2.5 s. The death of a later band is 5 s to 7.5 s after the fault, and each of the 4 deaths is in it.
 
 The heal did not come from the late push and pull of the law. At the thaw, the old speaker probed the other node while its drops were still there, and that probe failed. At the deadline of the probe, 1 s after the heal, the old speaker suspected the other node. Then each speaker refuted the suspicion about itself, and the other speaker saw the join. Thus a later law of the withdrawal is one probe interval after the heal.
 
