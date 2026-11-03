@@ -2212,14 +2212,30 @@ The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the
 
 ### SYS-65 · A pool at its limit
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** S1
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
-- **Links:**
+- **Links:** [The law](S3.md#q19-the-exhaustion)
 
 Above the size of the pool, the wait grows with the queue, and a client fails at `connectionTimeout`. HikariCP and PgBouncer are in the harness.
+
+The design: the client of HikariCP sends a burst, one query each 50 ms, each on its own thread. Each query is a band from the send of the first query. Thus the bands of one cell are the curve of the wait against the place in the queue.
+
+The prediction: five cells, `Q19.pool.1` to `Q19.pool.5`. In the table, a pool of `P` gets `M` queries of `H` seconds.
+
+| Cell | `P` | `M` | `H` | `connectionTimeout` | Replies | Failures |
+| --- | --- | --- | --- | --- | --- | --- |
+| `Q19.pool.1` | 2 | 2 | 1 s | 30 s | 2, with no queue | 0 |
+| `Q19.pool.2` | 2 | 6 | 1 s | 30 s | 6, in 3 rounds | 0 |
+| `Q19.pool.3` | 3 | 7 | 1 s | 30 s | 7, in 3 rounds | 0 |
+| `Q19.pool.4` | 2 | 8 | 1 s | 2.25 s | 6 | 2, at the timeout |
+| `Q19.pool.5` | 2 | 8 | 12 s | 30 s | 6 | 2, at the timeout |
+
+The rule: each cell has 11 runs, and each query has its own band. A query in a band of another round fails the law, not the noise. The bands do not change after a result.
+
+PgBouncer stays open in this item. Its documents have no knob for `default_pool_size`. Its janitor ends a wait up to one pass late, thus a cell needs longer holds. The empty query of a check of HikariCP also joins the queue of PgBouncer.
 
 ### SYS-66 · The conntrack table: T05 fan-in
 

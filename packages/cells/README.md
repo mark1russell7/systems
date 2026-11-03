@@ -170,6 +170,19 @@ These cells (`src/limiter.ts`, SYS-28) put a real client against the 429 of the 
 - **Each retry.** Each retry counts from the refusal before it (the reference `last-reply` of the harness). It can go on a new connection, because undici closes an idle socket 3 s after a reply of a Node server at its defaults.
 - **The names.** The plan of R3 does not have these laws yet, thus each cell takes the name of its law and a number. A cell of the plan for the same pair becomes an alias when the corpus of the law gets these pairs.
 
+## The cells of a pool at its limit
+
+These cells are the HikariCP half of SYS-65, in Q19 of S3 (`src/pg/pool.ts`). The question: what does a pool do at its limit?
+
+- **The client.** HikariCP 7.1.0 over pgjdbc 42.7.13 has a fixed size. The client sends a burst: one query each 50 ms, each on its own thread. Each query is `SELECT pg_sleep(H)`.
+- **The law.** The bag gives each returned connection to the oldest wait, through a fair `SynchronousQueue`. Thus a query at place `k` of a pool of `P` gets its reply after `⌊k / P⌋ + 1` holds, plus `k mod P` gaps.
+- **The timeout.** One `connectionTimeout` bounds a borrow. At its end, the borrow fails with `SQLTransientConnectionException`, and the query leaves the queue. The next query gets the next connection.
+- **The bands.** Each query is a later band from the send of the first query. Thus the bands of one cell are the curve of the wait against the place in the queue.
+- **The times.** The low end is the exact hold. The high end adds one round trip and one step of the JVM to each hold. It adds the same once more, for the check of a connection that was idle for 500 ms.
+- **The margin.** `turnsOf` stops with an error if a query comes within 0.25 s of the timeout of its borrow. Such a query is not a prediction.
+- **The lines.** A `pool` line gives the deepest queue. The `burst` line gives the counts of replies and failures, and it shows each connection idle again. A `pool` line above the size of the pool is a finding.
+- **PgBouncer.** The cells do not measure it yet. Its documents have no knob for `default_pool_size`. Its janitor ends a wait up to one pass late, and the empty query of a check of HikariCP joins its queue.
+
 ## The WS catalog
 
 The WS catalog has the WebSocket client and server of `@procedures/client` 0.7.0 on a direct pair (`src/ws.ts`). The client is the harness client `procedures-ws`, and the server is a script in its image. Each cell gives each setting of the client and of the server.
