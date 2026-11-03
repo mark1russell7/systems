@@ -1,6 +1,7 @@
 // The fakes of the runtime for tests: a fake clock gives exact, repeatable timing, a seeded random
 // gives the same jitter on each run, and a fake process takes signals and keeps the exit codes.
 
+import { mulberry32 } from "@mark1russell7/rigor-generators";
 import type { Cancel, Clock } from "./clock.ts";
 import type { ExitSignal, ExitTrigger, ProcessPort, UncaughtOrigin } from "./process.ts";
 
@@ -187,14 +188,8 @@ export const fakeProcess = (options: FakeProcessOptions = {}): FakeProcess => {
   };
 };
 
-/** This function gives a seeded random number generator (mulberry32), with numbers in [0, 1). */
-export const seeded = (seed: number): (() => number) => {
-  let state = seed >>> 0;
-  return () => {
-    state = (state + 0x6d2b79f5) >>> 0;
-    let t = state;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-};
+/**
+ * This function gives a seeded random number generator (mulberry32), with numbers in [0, 1). It is
+ * `mulberry32` of @mark1russell7/rigor-generators.
+ */
+export const seeded = (seed: number): (() => number) => mulberry32(seed);

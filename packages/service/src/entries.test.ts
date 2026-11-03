@@ -49,15 +49,15 @@ const SCOPE = "@mark1russell7/";
 /**
  * This function gives the file of a specifier of the scope, from the exports of its manifest. It resolves the
  * specifier from the file `from`. A package of this repository exports its source. A package from npm exports its
- * build, and the function takes its `default` target.
+ * build, and the function takes its `default` or its `import` target.
  */
 const sourceOf = (specifier: string, from: string = fileURLToPath(import.meta.url)): string => {
   const [scope, name, ...rest] = specifier.split("/");
   const manifest = createRequire(from).resolve(`${scope}/${name}/package.json`);
-  type Target = string | { default?: string };
+  type Target = string | { default?: string; import?: string };
   const exports = (JSON.parse(readFileSync(manifest, "utf8")) as { exports: Record<string, Target> }).exports;
   const entry = exports[rest.length === 0 ? "." : `./${rest.join("/")}`];
-  const target = typeof entry === "string" ? entry : entry?.default;
+  const target = typeof entry === "string" ? entry : (entry?.default ?? entry?.import);
   if (target === undefined) throw new Error(`${specifier} is not an export of its package`);
   return resolve(dirname(manifest), target);
 };

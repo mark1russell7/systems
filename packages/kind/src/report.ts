@@ -2,7 +2,7 @@ import type { Quantity } from "@mark1russell7/quantity";
 import { format, valueIn } from "@mark1russell7/quantity";
 import { seconds, secondsOf, showBand } from "./bands.ts";
 import type { Band, KindCell, KindRun, Prediction } from "./cell.ts";
-import { quantileOf } from "./stats.ts";
+import { middle, quantileOf } from "./stats.ts";
 import type { KindVerdict } from "./verdict.ts";
 import { factsOf, propagationOf, propagationSource, referenceOf, updatesOf } from "./verdict.ts";
 
@@ -26,8 +26,7 @@ export interface TimeSpread {
 export const timeSpread = (times: readonly Quantity[]): TimeSpread | null => {
   if (times.length === 0) return null;
   const sorted = times.map((each) => valueIn(each, "s")).sort((a, b) => a - b);
-  const half = Math.floor(sorted.length / 2);
-  const median = sorted.length % 2 === 1 ? sorted[half]! : (sorted[half - 1]! + sorted[half]!) / 2;
+  const median = middle(sorted);
   return {
     count: sorted.length,
     min: seconds(sorted[0]!),

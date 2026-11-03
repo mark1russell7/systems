@@ -12,6 +12,7 @@
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { median } from "@mark1russell7/rigor-statistics";
 import type { Cell, Manifest, Measured, Run, Verdict } from "../../harness/src/index.ts";
 import { judge, NOISE } from "../../harness/src/index.ts";
 
@@ -124,9 +125,7 @@ const repliesOf = (run: Measured) => {
   if (run.samples === undefined) return null;
   const sorted = run.samples.map((sample) => secondsOf(sample)!).sort((a, b) => a - b);
   if (sorted.length === 0) return { count: 0, fastest: null, median: null, slowest: null };
-  const half = Math.floor(sorted.length / 2);
-  const median = sorted.length % 2 === 1 ? sorted[half]! : (sorted[half - 1]! + sorted[half]!) / 2;
-  return { count: sorted.length, fastest: sorted[0]!, median: round(median), slowest: sorted.at(-1)! };
+  return { count: sorted.length, fastest: sorted[0]!, median: round(median(sorted)), slowest: sorted.at(-1)! };
 };
 
 /** This function gives the verdict of a cell. The reason of a measurement-only cell is in its prediction, thus its verdict does not repeat it. */

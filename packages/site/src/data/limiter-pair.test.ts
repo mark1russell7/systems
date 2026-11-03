@@ -1,13 +1,9 @@
 import { readFileSync } from "node:fs";
+import { median } from "@mark1russell7/rigor-statistics";
 import { describe, expect, it } from "vitest";
 import pair from "./limiter-pair-2026-10-27.json";
 
 const plans = ["O30.1", "O30.2", "O29.1", "O29.2", "O29.3", "O29.4"];
-const middle = (values: readonly number[]): number => {
-  const sorted = [...values].sort((a, b) => a - b);
-  const half = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 1 ? sorted[half]! : (sorted[half - 1]! + sorted[half]!) / 2;
-};
 
 describe("the copy of the paired run of the limiter cells holds the figures of workflow 40471731235", () => {
   it("has each spec in both versions on one shard of six, and each cell holds", () => {
@@ -24,8 +20,8 @@ describe("the copy of the paired run of the limiter cells holds the figures of w
       const [control, candidate] = pair.summaries.filter((row) => row.name.startsWith(`${cell.plan} `));
       expect([cell.control.values.length, cell.candidate.values.length], cell.plan).toEqual([11, 11]);
       // the median of the counted runs is the median of the summary line of the harness
-      expect(middle(cell.control.values), cell.plan).toBe(control!.median.value);
-      expect(middle(cell.candidate.values), cell.plan).toBe(candidate!.median.value);
+      expect(median(cell.control.values), cell.plan).toBe(control!.median.value);
+      expect(median(cell.candidate.values), cell.plan).toBe(candidate!.median.value);
       expect(cell.d, cell.plan).toBeCloseTo((cell.candidate.median - cell.control.median) * 1000, 3);
       expect(Math.abs(cell.d), cell.plan).toBeLessThanOrEqual(cell.tolerance);
       expect(cell.interval[0]! <= 0 && 0 <= cell.interval[1]!, cell.plan).toBe(true);
