@@ -445,6 +445,27 @@ export interface WindowPrediction<A = Quantity> {
    * window has no such term, and the judge does not count the failed requests.
    */
   readonly backlog?: BacklogTerm<A> | undefined;
+  /**
+   * This window permits failures, but no failure is necessary in it (`PermittedWindow`). The judge does not
+   * count a failure in it, if the failure is outside the window of the prediction and has an outcome
+   * of `outcomes`. Without it, each failure outside the window fails the run.
+   */
+  readonly permits?: PermittedWindow<A> | undefined;
+  readonly why: string;
+}
+
+/**
+ * A permitted window is a second window of a prediction (SYS-51). Failures can come in it, but they
+ * need not come. It starts `band.lo` after its reference and ends `band.hi` after it, with δ on each side.
+ * For example, the old holder of a VIP can send one gratuitous ARP at the heal of a lost zone. It
+ * sends it before it sees the loss of its lease. Each client then moves to the old node for up to one
+ * ARP interval.
+ */
+export interface PermittedWindow<A = Quantity> {
+  readonly from: Reference;
+  readonly band: Band<A>;
+  /** These outcomes are the only failures that the window permits. */
+  readonly outcomes: readonly string[];
   readonly why: string;
 }
 
@@ -557,4 +578,16 @@ export interface KindCell<A = Quantity> {
   /** This flag marks a calibration: its runs measure the propagation of the endpoints, and nothing fails. */
   readonly calibrates: boolean;
   readonly runs: number;
+  /**
+   * This VIP is a Service of type LoadBalancer with an address of kube-vip in ARP mode (SYS-51). With
+   * it, `clients` more clients run outside the cluster, on the Docker network of the nodes, and send
+   * each request to the VIP. Without it, the cell has no VIP.
+   */
+  readonly vip?: VipSettings | undefined;
+}
+
+/** These are the settings of the VIP of a cell (`KindCell.vip`). */
+export interface VipSettings {
+  /** This count is the clients outside the cluster. Each one is a container on the Docker network of the nodes. */
+  readonly clients: number;
 }

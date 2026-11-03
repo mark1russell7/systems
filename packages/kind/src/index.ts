@@ -61,11 +61,30 @@ export {
   ztunnelCertificates,
   ztunnelEnvArgs,
 } from "./istio.ts";
-export type { EdsSpec, KindLab, LdsSpec, Stamp } from "./lab.ts";
+export type { EdsSpec, KindLab, LdsSpec, OutsideSpec, Stamp } from "./lab.ts";
+export type { KubeVipPod, VipLease, VipNetwork } from "./kubevip.ts";
+export {
+  KUBE_VIP,
+  KUBE_VIP_ARP_RATE,
+  KUBE_VIP_ELECTION,
+  KUBE_VIP_IMAGE,
+  KUBE_VIP_LEASE,
+  KUBE_VIP_VERSION,
+  VIP_LABEL,
+  holdVip,
+  installKubeVip,
+  kubeVipObjects,
+  kubeVipPods,
+  kubeVipReady,
+  vipLeaseOf,
+  vipNetworkOf,
+  vipOf,
+  vipServed,
+} from "./kubevip.ts";
 export type { ListenerCounts } from "./lds.ts";
 export { LDS_FILTER, listenerCountsOf } from "./lds.ts";
 export { KEPT_KERNEL, keptKernel, localPin, openKindLab } from "./lab.ts";
-export { REDIS_IMAGE, clientObjects, namespaceObject, namespaceOf, probeOf, redisObjects, serverObjects, stackOf } from "./manifests.ts";
+export { REDIS_IMAGE, clientObjects, namespaceObject, namespaceOf, probeOf, redisObjects, serverObjects, stackOf, vipService } from "./manifests.ts";
 export type { DeletionWindow, LearnWindow, NodeLifecycle, Propagation } from "./predict.ts";
 export {
   DOCUMENTED,

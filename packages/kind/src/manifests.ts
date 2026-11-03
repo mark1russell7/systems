@@ -3,6 +3,7 @@ import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { KindCell, KubeletProbe, MeshMode, Stack } from "./cell.ts";
 import { CLIENT, HEALTH_PORT, LOG_LABEL, PORT, REDIS, SERVER } from "./names.ts";
+import { LB_CLASS, VIP_ANNOTATION } from "./names.ts";
 import { ZONE_LABEL, ZONE_LOST } from "./scenario.ts";
 
 /**
@@ -168,20 +169,44 @@ const preStopOf = (preStop: number, grace: number): Record<string, unknown> => {
   return { lifecycle: { preStop: { exec: { command: ["/bin/sh", "-c", `sleep ${preStop}`] } } } };
 };
 
+/** This affinity keeps a pod in the zone that a zone loss keeps. */
+const keptZone = {
+  nodeAffinity: {
+    requiredDuringSchedulingIgnoredDuringExecution: { nodeSelectorTerms: [{ matchExpressions: [{ key: ZONE_LABEL, operator: "NotIn", values: [ZONE_LOST] }] }] },
+  },
+};
+
+/**
+ * This function gives the Service of a VIP (`kubevip.ts`). It is of type LoadBalancer, with the
+ * class of kube-vip and the address of the VIP in its annotation. The policy `Cluster` lets each node
+ * send a request to a replica on another node. The holder writes the address to the status of the
+ * Service. Then kube-proxy has the rules of the address on each node.
+ */
+export const vipService = (namespace: string, vip: string, ports: readonly unknown[]): unknown => ({
+  apiVersion: "v1",
+  kind: "Service",
+  metadata: { name: SERVER, namespace, annotations: { [VIP_ANNOTATION]: vip } },
+  spec: { type: "LoadBalancer", loadBalancerClass: LB_CLASS, externalTrafficPolicy: "Cluster", selector: { app: SERVER }, ports },
+});
+
 /**
  * These are the objects of the server: a Service of type ClusterIP, and the Deployment with the
  * settings of the cell. The image is the lab image for the service, or the image of grpc-go.
+ *
+ * With a VIP (`KindCell.vip`), the Service is of type LoadBalancer, with the address `vip` and the
+ * class of kube-vip (`vipService`). No replica is in the lost zone. Thus a zone loss takes away
+ * only the holder of the VIP.
  */
-export const serverObjects = (cell: KindCell, namespace: string, image: string, version = 1): unknown[] => {
+export const serverObjects = (cell: KindCell, namespace: string, image: string, version = 1, vip: string | null = null): unknown[] => {
   const preStop = whole(cell.pod.preStop, "the preStop sleep");
   const grace = whole(cell.pod.grace, "the grace period");
+  if (cell.vip !== undefined && vip === null) throw new Error(`${cell.name}: a cell with a VIP needs the address of the VIP`);
+  const ports = [{ name: stackOf(cell) === "grpc" ? "grpc" : "http", port: 80, targetPort: PORT }];
+  const zoneLoss = cell.trigger.kind === "zone-loss";
   return [
-    {
-      apiVersion: "v1",
-      kind: "Service",
-      metadata: { name: SERVER, namespace },
-      spec: { selector: { app: SERVER }, ports: [{ name: stackOf(cell) === "grpc" ? "grpc" : "http", port: 80, targetPort: PORT }] },
-    },
+    vip === null
+      ? { apiVersion: "v1", kind: "Service", metadata: { name: SERVER, namespace }, spec: { selector: { app: SERVER }, ports } }
+      : vipService(namespace, vip, ports),
     {
       apiVersion: "apps/v1",
       kind: "Deployment",
@@ -204,10 +229,12 @@ export const serverObjects = (cell: KindCell, namespace: string, image: string, 
                 labelSelector: { matchLabels: { app: SERVER } },
               },
               // a zone loss needs a replica in each zone: the scheduler must keep the spread
-              ...(cell.trigger.kind === "zone-loss"
+              ...(zoneLoss && cell.vip === undefined
                 ? [{ maxSkew: 1, topologyKey: ZONE_LABEL, whenUnsatisfiable: "DoNotSchedule", labelSelector: { matchLabels: { app: SERVER } } }]
                 : []),
             ],
+            // with a VIP, the replicas are only in the zone that stays: the loss takes away only the holder of the VIP
+            ...(zoneLoss && cell.vip !== undefined ? { affinity: keptZone } : {}),
             containers: [
               {
                 name: "app",
@@ -244,15 +271,7 @@ export const clientObjects = (cell: KindCell, namespace: string, image: string, 
           terminationGracePeriodSeconds: 0,
           tolerations: [{ key: "node-role.kubernetes.io/control-plane", operator: "Exists", effect: "NoSchedule" }],
           // the clients of a zone loss are only in the zone that stays: they see the loss, and they do not have it
-          ...(cell.trigger.kind === "zone-loss"
-            ? {
-                affinity: {
-                  nodeAffinity: {
-                    requiredDuringSchedulingIgnoredDuringExecution: { nodeSelectorTerms: [{ matchExpressions: [{ key: ZONE_LABEL, operator: "NotIn", values: [ZONE_LOST] }] }] },
-                  },
-                },
-              }
-            : {}),
+          ...(cell.trigger.kind === "zone-loss" ? { affinity: keptZone } : {}),
           containers: [
             {
               name: CLIENT,

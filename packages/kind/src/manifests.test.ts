@@ -61,6 +61,20 @@ describe("the manifests of a zone loss", () => {
     expect(specOf(serverObjects(other, "lab-ns", "lab:test"), 1).topologySpreadConstraints).toHaveLength(1);
     expect(specOf(clientObjects(other, "lab-ns", "lab:test", "10.96.0.10:8080"), 0)).not.toHaveProperty("affinity");
   });
+
+  it("gives a cell with a VIP a Service of kube-vip, and keeps each replica out of the lost zone (SYS-51)", () => {
+    const vip: KindCell = { ...cellOf("zone-loss"), vip: { clients: 3 } };
+    const objects = serverObjects(vip, "lab-ns", "lab:test", 1, "172.18.255.250");
+    expect(objects[0]).toMatchObject({
+      kind: "Service",
+      metadata: { name: "lab", namespace: "lab-ns", annotations: { "kube-vip.io/loadbalancerIPs": "172.18.255.250" } },
+      spec: { type: "LoadBalancer", loadBalancerClass: "kube-vip.io/kube-vip-class", externalTrafficPolicy: "Cluster" },
+    });
+    const spec = specOf(objects, 1);
+    expect(spec.topologySpreadConstraints).toHaveLength(1);
+    expect(spec.affinity).toEqual(specOf(clientObjects(vip, "lab-ns", "lab:test", "10.96.0.10:8080"), 0).affinity);
+    expect(() => serverObjects(vip, "lab-ns", "lab:test")).toThrow(/needs the address of the VIP/);
+  });
 });
 
 describe("the manifests of cannot-serve", () => {

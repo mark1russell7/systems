@@ -15,8 +15,10 @@ import { NODE, POD, POD_LINK, VERSION, deletes as deletesAPod, dnsCommands, faul
 import { labImage } from "./image.ts";
 import type { MeshImages } from "./istio.ts";
 import { EDS_EVERY, ISTIO_IMAGES, LDS_EVERY, MESH_IMAGES, followsZtunnel, installMesh, meshKey, pollsListeners, serverCluster, setZtunnelEnv, ztunnelCertificates } from "./istio.ts";
+import { KUBE_VIP_ARP_RATE, KUBE_VIP_IMAGE, KUBE_VIP_LEASE, holdVip, installKubeVip, vipLeaseOf, vipNetworkOf, vipOf, vipServed } from "./kubevip.ts";
 import type { KindLab, Line, Stamp } from "./lab.ts";
 import { localPin, openKindLab } from "./lab.ts";
+import { OUTSIDE } from "./names.ts";
 import { CLIENT, REDIS, REDIS_IMAGE, SERVER, clientObjects, namespaceObject, namespaceOf, redisObjects, serverObjects, stackOf } from "./manifests.ts";
 import type { PodLine, Request } from "./observe.ts";
 import { byClients, ztunnelReplaced } from "./observe.ts";
@@ -62,7 +64,9 @@ interface Images {
  * flavor of its mesh. A zone loss has clusters of its own, with a zone on each node.
  */
 const clusterKey = (cell: KindCell): string =>
-  cell.mesh !== undefined ? `${cell.mode}-${cell.workers}-${cell.mesh.flavor}` : zoned(cell) ? `${cell.mode}-${cell.workers}-zones` : `${cell.mode}-${cell.workers}`;
+  (cell.mesh !== undefined ? `${cell.mode}-${cell.workers}-${cell.mesh.flavor}` : zoned(cell) ? `${cell.mode}-${cell.workers}-zones` : `${cell.mode}-${cell.workers}`) +
+  // a cell with a VIP gets a cluster with kube-vip
+  (cell.vip === undefined ? "" : "-vip");
 
 /** This function tells if a cell needs a cluster with zones: a zone loss. */
 const zoned = (cell: KindCell): boolean => cell.trigger.kind === "zone-loss";
@@ -115,6 +119,8 @@ interface Context {
   readonly namespace: string;
   readonly tracker: Tracker;
   readonly clusterIp: string;
+  /** This address is the VIP of the cell (`KindCell.vip`), or null for a cell with no VIP. */
+  readonly vip: string | null;
   readonly loads: LoadSample[];
   readonly loader: StartedTestContainer;
   readonly idle: number;
@@ -154,10 +160,14 @@ const unsteady = (ctx: Context): string | null => {
   if (cell.mesh?.mode === "sidecar")
     for (const node of ctx.cluster.nodes)
       if ((tracker.hosts.get(node) ?? []).join() !== expected) return `the client sidecar of ${node} has ${(tracker.hosts.get(node) ?? []).join(" ") || "no host"}`;
-  // the clients of a zone loss are only in the zone that stays
+  // the clients of a zone loss are only in the zone that stays. The clients of a VIP are outside, on one more "node"
   const nodes = new Set([...tracker.clients.values()].map((client) => client.node));
-  const clientNodes = ctx.cluster.nodes.length - (cell.trigger.kind === "zone-loss" ? 1 : 0);
+  const clientNodes = ctx.cluster.nodes.length - (cell.trigger.kind === "zone-loss" ? 1 : 0) + (cell.vip === undefined ? 0 : 1);
   if (nodes.size !== clientNodes) return `clients answer on ${nodes.size} nodes, not ${clientNodes}`;
+  if (cell.vip !== undefined) {
+    const outside = [...tracker.clients.values()].filter((client) => client.node === OUTSIDE).length;
+    if (outside !== cell.vip.clients) return `${outside} clients outside answer, not ${cell.vip.clients}`;
+  }
   for (const [pod, client] of tracker.clients) {
     if (tracker.last - client.ok > 1000) return `client ${pod} has no answer in the last second`;
     if (tracker.last - client.failed < 2000) return `client ${pod} failed in the last 2 s`;
@@ -255,7 +265,7 @@ const quiet = async (ctx: Context, ours: ReadonlySet<string>, within = QUIET_WIT
  * clients. A client of gRPC starts after the server is ready: each failed connect of a channel makes
  * the backoff of grpc-js longer, up to 120 s.
  */
-const deploy = async (lab: KindLab, cluster: Cluster, cell: KindCell, namespace: string, images: Images): Promise<string> => {
+const deploy = async (lab: KindLab, cluster: Cluster, cell: KindCell, namespace: string, images: Images, vip: string | null): Promise<string> => {
   await cluster.apply([namespaceObject(cell, namespace)]);
   await lab.watch([namespace], { ztunnel: followsZtunnel(cell) });
   if (hasRedis(cell)) {
@@ -264,7 +274,7 @@ const deploy = async (lab: KindLab, cluster: Cluster, cell: KindCell, namespace:
   }
   const grpc = stackOf(cell) === "grpc";
   if (grpc && images.grpc === undefined) throw new Error(`${cell.name}: the cluster has no image of grpc-go`);
-  await cluster.apply(serverObjects(cell, namespace, grpc ? images.grpc! : lab.image));
+  await cluster.apply(serverObjects(cell, namespace, grpc ? images.grpc! : lab.image, 1, cell.vip === undefined ? null : vip));
   const clusterIp = (await cluster.kubectl(["-n", namespace, "get", "service", SERVER, "-o", "jsonpath={.spec.clusterIP}"])).trim();
   // a client by name resolves the short name of the Service: the search list of its namespace gives it
   const clients = clientObjects(cell, namespace, lab.image, `${cell.workload.byName === true ? SERVER : clusterIp}:80`);
@@ -272,6 +282,13 @@ const deploy = async (lab: KindLab, cluster: Cluster, cell: KindCell, namespace:
   await cluster.kubectl(["-n", namespace, "rollout", "status", `deployment/${SERVER}`, "--timeout=300s"]);
   if (grpc) await cluster.apply(clients);
   await cluster.kubectl(["-n", namespace, "rollout", "status", `daemonset/${CLIENT}`, "--timeout=300s"]);
+  // the clients of a VIP start outside the cluster after kube-vip took the VIP
+  if (cell.vip !== undefined) {
+    if (vip === null) throw new Error(`${cell.name}: the cluster has no VIP`);
+    const served = await vipServed(cluster, namespace, SERVER, vip);
+    if (served !== null) throw new Error(`${cell.name}: ${served}`);
+    await lab.outside({ target: `${vip}:80`, every: cell.workload.every, timeout: cell.workload.timeout, count: cell.vip.clients, arp: vip });
+  }
   await lab.rules({ mode: cluster.scenario.dataplane, ns: namespace, svc: SERVER, ip: clusterIp, port: 80, every: RULES_EVERY });
   if (cell.mesh?.mode === "sidecar") await pollEndpoints(lab, cluster, namespace);
   return clusterIp;
@@ -601,6 +618,26 @@ const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], ba
 /** This function gives the node of the lost zone: the last worker (`zoneOf`). */
 const lostNodeOf = (cluster: Cluster): string => cluster.nodes.at(-1)!;
 
+/** This function gives the workers of a cluster: each node but the control plane, the first (`nodeNames`). */
+const workersOf = (cluster: Cluster): string[] => cluster.nodes.slice(1);
+
+/**
+ * This function adds a line `vip` to the lines. The line has the Lease of the VIP and the MAC address
+ * of each node on the Docker network. It also has the wall clock of the runner with its CLOCK_MONOTONIC. The times of the
+ * Lease are on the wall clock, and each stamp of the lab is on CLOCK_MONOTONIC. The containers of
+ * the runner share one kernel, thus the pair converts one into the other.
+ */
+const recordVip = async (ctx: Context): Promise<void> => {
+  const wall = Date.now();
+  const t = Number(process.hrtime.bigint()) / 1e6;
+  const lease = await vipLeaseOf(ctx.cluster);
+  const { macs } = await vipNetworkOf(ctx.cluster.network);
+  const log = await ctx.cluster
+    .kubectl(["-n", KUBE_VIP_LEASE.namespace, "logs", "-l", "app.kubernetes.io/name=kube-vip", "--tail=30", "--prefix", "--timestamps"])
+    .catch((error: unknown) => String(error));
+  ctx.lab.record({ ev: "vip", t, wall, vip: ctx.vip, lease, macs, log: log.slice(-6000) });
+};
+
 /** This function puts the replicas of a node first, and keeps the sequence of the others. */
 const lostFirst = (replicas: readonly Replica[], node: string): Replica[] => [
   ...replicas.filter((replica) => replica.node === node),
@@ -642,10 +679,10 @@ const stoppedOf = (cell: KindCell, replicas: readonly Replica[], target: Replica
 const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean, ours: Set<string>): Promise<KindRun> => {
   const { lab, cell, cluster, namespace } = ctx;
   const plan = planOf(cell);
-  const atRest = await steady(ctx, 300_000);
   const empty = (why: string, start: number): KindRun => ({
     env, index, warmup, start, end: start, acts: { fault: null, heal: null, resume: null }, target: null, paused: null, replicas: [], void: why, lines: lab.take(), dropped: {},
   });
+  const atRest = await steady(ctx, 300_000);
   if (atRest !== null) return empty(`the cell was not at rest: ${atRest}`, await lab.now());
   await probeThePods(ctx);
   await pollListeners(ctx);
@@ -658,12 +695,22 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
   // the node of a zone loss must be ready for the node lifecycle controller too, with no taint of the last loss
   const lost = zoneLoss ? await nodeSteady(cluster, lostNodeOf(cluster), 300_000) : null;
   if (lost !== null) return empty(`the node of the lost zone was not at rest: ${lost}`, await lab.now());
+  // the holder of a VIP is the node of the lost zone at the start of each run, with kube-vip ready on
+  // each worker. The wait after the move lets a gratuitous ARP of the holder reach each client, and
+  // each request of the move end at its timeout
+  if (cell.vip !== undefined) {
+    const held = await holdVip(cluster, lostNodeOf(cluster), workersOf(cluster));
+    if (held !== null) return empty(`the VIP is not on ${lostNodeOf(cluster)}: ${held}`, await lab.now());
+    await sleep(valueIn(KUBE_VIP_ARP_RATE, "ms") + valueIn(cell.workload.timeout, "ms") + 1000);
+  }
   if ((await steady(ctx, 300_000)) !== null) return empty("the cell was not at rest after the wait for a quiet VM", await lab.now());
-  // the target of a zone loss is the replica of the lost node: the zone spread puts one there
+  // the target of a zone loss is the replica of the lost node: the zone spread puts one there. With
+  // a VIP, no replica is there: the loss takes away the holder of the VIP, and the run has no target
   const replicas = zoneLoss ? lostFirst(replicasOf(ctx), lostNodeOf(cluster)) : replicasOf(ctx);
-  if (zoneLoss && replicas[0]?.node !== lostNodeOf(cluster)) return empty(`no replica is on the node of the lost zone, ${lostNodeOf(cluster)}`, await lab.now());
+  if (zoneLoss && cell.vip === undefined && replicas[0]?.node !== lostNodeOf(cluster)) return empty(`no replica is on the node of the lost zone, ${lostNodeOf(cluster)}`, await lab.now());
   const restarts = new Map(ctx.tracker.servers().map((pod) => [pod.name, pod.cs.reduce((sum, status) => sum + status.rc, 0)]));
-  const target = hasRedis(cell) && ["rst", "blackhole", "freeze-process", "peer-gone-without-close", "rollout", "latency"].includes(cell.trigger.kind) ? null : replicas[0]!;
+  const target =
+    cell.vip !== undefined || (hasRedis(cell) && ["rst", "blackhole", "freeze-process", "peer-gone-without-close", "rollout", "latency"].includes(cell.trigger.kind)) ? null : replicas[0]!;
   // the paused node is the node of kube-proxy that a freeze stops, or the node of the lost zone
   const paused = cell.template === "T07" && cell.trigger.kind === "freeze-process" ? (cluster.nodes[1] ?? cluster.nodes[0]!) : zoneLoss ? lostNodeOf(cluster) : null;
   // A SYN with no answer before the run keeps its NAT for 120 s (SYN_SENT). A client that takes its
@@ -751,6 +798,8 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
   }
   const end = await lab.now();
   const timedOut = Date.now() >= limit;
+  // the Lease of a VIP after the run gives the time that the new holder took it
+  if (cell.vip !== undefined) await recordVip(ctx).catch((error: unknown) => notes.push(`the record of the VIP failed: ${String(error)}`));
   for (const step of plan.restore) {
     try {
       await doStep(ctx, step, replicas, background);
@@ -835,6 +884,8 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
   const cilium: CiliumImages | undefined = cells.some((cell) => cell.mode === "cilium")
     ? { agent: await localPin(CILIUM_IMAGES.agent), operator: await localPin(CILIUM_IMAGES.operator), envoy: await localPin(CILIUM_IMAGES.envoy) }
     : undefined;
+  // kube-vip: its image pulled once by its digest, if a cell has a VIP
+  const kubeVip = cells.some((cell) => cell.vip !== undefined) ? await localPin(KUBE_VIP_IMAGE) : undefined;
   const images: Images = { lab: image, redis: redisImage, grpc: grpcImage, mesh: meshImages };
   // the cells of one kube-proxy mode, node count and mesh flavor share a cluster
   const groups = new Map<string, KindCell[]>();
@@ -873,6 +924,16 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
           await installMesh(cluster, mesh.flavor, images.mesh);
           options.log(`  Istio ${mesh.flavor} installed in ${Math.round((Date.now() - began) / 100) / 10} s`);
         }
+        // kube-vip on each worker, and the VIP on the node of the lost zone: its address near the end of the Docker network
+        let vip: string | null = null;
+        if (group[0]!.vip !== undefined) {
+          if (kubeVip === undefined) throw new Error(`${group[0]!.name}: the run has no image of kube-vip`);
+          await cluster.load(kubeVip);
+          const began = Date.now();
+          await installKubeVip(cluster, kubeVip, lostNodeOf(cluster), workersOf(cluster));
+          vip = vipOf((await vipNetworkOf(cluster.network)).subnet);
+          options.log(`  kube-vip installed in ${Math.round((Date.now() - began) / 100) / 10} s, the VIP ${vip}`);
+        }
         lab = await openKindLab(cluster, image);
         const { GenericContainer } = await import("testcontainers");
         const Shared = class extends GenericContainer {
@@ -894,9 +955,9 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
           const ztunnelEnv = cell.mesh?.ztunnel;
           try {
             if (ztunnelEnv !== undefined) await setZtunnelEnv(cluster, ztunnelEnv, false);
-            const clusterIp = await deploy(lab, cluster, cell, namespace, images);
+            const clusterIp = await deploy(lab, cluster, cell, namespace, images, vip);
             for (const name of [...lab.own(), loader.getName().replace(/^\//, "")]) ours.add(name);
-            const ctx: Context = { lab, cluster, cell, namespace, tracker, clusterIp, loads, loader, idle: options.idle ?? 0.6, log: options.log, version: 1, probed: "", listened: "", expected: cell.pod.replicas, pids: new Map() };
+            const ctx: Context = { lab, cluster, cell, namespace, tracker, clusterIp, vip: cell.vip === undefined ? null : vip, loads, loader, idle: options.idle ?? 0.6, log: options.log, version: 1, probed: "", listened: "", expected: cell.pod.replicas, pids: new Map() };
             const share = Math.ceil(cell.runs / environments) - (env < cell.runs % environments || cell.runs % environments === 0 ? 0 : 1);
             const runs: KindRun[] = [await runOnce(ctx, env, -1, true, ours)];
             for (let index = 0; index < share; index += 1) runs.push(await runOnce(ctx, env, index, false, ours));
@@ -912,6 +973,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
                 ...(stackOf(cell) === "grpc" ? { grpc: grpcImage! } : {}),
                 ...(cell.mesh === undefined ? {} : Object.fromEntries(MESH_IMAGES[cell.mesh.flavor].map((name) => [`istio-${name}`, ISTIO_IMAGES[name]]))),
                 ...(s.cni === "cilium" ? Object.fromEntries(Object.entries(CILIUM_IMAGES).map(([name, ref]) => [`cilium-${name}`, ref])) : {}),
+                ...(cell.vip === undefined ? {} : { "kube-vip": KUBE_VIP_IMAGE }),
               },
             });
             entry.loads.push(...loads);
@@ -920,6 +982,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
             writeFileSync(join(options.out, "partial", `${slug(cell.name)}.env${env}.json`), JSON.stringify({ cell, runs, manifest, loads }));
           } finally {
             off();
+            await lab.outside(null).catch(() => undefined);
             await lab.rules(null).catch(() => undefined);
             await lab.eds(null).catch(() => undefined);
             await lab.lds(null).catch(() => undefined);
@@ -976,9 +1039,11 @@ const estimate = (cell: KindCell, environments = 2): number => {
   const closes = cell.prediction.kind === "ends" && cell.prediction.band !== null ? valueIn(cell.prediction.band.hi, "s") + 3 : 0;
   // a quiet black hole: the stop of the calls before the fault, the hold, and the start of the calls after the clear
   const quiet = cell.trigger.quiet === true ? hold + 10 : 0;
-  const each = 25 + Math.max(observed, closes, quiet, trigger[cell.trigger.kind] ?? (cell.template === "T18" ? hold + 35 : 15 + valueIn(cell.pod.preStop, "s")));
-  // the install of Istio in each cluster takes 1 to 2 min
-  const setup = cell.mesh === undefined ? 60 : 180;
+  // a VIP moves back to the node of the lost zone before each run: a release, an election and a gratuitous ARP
+  const move = cell.vip === undefined ? 0 : 30;
+  const each = 25 + move + Math.max(observed, closes, quiet, trigger[cell.trigger.kind] ?? (cell.template === "T18" ? hold + 35 : 15 + valueIn(cell.pod.preStop, "s")));
+  // the install of Istio in each cluster takes 1 to 2 min, and the install of kube-vip approximately 1 min
+  const setup = (cell.mesh === undefined ? 60 : 180) + (cell.vip === undefined ? 0 : 60);
   return setup * environments + (cell.runs + environments) * each;
 };
 

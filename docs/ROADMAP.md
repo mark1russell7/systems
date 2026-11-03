@@ -70,7 +70,9 @@ Kind run 40358038728 held all 9 cells in 3 of 3 runs. With iptables, the median 
 
 Cilium is the fourth mode of the T07 cells. It replaces kube-proxy in a cluster of kind with no kube-proxy, from a pinned chart. Kind run 40558968382 started 21 cells of Cilium, and 20 held in each counted run. C in the stall failed in 1 of 3 runs, by a bias that the next band must add. SYS-48 adds the backlog term, and the 4 stall cells of C held in each counted run of kind run 40643221421. Each finding of kube-proxy holds in Cilium, thus the rule of the service does not change ([S6](S6.md#the-cilium-column)).
 
-CoreDNS is the next intermediary ([SYS-50](#sys-50--coredns-a-client-by-name-when-the-cluster-dns-stops-answering)). A client by name on musl fails each new connection while no DNS answer gets to it. Its failures end one retry interval of musl after the fault plus its timeout, not at the heal. Kind run 41559060726 held both cells in each counted run, and the last failure came a median of 0.71 s after the heal. A kept connection does no lookup, thus it fails no request. The next intermediaries are kube-vip, MetalLB and Pulsar.
+CoreDNS is the next intermediary ([SYS-50](#sys-50--coredns-a-client-by-name-when-the-cluster-dns-stops-answering)). A client by name on musl fails each new connection while no DNS answer gets to it. Its failures end one retry interval of musl after the fault plus its timeout, not at the heal. Kind run 41559060726 held both cells in each counted run, and the last failure came a median of 0.71 s after the heal. A kept connection does no lookup, thus it fails no request.
+
+kube-vip is the intermediary after it ([SYS-51](#sys-51--kube-vip-callers-outside-the-cluster-when-the-holder-of-a-vip-is-gone)). Callers outside the cluster learn that the holder of a VIP is gone only at the first gratuitous ARP of the new holder. That comes one take of the Lease and up to one ARP tick after the fault. Kind run 41568679669 held the cell in each counted run, with takes 15.1 s to 19.3 s after the fault. Each take is in the band of the election law, but only 2 of 4 are in the naive band. The next intermediaries are MetalLB and Pulsar.
 
 ### S3 · Outcomes under failure and load
 
@@ -1172,6 +1174,56 @@ The Dockerfile unpacks the tarballs of quantity, algebra and service with no ins
 The prediction hit in 6 of 7 claims. The miss is the build claim, because the first dispatch failed in the lab image. The phase and the count hit, at confidences of 0.45 and 0.4.
 
 The last failure is approximately the low edge of the phase plus one act: 0.5 + 0.24 s. Thus the threads stay in phase with the fault, and the queue drains in approximately 0 s. `DNS_DRAIN` gives 0.5 s, thus the band is wide on its high edge. This is not a bias, because each run is in the band. A later band can use a measured drain.
+
+### SYS-51 · kube-vip: callers outside the cluster when the holder of a VIP is gone
+
+- **Status:** done
+- **Area:** catalogs
+- **Depends on:** S2
+- **Started:** 2026-11-02
+- **Shipped:** 2026-11-03
+- **Links:** [S2](#s2--intermediaries-and-kubernetes), [kind run 41568679669](https://github.com/mark1russell7/systems/actions/runs/41568679669)
+
+kube-vip is the next intermediary of S2. A node holds a virtual address (the VIP) on its link, and it announces the VIP with a gratuitous ARP. A Lease elects that node. The question: when do callers outside the cluster learn that the holder is gone, and which timer sets that time?
+
+**The setup.** The lab installs kube-vip 1.3.1 in ARP mode, with its image pinned by digest (`packages/kind/src/kubevip.ts`). Each value of the install is set, with its source:
+
+- The VIP is the VIP of a Service of type LoadBalancer, not the VIP of the control plane. A VIP of the control plane needs three control-plane nodes and TLS on port 6443. A VIP of a Service needs one DaemonSet on the workers, and it serves the server of the cell.
+- The VIP is the sixth address from the end of the subnet of the Docker network of kind. Docker gives each container an address from the start of the subnet, thus no container takes the VIP. The nodes and the clients are on this one network, thus ARP is the only path to the VIP.
+- One election of the Lease `plndr-svcs-lock` gives each VIP to one node, with the identity of the node name. The times are the defaults of v1.3.1 (`cmd/kube-vip.go`, lines 91–94): a lease of 15 s, a renew deadline of 10 s and a retry period of 2 s. The install sets each one in the environment, thus a new default cannot change the cell.
+- The ARP manager sends a gratuitous ARP for each VIP at each tick of `vip_arpRate`, 3 s.
+- Before each run, the lab moves the Lease to the last worker (`holdVip`). The zone loss then takes away that worker for 35 s. The drops of the zone loss are on IP, thus the lost node still answers ARP.
+
+**The family.** One cell in iptables: `S2.T07.iptables.vip.zone-loss` (`VIP_CELLS` in `packages/cells/src/vip.ts`). Three clients on the Docker network are outside the cluster. Each one sends a request to the VIP each 20 ms on a new connection, with a timeout of 1 s. The clients in the cluster call the ClusterIP of the same Service, as a control. Each outside client records each change of the MAC address of the VIP in its ARP table.
+
+**The terms and their sources.** The election is `leaderelection.RunOrDie` of client-go v0.37.1:
+
+- A follower tries the Lease each retry period with a jitter factor of 1.2, thus each 2 s to 4.4 s.
+- The holder renews each 2 s, thus its last renew is 0 s to 2 s before the fault.
+- A follower sees the Lease as free one lease after its first try that saw the last renew (`isLeaseValid`). That try comes up to 4.4 s after the renew.
+- Thus the Lease is free 13 s to 19.4 s after the fault. The try that takes it comes up to 4.4 s later. The band of the take is 13 s to 23.8 s after the fault.
+- The new holder adds the VIP at once. It sends the first gratuitous ARP at its next tick, up to 3 s and a setup of 0.5 s later.
+- A request that starts before the gratuitous ARP goes to the lost node, and it fails at its timeout. Thus the last failure starts 12.98 s to 27.3 s after the fault.
+
+The naive law takes the Lease L to L + R after the last renew: 13 s to 17 s after the fault. It does not include the jitter and the try that sees the free Lease.
+
+**The bands.** The window opens at the fault (0 to 0.52 s), and it closes 12.98 s to 27.3 s after the fault. Each failure is a timeout. After the heal, the judge permits timeouts and resets for 3.5 s, because an old holder can send one more gratuitous ARP. The judge puts these failures in its reason, not in the tail.
+
+**The prediction.** The cell holds in each counted run. The take is in the band of the law in each run, and the naive band holds in each run only by chance. Each client sees the new holder 0 s to 3.5 s after the take, and its last failure is at that change. Approximately 2400 to 3600 requests fail in each run before the heal, and none after it. The decision rule is the rule of SYS-50, with 4 counted runs.
+
+**The result.** Kind run 41568679669 held the cell in 4 of 4 counted runs, with no void run. The copy is `packages/site/src/data/s2-vip-2026-11-03.json`.
+
+- The new holder took the Lease 17.648, 19.320, 16.984 and 15.143 s after the fault. Each take is in the band of the law. Only 2 of 4 are in the naive band.
+- Each outside client changed to the MAC address of the new holder 0.19 s to 2.66 s after the take. The 3 clients of a run changed in the same 10 ms, because one gratuitous ARP gets to each of them.
+- Before the heal, the runs failed 2663, 3090, 2662 and 2652 requests, with a median of 2662.5. Each failure was a timeout. The clients in the cluster failed no request.
+- In runs 2 and 4, the last failure started 7 ms to 25 ms before the ARP change of its client.
+- At the heal, each client changed back to the old holder, within 18 ms of the heal stamp. Then 6 to 9 requests failed in each run, in the 0.05 s of the heal act, each with a timeout. In runs 1 and 3, some of these started up to 9 ms before the heal stamp.
+
+The prediction hit in 7 of 10 claims. The naive law missed, as predicted. The claim of the last failure missed, because the failures at the heal of runs 1 and 3 started before the heal stamp. The claim of no failure after the heal missed in each run.
+
+The miss after the heal is a bias of one sign, and its missing term is the old holder. During the fault, no client saw a gratuitous ARP of the old holder. At the heal, it sent one at once. Then both nodes sent a gratuitous ARP for the VIP each 3 s until the record stopped, 4.8 s after the heal. No request failed after the first change, because the old holder serves the VIP again.
+
+The record does not show why the old holder stops its ARP during the fault. A later band adds one change at the heal, with its failures for the time of the heal act. A later record continues past the heal by more than one lease, to show when the old holder stops.
 
 ## The systems of S1
 

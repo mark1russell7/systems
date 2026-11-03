@@ -347,7 +347,8 @@ export const observationAfter = (cell: Pick<KindCell, "prediction" | "workload">
  * for a stalled connect. It fails only at its timeout (kind run 40128267098). A reference that is not
  * in the lines yet does not count.
  *
- * The band of `ends` also sets an end: its reference, the end of the band and δ.
+ * The band of `ends` also sets an end: its reference, the end of the band and δ. A permitted window
+ * sets an end too: its reference, the end of its band, the timeout of the workload and δ.
  */
 export const observationEnd = (cell: KindCell, run: Pick<KindRun, "start" | "acts" | "target" | "replicas" | "lines">): number | null => {
   const ends: number[] = [];
@@ -366,6 +367,12 @@ export const observationEnd = (cell: KindCell, run: Pick<KindRun, "start" | "act
       return at === null ? [] : [at];
     });
     if (references.length > 0) ends.push(Math.max(...references) + valueIn(after, "ms"));
+  }
+  // a permitted window closes its band end after its reference: each request that starts in it ends a timeout later
+  const permits = window?.permits;
+  if (permits !== undefined) {
+    const at = referenceOf(run, permits.from, run.target?.pod);
+    if (at !== null) ends.push(at + valueIn(permits.band.hi, "ms") + valueIn(cell.workload.timeout, "ms") + NOISE);
   }
   return ends.length === 0 ? null : Math.max(...ends);
 };
@@ -616,8 +623,21 @@ export const checkRun =(cell: KindCell, run: KindRun): RunCheck => {
         !listened || run.acts.heal === null
           ? null
           : Object.values(healUpdates).reduce<number | null>((max, propagated) => (propagated === null ? max : Math.max(max ?? 0, valueIn(propagated.by, "ms"))), null);
-      const relevant: Request[] = prediction.nodes === "paused" ? failures.filter((request) => request.n === run.paused) : failures;
-      const others = prediction.nodes === "paused" ? failures.filter((request) => request.n !== run.paused) : [];
+      // a failure in the permitted window, outside each window and with a permitted outcome, does not count (SYS-51)
+      const permits = prediction.permits;
+      const permitAt = permits === undefined ? null : referenceOf(run, permits.from, run.target?.pod);
+      if (permits !== undefined && permitAt === null) return done(false, `the run has no ${permits.from} reference for the permitted window`, null);
+      const permitted = (request: Request): boolean =>
+        permits !== undefined &&
+        permitAt !== null &&
+        permits.outcomes.includes(request.o) &&
+        request.t >= permitAt + valueIn(permits.band.lo, "ms") - NOISE &&
+        request.t <= permitAt + valueIn(permits.band.hi, "ms") + NOISE &&
+        windows.every((window) => request.t < window.lo || request.t > window.hi);
+      const allowedLate = failures.filter(permitted);
+      const counting = allowedLate.length === 0 ? failures : failures.filter((request) => !allowedLate.includes(request));
+      const relevant: Request[] = prediction.nodes === "paused" ? counting.filter((request) => request.n === run.paused) : counting;
+      const others = prediction.nodes === "paused" ? counting.filter((request) => request.n !== run.paused) : [];
       const reuse = prediction.afterReset;
       const late = relevant.filter((request) => windows.every((window) => request.t < window.lo || request.t > window.hi));
       // a request outside the window that reuses the port of a reset is the CLOSE entry of that reset
@@ -677,7 +697,10 @@ export const checkRun =(cell: KindCell, run: KindRun): RunCheck => {
       const agrees =
         (reused.length === 0
           ? `${relevant.length} failed requests, all in ${where} (span ${span} s)`
-          : `${inside.length} failed requests in ${where} (span ${span} s), and ${reused.length} on a port that a reset closed`) + (counted === null ? "" : `, ${counted.why}`);
+          : `${inside.length} failed requests in ${where} (span ${span} s), and ${reused.length} on a port that a reset closed`) +
+        (counted === null ? "" : `, ${counted.why}`) +
+        // the law permits these failures, thus they do not make the cell extend
+        (allowedLate.length === 0 ? "" : `; ${allowedLate.length} failed requests in the permitted window after the ${permits!.from}: ${JSON.stringify(outcomesOf(allowedLate))}`);
       const checked = done(problems.length === 0, problems.length === 0 ? agrees : problems.join("; "), relevant.length);
       if (problems.length > 0) return checked;
       const notes: string[] = [];

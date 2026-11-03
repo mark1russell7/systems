@@ -98,7 +98,7 @@ const upgradeBacklog = (backlog: NonNullable<WindowPrediction<number>["backlog"]
 };
 
 const upgradeWindow = (window: WindowPrediction<number>): WindowPrediction => {
-  const { afterReset, propagation, backlog, ...rest } = window;
+  const { afterReset, propagation, backlog, permits, ...rest } = window;
   return {
     ...rest,
     start: { from: window.start.from, band: band(window.start.band) },
@@ -106,6 +106,8 @@ const upgradeWindow = (window: WindowPrediction<number>): WindowPrediction => {
     ...(afterReset === undefined ? {} : { afterReset: { life: seconds(afterReset.life), outcome: afterReset.outcome } }),
     ...(propagation === undefined ? {} : { propagation: band(propagation) }),
     ...(backlog === undefined ? {} : { backlog: upgradeBacklog(backlog) }),
+    // the format /1 has no permitted window, but its type does
+    ...(permits === undefined ? {} : { permits: { ...permits, band: band(permits.band) } }),
   };
 };
 
