@@ -293,6 +293,29 @@ export interface ReplicaSet {
 }
 
 /**
+ * A drill is a recovery drill of a replica set cell, as data. The store gets generated data for
+ * each tenant and real backups while a client writes. Then the fault removes the disk of a member,
+ * or of each member, and the store recovers. A drill shortens the interval of the backups. The
+ * loss of a backup depends on the age of the newest backup at the fault, and `age` sets that age.
+ */
+export interface Drill {
+  /** This count is the number of tenants. The size of the store follows it. */
+  readonly tenants: number;
+  /** This size is the generated data of one tenant. */
+  readonly perTenant: Quantity;
+  /** This count is the number of slices of the oplog after the dump. */
+  readonly slices: number;
+  /** This time is the interval from the dump to the first slice, and between two slices. */
+  readonly sliceEvery: Quantity;
+  /** This time is the age of the newest backup at the fault: from its last write, or from its end in the control. */
+  readonly age: Quantity;
+  /** This word tells how the store recovers. An election follows the loss of the disk of the primary. A restore from the backups follows the loss of each disk. */
+  readonly recovery: "election" | "restore";
+  /** This flag makes the drill a control: the client stops before the dump, thus no write comes after it. */
+  readonly quiet?: true;
+}
+
+/**
  * A cluster is a cluster of RabbitMQ nodes with one quorum queue, as data. The members of the queue
  * elect its leader by Raft, one member on each node. Each node is a container from the same stock
  * image, pinned by digest, in its own network namespace. The nodes form the cluster from a fixed
@@ -1074,6 +1097,8 @@ export interface Cell {
   readonly writeConcern?: "majority" | 1;
   /** This flag makes the fault hold before the client starts. The client then meets it at its first selection. */
   readonly before?: boolean;
+  /** This drill makes the cell a recovery drill. It needs `replicaSet`, and its runs have two clients when the store restores. */
+  readonly drill?: Drill;
   /** This count is the number of runs of the cell (11), across new environments (two at least). */
   readonly runs: number;
   readonly environments: number;
@@ -1267,6 +1292,37 @@ export interface RunGroup {
   readonly after: string | null;
   /** These are the sequence numbers that the group holds after the run, when it converged, or null. */
   readonly holds: readonly number[] | null;
+  /** This record tells what a recovery drill did. */
+  readonly drill?: RunDrill;
+}
+
+/** A run backup is one backup of a drill: a dump with its oplog, or one slice of the oplog. */
+export interface RunBackup {
+  readonly kind: "dump" | "slice";
+  /** These are the start and the end of the backup, on the wall clock of the runner, in ms. */
+  readonly started: number;
+  readonly ended: number;
+  /** This write is the last one that the backups hold up to this backup, or null with no write. Its time is the time that the client sent it. */
+  readonly last: { readonly n: number; readonly t: number } | null;
+  /** This size is the size of the backup on disk. */
+  readonly size: Quantity;
+}
+
+/** A run drill is what a recovery drill did in one run. */
+export interface RunDrill {
+  /** This text is the first line of `mongodump --version`. */
+  readonly tool: string;
+  /** This word tells where the data of the tenants came from. It is always generated data. */
+  readonly seed: "generated";
+  readonly backups: readonly RunBackup[];
+  /** This hash is the hash of the data of the tenants before the first client. */
+  readonly before: string;
+  /** This hash is the hash of the data of the tenants after the run, or null when the set did not converge. */
+  readonly after: string | null;
+  /** These are the start and the end of the restore, on the wall clock of the runner, in ms, or null without a restore. */
+  readonly restored: { readonly started: number; readonly ended: number } | null;
+  /** This number is the first sequence number of the second client, or null with one client. */
+  readonly second: number | null;
 }
 
 /**
