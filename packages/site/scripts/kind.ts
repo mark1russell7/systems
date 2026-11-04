@@ -42,6 +42,7 @@ import { failuresOf, outcomesOf, slicesOf } from "../../kind/src/observe.ts";
 import { OUTSIDE, SERVER } from "../../kind/src/names.ts";
 import { backlogPredictionOf, backlogPredictions, callerPredictions, candidateOf } from "./callers.ts";
 import type { Found } from "./records.ts";
+import { substrateKey, substrateOf, unpoolable } from "../../harness/src/substrate.ts";
 import { dateOf, only, readFolders, runnerOf, round, stringify, time, timeAt } from "./records.ts";
 
 /** This function writes a time of a cell of T15 to the ms: its bands are minutes long and their edges are milliseconds apart. */
@@ -914,6 +915,11 @@ const voidOf = (cell: KindCell, run: KindRun): Void => {
  * counted run is extra, and the copy ignores it.
  */
 const joinOf = (cell: KindCell, pieces: readonly Part[]) => {
+  const substrates = pieces.flatMap(({ record }) =>
+    record.manifests.map((manifest) => substrateOf({ ...(manifest.substrate === undefined ? {} : { substrate: manifest.substrate }), kernel: manifest.cluster.nodes[0]?.kernel ?? "" }, record.at, "E2")),
+  );
+  const mixed = unpoolable(substrates);
+  if (mixed !== undefined) throw new Error(`${cell.name}: --pool joins ${substrateKey(mixed[0])} and ${substrateKey(mixed[1])}`);
   const runs: KindRun[] = [];
   const dispatches: Dispatch[] = [];
   let counted = 0;

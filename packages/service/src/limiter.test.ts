@@ -29,7 +29,7 @@ const BUCKET: LimiterSpec = {
   evict: { maxKeys: count(100) },
 };
 
-/** Graph's write limit: 3 writes in each sliding minute, here with room for 100 keys */
+/** a write limit: 3 writes in each sliding minute, here with room for 100 keys */
 const WINDOW: LimiterSpec = {
   key: "tenant",
   policy: { type: "sliding-window", limit: count(3), window: s(60) },
@@ -154,7 +154,7 @@ describe("the decision is typed, and exact on the clock", () => {
     expect(await limiter.take("a")).toEqual(allowed(2));
   });
 
-  it("gives a sliding window its limit in each window, from the time of each take, as Graph does", async () => {
+  it("gives a sliding window its limit in each window, from the time of each take", async () => {
     const clock = fakeClock();
     const limiter = keyedLimiter("writes", WINDOW, memoryStore(clock));
     expect(await limiter.take("t")).toEqual(allowed(2));

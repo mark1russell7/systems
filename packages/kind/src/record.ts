@@ -4,6 +4,7 @@ import type { Band, KindCell, KindRun, Prediction, Trigger, WindowPrediction } f
 import type { KindScenario } from "./scenario.ts";
 import type { KindVerdict, Propagated, RunCheck, RunFacts } from "./verdict.ts";
 import { judgeKind, unitOf } from "./verdict.ts";
+import type { Substrate } from "@mark1russell7/harness";
 
 /**
  * This module is the raw record of a kind cell: its formats, and the upgrade from the format `/1`
@@ -46,6 +47,8 @@ export interface EnvironmentManifest {
   readonly scenario: KindScenario;
   readonly cluster: ClusterManifest;
   readonly images: Readonly<Record<string, string>>;
+  /** This block tells the layer, the cloud and the kernel of the record. A record from before it reads through `substrateOf`. */
+  readonly substrate?: Substrate;
 }
 
 /**

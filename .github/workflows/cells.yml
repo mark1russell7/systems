@@ -5,8 +5,8 @@
 #           read the kernel's facts. Then it runs the harness's opt-in lab test: privileged
 #           containers, the injector and the eBPF prober on this runner.
 #   cells   Runs the cells whose names match `only`, a shard on each runner, and uploads each raw
-#           record and summary.ndjson as an artifact, for jarvis to land. With `file`, the cells
-#           come from that JSON file at the ref (cells that jarvis compiles), not the catalogs.
+#           record and summary.ndjson as an artifact, for the private repository to land. With `file`, the cells
+#           come from that JSON file at the ref (compiled cells), not the catalogs.
 #           The WS and WST cells run on the procedures subject of mark1russell7/client (CLI-33):
 #           the job checks that repository out at CLIENT_REF and builds the subject of the checkout.
 #           With `subject`, a subject as JSON (the harness's Subject) replaces it, for example a
@@ -75,7 +75,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@c8d2f57af6932442af82d2f2223931e47c11beb1 # main
+        uses: mark1russell7/template/.github/actions/changes@f48f29fe5b00772951e0910a90fbbe312343338c # main
         with:
           paths: |
             .github/workflows/cells.yml
@@ -201,6 +201,9 @@ jobs:
           mkdir -p "$RUNNER_TEMP/cells"
           {
             echo "kernel: $(uname -r)"
+            # one image can start on each cloud: the vendor tells which, and the name of the kernel does not
+            echo "vendor: $(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || echo unknown)"
+            if [ -e /dev/kvm ]; then echo "kvm: yes"; else echo "kvm: no"; fi
             echo "CONFIG_HZ: $(grep -E '^CONFIG_HZ=' "/boot/config-$(uname -r)" || echo unknown)"
             echo "CLOCK_MONOTONIC_COARSE: $(python3 -c 'import time; print(time.clock_getres(6))') s"
             echo "cpus: $(nproc)"
@@ -319,7 +322,7 @@ jobs:
     timeout-minutes: 2
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@c8d2f57af6932442af82d2f2223931e47c11beb1 # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@f48f29fe5b00772951e0910a90fbbe312343338c # main
         with:
           needs: ${{ toJSON(needs) }}
           allow-skip: plan cells

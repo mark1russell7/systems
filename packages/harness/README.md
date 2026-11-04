@@ -27,6 +27,7 @@ A **cell** (`cell.ts`) is all that one measurement needs, as data:
 - Each hop of the topology, on the network of each of its sides.
 - An injector sidecar in the namespace of the target, with NET_ADMIN. Thus the image of the target stays stock.
 - The manifest of each environment gives the HZ of its kernel, from /proc/config.gz. A host without that file (a hosted runner) gets HZ from two readings of /proc/timer_list, one second apart: its jiffies against the time of the kernel (`hzOf`). `hzFrom` tells which.
+- The manifest of each environment holds a `substrate` block (`substrate.ts`). It gives the layer, the cloud, the vendor, the kernel, HZ, KVM and the image of the runner. GitHub can schedule one image on Azure or on AWS. Thus the cloud comes from the DMI vendor, not from the name of the kernel. No statistic pools two substrates (`comparable`). A record from before the block reads through `substrateOf`, and nothing rewrites it.
 - The prober ([`@mark1russell7/prober`](https://www.npmjs.com/package/@mark1russell7/prober)): a privileged container that loads the kernel program. It watches the namespace of the client, of the target and of each hop. Each run keeps its records from its start to its end. A run whose records the prober lost is void.
 
 Each command is an argv array.

@@ -445,6 +445,12 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
     else if (met.first.value < valueIn(error.low, "s") - noise || met.first.value > valueIn(error.high, "s") + noise)
       findings.push(`the client met ${error.name} ${met.first.value} s after the fault, outside [${valueIn(error.low, "s")}, ${valueIn(error.high, "s")}] s`);
   }
+  if (expected?.lost !== undefined) {
+    const { low, high } = expected.lost;
+    const lost = group.writes.lost;
+    if (lost === null) findings.push("the group did not converge, thus the count of its lost writes is not known");
+    else if (lost.length < low || lost.length > high) findings.push(`the group lost ${lost.length} accepted writes, outside [${low}, ${high}]`);
+  }
   if (accepted === undefined) {
     if (prediction.detects !== null)
       findings.push(lands === "new" ? "the client never wrote to a new primary in the window" : "the client never wrote again in the window");

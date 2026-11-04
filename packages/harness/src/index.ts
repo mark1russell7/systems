@@ -122,6 +122,8 @@ export {
 } from "./verdict.ts";
 export type { Agent, FaultSide, Lab, Manifest, ManifestHop, NetworkFault, Probe } from "./lab.ts";
 export { LISTING, PUMP, PUMP_SLACK, deviceOf, endpointAfter, hzOf, openLab, routesOf, templated, toxicBody } from "./lab.ts";
+export type { Cloud, Host, Layer, Substrate, SubstrateSource } from "./substrate.ts";
+export { AWS_FROM, cloudOf, comparable, readHost, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
 export type { ImagePlan } from "./image.ts";
 export {
   CLIENT_NAMES,
