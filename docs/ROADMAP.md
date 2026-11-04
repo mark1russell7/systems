@@ -2160,14 +2160,29 @@ The results of T12 report lost writes, and no law judges that count. With `min-r
 
 ### SYS-59 · MongoDB: the writes that a rollback takes
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-58
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
-`w: 1` loses each write after the last replicated one. `w: "majority"` loses none. The T11 cells take the write concern as a knob, and the band comes from the timers of the election.
+`w: 1` loses each write after the last replicated one. `w: "majority"` loses none. The T11 cells take the write concern as a knob, and the band comes from the timers of the step-down. [S3](S3.md#the-second-cell-sys-59) has each term, with its file and line in MongoDB r9.0.4.
+
+The law: the old primary acknowledges writes until it steps down, 9.84 s to 10.012 s after the cut. Each write takes 50 ms to 72 ms. A cut of 3 s ends before each timer, so nothing diverges.
+
+| Cell | Concern | Hold | Lost writes | Failover | Recorded control |
+| --- | --- | --- | --- | --- | --- |
+| `T11.writes.1` | `w: 1` | 40 s | 135 to 202 | Yes | `T11.border-off.66`: median 195, max 196, 11 runs |
+| `T11.writes.2` | `w: "majority"` | 40 s | 0 | Yes | `T11.defaults.10`: 0, 11 runs |
+| `T11.writes.3` | `w: 1` | 3 s | 0 | No | None |
+
+The decision rule:
+
+- Each cell has 4 counted runs. A cell holds if each counted run is inside its band and has no finding.
+- A dispatch can repeat one time, for void runs or infrastructure runs only.
+- A code bug on the first run is a miss of the build.
+- The thresholds do not change after a result is read.
 
 ### SYS-60 · RabbitMQ: confirmed publishes and duplicates
 

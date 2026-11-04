@@ -92,7 +92,7 @@ A replica set (`ReplicaSet`, `Cell.replicaSet`) is a replicated group with no ex
 - **The members.** Each member is a container from one stock image, pinned by digest, in its own network namespace. Its server is the child of a shell, with the name of the set and the options of the set (`args`).
 - **The start.** The first member starts the set (`rs.initiate`) with the address of each member, as the client reaches it, and with the settings of the set. An example of a setting is `electionTimeoutMillis`.
 - **The sidecars.** Each member has an injector sidecar in its network namespace and in its process namespace, as a member of a group has.
-- **The client.** The client of each run is the MongoDB driver (`image/mongo`). It knows the address of each member and the name of the set. It writes a stream of sequence numbers with the write concern of the cell (`Cell.writeConcern`).
+- **The client.** The client of each run is the MongoDB driver (`image/mongo`). It knows the address of each member and the name of the set. It writes a stream of sequence numbers with the write concern of the cell (`Cell.writeConcern`). A run continues 2 s after the lift, and for `Cell.watch` more. A prediction of no failover after a short hold needs that time.
 - **The timeline.** A log consumer reads the JSON log of each member. A run keeps the lines of replication, of its heartbeats, of the elections, of the rollbacks and of the commands (`KEPT`).
 - **The clocks.** The log of mongod has the wall clock in ms. The client writes the wall clock beside the monotonic clock each second (`clocks`). Thus the run puts each line of a member on the monotonic clock (`clockOffsetOf`).
 - **The prober** watches the namespace of the client.
