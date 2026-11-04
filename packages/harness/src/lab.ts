@@ -905,7 +905,7 @@ export const openLab = async (
       },
       async lift(kind, at = "target", options = {}) {
         const [where, peer, via] = placeOf(at);
-        await output(where, ["/opt/harness/inject", LIFT[kind], peer, ...optionArgs(options), ...via]);
+        await output(where, ["/opt/harness/inject", LIFT[kind], options.peers?.join(",") ?? peer, ...optionArgs(options), ...via]);
       },
       async netem(spec, at = "target") {
         const [where, device] = deviceAt(at);
