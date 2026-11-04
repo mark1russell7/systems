@@ -477,6 +477,19 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
         times.length === 0
           ? "no time"
           : `median ${s(middle(times)).value} s from ${prediction.from}, range [${s(times[0]!).value}, ${s(times.at(-1)!).value}] s`;
+      // a band of lost writes judges the cell: the time stays a measurement, and each finding of a run counts
+      const counts = prediction.group?.lost;
+      if (counts !== undefined) {
+        const off = new Set(outside.map((each) => each.run)).size;
+        return {
+          ...empty,
+          decision: off === 0 ? "holds" : "fails",
+          band: null,
+          outside,
+          median: times.length === 0 ? null : s(middle(times)),
+          why: `${counted.length - off} of ${counted.length} runs inside the band of lost writes [${counts.low}, ${counts.high}]; ${outcomes}; ${timed}. ${prediction.why}`,
+        };
+      }
       // the end has no band, but each wait of the reconnect has one: a wait outside it is a finding of its run
       const missed = outside.filter((each) => counted.some((run) => name(run) === each.run && run.reconnect !== undefined));
       const late = missed.length === 0 ? "" : ` ${missed.length} runs had a wait of the reconnect outside its band.`;

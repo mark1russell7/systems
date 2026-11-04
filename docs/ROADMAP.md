@@ -2135,14 +2135,28 @@ The next step: Mark's next page of the item.
 
 ### SYS-58 · Valkey: the accepted writes that a failover loses
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SENTINEL
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:** [The law](S3.md#the-first-cell-sys-58)
+- **Shipped:** 2026-11-03
+- **Links:** [The law](S3.md#the-first-cell-sys-58), [cells run 41748466040](https://github.com/mark1russell7/systems/actions/runs/41748466040), [#324](https://github.com/mark1russell7/systems/pull/324)
 
 The results of T12 report lost writes, and no law judges that count. With `min-replicas-to-write 1`, the old primary refuses writes 8.8 s to 12.1 s after a partition. Thus the group loses 140 to 244 writes for each hold, against 1,041 with no setting. A freeze of 40 s loses 0 to 2, against 199. The three cells use the lab of T12, and the harness judges a band of lost writes.
+
+**The result.** All three cells hold, each with 4 counted runs and no void run. The first dispatch needed no fix, and each of the 11 claims of the prediction hit.
+
+| Cell | Fault | Lost writes | The law | First `NOREPLICAS` | The law |
+| --- | --- | --- | --- | --- | --- |
+| `T12.writes.1` | Partition, 40 s | 203 to 231, median 216 | 140 to 244 | 10.264 s to 11.691 s | 8.8 s to 12.162 s |
+| `T12.writes.2` | Partition, 80 s | 205 to 232, median 209.5 | 140 to 244 | 10.366 s to 11.788 s | 8.8 s to 12.162 s |
+| `T12.writes.3` | Freeze, 40 s | 1 in each run | 0 to 2 | 40.053 s to 40.054 s | 40 s to 40.062 s |
+
+- **The count does not read the hold.** Twice the hold changes the median by 6.5 writes.
+- **The setting bounds the loss.** The median partition of 40 s loses 216 writes. The recorded control with no setting lost 1,041, approximately 4.8 times more. That control is from 2026-10-17, and this run did not repeat it.
+- **The old primary stays closed.** It accepts no write after the lift in the 8 counted partition runs. The group keeps none of the 10,415 refused writes.
+- **The freeze keeps its failover time.** The first write on the new primary comes 50.145 s to 50.235 s after the fault, in the band of `T12.defaults.7`.
+- **The bands are wide.** The first refusal uses 1.5 s of the 3.3 s of the law, and only the high part. The low edge can have a term that the law does not give. Two replicas acknowledge on their own phases, and the law takes one. That term is a candidate and no run measures it.
 
 ### SYS-59 · MongoDB: the writes that a rollback takes
 
