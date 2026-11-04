@@ -2171,14 +2171,36 @@ The results of T12 report lost writes, and no law judges that count. With `min-r
 
 ### SYS-60 · RabbitMQ: confirmed publishes and duplicates
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-58
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
-A quorum queue loses no confirmed message. A republish of an unconfirmed message can duplicate it, up to the unconfirmed window. The T11 cells get a final read of the queue.
+A quorum queue loses no confirmed message. A republish of an unconfirmed message can duplicate it, up to the unconfirmed window. The source of RabbitMQ 4.3.6, ra 3.1.10 and amqplib 2.2.0 keeps those sentences and gives a tighter law:
+
+- A confirm comes after a commit on a majority, and each new leader holds each commit. Thus the lost messages are 0.
+- At a leader change, `rabbit_fifo_client` sends each pending command again with its number, and `rabbit_fifo` drops a repeat. Thus a leader change adds no copy while the channel lives.
+- A republish after a close goes on a new channel, thus through a new enqueuer. Each first copy that was applied gives one copy: W copies at one close.
+- A freeze of the node of the client leaves a race at the thaw, thus its band is [0, W].
+
+[S3.md](S3.md#the-law-of-sys-60-the-confirms) has each term with its file and line.
+
+The predictions, written before the first dispatch:
+
+| Cell | Fault | Client | Lost | Extra copies | First `Error` from the fault |
+| --- | --- | --- | --- | --- | --- |
+| `T11.confirms.1` | A transfer of the leader | On a follower, W 4 | 0 | 0, first confirm up to 0.196 s | None |
+| `T11.confirms.2` | A freeze of the node of the leader, 20 s | On a follower, W 4 | 0 | 0, first confirm 5.051 s to 12.003 s | None |
+| `T11.confirms.3` | The cut `to-clients`, 10 s | On the leader, heartbeat 2 s, W 1 | 0 | 1 | 3.89 s to 6.03 s |
+| `T11.confirms.4` | The cut `to-clients`, 10 s | On the leader, heartbeat 2 s, W 4 | 0 | 4 | 3.89 s to 6.03 s |
+| `T11.confirms.5` | The cut `to-clients`, 10 s | On the leader, default heartbeat, W 4 | 0 | 0 | None |
+| `T11.confirms.6` | A freeze of the node of the leader, 20 s | On the leader, heartbeat 2 s, W 4 | 0 | 0 to 4, election 5.051 s to 11.843 s | 3.89 s to 6.03 s |
+
+The decision rule: a run counts if the harness does not void it, and each cell needs 4 counted runs. A cell with a void or infrastructure run goes again once, alone. A code bug on the first run is a build miss. The bands of lost messages and extra copies judge each cell, with each finding of a run. The thresholds do not change after any result is read.
+
+The chosen constants have no source: a heartbeat of 2 s, a cut of 10 s and 4 writers. No cell has run. The writers of the cluster client ran only against a fake of amqplib, and the cut `to-clients` has not run in a lab.
 
 ### SYS-61 · PostgreSQL: a COMMIT in flight at the fault
 

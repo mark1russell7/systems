@@ -177,17 +177,26 @@ export const firstConfirm = (leader: Span): Span => {
   return span(leader.lo, leader.hi + commit + gap.hi + commit);
 };
 
+/**
+ * This function gives the band of the heartbeat of amqplib when no byte of the broker reaches the
+ * client, from the fault. It ends the connection 2 to 3 heartbeats after the last data, the last
+ * confirm before the fault. That confirm came up to one wait and one commit before the fault.
+ */
+export const heartbeatEnd = (values: Readonly<Record<string, Extent>> = amqpValues()): Span => {
+  const { commit, gap } = PARTS;
+  const heartbeat = spanOf(AMQPLIB, "heartbeat", given(values));
+  return span(heartbeat.lo - gap.hi - commit, heartbeat.hi);
+};
+
 /** This function gives the prediction of a cell: the band of its first confirm, and the stages of the cluster. */
 /**
  * This function gives the band of the first confirm when the node of the client goes silent, from the
- * fault. Only the heartbeat of amqplib ends the connection: 2 to 3 heartbeats after its last data, the
- * last confirm before the fault. That confirm came up to one wait and one commit before the fault. Then
- * the client waits, connects to the next node and opens its channel, and its publish takes one commit.
+ * fault. Only the heartbeat of amqplib ends the connection. Then the client waits, connects to the next
+ * node and opens its channel, and its publish takes one commit.
  */
 export const silentClient = (): Span => {
   const { commit, gap } = PARTS;
-  const heartbeat = spanOf(AMQPLIB, "heartbeat", given(amqpValues()));
-  const end = span(heartbeat.lo - gap.hi - commit, heartbeat.hi);
+  const end = heartbeatEnd();
   // the handshake of AMQP and the open of the channel and of its confirms: six exchanges with the broker
   const connect = span(0, 6 * RABBIT_LATENCY);
   const reconnect = span(RECONNECT, RECONNECT + gap.hi - gap.lo);

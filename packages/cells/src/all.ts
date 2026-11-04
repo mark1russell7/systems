@@ -11,6 +11,7 @@ import { T01_HIKARI } from "./pg/hikari.ts";
 import { T01_PG } from "./pg/t01.ts";
 import { T03_HIKARI } from "./pg/t03.ts";
 import { T10_HIKARI, T10_PG } from "./pg/t10.ts";
+import { CONFIRM_CELLS } from "./rabbit/confirms.ts";
 import { T01_AMQP } from "./rabbit/t01.ts";
 import { T11_RABBIT } from "./rabbit/t11.ts";
 import { RESEND_CELLS } from "./resend.ts";
@@ -35,12 +36,13 @@ export interface Subjects {
 /**
  * This function gives the cells of each catalog, on the subjects that a caller gives. T01, T03, T02
  * and Toxiproxy as the subject come first, then the calibration of each proxy. T12 and the
- * calibration of the stamps of its Sentinels come next, then the cells of the writes and of the
- * resend of S3 on the same group. The HTTP cells of T01 and T03 come next,
+ * calibration of the stamps of its Sentinels come next. Then come the cells of the writes and of
+ * the resend of S3 on the same group. The HTTP cells of T01 and T03 come next,
  * with the calibration of the handling time of the Node clients. The WS cells follow, then the
  * WST cells: the same client through a router or a proxy. The MongoDB cells of T01, T03 and T11
- * come next, then the PostgreSQL cells of T01, T03 and T10. The RabbitMQ cells of T01 and T11 come
- * next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter (O29 and O30) are last.
+ * come next, then the PostgreSQL cells of T01, T03 and T10. The RabbitMQ cells of T01 and T11 and of
+ * the confirms come next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter
+ * (O29 and O30) are last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
@@ -66,6 +68,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...T10_PG,
     ...T01_AMQP,
     ...T11_RABBIT,
+    ...CONFIRM_CELLS,
     ...T01_GRPC,
     ...T03_GRPC,
     ...T02_GRPC,

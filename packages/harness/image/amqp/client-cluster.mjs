@@ -9,11 +9,13 @@
 // HOSTS is host:port,host:port,... in the sequence of the connects: the first is the node of the
 // client. amqplib connects to one node and does not connect again by itself. When the connection ends,
 // this client connects to the next node of the list after --reconnect-ms (1000 ms), as an application
-// does. Then it publishes again the sequence number that has no confirm.
+// does. Then it publishes again each sequence number that has no confirm.
 //
 // The options (--options JSON): `heartbeat` in seconds goes in the URL. Without it, amqplib takes the
 // heartbeat that the broker proposes. `user` and `password` are the user of the broker: guest, as
-// amqplib gives it, when the options name none.
+// amqplib gives it, when the options name none. `window` is the count of writers: each writer has one
+// publish at a time on the one channel, thus the client has at most that count with no confirm. It is
+// 1 when the options name none. Each other name is a socket option of amqplib, for example `noDelay`.
 //
 // The lines:
 // - start: the versions of amqplib and Node, the hosts and the options. clocks: the wall clock.
@@ -46,7 +48,7 @@ const interval = Number(flag("--interval-ms") ?? 50);
 const max = Number(flag("--max-s") ?? 120) * 1000;
 const reconnect = Number(flag("--reconnect-ms") ?? 1000);
 const options = JSON.parse(flag("--options") ?? "{}");
-const { heartbeat, user = "guest", password = "guest" } = options;
+const { heartbeat, user = "guest", password = "guest", window: writers = 1, ...socketOptions } = options;
 
 const { default: amqp } = await import("amqplib");
 const versionOf = (name) => JSON.parse(readFileSync(new URL(`./node_modules/${name}/package.json`, import.meta.url), "utf8")).version;
@@ -83,7 +85,7 @@ const open = async () => {
   next += 1;
   emit("connecting", { at: node });
   try {
-    connection = await amqp.connect(urlOf(node));
+    connection = await amqp.connect(urlOf(node), socketOptions);
   } catch (error) {
     emit("connection", { event: "connect-failed", at: node, errno: errnoOf(error), failure: failure(error) });
     return false;
@@ -156,36 +158,71 @@ setTimeout(() => {
 }, max);
 
 let ready = false;
-let n = 1;
-while (!stopped) {
-  if (channel === null) {
-    if (!(await open())) {
+let nextNumber = 1;
+// these promises keep one connect and one end of a connection for all the writers
+let opening = null;
+let leaving = null;
+
+/** This function connects when no channel is open. Each writer waits for the same connect. */
+const connected = () => {
+  if (channel !== null) return Promise.resolve();
+  opening ??= (async () => {
+    while (!stopped) {
+      if (await open()) {
+        if (!ready) {
+          ready = true;
+          emit("ready", { at });
+        }
+        break;
+      }
       channel = null;
       await sleep(reconnect);
+    }
+    opening = null;
+  })();
+  return opening;
+};
+
+/** This function ends the connection of a closed channel. Each writer of that channel waits for the same end. */
+const left = (closed) => {
+  if (closed !== channel) return leaving ?? Promise.resolve();
+  leaving ??= (async () => {
+    // the channel closed: its connection ends with it, or after one more wait the client ends the connection
+    const closing = connection;
+    await Promise.race([ended, sleep(reconnect)]);
+    closing?.close().catch(() => undefined);
+    channel = null;
+    connection = null;
+    if (!stopped) await sleep(reconnect);
+    leaving = null;
+  })();
+  return leaving;
+};
+
+/** This function is one writer: it takes the next sequence number at each confirm. */
+const writer = async () => {
+  let n = nextNumber;
+  nextNumber += 1;
+  while (!stopped) {
+    await leaving;
+    await connected();
+    if (stopped) return;
+    const on = channel;
+    // a publish ends at its confirm, at a nack, or at the close of its channel
+    const failed = await publish(n);
+    if (failed === null) {
+      n = nextNumber;
+      nextNumber += 1;
+      await sleep(interval);
       continue;
     }
-    if (!ready) {
-      ready = true;
-      emit("ready", { at });
+    // the same sequence number goes again: on the same channel after a nack, or on the next node after an end
+    if (failed.message === "message nacked") {
+      await sleep(interval);
+      continue;
     }
+    await left(on);
   }
-  // a publish ends at its confirm, at a nack, or at the close of its channel
-  const failed = await publish(n);
-  if (failed === null) {
-    n += 1;
-    await sleep(interval);
-    continue;
-  }
-  // the same sequence number goes again: on the same channel after a nack, or on the next node after an end
-  if (failed.message === "message nacked") {
-    await sleep(interval);
-    continue;
-  }
-  // the channel closed: its connection ends with it, or after one more wait the client ends the connection
-  const closing = connection;
-  await Promise.race([ended, sleep(reconnect)]);
-  closing?.close().catch(() => undefined);
-  channel = null;
-  connection = null;
-  if (!stopped) await sleep(reconnect);
-}
+};
+
+await Promise.all(Array.from({ length: writers }, writer));

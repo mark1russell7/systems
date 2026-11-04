@@ -44,6 +44,7 @@ describe("a replica set as data", () => {
     expect(cutOf(SET, MEMBERS, CLIENT, "m2", "clients")).toEqual({ peers: [CLIENT] });
     expect(cutOf(SET, MEMBERS, CLIENT, "m2", "one")).toEqual({ peers: ["10.0.0.2"] });
     expect(cutOf(SET, MEMBERS, CLIENT, "m1", "one-way")).toEqual({ peers: ["10.0.0.3"], direction: "out" });
+    expect(cutOf(SET, MEMBERS, CLIENT, "m1", "to-clients")).toEqual({ peers: [CLIENT], direction: "out" });
   });
 
   it("calls the set healthy only when the member that answers is the one primary, accepts writes, and each secondary is at its optime", () => {

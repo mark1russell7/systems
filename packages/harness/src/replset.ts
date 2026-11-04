@@ -88,6 +88,7 @@ export const cutOf = (
   if (cuts === "group") return { peers: others };
   if (cuts === "one") return { peers: others.slice(0, 1) };
   if (cuts === "one-way") return { peers: others.slice(0, 1), direction: "out" };
+  if (cuts === "to-clients") return { peers: [client], direction: "out" };
   return { peers: [...others, client] };
 };
 
