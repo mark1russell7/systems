@@ -1,0 +1,1081 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again by the harness, and the ladder verdict of rigor-bench",
+  "workflow": 41896338150,
+  "commit": "779d47e",
+  "date": "2026-11-04",
+  "runner": {
+    "kernel": "7.0.0",
+    "hz": 1000
+  },
+  "ladder": {
+    "format": "rigor-ladder/1",
+    "subject": "the recovery of a store of tenants",
+    "dimensions": [
+      {
+        "name": "tenants",
+        "describe": "one tenant, with 1 MB of generated data in one store"
+      }
+    ],
+    "rungs": [
+      {
+        "name": "1",
+        "at": {
+          "tenants": 1
+        },
+        "budgets": [
+          {
+            "kind": "worst",
+            "measure": "rpo",
+            "unit": "s",
+            "limit": 86400,
+            "minDrills": 4
+          },
+          {
+            "kind": "worst",
+            "measure": "rto",
+            "unit": "s",
+            "limit": 14400,
+            "minDrills": 4
+          },
+          {
+            "kind": "worst",
+            "measure": "accepted writes lost below a kept write",
+            "unit": "writes",
+            "limit": 0,
+            "minDrills": 4
+          },
+          {
+            "kind": "worst",
+            "measure": "lost writes that the last backup does not explain",
+            "unit": "writes",
+            "limit": 2,
+            "minDrills": 4
+          },
+          {
+            "kind": "worst",
+            "measure": "drills that changed the data of a tenant",
+            "unit": "drills",
+            "limit": 0,
+            "minDrills": 4
+          },
+          {
+            "kind": "worst",
+            "measure": "accepted writes lost with a copy left",
+            "unit": "writes",
+            "limit": 0,
+            "minDrills": 4
+          }
+        ],
+        "test": "cells RD.1 and RD.control",
+        "locked": true
+      },
+      {
+        "name": "100",
+        "at": {
+          "tenants": 100
+        },
+        "budgets": [
+          {
+            "kind": "worst",
+            "measure": "rpo",
+            "unit": "s",
+            "limit": 300,
+            "minDrills": 4
+          },
+          {
+            "kind": "worst",
+            "measure": "rto",
+            "unit": "s",
+            "limit": 1800,
+            "minDrills": 4
+          },
+          {
+            "kind": "worst",
+            "measure": "accepted writes lost below a kept write",
+            "unit": "writes",
+            "limit": 0,
+            "minDrills": 4
+          },
+          {
+            "kind": "worst",
+            "measure": "lost writes that the last backup does not explain",
+            "unit": "writes",
+            "limit": 2,
+            "minDrills": 4
+          },
+          {
+            "kind": "worst",
+            "measure": "drills that changed the data of a tenant",
+            "unit": "drills",
+            "limit": 0,
+            "minDrills": 4
+          },
+          {
+            "kind": "worst",
+            "measure": "accepted writes lost with a copy left",
+            "unit": "writes",
+            "limit": 0,
+            "minDrills": 4
+          }
+        ],
+        "test": "cells RD.100.restore and RD.100.failover",
+        "locked": true
+      },
+      {
+        "name": "1000",
+        "at": {
+          "tenants": 1000
+        },
+        "budgets": [
+          {
+            "kind": "worst",
+            "measure": "rpo",
+            "unit": "s",
+            "limit": 60,
+            "minDrills": 4
+          },
+          {
+            "kind": "worst",
+            "measure": "rto",
+            "unit": "s",
+            "limit": 900,
+            "minDrills": 4
+          },
+          {
+            "kind": "worst",
+            "measure": "accepted writes lost below a kept write",
+            "unit": "writes",
+            "limit": 0,
+            "minDrills": 4
+          },
+          {
+            "kind": "worst",
+            "measure": "lost writes that the last backup does not explain",
+            "unit": "writes",
+            "limit": 2,
+            "minDrills": 4
+          },
+          {
+            "kind": "worst",
+            "measure": "drills that changed the data of a tenant",
+            "unit": "drills",
+            "limit": 0,
+            "minDrills": 4
+          },
+          {
+            "kind": "worst",
+            "measure": "accepted writes lost with a copy left",
+            "unit": "writes",
+            "limit": 0,
+            "minDrills": 4
+          }
+        ],
+        "test": "cells RD.1000.restore and RD.1000.failover",
+        "locked": true
+      }
+    ]
+  },
+  "verdict": {
+    "subject": "the recovery of a store of tenants",
+    "held": "1000",
+    "failed": false,
+    "reason": "Each of the 3 locked rungs is within.",
+    "rungs": [
+      {
+        "rung": "1",
+        "test": "cells RD.1 and RD.control",
+        "locked": true,
+        "commit": "779d47e",
+        "real": [
+          "a client that writes during the backups",
+          "a stop of each server, and the removal of each disk",
+          "a real mongodump of 1 MB with its oplog",
+          "a real mongorestore with a replay of the oplog",
+          "a set difference over each accepted write"
+        ],
+        "synthetic": [
+          "the interval of the backups is shortened: the record adds the interval of the rung to the measured excess",
+          "the data of the tenants is generated",
+          "the recovery starts at the fault: the RTO has no detection time and no human time",
+          "each member is a container on one runner, thus no network separates them"
+        ],
+        "outcome": "within",
+        "reason": "The 6 budgets of the rung \"1\" are within.",
+        "budgets": [
+          {
+            "measure": "rpo",
+            "outcome": "within",
+            "reason": "The measure \"rpo\" is \"within\" (4 drills, the largest 82799.998117 s, limit 86400, 4 drills needed)."
+          },
+          {
+            "measure": "rto",
+            "outcome": "within",
+            "reason": "The measure \"rto\" is \"within\" (4 drills, the largest 2.64954 s, limit 14400, 4 drills needed)."
+          },
+          {
+            "measure": "accepted writes lost below a kept write",
+            "outcome": "within",
+            "reason": "The measure \"accepted writes lost below a kept write\" is \"within\" (4 drills, the largest 0 writes, limit 0, 4 drills needed)."
+          },
+          {
+            "measure": "lost writes that the last backup does not explain",
+            "outcome": "within",
+            "reason": "The measure \"lost writes that the last backup does not explain\" is \"within\" (4 drills, the largest 0 writes, limit 2, 4 drills needed)."
+          },
+          {
+            "measure": "drills that changed the data of a tenant",
+            "outcome": "within",
+            "reason": "The measure \"drills that changed the data of a tenant\" is \"within\" (4 drills, the largest 0 drills, limit 0, 4 drills needed)."
+          },
+          {
+            "measure": "accepted writes lost with a copy left",
+            "outcome": "within",
+            "reason": "The measure \"accepted writes lost with a copy left\" is \"within\" (4 drills, the largest 0 writes, limit 0, 4 drills needed)."
+          }
+        ]
+      },
+      {
+        "rung": "100",
+        "test": "cells RD.100.restore and RD.100.failover",
+        "locked": true,
+        "commit": "779d47e",
+        "real": [
+          "a client that writes during the backups",
+          "a stop of each server, and the removal of each disk",
+          "a real mongodump of 100 MB with its oplog",
+          "3 real slices of the oplog",
+          "a real mongorestore with a replay of the oplog",
+          "a set difference over each accepted write"
+        ],
+        "synthetic": [
+          "the interval of the backups is shortened: the record adds the interval of the rung to the measured excess",
+          "the data of the tenants is generated",
+          "the recovery starts at the fault: the RTO has no detection time and no human time",
+          "each member is a container on one runner, thus no network separates them"
+        ],
+        "outcome": "within",
+        "reason": "The 6 budgets of the rung \"100\" are within.",
+        "budgets": [
+          {
+            "measure": "rpo",
+            "outcome": "within",
+            "reason": "The measure \"rpo\" is \"within\" (4 drills, the largest 239.998311 s, limit 300, 4 drills needed)."
+          },
+          {
+            "measure": "rto",
+            "outcome": "within",
+            "reason": "The measure \"rto\" is \"within\" (4 drills, the largest 16.424422 s, limit 1800, 4 drills needed)."
+          },
+          {
+            "measure": "accepted writes lost below a kept write",
+            "outcome": "within",
+            "reason": "The measure \"accepted writes lost below a kept write\" is \"within\" (4 drills, the largest 0 writes, limit 0, 4 drills needed)."
+          },
+          {
+            "measure": "lost writes that the last backup does not explain",
+            "outcome": "within",
+            "reason": "The measure \"lost writes that the last backup does not explain\" is \"within\" (4 drills, the largest 0 writes, limit 2, 4 drills needed)."
+          },
+          {
+            "measure": "drills that changed the data of a tenant",
+            "outcome": "within",
+            "reason": "The measure \"drills that changed the data of a tenant\" is \"within\" (4 drills, the largest 0 drills, limit 0, 4 drills needed)."
+          },
+          {
+            "measure": "accepted writes lost with a copy left",
+            "outcome": "within",
+            "reason": "The measure \"accepted writes lost with a copy left\" is \"within\" (4 drills, the largest 0 writes, limit 0, 4 drills needed)."
+          }
+        ]
+      },
+      {
+        "rung": "1000",
+        "test": "cells RD.1000.restore and RD.1000.failover",
+        "locked": true,
+        "commit": "779d47e",
+        "real": [
+          "a client that writes during the backups",
+          "a stop of each server, and the removal of each disk",
+          "a real mongodump of 1000 MB with its oplog",
+          "3 real slices of the oplog",
+          "a real mongorestore with a replay of the oplog",
+          "a set difference over each accepted write"
+        ],
+        "synthetic": [
+          "the interval of the backups is shortened: the record adds the interval of the rung to the measured excess",
+          "the data of the tenants is generated",
+          "the recovery starts at the fault: the RTO has no detection time and no human time",
+          "each member is a container on one runner, thus no network separates them"
+        ],
+        "outcome": "within",
+        "reason": "The 6 budgets of the rung \"1000\" are within.",
+        "budgets": [
+          {
+            "measure": "rpo",
+            "outcome": "within",
+            "reason": "The measure \"rpo\" is \"within\" (4 drills, the largest 44.802048 s, limit 60, 4 drills needed)."
+          },
+          {
+            "measure": "rto",
+            "outcome": "within",
+            "reason": "The measure \"rto\" is \"within\" (4 drills, the largest 22.94634 s, limit 900, 4 drills needed)."
+          },
+          {
+            "measure": "accepted writes lost below a kept write",
+            "outcome": "within",
+            "reason": "The measure \"accepted writes lost below a kept write\" is \"within\" (4 drills, the largest 0 writes, limit 0, 4 drills needed)."
+          },
+          {
+            "measure": "lost writes that the last backup does not explain",
+            "outcome": "within",
+            "reason": "The measure \"lost writes that the last backup does not explain\" is \"within\" (4 drills, the largest 0 writes, limit 2, 4 drills needed)."
+          },
+          {
+            "measure": "drills that changed the data of a tenant",
+            "outcome": "within",
+            "reason": "The measure \"drills that changed the data of a tenant\" is \"within\" (4 drills, the largest 0 drills, limit 0, 4 drills needed)."
+          },
+          {
+            "measure": "accepted writes lost with a copy left",
+            "outcome": "within",
+            "reason": "The measure \"accepted writes lost with a copy left\" is \"within\" (4 drills, the largest 0 writes, limit 0, 4 drills needed)."
+          }
+        ]
+      }
+    ]
+  },
+  "records": [
+    {
+      "rung": "1",
+      "commit": "779d47e",
+      "at": "2026-11-04T20:21:23.877Z",
+      "real": [
+        "a client that writes during the backups",
+        "a stop of each server, and the removal of each disk",
+        "a real mongodump of 1 MB with its oplog",
+        "a real mongorestore with a replay of the oplog",
+        "a set difference over each accepted write"
+      ],
+      "synthetic": [
+        "the interval of the backups is shortened: the record adds the interval of the rung to the measured excess",
+        "the data of the tenants is generated",
+        "the recovery starts at the fault: the RTO has no detection time and no human time",
+        "each member is a container on one runner, thus no network separates them"
+      ],
+      "evidence": [
+        {
+          "kind": "worst",
+          "measure": "rpo",
+          "values": [82799.997504, 82799.997381, 82799.998117, 82799.998103]
+        },
+        {
+          "kind": "worst",
+          "measure": "rto",
+          "values": [2.624231, 2.64954, 2.639801, 2.641704]
+        },
+        {
+          "kind": "worst",
+          "measure": "accepted writes lost below a kept write",
+          "values": [0, 0, 0, 0]
+        },
+        {
+          "kind": "worst",
+          "measure": "lost writes that the last backup does not explain",
+          "values": [0, 0, 0, 0]
+        },
+        {
+          "kind": "worst",
+          "measure": "drills that changed the data of a tenant",
+          "values": [0, 0, 0, 0]
+        },
+        {
+          "kind": "worst",
+          "measure": "accepted writes lost with a copy left",
+          "values": [0, 0, 0, 0]
+        }
+      ]
+    },
+    {
+      "rung": "100",
+      "commit": "779d47e",
+      "at": "2026-11-04T20:21:23.877Z",
+      "real": [
+        "a client that writes during the backups",
+        "a stop of each server, and the removal of each disk",
+        "a real mongodump of 100 MB with its oplog",
+        "3 real slices of the oplog",
+        "a real mongorestore with a replay of the oplog",
+        "a set difference over each accepted write"
+      ],
+      "synthetic": [
+        "the interval of the backups is shortened: the record adds the interval of the rung to the measured excess",
+        "the data of the tenants is generated",
+        "the recovery starts at the fault: the RTO has no detection time and no human time",
+        "each member is a container on one runner, thus no network separates them"
+      ],
+      "evidence": [
+        {
+          "kind": "worst",
+          "measure": "rpo",
+          "values": [239.997789, 239.99755, 239.998311, 239.997897]
+        },
+        {
+          "kind": "worst",
+          "measure": "rto",
+          "values": [15.224612, 16.424422, 15.321286, 15.038486]
+        },
+        {
+          "kind": "worst",
+          "measure": "accepted writes lost below a kept write",
+          "values": [0, 0, 0, 0]
+        },
+        {
+          "kind": "worst",
+          "measure": "lost writes that the last backup does not explain",
+          "values": [0, 0, 0, 0]
+        },
+        {
+          "kind": "worst",
+          "measure": "drills that changed the data of a tenant",
+          "values": [0, 0, 0, 0]
+        },
+        {
+          "kind": "worst",
+          "measure": "accepted writes lost with a copy left",
+          "values": [0, 0, 0, 0]
+        }
+      ]
+    },
+    {
+      "rung": "1000",
+      "commit": "779d47e",
+      "at": "2026-11-04T20:21:23.877Z",
+      "real": [
+        "a client that writes during the backups",
+        "a stop of each server, and the removal of each disk",
+        "a real mongodump of 1000 MB with its oplog",
+        "3 real slices of the oplog",
+        "a real mongorestore with a replay of the oplog",
+        "a set difference over each accepted write"
+      ],
+      "synthetic": [
+        "the interval of the backups is shortened: the record adds the interval of the rung to the measured excess",
+        "the data of the tenants is generated",
+        "the recovery starts at the fault: the RTO has no detection time and no human time",
+        "each member is a container on one runner, thus no network separates them"
+      ],
+      "evidence": [
+        {
+          "kind": "worst",
+          "measure": "rpo",
+          "values": [44.499301, 44.802048, 44.499485, 44.484595]
+        },
+        {
+          "kind": "worst",
+          "measure": "rto",
+          "values": [21.913209, 21.504846, 22.94634, 22.022152]
+        },
+        {
+          "kind": "worst",
+          "measure": "accepted writes lost below a kept write",
+          "values": [0, 0, 0, 0]
+        },
+        {
+          "kind": "worst",
+          "measure": "lost writes that the last backup does not explain",
+          "values": [0, 0, 0, 0]
+        },
+        {
+          "kind": "worst",
+          "measure": "drills that changed the data of a tenant",
+          "values": [0, 0, 0, 0]
+        },
+        {
+          "kind": "worst",
+          "measure": "accepted writes lost with a copy left",
+          "values": [0, 0, 0, 0]
+        }
+      ]
+    }
+  ],
+  "cells": [
+    {
+      "name": "RD.1 one node, disk lost, a dump with its oplog: each write after the dump goes, and no other",
+      "decision": "holds",
+      "counted": 4,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 1440.004
+      },
+      "median": 2.640752,
+      "why": "4 of the 4 counted runs are in the band of −4 ms to 1440.004 s. The median is 2.641 s, and its interval is 2.624 s to 2.65 s.",
+      "runs": [
+        [2.624231, 2.64954],
+        [2.639801, 2.641704]
+      ],
+      "warmups": [2.687725, 2.641559],
+      "voids": null
+    },
+    {
+      "name": "RD.100.failover three members, the disk of the primary lost: an election loses no accepted write",
+      "decision": "holds",
+      "counted": 4,
+      "voided": 0,
+      "band": {
+        "low": 7.996,
+        "high": 15.004
+      },
+      "median": 10.502943,
+      "why": "4 of the 4 counted runs are in the band of 7.996 s to 15.004 s. The median is 10.503 s, and its interval is 10.2 s to 10.764 s.",
+      "runs": [
+        [10.673334, 10.332552],
+        [10.763731, 10.199518]
+      ],
+      "warmups": [10.357699, 11.161332],
+      "voids": null
+    },
+    {
+      "name": "RD.100.restore three members, each disk lost, a dump and slices of the oplog: each write after the last slice goes, and no other",
+      "decision": "holds",
+      "counted": 4,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 180.004
+      },
+      "median": 15.272949,
+      "why": "4 of the 4 counted runs are in the band of −4 ms to 180.004 s. The median is 15.273 s, and its interval is 15.038 s to 16.424 s.",
+      "runs": [
+        [15.224612, 16.424422],
+        [15.321286, 15.038486]
+      ],
+      "warmups": [16.100667, 16.183012],
+      "voids": null
+    },
+    {
+      "name": "RD.1000.failover three members, 1 GB, the disk of the primary lost: an election loses no accepted write at this size",
+      "decision": "holds",
+      "counted": 4,
+      "voided": 0,
+      "band": {
+        "low": 7.996,
+        "high": 15.004
+      },
+      "median": 10.192342,
+      "why": "4 of the 4 counted runs are in the band of 7.996 s to 15.004 s. The median is 10.192 s, and its interval is 10.131 s to 10.327 s.",
+      "runs": [
+        [10.130716, 10.179996],
+        [10.204688, 10.327237]
+      ],
+      "warmups": [10.350936, 10.656454],
+      "voids": null
+    },
+    {
+      "name": "RD.1000.restore three members, each disk lost, 1 GB, a dump and slices of the oplog: the time at a large size, and the same law",
+      "decision": "holds",
+      "counted": 4,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 90.004
+      },
+      "median": 21.967681,
+      "why": "4 of the 4 counted runs are in the band of −4 ms to 90.004 s. The median is 21.968 s, and its interval is 21.505 s to 22.946 s.",
+      "runs": [
+        [21.913209, 21.504846],
+        [22.94634, 22.022152]
+      ],
+      "warmups": [21.474331, 21.139424],
+      "voids": null
+    },
+    {
+      "name": "RD.control one node, disk lost after the dump with no later write: no write goes",
+      "decision": "holds",
+      "counted": 4,
+      "voided": 0,
+      "band": {
+        "low": -0.004,
+        "high": 1440.004
+      },
+      "median": 2.564665,
+      "why": "4 of the 4 counted runs are in the band of −4 ms to 1440.004 s. The median is 2.565 s, and its interval is 2.543 s to 2.581 s.",
+      "runs": [
+        [2.543469, 2.55889],
+        [2.580636, 2.57044]
+      ],
+      "warmups": [2.566226, 2.606352],
+      "voids": null
+    }
+  ],
+  "drills": [
+    {
+      "id": "RD.1",
+      "name": "RD.1 one node, disk lost, a dump with its oplog: each write after the dump goes, and no other",
+      "recovery": "restore",
+      "tenants": 1,
+      "runs": [
+        {
+          "index": 1,
+          "void": null,
+          "rto": {
+            "value": 2.624231,
+            "unit": "s"
+          },
+          "lost": 1157,
+          "afterBackup": 1157,
+          "excess": {
+            "value": -0.002496,
+            "unit": "s"
+          },
+          "holes": 0,
+          "sameData": true,
+          "dump": {
+            "value": 1051835,
+            "unit": "B"
+          }
+        },
+        {
+          "index": 2,
+          "void": null,
+          "rto": {
+            "value": 2.64954,
+            "unit": "s"
+          },
+          "lost": 1157,
+          "afterBackup": 1157,
+          "excess": {
+            "value": -0.002619,
+            "unit": "s"
+          },
+          "holes": 0,
+          "sameData": true,
+          "dump": {
+            "value": 1051835,
+            "unit": "B"
+          }
+        },
+        {
+          "index": 3,
+          "void": null,
+          "rto": {
+            "value": 2.639801,
+            "unit": "s"
+          },
+          "lost": 1155,
+          "afterBackup": 1155,
+          "excess": {
+            "value": -0.001883,
+            "unit": "s"
+          },
+          "holes": 0,
+          "sameData": true,
+          "dump": {
+            "value": 1051835,
+            "unit": "B"
+          }
+        },
+        {
+          "index": 4,
+          "void": null,
+          "rto": {
+            "value": 2.641704,
+            "unit": "s"
+          },
+          "lost": 1155,
+          "afterBackup": 1155,
+          "excess": {
+            "value": -0.001897,
+            "unit": "s"
+          },
+          "holes": 0,
+          "sameData": true,
+          "dump": {
+            "value": 1052192,
+            "unit": "B"
+          }
+        }
+      ]
+    },
+    {
+      "id": "RD.100.failover",
+      "name": "RD.100.failover three members, the disk of the primary lost: an election loses no accepted write",
+      "recovery": "election",
+      "tenants": 100,
+      "runs": [
+        {
+          "index": 1,
+          "void": null,
+          "rto": {
+            "value": 10.673334,
+            "unit": "s"
+          },
+          "lost": 0,
+          "afterBackup": null,
+          "excess": null,
+          "holes": 0,
+          "sameData": true,
+          "dump": null
+        },
+        {
+          "index": 2,
+          "void": null,
+          "rto": {
+            "value": 10.332552,
+            "unit": "s"
+          },
+          "lost": 0,
+          "afterBackup": null,
+          "excess": null,
+          "holes": 0,
+          "sameData": true,
+          "dump": null
+        },
+        {
+          "index": 3,
+          "void": null,
+          "rto": {
+            "value": 10.763731,
+            "unit": "s"
+          },
+          "lost": 0,
+          "afterBackup": null,
+          "excess": null,
+          "holes": 0,
+          "sameData": true,
+          "dump": null
+        },
+        {
+          "index": 4,
+          "void": null,
+          "rto": {
+            "value": 10.199518,
+            "unit": "s"
+          },
+          "lost": 0,
+          "afterBackup": null,
+          "excess": null,
+          "holes": 0,
+          "sameData": true,
+          "dump": null
+        }
+      ]
+    },
+    {
+      "id": "RD.100.restore",
+      "name": "RD.100.restore three members, each disk lost, a dump and slices of the oplog: each write after the last slice goes, and no other",
+      "recovery": "restore",
+      "tenants": 100,
+      "runs": [
+        {
+          "index": 1,
+          "void": null,
+          "rto": {
+            "value": 15.224612,
+            "unit": "s"
+          },
+          "lost": 189,
+          "afterBackup": 189,
+          "excess": {
+            "value": -0.002211,
+            "unit": "s"
+          },
+          "holes": 0,
+          "sameData": true,
+          "dump": {
+            "value": 104932564,
+            "unit": "B"
+          }
+        },
+        {
+          "index": 2,
+          "void": null,
+          "rto": {
+            "value": 16.424422,
+            "unit": "s"
+          },
+          "lost": 189,
+          "afterBackup": 189,
+          "excess": {
+            "value": -0.00245,
+            "unit": "s"
+          },
+          "holes": 0,
+          "sameData": true,
+          "dump": {
+            "value": 104932489,
+            "unit": "B"
+          }
+        },
+        {
+          "index": 3,
+          "void": null,
+          "rto": {
+            "value": 15.321286,
+            "unit": "s"
+          },
+          "lost": 190,
+          "afterBackup": 190,
+          "excess": {
+            "value": -0.001689,
+            "unit": "s"
+          },
+          "holes": 0,
+          "sameData": true,
+          "dump": {
+            "value": 104932207,
+            "unit": "B"
+          }
+        },
+        {
+          "index": 4,
+          "void": null,
+          "rto": {
+            "value": 15.038486,
+            "unit": "s"
+          },
+          "lost": 191,
+          "afterBackup": 191,
+          "excess": {
+            "value": -0.002103,
+            "unit": "s"
+          },
+          "holes": 0,
+          "sameData": true,
+          "dump": {
+            "value": 104932489,
+            "unit": "B"
+          }
+        }
+      ]
+    },
+    {
+      "id": "RD.1000.failover",
+      "name": "RD.1000.failover three members, 1 GB, the disk of the primary lost: an election loses no accepted write at this size",
+      "recovery": "election",
+      "tenants": 1000,
+      "runs": [
+        {
+          "index": 1,
+          "void": null,
+          "rto": {
+            "value": 10.130716,
+            "unit": "s"
+          },
+          "lost": 0,
+          "afterBackup": null,
+          "excess": null,
+          "holes": 0,
+          "sameData": true,
+          "dump": null
+        },
+        {
+          "index": 2,
+          "void": null,
+          "rto": {
+            "value": 10.179996,
+            "unit": "s"
+          },
+          "lost": 0,
+          "afterBackup": null,
+          "excess": null,
+          "holes": 0,
+          "sameData": true,
+          "dump": null
+        },
+        {
+          "index": 3,
+          "void": null,
+          "rto": {
+            "value": 10.204688,
+            "unit": "s"
+          },
+          "lost": 0,
+          "afterBackup": null,
+          "excess": null,
+          "holes": 0,
+          "sameData": true,
+          "dump": null
+        },
+        {
+          "index": 4,
+          "void": null,
+          "rto": {
+            "value": 10.327237,
+            "unit": "s"
+          },
+          "lost": 0,
+          "afterBackup": null,
+          "excess": null,
+          "holes": 0,
+          "sameData": true,
+          "dump": null
+        }
+      ]
+    },
+    {
+      "id": "RD.1000.restore",
+      "name": "RD.1000.restore three members, each disk lost, 1 GB, a dump and slices of the oplog: the time at a large size, and the same law",
+      "recovery": "restore",
+      "tenants": 1000,
+      "runs": [
+        {
+          "index": 1,
+          "void": null,
+          "rto": {
+            "value": 21.913209,
+            "unit": "s"
+          },
+          "lost": 180,
+          "afterBackup": 180,
+          "excess": {
+            "value": -0.500699,
+            "unit": "s"
+          },
+          "holes": 0,
+          "sameData": true,
+          "dump": {
+            "value": 1049315990,
+            "unit": "B"
+          }
+        },
+        {
+          "index": 2,
+          "void": null,
+          "rto": {
+            "value": 21.504846,
+            "unit": "s"
+          },
+          "lost": 186,
+          "afterBackup": 186,
+          "excess": {
+            "value": -0.197952,
+            "unit": "s"
+          },
+          "holes": 0,
+          "sameData": true,
+          "dump": {
+            "value": 1049315990,
+            "unit": "B"
+          }
+        },
+        {
+          "index": 3,
+          "void": null,
+          "rto": {
+            "value": 22.94634,
+            "unit": "s"
+          },
+          "lost": 173,
+          "afterBackup": 173,
+          "excess": {
+            "value": -0.500515,
+            "unit": "s"
+          },
+          "holes": 0,
+          "sameData": true,
+          "dump": {
+            "value": 1049315633,
+            "unit": "B"
+          }
+        },
+        {
+          "index": 4,
+          "void": null,
+          "rto": {
+            "value": 22.022152,
+            "unit": "s"
+          },
+          "lost": 177,
+          "afterBackup": 177,
+          "excess": {
+            "value": -0.515405,
+            "unit": "s"
+          },
+          "holes": 0,
+          "sameData": true,
+          "dump": {
+            "value": 1049315633,
+            "unit": "B"
+          }
+        }
+      ]
+    },
+    {
+      "id": "RD.control",
+      "name": "RD.control one node, disk lost after the dump with no later write: no write goes",
+      "recovery": "restore",
+      "tenants": 1,
+      "runs": [
+        {
+          "index": 1,
+          "void": null,
+          "rto": {
+            "value": 2.543469,
+            "unit": "s"
+          },
+          "lost": 0,
+          "afterBackup": 0,
+          "excess": null,
+          "holes": 0,
+          "sameData": true,
+          "dump": {
+            "value": 1051760,
+            "unit": "B"
+          }
+        },
+        {
+          "index": 2,
+          "void": null,
+          "rto": {
+            "value": 2.55889,
+            "unit": "s"
+          },
+          "lost": 0,
+          "afterBackup": 0,
+          "excess": null,
+          "holes": 0,
+          "sameData": true,
+          "dump": {
+            "value": 1051760,
+            "unit": "B"
+          }
+        },
+        {
+          "index": 3,
+          "void": null,
+          "rto": {
+            "value": 2.580636,
+            "unit": "s"
+          },
+          "lost": 0,
+          "afterBackup": 0,
+          "excess": null,
+          "holes": 0,
+          "sameData": true,
+          "dump": {
+            "value": 1051760,
+            "unit": "B"
+          }
+        },
+        {
+          "index": 4,
+          "void": null,
+          "rto": {
+            "value": 2.57044,
+            "unit": "s"
+          },
+          "lost": 0,
+          "afterBackup": 0,
+          "excess": null,
+          "holes": 0,
+          "sameData": true,
+          "dump": {
+            "value": 1051760,
+            "unit": "B"
+          }
+        }
+      ]
+    }
+  ]
+}
