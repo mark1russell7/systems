@@ -2308,14 +2308,16 @@ The group rebalances at `session.timeout.ms`, and a stale commit fails with a fe
 
 ### SYS-73 · etcd: a lock holder past its lease
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
-- **Depends on:** SYS-58
-- **Started:**
+- **Depends on:** SYS-74
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
 The lease ends at its TTL, and a contender gets the lock. The frozen holder can write after that. A fencing revision stops that write (T13).
+
+The cells `EL.1` to `EL.11` test the band of the end, the floor of the TTL, a promotion and the live control. They also test the stale write, the fence and a waiter that lost its lease. The target has its own etcd, thus this item does not need the Valkey work of SYS-58. It needs only the order after SYS-74, because it copies the frame of that target.
 
 ### SYS-74 · etcd: a watcher after a compaction
 
