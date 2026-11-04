@@ -47,7 +47,8 @@ interface Span {
   readonly hi: number;
 }
 
-const rounded = (value: number): number => Math.round(value * 1e6) / 1e6;
+/** This function rounds a time in seconds to the microsecond of the stamps. */
+export const rounded = (value: number): number => Math.round(value * 1e6) / 1e6;
 
 /**
  * This function gives the first refusal after a cut of each replica, from the fault, in seconds:

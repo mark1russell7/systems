@@ -1,4 +1,5 @@
 // client-sentinel --sentinels H:P,H:P,... --name NAME [--interval-ms N] [--max-s N] [--options JSON]
+//                 [--op set|rpush] [--window N]
 //
 // A group cell's client: ioredis 6.0.0 in Sentinel mode, which asks the Sentinels for the primary
 // of NAME and connects to it. Every event is a JSON line stamped on CLOCK_MONOTONIC
@@ -12,6 +13,10 @@
 // run tell which writes it kept. --options are ioredis options over its defaults: none at the
 // defaults of a cell. The client never stops on an error: ioredis reconnects, and the stream
 // goes on until --max-s or SIGTERM.
+//
+// With --op rpush, each write is RPUSH w <n>: a key hides a second copy of a write, and a list
+// keeps it. --window N runs N writers with one counter, thus N writes can be in flight. The
+// defaults are SET and one writer.
 
 import { readFileSync } from "node:fs";
 import Redis from "ioredis";
@@ -40,6 +45,8 @@ if (sentinels.length === 0 || name === undefined) {
 const interval = Number(flag("--interval-ms") ?? 50);
 const max = Number(flag("--max-s") ?? 120) * 1000;
 const options = JSON.parse(flag("--options") ?? "{}");
+const op = flag("--op") ?? "set";
+const writers = Number(flag("--window") ?? 1);
 
 emit("start", {
   boot_id: readFileSync("/proc/sys/kernel/random/boot_id", "utf8").trim(),
@@ -91,16 +98,25 @@ try {
   process.exit(1);
 }
 
-for (let n = 1; !stopped; n += 1) {
-  const at = now();
-  // stamped before the write: the kernel can answer before the call returns
-  const reply = redis.set(`w:${n}`, String(n));
-  emit("sent", { n }, at);
-  try {
-    const answer = await reply;
-    emit("ack", { n, at: remote(), reply: answer });
-  } catch (error) {
-    emit("fail", { n, name: error.name, message: error.message });
+const write = (n) => (op === "rpush" ? redis.rpush("w", String(n)) : redis.set(`w:${n}`, String(n)));
+
+let next = 1;
+const writer = async () => {
+  while (!stopped) {
+    const n = next;
+    next += 1;
+    const at = now();
+    // stamped before the write: the kernel can answer before the call returns
+    const reply = write(n);
+    emit("sent", { n }, at);
+    try {
+      const answer = await reply;
+      emit("ack", { n, at: remote(), reply: answer });
+    } catch (error) {
+      emit("fail", { n, name: error.name, message: error.message });
+    }
+    await sleep(interval);
   }
-  await sleep(interval);
-}
+};
+
+await Promise.all(Array.from({ length: writers }, writer));

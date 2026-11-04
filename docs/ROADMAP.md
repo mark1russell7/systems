@@ -2193,14 +2193,34 @@ The client cannot know the outcome of a COMMIT with no reply (DV-38). A final re
 
 ### SYS-62 · ioredis: a resend at reconnect duplicates a write
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-58
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
-A `SET` hides a duplicate, and an append to one list shows it. Duplicates are at most the commands in flight at each close, from the source of ioredis 6.0.0.
+A `SET` hides a duplicate, and an append to one list shows it. The plan said that duplicates are at most the commands in flight at each close. The source of ioredis 6.0.0 keeps that upper bound and gives a tighter law:
+
+- A resend adds a copy only if the first copy was applied and it survives. Thus the extra copies are W × c, with W commands in flight at each of c closes from `ready`, if the first copies survive.
+- No fault of T12 gives a copy at the defaults. The close must come from a timer of the client, while the server holds the first copy unread.
+- `socketTimeout` is that timer. Its doc comment says that the client rejects the running commands, and the close path keeps them for the resend.
+
+[S3.md](S3.md#the-law-of-sys-62-the-resend) has each term with its file and line.
+
+The predictions, written before the first dispatch:
+
+| Cell | Hold | Client | Extra copies | First `Error` from the fault |
+| --- | --- | --- | --- | --- |
+| `T12.resend.1` | 29 s | `socketTimeout` 1 s, W 1 | 1 | 0.938 s to 1.072 s |
+| `T12.resend.2` | 29 s | `socketTimeout` 1 s, W 4 | 4 | 0.938 s to 1.072 s |
+| `T12.resend.3` | 40 s, a failover | `socketTimeout` 1 s, W 4 | 0 | 0.938 s to 1.072 s |
+| `T12.resend.4` | 29 s | No timer, W 4 | 0, first write 29 s to 29.012 s | None |
+| `T12.resend.5` | 29 s | `socketTimeout` 1 s, resend off, `commandTimeout` 40 s, W 4 | 0 | 0.938 s to 1.072 s |
+
+The decision rule: a run counts if the harness does not void it, and each cell needs 4 counted runs. A cell with a void or infrastructure run goes again once, alone. A code bug on the first run is a build miss. The band of extra copies judges each cell, with each finding of a run. The thresholds do not change after any result is read.
+
+The chosen constants have no source: `socketTimeout` 1 s, 4 writers and `commandTimeout` 40 s. No cell has run. The loop of writers, the `RPUSH` and the read of the list have not run in a lab.
 
 ### SYS-63 · The accept queue: its count and what a client sees
 

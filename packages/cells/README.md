@@ -102,6 +102,18 @@ These cells start S3 (`src/writes.ts`, SYS-58). They use the group and the clien
 - **The verdict.** A partition has no band of time, because no document gives the time of the conversion. The band of lost writes judges the cell (`GroupPrediction.lost`).
 - **The source.** Each term cites Valkey 9.1.2 by file and line, in the comment of the module.
 
+## The cells of the resend
+
+These cells are SYS-62 of S3 (`src/resend.ts`). They use the group of T12 at its defaults, with `RPUSH w <n>` as the write. The question: does the resend of ioredis at a reconnect duplicate a write?
+
+- **The history.** The list `w` keeps each copy, and `writesOf` gives one entry for each extra copy. A `SET` has no cell, because a key holds one copy by construction.
+- **The law.** The extra copies are W × c, with W commands in flight at each of c closes from `ready`, if the first copies survive (`copiesOf`).
+- **The close.** A fault of T12 gives no close while the server holds the first copy unread. Thus these cells set `socketTimeout`, and a freeze of the primary holds that copy in its kernel.
+- **The cells.** W 1 gives 1 copy and W 4 gives 4 copies (`T12.resend.1`, `T12.resend.2`). A failover gives 0, as the first copies die with the old primary (`T12.resend.3`).
+- **The controls.** No close gives 0 (`T12.resend.4`), and so does the resend off (`T12.resend.5`).
+- **The verdict.** The band of extra copies judges the cell (`GroupPrediction.duplicates`). A read that found no write is a finding, so a control cannot pass with an empty read.
+- **The source.** Each term cites ioredis 6.0.0 or Valkey 9.1.2 by file and line, in the comment of the module.
+
 ## The HTTP catalog
 
 The HTTP catalog (`src/http/`) has the cells of T01 and T03 with the Node HTTP server. They are the defaults stage, and the border cells of the keep-alive race. Each catalog entry has its prediction, and the name of the plan cell that it stands for. `cells.ts` makes each entry a cell of the harness.

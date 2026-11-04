@@ -83,6 +83,8 @@ Each run of a group cell starts from a group that converged:
 
 The harness then removes each key from the group. After the run, the group converges again, and the keys that it holds tell which writes it kept.
 
+A driver with `op: "rpush"` appends each write to one list, and the entries tell how many copies of each write the group kept. `window` sets the count of writers. A band of extra copies (`GroupPrediction.duplicates`) judges the cell as a band of lost writes does.
+
 A Sentinel that aborted a failover does not try again for 2 × `failover-timeout`. Thus after a run with an aborted failover, each Sentinel forgets the state of the group (`SENTINEL RESET`). The next run then starts from a group that each Sentinel knows again.
 
 ## The replica sets

@@ -486,6 +486,8 @@ export interface StageBand {
  * - `lost` is the band of the count of accepted writes that the group did not keep, in each run. A
  *   count outside it is a finding. A measurement-only cell with this band gets its decision from
  *   the findings of its runs, thus the law of the count judges the cell.
+ * - `duplicates` is the band of the count of extra copies that the group holds, in each run. It
+ *   judges a cell as `lost` does. Only a list can show a copy, thus the cell needs `op: "rpush"`.
  */
 export interface GroupPrediction {
   readonly lands: "new" | "same";
@@ -495,6 +497,7 @@ export interface GroupPrediction {
   readonly errors?: ReadonlyArray<{ readonly name: string; readonly low: Quantity; readonly high: Quantity }>;
   readonly quiet?: readonly Stage[];
   readonly lost?: { readonly low: number; readonly high: number };
+  readonly duplicates?: { readonly low: number; readonly high: number };
 }
 
 /**
@@ -934,7 +937,9 @@ export interface Cell {
     /**
      * This driver replaces the TCP client of the harness, with its own options. The driver then
      * ignores `keepalive` and `userTimeout`:
-     * - ioredis 6 on Node, whose keepAlive is the keepalive delay of the socket.
+     * - ioredis 6 on Node, whose keepAlive is the keepalive delay of the socket. In a group cell,
+     *   its write is `SET w:<n> <n>`, or `RPUSH w <n>` with `op: "rpush"`, thus a list keeps each
+     *   copy. `window` is the count of writers, each with one write in flight: 1 at the default.
      * - the MongoDB driver on Node, against the replica set `set`. Its operation is a write, or
      *   the read of a long document (`read-long`). `Cell.driverOptions` are its options.
      * - node-postgres on Node, as a `pg.Pool` against one server. Its operation is `query`, or
@@ -953,7 +958,7 @@ export interface Cell {
      * that long. With `op: "watch"`, the operation in flight is a stream of Health/Watch, which stays open.
      */
     readonly driver?:
-      | { readonly name: "ioredis"; readonly keepAlive: Quantity }
+      | { readonly name: "ioredis"; readonly keepAlive: Quantity; readonly op?: "set" | "rpush"; readonly window?: number }
       | { readonly name: "mongodb"; readonly set: string; readonly op?: "write" | "read-long" }
       | { readonly name: "pg"; readonly query?: string; readonly inflight?: string }
       | { readonly name: "hikari"; readonly query?: string; readonly inflight?: string }
@@ -1215,7 +1220,7 @@ export interface RunGroup {
   readonly timeline: readonly SentinelEvent[];
   /** This name is the member that was the primary when the group converged after the run, or null when it did not converge. */
   readonly after: string | null;
-  /** These are the sequence numbers that the group holds after the run, when it converged, or null. */
+  /** These are the sequence numbers that the group holds after the run, one entry for each copy, when it converged, or null. */
   readonly holds: readonly number[] | null;
 }
 
