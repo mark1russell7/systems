@@ -17,6 +17,7 @@ import type { MeshImages } from "./istio.ts";
 import { EDS_EVERY, ISTIO_IMAGES, LDS_EVERY, MESH_IMAGES, followsZtunnel, installMesh, meshKey, pollsListeners, serverCluster, setZtunnelEnv, ztunnelCertificates } from "./istio.ts";
 import { KUBE_VIP_ANNOUNCER, METALLB_ANNOUNCER, announcerOf, macsAt } from "./announcer.ts";
 import { vipNetworkOf, vipServed } from "./kubevip.ts";
+import { METALLB_NAMESPACE } from "./metallb.ts";
 import type { KindLab, Line, Stamp } from "./lab.ts";
 import { localPin, openKindLab } from "./lab.ts";
 import { OUTSIDE } from "./names.ts";
@@ -69,13 +70,23 @@ interface Images {
  */
 const clusterKey = (cell: KindCell): string =>
   (cell.mesh !== undefined ? `${cell.mode}-${cell.workers}-${cell.mesh.flavor}` : zoned(cell) ? `${cell.mode}-${cell.workers}-zones` : `${cell.mode}-${cell.workers}`) +
-  // a cell with a VIP gets a cluster with its announcer: kube-vip, or MetalLB ("mlb", as a kind name has 32 characters at most)
-  (cell.vip === undefined ? "" : cell.vip.announcer === "metallb" ? "-vip-mlb" : "-vip") +
+  // a cell with a VIP gets a cluster with its announcer: kube-vip, or MetalLB ("mlb", as a kind name has 32 characters at most).
+  // Settings of memberlist get a cluster of their own: the probe interval in ms and the multiplier of the suspicion
+  (cell.vip === undefined
+    ? ""
+    : cell.vip.announcer !== "metallb"
+      ? "-vip"
+      : cell.vip.memberlist === undefined
+        ? "-vip-mlb"
+        : `-mlb${valueIn(cell.vip.memberlist.probeInterval, "ms")}x${cell.vip.memberlist.suspicionMult}`) +
   // a cell with a broker gets a cluster with Pulsar
   (cell.pulsar === undefined ? "" : "-pul");
 
-/** This function tells if a cell needs a cluster with zones: a zone loss. */
-const zoned = (cell: KindCell): boolean => cell.trigger.kind === "zone-loss";
+/** This function gives the name of the cluster of a cell in an environment. Kind permits 32 characters at most: lowercase letters, digits and dashes. */
+export const clusterNameOf = (cell: KindCell, env: number): string => `lab-${clusterKey(cell)}-${env}`;
+
+/** This function tells if a cell needs a cluster with zones. A zone loss needs one, and so does a cell with settings of memberlist, that shares the cluster of its zone loss. */
+const zoned = (cell: KindCell): boolean => cell.trigger.kind === "zone-loss" || cell.vip?.memberlist !== undefined;
 
 /**
  * This tracker keeps the latest state of the cell from the lines: each pod, each slice and each
@@ -156,6 +167,8 @@ interface Context {
   expected: number;
   /** This map gives the PID of the app of each pod. A replica gets it from the last fault of the target `servers`, and a client from the last gap. */
   readonly pids: Map<string, number>;
+  /** This is the speaker of MetalLB of the last SIGSTOP: its node and PID, until its SIGCONT. */
+  speaker?: { readonly node: string; readonly pid: number; readonly pod: PodLine | null } | undefined;
   /** This broker is the owner of the topic at the start of the run, for a cell with a broker. It has its pod, its node, and the host that the lookups name. */
   broker: { readonly pod: string; readonly node: string; readonly host: string } | null;
 }
@@ -534,6 +547,16 @@ const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], ba
     if (which === "servers") throw new Error("the target servers is a target of the injector only");
     if (which === "clients") throw new Error("the target clients is a target of a signal only");
     if (which === "server") return { node: target.node, pid: await lab.pidOf(target.node, namespace, target.pod, "app"), pod: null };
+    // the speaker of MetalLB on the owner of the VIP: the node of the lost zone, as the hold before the run makes it
+    if (which === "speaker") {
+      const owner = lostNodeOf(cluster);
+      const speakers = JSON.parse(
+        await cluster.kubectl(["-n", METALLB_NAMESPACE, "get", "pods", "-l", "app.kubernetes.io/component=speaker", "--field-selector", `spec.nodeName=${owner}`, "-o", "json"]),
+      ) as { items: Array<{ metadata: { name: string } }> };
+      const pod = speakers.items[0];
+      if (pod === undefined) throw new Error(`no speaker of MetalLB is on ${owner}`);
+      return { node: owner, pid: await lab.pidOf(owner, METALLB_NAMESPACE, pod.metadata.name, "speaker"), pod: null };
+    }
     if (which === "broker") {
       if (ctx.broker === null) throw new Error(`${ctx.cell.name}: the run has no broker that owns the topic`);
       return { node: ctx.broker.node, pid: await lab.pidOf(ctx.broker.node, PULSAR_NAMESPACE, ctx.broker.pod, "pulsar-broker"), pod: null };
@@ -564,7 +587,10 @@ const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], ba
     }
     case "signal": {
       if (step.target === "clients") return signalClients(ctx, step.signal);
-      const at = await where(step.target);
+      // the SIGCONT of a speaker uses the PID of its SIGSTOP: no lookup delays the end of the pause
+      const cached = step.target === "speaker" && step.signal === "SIGCONT" ? ctx.speaker : undefined;
+      const at = cached ?? (await where(step.target));
+      if (step.target === "speaker") ctx.speaker = step.signal === "SIGSTOP" ? at : undefined;
       return lab.act(at.node, { op: "signal", pid: at.pid, signal: step.signal });
     }
     case "pause": {
@@ -775,7 +801,7 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
   const target =
     cell.vip !== undefined || cell.pulsar !== undefined || (hasRedis(cell) && ["rst", "blackhole", "freeze-process", "peer-gone-without-close", "rollout", "latency"].includes(cell.trigger.kind)) ? null : replicas[0]!;
   // the paused node is the node of kube-proxy that a freeze stops, or the node of the lost zone
-  const paused = cell.template === "T07" && cell.trigger.kind === "freeze-process" ? (cluster.nodes[1] ?? cluster.nodes[0]!) : zoneLoss ? lostNodeOf(cluster) : null;
+  const paused = cell.template === "T07" && cell.trigger.kind === "freeze-process" && cell.vip === undefined ? (cluster.nodes[1] ?? cluster.nodes[0]!) : zoneLoss ? lostNodeOf(cluster) : null;
   // A SYN with no answer before the run keeps its NAT for 120 s (SYN_SENT). A client that takes its
   // port again in the run meets it, and the restore of the last run leaves such SYNs. Each run starts with none
   const cleared = await lab.forgetHandshakes(ctx.clusterIp, 80);
@@ -964,10 +990,10 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
   const groups = new Map<string, KindCell[]>();
   for (const cell of cells) groups.set(clusterKey(cell), [...(groups.get(clusterKey(cell)) ?? []), cell]);
   const results: KindCellResult[] = [];
-  for (const [key, group] of groups) {
+  for (const group of groups.values()) {
     const partial = new Map<string, { runs: KindRun[]; manifests: EnvironmentManifest[]; loads: LoadSample[] }>();
     for (let env = 0; env < environments; env += 1) {
-      const s = scenario(`lab-${key}-${env}`, group[0]!.mode, group[0]!.workers, undefined, zoned(group[0]!));
+      const s = scenario(clusterNameOf(group[0]!, env), group[0]!.mode, group[0]!.workers, undefined, zoned(group[0]!));
       const dir = join(options.work ?? join(tmpdir(), "systems-kind-work"), s.name);
       const mesh = group[0]!.mesh;
       options.log(`cluster ${s.name}: ${s.dataplane}, ${s.workers} workers${mesh === undefined ? "" : `, Istio ${mesh.flavor}`}`);
@@ -1006,7 +1032,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
           for (const each of Object.values(pinned)) await cluster.load(each);
           const began = Date.now();
           vip = announcer.vipOf((await vipNetworkOf(cluster.network)).subnet, lostNodeOf(cluster), workersOf(cluster));
-          await announcer.install(cluster, pinned, lostNodeOf(cluster), workersOf(cluster), vip);
+          await announcer.install(cluster, pinned, lostNodeOf(cluster), workersOf(cluster), vip, group[0]!.vip);
           options.log(`  ${announcer.name} installed in ${Math.round((Date.now() - began) / 100) / 10} s, the VIP ${vip}`);
         }
         // Pulsar: one ZooKeeper, one bookie and two brokers, for the cells with a broker
@@ -1116,6 +1142,8 @@ const estimate = (cell: KindCell, environments = 2): number => {
     "cannot-serve": hold + 20,
     // the hold, then the kubelet of the lost node connects again and the replica is ready again
     "zone-loss": hold + 45,
+    // the pauses of a speaker (SYS-57): the schedule, then a rejoin of memberlist
+    ...(cell.vip === undefined ? {} : { "freeze-process": hold + 20 }),
   };
   // a window can need a longer observation: from the end of the hold, until each request that started in it ended
   const after = observationAfter(cell);

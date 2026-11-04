@@ -1523,6 +1523,85 @@ Of the 11 claims, 8 are hits, with a Brier score of 0.209:
 
 One term stays open. The bundle moves before 30 s in some runs, but the law of the expiry gives at least 30 s after the last packet.
 
+### SYS-57 · MetalLB: the detection settings of memberlist, the failure time against false deaths
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** SYS-53
+- **Started:** 2026-11-03
+- **Links:** [S2](#s2--intermediaries-and-kubernetes), [SYS-53](#sys-53--metallb-callers-outside-the-cluster-when-the-announcer-of-a-vip-is-gone)
+
+SYS-53 measured the failure time of MetalLB with the defaults of memberlist. A shorter probe interval or a smaller suspicion multiplier gives a shorter failure time. It also gives a false death to a live speaker that stops for a short time. The question: how do the two settings trade the failure time against false deaths?
+
+**The settings.** The sweep has four settings of the probe interval I and the multiplier m: 1 s × 4, 1 s × 2, 500 ms × 4 and 500 ms × 2. The probe timeout is I / 2. The setting 1 s × 4 is the default. It is the control of the path of the file.
+
+- The install writes each setting to the ConfigMap `metallb-memberlist-config`, with the key `config.json`, before the speakers start (`installMetallb` in `packages/kind/src/metallb.ts`).
+- The file has each of the 19 fields of `memberlistFileConfig` (`internal/speakerlist/speakerlist.go` of v0.16.1, lines 355–432). Each other value is the default of `DefaultLANConfig` of memberlist v0.5.1 (`config.go`, lines 302–341).
+- The chart mounts the ConfigMap at `/etc/metallb/memberlist` if it exists (`charts/metallb/templates/speaker.yaml`, lines 195–198 and 391–392). The speaker reads the file at its start (`speakerlist.go`, lines 77–84).
+- The install checks that each speaker logged "loading memberlist config from file". A failed check stops the install.
+- Each setting has a cluster of its own, for example `lab-iptables-2-zones-mlb500x2-0`. A test checks that each kind name of each catalog has 32 characters at most.
+
+**The family.** Eight cells in iptables, two for each setting on one cluster (`DETECTION_CELLS` in `packages/cells/src/detection.ts`):
+
+- The failure time: the zone loss of SYS-53, with the settings. The kind judge holds each run to a window.
+- The false deaths: no fault, but a schedule of pauses of the speaker of the owner. Each pause is a SIGSTOP, then a SIGCONT after its hold. The holds are 1, 2, 4, 6 and 9 s, 20 s apart. The same schedule is the load of each setting. The prediction is `measured`, thus the judge gives no verdict, and the result reads the deaths from the record.
+
+**The law.** With two speakers the suspicion timeout is S = m × I, with no confirmation. Let T0 = I + S.
+
+- The failure time is the later law of SYS-53. A tick after the shuffle of the members can probe no node (`state.go`, lines 232–274). Thus the death comes T0 to the act, 2I and T0 after the fault: 5–7.5 s, 3–5.5 s, 2.5–4 s and 1.5–3 s.
+- With two members, a gap between two probes is 1 tick or 2 ticks. In the steady chain of the ticks, the share of a gap of 1 tick is 1/4. Thus the next probe from a random phase is 0 to 2I later, and 4/7 of the phases have it in I.
+- A paused speaker is suspect at the deadline of the next probe, and dead S later. At the SIGCONT it refutes the suspicion in approximately one gossip interval, 200 ms. Thus a pause gives a false death if it is longer than the next probe and T0.
+- The least pause that gives a false death is T0. That is also the least failure time. Thus one number gives the trade-off.
+
+**The prediction.** The prediction is `sys-57-detection-sweep` in the predictions of the strategy.
+
+- The failure time is in the band of its setting in each counted run. The death comes m × I after the first suspicion. The medians rise with T0.
+- A pause gives no death if its end and the refute come before T0. A pause longer than T0, 2I and 0.1 s gives a death. Each other pause gives a death with the probability 4/7.
+- Thus the false deaths in each run are 1–2 (1 s × 4), 2–3 (1 s × 2), 3 (500 ms × 4) and 3–4 (500 ms × 2).
+- The clients in the cluster fail no request. The thawed speaker does not mark the other speaker dead at any time.
+
+**The decision rule.** The rule of SYS-53: 4 counted runs for each cell, and one re-dispatch of a cell with a void run. Each claim is a hit or a miss by its range on the raw records. The class of a pause comes from its measured length. A bias of one sign in each run names a missing term, and no band changes after a result.
+
+**The result.** The law holds, and one setting has fewer runs than the plan. [Kind run 41748420837](https://github.com/mark1russell7/systems/actions/runs/41748420837) gave 4 counted runs for 7 cells and 2 counted runs for the pauses of 500 ms × 2. The wait for a quiet VM voided the other 2 runs of that cell. The one re-dispatch, [kind run 41870241848](https://github.com/mark1russell7/systems/actions/runs/41870241848), gave no counted run: the wait voided each of its 4 runs, at 46 % to 50 % idle. Thus 30 of the 32 runs count, and the rule gives no other re-dispatch. The last row of the table has 2 runs. [SYS-95](#sys-95--the-quiet-gate-of-kind-reads-the-load-of-the-cell) takes the gate.
+
+| Setting | T0 | Median failure time | Zone-loss runs in the band | False deaths in each run | Median failed requests outside |
+| --- | --- | --- | --- | --- | --- |
+| 1 s × 4 | 5 s | 5.851 s | 4 of 4 | 2, 2, 1, 2 | 872.5 |
+| 1 s × 2 | 3 s | 3.710 s | 4 of 4 | 2, 3, 2, 3 | 553 |
+| 500 ms × 4 | 2.5 s | 2.851 s | 4 of 4 | 3, 3, 3, 3 | 424.5 |
+| 500 ms × 2 | 1.5 s | 2.054 s | 4 of 4 | 4, 4 | 306.5 |
+
+- **The failure time:** each of the 16 zone-loss runs is in the band of its setting. The medians rise with T0. The death comes m × I after the first suspicion in each of the 16 runs: gaps of 4.000–4.001 s, 2.000–2.004 s, 2.000–2.002 s and 1.001 s.
+- **The false deaths:** the 14 counted pause runs have 70 pauses. Of the 30 pauses in the class "no death", 0 gave a death. Of the 30 pauses in the class "death", 30 gave a death. The other 10 pauses gave 7 deaths, and the classes expect 6.4.
+- **The trade-off:** the setting 500 ms × 2 cuts the median failure time by 3.797 s from the default. For that cut, the failed requests fall by 65 %, and the false deaths in each run rise from 2 to 4 of 5 pauses.
+- **The controls:** the clients in the cluster fail no request in the 30 runs. The thawed speaker does not mark the other speaker dead in any of the 14 pause runs.
+- **The pauses:** a measured pause is approximately 140 ms longer than its hold. The class of each pause uses the measured length.
+
+Each of the 11 claims except one is a hit, with a Brier score of 0.119. The miss is `build`: the cell with 2 runs. The claims on the pauses cover the runs that ran, not the 2 void runs.
+
+### SYS-95 · The quiet gate of kind reads the load of the cell
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-57
+- **Links:** [SYS-57](#sys-57--metallb-the-detection-settings-of-memberlist-the-failure-time-against-false-deaths)
+
+The kind runner waits for a quiet VM before each run (`quiet` in `packages/kind/src/run.ts`). The gate asks for 60 % idle and no container of another lab. It reads the idle share while the clients of the cell run. Thus the gate reads the load of the cell, and a heavy cell can void itself.
+
+The evidence is the 2 kind runs of SYS-57:
+
+- The median idle share is 69 % to 73 % for the zone-loss cells. It is 60, 64, 62 and 56 % for the pause cells. Thus the pause cells sit at the gate.
+- The gate voided each of the 4 runs of the re-dispatch, at 46 % to 50 % idle, and the record reads "other lab containers: none". The busiest processes are the processes of the lab.
+- In each environment, the idle share falls from approximately 59 % to 47 % in approximately 1.5 minutes, with no fault. The record does not name the cause.
+
+The work:
+
+1. Find what rises in the first 1.5 minutes of an environment.
+2. Calibrate the gate from the baseline of the cell, and write the prediction before the first run. The gate must still refuse a loaded VM. An A/A pair with a planned load proves that.
+3. Run the 2 missing runs of the pauses of 500 ms × 2, under the new gate.
+
+This item changes a gate, thus the strategist reviews the plan. The result of SYS-57 stays as it is: no gate changes after a result.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue

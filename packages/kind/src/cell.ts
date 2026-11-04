@@ -662,4 +662,17 @@ export interface VipSettings {
   readonly clients: number;
   /** This name is the announcer of the VIP (`announcer.ts`). Without it, the announcer is kube-vip. */
   readonly announcer?: VipAnnouncerName | undefined;
+  /**
+   * These are the settings of memberlist for the speakers of MetalLB (SYS-57). With them, the install
+   * writes the config file of memberlist, with each other value of `DefaultLANConfig`. Without them,
+   * the install writes no file.
+   */
+  readonly memberlist?: MemberlistSettings | undefined;
+}
+
+/** A cell can change these settings of memberlist: the probe interval, the wait for an ack, and the multiplier of the suspicion timeout. */
+export interface MemberlistSettings {
+  readonly probeInterval: Quantity;
+  readonly probeTimeout: Quantity;
+  readonly suspicionMult: number;
 }

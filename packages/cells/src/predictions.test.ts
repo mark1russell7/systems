@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ALL } from "./all.ts";
 import { CALLERS_CELLS } from "./callers.ts";
 import { BACKLOG_BAND_CELLS, BACKLOG_CELLS, BACKLOG_DRAIN_CELLS, BACKLOG_TERMS_CELLS } from "./backlog.ts";
+import { DETECTION_CELLS } from "./detection.ts";
 import { DNS_CELLS } from "./dns.ts";
 import { METALLB_CELLS } from "./metallb.ts";
 import { PULSAR_CELLS } from "./pulsar.ts";
@@ -38,6 +39,7 @@ const CATALOGS: Readonly<Record<string, ReadonlyArray<{ readonly name: string; r
   DNS_CELLS,
   VIP_CELLS,
   METALLB_CELLS,
+  DETECTION_CELLS,
   PULSAR_CELLS,
 };
 
