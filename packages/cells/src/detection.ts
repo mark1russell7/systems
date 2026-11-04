@@ -25,10 +25,10 @@ import { VIP_CLIENTS, VIP_WORKLOAD } from "./vip.ts";
  * - The suspicion timer fires S after the suspicion, with no confirmation (suspicion.go, lines 70–76).
  * - At the SIGCONT, the paused speaker reads the suspicion in its queue and refutes it. The refute
  *   gets to the other speaker in approximately one gossip interval, 200 ms.
- * Thus a pause of length p from a random phase gives a death if p is more than φ + I + S. Here φ is
- * the time from the SIGSTOP to the next probe, in 0 to 2I. The sum I + S is the least pause that
- * gives a false death, and also the least failure time of the zone loss. This is the trade-off in
- * one number.
+ * Thus a pause of length p from a random phase gives a death past the sum φ + I + S of three
+ * times. The term φ is the time from the SIGSTOP to the next probe, in 0 to 2I. The sum I + S
+ * is the least pause that gives a false death, and also the least failure time of the zone loss.
+ * This is the trade-off in one number.
  */
 
 /** These are the settings of the sweep: the probe intervals 1 s and 500 ms, and the multipliers 4 and 2. The probe timeout is half the interval. */
