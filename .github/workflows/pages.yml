@@ -50,4 +50,6 @@ jobs:
       # A failure stops the deploy.
       site-check: true
       site-check-pages: /,/releases/,/status/
+      # The probe drives the detection lab of the home page. The check reads the TypeScript source and removes its types.
+      site-check-probe: packages/site/src/check-probe.ts
       deploy: ${{ github.event_name != 'pull_request' }}
