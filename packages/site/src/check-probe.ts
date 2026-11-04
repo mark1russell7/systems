@@ -42,7 +42,7 @@ click(button("Linux 6.6") as Element);
 check("a preset gives another closed form", await until(() => readout("Closed form") !== first), readout("Closed form"));
 check("the lab marks no cell for Linux 6.6", !pressed("Cell Q1"));
 
-// A situation gives another answer, and the switch can leave no timer that tells the client.
+// A situation gives another answer.
 const idle = lede();
 click(button("Frozen process") as Element);
 check("a situation changes the answer", await until(() => lede() !== idle), lede());
