@@ -293,6 +293,37 @@ export interface Cluster {
 }
 
 /**
+ * A Kafka group is a group of brokers of Apache Kafka in KRaft mode with one controller, as data.
+ * Each node is a container from the same stock image, pinned by digest, in its own network namespace.
+ * Each run makes one new topic with one partition, with a replica on each broker. The client is the
+ * producer of kafka-clients, and it writes a stream of sequence numbers to that partition.
+ * The one controller keeps a Raft election out of each run. A fault on a broker cuts it from the
+ * controller too, and no fault acts on the controller.
+ */
+export interface Kafka {
+  /** This image is the stock image of each node, pinned by digest. */
+  readonly image: string;
+  /** These are the names of the brokers. A broker's node id is its place in this list, from 1. The first broker is the first leader. */
+  readonly brokers: readonly string[];
+  /** This name is the name of the controller. Its node id comes after the ids of the brokers. */
+  readonly controller: string;
+  readonly port: number;
+  readonly controllerPort: number;
+  /** This text is the id of the cluster: 16 bytes in base64url without padding. */
+  readonly clusterId: string;
+  /** This text is the value of KAFKA_HEAP_OPTS of each node. */
+  readonly heap: string;
+  /** These are server properties of each node, by their names in Kafka: for example `broker.session.timeout.ms`. */
+  readonly settings: Readonly<Record<string, string>>;
+  /** This line tells that a node serves. */
+  readonly ready: string;
+  /** This count is the setting `min.insync.replicas` of the topic of each run. */
+  readonly minInsync: number;
+  /** This count is the number of writers of the client, each with one write at a time. */
+  readonly writers: number;
+}
+
+/**
  * A cluster stage is one step of the timeline of a cluster after a fault. A line of the log of a
  * node marks it, or a line of the client. These are the stages:
  * - `monitor-down`: a follower sees the process of its leader go down.
@@ -487,7 +518,8 @@ export interface StageBand {
  *   count outside it is a finding. A measurement-only cell with this band gets its decision from
  *   the findings of its runs, thus the law of the count judges the cell.
  * - `duplicates` is the band of the count of extra copies that the group holds, in each run. It
- *   judges a cell as `lost` does. Only a list can show a copy, thus the cell needs `op: "rpush"`.
+ *   judges a cell as `lost` does. Only a list or a log can show a copy, thus a Redis cell needs
+ *   `op: "rpush"`.
  */
 export interface GroupPrediction {
   readonly lands: "new" | "same";
@@ -752,6 +784,7 @@ export type Shipped =
   | "pg"
   | "hikari"
   | "amqp"
+  | "kafka"
   | "grpc"
   | "grpc-go"
   | "etcd"
@@ -1036,6 +1069,12 @@ export interface Cell {
    * record, and the cluster does not read it.
    */
   readonly cluster?: Cluster;
+  /**
+   * This Kafka group replaces the target: brokers of Apache Kafka with one controller. The client is
+   * then the producer of kafka-clients, with the settings of `driverOptions`. `target` stays for the
+   * record, and the group does not read it.
+   */
+  readonly kafka?: Kafka;
   /** This place is the node of the client in a cluster: the node of the leader, or of a follower. Without it, the node of a follower. */
   readonly clientAt?: ClusterClientAt;
   /**

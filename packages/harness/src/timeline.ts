@@ -344,9 +344,11 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
   // a replica set and a cluster have no authority: their members and the client tell their stages. The
   // client of a cluster publishes through one node, and the leader of the queue can be on another one
   const cluster = cell.cluster !== undefined;
-  const replica = cell.replicaSet !== undefined || cluster;
+  // a Kafka group has no log lines in its record: the client and the whole partition tell its run
+  const kafka = cell.kafka !== undefined;
+  const replica = cell.replicaSet !== undefined || cluster || kafka;
   const stall = prediction.detects === false && prediction.recovers !== undefined;
-  const stages = cluster ? clusterStagesOf(run, t0, run.fault.t1) : replica ? replicaSetStagesOf(run, t0, run.fault.t1, lands) : stagesOf(timeline, t0);
+  const stages = kafka ? {} : cluster ? clusterStagesOf(run, t0, run.fault.t1) : replica ? replicaSetStagesOf(run, t0, run.fault.t1, lands) : stagesOf(timeline, t0);
   // the first write that a primary accepted after the fault: on a new primary, or on the same one
   // after the lift. In a replica set, it is the first write sent after the commit of the fault
   // that a primary accepts: a partial cut leaves the old primary its writes
@@ -387,7 +389,7 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
     voided = "no Sentinel started a failover after +odown: each was in the hold-off of 2 × failover-timeout after an earlier attempt";
   // a hold lifts at its instant in the VM: a band assumes that instant, and a lift later than the
   // noise moved each stage after it
-  if (voided === null && cell.hold !== undefined && prediction.detects !== null) {
+  if (voided === null && cell.hold !== undefined && (prediction.detects !== null || kafka)) {
     if (heal === null) voided = "the fault never lifted";
     else {
       const late = (heal.t0 - t0) / 1e9 - valueIn(cell.hold, "s");
@@ -399,7 +401,7 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
   // primary, or to the first node of a cluster
   const firstAddress = cluster
     ? String(events.find((event) => event.ev === "connected")?.["at"] ?? "")
-    : `${run.group?.members[primary]?.ip}:${(cell.group ?? cell.replicaSet)?.port}`;
+    : `${run.group?.members[primary]?.ip}:${(cell.group ?? cell.replicaSet ?? cell.kafka)?.port}`;
   const assumed = prediction.detects === null ? undefined : prediction.rtt;
   const first = kernel.find(
     (record) =>
@@ -438,11 +440,15 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
   const switched = replica ? stages["elected"] : stages["+switch-master"];
   if (expected?.failover === false && switched !== undefined)
     findings.push(`the group failed over ${switched.value} s after the fault, where it should not`);
+  // a Kafka run has no line of an election: the leader after the run tells if the leader changed
+  const leaderAfter = run.group?.after ?? null;
+  if (kafka && expected !== undefined && leaderAfter !== null && expected.failover !== (leaderAfter !== primary))
+    findings.push(expected.failover ? `the leader stayed on ${primary}, where it should change` : `the leader moved to ${leaderAfter}, where it should stay on ${primary}`);
   for (const stage of expected?.quiet ?? []) {
     const at = stages[stage];
     if (at !== undefined) findings.push(`${stage} came ${at.value} s after the fault, where it should not`);
   }
-  if (accepted !== undefined && lands === "same" && !cluster && to !== primary)
+  if (accepted !== undefined && lands === "same" && !cluster && !kafka && to !== primary)
     findings.push(`the client wrote to ${to ?? String(accepted["at"])}, where it should stay on ${primary}`);
   for (const error of expected?.errors ?? []) {
     const met = group.errors.find((each) => each.name === error.name);
@@ -466,7 +472,7 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
     else if (copies.length < low || copies.length > high) findings.push(`the group holds ${copies.length} extra copies, outside [${low}, ${high}]`);
   }
   if (accepted === undefined) {
-    if (prediction.detects !== null)
+    if (prediction.detects !== null || kafka)
       findings.push(lands === "new" ? "the client never wrote to a new primary in the window" : "the client never wrote again in the window");
     return { ...silent, void: voided, finding: findings[0] ?? null, group };
   }
