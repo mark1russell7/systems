@@ -2,9 +2,9 @@
 //
 //   pnpm exec tsx packages/site/scripts/r3.ts <folder>...
 //
-// jarvis compiles the cells of R3 from its corpus: the plan of each template at each stage, with
+// The private repository compiles the cells of R3 from its corpus: the plan of each template at each stage, with
 // each knob at its default, at a border, or at a value of an array or of a random draw. CI runs them
-// on the runners of GitHub with the workflow Cells, from a branch `jarvis/stage-<stamp>` that holds
+// on the runners of GitHub with the workflow Cells, from a branch that holds
 // the cells. Each folder is the output of one shard: the raw record of each cell, summary.ndjson and
 // runner.txt. The folders of a re-run go last, and each of their cells replaces the cell of the
 // first run. The script reads each record again with the code of the harness (`judge`), and it

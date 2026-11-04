@@ -218,7 +218,7 @@ On 2026-10-17, Mark decided these questions for this repository:
 - **Shipped:** 2026-10-17
 - **Links:** [The requirements](S6.md), [#46](https://github.com/mark1russell7/systems/pull/46), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-The groups A, B and E of the S6 draft move from jarvis into this repository, in STE. Each requirement tells which part of the service meets it.
+The groups A, B and E of the S6 draft move from a private repository into this repository, in STE. Each requirement tells which part of the service meets it.
 
 ### SYS-13 · The roadmap and the README tell the truth about S6
 
@@ -366,7 +366,7 @@ A stdio process, for example an MCP host, stops through the staged shutdown when
 - **Shipped:** 2026-10-18
 - **Links:** [#48](https://github.com/mark1russell7/systems/pull/48), [#50](https://github.com/mark1russell7/systems/pull/50), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-Each declaration tells what a second signal does: `ignore`, as in 0.4, or `exit`. In 0.5.0 `describe()` refuses a declaration without it, and `lint()` names a description without it. The profiles for a terminal use `exit`, and the profiles for a supervised host use `ignore`. jarvisService declares it at JAR-4.
+Each declaration tells what a second signal does: `ignore`, as in 0.4, or `exit`. In 0.5.0 `describe()` refuses a declaration without it, and `lint()` names a description without it. The profiles for a terminal use `exit`, and the profiles for a supervised host use `ignore`.
 
 ### SYS-10 · Profiles as data
 
@@ -436,7 +436,7 @@ The process exits with the code of its work. A first Ctrl-C can abort at once, a
 
 `workerLoop` (A10 of S6) and `queueDrain` (A11) are `TransportImpl` factories in the root of the service. Each lane of a loop does one iteration at a time, and its sleeps and backoffs are on the clock. The drain takes jobs under a concurrency, applies the declared redelivery policy, and gives back each job that it did not start. Each unit can go through `life.request`. `lint()` applies O20 to each consumer and worker. Both pass the conformance kit of SYS-4.
 
-The lifecycle holds its process from its start to its exit, thus a process with only workers does not end while it waits. The helpers come to npm in the next PATCH of the service. They are for the heartbeat of jarvis (JAR-4), the workers of other applications and the job queues of OTH-4.
+The lifecycle holds its process from its start to its exit, thus a process with only workers does not end while it waits. The helpers come to npm in the next PATCH of the service. They are for the heartbeats, the workers and the job queues of applications.
 
 ### SYS-21 · A stop from a message of the IPC channel
 
@@ -469,7 +469,7 @@ The image of the kind lab replaces its own transport, probe server and outcome m
 - **Shipped:** 2026-10-18
 - **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-A change of the version on main makes `release.yml` publish it. It is a MINOR, because SYS-6 changes `RequestFn` and the outcome type before 1.0. The client, jarvis and other applications then use it from npm.
+A change of the version on main makes `release.yml` publish it. It is a MINOR, because SYS-6 changes `RequestFn` and the outcome type before 1.0. The client and other applications then use it from npm.
 
 ### REL-4 · Service 0.5.1 with the worker loop, the queue drain and the IPC trigger
 
@@ -480,7 +480,7 @@ A change of the version on main makes `release.yml` publish it. It is a MINOR, b
 - **Shipped:** 2026-10-18
 - **Links:** [#69](https://github.com/mark1russell7/systems/pull/69), [npm](https://www.npmjs.com/package/@mark1russell7/service/v/0.5.1), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-This release publishes `workerLoop`, `queueDrain`, `redeliverOnce`, the trigger `ipc-message` and the hold of the process (#66). It is a PATCH, because each change adds an export or an option before 1.0, and nothing is removed. Jarvis (JAR-4) and other applications then use the helpers from npm.
+This release publishes `workerLoop`, `queueDrain`, `redeliverOnce`, the trigger `ipc-message` and the hold of the process (#66). It is a PATCH, because each change adds an export or an option before 1.0, and nothing is removed. Applications then use the helpers from npm.
 
 ### SYS-17 · The harness takes its test subjects as data
 
@@ -520,7 +520,7 @@ After CLI-33, the client owns the image of its procedures subject. Then the harn
 - **Shipped:** 2026-10-25
 - **Links:** [#158](https://github.com/mark1russell7/systems/pull/158), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-A check of the kind `progress` fires when no loop marks progress in its stall time. Today each app gives that time by hand: jarvis gives 370 s for its weather poll (JAR-4). With a field `marks`, the check names its loops. Then `lint()` finds a stall time that is shorter than the interval of the slowest loop, with its jitter and its timeout. It is a PATCH: an optional field and a new finding.
+A check of the kind `progress` fires when no loop marks progress in its stall time. Today each app gives that time by hand: for example, one app gives 370 s for a poll. With a field `marks`, the check names its loops. Then `lint()` finds a stall time that is shorter than the interval of the slowest loop, with its jitter and its timeout. It is a PATCH: an optional field and a new finding.
 
 #158 adds `marks: { loops, stall }` to a check, and `lint()` gives a `progress` finding for a short stall time or an unknown loop.
 
@@ -689,7 +689,7 @@ It comes in machines as a PATCH: a new export before 1.0.0.
 
 The entry `@mark1russell7/service/rules` gives O04, O09, O10, O16 and `DRAIN_RULES` as data, and it loads no module at run time. Kind imports the rules from the entry and gives them again, thus the exports of kind do not change.
 
-The review of the template item OTH-5 found it. `lint()` of the service takes its rules from the caller. But the drain rules, O10, O16 and the others, are only in `@mark1russell7/kind`, and kind loads Testcontainers. Thus each new service copies the data of the rules into its tests.
+A review of the template found it. `lint()` of the service takes its rules from the caller. But the drain rules, O10, O16 and the others, are only in `@mark1russell7/kind`, and kind loads Testcontainers. Thus each new service copies the data of the rules into its tests.
 
 With SYS-32, an entry of the service that loads no Testcontainers, for example `./rules`, gives the rules as data. The preset of the template then imports it, and the rules have one source.
 
@@ -1402,7 +1402,7 @@ The `conventions` field keeps one exception for the types. `src/content.config.t
 - **Shipped:** 2026-10-17
 - **Links:** [R3's queue](https://mark1russell7.github.io/systems/results/r3/), [#36](https://github.com/mark1russell7/systems/pull/36)
 
-Of the 115 cells that jarvis compiles from its corpus, 114 hold and 1 is a measurement only. Two gaps of the corpus failed 9 cells first, and each one held after the fix.
+Of the 115 cells that the private repository compiles from its corpus, 114 hold and 1 is a measurement only. Two gaps of the corpus failed 9 cells first, and each one held after the fix.
 
 ### SENTINEL · Valkey under Sentinel
 
@@ -1996,7 +1996,7 @@ release.yml publishes each later version from main, as for the other packages.
 
 The document of Linux TCP has the delayed-ACK timer of Linux 6.6. Each idle forget of a router counts from the ACK of the last reply, at once or up to 41 ms later.
 
-## The corpus in jarvis
+## The private corpus
 
 ### IMPORT · The corpus imports the machine documents
 
@@ -2007,7 +2007,7 @@ The document of Linux TCP has the delayed-ACK timer of Linux 6.6. Each idle forg
 - **Shipped:** 2026-10-18
 - **Links:**
 
-jarvis imports the documents of `@mark1russell7/machines` by a procedure. It takes machines 0.3.7 from npm, and it is in jarvis since 2026-10-18.
+The private repository imports the documents of `@mark1russell7/machines` by a procedure. It takes machines 0.3.7 from npm, and this import started on 2026-10-18.
 
 ### LAND · The CI records of 2026-10-17 in the corpus
 
@@ -2379,7 +2379,7 @@ A catalog cell gives each knob, and a compiled cell gives only the knobs that it
 
 Decided on 2026-10-19: the identity of a scenario holds only the settings that differ from the defaults of the documents. It is the more general choice: one scenario is one entity, in each form of a cell.
 
-Built in jarvis and merged on 2026-10-20. A setting leaves the identity only when a document names its key and its value is the default of that document. These documents are linux-tcp for the sysctls, and each server document for its settings. The projection after the merge gave each landed run its new id, and no file named an old one.
+Built in the private repository and merged on 2026-10-20. A setting leaves the identity only when a document names its key and its value is the default of that document. These documents are linux-tcp for the sysctls, and each server document for its settings. The projection after the merge gave each landed run its new id, and no file named an old one.
 
 ### D-EXTEND · A verdict for a late propagation in kind
 
@@ -2405,7 +2405,7 @@ Decided on 2026-10-19: such a cell is `extend`. The run agrees with the law, and
 
 The last step of S0. The options document of R2 lands where the app runs. A second landing does no harm.
 
-Mark's answer of 2026-10-19: yes. The jarvis session landed it on 2026-10-20: the artifact "The systems the harness runs", from `@jarvis/systems-pages` built at the main of jarvis.
+Mark's answer of 2026-10-19: yes. It landed on 2026-10-20: the artifact "The systems the harness runs", built from the main branch of the private repository.
 
 ### D-REVIEW · The judgments of 2026-10-16 and 2026-10-17
 
@@ -2418,4 +2418,4 @@ Mark's answer of 2026-10-19: yes. The jarvis session landed it on 2026-10-20: th
 
 The mechanisms of MongoDB, the name of the step-down window, the ack delay as a mechanism, and the first version of `@mark1russell7/machines`.
 
-Mark's answer of 2026-10-19: keep each of them, as `decisions.md` in jarvis records them.
+Mark's answer of 2026-10-19: keep each of them, as a private decision record tells.

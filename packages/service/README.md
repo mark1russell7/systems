@@ -249,7 +249,7 @@ A profile is a part of a declaration as data: the phases, the cooperative window
 | `ephemeral` | A command that runs one time, or a stdio child | No gating checks, an abort at the start of the drain, a flush of the output, and the exit codes 130, 143 and 131 |
 
 - **Kubernetes.** The budget is the grace less the preStop sleep: the time from SIGTERM to SIGKILL. The stages get 2, 5, 15, 2, 1, 2 and 1 thirtieths of the budget, rounded down to the millisecond. The cooperative window is 5 thirtieths. Thus 2 thirtieths stay as a margin, and O10 and O16 hold.
-- **The defaults of Kubernetes.** At a grace of 30 s and no preStop hook, the caps are 2, 5, 15, 2, 1, 2 and 1 s, with a window of 5 s. These are the caps of jarvis and of the kind lab.
+- **The defaults of Kubernetes.** At a grace of 30 s and no preStop hook, the caps are 2, 5, 15, 2, 1, 2 and 1 s, with a window of 5 s. These are the caps of the kind lab.
 - **Local development.** No load balancer routes to a computer of a developer, thus the profile has no readiness hold. A second Ctrl-C exits at once.
 - **A background host.** A supervisor or a command stops the host with a signal. A repeat signal has no effect, thus the host ends its drain. The host has no parent on stdin, thus the profile declares no process trigger.
 - **The repeat signal.** Each profile declares `onRepeatSignal`: `"exit"` for `localDev` and `ephemeral`, and `"ignore"` for `daemon` and `kubernetes`.
@@ -893,7 +893,7 @@ for await (const event of stream) {
 
 `pnpm --filter @mark1russell7/service test` starts the tests:
 
-- **The algebra and the builder.** The timing algebra, the refusals of the builder, its partial export, and the four verdicts of the law. A test in jarvis compares this evaluator with the evaluator of the research, on 185 bindings. All decisions agree.
+- **The algebra and the builder.** The timing algebra, the refusals of the builder, its partial export, and the four verdicts of the law. A test in a private repository compares this evaluator with the evaluator of the research, on 185 bindings. All decisions agree.
 - **The permutations.** The permutations cross the policy, the timing, the poll interval, the jitter and the way that the step fails. For each one, a latch on a fake clock must trip inside `failSpan` and recover inside `recoverSpan`. Each permutation has eight seeds for the jitter and the phase of the fault. A failure names its permutation and its seed. Two more tests show that the bounds are reached.
 - **The edges.** These tests cover a flapping signal, a check that does not answer at any time, and late parts. They also cover couplings, controllers, the force-fail list, the drain, the stop, and the loop of a slow check.
 - **Real time.** The runtime on the real clock, and a check against a quiet server over TCP.

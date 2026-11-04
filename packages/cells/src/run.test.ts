@@ -15,7 +15,7 @@ import { benchTimes, LIMITER_SPECS, limiterBench, pairedLines, pairOf } from "./
  * containers. CELLS_ONLY selects the cells whose names match a regular expression. CELLS_SHARD=i/n
  * takes every n-th cell from the i-th, so that two processes can share the catalog. Each cell
  * writes its raw record (the cell, the manifests and every run with its kernel records) to
- * CELLS_OUT, in the format that jarvis lands. It also writes one line of its verdict to
+ * CELLS_OUT, in the format that the private repository lands. It also writes one line of its verdict to
  * summary.ndjson there. A cell that fails is a finding to examine, not a failure of the runner.
  *
  * CELLS_FILE names a JSON file of cells that another repository compiles. Its cells then operate
