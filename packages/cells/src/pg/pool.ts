@@ -87,6 +87,13 @@ const NO_CHECK_MS = 3_600_000;
 /** This time is how long the pool stays idle before a burst with checks, in s. It is above the 500 ms of the window, after the pool has filled. */
 const CHECK_IDLE_S = 2;
 
+/**
+ * This count of waiters is a real queue in HikariCP, behind a pooler. Each borrow counts as a waiter
+ * for some microseconds (util/ConcurrentBag.java:175-199), and a sample can see that one. The
+ * arrivals are 50 ms apart, thus only a real queue shows 2.
+ */
+const TRUE_WAIT = 2;
+
 /** A pooler spec is PgBouncer between the pool and the server. The time is in seconds. */
 export interface PoolerSpec {
   /** This count is `default_pool_size`. */
@@ -311,7 +318,7 @@ export const poolPrediction = (spec: PoolSpec): Extract<Prediction, { readonly d
   const timedOutBy = spec.pooler === undefined ? "connection_timeout" : queueTimer(spec.pooler).timer;
   const quiet: readonly LineMatch[] = [
     { ev: "pool", where: { total: spec.size + 1 } },
-    ...(queue === 0 ? [{ ev: "pool", where: { waiting: 1 } }] : []),
+    ...(queue === 0 ? [{ ev: "pool", where: { waiting: spec.pooler === undefined ? 1 : TRUE_WAIT } }] : []),
     ...(failed === 0 ? [{ ev: "fail" }] : []),
   ];
   return {

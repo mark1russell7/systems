@@ -135,7 +135,7 @@ describe("a pool of PgBouncer at its limit", () => {
   it("sees the queue outside HikariCP, from the line of the pool", () => {
     const { driver } = poolPrediction(spec("Q19.pool.7"));
     expect(driver?.then?.at(-2)?.ends).toEqual({ ev: "pool", where: { total: 6, active: 6, idle: 0, waiting: 0 } });
-    expect(driver?.quiet).toEqual([{ ev: "pool", where: { total: 7 } }, { ev: "pool", where: { waiting: 1 } }, { ev: "fail" }]);
+    expect(driver?.quiet).toEqual([{ ev: "pool", where: { total: 7 } }, { ev: "pool", where: { waiting: 2 } }, { ev: "fail" }]);
   });
 
   it("names the FATAL of PgBouncer, and leaves the size of the pool out of the end of the burst", () => {
@@ -144,7 +144,7 @@ describe("a pool of PgBouncer at its limit", () => {
     const failure = prediction.driver?.then?.find((step) => step.ends.ev === "fail");
     expect(failure).toMatchObject({ name: "08P01", ends: { name: "sqlState" } });
     expect(prediction.driver?.then?.at(-1)?.ends).toEqual({ ev: "burst", where: { acks: 4, fails: 2, active: 0, waiting: 0 } });
-    expect(prediction.driver?.quiet).toEqual([{ ev: "pool", where: { total: 7 } }, { ev: "pool", where: { waiting: 1 } }]);
+    expect(prediction.driver?.quiet).toEqual([{ ev: "pool", where: { total: 7 } }, { ev: "pool", where: { waiting: 2 } }]);
   });
 
   it("puts PgBouncer in the chain, and sets the window of the check only without checks", () => {
