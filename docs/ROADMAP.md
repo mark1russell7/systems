@@ -14,6 +14,7 @@ The program started again on 2026-11-02, after the pause of 2026-10-28. A gap th
 3. **VIZ:** The site gets an interactive demo of the path of a request, from the process to the NIC. The packages of this repository run live in the browser.
 4. **S2:** CoreDNS (SYS-50), kube-vip (SYS-51) and MetalLB (SYS-53) are done. The next step is Pulsar. Do one intermediary in each context. Write the prediction before the dispatch.
 5. **S3:** [The plan](S3.md) has the items SYS-58 to SYS-75. SYS-58 is the first cell. The Q17 line reuses the labs of S1, thus it comes first.
+6. **S7:** [The plan](S7.md) has the items SYS-76 to SYS-92. It starts after the open cells of S3, with SYS-76 and the first fabric, SYS-77.
 
 SITE-UX round 3 is done. Its chart shows the C-stall band of SYS-48 against the count of each mode, on the kind page.
 
@@ -102,6 +103,8 @@ S1 already records a history of writes for each group cell, thus S3 starts from 
 VMs with a kernel for each node, the failover of a host, block storage and shared fate. The cloud adds managed load balancers and real zones.
 
 Mark's decision of 2026-10-19: the VM tier runs on the hosted Linux runners of GitHub. Their KVM lets QEMU start one VM for each node. systems is public, thus its CI is free. The tier needs no hardware from Mark. The SR-IOV NIC and a cloud account wait until S4 starts. HW-1 holds that choice.
+
+The VM tier starts in S7, as [SYS-81](#sys-81--the-vm-tier-qemu-on-a-runner-and-its-bridge). The block storage and the shared fate of S4 build on it. GitHub calls nested virtualization unsupported, thus S7 treats a runner with no KVM as a void run.
 
 ### HW-1 · The lab for the NIC and the cloud parts of S4
 
@@ -192,6 +195,19 @@ The design of health and routing is decided. The kind cells scored the candidate
 A and B failed 3,481 to 3,490 requests in each run, each one a timeout, because a connection of HTTP/1.1 queues its requests. C and D failed none. The last failure of A and B started up to 38 ms after its band of commit 93a58b6, in the noise of the judge. The rule gives no signal while the service stays ready, thus the decision of S6 does not change ([S6.md](S6.md#unified-or-separate-how-callers-learn)).
 
 [PR #242](https://github.com/mark1russell7/systems/pull/242) measures the shared gate (E), a candidate that keeps the endpoints in a shared failure. The readiness probe of the kubelet leaves out each check of the shared Redis, and the controller still refuses each request with a 503. Kind run [40533209929](https://github.com/mark1russell7/systems/actions/runs/40533209929) held each of the 9 cells in 3 of 3 runs, in the bands of commit 221b5bc. E failed 4,325 to 4,729 requests by the median run in the shared dependency, and B 4,126 to 4,452. The rule of that commit needed a cut of 50 % in each mode, thus the gate stays in the kind lab, off by default ([S6.md](S6.md#the-shared-gate-e)).
+
+### S7 · Simulated environments
+
+- **Status:** later
+- **Area:** program
+- **Depends on:** S3
+- **Started:**
+- **Shipped:**
+- **Links:** [The plan](S7.md), [issue 129](https://github.com/mark1russell7/systems/issues/129)
+
+Layers of real code on false wires: routed fabrics in containerlab, VMs with a kernel for each node, k3s, and later vendor routers. Each layer proves what the layer below it cannot.
+
+Mark's request of 2026-11-04: chart each link of issue 129 into the roadmap, across the whole stack. [The plan](S7.md) gives each link an answer, the layers, the new measures, the rules that keep results comparable, and the first slice. [The items of S7](#the-items-of-s7) give the order.
 
 ## The server stack in S6
 
@@ -2344,6 +2360,197 @@ A resume from a compacted revision fails with a compaction error (DV-44).
 - **Links:**
 
 A linearizable read goes through the quorum, and a serializable read can be stale. A check of this history needs a solver. D-CHECKER chose Porcupine, as a program in CI. This item waits for SYS-73.
+
+## The items of S7
+
+[The plan of S7](S7.md) gives the layers, the rules of comparison and the first slice. The lines of work are E3 (the fabric) and E4 (the VMs). Targets that need no new layer stand apart.
+
+### SYS-76 · The environment of a record
+
+- **Status:** later
+- **Area:** harness
+- **Depends on:** 
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+Each record gets a `substrate` block. It gives the layer, the kernel, HZ, the cloud of the runner, the presence of KVM and the digest of each image. Since 2026-10-28 GitHub can schedule Linux jobs on AWS and on Azure, thus `runner.txt` names the cloud too. A paired run and a median stay in one environment. A record with no block reads as E1 through an upgrade.
+
+### SYS-77 · The first fabric: BFD against the BGP hold timer
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-76
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A client and Redis connect through four FRR routers in containerlab. A bridge repeats a T01 black hole on the fabric, and the band of E1 must hold. A silent drop on the active spine then tests the order of BFD, the BGP hold timer and the retransmissions of TCP. [The first slice](S7.md#the-first-slice-sys-77) has the cells, the law and the prediction.
+
+### SYS-78 · One failed path of an equal-cost set
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-92
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+One path of an equal-cost set drops each packet, while each route stays up. A share of the flows stops, and the rest stay healthy. The cell predicts that share from the hash, and it measures what each client sees.
+
+### SYS-79 · MetalLB and kube-vip in BGP mode
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-77
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+containerlab wires kind nodes to FRR through `ext-container` links. The cells ask for the order of the route withdraw and the drain of a service. A law from these cells can become a rule of `lint()`.
+
+### SYS-80 · Three sites: the writes when a route fails
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-92
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+The replication of PostgreSQL, Valkey, Kafka and etcd crosses routed links with a real delay. A route between sites fails or moves. The cells reuse the laws of S3, with the delay and the convergence as new terms. The systems must fit in 16 GB on one runner.
+
+### SYS-81 · The VM tier: QEMU on a runner, and its bridge
+
+- **Status:** later
+- **Area:** harness
+- **Depends on:** SYS-76
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+The workflow turns on KVM with a udev rule, and QEMU boots a pinned kernel for each node. The prober runs in the guest. A bridge repeats a set of T01 cells in a VM, and an A/A pair gives the noise of the layer. A runner with no KVM gives a void run. This item starts the VM tier of S4.
+
+### SYS-82 · Each timer band at HZ 100, 250 and 1000, and on two kernels
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-81
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+One set of cells runs on kernels that differ only in HZ, then on two kernel versions. The algebra predicts each band before the run. This is the first direct test of the jiffy terms. The machine documents then name a kernel version.
+
+### SYS-83 · A power-off: the writes in the page cache
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-81
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+QEMU stops a VM with no flush. The cells ask which acknowledged writes each server loses, at each durability setting. A failed `fsync` follows, from a device that fails on request. The checker of S3 judges each history.
+
+### SYS-84 · A step of a clock: leases and locks
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-81
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+Each VM has its own clock, thus a cell can step one clock forward or back. The cells extend SYS-73 from a paused holder to a holder with a wrong clock. The question is which systems depend on a real-time clock for safety.
+
+### SYS-85 · k3s on VMs: the loss of a node
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-81
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+Three VMs run k3s, thus each node has a kernel. A power-off gives the first real loss of a node. The cells repeat the zone-loss cells of S2, and they test the claim that a blocked container stands for a lost node.
+
+### SYS-86 · k3d against kind: one cell on two distributions
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-85
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A cell that holds on the two distributions tests a law. A cell that holds on one tests that distribution. The differences are the datastore, flannel, ServiceLB and the single process of k3s.
+
+### SYS-87 · Socket.IO: detection, reconnect and recovery
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** 
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+Socket.IO is a target on E1, and it needs no new layer. Its documents give a ping each 25 s, a timeout of 20 s and a reconnect delay of 1 to 5 s. The cells test these under the faults of T01. They also test the delivery of each mode, and the connection state recovery of each adapter.
+
+### SYS-88 · Loro: a merge after a long partition
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-80
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+Loro is a CRDT library with no transport. Its claim is a fast merge of long branches. A cell can measure the merge after a partition between sites, with a harness of its own for the transport.
+
+### SYS-89 · Shadow: an agreement test
+
+- **Status:** later
+- **Area:** harness
+- **Depends on:** 
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+Shadow runs real binaries on its own TCP, thus it says nothing of Linux timers. Its use is an exact replay of application timers at scale. This item runs one etcd cell on Shadow and on E1. It records what agrees, and it decides what Shadow can claim.
+
+### SYS-90 · A vendor router on E5
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-81
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+vrnetlab starts a vendor router in a VM. The cells compare a vendor's defaults with those of FRR and Linux. This item needs more machines than a public runner, and each vendor image has a licence to read. A paid image is a decision for Mark.
+
+### SYS-91 · The cells that time a closed-loop client
+
+- **Status:** later
+- **Area:** harness
+- **Depends on:** 
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A closed-loop client hides a stall, because a slow reply delays its next send (Gil Tene, "How NOT to Measure Latency"). This item lists each cell that gives a time or a distribution under load from such a client. A record then keeps the intended send time and the maximum. The fix of a load generator waits for SYS-68.
+
+### SYS-92 · A topology as a graph
+
+- **Status:** later
+- **Area:** harness
+- **Depends on:** SYS-77
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+`Topology` is a chain of hops, thus it cannot name two paths. The first fabric uses one opaque hop. This item makes the topology a graph, thus a law can read its paths, and the algebra gets terms for route convergence.
 
 ## Decisions for Mark
 
