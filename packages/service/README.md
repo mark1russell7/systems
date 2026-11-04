@@ -403,7 +403,7 @@ A keyed limiter gives each key its own limit, for example each tenant or each pr
 - **No defaults.** A spec has a key, a policy, a store and a bound on its keys. `describe()` refuses a spec without its rate, its burst, its limit, its window, its store, the failure policy of a shared store or its bound. The error names the part.
 - **The key.** `key` tells what the key of each take is, for example `tenant`. The caller gives each key to `take(key)`.
 - **A token bucket.** `{ type: "token-bucket", rate, burst }` gives a key `burst` takes at once, and then `rate` takes in each unit of time. The rate is a count for each unit of time, for example `count/s` or `count/min`.
-- **A sliding window.** `{ type: "sliding-window", limit, window }` gives a key at most `limit` takes in each window. Each take counts for one window from its time. Graph limits its writes with this policy.
+- **A sliding window.** `{ type: "sliding-window", limit, window }` gives a key at most `limit` takes in each window. Each take counts for one window from its time.
 - **The decision.** `take(key)` gives `{ allowed: true, remaining }` or `{ allowed: false, retryAfter, cause }`. `retryAfter` is a `Quantity` above zero: the time until the limiter lets the same take in. The cause is `limit`, `cap` or `store`.
 - **A take with no promise.** `tryTakeSync(key)` gives the same `Decision` at once. `keyedLimiter` on a `memoryStore` gives a `LocalLimiter`, whose type has it. On `KeyedLimiter`, it is optional.
 - **Only a local store.** `tryTakeSync` throws for a shared store, before the take. It also throws for a local store whose take gives a promise. That take still counts, thus use `take()` with such a store.
@@ -515,7 +515,7 @@ if (!decision.allowed) return limitedResponse(decision); // 429, with Retry-Afte
 - **Each 503 gets `Retry-After`.** Each 503 gets the `Retry-After` of `server_retry_after` (RFC 9110), and a 500 gets none. The transport applies the rule when the headers of each response go, whatever wrote them. Thus the rule applies to a probe, to a refusal of the transport and to a handler that writes its own status.
 - **The rule for a handler.** A 503 without `Retry-After` gets it, and a 503 with its own `Retry-After` keeps it. A 500 loses each `Retry-After`, from `setHeader` and from `writeHead`. The other statuses keep their headers.
 - **Another framework.** `writeOutcome(res, stream, options)` writes the stream of any `life.request` to a response of `node:http`. `outcomeResponse(items, end, options)` gives a unary response as data.
-- **Tracing in an ESM service.** An ESM service that uses OpenTelemetry starts with a preload, for example `node --import ./instrumentation.js app.js`. The preload must register `@opentelemetry/instrumentation/hook.mjs` before the application loads. Without that hook, the instrumentation does not see the ESM imports, and the spans of express are lost. The telemetry check of Graph found this when its server moved to ESM.
+- **Tracing in an ESM service.** An ESM service that uses OpenTelemetry starts with a preload, for example `node --import ./instrumentation.js app.js`. The preload must register `@opentelemetry/instrumentation/hook.mjs` before the application loads. Without that hook, the instrumentation does not see the ESM imports, and the spans of express are lost.
 
 ```js
 // instrumentation.js, the preload: node --import ./instrumentation.js app.js
