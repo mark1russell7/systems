@@ -51,6 +51,7 @@ export interface RecoveryRung {
 export const RECOVERY_RUNGS: readonly RecoveryRung[] = [
   { name: "1", tenants: 1, rpo: s(86_400), rto: s(14_400), schedule: s(82_800), drill: "RD.1", kept: "RD.control" },
   { name: "100", tenants: 100, rpo: s(300), rto: s(1_800), schedule: s(240), drill: "RD.100.restore", kept: "RD.100.failover" },
+  { name: "1000", tenants: 1_000, rpo: s(60), rto: s(900), schedule: s(45), drill: "RD.1000.restore", kept: "RD.1000.failover" },
 ];
 
 const rungNamed = (name: string): RecoveryRung => {
@@ -146,6 +147,26 @@ export const RECOVERY_CELLS: readonly Cell[] = [
     failover: false,
     lost: { low: 1, high: writesIn(AGE_OF_A_SLICE) },
     band: restoreBand(rungNamed("100")),
+    what: WHOLE_RESTORE,
+  }),
+  drillCell({
+    name: "RD.1000.failover three members, 1 GB, the disk of the primary lost: an election loses no accepted write at this size",
+    members: THREE_MEMBERS,
+    drill: { tenants: 1_000, perTenant: TENANT, slices: 0, sliceEvery: s(0), age: AT_REST, recovery: "election" },
+    lands: "new",
+    failover: true,
+    lost: { low: 0, high: 0 },
+    band: { low: ms(electionTimeoutMillis - heartbeatIntervalMillis), high: s(15) },
+    what: "an election after the loss of the primary, to the first accepted write",
+  }),
+  drillCell({
+    name: "RD.1000.restore three members, each disk lost, 1 GB, a dump and slices of the oplog: the time at a large size, and the same law",
+    members: THREE_MEMBERS,
+    drill: { tenants: 1_000, perTenant: TENANT, slices: 3, sliceEvery: AGE_OF_A_SLICE, age: AGE_OF_A_SLICE, recovery: "restore" },
+    lands: "same",
+    failover: false,
+    lost: { low: 1, high: writesIn(AGE_OF_A_SLICE) },
+    band: restoreBand(rungNamed("1000")),
     what: WHOLE_RESTORE,
   }),
   drillCell({

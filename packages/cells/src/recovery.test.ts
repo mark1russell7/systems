@@ -56,8 +56,8 @@ describe("the ladder of recovery", () => {
 
   it("holds each rung with clean drills", () => {
     const verdict = ladderVerdict(RECOVERY_LADDER, recordsOf(), { now: NOW });
-    expect(verdict.rungs.map((rung) => rung.outcome)).toEqual(["within", "within"]);
-    expect(verdict.held).toBe("100");
+    expect(verdict.rungs.map((rung) => rung.outcome)).toEqual(["within", "within", "within"]);
+    expect(verdict.held).toBe("1000");
   });
 
   it("adds the interval of the rung to the excess of a drill", () => {
@@ -99,7 +99,7 @@ describe("the ladder of recovery", () => {
 describe("the drills", () => {
   it("are in the catalog, with a name of their own", () => {
     for (const cell of RECOVERY_CELLS) expect(ALL).toContain(cell);
-    expect(RECOVERY_CELLS.map((cell) => cell.name.split(" ")[0])).toEqual(["RD.1", "RD.100.failover", "RD.100.restore", "RD.control"]);
+    expect(RECOVERY_CELLS.map((cell) => cell.name.split(" ")[0])).toEqual(["RD.1", "RD.100.failover", "RD.100.restore", "RD.1000.failover", "RD.1000.restore", "RD.control"]);
   });
 
   it("starts an election above the election timeout less a heartbeat, and it gives a restore a tenth of its budget", () => {
@@ -115,6 +115,12 @@ describe("the drills", () => {
     if (one.detects !== true) throw new Error("a detection");
     expect(valueIn(one.high, "s")).toBe(1440);
     expect(one.group?.lost).toEqual({ low: 1, high: 1202 });
+  });
+
+  it("has three sizes, thus a time reads against the size", () => {
+    expect(RECOVERY_RUNGS.map((rung) => rung.tenants)).toEqual([1, 100, 1000]);
+    expect(named("RD.1000.restore").drill?.tenants).toBe(1000);
+    expect(named("RD.1000.failover").drill?.recovery).toBe("election");
   });
 
   it("stops the writes of a control before its backup ends", () => {

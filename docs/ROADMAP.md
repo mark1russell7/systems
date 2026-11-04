@@ -2817,7 +2817,7 @@ The format of a ladder has budgets on a median, a rate and a worst value. The ti
 - **Depends on:** SYS-58
 - **Started:** 2026-11-04
 - **Shipped:**
-- **Links:**
+- **Links:** [#352](https://github.com/mark1russell7/systems/pull/352)
 
 A drill stops the store during writes, removes its disk, and recovers from a real backup. A set difference counts each lost write. A timer runs from the fault to the first accepted write. The records go to `ladderVerdict` as `worst` budgets. A restore that nobody tested is not a backup.
 
@@ -2826,9 +2826,18 @@ A drill stops the store during writes, removes its disk, and recovers from a rea
 | `RD.1` | One node, with an oplog | Stop, disk lost | A dump with its oplog | Each write after the end of the dump is lost, and no other |
 | `RD.100.failover` | Three members, `w: "majority"` | Stop the primary, disk lost | An election | No accepted write is lost |
 | `RD.100.restore` | Three members, `w: "majority"` | Stop each member, each disk lost | A dump and the slices of the oplog | Each write after the last slice is lost, and no other |
+| `RD.1000.failover` | Three members, `w: "majority"`, 1 GB | Stop the primary, disk lost | An election | No accepted write is lost |
+| `RD.1000.restore` | Three members, `w: "majority"`, 1 GB | Stop each member, each disk lost | A dump and the slices of the oplog | The same law, and the time at a large size |
 | `RD.control` | One node, with an oplog | Stop after the dump, with no later write | A dump with its oplog | No write is lost |
 
 **What is real and what is not.** A drill cannot wait 24 h. The loss of a backup depends on the age of the newest backup at the fault. So a drill shortens the interval to 60 s, and to 10 s for a slice of the oplog. A test reads the schedule of each rung, and the record adds that interval to the measured excess. Each tenant holds 1 MB of generated data, thus the size of a restore follows the rung. The drill starts the recovery at the fault. Thus the measured RTO has no detection time and no human time, and the record says so in `synthetic`.
+
+**Two gaps that a first small restore showed.** A first restore of a small store gave one reading: a service came back approximately 31 s after the fault, on a loaded machine. That time gives a direction only. It showed two gaps:
+
+- **The size.** The time of a restore at a large size is unknown. Thus the rung of 1,000 tenants holds 1 GB, and the three rungs give the time against three sizes. Its budgets are the RPO of 60 s and the RTO of 900 s of SYS-93.
+- **The secrets.** A dump does not hold the secrets of a service. A store alone has no such secret, thus these drills cannot find this gap. The drill of SYS-93 restores the secrets from their own backup, and a request through the service reads a stored credential before the timer stops. That drill is a condition of the rung of SYS-93.
+
+A hash of the data comes before the service starts, because a service writes. The drills of this item hash only the tenants, and the writes of the second client go to another collection.
 
 **The prediction.**
 
