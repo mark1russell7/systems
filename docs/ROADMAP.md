@@ -2380,10 +2380,10 @@ A paired run and a median stay in one environment. The join of `--pool` refuses 
 
 ### SYS-77 · The first fabric: BFD against the BGP hold timer
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-76
-- **Started:**
+- **Started:** 2026-11-04
 - **Shipped:**
 - **Links:**
 

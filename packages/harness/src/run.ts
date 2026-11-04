@@ -2,6 +2,7 @@ import { valueIn } from "@mark1russell7/quantity";
 import type { Cell, FaultPlace, KernelRecord, ProbeEvent, Run } from "./cell.ts";
 import { isHopPlace, latestEndOf, requestFirst } from "./cell.ts";
 import { longestOf, settled as driverSettled } from "./driver.ts";
+import { laterMove } from "./fabric.ts";
 import { groupOnce, openGroupLab } from "./group.ts";
 import type { FaultOptions, Lab, Manifest, Probe } from "./lab.ts";
 import { openLab } from "./lab.ts";
@@ -218,6 +219,8 @@ const requestSent = (probe: Probe, within: number): Promise<ProbeEvent> =>
 
 /** This time is how long a run of a driver cell continues after its outcome, so that the record shows what came next. */
 const TAIL_MS = 1_000;
+/** This time lets the last lines of a route monitor reach the harness after a stall ends. */
+const MONITOR_MS = 200;
 
 /** This function waits for the outcome of a run of a driver cell, or for `within` ms. The outcome is the end of its band and of each later band. */
 const driverOutcome = async (cell: Cell, current: () => Run, within: number): Promise<void> => {
@@ -341,6 +344,10 @@ const once = async (
   dry = false,
 ): Promise<Run> => {
   if (cell.before === true) return beforeOnce(lab, cell, environment, index);
+  // a silence of the run before moved the routes: each run starts on the preferred path, with each session up
+  await lab.fabric?.ready();
+  const sessions = await lab.fabric?.sessions();
+  const routesFrom = lab.fabric?.routes.length ?? 0;
   // each run starts from kernels that keep nothing from the runs before it
   await lab.forget();
   const from = lab.kernel.length;
@@ -359,6 +366,10 @@ const once = async (
       throw new Error(`${(error as Error).message}; the client's last lines: ${last.join(" ")}`);
     });
   const placed = lab.topology === null ? {} : { topology: lab.topology };
+  const fabricOf = () => {
+    if (lab.fabric === undefined) throw new Error(`${cell.name} silences a router of a lab with no fabric`);
+    return lab.fabric;
+  };
   /** This function gives the run as the records show it so far: the waits read it. */
   const partial = (): Run => ({
     environment,
@@ -467,6 +478,8 @@ const once = async (
           case "server-close":
             await lab.serverClose();
             return null;
+          case "silence":
+            return fabricOf().silence();
           case "hop-event": {
             if (cell.event === undefined) throw new Error(`${cell.name} names no event`);
             const stamp = await lab.event(cell.event);
@@ -528,6 +541,9 @@ const once = async (
           case "toxic":
             await lab.toxic(null);
             return undefined;
+          case "silence":
+            await fabricOf().clear();
+            return undefined;
           default:
             return heal === null ? lab.lift("blackhole", faultAt) : undefined;
         }
@@ -565,6 +581,15 @@ const once = async (
               : await requestSent(probe, 5_000);
           heal = await lab.heal(faultAt, sent.t + valueIn(cell.stall, "s") * 1e9);
           await probe.until(["data", "error", "eof", "drop"], window * 1_000).catch(() => undefined);
+        } else if (cell.fault === "silence") {
+          // the routers end this stall: the later move of the two leaves is its end. The verdict of a
+          // stall reads it, thus a move outside the band of the cell makes the run void
+          const window = valueIn(prediction.detects ? prediction.high : prediction.window, "s");
+          await requestSent(probe, 5_000);
+          await probe.until(["data", "error", "eof", "drop"], window * 1_000).catch(() => undefined);
+          await sleep(MONITOR_MS);
+          const moved = laterMove(fabricOf().routes.slice(routesFrom), fault?.t0 ?? 0);
+          heal = moved === null ? null : { t0: moved, t1: moved };
         } else if (prediction.detects === null) {
           // a distribution: the stream ends by itself, or the connection does
           const window = valueIn(prediction.window, "s") * 1_000;
@@ -613,7 +638,7 @@ const once = async (
     index,
     events: [...probe.events],
     fault,
-    ...(cell.fault === "stall" || thawing !== null ? { heal } : {}),
+    ...(cell.fault === "stall" || cell.fault === "silence" || thawing !== null ? { heal } : {}),
     kernel: lab.kernel.slice(from),
     netns: lab.netns.client,
     targetNetns: lab.netns.target,
@@ -621,6 +646,9 @@ const once = async (
     ...placed,
     ...(lab.topology === null ? {} : { middlebox: lab.middlebox.slice(middleboxFrom) }),
     ...(cell.target.lines === true ? { server: lab.server.slice(serverFrom) } : {}),
+    ...(lab.fabric === undefined || sessions === undefined
+      ? {}
+      : { fabric: { routes: lab.fabric.routes.slice(routesFrom), established: { before: sessions, after: await lab.fabric.sessions() } } }),
   };
 };
 

@@ -4,7 +4,8 @@ import { join } from "node:path";
 
 /**
  * A layer is a rung of the laboratory (`docs/S7.md`). E1 is containers on one kernel, and E2 is a
- * cluster of containers on one kernel. The other layers do not have a runner at this time.
+ * cluster of containers on one kernel. A lab with `Topology.fabric` writes E3: routers in containers.
+ * The other layers do not have a runner at this time.
  */
 export type Layer = "E0" | "E1" | "E2" | "E3" | "E4" | "E5" | "E6";
 
