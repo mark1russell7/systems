@@ -3,7 +3,7 @@ import type { KindCell } from "@mark1russell7/kind";
 
 /**
  * The pacing of each cell (SYS-91). A client in a closed loop sends a request only after the reply
- * before it, thus a slow reply delays the next send, and the stall hides the requests that a fixed
+ * before it, thus a slow reply delays the next send. The stall hides the requests that a fixed
  * schedule sends in it (Gil Tene, "How NOT to Measure Latency"). The table of SYS-91 in
  * `docs/ROADMAP.md` gives the effect on each family. This module reads the pacing from the cells,
  * thus a new closed-loop cell changes the counts, and a test names the table.
