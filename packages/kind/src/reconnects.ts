@@ -153,8 +153,8 @@ const text = (line: Line, field: string): string | null => (typeof line[field] =
  * starts between the fault and the return, with an outcome of the prediction. At least one fails.
  *
  * With `owner: "either"`, the lookups can name the old owner for the whole run, because it started
- * again and took the topic back. Then the last try comes after the start of the band `flip`, and
- * the try before it comes no later than the end of that band.
+ * again and took the topic back. Then the last try comes after the start of the band `flip`. The
+ * try before it comes no later than the end of that band.
  */
 export const judgeReconnects = (
   prediction: ReconnectsPrediction,
