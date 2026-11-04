@@ -2,7 +2,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { StartedTestContainer } from "testcontainers";
-import { imageOf } from "@mark1russell7/harness";
+import { imageOf, substrateKey, substrateOf, substrateOn } from "@mark1russell7/harness";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
 import type { Cycle, KindCell, KindRun, Replica } from "./cell.ts";
@@ -896,6 +896,7 @@ export const writeResult = (out: string, result: KindCellResult): void => {
       failed: verdict.failed,
       median: verdict.median,
       why: verdict.why,
+      substrate: substrateKey(substrateOf(result.manifests[0] ?? {}, result.at, "E2")),
     })}\n`,
     { flag: "a" },
   );
@@ -1014,6 +1015,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
               env,
               scenario: s,
               cluster: manifest,
+              substrate: substrateOn("E2"),
               images: {
                 lab: image,
                 redis: redisImage,

@@ -19,6 +19,7 @@ import { PROCEDURES } from "./subjects.ts";
 import { T12_CAL, T12_CELLS } from "./t12.ts";
 import { TOX_CELLS } from "./toxiproxy.ts";
 import { wstCells } from "./ws-topologies.ts";
+import { WRITES_CELLS } from "./writes.ts";
 import { wsCells } from "./ws.ts";
 
 /**
@@ -33,7 +34,8 @@ export interface Subjects {
 /**
  * This function gives the cells of each catalog, on the subjects that a caller gives. T01, T03, T02
  * and Toxiproxy as the subject come first, then the calibration of each proxy. T12 and the
- * calibration of the stamps of its Sentinels come next. The HTTP cells of T01 and T03 come next,
+ * calibration of the stamps of its Sentinels come next, then the cells of the writes of S3 on the
+ * same group. The HTTP cells of T01 and T03 come next,
  * with the calibration of the handling time of the Node clients. The WS cells follow, then the
  * WST cells: the same client through a router or a proxy. The MongoDB cells of T01, T03 and T11
  * come next, then the PostgreSQL cells of T01, T03 and T10. The RabbitMQ cells of T01 and T11 come
@@ -49,6 +51,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...CAL_CELLS,
     ...T12_CELLS,
     T12_CAL,
+    ...WRITES_CELLS,
     ...HTTP_HARNESS_CELLS,
     ...HTTP_CAL_CELLS,
     ...wsCells(subjects.procedures),

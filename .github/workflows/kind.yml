@@ -69,7 +69,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@f05c6eeb35e33a040bdfdcd7d07a1d2c00640f8d # main
+        uses: mark1russell7/template/.github/actions/changes@f48f29fe5b00772951e0910a90fbbe312343338c # main
         with:
           paths: |
             .github/workflows/kind.yml
@@ -134,6 +134,9 @@ jobs:
           mkdir -p "$RUNNER_TEMP/kindcells"
           {
             echo "kernel: $(uname -r)"
+            # one image can start on each cloud: the vendor tells which, and the name of the kernel does not
+            echo "vendor: $(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || echo unknown)"
+            if [ -e /dev/kvm ]; then echo "kvm: yes"; else echo "kvm: no"; fi
             echo "CONFIG_HZ: $(grep -E '^CONFIG_HZ=' "/boot/config-$(uname -r)" || echo unknown)"
             echo "cpus: $(nproc)"
             echo "memory: $(free -m | awk '/^Mem:/ {print $2}') MiB"
@@ -346,7 +349,7 @@ jobs:
     timeout-minutes: 2
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@f05c6eeb35e33a040bdfdcd7d07a1d2c00640f8d # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@f48f29fe5b00772951e0910a90fbbe312343338c # main
         with:
           needs: ${{ toJSON(needs) }}
           allow-skip: capture

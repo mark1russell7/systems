@@ -113,6 +113,8 @@ export const whyOf = (reading: Reading, options: WhyOptions = {}): string => {
       ? null
       : `${found === counted.length ? "Each counted run has" : `${found} of the counted runs have`} a finding: ${findingOf(others[0]!.why, options)}.`;
   if (verdict.band === null) {
+    // a detection has no band only if no run counted, and it has no window
+    if (p.detects) return "No run counted.";
     if (verdict.outside.length === 0) return `${options.silent ?? "Nothing detected the fault"} in the ${counted.length} counted runs, each of ${at(secondsOf(p.window)!)}.`;
     return finding ?? `${verdict.outside.length} of the ${counted.length} counted runs disagree with the prediction.`;
   }

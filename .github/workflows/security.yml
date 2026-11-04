@@ -14,12 +14,12 @@ on:
 permissions: {}
 
 concurrency:
-  group: security-${{ github.ref }}
+  group: security-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   security:
-    uses: mark1russell7/template/.github/workflows/reusable-security.yml@4df6a2d5a4de464ab3f8b50c20df52c234794af6 # main
+    uses: mark1russell7/template/.github/workflows/reusable-security.yml@f48f29fe5b00772951e0910a90fbbe312343338c # main
     permissions:
       contents: read
       security-events: write

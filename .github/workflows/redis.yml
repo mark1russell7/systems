@@ -33,7 +33,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@f05c6eeb35e33a040bdfdcd7d07a1d2c00640f8d # main
+        uses: mark1russell7/template/.github/actions/changes@f48f29fe5b00772951e0910a90fbbe312343338c # main
         with:
           paths: |
             .github/workflows/redis.yml
@@ -97,6 +97,6 @@ jobs:
     timeout-minutes: 2
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@f05c6eeb35e33a040bdfdcd7d07a1d2c00640f8d # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@f48f29fe5b00772951e0910a90fbbe312343338c # main
         with:
           needs: ${{ toJSON(needs) }}
