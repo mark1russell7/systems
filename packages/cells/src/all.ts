@@ -10,6 +10,7 @@ import { MONGO_CELLS } from "./mongo/harness.ts";
 import { T01_HIKARI } from "./pg/hikari.ts";
 import { T01_PG } from "./pg/t01.ts";
 import { T03_HIKARI } from "./pg/t03.ts";
+import { COMMIT_CELLS } from "./pg/commit.ts";
 import { T10_HIKARI, T10_PG } from "./pg/t10.ts";
 import { T01_AMQP } from "./rabbit/t01.ts";
 import { T11_RABBIT } from "./rabbit/t11.ts";
@@ -38,8 +39,8 @@ export interface Subjects {
  * same group. The HTTP cells of T01 and T03 come next,
  * with the calibration of the handling time of the Node clients. The WS cells follow, then the
  * WST cells: the same client through a router or a proxy. The MongoDB cells of T01, T03 and T11
- * come next, then the PostgreSQL cells of T01, T03 and T10. The RabbitMQ cells of T01 and T11 come
- * next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter (O29 and O30) are last.
+ * come next, then the PostgreSQL cells of T01, T03 and T10. The cells of a COMMIT with no reply follow.
+ * The RabbitMQ cells of T01 and T11 come next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter (O29 and O30) are last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
@@ -62,6 +63,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...T03_HIKARI,
     ...T10_HIKARI,
     ...T10_PG,
+    ...COMMIT_CELLS,
     ...T01_AMQP,
     ...T11_RABBIT,
     ...T01_GRPC,

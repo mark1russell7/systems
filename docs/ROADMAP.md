@@ -2182,14 +2182,28 @@ A quorum queue loses no confirmed message. A republish of an unconfirmed message
 
 ### SYS-61 · PostgreSQL: a COMMIT in flight at the fault
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-58
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
-- **Links:**
+- **Links:** [The law](S3.md#the-commit-with-no-reply-sys-61)
 
-The client cannot know the outcome of a COMMIT with no reply (DV-38). A final read splits those commits into two sets. A synchronous standby bounds the lost set.
+The client cannot know the outcome of a COMMIT with no reply (DV-38). The source of PostgreSQL 17.11 changes the plan in two ways. Two final reads split those commits into three sets: kept, stranded and absent. A synchronous standby bounds the lost set until a cancel: the cancel gives a WARNING, and then a reply with success (`src/backend/replication/syncrep.c:317`).
+
+The prediction comes before the first dispatch, and no cell of this item has run. K is 4 writers. Each hold is 10 s.
+
+| Cell | The cut | Synchronous standby | Lost writes | No reply | Other bands |
+| --- | --- | --- | --- | --- | --- |
+| `T10.commit.1` | Each peer | No | 0 to 4 | 4 | 0 warnings |
+| `T10.commit.2` | Each peer | Yes | 0 | 4 | 0 warnings |
+| `T10.commit.3` | The standby | No | 567 to 804 | 4 | 0 kept, 0 warnings |
+| `T10.commit.4` | The standby | Yes | 0 | 4 | 0 absent, 0 warnings |
+| `T10.commit.5` | The standby, two cancels | Yes | 4 to 8 | 4 | 0 absent, 8 warnings |
+
+In each cell, the old primary holds each ack.
+
+**The decision rule.** A run counts if the harness does not void it. Each cell needs 4 counted runs. A cell with a void run or an infrastructure failure gets one more dispatch, alone. A code bug on the first run is a build miss. The thresholds do not change after any result is read.
 
 ### SYS-62 · ioredis: a resend at reconnect duplicates a write
 

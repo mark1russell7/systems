@@ -72,6 +72,8 @@ export interface FaultOptions {
   readonly code?: "host" | "net" | "port" | "admin";
   /** This length is the longest segment in bytes that an MTU drop lets through. */
   readonly above?: number;
+  /** These are the addresses that the rule faces, in place of the peer of its place. */
+  readonly peers?: readonly string[];
 }
 
 /** This function gives the arguments of the injector for the options of a fault. */
@@ -256,8 +258,18 @@ export interface Agent {
   stop(): Promise<void>;
 }
 
+/** A sibling is a server that a lab starts on the network of the target, for example a standby. */
+export interface Sibling {
+  readonly ip: string;
+  readonly netns: number;
+  /** This method starts a command in the sibling, and gives its standard output. */
+  exec(argv: readonly string[]): Promise<string>;
+}
+
 /** A lab is one environment: the target, the client, the hops of a topology, the injectors and the prober. */
 export interface Lab {
+  /** This address is the address of the target on its own network. */
+  readonly serverIp: string;
   /** This address is the address that the client connects to: the target, or the first proxy of a topology. */
   readonly targetIp: string;
   /** This port is the port that the client connects to. */
@@ -283,6 +295,10 @@ export interface Lab {
    * namespace with `pid`. Its command keeps it up, for example `sleep infinity`.
    */
   agent(image: string, command: readonly string[], options?: { readonly pid?: boolean }): Promise<Agent>;
+  /** This method starts a sibling, and waits for a line of its log. */
+  sibling(image: string, command: readonly string[], ready: string): Promise<Sibling>;
+  /** This method starts a command in the target, and gives its standard output. */
+  exec(argv: readonly string[]): Promise<string>;
   /** These are all the records that the prober wrote, in sequence. */
   readonly kernel: readonly KernelRecord[];
   /** This method sets the sysctls of the client namespace through its privileged sidecar, and reads them back. */
@@ -840,6 +856,7 @@ export const openLab = async (
     const proxies = inChain.filter((hop) => hop.hop.kind === "proxy");
 
     return {
+      serverIp,
       targetIp,
       targetPort,
       clientIp,
@@ -884,7 +901,7 @@ export const openLab = async (
       },
       async fault(kind, at = "target", options = {}) {
         const [where, peer, via] = placeOf(at);
-        return stamped(where, ["/opt/harness/inject", kind, peer, ...optionArgs(options), ...via]);
+        return stamped(where, ["/opt/harness/inject", kind, options.peers?.join(",") ?? peer, ...optionArgs(options), ...via]);
       },
       async lift(kind, at = "target", options = {}) {
         const [where, peer, via] = placeOf(at);
@@ -919,6 +936,22 @@ export const openLab = async (
       async serverClose() {
         if (target.close === undefined) throw new Error(`${target.image} names no way to close its clients`);
         await output(server, [...target.close]);
+      },
+      async exec(argv) {
+        return output(server, [...argv]);
+      },
+      async sibling(siblingImage, argv, ready) {
+        const started = await new GenericContainer(siblingImage)
+          .withNetwork(last)
+          .withWaitStrategy(Wait.forLogMessage(ready))
+          .withCommand([...argv])
+          .start();
+        opened.push(started);
+        return {
+          ip: await ipOn(started, last),
+          netns: await netnsOf(started),
+          exec: (command) => output(started, [...command]),
+        };
       },
       async agent(agentImage, argv, options = {}) {
         const Shared = shared(GenericContainer);
