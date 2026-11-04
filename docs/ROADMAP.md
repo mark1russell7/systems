@@ -218,7 +218,7 @@ On 2026-10-17, Mark decided these questions for this repository:
 - **Shipped:** 2026-10-17
 - **Links:** [The requirements](S6.md), [#46](https://github.com/mark1russell7/systems/pull/46), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-The groups A, B and E of the S6 draft move from jarvis into this repository, in STE. Each requirement tells which part of the service meets it.
+The groups A, B and E of the S6 draft move from a private repository into this repository, in STE. Each requirement tells which part of the service meets it.
 
 ### SYS-13 · The roadmap and the README tell the truth about S6
 
@@ -366,7 +366,7 @@ A stdio process, for example an MCP host, stops through the staged shutdown when
 - **Shipped:** 2026-10-18
 - **Links:** [#48](https://github.com/mark1russell7/systems/pull/48), [#50](https://github.com/mark1russell7/systems/pull/50), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-Each declaration tells what a second signal does: `ignore`, as in 0.4, or `exit`. In 0.5.0 `describe()` refuses a declaration without it, and `lint()` names a description without it. The profiles for a terminal use `exit`, and the profiles for a supervised host use `ignore`. jarvisService declares it at JAR-4.
+Each declaration tells what a second signal does: `ignore`, as in 0.4, or `exit`. In 0.5.0 `describe()` refuses a declaration without it, and `lint()` names a description without it. The profiles for a terminal use `exit`, and the profiles for a supervised host use `ignore`.
 
 ### SYS-10 · Profiles as data
 
@@ -412,7 +412,7 @@ The zod schemas of `@mark1russell7/algebra` move into a new entry, `./schema`, a
 - **Shipped:** 2026-10-18
 - **Links:** [#57](https://github.com/mark1russell7/systems/pull/57), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-An ESM service loses its express spans when its preload does not register `@opentelemetry/instrumentation/hook.mjs` before the app loads. The telemetry check of Graph found it when `@graph/server` moved to ESM. The README of the service tells it, beside an HTTP service under `run()`, with the preload of the hook.
+An ESM service loses its express spans when its preload does not register `@opentelemetry/instrumentation/hook.mjs` before the app loads. A telemetry check found it when a server moved to ESM. The README of the service tells it, beside an HTTP service under `run()`, with the preload of the hook.
 
 ### SYS-16 · run() for a process that runs one command
 
@@ -436,7 +436,7 @@ The process exits with the code of its work. A first Ctrl-C can abort at once, a
 
 `workerLoop` (A10 of S6) and `queueDrain` (A11) are `TransportImpl` factories in the root of the service. Each lane of a loop does one iteration at a time, and its sleeps and backoffs are on the clock. The drain takes jobs under a concurrency, applies the declared redelivery policy, and gives back each job that it did not start. Each unit can go through `life.request`. `lint()` applies O20 to each consumer and worker. Both pass the conformance kit of SYS-4.
 
-The lifecycle holds its process from its start to its exit, thus a process with only workers does not end while it waits. The helpers come to npm in the next PATCH of the service. They are for the heartbeat of jarvis (JAR-4), the workers of Graph (GRAPH-6, GRAPH-10) and the job queues of OTH-4.
+The lifecycle holds its process from its start to its exit, thus a process with only workers does not end while it waits. The helpers come to npm in the next PATCH of the service. They are for the heartbeats, the workers and the job queues of applications.
 
 ### SYS-21 · A stop from a message of the IPC channel
 
@@ -447,7 +447,7 @@ The lifecycle holds its process from its start to its exit, thus a process with 
 - **Shipped:** 2026-10-18
 - **Links:** [#66](https://github.com/mark1russell7/systems/pull/66), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-Windows cannot give a child a SIGTERM that the child can catch, thus the entry of Graph also stops at the IPC message `shutdown` (CI-4 of Graph). `svc.trigger("ipc-message", { match, as })` declares the message as data, and it starts the staged shutdown of SIGTERM with its exit code. `process.yml` tests a real child on Linux and on Windows.
+Windows cannot give a child a SIGTERM that the child can catch, thus a service entry can also stop at the IPC message `shutdown`. `svc.trigger("ipc-message", { match, as })` declares the message as data, and it starts the staged shutdown of SIGTERM with its exit code. `process.yml` tests a real child on Linux and on Windows.
 
 ### SYS-11 · The kind lab on ./http
 
@@ -469,7 +469,7 @@ The image of the kind lab replaces its own transport, probe server and outcome m
 - **Shipped:** 2026-10-18
 - **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-A change of the version on main makes `release.yml` publish it. It is a MINOR, because SYS-6 changes `RequestFn` and the outcome type before 1.0. The client, jarvis and Graph then use it from npm.
+A change of the version on main makes `release.yml` publish it. It is a MINOR, because SYS-6 changes `RequestFn` and the outcome type before 1.0. The client and other applications then use it from npm.
 
 ### REL-4 · Service 0.5.1 with the worker loop, the queue drain and the IPC trigger
 
@@ -480,7 +480,7 @@ A change of the version on main makes `release.yml` publish it. It is a MINOR, b
 - **Shipped:** 2026-10-18
 - **Links:** [#69](https://github.com/mark1russell7/systems/pull/69), [npm](https://www.npmjs.com/package/@mark1russell7/service/v/0.5.1), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-This release publishes `workerLoop`, `queueDrain`, `redeliverOnce`, the trigger `ipc-message` and the hold of the process (#66). It is a PATCH, because each change adds an export or an option before 1.0, and nothing is removed. Graph (GRAPH-6) and jarvis (JAR-4) then use the helpers from npm.
+This release publishes `workerLoop`, `queueDrain`, `redeliverOnce`, the trigger `ipc-message` and the hold of the process (#66). It is a PATCH, because each change adds an export or an option before 1.0, and nothing is removed. Applications then use the helpers from npm.
 
 ### SYS-17 · The harness takes its test subjects as data
 
@@ -520,7 +520,7 @@ After CLI-33, the client owns the image of its procedures subject. Then the harn
 - **Shipped:** 2026-10-25
 - **Links:** [#158](https://github.com/mark1russell7/systems/pull/158), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-A check of the kind `progress` fires when no loop marks progress in its stall time. Today each app gives that time by hand: jarvis gives 370 s for its weather poll (JAR-4). With a field `marks`, the check names its loops. Then `lint()` finds a stall time that is shorter than the interval of the slowest loop, with its jitter and its timeout. It is a PATCH: an optional field and a new finding.
+A check of the kind `progress` fires when no loop marks progress in its stall time. Today each app gives that time by hand: for example, one app gives 370 s for a poll. With a field `marks`, the check names its loops. Then `lint()` finds a stall time that is shorter than the interval of the slowest loop, with its jitter and its timeout. It is a PATCH: an optional field and a new finding.
 
 #158 adds `marks: { loops, stall }` to a check, and `lint()` gives a `progress` finding for a short stall time or an unknown loop.
 
@@ -578,7 +578,7 @@ Some entries start a service in a process that they do not own. Examples are a s
 - **Shipped:** 2026-10-20
 - **Links:** [#106](https://github.com/mark1russell7/systems/pull/106), [#119](https://github.com/mark1russell7/systems/pull/119), [#229](https://github.com/mark1russell7/systems/pull/229), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-No package of systems or of the client had a rate limit for each tenant or principal. Graph limits its writes for each tenant with a sliding window of its own. With SYS-28, `svc.limiter(name, { key, policy, store, evict })` declares a keyed limiter as data, with no defaults, and `describe()` shows it. `keyedLimiter` makes its runtime: a token bucket or a sliding window for each key, on the injected monotonic clock. A refusal gives `retryAfter` as a `Quantity`, and the HTTP edge gives 429 with `Retry-After` in whole seconds.
+No package of systems or of the client had a rate limit for each tenant or principal. One application limits its writes for each tenant with a sliding window of its own. With SYS-28, `svc.limiter(name, { key, policy, store, evict })` declares a keyed limiter as data, with no defaults, and `describe()` shows it. `keyedLimiter` makes its runtime: a token bucket or a sliding window for each key, on the injected monotonic clock. A refusal gives `retryAfter` as a `Quantity`, and the HTTP edge gives 429 with `Retry-After` in whole seconds.
 
 The store is an interface, and each store decides a take in one atomic step on its own clock. `memoryStore` is the store of one replica. Without a shared store, each replica holds limit / N, and that sum holds only on average. A shared store declares `onStoreFailure`, `open` or `closed`, with no default. The eviction is exact, the count of keys has a bound, and a new key at the cap waits at most the idle span.
 
@@ -689,7 +689,7 @@ It comes in machines as a PATCH: a new export before 1.0.0.
 
 The entry `@mark1russell7/service/rules` gives O04, O09, O10, O16 and `DRAIN_RULES` as data, and it loads no module at run time. Kind imports the rules from the entry and gives them again, thus the exports of kind do not change.
 
-The review of the template item OTH-5 found it. `lint()` of the service takes its rules from the caller. But the drain rules, O10, O16 and the others, are only in `@mark1russell7/kind`, and kind loads Testcontainers. Thus each new service copies the data of the rules into its tests.
+A review of the template found it. `lint()` of the service takes its rules from the caller. But the drain rules, O10, O16 and the others, are only in `@mark1russell7/kind`, and kind loads Testcontainers. Thus each new service copies the data of the rules into its tests.
 
 With SYS-32, an entry of the service that loads no Testcontainers, for example `./rules`, gives the rules as data. The preset of the template then imports it, and the rules have one source.
 
@@ -1008,7 +1008,7 @@ One quantity missed. The prediction was 0 to 3 runs in the zone of the early sta
 
 The idle share of 60% holds for Cilium. Of 230 runs on Cilium, 2 are void or hung by the wait, approximately 0.9%. The limit is 5%. The page applies the rule again after each scan.
 
-### SYS-46 · The service gaps of the graph plumbing
+### SYS-46 · The service gaps for the plumbing of an application
 
 - **Status:** done
 - **Area:** server stack
@@ -1017,7 +1017,7 @@ The idle share of 60% holds for Cilium. Of 230 runs on Cilium, 2 are void or hun
 - **Shipped:** 2026-10-28
 - **Links:** [#260](https://github.com/mark1russell7/systems/pull/260)
 
-The graph session found five gaps in service 0.6.1 for the plumbing of its step W9. Each part of this item is a new option or a new export. Without them, each old call gives the same result.
+One application found five gaps in service 0.6.1 for the plumbing of its step W9. Each part of this item is a new option or a new export. Without them, each old call gives the same result.
 
 - **Uncaught errors.** `run({ uncaught: { exitCode, ignore } })` makes an uncaught exception or an unhandled rejection a trigger of the staged shutdown, as a signal is. The logger gets the error at `error`. `ignore` skips an error, for example an `ECONNRESET` of a peer socket, and the logger gets it at `warn`.
 - **A retrier.** `retrier({ base, factor, cap, jitter, clock, signal })` starts a function again after the `backoffDelay` of each try, on the injected clock. It has `schedule`, `reset`, `cancel` and `attempts`. The abort of its signal cancels it, for example the `signal` of the lifecycle in the drain.
@@ -1025,7 +1025,7 @@ The graph session found five gaps in service 0.6.1 for the plumbing of its step 
 - **A take with no promise.** `tryTakeSync(key)` gives the `Decision` of a memory store at once, with `retryAfter` as a quantity. It is optional on `KeyedLimiter`, and `keyedLimiter` on a `memoryStore` gives a `LocalLimiter` that has it. A shared store throws.
 - **Lines of JSON.** `consoleLogger({ level, format: "json" })` writes one line of JSON for each entry.
 
-The keys of `paths` are the probe kinds, and the decision is the `Decision` of `take()`. The names of the graph session were `live`, `ready`, `ok` and `retryAfterMs`. The package uses the names of its other calls, thus the new calls use them too.
+The keys of `paths` are the probe kinds, and the decision is the `Decision` of `take()`. The names of the first draft were `live`, `ready`, `ok` and `retryAfterMs`. The package uses the names of its other calls, thus the new calls use them too.
 
 It comes as a PATCH before 1.0.0: new optional options, an optional member of an interface, and new exports.
 
@@ -1402,7 +1402,7 @@ The `conventions` field keeps one exception for the types. `src/content.config.t
 - **Shipped:** 2026-10-17
 - **Links:** [R3's queue](https://mark1russell7.github.io/systems/results/r3/), [#36](https://github.com/mark1russell7/systems/pull/36)
 
-Of the 115 cells that jarvis compiles from its corpus, 114 hold and 1 is a measurement only. Two gaps of the corpus failed 9 cells first, and each one held after the fix.
+Of the 115 cells that the private repository compiles from its corpus, 114 hold and 1 is a measurement only. Two gaps of the corpus failed 9 cells first, and each one held after the fix.
 
 ### SENTINEL · Valkey under Sentinel
 
@@ -1996,7 +1996,7 @@ release.yml publishes each later version from main, as for the other packages.
 
 The document of Linux TCP has the delayed-ACK timer of Linux 6.6. Each idle forget of a router counts from the ACK of the last reply, at once or up to 41 ms later.
 
-## The corpus in jarvis
+## The private corpus
 
 ### IMPORT · The corpus imports the machine documents
 
@@ -2007,7 +2007,7 @@ The document of Linux TCP has the delayed-ACK timer of Linux 6.6. Each idle forg
 - **Shipped:** 2026-10-18
 - **Links:**
 
-jarvis imports the documents of `@mark1russell7/machines` by a procedure. It takes machines 0.3.7 from npm, and it is in jarvis since 2026-10-18.
+The private repository imports the documents of `@mark1russell7/machines` by a procedure. It takes machines 0.3.7 from npm, and this import started on 2026-10-18.
 
 ### LAND · The CI records of 2026-10-17 in the corpus
 
@@ -2379,7 +2379,7 @@ A catalog cell gives each knob, and a compiled cell gives only the knobs that it
 
 Decided on 2026-10-19: the identity of a scenario holds only the settings that differ from the defaults of the documents. It is the more general choice: one scenario is one entity, in each form of a cell.
 
-Built in jarvis and merged on 2026-10-20. A setting leaves the identity only when a document names its key and its value is the default of that document. These documents are linux-tcp for the sysctls, and each server document for its settings. The projection after the merge gave each landed run its new id, and no file named an old one.
+Built in the private repository and merged on 2026-10-20. A setting leaves the identity only when a document names its key and its value is the default of that document. These documents are linux-tcp for the sysctls, and each server document for its settings. The projection after the merge gave each landed run its new id, and no file named an old one.
 
 ### D-EXTEND · A verdict for a late propagation in kind
 
@@ -2405,7 +2405,7 @@ Decided on 2026-10-19: such a cell is `extend`. The run agrees with the law, and
 
 The last step of S0. The options document of R2 lands where the app runs. A second landing does no harm.
 
-Mark's answer of 2026-10-19: yes. The jarvis session landed it on 2026-10-20: the artifact "The systems the harness runs", from `@jarvis/systems-pages` built at the main of jarvis.
+Mark's answer of 2026-10-19: yes. It landed on 2026-10-20: the artifact "The systems the harness runs", built from the main branch of the private repository.
 
 ### D-REVIEW · The judgments of 2026-10-16 and 2026-10-17
 
@@ -2418,4 +2418,4 @@ Mark's answer of 2026-10-19: yes. The jarvis session landed it on 2026-10-20: th
 
 The mechanisms of MongoDB, the name of the step-down window, the ack delay as a mechanism, and the first version of `@mark1russell7/machines`.
 
-Mark's answer of 2026-10-19: keep each of them, as `decisions.md` in jarvis records them.
+Mark's answer of 2026-10-19: keep each of them, as a private decision record tells.

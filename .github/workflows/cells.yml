@@ -5,8 +5,8 @@
 #           read the kernel's facts. Then it runs the harness's opt-in lab test: privileged
 #           containers, the injector and the eBPF prober on this runner.
 #   cells   Runs the cells whose names match `only`, a shard on each runner, and uploads each raw
-#           record and summary.ndjson as an artifact, for jarvis to land. With `file`, the cells
-#           come from that JSON file at the ref (cells that jarvis compiles), not the catalogs.
+#           record and summary.ndjson as an artifact, for the private repository to land. With `file`, the cells
+#           come from that JSON file at the ref (compiled cells), not the catalogs.
 #           The WS and WST cells run on the procedures subject of mark1russell7/client (CLI-33):
 #           the job checks that repository out at CLIENT_REF and builds the subject of the checkout.
 #           With `subject`, a subject as JSON (the harness's Subject) replaces it, for example a
