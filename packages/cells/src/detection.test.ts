@@ -1,7 +1,7 @@
 import { clusterNameOf, faultSpan, planOf } from "@mark1russell7/kind";
 import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
-import { DETECTION_CELLS, DETECTION_SETTINGS, PAUSES, detectionOf, nextProbeShare } from "./detection.ts";
+import { DETECTION_CELLS, DETECTION_SETTINGS, PAUSES, QUIET_LOAD_CELLS, detectionOf, nextProbeShare } from "./detection.ts";
 import { s } from "./kind.ts";
 import { KIND_CATALOG } from "./kinds.ts";
 import { metallbOf } from "./metallb.ts";
@@ -38,6 +38,18 @@ describe("the sweep of the detection settings of MetalLB (SYS-57)", () => {
       "lab-iptables-2-zones-mlb500x2-0",
       "lab-iptables-2-zones-mlb500x2-0",
     ]);
+  });
+
+  it("pairs each cell with a planned load with the cell of the setting that the quiet gate voided, on its cluster", () => {
+    const pair = DETECTION_CELLS[7]!;
+    expect(QUIET_LOAD_CELLS.map((cell) => cell.id)).toEqual([`${pair.id}.load-100`, `${pair.id}.load-50`]);
+    expect(QUIET_LOAD_CELLS.map((cell) => cell.plannedLoad)).toEqual([1, 0.5]);
+    expect(pair.plannedLoad).toBeUndefined();
+    for (const cell of QUIET_LOAD_CELLS) {
+      expect(clusterNameOf(cell, 0)).toBe(clusterNameOf(pair, 0));
+      expect(cell.prediction).toEqual(pair.prediction);
+      expect(KIND_CATALOG).toContain(cell);
+    }
   });
 
   it("gives each cell of each kind catalog a kind name of 32 characters at most: lowercase letters, digits and dashes", () => {
