@@ -16,7 +16,8 @@ import { DESIGN, WORKERS, kubeDefaults, ms, s, say } from "./kind.ts";
  *   last packet from the broker, rounded up to the tick of 2 s. The client of the broker pings after
  *   9 s with no other packet. Thus the expiry is 21 s to 32 s after the crash.
  * - Up to the expiry, each lookup gives the dead owner from the cache, with no check of its life.
- *   After it, the other broker takes the bundle, and a lookup gives it.
+ *   After it, one broker takes the bundle. That broker can be the other one, or the owner, because
+ *   the kubelet starts its container again (the first run of this cell: 2 of 6 runs).
  * - The producer tries again on a backoff from 100 ms that doubles up to 60 s. The mandatory stop
  *   cuts one delay to end 29.9 s after the first call. Each delay can be up to 9 % less. Thus the
  *   tries are 0.1 s, 0.3 s, …, 12.7 s, 25.5 s, 29.9 s and 81.1 s after the first call.
@@ -75,12 +76,13 @@ const pulsarCellOf = (): KindCell => {
     prediction: {
       kind: "reconnects",
       flip,
+      owner: "either",
       probe: time(valueIn(PULSAR_PROBE, "s") + LOOKUP_WAIT),
       disconnect: { lo: s(0), hi: s(1) },
       backoff: PRODUCER_BACKOFF,
       setup: SETUP,
       outcomes: ["late", "timeout"],
-      why: `${PRODUCERS} producers send to one topic each ${say(PULSAR_WORKLOAD.every)}. A crash stops the broker that owns its bundle. The session of that broker in ZooKeeper expires ${say(time(valueIn(SESSION, "s") - valueIn(PING, "s")))} to ${say(time(Math.ceil(valueIn(SESSION, "s") / valueIn(TICK, "s")) * valueIn(TICK, "s") + valueIn(TICK, "s")))} after the crash: the timeout of ${say(SESSION)}, the ping after ${say(PING)} and the tick of ${say(TICK)}. Then the other broker takes the bundle, and a lookup names it ${say(flip.lo)}–${say(flip.hi)} after the crash. Each producer tries again at ${tries.join(", ")} after its first call, with up to 9 % less in each delay. The first try after the change of the owner succeeds, up to ${say(SETUP.hi)} later. The naive law puts each return at the expiry, 28–32 s after the crash`,
+      why: `${PRODUCERS} producers send to one topic each ${say(PULSAR_WORKLOAD.every)}. A crash stops the broker that owns its bundle. The session of that broker in ZooKeeper expires ${say(time(valueIn(SESSION, "s") - valueIn(PING, "s")))} to ${say(time(Math.ceil(valueIn(SESSION, "s") / valueIn(TICK, "s")) * valueIn(TICK, "s") + valueIn(TICK, "s")))} after the crash: the timeout of ${say(SESSION)}, the ping after ${say(PING)} and the tick of ${say(TICK)}. Then one broker takes the bundle, ${say(flip.lo)}–${say(flip.hi)} after the crash: the other broker, or the owner after its restart. Each producer tries again at ${tries.join(", ")} after its first call, with up to 9 % less in each delay. The first try after the change of the owner succeeds, up to ${say(SETUP.hi)} later. The naive law puts each return at the expiry, 28–32 s after the crash`,
     },
   };
 };

@@ -147,6 +147,44 @@ describe("the judge of the reconnects", () => {
   });
 });
 
+describe("the judge of the reconnects when the stopped broker can take the topic back", () => {
+  const either = (lines: readonly Line[]) => judgeReconnects({ ...PREDICTION, owner: "either" }, { fault: FAULT, broker: OLD, lines }, SENDS, 100);
+  /** These are the lookups of a run that names the old owner from start to end. */
+  const same = lookups(1_000_000);
+
+  it("holds when the old owner comes back after the change, in each mode of the return", () => {
+    const early = either([...same, ...producer("producer-a", 27_000), ...producer("producer-b", 27_000)]);
+    expect(early.why).toMatch(/^the stopped broker owns the topic again/);
+    expect(early.ok).toBe(true);
+    expect(early.flip).toBeNull();
+    expect(early.gap).toBeNull();
+    expect(early.returns.map((each) => each.tries)).toEqual([9, 9]);
+    const late = either([...same, ...producer("producer-a", 31_000), ...producer("producer-b", 31_000)]);
+    expect(late.ok).toBe(true);
+    expect(late.returns.map((each) => each.tries)).toEqual([10, 10]);
+  });
+
+  it("keeps each check of another owner", () => {
+    const other = either([...lookups(27_000), ...producer("producer-a", 27_000)]);
+    expect(other.why).toMatch(/^another owner/);
+    expect(other.flip).toBe(27_000);
+    expect(either([...lookups(18_000), ...producer("producer-a", 18_000)]).why).toMatch(/outside the band/);
+  });
+
+  it("fails when the old owner serves before the band of the change", () => {
+    const judged = either([...same, ...producer("producer-a", 12_000)]);
+    expect(judged.ok).toBe(false);
+    expect(judged.why).toMatch(/comes before the last lookup of the old owner/);
+  });
+
+  it("fails when a try after the band of the change did not succeed", () => {
+    // the tenth try, at 81 s, fails: thus the producer has a failed try long after the band ends
+    const judged = either([...same, ...producer("producer-a", 100_000)]);
+    expect(judged.ok).toBe(false);
+    expect(judged.why).toMatch(/comes after the change of the owner/);
+  });
+});
+
 describe("the check of a run of the reconnects", () => {
   const cell = { ...cellOf("crash"), workload: { every: { value: 200, unit: "ms" }, timeout: { value: 1, unit: "s" } }, pulsar: { clients: 2, probe: { value: 250, unit: "ms" } }, prediction: PREDICTION } as KindCell;
   const runOf = (lines: Line[]): KindRun => ({

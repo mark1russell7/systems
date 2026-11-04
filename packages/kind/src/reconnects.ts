@@ -151,6 +151,10 @@ const text = (line: Line, field: string): string | null => (typeof line[field] =
  * Its last try comes after the last lookup that named the old owner. The try before it comes no
  * later than the first lookup that named another. Then the setup is in its band. Each failed send
  * starts between the fault and the return, with an outcome of the prediction. At least one fails.
+ *
+ * With `owner: "either"`, the lookups can name the old owner for the whole run, because it started
+ * again and took the topic back. Then the last try comes after the start of the band `flip`, and
+ * the try before it comes no later than the end of that band.
  */
 export const judgeReconnects = (
   prediction: ReconnectsPrediction,
@@ -164,13 +168,16 @@ export const judgeReconnects = (
   const lookups = lines.filter((line) => line.ev === "lookup" && line.t >= fault).sort((a, b) => a.t - b.t);
   const changed = lookups.findIndex((line) => line["o"] === "ok" && text(line, "owner") !== null && text(line, "owner") !== broker);
   const fail = (why: string, more: Partial<Reconnects> = {}): Reconnects => ({ ok: false, why, flip: null, gap: null, returns: [], failures: {}, value: null, ...more });
-  if (changed === -1) return fail(`no lookup after the fault names an owner other than ${broker}`);
-  const flipAt = lookups[changed]!.t;
-  const before = changed === 0 ? fault : lookups[changed - 1]!.t;
-  const flip = flipAt - fault;
-  const gap = flipAt - before;
-  if (!inBand(flip, ms(prediction.flip))) return fail(`the first lookup with another owner is ${flip.toFixed(0)} ms after the fault, outside the band`, { flip, gap });
-  if (gap > valueIn(prediction.probe, "ms") + noise) return fail(`the lookups have a gap of ${gap.toFixed(0)} ms before the change of the owner`, { flip, gap });
+  if (changed === -1 && prediction.owner !== "either") return fail(`no lookup after the fault names an owner other than ${broker}`);
+  const band = ms(prediction.flip);
+  // the lookups name one broker before and after the change: only the band of the change bounds the tries
+  const same = changed === -1;
+  const flipAt = same ? fault + band.hi : lookups[changed]!.t;
+  const before = same ? fault + band.lo : changed === 0 ? fault : lookups[changed - 1]!.t;
+  const flip = same ? null : flipAt - fault;
+  const gap = same ? null : flipAt - before;
+  if (flip !== null && !inBand(flip, band)) return fail(`the first lookup with another owner is ${flip.toFixed(0)} ms after the fault, outside the band`, { flip, gap });
+  if (gap !== null && gap > valueIn(prediction.probe, "ms") + noise) return fail(`the lookups have a gap of ${gap.toFixed(0)} ms before the change of the owner`, { flip, gap });
   const delays = delaysOf(prediction.backoff);
   const setup = ms(prediction.setup);
   const disconnect = ms(prediction.disconnect);
@@ -230,5 +237,5 @@ export const judgeReconnects = (
     if (latest === undefined) return done(false, `no send of ${each.pod} failed`);
     if (latest.t < back - sends.timeout - sends.every - noise) return done(false, `the last failed send of ${each.pod} is ${(back - latest.t).toFixed(0)} ms before its return`);
   }
-  return done(true, `another owner ${flip.toFixed(0)} ms after the fault; ${returns.map((each) => `${each.pod} back at try ${each.tries}`).join(", ")}`);
+  return done(true, `${flip === null ? "the stopped broker owns the topic again" : `another owner ${flip.toFixed(0)} ms after the fault`}; ${returns.map((each) => `${each.pod} back at try ${each.tries}`).join(", ")}`);
 };

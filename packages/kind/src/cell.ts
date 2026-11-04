@@ -356,6 +356,7 @@ export interface ResetReuse<A = Quantity> {
  * - `reconnects`: a producer of a message broker gets its connection again after its broker stops
  *   (`ReconnectsPrediction`). The lookups name another broker in the band `flip`. Each producer is back
  *   at the first try of its backoff after that change, and its sends fail only until then.
+ *   With `owner: "either"`, the stopped broker can start again and take the topic back.
  * - `measured`: no document bounds the outcome. The run keeps the measurement.
  */
 export type Prediction<A = Quantity> =
@@ -420,6 +421,12 @@ export interface ReconnectsPrediction<A = Quantity> {
   readonly kind: "reconnects";
   /** This band is the first lookup that names another broker as the owner of the topic. */
   readonly flip: Band<A>;
+  /**
+   * This value says which broker owns the topic after the change. With `other`, the default, a lookup
+   * names another broker. With `either`, the stopped broker can start again and take the topic back.
+   * Then the lookups name one broker before and after the change, and only `flip` bounds the tries.
+   */
+  readonly owner?: "other" | "either" | undefined;
   /** This time is the most from the change of the owner to the first lookup that names it. */
   readonly probe: A;
   /** This band is the first delay of each producer before its first try. */

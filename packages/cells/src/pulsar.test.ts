@@ -21,6 +21,7 @@ describe("the S2 cell of Pulsar (SYS-56)", () => {
     expect(PULSAR_CELLS[0]!.prediction).toMatchObject({
       kind: "reconnects",
       flip: { lo: s(20.5), hi: s(33) },
+      owner: "either",
       probe: s(1.25),
       disconnect: { lo: s(0), hi: s(1) },
       backoff: PRODUCER_BACKOFF,

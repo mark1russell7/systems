@@ -13,7 +13,7 @@ The program started again on 2026-11-02, after the pause of 2026-10-28. A gap th
    <!-- ste-disable-next latin-abbreviation -- VIZ is the ID of the item, not the Latin abbreviation -->
 3. **VIZ:** The site gets an interactive demo of the path of a request, from the process to the NIC. The packages of this repository run live in the browser.
 4. **S2:** CoreDNS (SYS-50), kube-vip (SYS-51) and MetalLB (SYS-53) are done. Do one intermediary in each context. Write the prediction before the dispatch.
-   - Pulsar ([SYS-56](#sys-56--pulsar-producers-when-the-broker-that-owns-their-topic-is-gone)) is in progress. A crash of the owner of a topic tests the expiry of its session and the backoff of each producer.
+   - Pulsar ([SYS-56](#sys-56--pulsar-producers-when-the-broker-that-owns-their-topic-is-gone)) is in progress. A crash of the owner of a topic tests the expiry of its session and the backoff of each producer. The first run fails its law, and the second run tests the corrected law.
 
 SITE-UX round 3 is done. Its chart shows the C-stall band of SYS-48 against the count of each mode, on the kind page.
 
@@ -1402,7 +1402,7 @@ Pulsar is the intermediary after MetalLB. One broker owns the bundle of a topic 
 - The shedding of the load and the automatic split of bundles are off. Thus only the crash moves the bundle.
 - The session timeout is the default, 30 s (`conf/broker.conf`, line 187, and the chart `values.yaml`, line 1474). The values do not set it.
 - The load manager is the default, `ModularLoadManagerImpl` (`conf/broker.conf`, line 1809).
-- The chart starts a broker again only after its old znode is gone (`templates/broker-statefulset.yaml`, lines 296–302). Thus the restart does not take the bundle back before the expiry.
+- The chart waits for the old znode of a broker before it starts the broker again (`templates/broker-statefulset.yaml`, lines 296–302). The first run shows that this wait does not stop the restart: the broker serves HTTP approximately 16 s after the crash. The bundle stays with the old session up to the expiry.
 
 A producer runs on each worker. It is a script of the Python client 3.13.0, over the C++ client 4.2.0, in the Pulsar image. It sends to the topic each 200 ms, with the defaults of `create_producer`. In the same pod, a probe asks the HTTP lookup for the owner each 250 ms. Each line has the monotonic clock of the node, in ms, as the other cells do. The script also writes the lines of the client log that give each try of the backoff. Before each run, the hold finds the owner from the lookups, and each producer must send with no failure.
 
@@ -1412,13 +1412,13 @@ A producer runs on each worker. It is a script of the Python client 3.13.0, over
 
 - The session of the broker expires 30 s after the last packet that ZooKeeper got from it. The server rounds each expiry up to its tick of 2 s (`ExpiryQueue.java`, lines 53–54 and 87, and `conf/zookeeper.conf`, line 21).
 - The client of ZooKeeper pings after 9 s with no other packet: half of the read timeout of 2/3 of the session timeout, less 1 s (`ClientCnxn.java`, lines 422, 1184 and 1263–1268). Thus the last packet comes 0 s to 9 s before the crash, and the expiry comes 21 s to 32 s after it.
-- Up to the expiry, a lookup gives the owner from the cache, with no check of its life (`NamespaceService.java`, lines 489–508). After it, the other broker takes the bundle.
+- Up to the expiry, a lookup gives the owner from the cache, with no check of its life (`NamespaceService.java`, lines 489–508). After it, one broker takes the bundle: the other broker, or the crashed broker after its restart. The first run found the second case.
 - The backoff of the producer starts at 100 ms, and it doubles up to 60 s. Its mandatory stop is the send timeout of 30 s less 100 ms (`lib/ProducerImpl.cc`, lines 55–57, and `pulsar/__init__.py`, line 1015).
 - The mandatory stop cuts one delay, once, so that the try comes 29.9 s after the first call. Each delay can be up to 9 % less, from the jitter (`lib/Backoff.cc`, lines 33–57).
 - Thus the tries come 0.1 s, 0.3 s, 0.7 s, 1.5 s, 3.1 s, 6.3 s, 12.7 s, 25.5 s, 29.9 s and 81.1 s after the first call, with no jitter.
 - The first try after the change of the owner succeeds, and the client resets its backoff (`lib/ProducerImpl.cc`, line 236). Each earlier try fails.
 
-**The law.** A lookup names the other broker 20.5 s to 33 s after the crash. That band is the expiry, with 0.5 s before it and 1 s after it. Each producer is back at the first try of its backoff after that change, with a setup of up to 3 s. The judge reads each try of each producer from its log, and checks each delay against the backoff. Thus the law tests the grid of the backoff in each run, not only the time of the return.
+**The first law.** A lookup names the other broker 20.5 s to 33 s after the crash. That band is the expiry, with 0.5 s before it and 1 s after it. Each producer is back at the first try of its backoff after that change, with a setup of up to 3 s. The judge reads each try of each producer from its log, and checks each delay against the backoff. Thus the law tests the grid of the backoff in each run, not only the time of the return.
 
 The return falls in one of three modes. In the mode of 25.5 s, the change comes before the eighth try. In the mode of 29.9 s, it comes between the eighth try and the mandatory stop. In the mode of 81.1 s, it comes after the stop. Their shares are approximately 0.27, 0.58 and 0.16.
 
@@ -1426,7 +1426,7 @@ The naive law puts each return at the expiry of the session, approximately 28 s 
 
 **The bands.** The first lookup with another owner is in the band of the change, and the gap of the lookups before it is at most 1.25 s. Each producer starts its backoff 0 s to 1 s after the crash. Its last try comes after the last lookup of the old owner. The try before it comes no later than the first lookup of the new owner. The setup of the last try is 0 s to 3 s. Each failed send is `late` or `timeout`, and it comes in the time from the fault to the return. The record continues to the latest return of the law, 85.2 s after the fault.
 
-**The prediction.** Before the dispatch, the prediction `sys-56-pulsar` gives the probability of each claim:
+**The first prediction.** Before the dispatch, the prediction `sys-56-pulsar` gives the probability of each claim:
 
 | Claim | Probability |
 | --- | --- |
@@ -1440,6 +1440,46 @@ The naive law puts each return at the expiry of the session, approximately 28 s 
 | The cell holds in each of its 4 counted runs | 0.5 |
 
 The decision rule: the cell needs 4 counted runs. A void run, or a run that fails for a reason of the infrastructure, permits one re-dispatch, and the first counted runs count. A first run that stops on a code bug is a miss of the build. The thresholds do not change after a result is read.
+
+**The first run.** The kind run 41748374742 fails the cell. In 2 of 4 counted runs, no lookup names another owner. The first dispatch stopped on a code bug, thus the build claim is a miss. The control failed no request, and each failed send is `late` or `timeout`.
+
+| Run | Bundle taken | Stop try | Return | New owner |
+| --- | --- | --- | --- | --- |
+| Environment 0, warm-up | 30.32 s | 29.90 s | 81.4 s | the other broker |
+| Environment 0, run 0 | 29.01 s | 29.77 s | 30.1 s | the crashed broker |
+| Environment 0, run 1 | 29.43 s | 29.53 s | 29.6 s | the other broker |
+| Environment 1, warm-up | 30.41 s | 29.89 s | 79.9 s | the other broker |
+| Environment 1, run 0 | 30.96 s | 29.93 s | 78.8 s | the crashed broker |
+| Environment 1, run 1 | 29.36 s | 29.93 s | 30.0 s | the other broker |
+
+Each time is from the crash. "Bundle taken" is the first log line of a broker that tries to acquire the bundle. The warm-up runs do not count, but they have the same records.
+
+The run gives four results:
+
+1. **The crashed broker can take the bundle back.** The kubelet starts its container again, and it can win the bundle after the expiry. This term is not in the first law. It explains each failed run.
+2. **The return is a race between two timers of 30 s.** The session expires at approximately 30 s, and the mandatory stop of the producer ends at 29.9 s. In each of the 6 runs, their order sets the return. If the bundle moves first, the stop try succeeds, and the producer is back at approximately 30 s. If the stop try comes first, it fails, and the next delay is approximately 50 s. A difference of less than 1 s adds 50 s.
+3. **The mode of 25.5 s does not occur.** The bundle moves 29.0 s to 31.0 s after the crash, not 21 s to 32 s. The term of the ping does not apply in these runs. Of 6 returns, 3 are at approximately 30 s and 3 are at approximately 80 s. The shares of the first law are 0.58 and 0.16.
+4. **Jitter does not separate the two producers.** In each of the 6 runs, the first 8 delays of the two producers are equal. Thus the two return together.
+
+One term stays open. The bundle moves before 30 s in 3 of 6 runs, but the law of the expiry gives at least 30 s after the last packet. The second run keeps the source band of 20.5 s to 33 s, and it does not name this term.
+
+**The second law.** After the expiry, one broker takes the bundle: the other broker, or the crashed broker after its restart. Thus the judge accepts each owner (`owner: "either"` in the prediction `reconnects`). If no lookup names another owner, the last try of a producer comes after the start of the band of the change. The try before it comes no later than the end of that band. Each other check stays. A replay of this judge over the records of the first run holds each of the 6 runs. These runs found the term, thus the replay does not count as a result.
+
+**The second prediction.** Before the next dispatch, the prediction `sys-56-pulsar-race` gives the probability of each claim, with the same decision rule. The first run informs these numbers:
+
+| Claim | Probability |
+| --- | --- |
+| The run gives 4 counted runs with no code bug and no void run | 0.85 |
+| The bundle moves 20.5 s to 33 s after the crash in each counted run | 0.93 |
+| The bundle moves 28.5 s to 31.5 s after the crash in each counted run | 0.8 |
+| The order of the move and the stop try gives the try of each return | 0.85 |
+| Each return is 29 s to 33 s, or 75 s to 85.2 s, after the crash | 0.85 |
+| At least one counted run has each of these two modes | 0.8 |
+| The crashed broker takes the bundle back in at least one counted run | 0.75 |
+| The two producers have equal delays and the same count of tries in each counted run | 0.85 |
+| The control fails no request | 0.9 |
+| Each failed send is `late` or `timeout` | 0.9 |
+| The cell holds in each of its 4 counted runs | 0.8 |
 
 ## The systems of S1
 
