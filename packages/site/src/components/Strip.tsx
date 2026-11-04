@@ -54,7 +54,7 @@ const ROW = 20;
 /** the space between two lanes of runs without names */
 const LANE = 13;
 /** the offsets of the lanes from the middle lane, in the sequence that the runs fill them */
-const LANES = [0, -1, 1] as const;
+export const LANES = [0, -1, 1] as const;
 /** the radius of the dot of a run */
 const DOT = 4;
 /** the distance from the pointer to a mark, in pixels, inside which the mark is the target */
@@ -85,13 +85,13 @@ interface Target {
   readonly kind: "run" | "warmup" | "mark" | "line" | "band" | "closed";
 }
 
-/** This function puts each run on a lane: the first lane where it does not cover a run before it. */
-const lanesOf = (xs: readonly number[]): number[] => {
+/** This function puts each dot on a lane: the first lane where it is `gap` or more from the dot before it. */
+export const lanesOf = (xs: readonly number[], gap: number = 2 * DOT + 3): number[] => {
   const order = xs.map((x, n) => ({ x, n })).sort((a, b) => a.x - b.x);
   const last = LANES.map(() => -Infinity);
   const lane = new Array<number>(xs.length).fill(0);
   for (const { x, n } of order) {
-    const free = last.findIndex((at) => x - at >= 2 * DOT + 3);
+    const free = last.findIndex((at) => x - at >= gap);
     const k = free >= 0 ? free : last.indexOf(Math.min(...last));
     lane[n] = k;
     last[k] = x;

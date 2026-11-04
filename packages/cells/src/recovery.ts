@@ -199,7 +199,10 @@ const MIN_DRILLS = DRILL_RUNS;
 /** This count is how many lost writes a run can leave unexplained: the writes in flight at the fault. */
 const IN_FLIGHT = 2;
 
-/** This ladder is the recovery of a store of tenants. A rung holds only with a record of its drills. */
+/**
+ * This ladder is the recovery of a store of tenants. A rung holds only with a record of its drills.
+ * Each rung is locked: a weekly run of the workflow Cells fails when a rung is not within its budgets.
+ */
 export const RECOVERY_LADDER: Ladder = {
   format: LADDER_FORMAT,
   subject: "the recovery of a store of tenants",
@@ -216,6 +219,7 @@ export const RECOVERY_LADDER: Ladder = {
       { kind: "worst", measure: LOST_WITH_A_COPY, unit: "writes", limit: 0, minDrills: MIN_DRILLS },
     ],
     test: `cells ${rung.drill} and ${rung.kept}`,
+    locked: true,
   })),
 };
 

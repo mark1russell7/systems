@@ -46,6 +46,7 @@ export default defineConfig({
             "results/sentinel",
             "results/http",
             "results/mongodb",
+            "results/recovery",
             "results/pg",
             "results/rabbitmq",
             "results/grpc",

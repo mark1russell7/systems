@@ -1,12 +1,12 @@
+import { readFileSync } from "node:fs";
 import type { GroupReading } from "@mark1russell7/harness";
 import { valueIn } from "@mark1russell7/quantity";
-import { checkLadder, ladderVerdict } from "@mark1russell7/rigor-bench";
+import { checkLadder, ladderVerdict, type RungRecord } from "@mark1russell7/rigor-bench";
 import { describe, expect, it } from "vitest";
 import { ALL } from "./all.ts";
 import { RECOVERY_CELLS, RECOVERY_LADDER, RECOVERY_RUNGS, RPO, recoveryRecord, recoveryVerdict } from "./recovery.ts";
 
-const NOW = new Date("2026-11-04T12:00:00Z");
-const AT = NOW.toISOString();
+const AT = "2026-11-04T12:00:00.000Z";
 
 const named = (prefix: string) => {
   const found = RECOVERY_CELLS.find((cell) => cell.name.startsWith(`${prefix} `));
@@ -55,9 +55,10 @@ describe("the ladder of recovery", () => {
   });
 
   it("holds each rung with clean drills", () => {
-    const verdict = recoveryVerdict(recordsOf(), NOW);
+    const verdict = recoveryVerdict(recordsOf(), AT);
     expect(verdict.rungs.map((rung) => rung.outcome)).toEqual(["within", "within", "within"]);
     expect(verdict.held).toBe("1000");
+    expect(verdict.failed).toBe(false);
   });
 
   it("adds the interval of the rung to the excess of a drill", () => {
@@ -75,17 +76,34 @@ describe("the ladder of recovery", () => {
       ["a write lost with a copy left", reading, () => reading({ lost: 1 })],
     ];
     for (const [what, run, kept] of cases) {
-      const verdict = ladderVerdict(RECOVERY_LADDER, recordsOf(run, kept), { now: NOW });
+      const verdict = ladderVerdict(RECOVERY_LADDER, recordsOf(run, kept), { now: AT });
       expect(verdict.rungs[0]?.outcome, what).toBe("beyond");
       expect(verdict.held, what).toBeUndefined();
+      expect(verdict.failed, what).toBe(true);
     }
   });
 
   it("cannot decide a rung with too few counted runs", () => {
     const records = recordsOf(() => reading({ void: "the fault never committed" }));
-    const verdict = ladderVerdict(RECOVERY_LADDER, records, { now: NOW });
+    const verdict = ladderVerdict(RECOVERY_LADDER, records, { now: AT });
     expect(verdict.rungs[0]?.outcome).toBe("cannot decide");
     expect(verdict.held).toBeUndefined();
+    expect(verdict.failed).toBe(true);
+  });
+
+  it("locks each rung, thus a missing record fails it too", () => {
+    expect(RECOVERY_LADDER.rungs.map((rung) => rung.locked)).toEqual([true, true, true]);
+    const [first, second] = recordsOf();
+    const verdict = recoveryVerdict([first!, second!], AT);
+    expect(verdict.held).toBe("100");
+    expect(verdict.failed).toBe(true);
+  });
+
+  it("holds each locked rung with the last record of the drills, thus a tighter budget fails each pull request", () => {
+    const copy = JSON.parse(readFileSync(new URL("../../site/src/data/recovery-2026-11-04.json", import.meta.url), "utf8")) as { readonly records: RungRecord[] };
+    const verdict = recoveryVerdict(copy.records, copy.records[0]!.at);
+    expect(verdict.reason).toBe("Each of the 3 locked rungs is within.");
+    expect(verdict.failed).toBe(false);
   });
 
   it("states what is real and what is made up", () => {

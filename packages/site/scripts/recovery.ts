@@ -1,14 +1,19 @@
 // The export of the recovery drills for the site: src/data/recovery-<date>.json.
 //
-//   pnpm exec tsx packages/site/scripts/recovery.ts --run <id> --commit <sha> <folder>...
+//   pnpm exec tsx packages/site/scripts/recovery.ts [--check] --run <id> --commit <sha> <folder>...
 //
 // Each folder is the output of one shard of the workflow Cells (SYS-94). The script reads each record
 // again with the code of the harness, and it stops when that verdict disagrees with summary.ndjson,
 // or when a drill has no record. It gives the record of each rung from the measures of its drills
 // (recoveryRecord). The verdict of each rung comes from those records and nothing else.
+//
+// With --check the script writes no file. It prints each rung, and it exits with 1 when a locked rung
+// is not within its budgets. This is the lock of the rungs: the workflow Cells does not fail on a
+// failing cell, thus this step fails for it.
 
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import type { Quantity } from "@mark1russell7/quantity";
 import { measureGroup } from "../../harness/src/index.ts";
 import { RECOVERY_CELLS, RECOVERY_LADDER, RECOVERY_RUNGS, recoveryRecord, recoveryVerdict } from "../../cells/src/recovery.ts";
 import type { CellRecord, Summary } from "./judged.ts";
@@ -23,6 +28,13 @@ const option = (name: string): string => {
   args.splice(at, 2);
   return value;
 };
+/** This function removes a flag from the arguments, and it tells if the flag was there. */
+const flag = (name: string): boolean => {
+  const at = args.indexOf(name);
+  if (at >= 0) args.splice(at, 1);
+  return at >= 0;
+};
+const check = flag("--check");
 const run = Number(option("--run"));
 const commit = option("--commit");
 const folders = args;
@@ -50,16 +62,45 @@ const records = RECOVERY_RUNGS.map((rung) => recoveryRecord(rung, { [rung.drill]
 // the age of a record decides nothing at the time of its export
 const verdict = recoveryVerdict(records, at);
 
+if (check) {
+  for (const rung of verdict.rungs) process.stdout.write(`rung ${rung.rung}: ${rung.outcome}${rung.reason === undefined ? "" : `, ${rung.reason}`}\n`);
+  process.stdout.write(`held ${verdict.held ?? "none"}, failed ${verdict.failed}: ${verdict.reason}\n`);
+  process.exit(verdict.failed ? 1 : 0);
+}
+
+// the facts of each run of a drill for the page, from the records and from what the backups wrote
+const drills = entries.map((entry) => {
+  const { cell } = entry.record;
+  const runs = entry.record.runs.map((each, index) => {
+    const measured = measureGroup(cell, each);
+    const { recovery, writes } = measured.group;
+    const dump = (each.group as { readonly drill?: { readonly backups: ReadonlyArray<{ readonly kind: string; readonly size: Quantity }> } }).drill?.backups.find((backup) => backup.kind === "dump");
+    return {
+      index: index + 1,
+      void: measured.void,
+      rto: measured.elapsed,
+      lost: writes.lost?.length ?? null,
+      afterBackup: recovery?.afterBackup ?? null,
+      excess: recovery?.excess ?? null,
+      holes: recovery?.holes.length ?? null,
+      sameData: recovery?.sameData ?? null,
+      dump: dump?.size ?? null,
+    };
+  });
+  return { id: cell.name.split(" ")[0]!, name: cell.name, recovery: cell.drill!.recovery, tenants: cell.drill!.tenants, runs };
+});
+
 const copy = {
   source: "the raw records of the runners of GitHub, judged again by the harness, and the ladder verdict of rigor-bench",
   workflow: run,
   commit,
   date,
-  runners: folders.map((folder) => runnerOf(folder)),
+  runner: runnerOf(folders),
   ladder: RECOVERY_LADDER,
   verdict,
   records,
   cells,
+  drills,
 };
 const out = fileURLToPath(new URL(`../src/data/recovery-${date}.json`, import.meta.url));
 writeFileSync(out, stringify(copy));

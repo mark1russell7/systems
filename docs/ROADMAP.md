@@ -2812,12 +2812,12 @@ The format of a ladder has budgets on a median, a rate and a worst value. The ti
 
 ### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-58
 - **Started:** 2026-11-04
-- **Shipped:**
-- **Links:** [#352](https://github.com/mark1russell7/systems/pull/352)
+- **Shipped:** 2026-11-04
+- **Links:** [#352](https://github.com/mark1russell7/systems/pull/352), [the results](https://mark1russell7.github.io/systems/results/recovery/)
 
 A drill stops the store during writes, removes its disk, and recovers from a real backup. A set difference counts each lost write. A timer runs from the fault to the first accepted write. The records go to `ladderVerdict` as `worst` budgets. A restore that nobody tested is not a backup.
 
@@ -2852,6 +2852,20 @@ A hash of the data comes before the service starts, because a service writes. Th
 | `RD.control` loses no write | 0.95 |
 | Each measured RTO is at most a tenth of the budget of its rung | 0.90 |
 | The naive claim: an acknowledged write survives a restore | 0.03 |
+
+**The result.** The run [41896338150](https://github.com/mark1russell7/systems/actions/runs/41896338150) at commit 779d47e, on kernel 7.0.0 with HZ 1000, gave a verdict on the first dispatch. Each of the 6 drills holds in 4 of 4 counted runs, with no void run and no fix to a drill.
+
+| Rung | RPO budget | Worst RPO | RTO budget | Worst RTO | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| Rung 1 | 24 h | 23 h | 4 h | 2.65 s | holds |
+| Rung 100 | 5 min | 4 min | 30 min | 16.42 s | holds |
+| Rung 1000 | 60 s | 44.8 s | 15 min | 22.95 s | holds |
+
+- **The law.** Each restore lost real writes: 1,155 to 1,157 in `RD.1`, and 173 to 191 in the two restores of slices. In each run, the lost writes are equal to the writes after the last backup, and no restore left a hole. Each hash of the data after a restore is equal to the hash before the fault.
+- **The copies.** Each election lost no accepted write, at 100 MB and at 1 GB. `RD.control` lost no write.
+- **The miss.** The prediction of the large size gave a ratio of 3 to 12 between the restores of 1 GB and 100 MB. The ratio is 1.44. The naive claim of a ratio under 1.5 was right. A fixed part is large at these sizes: three members start, the set starts again, and an election follows. The records do not split that part. Two sizes give no law for a far larger store.
+- **The first small restore.** Its 31 s and the 15 s to 22 s of these drills are on different machines, under different load. They agree only on the order of size.
+- **The lock.** Each rung is locked. Each Sunday, the workflow Cells repeats the drills, and a step fails that run when a rung is not within its budgets. A check of this step with a budget of 44 s failed with exit code 1 on these records. A test on each pull request reads the last record against the budgets. The first scheduled run is on 2026-11-08, and it has not run yet.
 
 ## Decisions for Mark
 
