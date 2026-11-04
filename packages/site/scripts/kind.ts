@@ -134,6 +134,7 @@ const OUTCOMES: Readonly<Record<string, string>> = {
   refused: "a refusal",
   reset: "a reset",
   timeout: "a timeout",
+  late: "a late answer",
   unreachable: "an unreachable error",
   error: "another error",
   denied: "a denial of the policy",

@@ -12,7 +12,7 @@ The program started again on 2026-11-02, after the pause of 2026-10-28. A gap th
 2. **SYS-49:** The statistics of the cells and the time verdicts come from the rigor packages, not from local copies. SYS-52 is done: the limiter pair gives its time verdict through rigor-bench.
    <!-- ste-disable-next latin-abbreviation -- VIZ is the ID of the item, not the Latin abbreviation -->
 3. **VIZ:** The site gets an interactive demo of the path of a request, from the process to the NIC. The packages of this repository run live in the browser.
-4. **S2:** CoreDNS (SYS-50), kube-vip (SYS-51) and MetalLB (SYS-53) are done. Do one intermediary in each context. Write the prediction before the dispatch.
+4. **S2:** CoreDNS (SYS-50), kube-vip (SYS-51), MetalLB (SYS-53) and Pulsar (SYS-56) are done. Do one intermediary in each context. Write the prediction before the dispatch.
    - Pulsar ([SYS-56](#sys-56--pulsar-producers-when-the-broker-that-owns-their-topic-is-gone)) is in progress. A crash of the owner of a topic tests the expiry of its session and the backoff of each producer. The first run fails its law, and the second run tests the corrected law.
 5. **S3:** [The plan](S3.md) has the items SYS-58 to SYS-75. SYS-58 is the first cell. The Q17 line reuses the labs of S1, thus it comes first.
 6. **S7:** [The plan](S7.md) has the items SYS-76 to SYS-92. It starts after the open cells of S3, with SYS-76 and the first fabric, SYS-77.
@@ -1411,11 +1411,12 @@ The `conventions` field keeps one exception for the types. `src/content.config.t
 
 ### SYS-56 · Pulsar: producers when the broker that owns their topic is gone
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-53
 - **Started:** 2026-11-03
-- **Links:** [S2](#s2--intermediaries-and-kubernetes), [SYS-53](#sys-53--metallb-callers-outside-the-cluster-when-the-announcer-of-a-vip-is-gone)
+- **Shipped:** 2026-11-04
+- **Links:** [S2](#s2--intermediaries-and-kubernetes), [SYS-53](#sys-53--metallb-callers-outside-the-cluster-when-the-announcer-of-a-vip-is-gone), [kind run 41748374742](https://github.com/mark1russell7/systems/actions/runs/41748374742), [kind run 41870080724](https://github.com/mark1russell7/systems/actions/runs/41870080724)
 
 Pulsar is the intermediary after MetalLB. One broker owns the bundle of a topic through its session in ZooKeeper. A producer finds the owner by a lookup, and it tries again on a backoff after a loss. The question: when does each producer send again after a crash of the owner, and which terms set that time?
 
@@ -1503,6 +1504,24 @@ One term stays open. The bundle moves before 30 s in 3 of 6 runs, but the law of
 | The control fails no request | 0.9 |
 | Each failed send is `late` or `timeout` | 0.9 |
 | The cell holds in each of its 4 counted runs | 0.8 |
+
+**The second run.** [Kind run 41870080724](https://github.com/mark1russell7/systems/actions/runs/41870080724) holds the cell, in 4 of 4 counted runs and with no void run. The median is 54.79 s. The control fails no request in approximately 1,304 lines of each run, and each failed send is `late` or `timeout`.
+
+| Run | First try to take the bundle | Stop try | Return | New owner |
+| --- | --- | --- | --- | --- |
+| Environment 0, run 0 | 31.13 s | 29.49 s | 79.4 s | the crashed broker |
+| Environment 0, run 1 | 29.94 s | 29.94 s | 30.2 s | the crashed broker |
+| Environment 1, run 0 | 24.70 s | 29.63 s | 80.1 s | the other broker |
+| Environment 1, run 1 | 29.07 s | 29.52 s | 29.8 s | the crashed broker |
+
+Of the 11 claims, 8 are hits, with a Brier score of 0.209:
+
+- **`build` is a miss.** The commit of the prediction changed the cell and not the snapshot of the predictions. Thus the job failed on that test, after 4 counted runs. This item corrects the snapshot.
+- **The two claims on the race are misses, with one cause.** In environment 1, run 0, the restarted broker logs a first try to take the bundle at 24.70 s. That try does not take the bundle. The other broker takes it at 30.38 s, after the stop try, and the producers return at 80.1 s. The measure read the first line of the log, not the line of the broker that takes the bundle.
+
+**The new term.** The time of the race is the try that takes the bundle, not the first try. With that time, the 2 claims hold on these runs. The band of 28.5 s to 31.5 s holds in 4 of 4, and the order holds in each judged run. This reading comes after the result, thus the outcomes stay as they are. A next run tests the term with a new prediction.
+
+One term stays open. The bundle moves before 30 s in some runs, but the law of the expiry gives at least 30 s after the last packet.
 
 ## The systems of S1
 
