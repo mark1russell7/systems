@@ -1581,9 +1581,11 @@ Each of the 11 claims except one is a hit, with a Brier score of 0.119. The miss
 
 ### SYS-95 · The quiet gate of kind reads the load of the cell
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-57
+- **Started:** 2026-11-04
+- **Shipped:**
 - **Links:** [SYS-57](#sys-57--metallb-the-detection-settings-of-memberlist-the-failure-time-against-false-deaths)
 
 The kind runner waits for a quiet VM before each run (`quiet` in `packages/kind/src/run.ts`). The gate asks for 60 % idle and no container of another lab. It reads the idle share while the clients of the cell run. Thus the gate reads the load of the cell, and a heavy cell can void itself.
@@ -1601,6 +1603,16 @@ The work:
 3. Run the 2 missing runs of the pauses of 500 ms × 2, under the new gate.
 
 This item changes a gate, thus the strategist reviews the plan. The result of SYS-57 stays as it is: no gate changes after a result.
+
+**The first step has a first answer.** The cause is the read of the conntrack table by the agent of the lab. The clients fill the table, and each agent reads the whole table each second. In one record of the re-dispatch, the table grows from 9,600 to 22,000 lines in the first 75 s. In that time, the read on each of the 3 nodes grows from 91 ms to 205 ms. This is approximately 0.35 of a core, or 9 of the 12 points of idle share. The other 3 points have no name yet. The calibration reads all 9 records.
+
+**The plan.** The prediction came first, and no margin was computed before it.
+
+- The gate becomes `idle >= min(60 %, baseline - margin)`. Thus a cell that is at rest at 60 % or more keeps the gate that it has.
+- The baseline is the highest median of the settled samples of the cell, because a foreign load only lowers the idle share.
+- A floor refuses a cell that a load holds from its start.
+- The records of SYS-57 give the margin and the floor.
+- A planned load of 1 core of 4 and of half a core tests the refusal. The same cell with no load is the other half of the pair.
 
 ## The systems of S1
 
@@ -2448,7 +2460,7 @@ Above the size of the pool, the wait grows with the queue, and a client fails at
 
 ### SYS-66 · The conntrack table: T05 fan-in
 
-- **Status:** later
+- **Status:** blocked
 - **Area:** catalogs
 - **Depends on:** SYS-63
 - **Started:**
@@ -2514,7 +2526,7 @@ A sustaining retry loop keeps goodput low after the trigger stops. The cells sca
 
 ### SYS-72 · Kafka: a paused consumer
 
-- **Status:** later
+- **Status:** blocked
 - **Area:** catalogs
 - **Depends on:** SYS-71
 - **Started:**
