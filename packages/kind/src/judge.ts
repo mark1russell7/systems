@@ -7,6 +7,7 @@ export type { CountBand } from "./bands.ts";
 export { backlogEnd, bandOf, drainBand, overshootBand, requestBand, seconds, secondsOf, showBand } from "./bands.ts";
 export type {
   BacklogTerm,
+  Backoff,
   Band,
   Cycle,
   Declaration,
@@ -22,6 +23,8 @@ export type {
   PermittedWindow,
   PodSettings,
   Prediction,
+  PulsarSettings,
+  ReconnectsPrediction,
   RedisDeclaration,
   Reference,
   Replica,
@@ -58,7 +61,9 @@ export { calibrationOf, cellsTable, medianText, predictionText, timeSpread } fro
 export type { Dataplane, KubeProxyMode } from "./scenario.ts";
 export { STAGES, kindCellRecordSchema, kindCellRecordV1Schema, readRecord } from "./schema.ts";
 export { RELATIVE, medianInterval, middle, quantileOf } from "./stats.ts";
-export type { Deleted, KindDecision, KindVerdict, Propagated, RunCheck, RunFacts } from "./verdict.ts";
+export type { Deleted, KindDecision, KindVerdict, Propagated, ReconnectsFacts, RunCheck, RunFacts } from "./verdict.ts";
+export type { Reconnects, Return, Schedule, Try } from "./reconnects.ts";
+export { judgeReconnects, latestReturn, triesOf } from "./reconnects.ts";
 export {
   KIND_NOISE,
   LAST_SLACK,

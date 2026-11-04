@@ -4,6 +4,7 @@ import { CALLERS_CELLS } from "./callers.ts";
 import { BACKLOG_BAND_CELLS, BACKLOG_CELLS, BACKLOG_DRAIN_CELLS, BACKLOG_TERMS_CELLS } from "./backlog.ts";
 import { DNS_CELLS } from "./dns.ts";
 import { METALLB_CELLS } from "./metallb.ts";
+import { PULSAR_CELLS } from "./pulsar.ts";
 import { VIP_CELLS } from "./vip.ts";
 import { GATE_CELLS } from "./gate.ts";
 import { HZ } from "./catalog.ts";
@@ -37,6 +38,7 @@ const CATALOGS: Readonly<Record<string, ReadonlyArray<{ readonly name: string; r
   DNS_CELLS,
   VIP_CELLS,
   METALLB_CELLS,
+  PULSAR_CELLS,
 };
 
 /** one line for each cell, its catalog and name, then its prediction: a change of one prediction is a change of one line */

@@ -107,6 +107,30 @@ export {
   speakersReady,
   suspicionOf,
 } from "./metallb.ts";
+export type { Broker, ProducerState } from "./pulsar.ts";
+export {
+  PING,
+  PRODUCER,
+  PRODUCER_BACKOFF,
+  PRODUCER_SCRIPT,
+  PULSAR_CHART,
+  PULSAR_IMAGE,
+  PULSAR_LOOKUP,
+  PULSAR_NAMESPACE,
+  PULSAR_SERVICE,
+  PULSAR_TOPIC,
+  PULSAR_VERSION,
+  SESSION,
+  TICK,
+  brokerOfHost,
+  brokersOf,
+  holdPulsar,
+  installPulsar,
+  ownerAtRest,
+  pulsarObjects,
+  pulsarRecord,
+  pulsarValues,
+} from "./pulsar.ts";
 export type { ListenerCounts } from "./lds.ts";
 export { LDS_FILTER, listenerCountsOf } from "./lds.ts";
 export { KEPT_KERNEL, arpMacOf, keptKernel, localPin, openKindLab } from "./lab.ts";
