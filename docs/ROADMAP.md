@@ -2367,14 +2367,16 @@ A linearizable read goes through the quorum, and a serializable read can be stal
 
 ### SYS-76 · The environment of a record
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** harness
 - **Depends on:** 
-- **Started:**
+- **Started:** 2026-11-04
 - **Shipped:**
 - **Links:**
 
-Each record gets a `substrate` block. It gives the layer, the kernel, HZ, the cloud of the runner, the presence of KVM and the digest of each image. Since 2026-10-28 GitHub can schedule Linux jobs on AWS and on Azure, thus `runner.txt` names the cloud too. A paired run and a median stay in one environment. A record with no block reads as E1 through an upgrade.
+Each record gets a `substrate` block. It gives the layer, the kernel, HZ, the cloud of the runner, the presence of KVM and the image of the runner. The digest of each image stays in the manifest. Since 2026-10-28 GitHub can schedule Linux jobs on AWS and on Azure, thus `runner.txt` names the vendor too.
+
+A paired run and a median stay in one environment. The join of `--pool` refuses two substrates. A δ_abs from stage 0 applies only on Azure, the cloud that measured it. A record with no block reads through `substrateOf`, as the layer of its package, and nothing rewrites it. Its cloud is Azure before 2026-10-28, and unknown after that date.
 
 ### SYS-77 · The first fabric: BFD against the BGP hold timer
 
