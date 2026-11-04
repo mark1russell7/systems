@@ -53,8 +53,8 @@ describe("the cells of the first fabric", () => {
   });
 
   it("stops when a detector can land on a firing", () => {
-    const { value } = BFD_FABRIC.bfd!.interval;
-    const slow = { ...BFD_FABRIC, bfd: { interval: { value: value * 2, unit: "ms" }, multiplier: 3 } };
+    // 300 ms x 3 gives a move from 0.6 s to 0.98 s, and firing 2 comes near 0.8 s at each HZ
+    const slow = { ...BFD_FABRIC, bfd: { interval: { value: 300, unit: "ms" }, multiplier: 3 } };
     expect(() => silencePrediction("a move across a firing", slow)).toThrow("a move");
   });
 });

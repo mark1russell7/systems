@@ -111,7 +111,7 @@ const LINKS: ReadonlyArray<readonly [string, string]> = [
 ];
 
 /** This text is the `daemons` file of each router: BGP and BFD, on top of what FRRouting always starts. */
-export const DAEMONS = [
+export const DAEMONS: string = [
   "bgpd=yes",
   "bfdd=yes",
   "vtysh_enable=yes",
@@ -221,17 +221,26 @@ export interface RouteLine {
 
 /** This function reads a line of `ip -ts -o monitor route`, or it gives null for another line. The clock of a container is UTC. */
 export const routeLine = (text: string): RouteLine | null => {
-  const found = /^\[(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)\.(\d{6})\] (?:(Deleted|Replaced) )?(\S+)(.*)$/.exec(text.trim());
+  const line = text.trim();
+  const found = /^\[(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d):(\d\d)\.(\d{6})\] /.exec(line);
   if (found === null) return null;
-  const [, year, month, day, hour, minute, second, micro, change, prefix, rest] = found;
+  const [stamp, year, month, day, hour, minute, second, micro] = found;
+  const words = line.slice(stamp.length).split(" ").filter((word) => word !== "");
+  const change = words[0] === "Deleted" || words[0] === "Replaced" ? words[0] : null;
+  const prefix = words[change === null ? 0 : 1];
+  if (prefix === undefined) return null;
+  const after = (name: string): string | null => {
+    const at = words.indexOf(name);
+    return at === -1 ? null : (words[at + 1] ?? null);
+  };
   return {
     wall:
       Date.UTC(Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute), Number(second)) +
       Number(micro) / 1_000,
     deleted: change === "Deleted",
-    prefix: prefix!,
-    via: / via (\S+)/.exec(rest!)?.[1] ?? null,
-    dev: / dev (\S+)/.exec(rest!)?.[1] ?? null,
+    prefix,
+    via: after("via"),
+    dev: after("dev"),
   };
 };
 
