@@ -1,7 +1,7 @@
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Cell, CellResult, Subject } from "@mark1russell7/harness";
-import { measure, noiseOf, pairingsOf, runCell } from "@mark1russell7/harness";
+import { cloudOf, measure, noiseOf, pairingsOf, readHost, runCell, substrateKey, substrateOf } from "@mark1russell7/harness";
 import { subjectSchema } from "@mark1russell7/harness/schema";
 import { describe, expect, it } from "vitest";
 import type { Subjects } from "./all.ts";
@@ -89,7 +89,7 @@ const pairTimes = (slot: PairSlot, times: readonly BenchTime[]): void => {
 const selected: Cell[] = source.filter((each) => ONLY.test(each.name)).filter((_, at) => at % of === shard);
 
 /** This environment is the runner image, when stage 0 calibrated it. A cell without its own δ_abs gets the image's. */
-const environment = environmentOf();
+const environment = environmentOf(cloudOf(readHost().vendor));
 const inEnvironment = (cell: Cell): Cell =>
   cell.noise !== undefined || environment === undefined ? cell : { ...cell, noise: environment.noise };
 
@@ -133,6 +133,7 @@ describe.skipIf(!RUN)("the catalogs, on the harness", () => {
           band: verdict.band,
           outside: verdict.outside,
           why: verdict.why,
+          substrate: substrateKey(substrateOf(result.manifests[0] ?? {}, result.at.started)),
           ...(verdict.reordering === undefined ? {} : { reordering: verdict.reordering }),
           ...(verdict.proxy === undefined ? {} : { proxy: verdict.proxy }),
           ...(verdict.requests === undefined ? {} : { requests: verdict.requests }),

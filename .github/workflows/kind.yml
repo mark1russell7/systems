@@ -134,6 +134,9 @@ jobs:
           mkdir -p "$RUNNER_TEMP/kindcells"
           {
             echo "kernel: $(uname -r)"
+            # one image can start on each cloud: the vendor tells which, and the name of the kernel does not
+            echo "vendor: $(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || echo unknown)"
+            if [ -e /dev/kvm ]; then echo "kvm: yes"; else echo "kvm: no"; fi
             echo "CONFIG_HZ: $(grep -E '^CONFIG_HZ=' "/boot/config-$(uname -r)" || echo unknown)"
             echo "cpus: $(nproc)"
             echo "memory: $(free -m | awk '/^Mem:/ {print $2}') MiB"

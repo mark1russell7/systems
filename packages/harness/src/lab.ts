@@ -22,6 +22,8 @@ import type {
   Toxic,
 } from "./cell.ts";
 import { SHIPPED_CLIENTS, harnessImage, imageOf, routerImage, targetImageOf } from "./image.ts";
+import type { Substrate } from "./substrate.ts";
+import { substrateOn } from "./substrate.ts";
 
 /** This function loads Testcontainers when a lab first opens. Code that only measures and judges does not load it. */
 export const containers = (): Promise<typeof Testcontainers> => import("testcontainers");
@@ -124,6 +126,8 @@ export interface Manifest {
   readonly hzFrom?: "config" | "measured";
   readonly boot_id: string;
   readonly docker: string;
+  /** This block tells the layer, the cloud and the kernel of the record. A record from before it reads through `substrateOf`. */
+  readonly substrate?: Substrate;
   /** This record is the target, and its settings as it read them back. */
   readonly target: {
     readonly image: string;
@@ -1116,6 +1120,7 @@ export const openLab = async (
           })()),
           boot_id: await output(client, ["cat", "/proc/sys/kernel/random/boot_id"]),
           docker: `${runtime.info.containerRuntime.serverVersion} on ${runtime.info.containerRuntime.operatingSystem}`,
+          substrate: substrateOn("E1"),
           target: {
             image: targetImage,
             ...(target.subject === undefined ? {} : { subject: target.subject, base: target.image }),
