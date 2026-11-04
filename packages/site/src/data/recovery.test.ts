@@ -50,7 +50,7 @@ describe("the copy of the recovery drills holds the figures of its run", () => {
   });
 
   it("gives the growth of the time with the size: 1.44 times from 100 MB to 1 GB, not 3 to 12", () => {
-    const median = (id: string) => recovery.cells.find((cell) => cell.name.startsWith(`${id} `))!.median;
-    expect(median("RD.1000.restore") / median("RD.100.restore")).toBeCloseTo(1.438, 3);
+    const timeOf = (id: string) => recovery.cells.find((cell) => cell.name.startsWith(`${id} `))!.median;
+    expect(timeOf("RD.1000.restore") / timeOf("RD.100.restore")).toBeCloseTo(1.438, 3);
   });
 });
