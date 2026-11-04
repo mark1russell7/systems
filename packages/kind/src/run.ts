@@ -21,6 +21,7 @@ import { METALLB_NAMESPACE } from "./metallb.ts";
 import type { KindLab, Line, Stamp } from "./lab.ts";
 import { localPin, openKindLab } from "./lab.ts";
 import { OUTSIDE } from "./names.ts";
+import { PRODUCER, PULSAR_IMAGE, PULSAR_NAMESPACE, PULSAR_VERSION, holdPulsar, installPulsar, pulsarObjects, pulsarRecord } from "./pulsar.ts";
 import { CLIENT, REDIS, REDIS_IMAGE, SERVER, clientObjects, namespaceObject, namespaceOf, redisObjects, serverObjects, stackOf } from "./manifests.ts";
 import type { PodLine, Request } from "./observe.ts";
 import { byClients, ztunnelReplaced } from "./observe.ts";
@@ -57,6 +58,8 @@ const hasRedis = (cell: KindCell): boolean => cell.declaration !== null && cell.
 interface Images {
   readonly lab: string;
   readonly redis: string;
+  /** This image is the local image of Pulsar, for the producers of a cell with a broker. */
+  readonly pulsar?: string | undefined;
   readonly grpc?: string | undefined;
   readonly mesh?: MeshImages | undefined;
 }
@@ -75,7 +78,9 @@ const clusterKey = (cell: KindCell): string =>
       ? "-vip"
       : cell.vip.memberlist === undefined
         ? "-vip-mlb"
-        : `-mlb${valueIn(cell.vip.memberlist.probeInterval, "ms")}x${cell.vip.memberlist.suspicionMult}`);
+        : `-mlb${valueIn(cell.vip.memberlist.probeInterval, "ms")}x${cell.vip.memberlist.suspicionMult}`) +
+  // a cell with a broker gets a cluster with Pulsar
+  (cell.pulsar === undefined ? "" : "-pul");
 
 /** This function gives the name of the cluster of a cell in an environment. Kind permits 32 characters at most: lowercase letters, digits and dashes. */
 export const clusterNameOf = (cell: KindCell, env: number): string => `lab-${clusterKey(cell)}-${env}`;
@@ -95,7 +100,13 @@ class Tracker {
   readonly clients = new Map<string, { node: string; ok: number; failed: number }>();
   /** This map is the backend of the last answer of each client, by client. */
   readonly answers = new Map<string, string>();
+  /** This map is the last send of each producer of a broker that got an answer, and the last that failed. */
+  readonly sends = new Map<string, { ok: number; failed: number }>();
+  /** This map is the last lookup of the owner of the topic of each producer, and the host that it names. */
+  readonly owners = new Map<string, { t: number; owner: string | null }>();
   last = 0;
+  /** This time is the last line of a producer. */
+  lastSend = 0;
   see = (line: Line): void => {
     if (typeof line.t === "number" && line.t > this.last && line.ev === "req") this.last = line.t;
     if (line.ev === "pod") {
@@ -116,6 +127,17 @@ class Tracker {
       else client.failed = Math.max(client.failed, request.t);
       this.clients.set(request.p, client);
       if (request.o === "ok" && request.b !== undefined) this.answers.set(request.p, request.b);
+    } else if (line.ev === "send") {
+      const pod = String(line["p"]);
+      const send = this.sends.get(pod) ?? { ok: 0, failed: 0 };
+      if (line["o"] === "ok") send.ok = Math.max(send.ok, line.t);
+      else send.failed = Math.max(send.failed, line.t);
+      this.sends.set(pod, send);
+      this.lastSend = Math.max(this.lastSend, line.t);
+    } else if (line.ev === "lookup") {
+      const pod = String(line["p"]);
+      const owner = line["o"] === "ok" && typeof line["owner"] === "string" ? line["owner"] : null;
+      if (line.t >= (this.owners.get(pod)?.t ?? 0)) this.owners.set(pod, { t: line.t, owner });
     }
   };
   servers(): PodLine[] {
@@ -147,6 +169,8 @@ interface Context {
   readonly pids: Map<string, number>;
   /** This is the speaker of MetalLB of the last SIGSTOP: its node and PID, until its SIGCONT. */
   speaker?: { readonly node: string; readonly pid: number; readonly pod: PodLine | null } | undefined;
+  /** This broker is the owner of the topic at the start of the run, for a cell with a broker. It has its pod, its node, and the host that the lookups name. */
+  broker: { readonly pod: string; readonly node: string; readonly host: string } | null;
 }
 
 /** This function tells why the cell is not at rest, or gives null when it is. */
@@ -296,6 +320,12 @@ const deploy = async (lab: KindLab, cluster: Cluster, cell: KindCell, namespace:
   await cluster.kubectl(["-n", namespace, "rollout", "status", `deployment/${SERVER}`, "--timeout=300s"]);
   if (grpc) await cluster.apply(clients);
   await cluster.kubectl(["-n", namespace, "rollout", "status", `daemonset/${CLIENT}`, "--timeout=300s"]);
+  // the producers of a broker, in the image of Pulsar
+  if (cell.pulsar !== undefined) {
+    if (images.pulsar === undefined) throw new Error(`${cell.name}: the cluster has no image of Pulsar`);
+    await cluster.apply(pulsarObjects(cell, namespace, images.pulsar));
+    await cluster.kubectl(["-n", namespace, "rollout", "status", `deployment/${PRODUCER}`, "--timeout=300s"]);
+  }
   // the clients of a VIP start outside the cluster after the announcer gave the Service its VIP
   if (cell.vip !== undefined) {
     if (vip === null) throw new Error(`${cell.name}: the cluster has no VIP`);
@@ -348,7 +378,8 @@ const probeThePods = async (ctx: Context): Promise<void> => {
   if (key === ctx.probed) return;
   const netns: number[] = [];
   for (const pod of pods) {
-    const container = pod.labels["app"] === SERVER ? "app" : pod.labels["app"] === CLIENT ? CLIENT : REDIS;
+    // a producer of a broker has one container of its name
+    const container = pod.labels["app"] === SERVER ? "app" : pod.labels["app"] === CLIENT ? CLIENT : pod.labels["app"] === PRODUCER ? PRODUCER : REDIS;
     const pid = await ctx.lab.pidOf(pod.node!, ctx.namespace, pod.name, container);
     netns.push(await ctx.lab.netnsOf(pod.node!, pid));
   }
@@ -526,6 +557,10 @@ const doStep = async (ctx: Context, step: Step, replicas: readonly Replica[], ba
       if (pod === undefined) throw new Error(`no speaker of MetalLB is on ${owner}`);
       return { node: owner, pid: await lab.pidOf(owner, METALLB_NAMESPACE, pod.metadata.name, "speaker"), pod: null };
     }
+    if (which === "broker") {
+      if (ctx.broker === null) throw new Error(`${ctx.cell.name}: the run has no broker that owns the topic`);
+      return { node: ctx.broker.node, pid: await lab.pidOf(ctx.broker.node, PULSAR_NAMESPACE, ctx.broker.pod, "pulsar-broker"), pod: null };
+    }
     if (which === "redis") {
       const redis = [...ctx.tracker.pods.values()].find((pod) => pod.labels["app"] === REDIS && !pod.del)!;
       return { node: redis.node!, pid: await lab.pidOf(redis.node!, namespace, redis.name, REDIS), pod: redis };
@@ -664,6 +699,13 @@ const recordVip = async (ctx: Context): Promise<void> => {
   ctx.lab.record({ ev: "vip", t, wall, vip: ctx.vip, announcer: announcer.name, ...state, macs });
 };
 
+/** This function records the brokers after a run, with the kept lines of each broker. It stamps the wall clock and the monotonic clock. */
+const recordPulsar = async (ctx: Context): Promise<void> => {
+  const wall = Date.now();
+  const t = Number(process.hrtime.bigint()) / 1e6;
+  ctx.lab.record({ ev: "pulsar-record", t, wall, version: PULSAR_VERSION, owner: ctx.broker?.pod ?? null, ...(await pulsarRecord(ctx.cluster)) });
+};
+
 /** This function puts the replicas of a node first, and keeps the sequence of the others. */
 const lostFirst = (replicas: readonly Replica[], node: string): Replica[] => [
   ...replicas.filter((replica) => replica.node === node),
@@ -743,13 +785,21 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
     await sleep(valueIn(announcer.settle, "ms") + valueIn(cell.workload.timeout, "ms") + 1000);
   }
   if ((await steady(ctx, 300_000)) !== null) return empty("the cell was not at rest after the wait for a quiet VM", await lab.now());
+  // the broker that owns the topic: each broker is ready, each producer sends, and each lookup names that broker
+  ctx.broker = null;
+  if (cell.pulsar !== undefined) {
+    const tracker = ctx.tracker;
+    const held = await holdPulsar(cluster, () => ({ owners: tracker.owners, sends: tracker.sends, last: tracker.lastSend }), cell.pulsar.clients);
+    if (typeof held === "string") return empty(`the producers were not at rest: ${held}`, await lab.now());
+    ctx.broker = { pod: held.broker.pod, node: held.broker.node, host: held.host };
+  }
   // the target of a zone loss is the replica of the lost node: the zone spread puts one there. With
   // a VIP, no replica is there: the loss takes away the holder of the VIP, and the run has no target
   const replicas = zoneLoss ? lostFirst(replicasOf(ctx), lostNodeOf(cluster)) : replicasOf(ctx);
   if (zoneLoss && cell.vip === undefined && replicas[0]?.node !== lostNodeOf(cluster)) return empty(`no replica is on the node of the lost zone, ${lostNodeOf(cluster)}`, await lab.now());
   const restarts = new Map(ctx.tracker.servers().map((pod) => [pod.name, pod.cs.reduce((sum, status) => sum + status.rc, 0)]));
   const target =
-    cell.vip !== undefined || (hasRedis(cell) && ["rst", "blackhole", "freeze-process", "peer-gone-without-close", "rollout", "latency"].includes(cell.trigger.kind)) ? null : replicas[0]!;
+    cell.vip !== undefined || cell.pulsar !== undefined || (hasRedis(cell) && ["rst", "blackhole", "freeze-process", "peer-gone-without-close", "rollout", "latency"].includes(cell.trigger.kind)) ? null : replicas[0]!;
   // the paused node is the node of kube-proxy that a freeze stops, or the node of the lost zone
   const paused = cell.template === "T07" && cell.trigger.kind === "freeze-process" && cell.vip === undefined ? (cluster.nodes[1] ?? cluster.nodes[0]!) : zoneLoss ? lostNodeOf(cluster) : null;
   // A SYN with no answer before the run keeps its NAT for 120 s (SYN_SENT). A client that takes its
@@ -839,6 +889,7 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
   const timedOut = Date.now() >= limit;
   // the Lease of a VIP after the run gives the time that the new holder took it
   if (cell.vip !== undefined) await recordVip(ctx).catch((error: unknown) => notes.push(`the record of the VIP failed: ${String(error)}`));
+  if (cell.pulsar !== undefined) await recordPulsar(ctx).catch((error: unknown) => notes.push(`the record of Pulsar failed: ${String(error)}`));
   for (const step of plan.restore) {
     try {
       await doStep(ctx, step, replicas, background);
@@ -859,7 +910,7 @@ const runOnce = async (ctx: Context, env: number, index: number, warmup: boolean
   if (cell.trigger.kind === "node-drain") await rebalance(ctx);
   ctx.log(`  ${warmup ? "warm-up" : `run ${index}`}: ${sec(end - start)} s${timedOut ? ", not at rest in time" : ""}`);
   return {
-    env, index, warmup, start, end, acts: { fault, heal, resume, ...flapping }, target: stopped, paused, replicas, void: null, lines, dropped: { ...lab.dropped }, notes,
+    env, index, warmup, start, end, acts: { fault, heal, resume, ...flapping }, target: stopped, paused, ...(ctx.broker === null ? {} : { broker: ctx.broker.host }), replicas, void: null, lines, dropped: { ...lab.dropped }, notes,
   };
 };
 
@@ -932,7 +983,9 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
     for (const [name, ref] of Object.entries(announcer.images)) pinned[name] = await localPin(ref);
     announcerImages.set(announcer.name, pinned);
   }
-  const images: Images = { lab: image, redis: redisImage, grpc: grpcImage, mesh: meshImages };
+  // Pulsar: its image pulled once by its digest, if a cell has a broker
+  const pulsarImage = cells.some((cell) => cell.pulsar !== undefined) ? await localPin(PULSAR_IMAGE) : undefined;
+  const images: Images = { lab: image, redis: redisImage, grpc: grpcImage, mesh: meshImages, pulsar: pulsarImage };
   // the cells of one kube-proxy mode, node count and mesh flavor share a cluster
   const groups = new Map<string, KindCell[]>();
   for (const cell of cells) groups.set(clusterKey(cell), [...(groups.get(clusterKey(cell)) ?? []), cell]);
@@ -982,6 +1035,14 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
           await announcer.install(cluster, pinned, lostNodeOf(cluster), workersOf(cluster), vip, group[0]!.vip);
           options.log(`  ${announcer.name} installed in ${Math.round((Date.now() - began) / 100) / 10} s, the VIP ${vip}`);
         }
+        // Pulsar: one ZooKeeper, one bookie and two brokers, for the cells with a broker
+        if (group[0]!.pulsar !== undefined) {
+          if (pulsarImage === undefined) throw new Error(`${group[0]!.name}: the run has no image of Pulsar`);
+          await cluster.load(pulsarImage);
+          const began = Date.now();
+          await installPulsar(cluster, pulsarImage);
+          options.log(`  Pulsar ${PULSAR_VERSION} installed in ${Math.round((Date.now() - began) / 100) / 10} s`);
+        }
         lab = await openKindLab(cluster, image);
         const { GenericContainer } = await import("testcontainers");
         const Shared = class extends GenericContainer {
@@ -1005,7 +1066,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
             if (ztunnelEnv !== undefined) await setZtunnelEnv(cluster, ztunnelEnv, false);
             const clusterIp = await deploy(lab, cluster, cell, namespace, images, vip);
             for (const name of [...lab.own(), loader.getName().replace(/^\//, "")]) ours.add(name);
-            const ctx: Context = { lab, cluster, cell, namespace, tracker, clusterIp, vip: cell.vip === undefined ? null : vip, loads, loader, idle: options.idle ?? 0.6, log: options.log, version: 1, probed: "", listened: "", expected: cell.pod.replicas, pids: new Map() };
+            const ctx: Context = { lab, cluster, cell, namespace, tracker, clusterIp, vip: cell.vip === undefined ? null : vip, loads, loader, idle: options.idle ?? 0.6, log: options.log, version: 1, probed: "", listened: "", expected: cell.pod.replicas, pids: new Map(), broker: null };
             const share = Math.ceil(cell.runs / environments) - (env < cell.runs % environments || cell.runs % environments === 0 ? 0 : 1);
             const runs: KindRun[] = [await runOnce(ctx, env, -1, true, ours)];
             for (let index = 0; index < share; index += 1) runs.push(await runOnce(ctx, env, index, false, ours));
@@ -1023,6 +1084,7 @@ export const runKindCells = async (cells: readonly KindCell[], options: RunOptio
                 ...(cell.mesh === undefined ? {} : Object.fromEntries(MESH_IMAGES[cell.mesh.flavor].map((name) => [`istio-${name}`, ISTIO_IMAGES[name]]))),
                 ...(s.cni === "cilium" ? Object.fromEntries(Object.entries(CILIUM_IMAGES).map(([name, ref]) => [`cilium-${name}`, ref])) : {}),
                 ...(cell.vip === undefined ? {} : announcerOf(cell).images),
+                ...(cell.pulsar === undefined ? {} : { pulsar: PULSAR_IMAGE }),
               },
             });
             entry.loads.push(...loads);
@@ -1092,9 +1154,12 @@ const estimate = (cell: KindCell, environments = 2): number => {
   const quiet = cell.trigger.quiet === true ? hold + 10 : 0;
   // a VIP moves back to the node of the lost zone before each run: a release or a rejoin, and a gratuitous ARP
   const move = cell.vip === undefined ? 0 : 30;
-  const each = 25 + move + Math.max(observed, closes, quiet, trigger[cell.trigger.kind] ?? (cell.template === "T18" ? hold + 35 : 15 + valueIn(cell.pod.preStop, "s")));
+  // a broker: the hold waits for the broker of the last run, and the producers come back in up to approximately 90 s
+  const broker = cell.pulsar === undefined ? 0 : 150;
+  const each = 25 + move + broker + Math.max(observed, closes, quiet, trigger[cell.trigger.kind] ?? (cell.template === "T18" ? hold + 35 : 15 + valueIn(cell.pod.preStop, "s")));
   // the install of Istio in each cluster takes 1 to 2 min, and the install of an announcer approximately 1 min
-  const setup = (cell.mesh === undefined ? 60 : 180) + (cell.vip === undefined ? 0 : 60);
+  // and the install of Pulsar approximately 4 min, with the load of its image
+  const setup = (cell.mesh === undefined ? 60 : 180) + (cell.vip === undefined ? 0 : 60) + (cell.pulsar === undefined ? 0 : 240);
   return setup * environments + (cell.runs + environments) * each;
 };
 

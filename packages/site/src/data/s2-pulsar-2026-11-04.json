@@ -1,0 +1,181 @@
+{
+  "source": "the raw records of the runners of GitHub, judged again with the catalog after the calibration of the propagation",
+  "ranAt": "2026-11-04",
+  "units": "s",
+  "runs": 4,
+  "kernel": "7.0.0",
+  "hz": 1000,
+  "kubernetes": "v1.37.0",
+  "kind": "v0.33.0",
+  "propagation": {},
+  "cells": [
+    {
+      "id": "S2.T07.iptables.pulsar.broker-crash",
+      "template": "T07",
+      "name": "iptables, Pulsar loses the broker that owns the topic: a producer on each worker",
+      "mode": "iptables",
+      "trigger": "crash",
+      "group": "broker",
+      "prediction": {
+        "kind": "reconnects",
+        "band": {
+          "low": 20.5,
+          "high": 33
+        },
+        "text": "The algebra predicts that a lookup names another owner of the topic 20.5 s to 33 s after the fault. Each producer is back at the first try of its backoff after that change, up to 3 s later. Each failed send ends with a late answer or a timeout."
+      },
+      "decision": "holds",
+      "counted": 4,
+      "voided": 0,
+      "failed": 0,
+      "unit": "s",
+      "median": 54.7945,
+      "values": [79.369, 30.22, 80.103, 29.843],
+      "why": "Each of the 4 counted runs agrees with the prediction. The median is 54.794 s. The counted runs measured 29.843 s to 80.103 s.",
+      "first": null,
+      "lasts": [null, null, null, null],
+      "pulsar": [
+        {
+          "flip": null,
+          "gap": null,
+          "returns": [
+            {
+              "pod": "producer-7c58b6bc97-fk7jn",
+              "disconnect": 0.0300883,
+              "delays": [0.1, 0.194, 0.368, 0.752, 1.504, 3.072, 6.144, 12.032, 4.443, 49.664],
+              "back": 79.3675908,
+              "setup": 0.2086761,
+              "tries": 10
+            },
+            {
+              "pod": "producer-7c58b6bc97-rrwvg",
+              "disconnect": 0.0321122,
+              "delays": [0.1, 0.194, 0.368, 0.752, 1.504, 3.072, 6.144, 12.032, 4.45, 49.664],
+              "back": 79.3697674,
+              "setup": 0.2078806,
+              "tries": 10
+            }
+          ],
+          "failed": {
+            "sends": {
+              "timeout": 604,
+              "late": 180
+            },
+            "control": 0
+          },
+          "ok": true,
+          "why": "the stopped broker owns the topic again; producer-7c58b6bc97-fk7jn back at try 10, producer-7c58b6bc97-rrwvg back at try 10"
+        },
+        {
+          "flip": null,
+          "gap": null,
+          "returns": [
+            {
+              "pod": "producer-7c58b6bc97-fk7jn",
+              "disconnect": 0.0389593,
+              "delays": [0.1, 0.194, 0.396, 0.752, 1.472, 3.04, 6.144, 12.544, 4.83],
+              "back": 30.2200119,
+              "setup": 0.281968,
+              "tries": 9
+            },
+            {
+              "pod": "producer-7c58b6bc97-rrwvg",
+              "disconnect": 0.028505,
+              "delays": [0.1, 0.194, 0.396, 0.752, 1.472, 3.04, 6.144, 12.544, 4.82],
+              "back": 30.2200316,
+              "setup": 0.2917655,
+              "tries": 9
+            }
+          ],
+          "failed": {
+            "sends": {
+              "timeout": 302
+            },
+            "control": 0
+          },
+          "ok": true,
+          "why": "the stopped broker owns the topic again; producer-7c58b6bc97-fk7jn back at try 9, producer-7c58b6bc97-rrwvg back at try 9"
+        },
+        {
+          "flip": 30.3749952,
+          "gap": 0.2087118,
+          "returns": [
+            {
+              "pod": "producer-7c58b6bc97-mlmdq",
+              "disconnect": 0.0288712,
+              "delays": [0.1, 0.182, 0.384, 0.8, 1.456, 3.136, 6.144, 12.032, 4.619, 50.176],
+              "back": 80.1026902,
+              "setup": 0.2843639,
+              "tries": 10
+            },
+            {
+              "pod": "producer-7c58b6bc97-wlcjl",
+              "disconnect": 0.0269129,
+              "delays": [0.1, 0.182, 0.384, 0.8, 1.456, 3.136, 6.144, 12.032, 4.622, 50.176],
+              "back": 80.1025884,
+              "setup": 0.2817309,
+              "tries": 10
+            }
+          ],
+          "failed": {
+            "sends": {
+              "timeout": 604,
+              "late": 188
+            },
+            "control": 0
+          },
+          "ok": true,
+          "why": "another owner 30375 ms after the fault; producer-7c58b6bc97-mlmdq back at try 10, producer-7c58b6bc97-wlcjl back at try 10"
+        },
+        {
+          "flip": null,
+          "gap": null,
+          "returns": [
+            {
+              "pod": "producer-7c58b6bc97-mlmdq",
+              "disconnect": 0.0355083,
+              "delays": [0.1, 0.196, 0.388, 0.76, 1.568, 2.912, 5.888, 11.648, 5.487],
+              "back": 29.8429898,
+              "setup": 0.3206281,
+              "tries": 9
+            },
+            {
+              "pod": "producer-7c58b6bc97-wlcjl",
+              "disconnect": 0.033463,
+              "delays": [0.1, 0.196, 0.388, 0.76, 1.568, 2.912, 5.888, 11.648, 5.484],
+              "back": 29.8433499,
+              "setup": 0.3229295,
+              "tries": 9
+            }
+          ],
+          "failed": {
+            "sends": {
+              "late": 289
+            },
+            "control": 0
+          },
+          "ok": true,
+          "why": "the stopped broker owns the topic again; producer-7c58b6bc97-mlmdq back at try 9, producer-7c58b6bc97-wlcjl back at try 9"
+        }
+      ],
+      "pings": [0, 0, 0, 0],
+      "acks": [0, 0, 0, 0],
+      "seconds": [86.5941455, 86.6025081, 86.5981262, 86.6045777]
+    }
+  ],
+  "bands": {
+    "flip": {
+      "low": 20.5,
+      "high": 33
+    },
+    "disconnect": {
+      "low": 0,
+      "high": 1
+    },
+    "setup": {
+      "low": 0,
+      "high": 3
+    },
+    "probe": 1.25
+  }
+}
