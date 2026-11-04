@@ -62,6 +62,11 @@ export type { KernelRecord };
  * - `drain` puts the node of the part in maintenance mode: `rabbitmq-upgrade drain`. The node closes the
  *   connections of its clients, and it moves the leadership of each of its queues to another node.
  *   `rabbitmq-upgrade revive` ends it after the run.
+ *
+ * This fault is of a fabric (`Topology.fabric`):
+ * - `silence` drops each packet of spine1 in one commit, and its links stay up. Each leaf loses its
+ *   neighbor only by a detector of its own, and the routes move to spine2. The measured move ends
+ *   the stall of the client (`Run.heal`).
  */
 export type Fault =
   | "blackhole"
@@ -83,6 +88,7 @@ export type Fault =
   | "step-down"
   | "drain"
   | "hop-event"
+  | "silence"
   | "none";
 
 /**
@@ -203,12 +209,31 @@ export interface HopWrite {
 export type Hop = RouterHop | ProxyHop;
 
 /**
+ * A fabric is a routed network on layer E3 (`fabric.ts`), by its timers. The detector of a fabric
+ * is the BGP hold timer, or BFD when it has `bfd`.
+ */
+export interface Fabric {
+  readonly keepalive: Quantity;
+  readonly hold: Quantity;
+  /** These are the receive and transmit interval and the multiplier of BFD, or null for no BFD. */
+  readonly bfd: { readonly interval: Quantity; readonly multiplier: number } | null;
+}
+
+/** A fabric manifest tells what a fabric ran on: its timers, its image and containerlab. */
+export interface FabricManifest extends Fabric {
+  readonly image: string;
+  readonly containerlab: string;
+}
+
+/**
  * A topology is the chain of hops between the client and the target, in sequence from the client.
- * Without hops, the client and the target are a direct pair.
+ * Without hops, the client and the target are a direct pair. With `fabric`, a routed network
+ * joins them, and the chain of hops is empty.
  */
 export interface Topology {
   readonly name: string;
   readonly hops: readonly Hop[];
+  readonly fabric?: Fabric;
 }
 
 /**
@@ -1178,6 +1203,31 @@ export interface Run {
   readonly group?: RunGroup;
   /** These are the lines of a target that writes them (`Target.lines`), from the start to the end of the run. */
   readonly server?: readonly ProbeEvent[];
+  /** This record is the fabric of a cell with `Topology.fabric`. */
+  readonly fabric?: RunFabric;
+}
+
+/** A run route is one change of a route at a leaf of a fabric, on the monotonic clock. */
+export interface RunRoute {
+  readonly leaf: string;
+  readonly t: number;
+  readonly deleted: boolean;
+  readonly prefix: string;
+  readonly via: string | null;
+  readonly dev: string | null;
+}
+
+/**
+ * A run fabric is what the routers did in a run. It holds each change of a route. It also holds the
+ * count of established sessions of each leaf at the start and the end. A session that went down and
+ * came back in the run raises its count.
+ */
+export interface RunFabric {
+  readonly routes: readonly RunRoute[];
+  readonly established: {
+    readonly before: Readonly<Record<string, number>>;
+    readonly after: Readonly<Record<string, number>>;
+  };
 }
 
 /** A Sentinel event is one line of the observer of a group: an event that a Sentinel published, on the clock of the VM. */

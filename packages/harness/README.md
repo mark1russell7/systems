@@ -59,6 +59,10 @@ The `reset-both` form sends its resets on the DESTROY event. Each reset has the 
 
 The lines of each router (`Lab.middlebox`) are the conntrack events and the resets that it sent, on CLOCK_MONOTONIC. Each run keeps the lines from its start to its end.
 
+A fabric is a topology with no hops and with `fabric` (`fabric.ts`, layer E3 of `docs/S7.md`). Four routers of FRRouting, two leaves and two spines, run eBGP over veth pairs of containerlab. The client hangs off one leaf and the target off the other, each on a new device `eth1`. Each link has the MTU of a Docker network, thus a segment is as long as on E1. Each leaf prefers spine1 by a weight, and spine2 holds the other path.
+
+The fault `silence` drops each packet of spine1 in one commit, and its links stay up. A route monitor on each leaf records each change of a route. The later move of the two leaves ends the stall of the run (`Run.heal`), and the verdict of a stall reads it. A move outside the band of the cell makes the run void. Before each run, `ready` waits for each session, for the route on spine1 and for the path on spine2. The record of the run keeps the routes and the count of established sessions (`Run.fabric`).
+
 ## The groups
 
 A group (`Group`, `Cell.group`) is a replicated group under an external failover authority, as data. It is a primary and its replicas, and the Sentinels that decide which member is the primary. A group cell has no hops, and the group replaces its target.

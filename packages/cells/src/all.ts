@@ -5,6 +5,7 @@ import { T01_GRPC } from "./grpc/t01.ts";
 import { T02_GRPC } from "./grpc/t02.ts";
 import { T03_GRPC } from "./grpc/t03.ts";
 import { HTTP_CAL_CELLS, HTTP_HARNESS_CELLS } from "./http/cells.ts";
+import { FABRIC_CELLS } from "./fabric.ts";
 import { LIMITER_CELLS } from "./limiter.ts";
 import { MONGO_CELLS } from "./mongo/harness.ts";
 import { T01_HIKARI } from "./pg/hikari.ts";
@@ -68,6 +69,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...T03_GRPC,
     ...T02_GRPC,
     ...LIMITER_CELLS,
+    ...FABRIC_CELLS,
   ];
 };
 

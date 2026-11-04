@@ -22,6 +22,8 @@ export type {
   GroupPlace,
   GroupPrediction,
   GroupRole,
+  Fabric,
+  FabricManifest,
   Hop,
   HopEvent,
   HopPlace,
@@ -54,6 +56,8 @@ export type {
   Run,
   RunGroup,
   RunPart,
+  RunFabric,
+  RunRoute,
   RunTopology,
   SentinelEvent,
   SentinelStage,
@@ -122,6 +126,23 @@ export {
 } from "./verdict.ts";
 export type { Agent, FaultSide, Lab, Manifest, ManifestHop, NetworkFault, Probe } from "./lab.ts";
 export { LISTING, PUMP, PUMP_SLACK, deviceOf, endpointAfter, hzOf, openLab, routesOf, templated, toxicBody } from "./lab.ts";
+export type { ClockPair, FabricLab, FabricParts, LeafViews, RouteLine } from "./fabric.ts";
+export {
+  DAEMONS,
+  FABRIC_CLIENT,
+  FABRIC_DEVICE,
+  FABRIC_TARGET,
+  FRR_IMAGE,
+  ROUTERS,
+  frrConf,
+  laterMove,
+  leafLacks,
+  monotonicAt,
+  openFabric,
+  routeLine,
+  sessionsOf,
+  topologyOf,
+} from "./fabric.ts";
 export type { Cloud, Host, Layer, Substrate, SubstrateSource } from "./substrate.ts";
 export { AWS_FROM, cloudOf, comparable, readHost, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
 export type { ImagePlan } from "./image.ts";

@@ -2383,12 +2383,12 @@ The first records show the block on a real runner. Kind run 41856630889 of the P
 
 ### SYS-77 · The first fabric: BFD against the BGP hold timer
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-76
-- **Started:**
+- **Started:** 2026-11-04
 - **Shipped:**
-- **Links:**
+- **Links:** [PR 347](https://github.com/mark1russell7/systems/pull/347)
 
 A client and Redis connect through four FRR routers in containerlab. A bridge repeats a T01 black hole on the fabric, and the band of E1 must hold. A silent drop on the active spine then tests the order of BFD, the BGP hold timer and the retransmissions of TCP. [The first slice](S7.md#the-first-slice-sys-77) has the cells, the law and the prediction.
 
@@ -2555,7 +2555,7 @@ A closed-loop client hides a stall, because a slow reply delays its next send (G
 - **Shipped:**
 - **Links:**
 
-`Topology` is a chain of hops, thus it cannot name two paths. The first fabric uses one opaque hop. This item makes the topology a graph, thus a law can read its paths, and the algebra gets terms for route convergence.
+`Topology` is a chain of hops, thus it cannot name two paths. The first fabric gives its paths in `Topology.fabric`, apart from the chain. This item makes the topology a graph, thus a law can read its paths, and the algebra gets terms for route convergence.
 
 ## The items of the scale ladder
 
