@@ -2177,10 +2177,10 @@ The results of T12 report lost writes, and no law judges that count. With `min-r
 
 ### SYS-59 · MongoDB: the writes that a rollback takes
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-58
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
@@ -2188,10 +2188,10 @@ The results of T12 report lost writes, and no law judges that count. With `min-r
 
 ### SYS-60 · RabbitMQ: confirmed publishes and duplicates
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-58
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
@@ -2199,10 +2199,10 @@ A quorum queue loses no confirmed message. A republish of an unconfirmed message
 
 ### SYS-61 · PostgreSQL: a COMMIT in flight at the fault
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-58
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
@@ -2210,10 +2210,10 @@ The client cannot know the outcome of a COMMIT with no reply (DV-38). A final re
 
 ### SYS-62 · ioredis: a resend at reconnect duplicates a write
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-58
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
@@ -2221,10 +2221,10 @@ A `SET` hides a duplicate, and an append to one list shows it. Duplicates are at
 
 ### SYS-63 · The accept queue: its count and what a client sees
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** S1
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
@@ -2232,10 +2232,10 @@ The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the
 
 ### SYS-64 · The port range: its count and its error
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** S1
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
@@ -2243,10 +2243,10 @@ The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the
 
 ### SYS-65 · A pool at its limit
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** S1
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
@@ -2265,10 +2265,10 @@ New flows drop at `nf_conntrack_max`. The table is global, not for each network 
 
 ### SYS-67 · Retry amplification: an exact count
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** S1
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
@@ -2276,7 +2276,7 @@ The tries of each hop multiply (law O08). T14 counts the tries at the target in 
 
 ### SYS-68 · An open-loop load schedule
 
-- **Status:** later
+- **Status:** blocked
 - **Area:** engines
 - **Depends on:** SYS-67
 - **Started:**
@@ -2309,10 +2309,10 @@ A sustaining retry loop keeps goodput low after the trigger stops. The cells sca
 
 ### SYS-71 · Kafka: the writes at each `acks`
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-58
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
@@ -2331,10 +2331,10 @@ The group rebalances at `session.timeout.ms`, and a stale commit fails with a fe
 
 ### SYS-73 · etcd: a lock holder past its lease
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-58
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
@@ -2342,10 +2342,10 @@ The lease ends at its TTL, and a contender gets the lock. The frozen holder can 
 
 ### SYS-74 · etcd: a watcher after a compaction
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-73
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
