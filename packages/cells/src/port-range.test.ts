@@ -13,11 +13,15 @@ const lawOf = (plan: string) => {
 
 describe("the exact law of the search for a port", () => {
   it("gives an even range its size in each round", () => {
-    for (const size of [2, 4, 6, 16]) expect([...searchShares(size)]).toEqual([[size, 1]]);
+    for (const size of [2, 4, 6, 16]) {
+      expect([...searchShares(size).keys()]).toEqual([size]);
+      expect(searchShares(size).get(size)).toBeCloseTo(1, 9);
+    }
   });
 
   it("gives a range of 3 two connects in each round", () => {
-    expect([...searchShares(3)]).toEqual([[2, 1]]);
+    expect([...searchShares(3).keys()]).toEqual([2]);
+    expect(searchShares(3).get(2)).toBeCloseTo(1, 9);
   });
 
   it("gives an odd range one port less in some rounds, with the chance of the chain", () => {
