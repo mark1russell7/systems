@@ -2336,33 +2336,35 @@ A resume from a compacted revision fails with a compaction error (DV-44).
 
 ### SYS-75 · etcd: linearizable reads under a partition
 
-- **Status:** waiting on Mark
+- **Status:** blocked
 - **Area:** catalogs
 - **Depends on:** SYS-73, D-CHECKER
 - **Started:**
 - **Shipped:**
 - **Links:**
 
-A linearizable read goes through the quorum, and a serializable read can be stale. A check of this history needs a solver. Mark chooses it in D-CHECKER.
+A linearizable read goes through the quorum, and a serializable read can be stale. A check of this history needs a solver. D-CHECKER chose Porcupine, as a program in CI. This item waits for SYS-73.
 
 ## Decisions for Mark
 
 ### D-CHECKER · The checker of linearizability and of transactions
 
-- **Status:** waiting on Mark
+- **Status:** done
 - **Area:** decisions
 - **Depends on:** S3
 - **Started:** 2026-11-03
-- **Shipped:**
+- **Shipped:** 2026-11-03
 - **Links:** [The plan of S3](S3.md#the-choice-of-a-checker)
 
-Q17 needs no solver, because a set difference gives its answers. SYS-75 needs a check of linearizability. A later transactional cell needs Elle. Each one is a choice of language for a core piece, thus Mark chooses.
+Q17 needs no solver, because a set difference gives its answers. SYS-75 needs a check of linearizability. A later transactional cell needs Elle.
+
+The choice: Option A, Porcupine, for SYS-75. It is a tool of CI and not a core piece: no package links it, and the repository already builds Go images. Check its license when SYS-75 adds it. The home of a general checker of histories is `mark1russell7/rigor`. Until rigor has it, the checker stays in its own folder of this repository, with no import of the code of this repository. Thus it can move whole.
 
 - **Option A:** Porcupine, in Go. CI runs it as a program over each exported history. The harness already builds Go images.
 - **Option B:** Elle, in Clojure, with Jepsen on the JVM. It also checks transactions.
 - **Option C:** A checker in TypeScript, from the algorithm of Wing, Gong and Lowe. It adds no toolchain, but the program must prove a new solver.
 
-The recommendation: Option A for SYS-75. Add Elle only when a transactional system joins a cell. No item before SYS-75 waits for this choice.
+Add Elle only when a transactional system joins a cell. That is a new choice.
 
 ### D-IDENTITY · A scenario identity without the defaults
 
