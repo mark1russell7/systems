@@ -2216,14 +2216,28 @@ The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the
 
 ### SYS-64 · The port range: its count and its error
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** S1
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
-- **Links:**
+- **Links:** [The cells](../packages/cells/README.md#the-cells-of-the-port-range)
 
-`connect` fails with `EADDRNOTAVAIL` at the size of `ip_local_port_range`, for one destination. The sysctl is set for each network namespace, thus a cell can use a small range.
+`connect` fails with `EADDRNOTAVAIL` when the range has no port for that destination. The sysctl is set for each network namespace, thus a cell can use a small range.
+
+**The design.** Seven harness cells (`PR.1` to `PR.7`) use one client in a small range and one target that accepts each connection. Each cell uses 2 containers and one set of sysctls of a namespace, thus one runner is sufficient. A new native program, `ports`, is the two ends. In each round the client connects until a connect fails, and it writes each port that it got.
+
+**The law.** The sources are Linux v7.0, the kernel of the runners. The source changes the plan in two ways. The count is the size of the range only for an even size. TIME_WAIT holds a port only at one side.
+
+- **The search.** `__inet_hash_connect` [rounds the size down to an even number](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/inet_hashtables.c#L1066-L1072). It [starts from an even offset](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/inet_hashtables.c#L1076-L1090) and takes steps of 2. Then it [tries the other parity, and it gives `EADDRNOTAVAIL`](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/inet_hashtables.c#L1146-L1151).
+- **An even range.** The two passes reach each port. Thus one destination gets the size of the range.
+- **An odd range.** Each pass makes half of the rounded size of tries, over one port more on the first pass. Offset 0 does not reach the top port, and each other start does not reach the low port. A range of 3 gives 2. A range of 5 gives 4 or 5, and the [random step after each connect](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/inet_hashtables.c#L1175-L1176) sets the share: 45/256 of the rounds give 4.
+- **TIME_WAIT.** The port stays held at the side that closes first, for [60 s](https://github.com/torvalds/linux/blob/v7.0/include/net/tcp.h#L142) from [the FIN of the peer](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_minisocks.c#L175-L182), plus the timer wheel. With `tcp_tw_reuse` 1, a connect [takes the port after 1000 ms](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_ipv4.c#L168-L171). The default of 2 is [for loopback only](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_ipv4.c#L130-L154).
+- **The other ways to close.** A reset holds nothing. If the target closes first, the client holds no port, and a new SYN [passes the TIME_WAIT of the target](https://github.com/torvalds/linux/blob/v7.0/net/ipv4/tcp_minisocks.c#L253-L262).
+
+**The prediction.** It was written before the first dispatch, and its record is outside this repository. Each count of `PR.1`, `PR.2` and `PR.4` is exact. The band of the share in `PR.3` is 5 standard deviations of 400 rounds. A seeded simulation of the search gave a spread of 0.0192 for that share, against 0.0190 for independent rounds.
+
+**The rule.** A run counts if it is not a warmup and the harness does not void it. Each cell needs 4 counted runs. A void or infrastructure cell gets one more dispatch, and its first counted runs count. The thresholds do not change after a result is read.
 
 ### SYS-65 · A pool at its limit
 

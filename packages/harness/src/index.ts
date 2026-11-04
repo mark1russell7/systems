@@ -39,6 +39,7 @@ export type {
   PinnedImage,
   KernelRecord,
   Prediction,
+  PortsPrediction,
   ProbeEvent,
   ProxyHop,
   ProxyTime,
@@ -90,6 +91,8 @@ export {
 } from "./application.ts";
 export type { Crossings, Measured, Outcome, Reordering, RequestReading, SocketPlace } from "./observe.ts";
 export { crossingsOf, jitterOf, measure, reorderingOf, requestOf, socketOf } from "./observe.ts";
+export type { PortsReading } from "./ports.ts";
+export { measurePorts } from "./ports.ts";
 export type { QueueConnectionReading, QueueReading } from "./queue.ts";
 export { measureQueue } from "./queue.ts";
 export type { DriverSocket, DriverStepTime } from "./driver.ts";

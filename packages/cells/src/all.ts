@@ -16,6 +16,7 @@ import { T01_AMQP } from "./rabbit/t01.ts";
 import { T11_RABBIT } from "./rabbit/t11.ts";
 import { T02_CELLS } from "./t02.ts";
 import { T03_CELLS } from "./t03.ts";
+import { PORT_RANGE_CELLS } from "./port-range.ts";
 import { PROCEDURES } from "./subjects.ts";
 import { T12_CAL, T12_CELLS } from "./t12.ts";
 import { TOX_CELLS } from "./toxiproxy.ts";
@@ -39,7 +40,7 @@ export interface Subjects {
  * WST cells: the same client through a router or a proxy. The MongoDB cells of T01, T03 and T11
  * come next, then the PostgreSQL cells of T01, T03 and T10. The RabbitMQ cells of T01 and T11 come
  * next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter (O29 and O30)
- * come next. The cells of the accept queue are last.
+ * come next, then the cells of the accept queue. The cells of the port range are last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
@@ -68,6 +69,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...T02_GRPC,
     ...LIMITER_CELLS,
     ...ACCEPT_QUEUE_CELLS,
+    ...PORT_RANGE_CELLS,
   ];
 };
 
