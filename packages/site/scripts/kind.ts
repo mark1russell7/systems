@@ -871,14 +871,42 @@ const agree = (cell: KindCell, verdict: KindVerdict, summary: Summary): void => 
     throw new Error(`${cell.name}: the catalog now gives ${verdict.decision} (${verdict.why}), and summary.ndjson gives ${summary.decision}`);
 };
 
-/** A dispatch is one workflow run of a pooled cell: what its summary gives, and how many of its counted runs the copy takes. */
+/** A void is one void run of a dispatch: its cluster, its index in the cluster and the reason of the check before the fault. */
+interface Void {
+  readonly env: number;
+  readonly index: number;
+  readonly why: string;
+}
+
+/** A dispatch is one workflow run of a pooled cell. It has the counts of its summary, the counted runs that the copy takes and each void run. */
 interface Dispatch {
   readonly run: string;
   readonly decision: string;
   readonly counted: number;
   readonly voided: number;
   readonly taken: number;
+  readonly voids: readonly Void[];
 }
+
+/**
+ * These are the reasons of a void run, as the runner writes them, and as the copy keeps them. A check before the fault
+ * gives each reason, thus no reason depends on the measured value. The list of other lab containers names containers
+ * and images, thus the copy keeps only their count.
+ */
+const VOIDS: ReadonlyArray<readonly [RegExp, (match: RegExpExecArray) => string]> = [
+  [
+    /^the VM was not quiet in (\d+) s: (\d+)% idle, other lab containers: (.*)$/,
+    (match) => `the VM was not quiet in ${match[1]} s: ${match[2]}% idle, other lab containers: ${match[3] === "none" ? "none" : match[3]!.split("; ").length}`,
+  ],
+  [/^the cell was not at rest: /, () => "the cell was not at rest"],
+];
+const voidOf = (cell: KindCell, run: KindRun): Void => {
+  for (const [form, text] of VOIDS) {
+    const match = form.exec(run.void!);
+    if (match !== null) return { env: run.env, index: run.index, why: text(match) };
+  }
+  throw new Error(`${cell.name}: the void reason "${run.void}" has no text for the copy`);
+};
 
 /**
  * This function joins the parts of a cell. Each part must agree with its own summary. The runs join in the order of the
@@ -901,7 +929,9 @@ const joinOf = (cell: KindCell, pieces: readonly Part[]) => {
         taken += 1;
       }
     }
-    dispatches.push({ run: piece.run, decision: piece.summary.decision, counted: piece.summary.counted, voided: piece.summary.voided, taken });
+    const voids = record.runs.filter((run) => !run.warmup && run.void !== null).map((run) => voidOf(cell, run));
+    if (voids.length !== piece.summary.voided) throw new Error(`${cell.name}: run ${piece.run} has ${voids.length} void runs, and summary.ndjson gives ${piece.summary.voided}`);
+    dispatches.push({ run: piece.run, decision: piece.summary.decision, counted: piece.summary.counted, voided: piece.summary.voided, taken, voids });
   }
   return { record: { ...upgrade(pieces[0]!.record), runs }, dispatches };
 };

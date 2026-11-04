@@ -14,6 +14,7 @@ The program started again on 2026-11-02, after the pause of 2026-10-28. A gap th
 3. **VIZ:** The site gets an interactive demo of the path of a request, from the process to the NIC. The packages of this repository run live in the browser.
 4. **S2:** CoreDNS (SYS-50), kube-vip (SYS-51) and MetalLB (SYS-53) are done. Do one intermediary in each context. Write the prediction before the dispatch.
    - Pulsar ([SYS-56](#sys-56--pulsar-producers-when-the-broker-that-owns-their-topic-is-gone)) is in progress. A crash of the owner of a topic tests the expiry of its session and the backoff of each producer. The first run fails its law, and the second run tests the corrected law.
+5. **S3:** [The plan](S3.md) has the items SYS-58 to SYS-75. SYS-58 is the first cell. The Q17 line reuses the labs of S1, thus it comes first.
 
 SITE-UX round 3 is done. Its chart shows the C-stall band of SYS-48 against the count of each mode, on the kind page.
 
@@ -79,14 +80,16 @@ MetalLB is the intermediary after kube-vip ([SYS-53](#sys-53--metallb-callers-ou
 
 ### S3 · Outcomes under failure and load
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** program
 - **Depends on:** S1
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
-- **Links:**
+- **Links:** [The plan](S3.md)
 
 Histories of operations and their checkers, load, exhaustion, retry storms and metastability. Kafka and etcd join the set.
+
+S1 already records a history of writes for each group cell, thus S3 starts from a law for those counts. [SYS-58](#sys-58--valkey-the-accepted-writes-that-a-failover-loses) is the first cell. Its law predicts the writes that a Valkey failover loses, with `min-replicas-to-write` set. [The items of S3](#the-items-of-s3) give the order of the rest.
 
 ### S4 · The host, the NIC and the cloud
 
@@ -1326,7 +1329,7 @@ The naive law reads the comment of `suspicionTimeout`: 4 × log(N + 1) × Interv
 
 **The result.** Two kind runs held the cell in each of 4 counted runs. The copy is `packages/site/src/data/s2-metallb-2026-11-03.json`, and it names both runs.
 
-- Kind run 41654669260 gave 2 counted runs and 2 void runs. Before the second run of each cluster, the runner stayed at 51% to 58% idle for 300 s. That is below the idle share of 60% of the wait for rest (`quiet` in `packages/kind/src/run.ts`).
+- Kind run 41654669260 gave 2 counted runs and 2 void runs. Before the second run of each cluster, the runner stayed at 51% to 58% idle for 300 s. That is below the idle share of 60% of the wait for rest (`quiet` in `packages/kind/src/run.ts`). The copy names each cause in `dispatches[].voids`: the quiet check ended at 52% and 55% idle, with no other lab container.
 - The decision rule needs 4 counted runs, and it permits one re-dispatch. The first counted runs count. Kind run 41696343708 gave 4 counted runs. The result takes its 2 runs on the first cluster. Its 2 runs on the second cluster are extra, and the result does not use them.
 - The other speaker marked the lost node dead 6.737 s, 5.107 s, 5.813 s and 6.960 s after the fault. Only the second and the third times are in the band of the law. No time is in the naive band.
 - In each run, the death came 4.000 s or 4.001 s after the first suspicion. Thus the suspicion timeout is the timeout of the law, with no confirmation.
@@ -1365,26 +1368,29 @@ The changes that the rules gave:
 
 The exceptions, each with its reason in the `conventions` field of the root `package.json`:
 
-- **tsconfig-test and typed-files:** the tests of cells and the scripts of the site have type errors (SYS-55).
+- **tsconfig-test and typed-files:** the tests of cells and the scripts of the site had type errors. SYS-55 removed these exceptions, and `typed-files` keeps only `src/content.config.ts` of the site.
 - **typed-scripts:** the release scripts, the files that run in containers, the child processes of the service tests, `shots.mjs` and `astro.config.mjs`.
 - **no-local-paths:** three files of `packages/service/src/host/` name the home folder of the fake host of the service tests, not the folder of a real user.
 
 ### SYS-55 · The tests of cells and the scripts of the site pass a typecheck
 
-- **Status:** not started
+- **Status:** done
 - **Area:** CI
 - **Depends on:** SYS-54
-- **Links:** [#310](https://github.com/mark1russell7/systems/pull/310)
+- **Started:** 2026-11-03
+- **Shipped:** 2026-11-03
+- **Links:** [#310](https://github.com/mark1russell7/systems/pull/310), [#322](https://github.com/mark1russell7/systems/pull/322)
 
-The tests of cells have 15 type errors in 4 files. The scripts of the site have 5 type errors in 3 files. Thus the two packages have no `tsconfig.test.json`, and the conventions check keeps two exceptions for them.
+The tests of cells had 15 type errors in 4 files. The scripts of the site had 5 type errors in 3 files. Each one is corrected, and each test checks the same values.
 
-The fix:
+The changes:
 
-1. Correct the 20 type errors.
-2. Add a `tsconfig.test.json` to cells and to the site, from the cue preset.
-3. Remove the exceptions `tsconfig-test` and `typed-files` for these files from the root `package.json`.
+- **tsconfig.test.json:** the file of cells has no excludes. The site has a new file for its scripts, and its `typecheck` script examines it. Each file also includes `vitest.config.ts`.
+- **The limiter cells:** `limiterTarget` gives a `LimiterTarget`, with a command and a build. `limiterPrediction` gives a detection. Thus the tests of the limiter need no casts.
+- **The text of a verdict:** a detection with no counted run has no band and no window. The site scripts wrote a window for it. They write "No run counted." instead.
+- **The image of a hop:** `topologies.ts` stops with the name of the hop at an image that is not a stock image.
 
-The check `conventions check` then passes with no exception for the types.
+The `conventions` field keeps one exception for the types. `src/content.config.ts` of the site imports `astro:content`, a module that only the Astro build makes.
 
 ### SYS-56 · Pulsar: producers when the broker that owns their topic is gone
 
@@ -2219,7 +2225,226 @@ The second step moved the documents and the arithmetic of the two labs into the 
 
 The next step: Mark's next page of the item.
 
+## The items of S3
+
+[The plan of S3](S3.md) gives the law, the source and the measure of each item. The lines of work are Q17 (the writes), Q19 (the exhaustion), Q18 (the storms) and the new systems.
+
+### SYS-58 · Valkey: the accepted writes that a failover loses
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** SENTINEL
+- **Started:** 2026-11-03
+- **Shipped:**
+- **Links:** [The law](S3.md#the-first-cell-sys-58)
+
+The results of T12 report lost writes, and no law judges that count. With `min-replicas-to-write 1`, the old primary refuses writes 8.8 s to 12.1 s after a partition. Thus the group loses 140 to 244 writes for each hold, against 1,041 with no setting. A freeze of 40 s loses 0 to 2, against 199. The three cells use the lab of T12, and the harness judges a band of lost writes.
+
+### SYS-59 · MongoDB: the writes that a rollback takes
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-58
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+`w: 1` loses each write after the last replicated one. `w: "majority"` loses none. The T11 cells take the write concern as a knob, and the band comes from the timers of the election.
+
+### SYS-60 · RabbitMQ: confirmed publishes and duplicates
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-58
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A quorum queue loses no confirmed message. A republish of an unconfirmed message can duplicate it, up to the unconfirmed window. The T11 cells get a final read of the queue.
+
+### SYS-61 · PostgreSQL: a COMMIT in flight at the fault
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-58
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+The client cannot know the outcome of a COMMIT with no reply (DV-38). A final read splits those commits into two sets. A synchronous standby bounds the lost set.
+
+### SYS-62 · ioredis: a resend at reconnect duplicates a write
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-58
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A `SET` hides a duplicate, and an append to one list shows it. Duplicates are at most the commands in flight at each close, from the source of ioredis 6.0.0.
+
+### SYS-63 · The accept queue: its count and what a client sees
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** S1
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the retransmission ladder of the kernel. A target that does not accept gives the exact count.
+
+### SYS-64 · The port range: its count and its error
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** S1
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+`connect` fails with `EADDRNOTAVAIL` at the size of `ip_local_port_range`, for one destination. The sysctl is set for each network namespace, thus a cell can use a small range.
+
+### SYS-65 · A pool at its limit
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** S1
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+Above the size of the pool, the wait grows with the queue, and a client fails at `connectionTimeout`. HikariCP and PgBouncer are in the harness.
+
+### SYS-66 · The conntrack table: T05 fan-in
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-63
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+New flows drop at `nf_conntrack_max`. The table is global, not for each network namespace. Thus the cell sets the value on its own runner, and it restores the value.
+
+### SYS-67 · Retry amplification: an exact count
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** S1
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+The tries of each hop multiply (law O08). T14 counts the tries at the target in an outage. This count needs no load generator, thus it is the first result of Q18.
+
+### SYS-68 · An open-loop load schedule
+
+- **Status:** later
+- **Area:** engines
+- **Depends on:** SYS-67
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+Each arrival keeps its scheduled time, with no coordinated omission. A/A cells with no fault check that. The schedule has the planned home `mark1russell7/rigor`, and this item waits for that home. The drivers stay in the images of the harness.
+
+### SYS-69 · The border of a stable system
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-68
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A system is stable if and only if `L < C / (wL · wC)` (Huang and others, OSDI 2022). A target of fixed capacity gives exact terms, and a cell stands on each side of the border.
+
+### SYS-70 · A metastable failure on MongoDB
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-69
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A sustaining retry loop keeps goodput low after the trigger stops. The cells scale the reproduction of OSDI 2022 to one runner with a CPU quota, and they use a horizon of 500 s.
+
+### SYS-71 · Kafka: the writes at each `acks`
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-58
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+`acks=1` loses the writes that no follower has. `acks=all` with `min.insync.replicas` 2 and idempotence loses none and duplicates none. This item adds Kafka to the set, with a new group of three brokers.
+
+### SYS-72 · Kafka: a paused consumer
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-71
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+The group rebalances at `session.timeout.ms`, and a stale commit fails with a fenced error (T13).
+
+### SYS-73 · etcd: a lock holder past its lease
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-58
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+The lease ends at its TTL, and a contender gets the lock. The frozen holder can write after that. A fencing revision stops that write (T13).
+
+### SYS-74 · etcd: a watcher after a compaction
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-73
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A resume from a compacted revision fails with a compaction error (DV-44).
+
+### SYS-75 · etcd: linearizable reads under a partition
+
+- **Status:** waiting on Mark
+- **Area:** catalogs
+- **Depends on:** SYS-73, D-CHECKER
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A linearizable read goes through the quorum, and a serializable read can be stale. A check of this history needs a solver. Mark chooses it in D-CHECKER.
+
 ## Decisions for Mark
+
+### D-CHECKER · The checker of linearizability and of transactions
+
+- **Status:** waiting on Mark
+- **Area:** decisions
+- **Depends on:** S3
+- **Started:** 2026-11-03
+- **Shipped:**
+- **Links:** [The plan of S3](S3.md#the-choice-of-a-checker)
+
+Q17 needs no solver, because a set difference gives its answers. SYS-75 needs a check of linearizability. A later transactional cell needs Elle. Each one is a choice of language for a core piece, thus Mark chooses.
+
+- **Option A:** Porcupine, in Go. CI runs it as a program over each exported history. The harness already builds Go images.
+- **Option B:** Elle, in Clojure, with Jepsen on the JVM. It also checks transactions.
+- **Option C:** A checker in TypeScript, from the algorithm of Wing, Gong and Lowe. It adds no toolchain, but the program must prove a new solver.
+
+The recommendation: Option A for SYS-75. Add Elle only when a transactional system joins a cell. No item before SYS-75 waits for this choice.
 
 ### D-IDENTITY · A scenario identity without the defaults
 
