@@ -115,8 +115,8 @@ export const substrateKey = (substrate: Substrate): string => `${substrate.layer
 
 /**
  * This function gives the first two substrates that a statistic cannot pool, or undefined. It
- * examines each pair: an unknown value is comparable with Azure and with AWS, thus a comparison with
- * the first substrate only can miss a pair.
+ * examines each pair. An unknown value matches Azure and AWS, thus one comparison with the first
+ * substrate can miss a pair.
  */
 export const unpoolable = (substrates: readonly Substrate[]): readonly [Substrate, Substrate] | undefined => {
   for (const [index, a] of substrates.entries()) {
