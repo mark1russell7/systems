@@ -114,6 +114,18 @@ These cells are SYS-62 of S3 (`src/resend.ts`). They use the group of T12 at its
 - **The verdict.** The band of extra copies judges the cell (`GroupPrediction.duplicates`). A read that found no write is a finding, so a control cannot pass with an empty read.
 - **The source.** Each term cites ioredis 6.0.0 or Valkey 9.1.2 by file and line, in the comment of the module.
 
+## The cells of acks
+
+These cells are SYS-71 of S3 (`src/kafka/acks.ts`). They use a group of three brokers and one controller of Apache Kafka 4.3.2. The client is the producer of kafka-clients 4.3.2 on Java. The question: which writes does Kafka lose at each `acks`?
+
+- **The fault.** A cut stops the traffic between the leader and the other brokers and the controller. The client keeps its route to the leader.
+- **The law of `acks=1`.** The lost writes are the writes that the old leader answers from the cut to its step-down (`lostOf`). The leader has no timer that stops it, thus the count reads the hold. The bound is the end of the log of the new leader at its election, not the high watermark.
+- **The law of `acks=all`.** No write is lost. A cut leader cannot shrink its in-sync replicas, thus its high watermark stays and each write waits. At the step-down each write gets NOT_LEADER_OR_FOLLOWER, and the producer sends it to the new leader. A minimum of 1 gives the same count as a minimum of 2.
+- **The cells.** `K1.acks.1` and `K1.acks.2` read the band of lost writes at holds of 20 s and 40 s. `K1.acks.3` is a hold of 3 s, with no fence and no loss. `K1.acks.4` and `K1.acks.5` are `acks=all`, at a minimum of 2 and of 1, with 4 writers.
+- **The verdict.** The bands of lost writes and of extra copies judge the cell (`GroupPrediction.lost`, `GroupPrediction.duplicates`). The leader after the run tells if a failover came.
+- **The omitted cell.** Idempotence off has no cell. A copy needs a batch that a follower got and whose answer the client did not get. That window is one round trip at the cut. Thus the true band is 0 to W, and a cell with that band cannot fail.
+- **The source.** Each term cites Apache Kafka 4.3.2 by file and line, in the document `kafka-partition` and in the comment of the module.
+
 ## The HTTP catalog
 
 The HTTP catalog (`src/http/`) has the cells of T01 and T03 with the Node HTTP server. They are the defaults stage, and the border cells of the keep-alive race. Each catalog entry has its prediction, and the name of the plan cell that it stands for. `cells.ts` makes each entry a cell of the harness.
@@ -461,7 +473,7 @@ The S2 cells (`src/callers.ts`, `CALLERS_CELLS`) measure the dimension "how call
 
 ## The runner
 
-`CELLS=1 pnpm --filter @systems/cells test` starts the catalogs on `@mark1russell7/harness`. It needs Docker and privileged containers. The names of the cells start with their catalog: `T01`, `T03`, `T02`, `TOX`, `T12`, `CAL`, `WS` or `WST`. The name of a MongoDB cell starts with its cell of the plan, for example `T11.defaults.9`, and it names `mongodb-node-7.7`.
+`CELLS=1 pnpm --filter @systems/cells test` starts the catalogs on `@mark1russell7/harness`. It needs Docker and privileged containers. The names of the cells start with their catalog: `T01`, `T03`, `T02`, `TOX`, `T12`, `CAL`, `WS` or `WST`. The name of a MongoDB cell starts with its cell of the plan, for example `T11.defaults.9`, and it names `mongodb-node-7.7`. The name of a Kafka cell starts with `K1`.
 
 - `CELLS_ONLY` selects the cells whose names match a regular expression.
 - `CELLS_SHARD=i/n` takes every n-th cell from the i-th. Thus two processes can share the catalog.

@@ -2312,14 +2312,31 @@ A sustaining retry loop keeps goodput low after the trigger stops. The cells sca
 
 ### SYS-71 · Kafka: the writes at each `acks`
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-58
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
-`acks=1` loses the writes that no follower has. `acks=all` with `min.insync.replicas` 2 and idempotence loses none and duplicates none. This item adds Kafka to the set, with a new group of three brokers.
+This item adds Kafka to the set, with a new group of three brokers and one controller. The plan said that `acks=1` loses the writes after the high watermark, and that `min.insync.replicas` 2 makes `acks=all` safe. The source of Apache Kafka 4.3.2 gives a different law:
+
+- `acks=1` loses each write after the end of the new leader's log at its election. The old leader has no timer that stops it, thus the count reads the hold.
+- `acks=all` loses none and duplicates none. A cut leader cannot shrink its in-sync replicas, thus `min.insync.replicas` is not the reason.
+
+[S3.md](S3.md#the-law-of-sys-71-the-writes-at-each-acks) has each term with its file and line.
+
+| Cell | `acks` | Minimum | Writers | Hold | Failover | Lost writes | Copies |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `K1.acks.1` | 1 | 2 | 1 | 20 s | Yes | 321 to 440 | Not read |
+| `K1.acks.2` | 1 | 2 | 1 | 40 s | Yes | 644 to 840 | Not read |
+| `K1.acks.3` | 1 | 2 | 1 | 3 s | No | 0 | Not read |
+| `K1.acks.4` | all | 2 | 4 | 20 s | Yes | 0 | 0 |
+| `K1.acks.5` | all | 1 | 4 | 20 s | Yes | 0 | 0 |
+
+The decision rule: a run counts if the harness does not void it. Each cell needs 4 counted runs. A cell with a void run, or a run that fails for an infrastructure reason, is dispatched again once, alone. A code bug on the first run is a build miss. The band of each cell judges it, and no threshold changes after a result is read.
+
+Idempotence off has no cell. Its true band is 0 to W with a count near 0, thus a cell with that band cannot fail.
 
 ### SYS-72 · Kafka: a paused consumer
 
