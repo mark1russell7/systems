@@ -34,8 +34,10 @@
 // burst starts when each connection of the pool is idle.
 //
 // The options are one flat JSON object. A name with the prefix `dataSource.` is a property of
-// pgjdbc. Each other name is a property of HikariConfig. A cell gives each option that it changes,
-// and HikariCP and pgjdbc give the others.
+// pgjdbc. A name with the prefix `system.` is a system property of the JVM. The client sets it
+// after its warm-up and before its pool, for example `system.com.zaxxer.hikari.aliveBypassWindowMs`,
+// which HikariPool reads when the pool starts. Each other name is a property of HikariConfig. A cell
+// gives each option that it changes, and HikariCP and pgjdbc give the others.
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
@@ -72,6 +74,7 @@ public final class ClientHikari {
   private static final Set<String> SEEN = ConcurrentHashMap.newKeySet();
   /** This time is the start of a burst after its threads start, in nanoseconds: each thread then waits for its own start. */
   private static final long BURST_LEAD = 50_000_000L;
+  private static final String SYSTEM = "system.";
   private static volatile boolean stopped = false;
   private static volatile HikariDataSource pool;
   private static volatile String connected;
@@ -509,7 +512,10 @@ public final class ClientHikari {
         + ",\"mode\":" + q(mode) + ",\"query\":" + q(query) + ",\"inflight_query\":" + q(inflightQuery) + ",\"options\":" + given);
 
     Properties properties = new Properties();
-    for (Map.Entry<String, String> each : options.entrySet()) properties.setProperty(each.getKey(), each.getValue());
+    for (Map.Entry<String, String> each : options.entrySet()) {
+      if (each.getKey().startsWith(SYSTEM)) System.setProperty(each.getKey().substring(SYSTEM.length()), each.getValue());
+      else properties.setProperty(each.getKey(), each.getValue());
+    }
     config = new HikariConfig(properties);
     config.setJdbcUrl("jdbc:postgresql://" + host + ":" + port + "/postgres");
     // the user of a cell, when it gives one: Supavisor routes a client by its user, <db_user>.<tenant>

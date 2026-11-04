@@ -2219,7 +2219,7 @@ The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the
 - **Shipped:**
 - **Links:** [The law](S3.md#q19-the-exhaustion)
 
-Above the size of the pool, the wait grows with the queue, and a client fails at `connectionTimeout`. HikariCP and PgBouncer are in the harness.
+Above the size of the pool, the wait grows with the queue. A client fails at `connectionTimeout` in HikariCP, or with FATAL 08P01 at `query_wait_timeout` in PgBouncer. HikariCP and PgBouncer are in the harness.
 
 The design: the client of HikariCP sends a burst, one query each 50 ms, each on its own thread. Each query is a band from the send of the first query. Thus the bands of one cell are the curve of the wait against the place in the queue.
 
@@ -2235,7 +2235,23 @@ The prediction: five cells, `Q19.pool.1` to `Q19.pool.5`. In the table, a pool o
 
 The rule: each cell has 11 runs, and each query has its own band. A query in a band of another round fails the law, not the noise. The bands do not change after a result.
 
-PgBouncer stays open in this item. Its documents have no knob for `default_pool_size`. Its janitor ends a wait up to one pass late, thus a cell needs longer holds. The empty query of a check of HikariCP also joins the queue of PgBouncer.
+The PgBouncer half: five cells, `Q19.pool.6` to `Q19.pool.10`. HikariCP has one connection for each query, thus PgBouncer 1.26.1 has the queue. In the table, `P` is `default_pool_size`. The column `Check` tells if a borrow has the check of HikariCP. An option of the lab sets the window of that check to one hour, so that the first cells measure the queue alone.
+
+| Cell | `P` | `M` | `H` | `query_wait_timeout` | Check | Replies | Failures |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `Q19.pool.6` | 2 | 2 | 1 s | 120 s | no | 2, with no queue | 0 |
+| `Q19.pool.7` | 2 | 6 | 1 s | 120 s | no | 6, in 3 rounds | 0 |
+| `Q19.pool.8` | 3 | 7 | 1 s | 120 s | no | 7, in 3 rounds | 0 |
+| `Q19.pool.9` | 2 | 6 | 1.5 s | 2 s | no | 4 | 2, FATAL 08P01 |
+| `Q19.pool.10` | 2 | 6 | 1.5 s | 2 s | yes | 6, in 3 rounds | 0 |
+
+The law has one term for each check. In `Q19.pool.10` a queued query waits in its check, and then in its query. `query_wait_timeout` counts each wait from zero, thus the failures of `Q19.pool.9` do not occur. The queries come back from their checks approximately one round trip apart, thus their order is not a prediction. Each of them has the band of the whole set, and the end of the burst has the sharp band.
+
+A failure after a check has no cell. A failed check is hidden from the client: the borrow closes the connection and tries the next one. The law has no band for it, thus `turnsOf` refuses such a spec.
+
+An assumption with no source: the first use of a server adds up to 30 ms (`SERVER_LOGIN_MS`). The other assumptions are the ones of the documents.
+
+The rule of the PgBouncer half: the prediction `sys-65-bouncer` came before any run, and its thresholds do not change. The first 4 counted runs of each cell decide. A void run or an infrastructure failure gets one more dispatch. A code bug on the first run is a build miss.
 
 ### SYS-66 · The conntrack table: T05 fan-in
 

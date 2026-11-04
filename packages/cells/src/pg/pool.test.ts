@@ -1,7 +1,10 @@
+import { PGBOUNCER_SERVER } from "@mark1russell7/machines";
 import { valueIn } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import { ALL } from "../all.ts";
-import { POOL_CELLS, POOL_GAP_MS, POOL_SPECS, poolCell, poolPrediction, turnsOf } from "./pool.ts";
+import { s } from "../catalog.ts";
+import { POOL_CELLS, POOL_GAP_MS, POOL_SPECS, SERVER_LOGIN_MS, poolCell, poolPrediction, turnsOf } from "./pool.ts";
+import { PGBOUNCER_LATENCY } from "./t10.ts";
 
 const spec = (plan: string) => {
   const found = POOL_SPECS.find((each) => each.plan === plan);
@@ -84,5 +87,79 @@ describe("a pool at its limit", () => {
 
   it("is in the catalog", () => {
     for (const cell of POOL_CELLS) expect(ALL).toContain(cell);
+  });
+});
+
+describe("a pool of PgBouncer at its limit", () => {
+  it("has the law of the bag, with the servers as its size", () => {
+    expect(lows("Q19.pool.6")).toEqual(lows("Q19.pool.1"));
+    expect(lows("Q19.pool.7")).toEqual(lows("Q19.pool.2"));
+    expect(lows("Q19.pool.8")).toEqual(lows("Q19.pool.3"));
+  });
+
+  it("adds the first use of each server but the first to the high end of its lane", () => {
+    const direct = turnsOf(spec("Q19.pool.2"));
+    const behind = turnsOf(spec("Q19.pool.7"));
+    const [first, second] = behind;
+    expect(first?.high).toBeCloseTo((direct[0]?.high ?? 0) + 2 * PGBOUNCER_LATENCY, 6);
+    expect(second?.high).toBeCloseTo((direct[1]?.high ?? 0) + 2 * PGBOUNCER_LATENCY + SERVER_LOGIN_MS / 1000, 6);
+  });
+
+  it("ends a wait past query_wait_timeout within one pass of the janitor, and serves the queries before it", () => {
+    const turns = turnsOf(spec("Q19.pool.9"));
+    expect(turns.map((turn) => turn.ends)).toEqual(["ack", "ack", "ack", "ack", "fail", "fail"]);
+    expect(turns[4]).toEqual({ n: 6, ends: "fail", low: 2.19, high: 2.575333 });
+    expect(turns[5]).toEqual({ n: 7, ends: "fail", low: 2.24, high: 2.625333 });
+    expect(turns[3]).toMatchObject({ low: 3.04 });
+  });
+
+  it("gives no failure to the same burst with the check at its default", () => {
+    const turns = turnsOf(spec("Q19.pool.10"));
+    expect(turns.map((turn) => turn.ends)).toEqual(["ack", "ack", "ack", "ack", "ack", "ack"]);
+    expect(turns.slice(2).map((turn) => [turn.low, turn.high])).toEqual(Array.from({ length: 4 }, () => [3, 4.71]));
+    const end = poolPrediction(spec("Q19.pool.10")).driver?.then?.at(-1);
+    expect(valueIn(end?.low ?? s(0), "s")).toBe(4.54);
+    expect(valueIn(end?.high ?? s(0), "s")).toBe(4.72);
+    expect(end?.ends).toEqual({ ev: "burst", where: { acks: 6, fails: 0, total: 6, active: 0, idle: 6, waiting: 0 } });
+  });
+
+  it("refuses a query near query_wait_timeout", () => {
+    expect(() => turnsOf({ plan: "edge", name: "edge", size: 6, queries: 6, hold: 1.5, pooler: { size: 2, queryWait: 2.4 } })).toThrow(/within 0.25 s/);
+  });
+
+  it("refuses a burst with checks that a timer can end, as a failed check is hidden", () => {
+    expect(() => turnsOf({ plan: "edge", name: "edge", size: 6, queries: 6, hold: 1.5, pooler: { size: 2, queryWait: 1.5, checks: true } })).toThrow(/a failed check is hidden/);
+    expect(() => turnsOf({ plan: "edge", name: "edge", size: 8, queries: 8, hold: 1.5, pooler: { size: 2, queryWait: 2, checks: true } })).toThrow(/no band/);
+  });
+
+  it("sees the queue outside HikariCP, from the line of the pool", () => {
+    const { driver } = poolPrediction(spec("Q19.pool.7"));
+    expect(driver?.then?.at(-2)?.ends).toEqual({ ev: "pool", where: { total: 6, active: 6, idle: 0, waiting: 0 } });
+    expect(driver?.quiet).toEqual([{ ev: "pool", where: { total: 7 } }, { ev: "pool", where: { waiting: 1 } }, { ev: "fail" }]);
+  });
+
+  it("names the FATAL of PgBouncer, and leaves the size of the pool out of the end of the burst", () => {
+    const prediction = poolPrediction(spec("Q19.pool.9"));
+    expect(prediction.timer).toBe("query_wait_timeout");
+    const failure = prediction.driver?.then?.find((step) => step.ends.ev === "fail");
+    expect(failure).toMatchObject({ name: "08P01", ends: { name: "sqlState" } });
+    expect(prediction.driver?.then?.at(-1)?.ends).toEqual({ ev: "burst", where: { acks: 4, fails: 2, active: 0, waiting: 0 } });
+    expect(prediction.driver?.quiet).toEqual([{ ev: "pool", where: { total: 7 } }, { ev: "pool", where: { waiting: 1 } }]);
+  });
+
+  it("puts PgBouncer in the chain, and sets the window of the check only without checks", () => {
+    const cell = poolCell(spec("Q19.pool.9"));
+    expect(cell.topology?.hops.map((hop) => hop.name)).toEqual(["pgbouncer"]);
+    const hop = cell.topology?.hops[0];
+    expect(hop?.kind === "proxy" ? hop.settings : undefined).toMatchObject({ default_pool_size: "2", query_wait_timeout: "2" });
+    expect(cell.driverOptions).toEqual({ maximumPoolSize: 6, "system.com.zaxxer.hikari.aliveBypassWindowMs": 3_600_000 });
+    expect(cell.idleBefore).toBeUndefined();
+    const checked = poolCell(spec("Q19.pool.10"));
+    expect(checked.driverOptions).toEqual({ maximumPoolSize: 6 });
+    expect(checked.idleBefore).toEqual({ value: 2, unit: "s" });
+  });
+
+  it("reads default_pool_size from the document of PgBouncer", () => {
+    expect(PGBOUNCER_SERVER.knobs["default_pool_size"]).toMatchObject({ unit: "count", default: 20 });
   });
 });

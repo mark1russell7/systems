@@ -936,8 +936,9 @@ export interface Cell {
      * - node-postgres on Node, as a `pg.Pool` against one server. Its operation is `query`, or
      *   `SELECT 1`. `Cell.driverOptions` are the options of its pool.
      * - HikariCP over pgjdbc on Java, as a `HikariDataSource` against one server. Its operation is
-     *   `query`, or `SELECT 1`. `Cell.driverOptions` are the properties of HikariConfig, and a name
-     *   with the prefix `dataSource.` is a property of pgjdbc.
+     *   `query`, or `SELECT 1`. `Cell.driverOptions` are the properties of HikariConfig. A name
+     *   with the prefix `dataSource.` is a property of pgjdbc, and a name with the prefix `system.`
+     *   is a system property of the JVM.
      *
      * A pg or hikari driver can send a different text in flight (`inflight`): the second query of
      * an in-flight run. The first query then makes the pool ready at once, and only the query in
