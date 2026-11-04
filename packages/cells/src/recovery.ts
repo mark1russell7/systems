@@ -1,7 +1,7 @@
 import type { Cell, Drill, GroupReading } from "@mark1russell7/harness";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
-import { LADDER_FORMAT, type Ladder, type RungEvidence, type RungRecord } from "@mark1russell7/rigor-bench";
+import { LADDER_FORMAT, ladderVerdict, type Ladder, type LadderVerdict, type RungEvidence, type RungRecord } from "@mark1russell7/rigor-bench";
 import { ms, s, sysctlsOf } from "./catalog.ts";
 import { MONGO_IMAGE } from "./mongo/cells.ts";
 import { MEMBER_STAMPS, SET_DEFAULTS, replicaSetOf } from "./mongo/harness.ts";
@@ -218,6 +218,9 @@ export const RECOVERY_LADDER: Ladder = {
     test: `cells ${rung.drill} and ${rung.kept}`,
   })),
 };
+
+/** This function gives the verdict of the ladder of recovery, with `now` as the time of the verdict in ISO 8601. */
+export const recoveryVerdict = (records: readonly RungRecord[], now: string): LadderVerdict => ladderVerdict(RECOVERY_LADDER, records, { now });
 
 /** This list states what a drill does not do. A rung shows it beside its verdict. */
 const SYNTHETIC: readonly string[] = [

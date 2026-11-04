@@ -3,7 +3,7 @@ import { valueIn } from "@mark1russell7/quantity";
 import { checkLadder, ladderVerdict } from "@mark1russell7/rigor-bench";
 import { describe, expect, it } from "vitest";
 import { ALL } from "./all.ts";
-import { RECOVERY_CELLS, RECOVERY_LADDER, RECOVERY_RUNGS, RPO, recoveryRecord } from "./recovery.ts";
+import { RECOVERY_CELLS, RECOVERY_LADDER, RECOVERY_RUNGS, RPO, recoveryRecord, recoveryVerdict } from "./recovery.ts";
 
 const NOW = new Date("2026-11-04T12:00:00Z");
 const AT = NOW.toISOString();
@@ -55,7 +55,7 @@ describe("the ladder of recovery", () => {
   });
 
   it("holds each rung with clean drills", () => {
-    const verdict = ladderVerdict(RECOVERY_LADDER, recordsOf(), { now: NOW });
+    const verdict = recoveryVerdict(recordsOf(), NOW);
     expect(verdict.rungs.map((rung) => rung.outcome)).toEqual(["within", "within", "within"]);
     expect(verdict.held).toBe("1000");
   });
