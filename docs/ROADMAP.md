@@ -15,6 +15,7 @@ The program started again on 2026-11-02, after the pause of 2026-10-28. A gap th
 4. **S2:** CoreDNS (SYS-50), kube-vip (SYS-51) and MetalLB (SYS-53) are done. The next step is Pulsar. Do one intermediary in each context. Write the prediction before the dispatch.
 5. **S3:** [The plan](S3.md) has the items SYS-58 to SYS-75. SYS-58 is the first cell. The Q17 line reuses the labs of S1, thus it comes first.
 6. **S7:** [The plan](S7.md) has the items SYS-76 to SYS-92. It starts after the open cells of S3, with SYS-76 and the first fabric, SYS-77.
+7. **The scale ladder:** [The items](#the-items-of-the-scale-ladder) are SYS-93 and SYS-94. SYS-94 starts beside the open cells of S3, and SYS-93 follows SYS-68.
 
 SITE-UX round 3 is done. Its chart shows the C-stall band of SYS-48 against the count of each mode, on the kind page.
 
@@ -2555,6 +2556,99 @@ A closed-loop client hides a stall, because a slow reply delays its next send (G
 - **Links:**
 
 `Topology` is a chain of hops, thus it cannot name two paths. The first fabric uses one opaque hop. This item makes the topology a graph, thus a law can read its paths, and the algebra gets terms for route convergence.
+
+## The items of the scale ladder
+
+A rung is one target at one power of ten, and an automatic test holds it. A number in a document is not a rung. The format of a ladder and `ladderVerdict` are in `rigor-bench`. These two items give the first records in that format, for a public service with no product code. The rungs above 1,000 tenants are not in these items.
+
+**The order against S3 and S7.** SYS-94 comes first. It needs only the set check of SYS-58 and the replica sets of the harness, thus it starts beside the open cells of S3. SYS-93 follows it, because SYS-93 needs the open-loop schedule of SYS-68 and a measured RTO. The dispatch order of S3 and S7 does not change. S7 blocks neither item, and it gives the later drills.
+
+**The items that they share.**
+
+| Item | What SYS-93 takes | What SYS-94 takes |
+| --- | --- | --- |
+| SYS-58 | | The set check that counts each lost write |
+| SYS-59 | The write concern of the store | The replica set lab, and `w: "majority"` as the case with no loss |
+| SYS-61 | | A write with an unknown outcome at the fault, which counts apart |
+| SYS-63, SYS-64, SYS-65 | The limits of the accept queue, the ports and the pool at the rate of a rung | |
+| SYS-68 | The open-loop schedule | |
+| SYS-69, SYS-70 | The border of a stable system, as the capacity of a rung | |
+| SYS-75 | | The checker of histories, if a drill needs more than a set check |
+| SYS-76 | The environment of each record | The environment of each record |
+| SYS-83 | | A later drill: a power-off, with the page cache lost |
+| SYS-80, SYS-85 | The later rungs: zones, and 10,000 tenants on k3s | Later drills: the loss of a site or of a node |
+| SYS-91 | The list of cells that a closed loop times | |
+
+### SYS-93 · A public reference service, and rungs 1 to 1,000 in CI
+
+- **Status:** blocked
+- **Area:** engines
+- **Depends on:** SYS-68, SYS-94
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+This item waits for SYS-68, and SYS-68 waits for the open-loop schedule in `mark1russell7/rigor`.
+
+A public multi-tenant service runs on the stack of this repository: `@mark1russell7/service`, `@procedures/peer` and a MongoDB replica set. It holds documents for each tenant and it sends each change over a socket. It has no product code. A gap in the stack goes to its home, and the service keeps no local copy.
+
+A ladder as data names the rungs 1, 10, 100 and 1,000 tenants. Ten percent of the tenants are active, and at least one is. Each active tenant sends 10 requests each second on an open-loop schedule. Thus the rungs run at 10, 10, 100 and 1,000 requests each second, on one runner. The other tenants are data at rest, and each record says so in `synthetic`.
+
+| Tenants | Availability | RPO | RTO | Requests with no failure that hold the limit |
+| --- | --- | --- | --- | --- |
+| 1 | 99 % | 24 h | 4 h | 381 |
+| 10 | 99.5 % | 1 h | 1 h | 765 |
+| 100 | 99.9 % | 5 min | 30 min | 3,838 |
+| 1,000 | 99.9 % | 1 min | 15 min | 3,838 |
+
+The request counts are the Wilson bound at 95 %. The availability claim has two parts: the calculation from measured failure rates and the RTO of SYS-94, and a run under a chaos schedule. The first measure sets the budgets of a read, a write, a first load, a server start and the noise of a heavy tenant. Each later run holds or improves them. A scheduled workflow and a release check call `ladderVerdict`, and they fail if a locked rung is lost.
+
+The format of a ladder has budgets on a median, a rate and a worst value. The times at p95 and p99 need a new budget kind, in `rigor-bench`.
+
+**The prediction.**
+
+| Claim | Probability |
+| --- | --- |
+| The first dispatch gives a record for each rung, with no fix after it | 0.40 |
+| No request fails at any rung | 0.75 |
+| One runner carries at least 2,000 requests each second | 0.60 |
+| Near capacity, the p99 of an open loop is at least twice that of a closed loop | 0.85 |
+| A heavy tenant at 10 times its share moves the median of the others by less than 50 % | 0.55 |
+| The naive claim: an open and a closed loop agree on the p99 near capacity | 0.08 |
+
+### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** SYS-58
+- **Started:** 2026-11-04
+- **Shipped:**
+- **Links:**
+
+A drill stops the store during writes, removes its disk, and recovers from a real backup. A set difference counts each lost write. A timer runs from the fault to the first accepted write. The records go to `ladderVerdict` as `worst` budgets. A restore that nobody tested is not a backup.
+
+| Drill | Store | Fault | Recovery | The law |
+| --- | --- | --- | --- | --- |
+| `RD.1` | One node, with an oplog | Stop, disk lost | A dump with its oplog | Each write after the end of the dump is lost, and no other |
+| `RD.100.failover` | Three members, `w: "majority"` | Stop the primary, disk lost | An election | No accepted write is lost |
+| `RD.100.restore` | Three members, `w: "majority"` | Stop each member, each disk lost | A dump and the slices of the oplog | Each write after the last slice is lost, and no other |
+| `RD.control` | One node, with an oplog | Stop after the dump, with no later write | A dump with its oplog | No write is lost |
+
+**What is real and what is not.** A drill cannot wait 24 h. The loss of a backup depends on the age of the newest backup at the fault. So a drill shortens the interval to 60 s, and to 10 s for a slice of the oplog. A test reads the schedule of each rung, and the record adds that interval to the measured excess. Each tenant holds 1 MB of generated data, thus the size of a restore follows the rung. The drill starts the recovery at the fault. Thus the measured RTO has no detection time and no human time, and the record says so in `synthetic`.
+
+**The prediction.**
+
+| Claim | Probability |
+| --- | --- |
+| The first dispatch gives 4 counted runs of each drill, with no fix after it | 0.45 |
+| In `RD.1` and `RD.100.restore`, the restored writes are an unbroken prefix of the accepted writes | 0.85 |
+| In `RD.1`, the lost writes are the count after the end of the dump, within 2 writes | 0.75 |
+| `RD.100.restore` loses at most the writes of one slice, plus the writes in flight | 0.70 |
+| `RD.100.failover` loses no accepted write | 0.92 |
+| `RD.100.failover` serves a write again within 15 s of the fault | 0.70 |
+| `RD.control` loses no write | 0.95 |
+| Each measured RTO is at most a tenth of the budget of its rung | 0.90 |
+| The naive claim: an acknowledged write survives a restore | 0.03 |
 
 ## Decisions for Mark
 
