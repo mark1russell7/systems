@@ -1195,6 +1195,12 @@ export interface Run {
    * its window is δ_abs of its cell: 1 ms on a calibrated runner.
    */
   readonly jitter?: Jitter;
+  /**
+   * This share is the CPU time from 0 to 1 that the host took from this machine in the run, from
+   * `/proc/stat` (`stealShare`). A run of a plain cell writes it. A group, a replica set or a cluster
+   * writes it with its first cell on layer E4.
+   */
+  readonly steal?: number;
   /** These are the addresses and the namespaces of a topology, which the measurement of a run reads. */
   readonly topology?: RunTopology;
   /** These are the lines of the routers of a topology from the start to the end of the run. */

@@ -10,6 +10,7 @@ import type { Measured } from "./observe.ts";
 import { jitterOf, measure, socketOf } from "./observe.ts";
 import { openReplicaSetLab, replicaSetOnce } from "./replset.ts";
 import { clusterOnce, openClusterLab } from "./cluster.ts";
+import { readCpu, stealShare } from "./substrate.ts";
 import type { Verdict } from "./verdict.ts";
 import { STEPS, noiseOf, verdictOf } from "./verdict.ts";
 
@@ -672,6 +673,15 @@ const line = (cell: Cell, run: Run, read: Measured): string =>
   `${read.elapsed === null ? "" : ` ${read.elapsed.value} s`}` +
   `${read.void === null ? "" : ` (void: ${read.void})`}`;
 
+/** This function adds to a run the share of the CPU that the host took while the run operated. */
+const withSteal = async (work: () => Promise<Run>): Promise<Run> => {
+  const before = readCpu();
+  const run = await work();
+  const after = readCpu();
+  const steal = before === null || after === null ? null : stealShare(before, after);
+  return steal === null ? run : { ...run, steal };
+};
+
 /**
  * This function does the part of the runs of a cell in one environment, and records its manifest.
  * A warm-up goes first, and the verdict does not count it. On a loaded machine, a new environment is
@@ -708,12 +718,12 @@ const inEnvironment = async (
     const manifest = await lab.manifest(await lab.sysctl(cell.sysctls), settings, targetSysctls);
     // each run records the jitter of its program, which sets the window of its pairings
     const timed = (run: Run): Run => ({ ...run, jitter: jitterOf(cell, run) });
-    const warmed = timed(await once(lab, cell, environment, -1, endsEnvironment(cell)));
+    const warmed = timed(await withSteal(() => once(lab, cell, environment, -1, endsEnvironment(cell))));
     const warmup: Run = { ...warmed, warmup: true };
     say(line(cell, warmup, measure(cell, warmup)));
     const runs: Run[] = [];
     for (let index = 0; index < count; index += 1) {
-      const run = timed(await once(lab, cell, environment, index));
+      const run = timed(await withSteal(() => once(lab, cell, environment, index)));
       runs.push(run);
       say(line(cell, run, measure(cell, run)));
     }

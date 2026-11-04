@@ -144,7 +144,7 @@ export {
   topologyOf,
 } from "./fabric.ts";
 export type { Cloud, Host, Layer, Substrate, SubstrateSource } from "./substrate.ts";
-export { AWS_FROM, cloudOf, comparable, readHost, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
+export { AWS_FROM, cloudOf, comparable, readCpu, readHost, stealShare, substrateHere, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
 export type { ImagePlan } from "./image.ts";
 export {
   CLIENT_NAMES,

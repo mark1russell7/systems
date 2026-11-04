@@ -1,0 +1,17 @@
+# The static Docker binaries come with no unit. dockerd starts its own containerd.
+[Unit]
+Description=Docker
+After=lab-net.service
+Wants=lab-net.service
+
+[Service]
+ExecStart=/usr/local/bin/dockerd
+Restart=on-failure
+Delegate=yes
+KillMode=process
+LimitNOFILE=infinity
+LimitNPROC=infinity
+TasksMax=infinity
+
+[Install]
+WantedBy=multi-user.target

@@ -5,7 +5,8 @@ import { join } from "node:path";
 /**
  * A layer is a rung of the laboratory (`docs/S7.md`). E1 is containers on one kernel, and E2 is a
  * cluster of containers on one kernel. A lab with `Topology.fabric` writes E3: routers in containers.
- * The other layers do not have a runner at this time.
+ * A lab in a guest of QEMU writes E4 (`substrateHere`). The other layers do not have a runner at this
+ * time.
  */
 export type Layer = "E0" | "E1" | "E2" | "E3" | "E4" | "E5" | "E6";
 
@@ -77,6 +78,46 @@ export const readHost = (root = "/", env: Readonly<Record<string, string | undef
 
 /** This function gives the substrate of a layer on a host. */
 export const substrateOn = (layer: Layer, host: Host = readHost()): Substrate => ({ layer, cloud: cloudOf(host.vendor), ...host });
+
+/**
+ * This function gives the substrate of a lab at this place. A guest cannot read its own runner: its
+ * DMI vendor is QEMU, and `ImageOS` is not set. Thus the runner writes its host to `LAB_RUNNER`, and
+ * the guest keeps only its own kernel and HZ. A value of that variable makes the layer E4.
+ */
+export const substrateHere = (layer: Layer, host: Host = readHost(), env: Readonly<Record<string, string | undefined>> = process.env): Substrate => {
+  const runner = env["LAB_RUNNER"];
+  if (runner === undefined || runner === "") return substrateOn(layer, host);
+  return substrateOn("E4", { ...(JSON.parse(runner) as Host), kernel: host.kernel, hz: host.hz });
+};
+
+/** A CPU reading is two counters of `/proc/stat`, in ticks of the clock. */
+export interface CpuTime {
+  /** This count is the time that the host gave to another guest while this one had work. */
+  readonly steal: number;
+  /** This count is the sum of all states of each CPU. */
+  readonly total: number;
+}
+
+/** This function reads the CPU time of this machine, or gives null without `/proc/stat`. `root` is for tests. */
+export const readCpu = (root = "/"): CpuTime | null => {
+  const line = textOf(join(root, "proc", "stat"))?.split("\n")[0];
+  if (line === undefined || !line.startsWith("cpu ")) return null;
+  // user, nice, system, idle, iowait, irq, softirq, steal: the guest counters that follow are in user
+  const ticks = line.trim().split(/\s+/).slice(1, 9).map(Number);
+  const steal = ticks[7];
+  if (steal === undefined || ticks.some(Number.isNaN)) return null;
+  return { steal, total: ticks.reduce((sum, tick) => sum + tick, 0) };
+};
+
+/**
+ * This function gives the share of the CPU time between two readings that the host took, from 0 to
+ * 1, or null if no tick passed. A guest sees only the host above it. On a hosted runner that host is
+ * itself a guest, and this number does not show the contention of the layer below it.
+ */
+export const stealShare = (before: CpuTime, after: CpuTime): number | null => {
+  const total = after.total - before.total;
+  return total <= 0 ? null : (after.steal - before.steal) / total;
+};
 
 /** A part of a record that can hold a substrate: a manifest of the harness, or the fields of a kind manifest. */
 export interface SubstrateSource {

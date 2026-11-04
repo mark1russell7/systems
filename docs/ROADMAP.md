@@ -2633,14 +2633,16 @@ The replication of PostgreSQL, Valkey, Kafka and etcd crosses routed links with 
 
 ### SYS-81 · The VM tier: QEMU on a runner, and its bridge
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** harness
 - **Depends on:** SYS-76
-- **Started:**
+- **Started:** 2026-11-04
 - **Shipped:**
 - **Links:**
 
 The workflow turns on KVM with a udev rule, and QEMU boots a pinned kernel for each node. The prober runs in the guest. A bridge repeats a set of T01 cells in a VM, and an A/A pair gives the noise of the layer. A runner with no KVM gives a void run. This item starts the VM tier of S4.
+
+The first slice narrows this text. It has one guest, and that guest holds the whole lab, in place of one VM for each node. A bridge cell has no fault that needs a second kernel, and each node costs memory that a runner does not have in quantity. The second node comes with the first fault that needs a second kernel (SYS-83, SYS-84, SYS-85). The disk of a guest is an overlay on one root image, thus that node needs no other build.
 
 ### SYS-82 · Each timer band at HZ 100, 250 and 1000, and on two kernels
 
