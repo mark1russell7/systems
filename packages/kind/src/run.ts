@@ -293,8 +293,8 @@ const oursAt = (ctx: Context, ours: ReadonlySet<string>): ReadonlySet<string> =>
 
 /**
  * This function takes the baseline of the cell in this environment, once. The first run after the
- * warm-up calls it. It waits until the cell has its age, because the conntrack table fills for the
- * life of its entries, and the read of the table costs more until then.
+ * warm-up calls it. It waits until the cell has its age. The conntrack table fills for the life of
+ * its entries, and the read of the table costs more until then.
  */
 const takeBaseline = async (ctx: Context, ours: ReadonlySet<string>): Promise<void> => {
   if (ctx.settled) return;
