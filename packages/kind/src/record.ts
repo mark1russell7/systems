@@ -4,6 +4,7 @@ import type { Band, KindCell, KindRun, Prediction, Trigger, WindowPrediction } f
 import type { KindScenario } from "./scenario.ts";
 import type { KindVerdict, Propagated, RunCheck, RunFacts } from "./verdict.ts";
 import { judgeKind, unitOf } from "./verdict.ts";
+import type { Substrate } from "@mark1russell7/harness";
 
 /**
  * This module is the raw record of a kind cell: its formats, and the upgrade from the format `/1`
@@ -46,6 +47,8 @@ export interface EnvironmentManifest {
   readonly scenario: KindScenario;
   readonly cluster: ClusterManifest;
   readonly images: Readonly<Record<string, string>>;
+  /** This block tells the layer, the cloud and the kernel of the record. A record from before it reads through `substrateOf`. */
+  readonly substrate?: Substrate;
 }
 
 /**
@@ -143,6 +146,18 @@ const upgradePrediction = (prediction: PredictionV1): Prediction => {
       const { failures, ...rest } = prediction;
       return { ...rest, ...(failures === undefined ? {} : { failures: failures.kind === "window" ? upgradeWindow(failures) : failures }) };
     }
+    // the format /1 has no prediction `reconnects`, but its type does
+    case "reconnects": {
+      const { backoff } = prediction;
+      return {
+        ...prediction,
+        flip: band(prediction.flip),
+        probe: seconds(prediction.probe),
+        disconnect: band(prediction.disconnect),
+        backoff: { ...backoff, initial: seconds(backoff.initial), max: seconds(backoff.max), mandatoryStop: seconds(backoff.mandatoryStop), attempt: seconds(backoff.attempt) },
+        setup: band(prediction.setup),
+      };
+    }
     default:
       return prediction;
   }
@@ -158,7 +173,7 @@ export const upgradeCell = (cell: KindCellV1): KindCell => ({
 const upgradeFacts = (facts: RunFactsV1): RunFacts => {
   const propagated = (old: Propagated<number> | null): Propagated | null => (old === null ? null : { after: time(old.after), by: seconds(old.by) });
   const byKey = (record: Readonly<Record<string, Propagated<number> | null>>) => Object.fromEntries(Object.entries(record).map(([key, old]) => [key, propagated(old)]));
-  const { sliceEmpty, rules, left, signals, updates, healUpdates, closes, cycles, stall, period, ...rest } = facts;
+  const { sliceEmpty, rules, left, signals, updates, healUpdates, closes, cycles, stall, period, reconnects, ...rest } = facts;
   return {
     ...rest,
     intakeAfterDeletion: time(facts.intakeAfterDeletion),
@@ -173,6 +188,17 @@ const upgradeFacts = (facts: RunFactsV1): RunFacts => {
     ...(closes === undefined ? {} : { closes: Object.fromEntries(Object.entries(closes).map(([client, old]) => [client, time(old)])) }),
     ...(cycles === undefined ? {} : { cycles: cycles.map((old) => ({ empty: time(old.empty), ready: time(old.ready) })) }),
     ...(stall === undefined ? {} : { stall: { start: time(stall.start), held: time(stall.held) } }),
+    // the format /1 has no facts of the producers, but its type does
+    ...(reconnects === undefined
+      ? {}
+      : {
+          reconnects: {
+            ...reconnects,
+            flip: time(reconnects.flip),
+            gap: time(reconnects.gap),
+            returns: reconnects.returns.map((each) => ({ ...each, disconnect: time(each.disconnect), back: time(each.back), setup: time(each.setup) })),
+          },
+        }),
     ...(period === undefined
       ? {}
       : {

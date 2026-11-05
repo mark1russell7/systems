@@ -2,7 +2,7 @@
 title: R3, the compiled queue
 sidebar:
   label: R3, the compiled queue
-description: The cells that jarvis compiles from its corpus, on the runners of GitHub. Of the 115 cells of the queue, 114 hold and 1 is a measurement only. 9 failed first, on two gaps of the corpus, and held after the fix.
+description: The cells compiled from a private corpus, on the runners of GitHub. Of the 115 cells of the queue, 114 hold and 1 is a measurement only. 9 failed first, on two gaps of the corpus, and held after the fix.
 ---
 
 import RunResults from "../../../components/RunResults.tsx";
@@ -13,7 +13,7 @@ import CellMap from "../../../components/CellMap.tsx";
 
 <CellMap copy="r3" />
 
-These are the cells of R3's queue, from 2026-10-16 and 2026-10-17. A person did not write these cells. jarvis is the private repository of this program. It keeps a corpus of claims about each timer and each knob of the chain.
+These are the cells of R3's queue, from 2026-10-16 and 2026-10-17. A person did not write these cells. The private repository of this program keeps a corpus of claims about each timer and each knob of the chain.
 
 Its compiler reads the corpus and the plan of each template. Then it writes each cell, with its settings and its prediction. The cells and their raw records are public, but the corpus is not. Thus a record names no claim.
 
@@ -78,4 +78,4 @@ CI started the 115 cells of the queue in the run [38922068182](https://github.co
 
 ## Where the data comes from
 
-Each runner wrote a raw record of each of its cells, with the cell that jarvis compiled. The script `packages/site/scripts/r3.ts` judges each record again with the harness. It stops when a verdict disagrees with the summary that CI wrote. A re-run replaces the first records of its cell, and the page says what those gave. The copy names no machine and no claim of the corpus.
+Each runner wrote a raw record of each of its cells, with the compiled cell. The script `packages/site/scripts/r3.ts` judges each record again with the harness. It stops when a verdict disagrees with the summary that CI wrote. A re-run replaces the first records of its cell, and the page says what those gave. The copy names no machine and no claim of the corpus.

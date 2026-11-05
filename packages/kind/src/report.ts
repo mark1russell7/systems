@@ -70,6 +70,8 @@ export const predictionText = (prediction: Prediction): string => {
             : `the socket of each client ends in ${atBand(prediction.from, prediction.band)}`;
       return prediction.window === undefined ? closes : `${closes}; ${predictionText(prediction.window)}`;
     }
+    case "reconnects":
+      return `another owner in ${showBand(prediction.flip)}, each producer back at the first try of its backoff after it, failures only before it, each one ${prediction.outcomes.join(" or ")}`;
     case "measured":
       return "measured";
   }

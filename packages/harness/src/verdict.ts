@@ -124,6 +124,8 @@ export interface Verdict {
   readonly median: Quantity | null;
   /** This interval is the order-statistic interval of the median at 95 %, or the whole range for fewer than six runs. */
   readonly medianInterval: Interval | null;
+  /** This time is the slowest reply of a cell that measures a distribution. A closed loop hides the sends in a stall, thus a quantile is a lower bound, and this maximum is not. */
+  readonly slowest?: Quantity;
   /** This record is the sum of what reordering did in each counted run of a measurement-only cell. */
   readonly reordering?: Reordering;
   /** This record is the time of the proxy of a calibration cell, in each direction. */
@@ -477,6 +479,19 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
         times.length === 0
           ? "no time"
           : `median ${s(middle(times)).value} s from ${prediction.from}, range [${s(times[0]!).value}, ${s(times.at(-1)!).value}] s`;
+      // a band of lost writes judges the cell: the time stays a measurement, and each finding of a run counts
+      const counts = prediction.group?.lost;
+      if (counts !== undefined) {
+        const off = new Set(outside.map((each) => each.run)).size;
+        return {
+          ...empty,
+          decision: off === 0 ? "holds" : "fails",
+          band: null,
+          outside,
+          median: times.length === 0 ? null : s(middle(times)),
+          why: `${counted.length - off} of ${counted.length} runs inside the band of lost writes [${counts.low}, ${counts.high}]; ${outcomes}; ${timed}. ${prediction.why}`,
+        };
+      }
       // the end has no band, but each wait of the reconnect has one: a wait outside it is a finding of its run
       const missed = outside.filter((each) => counted.some((run) => name(run) === each.run && run.reconnect !== undefined));
       const late = missed.length === 0 ? "" : ` ${missed.length} runs had a wait of the reconnect outside its band.`;
@@ -512,6 +527,7 @@ const verdictOfBand = (prediction: Prediction, runs: readonly Measured[], delta:
       band: null,
       outside: [],
       median: samples.length === 0 ? null : s(middle(samples)),
+      ...(samples.length === 0 ? {} : { slowest: s(samples.at(-1)!) }),
       ...(reordering === undefined ? {} : { reordering }),
       why,
     };
