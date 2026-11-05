@@ -32,6 +32,11 @@ on:
 permissions:
   contents: read
 
+# With no shell key, a step has no pipefail: `cmd | tee file` passes when cmd fails.
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: vm-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}

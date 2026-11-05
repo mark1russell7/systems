@@ -13,7 +13,7 @@ import type {
 } from "./cell.ts";
 import type { Manifest } from "./lab.ts";
 import { harnessImage, nodeClientImage } from "./image.ts";
-import { STOP, containers, lines, netnsOf, output, withPid } from "./lab.ts";
+import { STOP, containers, harnessRecord, lines, netnsOf, output, shippedClientRecord, withPid } from "./lab.ts";
 
 /**
  * This module is the lab of a replicated group: a primary and its replicas, and the Sentinels
@@ -502,8 +502,9 @@ export const openGroupLab = async (group: Group, options: { readonly watchSentin
             image,
             id: (await inspect(holder)).Image,
             packages: (await output(holder, ["apk", "info", "-v"])).split("\n").sort(),
+            ...harnessRecord(),
           },
-          client: { kind: "ioredis", image: node },
+          client: shippedClientRecord("ioredis", node),
           netns: { client: clientNetns, target: parts.members[first]!.netns },
           sysctls,
           group: { members, sentinels, observer: { image: node } },
