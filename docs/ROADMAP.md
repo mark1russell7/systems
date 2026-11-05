@@ -3048,6 +3048,45 @@ These assertions have no flip:
 - The other cases of the conformance kit on the real clock. They read counts and order, and the mutants of `conformance.test.ts` hold the kit on the fake clock.
 - The bounds of the HTTP test that are not time bounds, for example status codes and headers.
 
+### SYS-101 · A 30-day limit for the studies of the site that depend on current code
+
+- **Status:** in progress
+- **Area:** site
+- **Depends on:** SYS-99
+- **Started:** 2026-11-05
+- **Shipped:**
+- **Links:** [the issue of the limit](https://github.com/mark1russell7/systems/issues/368)
+
+A page with a fixed study has no age limit today. Thus a page can show old numbers about code that changed. This item gives each study an age limit of 30 days and a scheduled refresh inside that limit. The study can drop the limit only if its numbers do not depend on current code. The stamp and the text of the page then say this.
+
+The word "current" needs a test, because each dated study can say that its numbers came from older code. A study does not depend on current code only if both of these are true:
+
+- No run of current code can reproduce its numbers.
+- The page makes no claim about the current code.
+
+This is the first read of the 17 pages, from their text, their data files and their imports. No cell operated for this read.
+
+| Pages | Why | Limit |
+| --- | --- | --- |
+| `results/kind`, `results/faults`, `results/topologies`, `results/r3` | The subject is code of this repository: the service, or the TCP client of the harness. The page `results/r3` is read only from its first rows. | 30 days |
+| `results/sentinel`, `results/http`, `results/mongodb`, `results/pg`, `results/rabbitmq`, `results/grpc`, `results/mesh` | The subject has a pinned version, but the driver, the prober and the bands of the catalog are code of this repository. | 30 days |
+| `results/calibration` | Its text says that stage 0 occurs again after each change. | 30 days |
+| `results/timers` | The rule for a void run is in the current harness. | 30 days |
+| The home page, `lab/detection` | The band comes from the current algebra at each build, beside the runs of 2026-10-08. | 30 days |
+| `results/harness`, `results/cells` | These are records of one lab machine, on kernel 6.6 at HZ 250. Their Q cells are not in the catalog, thus no run can reproduce them. The text says that they are history and links to `results/faults`. | none |
+
+These commits came after 2026-10-17: 55 in the machines, 33 in the image of the harness and 9 in the algebra. The verdict has 5 and the prober has 4. The kernel of the runner also changed from 6.17 to 7.0. Thus the first refresh can fail some cells. Each failure is a finding, and no band gets wider to hide it. A prediction comes before the first dispatch.
+
+The original runs took approximately 148 runner hours. This figure includes the runs again of `results/r3` and `results/mesh`, and it does not include the series S2. Four weekly rounds at 3 jobs take approximately 12 hours each.
+
+The order of the work:
+
+1. By 2026-11-14: the schedule, the commits in the stamps, and the public text of the limit.
+2. The age shows on each page from its first stamp. Each limit starts at the first green read of its study or on 2026-12-07, at the earlier of these. The study of 2026-10-08 reaches 30 days on 2026-11-07, and the study of 2026-10-13 on 2026-11-12. Thus a limit at the first stamp fails the gate of the Pages workflow at once.
+3. On 2026-12-07, each limit is on. A page with no green read fails the gate, or gets an exception with a date in the public issue of the limit.
+
+The check `Kind OK` cannot fail on a cell. Thus `results/kind` and `results/mesh` need the check of SYS-99 in the workflow `kind.yml` first, with a flip test.
+
 ## Decisions for Mark
 
 ### D-CHECKER · The checker of linearizability and of transactions
