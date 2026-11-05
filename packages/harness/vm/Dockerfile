@@ -1,4 +1,4 @@
-# The root file system of a guest of layer E4 (docs/S7.md). `vm.sh root` builds this image on the
+# The root file system of a guest of layer E4 (docs/S7.md). The command `root` of `src/vm.ts` builds this image on the
 # runner, with no VM, and writes its files to a disk. The guest then has systemd, sshd and the Docker
 # version of the runner, and the cells operate in it with the command of the cells workflow. The
 # build context is the root of the repository.

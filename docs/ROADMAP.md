@@ -2638,7 +2638,7 @@ The replication of PostgreSQL, Valkey, Kafka and etcd crosses routed links with 
 - **Depends on:** SYS-76
 - **Started:** 2026-11-04
 - **Shipped:**
-- **Links:**
+- **Links:** [#354](https://github.com/mark1russell7/systems/pull/354)
 
 The workflow turns on KVM with a udev rule, and QEMU boots a pinned kernel for each node. The prober runs in the guest. A bridge repeats a set of T01 cells in a VM, and an A/A pair gives the noise of the layer. A runner with no KVM gives a void run. This item starts the VM tier of S4.
 

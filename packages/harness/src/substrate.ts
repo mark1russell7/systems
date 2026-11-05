@@ -110,9 +110,9 @@ export const readCpu = (root = "/"): CpuTime | null => {
 };
 
 /**
- * This function gives the share of the CPU time between two readings that the host took, from 0 to
- * 1, or null if no tick passed. A guest sees only the host above it. On a hosted runner that host is
- * itself a guest, and this number does not show the contention of the layer below it.
+ * This function gives the share of the CPU time between two readings that the host took. The share
+ * goes from zero to one. It is null if no tick passed. A guest sees only the host above it. On a hosted
+ * runner that host is itself a guest, and this number does not show the contention of the layer below it.
  */
 export const stealShare = (before: CpuTime, after: CpuTime): number | null => {
   const total = after.total - before.total;
