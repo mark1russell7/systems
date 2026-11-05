@@ -28,6 +28,7 @@ const MAX_HEIGHT = 7000;
 const WIDGETS = [
   ["map", ".sy-map"],
   ["borders", ".sy-borders"],
+  ["rows", ".sy-rows-figure"],
 ];
 
 // the pages of the site: each index.html under dist, as the path that GitHub Pages serves
@@ -101,8 +102,12 @@ for (const viewport of VIEWPORTS) {
       await tab.screenshot({ path: path.join(out, `${stem}.jpg`), type: "jpeg", quality: 72, fullPage: true, clip: { x: 0, y: 0, width: viewport.width, height: Math.min(measured.height, MAX_HEIGHT) } });
       // a widget far down a long page is past the cut of the page: each one also gets a shot of its own
       for (const [part, selector] of WIDGETS) {
-        const widget = tab.locator(selector).first();
-        if ((await widget.count()) > 0) await widget.screenshot({ path: path.join(out, `${stem}-${part}.jpg`), type: "jpeg", quality: 80 });
+        const widgets = tab.locator(selector);
+        const count = await widgets.count();
+        for (let at = 0; at < count; at += 1) {
+          const name = at === 0 ? `${stem}-${part}.jpg` : `${stem}-${part}-${at + 1}.jpg`;
+          await widgets.nth(at).screenshot({ path: path.join(out, name), type: "jpeg", quality: 80 });
+        }
       }
       rows.push({ page, viewport: viewport.name, scheme, ...measured, errors: [...new Set(errors)] });
       await tab.close();
