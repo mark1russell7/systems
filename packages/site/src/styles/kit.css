@@ -1012,6 +1012,20 @@ code.sy-tag {
   background: var(--color-surface);
 }
 
+/* the one column stops at the width of the figure: a chart then reads that width, and draws its text at its own size */
+.sy-rows-figure {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* a long heading wraps, and the name of a row stays on one line */
+.sy-rows-figure .sy-table thead th {
+  white-space: normal;
+}
+
+.sy-rows-figure .sy-table tbody th {
+  white-space: nowrap;
+}
+
 .sy-stall-figure figcaption,
 .sy-rows-figure figcaption {
   margin: 0;
