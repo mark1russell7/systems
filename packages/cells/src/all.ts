@@ -7,6 +7,7 @@ import { T01_GRPC } from "./grpc/t01.ts";
 import { T02_GRPC } from "./grpc/t02.ts";
 import { T03_GRPC } from "./grpc/t03.ts";
 import { HTTP_CAL_CELLS, HTTP_HARNESS_CELLS } from "./http/cells.ts";
+import { FABRIC_CELLS } from "./fabric.ts";
 import { LIMITER_CELLS } from "./limiter.ts";
 import { MONGO_CELLS } from "./mongo/harness.ts";
 import { T01_HIKARI } from "./pg/hikari.ts";
@@ -15,6 +16,7 @@ import { T03_HIKARI } from "./pg/t03.ts";
 import { T10_HIKARI, T10_PG } from "./pg/t10.ts";
 import { T01_AMQP } from "./rabbit/t01.ts";
 import { T11_RABBIT } from "./rabbit/t11.ts";
+import { RECOVERY_CELLS } from "./recovery.ts";
 import { T02_CELLS } from "./t02.ts";
 import { T03_CELLS } from "./t03.ts";
 import { PORT_RANGE_CELLS } from "./port-range.ts";
@@ -22,6 +24,7 @@ import { PROCEDURES } from "./subjects.ts";
 import { T12_CAL, T12_CELLS } from "./t12.ts";
 import { TOX_CELLS } from "./toxiproxy.ts";
 import { wstCells } from "./ws-topologies.ts";
+import { WRITES_CELLS } from "./writes.ts";
 import { wsCells } from "./ws.ts";
 
 /**
@@ -36,12 +39,14 @@ export interface Subjects {
 /**
  * This function gives the cells of each catalog, on the subjects that a caller gives. T01, T03, T02
  * and Toxiproxy as the subject come first, then the calibration of each proxy. T12 and the
- * calibration of the stamps of its Sentinels come next. The HTTP cells of T01 and T03 come next,
+ * calibration of the stamps of its Sentinels come next, then the cells of the writes of S3 on the
+ * same group. The HTTP cells of T01 and T03 come next,
  * with the calibration of the handling time of the Node clients. The WS cells follow, then the
  * WST cells: the same client through a router or a proxy. The MongoDB cells of T01, T03 and T11
  * come next, then the PostgreSQL cells of T01, T03 and T10. The RabbitMQ cells of T01 and T11 come
- * next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter (O29 and O30)
- * come next, then the cells of the accept queue. The cells of the port range are last.
+ * next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter (O29 and O30) come
+ * next. The cells of the accept queue, of the port range, of conntrack and of the routed fabric
+ * follow. The recovery drills are last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
@@ -53,6 +58,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...CAL_CELLS,
     ...T12_CELLS,
     T12_CAL,
+    ...WRITES_CELLS,
     ...HTTP_HARNESS_CELLS,
     ...HTTP_CAL_CELLS,
     ...wsCells(subjects.procedures),
@@ -72,6 +78,8 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...ACCEPT_QUEUE_CELLS,
     ...PORT_RANGE_CELLS,
     ...CONNTRACK_CELLS,
+    ...FABRIC_CELLS,
+    ...RECOVERY_CELLS,
   ];
 };
 
