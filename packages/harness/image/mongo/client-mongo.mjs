@@ -1,5 +1,5 @@
 // client-mongo HOST PORT --mode idle|inflight|stream [--hosts H:P,H:P] [--set NAME] [--op write|read-long]
-//              [--interval-ms N] [--max-s N] [--go PATH] [--w majority|1] [--before] [--options JSON]
+//              [--interval-ms N] [--max-s N] [--go PATH] [--w majority|1] [--before] [--from N] [--options JSON]
 //
 // The client of a MongoDB cell: the driver mongodb 7.7.0 on Node 24.21.0, against a replica set.
 // Each event is a JSON line with `ev` and `t`, the time on CLOCK_MONOTONIC in nanoseconds
@@ -28,7 +28,8 @@
 // write, waits for the file --go, sends one more operation into the fault, and holds the
 // connections after its end. stream sends a write each --interval-ms after the reply before, until
 // --max-s or SIGTERM. --before starts the client into a fault that holds already: its first
-// selection meets it.
+// selection meets it. --from starts the numbers of a stream at N: a recovery drill starts a second
+// client after a restore, and its numbers follow the numbers of the first client.
 
 import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
@@ -57,6 +58,7 @@ const max = Number(flag("--max-s") ?? 120) * 1000;
 const go = flag("--go") ?? "/tmp/go";
 const w = flag("--w") === "1" ? 1 : "majority";
 const before = argv.includes("--before");
+const start = Number(flag("--from") ?? 1);
 const options = JSON.parse(flag("--options") ?? "{}");
 
 // ---- the two clocks: the wall clock of a log line of mongod goes onto the monotonic clock by them
@@ -242,7 +244,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 if (mode === "stream") {
   emit("ready", { at: first });
-  for (let n = 1; !stopped; n += 1) {
+  for (let n = start; !stopped; n += 1) {
     await operate(n);
     await sleep(interval);
   }

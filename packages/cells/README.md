@@ -338,6 +338,7 @@ The client of these cells is the MongoDB client of the harness (`image/mongo/cli
 - **A stall** is the stall of Linux TCP, from the catalog of T01. The pool's socket carries the write through it.
 - **T11.** The cell has a replica set of three members (`replicaSetOf`), at the defaults of mongod 9.0.4 with the settings of the cell. The stages of a member include an error of 2 ms in their stamps. The wall clock of mongod and of the client is in whole ms.
 - **A partial cut** holds for 40 s. Its prediction names the stages that must not come (`quiet`): an election of another member, and the write-off of the old primary.
+- **The recovery drills** (`src/recovery.ts`, SYS-94) use one member or three, with `w: "majority"`. `RECOVERY_LADDER` holds the budgets of each rung, and `recoveryRecord` makes the record of a rung from its drills. The RPO of a rung is the interval of its schedule plus the excess that a drill measured.
 - **The cache.** Each member starts with a cache of 0.25 GB for WiredTiger (`SERVER_ARGS`), thus three members fit on one runner. No timer reads the cache.
 
 ### What the runs in CI showed

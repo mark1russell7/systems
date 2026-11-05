@@ -2,6 +2,8 @@ import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
 import type { Cell, ClusterStage, KernelRecord, ProbeEvent, ReplicaSetStage, Run, SentinelEvent, SentinelStage, Stage } from "./cell.ts";
 import { socketsOf } from "./driver.ts";
+import type { RecoveryMeasured } from "./recovery.ts";
+import { recoveryFindings, recoveryOf } from "./recovery.ts";
 import { INJECT, noiseOf } from "./verdict.ts";
 
 /**
@@ -58,9 +60,11 @@ export interface GroupMeasured {
   readonly errors: readonly ErrorOnTheWay[];
   /** These are the delays of the stamps of the observer after the writes of the Sentinels, for a calibration. */
   readonly lags?: readonly Quantity[];
+  /** This is what a recovery drill measured, for a drill only. */
+  readonly recovery?: RecoveryMeasured;
 }
 
-const between = (from: number, to: number): Quantity => quantity(Math.round((to - from) / 1e3) / 1e6, "s");
+const between =(from: number, to: number): Quantity => quantity(Math.round((to - from) / 1e3) / 1e6, "s");
 
 /** This function gives the member whose address and port is `at`, or null. */
 const memberAt = (run: Run, at: unknown): string | null => {
@@ -366,6 +370,7 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
     writes: writesOf(run, t0, cluster ? "" : primary),
     errors: errorsOf(events, t0),
     ...(cell.calibrates === "sentinels" ? { lags: lagsOf(run, kernel) } : {}),
+    ...(cell.drill === undefined ? {} : { recovery: recoveryOf(cell.drill, run, t0) }),
   };
   let voided: string | null = null;
   const tilt = timeline.find((line) => line.ev === "sentinel" && line.event === "+tilt" && line.t >= t0);
@@ -451,6 +456,7 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
     if (lost === null) findings.push("the group did not converge, thus the count of its lost writes is not known");
     else if (lost.length < low || lost.length > high) findings.push(`the group lost ${lost.length} accepted writes, outside [${low}, ${high}]`);
   }
+  if (group.recovery !== undefined) findings.push(...recoveryFindings(group.recovery, group.writes));
   if (accepted === undefined) {
     if (prediction.detects !== null)
       findings.push(lands === "new" ? "the client never wrote to a new primary in the window" : "the client never wrote again in the window");

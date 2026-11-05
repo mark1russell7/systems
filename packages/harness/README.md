@@ -114,6 +114,16 @@ A step-down holds its old primary out of the elections for 60 s. Thus before eac
 
 A fault names a member by its role at the start of a run: `primary`, or `replica` for a secondary. A cut from one member (`one`, `one-way`) cuts the first other member in the sequence of the set.
 
+### The recovery drills
+
+A drill (`Drill`, `Cell.drill`) stops a replica set during writes, removes a disk, and recovers. `drillOnce` in `drill.ts` does it, and `recovery.ts` holds the pure parts.
+
+- **The backups** are real. A `mongodump --oplog` and each slice of the oplog go to a host of their own (`ReplicaSetLab.vault`). `bsondump` reads each backup. The record keeps the last write that each backup holds (`RunBackup`).
+- **The fault** comes at `age` after that last write, on the monotonic clock. Thus a run sets the age of its newest backup.
+- **A restore** cannot have a client of the set, because a client writes to any primary. So each slice joins the oplog of the dump, and a server with no set takes the restore on the next port. The set then starts again. A second client (`--from`) sends the writes after the restore, thus no electionId of the old set stops it.
+- **An election** removes only the disk of the primary. The primary comes back at the end of the run, thus the set converges.
+- **The measure** is a set difference (`recoveryOf`). Each rule that a run breaks is a finding (`recoveryFindings`). A finding is a hole below a kept write, lost writes that the last backup does not explain, or tenant data that changed.
+
 ## The clusters of RabbitMQ
 
 A cluster (`Cluster`, `Cell.cluster`) is a cluster of RabbitMQ nodes with one quorum queue, as data. The members of the queue elect its leader by Raft, one member on each node. The cluster replaces the target of its cell.

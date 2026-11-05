@@ -1,6 +1,7 @@
 import { valueIn } from "@mark1russell7/quantity";
 import type { Cell, FaultPlace, KernelRecord, ProbeEvent, Run } from "./cell.ts";
 import { isHopPlace, latestEndOf, requestFirst } from "./cell.ts";
+import { drillOnce } from "./drill.ts";
 import { longestOf, settled as driverSettled } from "./driver.ts";
 import { laterMove } from "./fabric.ts";
 import { groupOnce, openGroupLab } from "./group.ts";
@@ -772,15 +773,16 @@ const inReplicaSetEnvironment = async (
   count: number,
   say: (line: string) => void,
 ): Promise<{ manifest: Manifest; runs: Run[]; warmup: Run }> => {
-  const lab = await openReplicaSetLab(cell.replicaSet!);
+  const lab = await openReplicaSetLab(cell.replicaSet!, cell.drill !== undefined);
+  const once = cell.drill === undefined ? replicaSetOnce : drillOnce;
   try {
     const manifest = await lab.manifest(await lab.sysctl(cell.sysctls));
-    const warmed = await replicaSetOnce(lab, cell, environment, -1);
+    const warmed = await once(lab, cell, environment, -1);
     const warmup: Run = { ...warmed, warmup: true };
     say(line(cell, warmup, measure(cell, warmup)));
     const runs: Run[] = [];
     for (let index = 0; index < count; index += 1) {
-      const run = await replicaSetOnce(lab, cell, environment, index);
+      const run = await once(lab, cell, environment, index);
       runs.push(run);
       say(line(cell, run, measure(cell, run)));
     }

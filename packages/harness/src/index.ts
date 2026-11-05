@@ -48,12 +48,15 @@ export type {
   Recovers,
   Reference,
   Replies,
+  Drill,
   ReplicaSet,
   ReplicaSetStage,
   RouterHop,
   RequestPrediction,
   RttRange,
   Run,
+  RunBackup,
+  RunDrill,
   RunGroup,
   RunPart,
   RunFabric,
@@ -188,6 +191,23 @@ export {
   subscriptionsOf,
   viewOf,
 } from "./group.ts";
+export { drillOnce } from "./drill.ts";
+export type { OplogRead, OplogTime, RecoveryMeasured } from "./recovery.ts";
+export {
+  HASH_SCRIPT,
+  LOSS_MARGIN,
+  SEED_DOCUMENT,
+  drillSpan,
+  hashOf,
+  highestHeld,
+  readOplog,
+  recoveryFindings,
+  recoveryOf,
+  seedScript,
+  sliceQuery,
+  standaloneCommand,
+  stopScript,
+} from "./recovery.ts";
 export type { Cut, MemberLine, ReplicaSetLab, Status } from "./replset.ts";
 export {
   KEPT,

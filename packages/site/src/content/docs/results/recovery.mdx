@@ -1,0 +1,61 @@
+---
+title: Recovery drills
+sidebar:
+  label: Recovery
+description: Six drills stop a MongoDB store, remove its disk and recover it from a real backup. They hold the three rungs of the ladder of recovery.
+---
+
+import { RecoveryRungs, RecoveryTimes } from "../../../components/RecoveryResults.tsx";
+
+A restore that nobody tested is not a backup. A drill stops a store during writes, removes its disk and recovers it. A set difference over each accepted write counts what the recovery lost. A timer runs from the fault to the first accepted write.
+
+The result: each of the 6 drills holds, in 4 of 4 counted runs. The three rungs of the ladder hold, and each rung is locked. The ladder says what a store of 1, 100 and 1,000 tenants can lose, and how long it can stay down.
+
+<RecoveryRungs client:visible />
+
+## What is real and what is not
+
+A drill does these things for real:
+
+- A client writes during each backup.
+- Each server stops, and its disk goes.
+- `mongodump` writes a real dump with its oplog. At the top rung the dump is 1 GB.
+- `mongorestore` replays the oplog into an empty server.
+- The set of accepted writes is compared with the set of restored writes.
+
+A drill does not do these things:
+
+- A drill cannot wait 24 h for a backup. It shortens the interval and sets the age of the newest backup itself. The record adds the interval of the rung to the excess that the drill measured.
+- The data of the tenants is generated.
+- The timer starts at the fault. Thus the RTO has no detection time and no human time. Add both to read the time of a real outage.
+- Each member is a container on one runner. No network separates them, and each backup is on the same runner.
+
+## The law of the loss
+
+Each restore loses real writes: 1,155 to 1,157 at the rung of one tenant, and 173 to 191 at the other two. In each run the count of lost writes is equal to the count of writes after the last backup. No restore left a hole below a kept write. The hash of the data before the fault is equal to the hash after the restore.
+
+The drills with a copy of each write left lost nothing. An election lost no accepted write at 100 MB and at 1 GB. A restore with no write after the dump lost no write.
+
+The excess of a run is the age of the newest kept write at the fault, past the interval. It is a little under zero. The clock of the age starts at the mark of the last backup, and the backup reads writes up to its end. At 1 GB the excess is approximately −0.5 s.
+
+## The time
+
+<RecoveryTimes client:visible />
+
+The prediction gave the restore of 1 GB 3 to 12 times the time of the restore of 100 MB. The ratio is 1.44: a median of 21.97 s against 15.27 s. That claim is a miss, and the naive claim of a ratio under 1.5 was right.
+
+The time has a large fixed part at these sizes. At each size, three members start, the set starts again and an election follows. The records do not split that part. The data adds 6.7 s for 945 MB more. These are two points, thus they give no law for a store of 100 GB. Only a larger drill can measure that.
+
+An election at 1 GB takes the same time as an election at 100 MB, approximately 10 s. The size of the data does not move it.
+
+## The lock
+
+A number in a document is not a rung. Each Sunday, a run of the workflow Cells repeats the 6 drills. A step then reads the records with the verdict of `rigor-bench`. It fails the run if a rung is not within its budgets, or if a drill has no record. A test on each pull request reads the last record against the budgets, thus a tighter budget cannot pass with an old result.
+
+The export of the records comes from this command:
+
+```sh
+pnpm exec tsx packages/site/scripts/recovery.ts --run <id> --commit <sha> <folder>...
+```
+
+With `--check`, the script writes no file and exits with 1 if a locked rung is lost.

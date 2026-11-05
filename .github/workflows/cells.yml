@@ -24,6 +24,8 @@
 # A pair: gh workflow run cells.yml -R mark1russell7/systems -f pair=0.5.6,0.6.0 -f only='^O(29|30)[.]' -f shards=6
 # A pull request that changes this file runs the probe only. Each night, the schedule runs the WS
 # cells on 4 shards: the heartbeat and the reconnect of @procedures/client under real faults.
+# Each Sunday, the schedule runs the RD cells on one shard: the drills of the ladder of recovery.
+# The step of the locked rungs fails that run when a rung is not within its budgets.
 name: Cells
 
 on:
@@ -46,6 +48,7 @@ on:
         default: ""
   schedule:
     - cron: "30 3 * * *"
+    - cron: "30 9 * * 0"
   # Each pull request starts this workflow, so its summary check is always there. The job changes skips the
   # work when the pull request changes no file of the gate (CI.md of the template, "A gate with paths").
   pull_request:
@@ -167,7 +170,7 @@ jobs:
         run: echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
       - id: shards
         env:
-          SHARDS: ${{ inputs.shards || '4' }}
+          SHARDS: ${{ inputs.shards || (github.event.schedule == '30 9 * * 0' && '1' || '4') }}
         run: |
           case "$SHARDS" in
             ''|*[!0-9]*) echo "::error::shards must be a whole number"; exit 1 ;;
@@ -288,9 +291,9 @@ jobs:
       - name: The cells
         env:
           CELLS: "1"
-          # the nightly schedule has no inputs: it runs the WS cells
-          CELLS_ONLY: ${{ inputs.only || '^WS' }}
-          CELLS_SHARD: ${{ matrix.shard }}/${{ inputs.shards || '4' }}
+          # a schedule has no inputs: the night runs the WS cells, and the Sunday runs the RD cells
+          CELLS_ONLY: ${{ inputs.only || (github.event.schedule == '30 9 * * 0' && '^RD[.]' || '^WS') }}
+          CELLS_SHARD: ${{ matrix.shard }}/${{ inputs.shards || (github.event.schedule == '30 9 * * 0' && '1' || '4') }}
           CELLS_OUT: ${{ runner.temp }}/cells
           CELLS_FILE_AT: ${{ inputs.file }}
           CELLS_PAIR: ${{ inputs.pair }}
@@ -304,6 +307,11 @@ jobs:
           if [ -z "$CELLS_HZ" ]; then echo "::error::the runner's kernel config gives no CONFIG_HZ"; exit 1; fi
           export CELLS_HZ
           pnpm --filter @systems/cells exec vitest run src/run.test.ts
+      # A failing cell does not fail this workflow, but a lost rung fails it: this step reads the records of
+      # the drills again, and it fails when a rung is not within its budgets, or when a drill has no record.
+      - name: The locked rungs of recovery
+        if: ${{ github.event.schedule == '30 9 * * 0' || (inputs.only == '^RD[.]' && inputs.shards == '1') }}
+        run: pnpm exec tsx packages/site/scripts/recovery.ts --check --run "$GITHUB_RUN_ID" --commit "$GITHUB_SHA" "$RUNNER_TEMP/cells"
       # the error of a failed build of a cell holds its error lines and its last lines: this step gives the whole log
       - name: The images of the harness that do not build, after a failure
         if: failure()

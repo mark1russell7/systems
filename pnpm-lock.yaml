@@ -228,8 +228,8 @@ importers:
         specifier: workspace:^
         version: link:../quantity
       '@mark1russell7/rigor-bench':
-        specifier: ^0.2.3
-        version: 0.2.5
+        specifier: ^0.2.7
+        version: 0.2.8
       '@mark1russell7/rigor-statistics':
         specifier: ^0.1.3
         version: 0.1.6
@@ -1148,12 +1148,24 @@ packages:
     resolution: {integrity: sha512-3QbRoGk1rGx8eaRu74MKUZ5s5P7pb3XTS3bzaSoEbXkDmkRqZgR5IQCwDxWumhaf7NkLwakaZcdG/MYnB6GxNA==}
     engines: {node: '>=22'}
 
+  '@mark1russell7/rigor-bench@0.2.8':
+    resolution: {integrity: sha512-fFJPInBzeUTyy1fG8oLX4P/HuAjZ4KVLdyRHzw6WoeTvPh0DcWvGrfc8F7DTQc3oABMw0xfkiVzWv87FLmNVhQ==}
+    engines: {node: '>=22'}
+
   '@mark1russell7/rigor-generators@0.1.1':
     resolution: {integrity: sha512-N5o3II0AClHgsWCWtzuBzckQdReydJnLUS8Kdt9hWXVpTzb0dxucrN1bWdDN+75YompOR1rAmsIX8zuHqoQdqA==}
     engines: {node: '>=22'}
 
+  '@mark1russell7/rigor-generators@0.1.5':
+    resolution: {integrity: sha512-YkABrG6+AV4oZKWoSIayDGxKTqcTMbp/eGa+3u00X09Jv9TfpHFDeqHlEQARMBzJ/kvy/EMNIXQZMGa3Nobuzw==}
+    engines: {node: '>=22'}
+
   '@mark1russell7/rigor-statistics@0.1.6':
     resolution: {integrity: sha512-TReETn+ycVdnuPn/AwYAK5tNqOfNeDujLBm78AuoGYHm5U+L7wWutBl4joBVgRa73U/HRqXr3mTDMuC2lyA+BQ==}
+    engines: {node: '>=22'}
+
+  '@mark1russell7/rigor-statistics@0.1.9':
+    resolution: {integrity: sha512-J/hfIHyiVlguOZVfA6/B7L3ReAQAW1xUbT50e4KVxMCOHJfTVC1HIj0u+Qd+Vrn+J1JoDhAF/DJ7Elfpe12gjw==}
     engines: {node: '>=22'}
 
   '@mark1russell7/ste-lint@https://codeload.github.com/mark1russell7/ste-lint/tar.gz/f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7':
@@ -3977,11 +3989,22 @@ snapshots:
       '@mark1russell7/rigor-generators': 0.1.1
       '@mark1russell7/rigor-statistics': 0.1.6
 
+  '@mark1russell7/rigor-bench@0.2.8':
+    dependencies:
+      '@mark1russell7/rigor-generators': 0.1.5
+      '@mark1russell7/rigor-statistics': 0.1.9
+
   '@mark1russell7/rigor-generators@0.1.1': {}
+
+  '@mark1russell7/rigor-generators@0.1.5': {}
 
   '@mark1russell7/rigor-statistics@0.1.6':
     dependencies:
       '@mark1russell7/rigor-generators': 0.1.1
+
+  '@mark1russell7/rigor-statistics@0.1.9':
+    dependencies:
+      '@mark1russell7/rigor-generators': 0.1.5
 
   '@mark1russell7/ste-lint@https://codeload.github.com/mark1russell7/ste-lint/tar.gz/f597d6c1e09bcfcb487bb575825d6d5f29e9e0c7':
     dependencies:
