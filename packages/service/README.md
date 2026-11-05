@@ -249,7 +249,7 @@ A profile is a part of a declaration as data: the phases, the cooperative window
 | `ephemeral` | A command that runs one time, or a stdio child | No gating checks, an abort at the start of the drain, a flush of the output, and the exit codes 130, 143 and 131 |
 
 - **Kubernetes.** The budget is the grace less the preStop sleep: the time from SIGTERM to SIGKILL. The stages get 2, 5, 15, 2, 1, 2 and 1 thirtieths of the budget, rounded down to the millisecond. The cooperative window is 5 thirtieths. Thus 2 thirtieths stay as a margin, and O10 and O16 hold.
-- **The defaults of Kubernetes.** At a grace of 30 s and no preStop hook, the caps are 2, 5, 15, 2, 1, 2 and 1 s, with a window of 5 s. These are the caps of jarvis and of the kind lab.
+- **The defaults of Kubernetes.** At a grace of 30 s and no preStop hook, the caps are 2, 5, 15, 2, 1, 2 and 1 s, with a window of 5 s. These are the caps of the kind lab.
 - **Local development.** No load balancer routes to a computer of a developer, thus the profile has no readiness hold. A second Ctrl-C exits at once.
 - **A background host.** A supervisor or a command stops the host with a signal. A repeat signal has no effect, thus the host ends its drain. The host has no parent on stdin, thus the profile declares no process trigger.
 - **The repeat signal.** Each profile declares `onRepeatSignal`: `"exit"` for `localDev` and `ephemeral`, and `"ignore"` for `daemon` and `kubernetes`.
@@ -403,7 +403,7 @@ A keyed limiter gives each key its own limit, for example each tenant or each pr
 - **No defaults.** A spec has a key, a policy, a store and a bound on its keys. `describe()` refuses a spec without its rate, its burst, its limit, its window, its store, the failure policy of a shared store or its bound. The error names the part.
 - **The key.** `key` tells what the key of each take is, for example `tenant`. The caller gives each key to `take(key)`.
 - **A token bucket.** `{ type: "token-bucket", rate, burst }` gives a key `burst` takes at once, and then `rate` takes in each unit of time. The rate is a count for each unit of time, for example `count/s` or `count/min`.
-- **A sliding window.** `{ type: "sliding-window", limit, window }` gives a key at most `limit` takes in each window. Each take counts for one window from its time. Graph limits its writes with this policy.
+- **A sliding window.** `{ type: "sliding-window", limit, window }` gives a key at most `limit` takes in each window. Each take counts for one window from its time.
 - **The decision.** `take(key)` gives `{ allowed: true, remaining }` or `{ allowed: false, retryAfter, cause }`. `retryAfter` is a `Quantity` above zero: the time until the limiter lets the same take in. The cause is `limit`, `cap` or `store`.
 - **A take with no promise.** `tryTakeSync(key)` gives the same `Decision` at once. `keyedLimiter` on a `memoryStore` gives a `LocalLimiter`, whose type has it. On `KeyedLimiter`, it is optional.
 - **Only a local store.** `tryTakeSync` throws for a shared store, before the take. It also throws for a local store whose take gives a promise. That take still counts, thus use `take()` with such a store.
@@ -515,7 +515,7 @@ if (!decision.allowed) return limitedResponse(decision); // 429, with Retry-Afte
 - **Each 503 gets `Retry-After`.** Each 503 gets the `Retry-After` of `server_retry_after` (RFC 9110), and a 500 gets none. The transport applies the rule when the headers of each response go, whatever wrote them. Thus the rule applies to a probe, to a refusal of the transport and to a handler that writes its own status.
 - **The rule for a handler.** A 503 without `Retry-After` gets it, and a 503 with its own `Retry-After` keeps it. A 500 loses each `Retry-After`, from `setHeader` and from `writeHead`. The other statuses keep their headers.
 - **Another framework.** `writeOutcome(res, stream, options)` writes the stream of any `life.request` to a response of `node:http`. `outcomeResponse(items, end, options)` gives a unary response as data.
-- **Tracing in an ESM service.** An ESM service that uses OpenTelemetry starts with a preload, for example `node --import ./instrumentation.js app.js`. The preload must register `@opentelemetry/instrumentation/hook.mjs` before the application loads. Without that hook, the instrumentation does not see the ESM imports, and the spans of express are lost. The telemetry check of Graph found this when its server moved to ESM.
+- **Tracing in an ESM service.** An ESM service that uses OpenTelemetry starts with a preload, for example `node --import ./instrumentation.js app.js`. The preload must register `@opentelemetry/instrumentation/hook.mjs` before the application loads. Without that hook, the instrumentation does not see the ESM imports, and the spans of express are lost.
 
 ```js
 // instrumentation.js, the preload: node --import ./instrumentation.js app.js
@@ -893,7 +893,7 @@ for await (const event of stream) {
 
 `pnpm --filter @mark1russell7/service test` starts the tests:
 
-- **The algebra and the builder.** The timing algebra, the refusals of the builder, its partial export, and the four verdicts of the law. A test in jarvis compares this evaluator with the evaluator of the research, on 185 bindings. All decisions agree.
+- **The algebra and the builder.** The timing algebra, the refusals of the builder, its partial export, and the four verdicts of the law. A test in a private repository compares this evaluator with the evaluator of the research, on 185 bindings. All decisions agree.
 - **The permutations.** The permutations cross the policy, the timing, the poll interval, the jitter and the way that the step fails. For each one, a latch on a fake clock must trip inside `failSpan` and recover inside `recoverSpan`. Each permutation has eight seeds for the jitter and the phase of the fault. A failure names its permutation and its seed. Two more tests show that the bounds are reached.
 - **The edges.** These tests cover a flapping signal, a check that does not answer at any time, and late parts. They also cover couplings, controllers, the force-fail list, the drain, the stop, and the loop of a slow check.
 - **Real time.** The runtime on the real clock, and a check against a quiet server over TCP.
