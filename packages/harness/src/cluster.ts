@@ -8,6 +8,7 @@ import type { Manifest } from "./lab.ts";
 import { STOP, containers, lines, netnsOf, output, withPid } from "./lab.ts";
 import type { Cut } from "./replset.ts";
 import { clockOffsetOf } from "./replset.ts";
+import { substrateHere } from "./substrate.ts";
 
 /**
  * This module is the lab of a cluster of RabbitMQ with one quorum queue. The members of the queue
@@ -489,6 +490,7 @@ export const openClusterLab = async (cluster: Cluster): Promise<ClusterLab> => {
           architecture: await output(holder, ["uname", "-m"]),
           hz: /^CONFIG_HZ=(\d+)$/m.exec(config)?.[1] ?? null,
           boot_id: await output(holder, ["cat", "/proc/sys/kernel/random/boot_id"]),
+          substrate: substrateHere("E1"),
           docker: `${runtime.info.containerRuntime.serverVersion} on ${runtime.info.containerRuntime.operatingSystem}`,
           target: { image: cluster.image, id: list[0]!.id, settings: list[0]!.settings, sysctls: {} },
           harness: {

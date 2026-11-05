@@ -29,6 +29,7 @@ import {
   tunnelsOf,
 } from "./observe.ts";
 import { RELATIVE, medianInterval, middle } from "./stats.ts";
+import { judgeReconnects, latestReturn } from "./reconnects.ts";
 
 /**
  * This time is δ for kind: each time of a run lands in its band ± δ. Its parts are the interval of
@@ -112,6 +113,20 @@ export interface RunFacts<A = Quantity> {
    * with fewer than 2 requests of each client does not have it. A record before SYS-41 does not have it.
    */
   readonly period?: Period<A> | undefined;
+  /**
+   * These are the facts of the return of the producers (`reconnects`, SYS-56). They are the first
+   * lookup with another owner, the gap of the lookups before it, each producer, and the failed sends
+   * by outcome. Each time is from the fault, but `gap`.
+   */
+  readonly reconnects?: ReconnectsFacts<A> | undefined;
+}
+
+/** These are the facts of the return of the producers of a run (`RunFacts.reconnects`). */
+export interface ReconnectsFacts<A = Quantity> {
+  readonly flip: A | null;
+  readonly gap: A | null;
+  readonly returns: ReadonlyArray<{ readonly pod: string; readonly disconnect: A | null; readonly back: A | null; readonly setup: A | null; readonly tries: number }>;
+  readonly failures: Readonly<Record<string, number>>;
 }
 
 /** A deleted replica is a replica of a run that got a deletion. It gives its pod, and the stamps of its intake (or null) and of its deletion. */
@@ -165,6 +180,7 @@ export const unitOf = (prediction: { readonly kind: Prediction["kind"]; readonly
     case "removal":
     case "leaves":
     case "stalls":
+    case "reconnects":
       return "s";
     case "restarts":
       return prediction.band === null ? "{replica}" : "s";
@@ -358,6 +374,8 @@ export const observationEnd = (cell: KindCell, run: Pick<KindRun, "start" | "act
     if (at !== null) ends.push(at + valueIn(prediction.band.hi, "ms") + NOISE);
   }
   const after = observationAfter(cell);
+  // the producers of a broker: the latest return that the bands permit, then each send that waited for it
+  if (prediction.kind === "reconnects" && run.acts.fault !== null) ends.push(run.acts.fault + latestReturn(prediction) + valueIn(cell.workload.timeout, "ms") + NOISE);
   const window = windowOf(prediction);
   if (after !== null && window !== null && window.end !== null) {
     const from = window.end.from;
@@ -845,6 +863,22 @@ export const checkRun =(cell: KindCell, run: KindRun): RunCheck => {
     }
     case "ends":
       return checkEnds(cell, run, prediction, done);
+    case "reconnects": {
+      const fault = run.acts.fault;
+      if (fault === null) return done(false, "the run has no stamp of the fault", null);
+      if (run.broker === undefined) return done(false, "the run has no broker that owned the topic at the fault", null);
+      const judged = judgeReconnects(prediction, { fault, broker: run.broker, lines }, { timeout: valueIn(cell.workload.timeout, "ms"), every: valueIn(cell.workload.every, "ms") }, NOISE);
+      const time = (value: number | null): Quantity | null => (value === null ? null : { value: sec(value), unit: "s" });
+      const reconnects: ReconnectsFacts = {
+        flip: time(judged.flip),
+        gap: time(judged.gap),
+        returns: judged.returns.map((each) => ({ pod: each.pod, disconnect: time(each.disconnect), back: time(each.back), setup: time(each.setup), tries: each.tries })),
+        failures: judged.failures,
+      };
+      // the requests of the control go to the service of the cell, and the fault of the broker does not touch it
+      if (failures.length > 0) return done(false, `${failures.length} requests of the control failed: ${JSON.stringify(facts.outcomes)}`, null, { reconnects });
+      return done(judged.ok, judged.why, judged.value === null ? null : sec(judged.value), { reconnects });
+    }
     case "measured":
       return done(true, "measured", facts.failures);
   }

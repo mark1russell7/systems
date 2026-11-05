@@ -6,6 +6,8 @@ import { CONVERGE_MS, deadlineOf } from "./group.ts";
 import type { Manifest } from "./lab.ts";
 import { harnessImage, mongoClientImage } from "./image.ts";
 import { STOP, containers, lines, netnsOf, output, withPid } from "./lab.ts";
+import { drillSpan } from "./recovery.ts";
+import { substrateHere } from "./substrate.ts";
 
 /**
  * This module is the lab of a replica set: a replicated group with no external authority, whose
@@ -173,6 +175,12 @@ export interface ReplicaSetLab {
   signal(part: string, signal: "KILL" | "STOP" | "CONT", at?: number): Promise<Stamp>;
   /** This method starts the server of a member again, after a fin. */
   restart(member: string): Promise<void>;
+  /** This method runs a command in the box of a member, and gives its output. */
+  exec(member: string, argv: string[]): Promise<string>;
+  /** This method runs a script of the shell on a member, against its own server only, and gives its output. Another port reads a server with no set. */
+  script(member: string, script: string, port?: number): Promise<string>;
+  /** This method runs a command on the backup host of a drill, and gives its output. A lab without that host refuses it. */
+  vault(argv: string[]): Promise<string>;
   /** This method sends replSetStepDown to the primary. */
   stepDown(primary: string): Promise<Stamp>;
   /** This method removes the TCP metrics of the client namespace: each run starts from a kernel that keeps nothing. */
@@ -183,7 +191,8 @@ export interface ReplicaSetLab {
   close(): Promise<void>;
 }
 
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+/** This function waits for a time, in ms. */
+export const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** These are the arguments of replSetStepDown: the time that the old primary cannot stand again, and the wait for a secondary to catch up. */
 export const STEP_DOWN = { seconds: 60, catchUp: 10 } as const;
@@ -197,8 +206,9 @@ export const STEP_DOWN = { seconds: 60, catchUp: 10 } as const;
  * - an injector sidecar for each member, in its network and process namespaces.
  * - a client that holds its own network namespace, with a privileged sidecar for its sysctls.
  * - the prober, which watches the namespace of the client.
+ * - a backup host for a recovery drill: the stock image, for its tools, with no server.
  */
-export const openReplicaSetLab = async (set: ReplicaSet): Promise<ReplicaSetLab> => {
+export const openReplicaSetLab = async (set: ReplicaSet, backups = false): Promise<ReplicaSetLab> => {
   const image = await harnessImage();
   const mongo = await mongoClientImage();
   const { GenericContainer, Network, Wait, getContainerRuntimeClient } = await containers();
@@ -263,6 +273,10 @@ export const openReplicaSetLab = async (set: ReplicaSet): Promise<ReplicaSetLab>
       .withCommand(["sh", "-c", "while :; do sleep 3600; done"])
       .start();
     opened.push(commander);
+    const backupHost = backups
+      ? await new GenericContainer(set.image).withNetwork(network).withCommand(["sh", "-c", "while :; do sleep 3600; done"]).start()
+      : null;
+    if (backupHost !== null) opened.push(backupHost);
 
     const clientNetns = await netnsOf(admin);
     const records = lines<KernelRecord>();
@@ -287,12 +301,12 @@ export const openReplicaSetLab = async (set: ReplicaSet): Promise<ReplicaSetLab>
       return found;
     };
     /** This function starts a script of the shell on a member, against its own server only. */
-    const shell = (name: string, script: string): Promise<string> =>
+    const shell = (name: string, script: string, port: number = set.port): Promise<string> =>
       output(box(name), [
         set.programs.shell,
         "--quiet",
         "--norc",
-        `mongodb://127.0.0.1:${set.port}/?directConnection=true&serverSelectionTimeoutMS=3000`,
+        `mongodb://127.0.0.1:${port}/?directConnection=true&serverSelectionTimeoutMS=3000`,
         "--eval",
         script,
       ]);
@@ -419,6 +433,14 @@ export const openReplicaSetLab = async (set: ReplicaSet): Promise<ReplicaSetLab>
           await sleep(500);
         }
       },
+      exec(member, argv) {
+        return output(box(member), argv);
+      },
+      script: shell,
+      vault(argv) {
+        if (backupHost === null) throw new Error("this lab has no backup host");
+        return output(backupHost, argv);
+      },
       stepDown(primary) {
         return stamped(commander, [
           "node",
@@ -461,6 +483,7 @@ export const openReplicaSetLab = async (set: ReplicaSet): Promise<ReplicaSetLab>
           architecture: await output(holder, ["uname", "-m"]),
           hz: /^CONFIG_HZ=(\d+)$/m.exec(config)?.[1] ?? null,
           boot_id: await output(holder, ["cat", "/proc/sys/kernel/random/boot_id"]),
+          substrate: substrateHere("E1"),
           docker: `${runtime.info.containerRuntime.serverVersion} on ${runtime.info.containerRuntime.operatingSystem}`,
           target: { image: set.image, id: list[0]!.id, settings: list[0]!.settings, sysctls: {} },
           harness: {
@@ -487,9 +510,9 @@ export const openReplicaSetLab = async (set: ReplicaSet): Promise<ReplicaSetLab>
 // ---------------------------------------------------------------------------------------------
 
 /** This count is the number of accepted writes that a run waits for before its fault: the stream is steady then. */
-const STEADY = 20;
+export const STEADY = 20;
 /** This time is how long a run continues after its outcome, so that the record shows what came next. */
-const TAIL_MS = 2_000;
+export const TAIL_MS = 2_000;
 
 /** This function gives how long a run of a cell continues after its lift, in ms: the tail, and the watch of the cell. */
 export const afterLiftOf = (cell: Cell): number => TAIL_MS + (cell.watch === undefined ? 0 : valueIn(cell.watch, "s") * 1000);
@@ -510,7 +533,7 @@ export const replicaSetArgs = (cell: Cell, members: Readonly<Record<string, RunP
     "--interval-ms",
     String(cell.probe.interval === undefined ? 50 : valueIn(cell.probe.interval, "ms")),
     "--max-s",
-    String(Math.ceil(deadlineOf(cell) / 1_000 + (cell.hold === undefined ? 0 : valueIn(cell.hold, "s")) + 120)),
+    String(Math.ceil(deadlineOf(cell) / 1_000 + (cell.hold === undefined ? 0 : valueIn(cell.hold, "s")) + (cell.drill === undefined ? 0 : drillSpan(cell.drill)) + 120)),
     "--w",
     String(cell.writeConcern ?? "majority"),
     ...(cell.driverOptions === undefined ? [] : ["--options", JSON.stringify(cell.driverOptions)]),
@@ -518,7 +541,7 @@ export const replicaSetArgs = (cell: Cell, members: Readonly<Record<string, RunP
 };
 
 /** This function waits until a condition on the lines of the client holds, or for `within` ms. It gives the first line that matches. */
-const waitFor = (client: GroupClient, match: (event: ProbeEvent) => boolean, within: number): Promise<ProbeEvent | undefined> =>
+export const waitFor = (client: GroupClient, match: (event: ProbeEvent) => boolean, within: number): Promise<ProbeEvent | undefined> =>
   new Promise((resolve) => {
     const started = Date.now();
     const look = () => {
@@ -530,7 +553,7 @@ const waitFor = (client: GroupClient, match: (event: ProbeEvent) => boolean, wit
   });
 
 /** This function gives the count of lost records in the latest clock line of the prober. */
-const droppedSoFar = (records: readonly KernelRecord[]): number => {
+export const droppedSoFar = (records: readonly KernelRecord[]): number => {
   for (let at = records.length - 1; at >= 0; at -= 1) if (records[at]!.ev === "clock") return Number(records[at]!["lost"] ?? 0);
   return 0;
 };
