@@ -1,11 +1,12 @@
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Cell, CellResult, Subject } from "@mark1russell7/harness";
-import { cloudOf, measure, noiseOf, pairingsOf, readHost, runCell, substrateKey, substrateOf } from "@mark1russell7/harness";
+import { cloudOf, commitProblems, manifestProblems, measure, noiseOf, pairingsOf, readHost, runCell, substrateKey, substrateOf } from "@mark1russell7/harness";
 import { subjectSchema } from "@mark1russell7/harness/schema";
 import { describe, expect, it } from "vitest";
 import type { Subjects } from "./all.ts";
 import { catalogs } from "./all.ts";
+import { codeHere } from "./commit.ts";
 import { environmentOf } from "./environments.ts";
 import type { BenchTime, PairCell, PairSlot } from "./limiter.ts";
 import { benchTimes, LIMITER_SPECS, limiterBench, pairedLines, pairOf } from "./limiter.ts";
@@ -93,6 +94,22 @@ const environment = environmentOf(cloudOf(readHost().vendor));
 const inEnvironment = (cell: Cell): Cell =>
   cell.noise !== undefined || environment === undefined ? cell : { ...cell, noise: environment.noise };
 
+/** This record is the commit of the code that operates the cells (`codeHere`). */
+const code = codeHere();
+
+/**
+ * This function gives each problem that stops a record from pinning the programs of its runs. It
+ * examines the commit of the code, and each image of each manifest (`manifestProblems`). The
+ * summary line of the cell holds them. SYS-101 then makes a record with a problem fail.
+ */
+const pinsOf = (manifests: CellResult["manifests"]): string[] => [
+  ...new Set([
+    ...commitProblems(code?.commit),
+    ...(code?.dirty === true ? ["the checkout has changes to tracked files that no commit holds"] : []),
+    ...manifests.flatMap((manifest) => manifestProblems(manifest)),
+  ]),
+];
+
 /** This function gives a file name for a cell: its name in lower case, with a dash for each other character. */
 const slug = (name: string): string => name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
@@ -111,6 +128,7 @@ describe.skipIf(!RUN)("the catalogs, on the harness", () => {
         `${OUT}/${slug(cell.name)}.json`,
         JSON.stringify({
           format: "loom.cell-record/1",
+          ...(code === undefined ? {} : { code }),
           cell: result.cell,
           case: null,
           ...(slot === undefined ? {} : { pair: slot }),
@@ -134,6 +152,7 @@ describe.skipIf(!RUN)("the catalogs, on the harness", () => {
           outside: verdict.outside,
           why: verdict.why,
           substrate: substrateKey(substrateOf(result.manifests[0] ?? {}, result.at.started)),
+          pins: pinsOf(result.manifests),
           ...(verdict.reordering === undefined ? {} : { reordering: verdict.reordering }),
           ...(verdict.proxy === undefined ? {} : { proxy: verdict.proxy }),
           ...(verdict.requests === undefined ? {} : { requests: verdict.requests }),
