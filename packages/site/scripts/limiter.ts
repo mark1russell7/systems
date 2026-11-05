@@ -130,7 +130,7 @@ const copy = {
   rounds: Math.max(...plan.map((each) => each.slot.round)) + 1,
   bench: { package: "@mark1russell7/rigor-bench", version: bench.version, options: OPTIONS },
   unit: "s",
-  runners: Object.fromEntries(folders.map((folder) => [basename(folder), runnerOf([folder])])),
+  runners: Object.fromEntries(folders.map((folder) => [basename(folder), runnerOf(folder)])),
   cells: {
     count: summaries.length,
     holds: summaries.filter((summary) => summary.decision === "holds").length,
