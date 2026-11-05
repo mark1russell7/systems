@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parseDataStamps, renderDataStamp } from "@mark1russell7/site-pages";
 import { describe, expect, it } from "vitest";
-import { dateInName, enginesOf, HOME_LAB_FILE, homeStamp, NOT_STAMPED, newestSeriesFile, siteDataStamps, stampOfPage, versionsIn } from "./stamps.ts";
+import { dateInName, enginesOf, HOME_LAB_FILE, homeStamp, homeStampHtml, NOT_STAMPED, newestSeriesFile, siteDataStamps, stampOfPage, versionsIn } from "./stamps.ts";
 
 const DATA = fileURLToPath(new URL("../data/", import.meta.url));
 const RESULTS = fileURLToPath(new URL("../content/docs/results/", import.meta.url));
@@ -66,6 +66,11 @@ describe("the stamps of the site", () => {
     expect(stamps.pages.map((page) => page.page)).toContain("index.html");
     expect(renderDataStamp(homeStamp(DATA))).toContain("a fixed study");
     expect(homeStamp(DATA).runs.map((run) => run.id)).toEqual([HOME_LAB_FILE]);
+  });
+
+  it("names only the lab on the home page, which also shows other studies", () => {
+    expect(homeStampHtml(DATA)).toContain("The runs of this lab are a fixed study");
+    expect(homeStampHtml(DATA)).not.toContain("this page");
   });
 
   it("names the study of a page in plain words", () => {

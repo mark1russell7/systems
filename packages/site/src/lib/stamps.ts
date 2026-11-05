@@ -2,7 +2,7 @@
 // from those files, so no person types them twice. Each study stays fixed: a newer run writes a new file and a new entry.
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { DATA_STAMP_SCHEMA } from "@mark1russell7/site-pages";
+import { DATA_STAMP_SCHEMA, renderDataStamp } from "@mark1russell7/site-pages";
 import type { DataRun, DataStamps, PageStamp } from "@mark1russell7/site-pages";
 
 const DATA_URL = "https://github.com/mark1russell7/systems/blob/main/packages/site/src/data";
@@ -153,6 +153,19 @@ export function siteDataStamps(folder: string): DataStamps {
 /** This function gives the stamp of the home page. A page with a hero does not show the title of the other pages. */
 export function homeStamp(folder: string): PageStamp {
   return { page: "index.html", runs: [runOf(folder, lab(HOME_LAB_FILE))], study: true };
+}
+
+/** The words of the package for a page where one study gives all the numbers. The home page is not such a page. */
+const WHOLE_PAGE_WORDS = "The measured numbers of this page are";
+
+/**
+ * This function gives the line of the stamp of the home page. The home page also shows the results of other studies,
+ * so the line names only the lab. New words in the package stop the build, because the line then has no true words.
+ */
+export function homeStampHtml(folder: string): string {
+  const html = renderDataStamp(homeStamp(folder));
+  if (!html.includes(WHOLE_PAGE_WORDS)) throw new Error(`The stamp of the home page does not have the words "${WHOLE_PAGE_WORDS}".`);
+  return html.replace(WHOLE_PAGE_WORDS, "The runs of this lab are");
 }
 
 /** This function gives the stamp of the page `id`, or undefined for a page with no measured data. */
