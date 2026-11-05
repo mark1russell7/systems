@@ -7,6 +7,7 @@ hero:
 ---
 
 import DetectionLab from "../../components/DetectionLab.tsx";
+import HomeStamp from "../../components/HomeStamp.astro";
 import Findings, { Parts } from "../../components/Findings.tsx";
 import { Answers } from "../../components/Overview.tsx";
 
@@ -19,6 +20,8 @@ Linux 6.6 has default settings for each TCP timer. With these settings, the clie
 The lab below computes these times for your settings. Select a harness cell to see the runs that the harness measured. Change a setting to see the new prediction.
 
 <DetectionLab client:visible />
+
+<HomeStamp />
 
 The lab shows only the TCP stack. [Follow one request](lab/request/) through each layer, from the program down to Kubernetes and the NIC. See which layer knows first.
 
