@@ -1,8 +1,8 @@
 // The read of the decisions of the scheduled cells (SYS-99).
 //
-//   pnpm exec tsx packages/site/scripts/held.ts --only <regexp> --shard <i/n> [--fault | --flip] <folder>...
+//   pnpm exec tsx packages/site/scripts/held.ts --cells <night | drills> --shard <i/n> [--fault | --flip] <folder>...
 //
-// Each folder is the output of one shard of the workflow Cells. The script judges each raw record
+// The name of --cells is a selection of SCHEDULED_CELLS in the cells package. Each folder is the output of one shard of the workflow Cells. The script judges each raw record
 // again with the code of the harness, and it stops when that verdict disagrees with summary.ndjson.
 // It prints each cell, and it exits with 1 unless each cell of the selection has a record and holds.
 //
@@ -18,7 +18,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Verdict } from "../../harness/src/index.ts";
-import { catalogs, selectedOf } from "../../cells/src/all.ts";
+import { catalogs, SCHEDULED_CELLS, selectedOf } from "../../cells/src/all.ts";
 import { FAULT_FACTOR, faultedVerdict, heldRead, slowdownSeen } from "../../cells/src/held.ts";
 import type { CellRecord, Reading, Summary } from "./judged.ts";
 import { read } from "./judged.ts";
@@ -40,13 +40,15 @@ const flag = (name: string): boolean => {
 };
 const flip = flag("--flip");
 const fault = flag("--fault");
-const only = option("--only");
+const selection = option("--cells");
+const only = Object.hasOwn(SCHEDULED_CELLS, selection) ? SCHEDULED_CELLS[selection] : undefined;
+if (only === undefined) throw new Error(`the script knows no selection ${selection}: ${Object.keys(SCHEDULED_CELLS).join(", ")}`);
 const shardText = option("--shard");
 const [shard, of] = shardText.split("/").map(Number) as [number, number];
 const folders = args;
 if (folders.length === 0) throw new Error("the script needs the folder of each shard");
 
-const expected = selectedOf(catalogs(), new RegExp(only), shard, of).map((cell) => cell.name);
+const expected = selectedOf(catalogs(), only, shard, of).map((cell) => cell.name);
 const found = readFolders<CellRecord, Summary>(folders);
 const readings = new Map<string, Reading>([...found].map(([name, entry]) => [name, read(entry)]));
 
@@ -57,7 +59,7 @@ const verdictsOf = (underFault: boolean): Map<string, Verdict> =>
 /** This function starts this script on the folders that it gets, and it gives its exit code. */
 const exitOf = (given: readonly string[], ...flags: readonly string[]): number | null => {
   const script = fileURLToPath(import.meta.url);
-  const done = spawnSync(process.execPath, [...process.execArgv, script, "--only", only, "--shard", shardText, ...flags, ...given], { stdio: "ignore" });
+  const done = spawnSync(process.execPath, [...process.execArgv, script, "--cells", selection, "--shard", shardText, ...flags, ...given], { stdio: "ignore" });
   return done.status;
 };
 
