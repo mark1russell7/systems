@@ -272,4 +272,10 @@ describe("the components of the CI runs", () => {
     expect(html).toContain("Cluster 1, run 2: the VM was not quiet in 300 s: 52% idle, other lab containers: none.");
     expect(html).toContain("Cluster 2, run 2: the VM was not quiet in 300 s: 55% idle, other lab containers: none.");
   });
+
+  it("render the Pulsar cell of SYS-56 with its 4 counted runs", () => {
+    const html = renderToString(<KindResults template="T07" group="broker" copy="sys-56" />);
+    expect(html.split('class="sy-frame').length - 1).toBe(1);
+    expect(html).toContain("Each failed send ends with a late answer or a timeout.");
+  });
 });

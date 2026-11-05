@@ -1,10 +1,13 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity } from "@mark1russell7/quantity";
+import type { Cloud } from "@mark1russell7/harness";
 
 /**
  * An environment is a runner image that stage 0 calibrated: its δ_abs, its concurrency cap, and
  * the run that measured them. A cell that runs on it gets that δ_abs (`Cell.noise`). A cell on an
  * image that stage 0 did not calibrate keeps `NOISE` (4 ms), the value of the first environment.
+ * Stage 0 ran each image on Azure. One image on another cloud has other hardware, thus it has no
+ * calibration.
  */
 export interface Environment {
   readonly noise: Quantity;
@@ -25,6 +28,6 @@ export const ENVIRONMENTS: Readonly<Record<string, Environment>> = {
   "ubuntu24 20261023.334.3": { noise: quantity(1, "ms"), cap: 4, run: 40129876394 },
 };
 
-/** This function gives the environment of the runner from its image, or undefined for an image that stage 0 did not calibrate. */
-export const environmentOf = (env: Readonly<Record<string, string | undefined>> = process.env): Environment | undefined =>
-  ENVIRONMENTS[`${env["ImageOS"] ?? ""} ${env["ImageVersion"] ?? ""}`];
+/** This function gives the environment of the runner from its cloud and its image, or undefined for a pair that stage 0 did not calibrate. */
+export const environmentOf = (cloud: Cloud, env: Readonly<Record<string, string | undefined>> = process.env): Environment | undefined =>
+  cloud === "azure" ? ENVIRONMENTS[`${env["ImageOS"] ?? ""} ${env["ImageVersion"] ?? ""}`] : undefined;

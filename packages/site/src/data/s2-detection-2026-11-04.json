@@ -1,0 +1,788 @@
+{
+  "source": "the raw records of the runners of GitHub",
+  "ranAt": "2026-11-04",
+  "units": "s",
+  "kernel": "7.0.0",
+  "hz": 1000,
+  "noise": 0.1,
+  "holds": [
+    1,
+    2,
+    4,
+    6,
+    9
+  ],
+  "runsOfEach": 4,
+  "workflows": [
+    {
+      "run": "41748420837",
+      "counted": 30,
+      "voided": 2,
+      "why": "4 counted runs for 7 cells and 2 for the pauses of 500 ms × 2"
+    },
+    {
+      "run": "41870241848",
+      "counted": 0,
+      "voided": 4,
+      "why": "the one re-dispatch of the pauses of 500 ms × 2: the VM was not quiet in each of its 4 runs"
+    }
+  ],
+  "settings": [
+    {
+      "id": "i1000-m4",
+      "label": "1 s × 4",
+      "interval": 1,
+      "multiplier": 4,
+      "t0": 5,
+      "band": {
+        "low": 5,
+        "high": 7.5
+      },
+      "pauseBand": {
+        "low": 4.7,
+        "high": 7.1
+      },
+      "medians": {
+        "failure": 5.851,
+        "outside": 872.5,
+        "deaths": 2
+      },
+      "zone": [
+        {
+          "env": 0,
+          "index": 0,
+          "dead": 5.686,
+          "suspicion": 4.001,
+          "outside": 847,
+          "inside": 0
+        },
+        {
+          "env": 0,
+          "index": 1,
+          "dead": 6.915,
+          "suspicion": 4,
+          "outside": 1029,
+          "inside": 0
+        },
+        {
+          "env": 1,
+          "index": 0,
+          "dead": 5.671,
+          "suspicion": 4.001,
+          "outside": 846,
+          "inside": 0
+        },
+        {
+          "env": 1,
+          "index": 1,
+          "dead": 6.017,
+          "suspicion": 4.001,
+          "outside": 898,
+          "inside": 0
+        }
+      ],
+      "runs": [
+        {
+          "env": 0,
+          "index": 0,
+          "peer": 0,
+          "inside": 0,
+          "pauses": [
+            {
+              "length": 1.177,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 2.146,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 4.146,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 6.137,
+              "group": "either",
+              "chance": 0.63,
+              "died": true
+            },
+            {
+              "length": 9.144,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            }
+          ]
+        },
+        {
+          "env": 0,
+          "index": 1,
+          "peer": 0,
+          "inside": 0,
+          "pauses": [
+            {
+              "length": 1.19,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 2.128,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 4.134,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 6.145,
+              "group": "either",
+              "chance": 0.634,
+              "died": true
+            },
+            {
+              "length": 9.153,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            }
+          ]
+        },
+        {
+          "env": 1,
+          "index": 0,
+          "peer": 0,
+          "inside": 0,
+          "pauses": [
+            {
+              "length": 1.14,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 2.14,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 4.159,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 6.194,
+              "group": "either",
+              "chance": 0.655,
+              "died": false
+            },
+            {
+              "length": 9.147,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            }
+          ]
+        },
+        {
+          "env": 1,
+          "index": 1,
+          "peer": 0,
+          "inside": 0,
+          "pauses": [
+            {
+              "length": 1.161,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 2.171,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 4.158,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 6.138,
+              "group": "either",
+              "chance": 0.63,
+              "died": true
+            },
+            {
+              "length": 9.139,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "i1000-m2",
+      "label": "1 s × 2",
+      "interval": 1,
+      "multiplier": 2,
+      "t0": 3,
+      "band": {
+        "low": 3,
+        "high": 5.5
+      },
+      "pauseBand": {
+        "low": 2.7,
+        "high": 5.1
+      },
+      "medians": {
+        "failure": 3.71,
+        "outside": 553,
+        "deaths": 2.5
+      },
+      "zone": [
+        {
+          "env": 0,
+          "index": 0,
+          "dead": 3.181,
+          "suspicion": 2.001,
+          "outside": 473,
+          "inside": 0
+        },
+        {
+          "env": 0,
+          "index": 1,
+          "dead": 3.527,
+          "suspicion": 2.004,
+          "outside": 526,
+          "inside": 0
+        },
+        {
+          "env": 1,
+          "index": 0,
+          "dead": 4.82,
+          "suspicion": 2,
+          "outside": 720,
+          "inside": 0
+        },
+        {
+          "env": 1,
+          "index": 1,
+          "dead": 3.894,
+          "suspicion": 2,
+          "outside": 580,
+          "inside": 0
+        }
+      ],
+      "runs": [
+        {
+          "env": 0,
+          "index": 0,
+          "peer": 0,
+          "inside": 0,
+          "pauses": [
+            {
+              "length": 1.12,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 2.196,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 4.135,
+              "group": "either",
+              "chance": 0.629,
+              "died": false
+            },
+            {
+              "length": 6.146,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            },
+            {
+              "length": 9.136,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            }
+          ]
+        },
+        {
+          "env": 0,
+          "index": 1,
+          "peer": 0,
+          "inside": 0,
+          "pauses": [
+            {
+              "length": 1.132,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 2.166,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 4.125,
+              "group": "either",
+              "chance": 0.625,
+              "died": true
+            },
+            {
+              "length": 6.144,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            },
+            {
+              "length": 9.134,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            }
+          ]
+        },
+        {
+          "env": 1,
+          "index": 0,
+          "peer": 0,
+          "inside": 0,
+          "pauses": [
+            {
+              "length": 1.134,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 2.121,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 4.131,
+              "group": "either",
+              "chance": 0.628,
+              "died": false
+            },
+            {
+              "length": 6.124,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            },
+            {
+              "length": 9.177,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            }
+          ]
+        },
+        {
+          "env": 1,
+          "index": 1,
+          "peer": 0,
+          "inside": 0,
+          "pauses": [
+            {
+              "length": 1.146,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 2.166,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 4.154,
+              "group": "either",
+              "chance": 0.637,
+              "died": true
+            },
+            {
+              "length": 6.21,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            },
+            {
+              "length": 9.123,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "i500-m4",
+      "label": "500 ms × 4",
+      "interval": 0.5,
+      "multiplier": 4,
+      "t0": 2.5,
+      "band": {
+        "low": 2.5,
+        "high": 4
+      },
+      "pauseBand": {
+        "low": 2.2,
+        "high": 3.6
+      },
+      "medians": {
+        "failure": 2.851,
+        "outside": 424.5,
+        "deaths": 3
+      },
+      "zone": [
+        {
+          "env": 0,
+          "index": 0,
+          "dead": 2.648,
+          "suspicion": 2.002,
+          "outside": 394,
+          "inside": 0
+        },
+        {
+          "env": 0,
+          "index": 1,
+          "dead": 3.054,
+          "suspicion": 2.001,
+          "outside": 455,
+          "inside": 0
+        },
+        {
+          "env": 1,
+          "index": 0,
+          "dead": 3.223,
+          "suspicion": 2.001,
+          "outside": 480,
+          "inside": 0
+        },
+        {
+          "env": 1,
+          "index": 1,
+          "dead": 2.581,
+          "suspicion": 2,
+          "outside": 385,
+          "inside": 0
+        }
+      ],
+      "runs": [
+        {
+          "env": 0,
+          "index": 0,
+          "peer": 0,
+          "inside": 0,
+          "pauses": [
+            {
+              "length": 1.152,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 2.179,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 4.161,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            },
+            {
+              "length": 6.15,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            },
+            {
+              "length": 9.188,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            }
+          ]
+        },
+        {
+          "env": 0,
+          "index": 1,
+          "peer": 0,
+          "inside": 0,
+          "pauses": [
+            {
+              "length": 1.204,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 2.119,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 4.124,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            },
+            {
+              "length": 6.128,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            },
+            {
+              "length": 9.142,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            }
+          ]
+        },
+        {
+          "env": 1,
+          "index": 0,
+          "peer": 0,
+          "inside": 0,
+          "pauses": [
+            {
+              "length": 1.121,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 2.155,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 4.19,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            },
+            {
+              "length": 6.19,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            },
+            {
+              "length": 9.157,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            }
+          ]
+        },
+        {
+          "env": 1,
+          "index": 1,
+          "peer": 0,
+          "inside": 0,
+          "pauses": [
+            {
+              "length": 1.128,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 2.128,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 4.124,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            },
+            {
+              "length": 6.151,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            },
+            {
+              "length": 9.13,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "i500-m2",
+      "label": "500 ms × 2",
+      "interval": 0.5,
+      "multiplier": 2,
+      "t0": 1.5,
+      "band": {
+        "low": 1.5,
+        "high": 3
+      },
+      "pauseBand": {
+        "low": 1.2,
+        "high": 2.6
+      },
+      "medians": {
+        "failure": 2.054,
+        "outside": 306.5,
+        "deaths": 4
+      },
+      "zone": [
+        {
+          "env": 0,
+          "index": 0,
+          "dead": 2.325,
+          "suspicion": 1.001,
+          "outside": 346,
+          "inside": 0
+        },
+        {
+          "env": 0,
+          "index": 1,
+          "dead": 1.892,
+          "suspicion": 1.001,
+          "outside": 282,
+          "inside": 0
+        },
+        {
+          "env": 1,
+          "index": 0,
+          "dead": 1.848,
+          "suspicion": 1.001,
+          "outside": 276,
+          "inside": 0
+        },
+        {
+          "env": 1,
+          "index": 1,
+          "dead": 2.217,
+          "suspicion": 1.001,
+          "outside": 331,
+          "inside": 0
+        }
+      ],
+      "runs": [
+        {
+          "env": 0,
+          "index": 0,
+          "peer": 0,
+          "inside": 0,
+          "pauses": [
+            {
+              "length": 1.119,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 2.101,
+              "group": "either",
+              "chance": 0.658,
+              "died": true
+            },
+            {
+              "length": 4.121,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            },
+            {
+              "length": 6.13,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            },
+            {
+              "length": 9.117,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            }
+          ]
+        },
+        {
+          "env": 0,
+          "index": 1,
+          "peer": 0,
+          "inside": 0,
+          "pauses": [
+            {
+              "length": 1.096,
+              "group": "never",
+              "chance": 0,
+              "died": false
+            },
+            {
+              "length": 2.106,
+              "group": "either",
+              "chance": 0.662,
+              "died": true
+            },
+            {
+              "length": 4.129,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            },
+            {
+              "length": 6.104,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            },
+            {
+              "length": 9.149,
+              "group": "always",
+              "chance": 1,
+              "died": true
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -8,6 +8,7 @@ description: The T07, T18 and S2 cells in kind on the runners of GitHub, with th
 import { CallersScores, CallersTable, KindResults, ModeTable, Propagation } from "../../../components/RunResults.tsx";
 import { Summary } from "../../../components/Ledger.tsx";
 import StallBand from "../../../components/StallBand.tsx";
+import { DetectionPauses, DetectionTimes, DetectionTrade } from "../../../components/DetectionSweep.tsx";
 
 <Summary of="kind" />
 
@@ -299,6 +300,38 @@ The law gives the new announcer 5 s to 7 s after the fault: one probe, its deadl
 Kind run 41654669260 gave 2 counted runs and 2 void runs. In each void run, the VM stayed below the idle share of 60% for 300 s, before the fault. Thus the void comes from the quiet check, not from the measured value. The pre-registered rule permits one re-dispatch, and kind run 41696343708 gave the next 2 counted runs.
 
 <KindResults template="T07" group="zone" copy="sys-53" client:visible />
+
+### The detection settings of MetalLB
+
+A shorter probe interval or a smaller suspicion multiplier of memberlist finds a lost announcer faster. It also gives a false death to a live speaker that stops for a short time. The sweep measures how four settings trade one against the other.
+
+With two speakers, let T0 be the probe interval plus the suspicion timeout. T0 is the least failure time, and it is also the least pause that gives a false death. Thus one number gives the trade-off.
+
+<DetectionTrade client:visible />
+
+The first family of cells is the zone loss of the cell above, at each setting. Each of the 16 counted runs is in the band of its setting, and the medians rise with T0. The death comes one suspicion timeout after the first suspicion in each run.
+
+<DetectionTimes client:visible />
+
+The second family has no fault. It stops the speaker of the owner with SIGSTOP and continues it with SIGCONT after its hold. The holds are 1, 2, 4, 6 and 9 s, 20 s apart.
+
+The 14 counted runs have 70 pauses. Of the 30 pauses that the law gives no death, 0 gave a death. Of the 30 pauses that the law gives a death, 30 gave a death. The other 10 pauses gave 7 deaths, and the law expects 6.4. In each counted run, the clients in the cluster fail no request.
+
+<DetectionPauses client:visible />
+
+The setting 500 ms × 2 cuts the median failure time by 3.797 s from the default, and the failed requests outside the cluster fall by 65 %. For that cut, the false deaths in the median run rise from 2 to 4 of 5 pauses.
+
+[Kind run 41748420837](https://github.com/mark1russell7/systems/actions/runs/41748420837) gave 30 counted runs of 32. The wait for a quiet VM voided 2 runs of the pauses of 500 ms × 2. The one re-dispatch, [kind run 41870241848](https://github.com/mark1russell7/systems/actions/runs/41870241848), gave no counted run for the same reason. Thus that row has 2 runs.
+
+### A lost owner of a topic (Pulsar)
+
+One broker of Pulsar owns the bundle of a topic through its session in ZooKeeper. The crash stops that broker. Two producers send to the topic each 200 ms, and each tries again on its backoff.
+
+The law gives a change of the owner 20.5 s to 33 s after the crash. Each producer is back at the first try of its backoff after that change. The return is a race between two timers of 30 s: the session of the broker and the mandatory stop of the producer. If the bundle moves first, the producer is back at approximately 30 s. If the stop try comes first, the next delay is approximately 50 s, and the producer is back at approximately 80 s. A difference of less than 1 s adds 50 s.
+
+The cell held in each of its 4 counted runs in kind run 41870080724: 2 runs at approximately 30 s and 2 runs at approximately 80 s. In 3 of the 4 runs, the crashed broker took the bundle back after its restart.
+
+<KindResults template="T07" group="broker" copy="sys-56" client:visible />
 
 ## Where the data comes from
 
