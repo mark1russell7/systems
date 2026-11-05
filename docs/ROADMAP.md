@@ -2990,6 +2990,22 @@ SYS-94 holds rungs 1, 100 and 1,000. The next two rungs have different costs, th
 - **Rung 10.** One process with an hourly backup, an RPO of 1 h and an RTO of 1 h. It is the law of `RD.1` on another schedule, and it runs on one runner. It needs only SYS-94.
 - **Rung 10,000.** An RPO of 10 s and an RTO of 5 min, on k3s with shards of synthetic tenants. It needs SYS-85 for its place and SYS-97 for the size of its restore. It has no date until SYS-85 has one, because a rung counts only at its own place.
 
+### SYS-99 · The scheduled cells can fail on a failing cell
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** WS, SYS-94
+- **Started:** 2026-11-05
+- **Shipped:**
+- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service)
+
+The check `Cells OK` reads only the results of the jobs, and a failing cell does not fail its job. Thus a green night proves that the lab ran, not that the cells hold. Two green nights held failing cells.
+
+- **The night.** A step judges each raw record again. It fails unless each cell of the shard has a record and reads `holds`. A cell that reads `measured`, `extend` or `inconclusive` is a "no read", and a "no read" is not a pass.
+- **The flip test.** In the same job, a fault of 1.5 x the top of each band turns each cell red, and a copy with one record gone exits with 1. The clean copy stays green.
+- **The Sunday run.** The rungs of recovery get the same flip after the run of 2026-11-08, because that run is the proof of the lock of SYS-94.
+- **A manual run.** A dispatch of a new cell keeps its rule: a failing cell is a finding, and the step does not operate.
+
 A recovery rung says nothing of the load that a design holds. SYS-93 holds that part.
 
 ## Decisions for Mark

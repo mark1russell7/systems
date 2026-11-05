@@ -78,3 +78,10 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
 
 /** These are the cells of each catalog, on the subjects that the harness ships. */
 export const ALL: readonly Cell[] = catalogs();
+
+/**
+ * This function gives the cells of one shard: the cells whose names match `only`, then each `of`-th
+ * cell from the `shard`-th. The runner and the read of its records use this one selection.
+ */
+export const selectedOf = (source: readonly Cell[], only: RegExp, shard: number, of: number): readonly Cell[] =>
+  source.filter((each) => only.test(each.name)).filter((_, at) => at % of === shard);

@@ -307,8 +307,17 @@ jobs:
           if [ -z "$CELLS_HZ" ]; then echo "::error::the runner's kernel config gives no CONFIG_HZ"; exit 1; fi
           export CELLS_HZ
           pnpm --filter @systems/cells exec vitest run src/run.test.ts
-      # A failing cell does not fail this workflow, but a lost rung fails it: this step reads the records of
-      # the drills again, and it fails when a rung is not within its budgets, or when a drill has no record.
+      # A failing cell of a manual run is a finding, thus it does not fail this workflow. The night claims
+      # that its cells hold: this step judges each record again, and it fails unless each cell of the shard
+      # has a record and holds. In the same job, its flip test turns the check red with an injected fault
+      # and with a record gone, and the clean copy stays green.
+      - name: The cells of the night hold
+        if: ${{ github.event.schedule == '30 3 * * *' || (inputs.only == '^WS' && inputs.shards == '4') }}
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: pnpm exec tsx packages/site/scripts/held.ts --flip --only '^WS' --shard "$SHARD/4" "$RUNNER_TEMP/cells"
+      # A lost rung fails this workflow too: this step reads the records of the drills again, and it fails
+      # when a rung is not within its budgets, or when a drill has no record.
       - name: The locked rungs of recovery
         if: ${{ github.event.schedule == '30 9 * * 0' || (inputs.only == '^RD[.]' && inputs.shards == '1') }}
         run: pnpm exec tsx packages/site/scripts/recovery.ts --check --run "$GITHUB_RUN_ID" --commit "$GITHUB_SHA" "$RUNNER_TEMP/cells"
