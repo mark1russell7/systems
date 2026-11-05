@@ -48,6 +48,12 @@ const STUDIES: Readonly<Record<string, readonly Source[]>> = {
   "results/mesh": [file("t15-2026-10-25.json")],
 };
 
+/**
+ * The lab of the home page shows the runs of this file. The findings of the home page link to their pages of results,
+ * and each of those pages has its own stamp.
+ */
+export const HOME_LAB_FILE = "harness-2026-10-08.json";
+
 /** The page of Kubernetes shows many files. Its stamp names the first file and the newest file of the series `s2`. */
 const KIND_PAGE = "results/kind";
 const KIND_FIRST = "kind-2026-10-18.json";
@@ -133,8 +139,13 @@ export function siteDataStamps(folder: string): DataStamps {
   ];
   return {
     schema: DATA_STAMP_SCHEMA,
-    pages: [...Object.entries(STUDIES).map(([id, sources]) => stamp(id, sources.map((source) => runOf(folder, source)))), stamp(KIND_PAGE, kind)],
+    pages: [homeStamp(folder), ...Object.entries(STUDIES).map(([id, sources]) => stamp(id, sources.map((source) => runOf(folder, source)))), stamp(KIND_PAGE, kind)],
   };
+}
+
+/** This function gives the stamp of the home page. A page with a hero does not show the title of the other pages. */
+export function homeStamp(folder: string): PageStamp {
+  return { page: "index.html", runs: [runOf(folder, lab(HOME_LAB_FILE))], study: true };
 }
 
 /** This function gives the stamp of the page `id`, or undefined for a page with no measured data. */

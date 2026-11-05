@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { parseDataStamps, renderDataStamp } from "@mark1russell7/site-pages";
 import { describe, expect, it } from "vitest";
-import { dateInName, enginesOf, NOT_STAMPED, newestSeriesFile, siteDataStamps, stampOfPage, versionsIn } from "./stamps.ts";
+import { dateInName, enginesOf, HOME_LAB_FILE, homeStamp, NOT_STAMPED, newestSeriesFile, siteDataStamps, stampOfPage, versionsIn } from "./stamps.ts";
 
 const DATA = fileURLToPath(new URL("../data/", import.meta.url));
 const RESULTS = fileURLToPath(new URL("../content/docs/results/", import.meta.url));
@@ -58,6 +58,14 @@ describe("the stamps of the site", () => {
     const stamped = new Set(stamps.pages.map((page) => page.page.replace(/\/index\.html$/, "")));
     expect(pages.filter((page) => !stamped.has(page) && NOT_STAMPED[page] === undefined)).toEqual([]);
     expect(Object.keys(NOT_STAMPED).filter((page) => stamped.has(page))).toEqual([]);
+  });
+
+  it("stamps the home page with the data file that its lab reads", () => {
+    const lab = readFileSync(fileURLToPath(new URL("../components/DetectionLab.tsx", import.meta.url)), "utf8");
+    expect(lab).toContain(`"../data/${HOME_LAB_FILE}"`);
+    expect(stamps.pages.map((page) => page.page)).toContain("index.html");
+    expect(renderDataStamp(homeStamp(DATA))).toContain("a fixed study");
+    expect(homeStamp(DATA).runs.map((run) => run.id)).toEqual([HOME_LAB_FILE]);
   });
 
   it("names the study of a page in plain words", () => {

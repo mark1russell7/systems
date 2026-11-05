@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   pages:
-    uses: mark1russell7/template/.github/workflows/reusable-pages.yml@f48f29fe5b00772951e0910a90fbbe312343338c # main
+    uses: mark1russell7/template/.github/workflows/reusable-pages.yml@57aebf4223650076c5f93e0ecd25c69e2572f1c0 # main
     # The build job of the shared workflow gets only the read permissions. Only its deploy job,
     # which runs no code of the repository, writes to Pages.
     permissions:
@@ -50,7 +50,7 @@ jobs:
       # A failure stops the deploy.
       site-check: true
       data-stamps: packages/site/dist/data-stamps.json
-      site-check-pages: /,/releases/,/status/
+      site-check-pages: /,/releases/,/status/,/results/cells/
       # The probe drives the detection lab of the home page. The check reads the TypeScript source and removes its types.
       site-check-probe: packages/site/src/check-probe.ts
       deploy: ${{ github.event_name != 'pull_request' }}
