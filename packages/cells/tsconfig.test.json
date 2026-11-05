@@ -6,6 +6,6 @@
     "noEmit": true,
     "types": ["node"]
   },
-  "include": ["src/**/*", "*.config.ts"],
+  "include": ["src/**/*", "targets/**/*.ts", "*.config.ts"],
   "exclude": []
 }

@@ -32,6 +32,7 @@ export type {
   HttpProbe,
   Jitter,
   ImageSource,
+  LineCount,
   LineMatch,
   MiddleboxEvent,
   MiddleboxExpectation,
