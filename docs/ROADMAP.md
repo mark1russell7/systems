@@ -2474,12 +2474,12 @@ New flows drop at `nf_conntrack_max`. The table is global, not for each network 
 
 ### SYS-67 · Retry amplification: an exact count
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** S1
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:** [The law](S3.md#the-first-count-sys-67)
+- **Shipped:** 2026-11-05
+- **Links:** [The law](S3.md#the-first-count-sys-67), [the run](https://github.com/mark1russell7/systems/actions/runs/42101390324), [#325](https://github.com/mark1russell7/systems/pull/325)
 
 The tries of each hop multiply (law O08). T14 counts the tries at the target in an outage. This count needs no load generator, thus it is the first result of Q18.
 
@@ -2490,6 +2490,8 @@ The law: the target sees the product of the tries of each caller. A `RetryAgent`
 The prediction: nine cells, `T14.count.1` to `T14.count.9`, with 6, 36, 36, 108, 6, 1, 6, 36 and 2 arrivals at the target. Each listener has its own exact count.
 
 The rule: each cell has 4 counted runs. A void or infrastructure run gets one more dispatch, and the first counted runs count. A count that differs in a counted run fails its cell. The counts do not change after a result.
+
+The result (run 42101390324, 2026-11-05): each of the nine cells holds. Each cell has 4 counted runs and no void run. Each run gave the exact count at each listener, thus the law holds at each hop.
 
 ### SYS-68 · An open-loop load schedule
 
@@ -2568,9 +2570,11 @@ The result (run 42103497696, 2026-11-05): each of the eleven cells holds. Each c
 - **Depends on:** SYS-67
 - **Started:** 2026-11-03
 - **Shipped:**
-- **Links:**
+- **Links:** [the run](https://github.com/mark1russell7/systems/actions/runs/42114436730), [#327](https://github.com/mark1russell7/systems/pull/327)
 
 A resume from a compacted revision fails with a compaction error (DV-44). A stall alone loses nothing, and a compaction alone loses nothing. The cells `WC.1` to `WC.7` test the two together, and the exact border of 132 and 133 long writes. The target has its own etcd, thus this item does not need SYS-73.
+
+The result (run 42114436730, 2026-11-05): each of the seven cells holds. Each cell has 4 counted runs and no void run. The border is exact: 132 long writes lose nothing, and 133 give 131 events and then the compaction error.
 
 ### SYS-75 · etcd: linearizable reads under a partition
 
@@ -2810,6 +2814,8 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 | Closed loop, reply times | 11 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
 | Closed loop, first write | 48 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
 | Timer | 222 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
+
+The 9 cells `T14.count` of SYS-67 are in the row of one gap. Each cell sends one logical request, and it gives the count of the sends of the chain. The 7 cells `WC` of SYS-74 are in the same row. Each cell gives a count of events, or the compaction error. The 11 cells `EL` of SYS-73 are in the same row. Each cell operates one scenario, and it gives counts of events and the end of one lease in a band.
 
 The closed-loop families:
 
