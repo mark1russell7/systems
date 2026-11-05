@@ -1,0 +1,17 @@
+# The address of a guest on the user network of QEMU. The cells do not use this network: their
+# containers talk on the bridges of Docker in the guest. It carries ssh and the pulls of images.
+[Unit]
+Description=The network of the guest
+Before=network-online.target docker.service ssh.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=ip link set lo up
+ExecStart=ip link set eth0 up
+ExecStart=ip address add 10.0.2.15/24 dev eth0
+ExecStart=ip route add default via 10.0.2.2
+
+[Install]
+WantedBy=multi-user.target
