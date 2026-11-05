@@ -2748,7 +2748,7 @@ vrnetlab starts a vendor router in a VM. The cells compare a vendor's defaults w
 - **Depends on:** 
 - **Started:** 2026-11-04
 - **Shipped:**
-- **Links:**
+- **Links:** [#355](https://github.com/mark1russell7/systems/pull/355)
 
 A closed-loop client hides a stall, because a slow reply delays its next send (Gil Tene, "How NOT to Measure Latency"). This item lists each cell that gives a time or a distribution under load from such a client. A record then keeps the intended send time and the maximum. The fix of a load generator waits for SYS-68.
 
