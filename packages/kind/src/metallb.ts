@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
+import type { MemberlistSettings } from "./cell.ts";
 import type { Cluster } from "./cluster.ts";
 import type { PinnedChart } from "./helm.ts";
 import { helmInstall } from "./helm.ts";
@@ -18,8 +19,8 @@ import { cidrRange } from "./scenario.ts";
  *   a usable speaker (speaker/layer2_controller.go, lines 83–129). A usable speaker is a member of
  *   memberlist that is not dead (internal/speakerlist/speakerlist.go, lines 303–320).
  * - The speakers start memberlist from `DefaultLANConfig` (speakerlist.go, line 72). A file
- *   /etc/metallb/memberlist/config.json replaces that config (lines 77–84). The install makes no
- *   such file, thus each value is the default of hashicorp/memberlist v0.5.1.
+ *   /etc/metallb/memberlist/config.json replaces that config (lines 77–84). Without settings of
+ *   memberlist, the install makes no such file. Then each value is the default of memberlist v0.5.1.
  * - Each event of memberlist (a join, a leave or an update) calls `ForceSync` (speakerlist.go, lines
  *   339–349). `ForceSync` reconciles each Service at once, with no delay (internal/k8s/k8s.go, lines
  *   181–184, and internal/k8s/controllers/service_controller_reload.go, lines 62–118).
@@ -89,6 +90,56 @@ export const MEMBERLIST: {
   pushPullInterval: { value: 30, unit: "s" },
   gossipInterval: { value: 200, unit: "ms" },
 };
+
+/**
+ * These are the values of the config file of memberlist, as `DefaultLANConfig` of v0.5.1 gives them
+ * (config.go, lines 302–341). The speaker needs each field of the file, and it reads a time as a
+ * duration of Go (speakerlist.go, lines 355–432). The chart mounts the ConfigMap
+ * `metallb-memberlist-config` at /etc/metallb/memberlist, if the ConfigMap exists
+ * (charts/metallb/templates/speaker.yaml, lines 195–198 and 391–392). The key is `config.json`.
+ */
+export const MEMBERLIST_FILE: Readonly<Record<string, string | number | boolean>> = {
+  TCPTimeout: "10s",
+  IndirectChecks: 3,
+  RetransmitMult: 4,
+  SuspicionMult: 4,
+  SuspicionMaxTimeoutMult: 6,
+  PushPullInterval: "30s",
+  ProbeTimeout: "500ms",
+  ProbeInterval: "1s",
+  DisableTcpPings: false,
+  AwarenessMaxMultiplier: 8,
+  GossipNodes: 3,
+  GossipInterval: "200ms",
+  GossipToTheDeadTime: "30s",
+  GossipVerifyIncoming: true,
+  GossipVerifyOutgoing: true,
+  EnableCompression: true,
+  HandoffQueueDepth: 1024,
+  UDPBufferSize: 1400,
+  QueueCheckInterval: "30s",
+};
+
+/** This name is the ConfigMap of the config file of memberlist. */
+const MEMBERLIST_CONFIG = "metallb-memberlist-config";
+
+/** This function gives a time as a duration of Go in whole milliseconds, for example "500ms". */
+const goDuration = (time: Quantity): string => {
+  const ms = valueIn(time, "ms");
+  if (!Number.isInteger(ms) || ms <= 0) throw new RangeError(`a time of memberlist is a whole count of milliseconds above zero, not ${ms} ms`);
+  return `${ms}ms`;
+};
+
+/** This function gives the config file of memberlist with `settings`. Each other value is the default of `MEMBERLIST_FILE`. */
+export const memberlistFileOf = (settings: MemberlistSettings): Record<string, string | number | boolean> => {
+  if (!Number.isInteger(settings.suspicionMult) || settings.suspicionMult < 1) throw new RangeError(`SuspicionMult is a whole number of 1 or more, not ${settings.suspicionMult}`);
+  if (valueIn(settings.probeTimeout, "ms") >= valueIn(settings.probeInterval, "ms")) throw new RangeError("the probe timeout of memberlist is less than its probe interval");
+  return { ...MEMBERLIST_FILE, ProbeInterval: goDuration(settings.probeInterval), ProbeTimeout: goDuration(settings.probeTimeout), SuspicionMult: settings.suspicionMult };
+};
+
+/** This function gives the terms of memberlist with `settings`, or the defaults (`MEMBERLIST`) without them. */
+export const memberlistTermsOf = (settings: MemberlistSettings | undefined): typeof MEMBERLIST =>
+  settings === undefined ? MEMBERLIST : { ...MEMBERLIST, probeInterval: settings.probeInterval, probeTimeout: settings.probeTimeout, suspicionMult: settings.suspicionMult };
 
 /** These are the gratuitous ARPs of the owner at each reconcile: one at once, then one each `every` until `for` (announcer.go, lines 172–182). */
 export const METALLB_SPAM: { readonly every: Quantity; readonly for: Quantity } = {
@@ -251,10 +302,20 @@ export const holdMetallb = async (cluster: Pick<Cluster, "kubectl">, owner: stri
  * and a pool of the VIP. The webhook of the controller checks the pool, thus the function tries the
  * pool again until the webhook answers. A failed install gives the pods of MetalLB and the tail of
  * their logs.
+ *
+ * With `memberlist`, the ConfigMap of the config file comes before the speakers. Then the function
+ * checks that each speaker logged the load of the file (speakerlist.go, line 393). Without it, the
+ * function checks that the ConfigMap does not exist.
  */
-export const installMetallb = async (cluster: Cluster, images: MetallbImages, nodes: readonly string[], vip: string): Promise<void> => {
+export const installMetallb = async (cluster: Cluster, images: MetallbImages, nodes: readonly string[], vip: string, memberlist?: MemberlistSettings): Promise<void> => {
   try {
     for (const node of nodes) await cluster.kubectl(["label", "node", node, `${VIP_LABEL}=1`, "--overwrite"]);
+    if (memberlist !== undefined) {
+      await cluster.apply([{ apiVersion: "v1", kind: "Namespace", metadata: { name: METALLB_NAMESPACE } }]);
+      await cluster.apply([
+        { apiVersion: "v1", kind: "ConfigMap", metadata: { name: MEMBERLIST_CONFIG, namespace: METALLB_NAMESPACE }, data: { "config.json": JSON.stringify(memberlistFileOf(memberlist)) } },
+      ]);
+    }
     await helmInstall(cluster, "metallb", METALLB_CHART, METALLB_NAMESPACE, metallbValues(images), { createNamespace: true });
     let failure: unknown = null;
     const end = Date.now() + 180_000;
@@ -266,8 +327,23 @@ export const installMetallb = async (cluster: Cluster, images: MetallbImages, no
       if (failure !== null) await sleep(2000);
     } while (failure !== null && Date.now() < end);
     if (failure !== null) throw failure;
-    const config = (await cluster.kubectl(["-n", METALLB_NAMESPACE, "get", "configmap", "metallb-memberlist-config", "--ignore-not-found", "-o", "name"])).trim();
-    if (config !== "") throw new Error("the ConfigMap metallb-memberlist-config is there: memberlist would not use its defaults");
+    if (memberlist === undefined) {
+      const config = (await cluster.kubectl(["-n", METALLB_NAMESPACE, "get", "configmap", MEMBERLIST_CONFIG, "--ignore-not-found", "-o", "name"])).trim();
+      if (config !== "") throw new Error(`the ConfigMap ${MEMBERLIST_CONFIG} is there: memberlist would not use its defaults`);
+    } else {
+      const loaded = await until(120_000, async () => {
+        const pods = JSON.parse(await cluster.kubectl(["-n", METALLB_NAMESPACE, "get", "pods", "-l", "app.kubernetes.io/component=speaker", "-o", "json"])) as {
+          items: ReadonlyArray<{ metadata: { name: string } }>;
+        };
+        if (pods.items.length !== nodes.length) return `${pods.items.length} speakers, not ${nodes.length}`;
+        for (const pod of pods.items) {
+          const log = await cluster.kubectl(["-n", METALLB_NAMESPACE, "logs", pod.metadata.name, "-c", "speaker"]).catch((error: unknown) => String(error));
+          if (!log.includes("loading memberlist config from file")) return `the speaker ${pod.metadata.name} did not log the load of the config file of memberlist`;
+        }
+        return null;
+      });
+      if (loaded !== null) throw new Error(loaded);
+    }
   } catch (error) {
     const state = async (args: readonly string[]): Promise<string> =>
       (await cluster.kubectl(["-n", METALLB_NAMESPACE, ...args]).catch((why: unknown) => String(why))).slice(-4000);
@@ -292,7 +368,8 @@ export const metallbRecord = async (cluster: Pick<Cluster, "kubectl">, namespace
   const log = text
     .split("\n")
     .filter((line) => KEPT.test(line))
-    .slice(-120)
+    .slice(-600)
     .join("\n");
-  return { announcements, log: log.slice(-12000) };
+  // a run with a schedule of pauses (SYS-57) has several deaths and joins, thus the record keeps up to 600 lines
+  return { announcements, log: log.slice(-90000) };
 };

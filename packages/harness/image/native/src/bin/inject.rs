@@ -39,6 +39,9 @@
 //! - `resp ADDR:PORT ARG...`: one command to a Redis-protocol server, for example
 //!   `SENTINEL FAILOVER mymaster` to a Sentinel. The stamps bracket the write of the command and
 //!   the first line of its reply, so a planned failover starts at a known instant.
+//! - `silence` / `clear-silence`: each packet of this namespace drops, in the three chains at one
+//!   commit, and no peer is named. The links stay up and ARP goes on, so a router in this namespace
+//!   goes silent, and its neighbors can detect that only by their own timers.
 //! - `query ADDR:PORT USER DATABASE SQL`: one simple query to a server of the PostgreSQL protocol
 //!   that trusts the user, for example `PAUSE` on the console of PgBouncer. The stamps bracket the
 //!   write of the query and its ReadyForQuery, after the login, so the end of a PAUSE is known.
@@ -86,6 +89,30 @@ fn until(at: u64) -> Result<(), Box<dyn Error>> {
             other => return Err(format!("clock_nanosleep failed: {other}").into()),
         }
     }
+}
+
+/// The rules of a namespace that goes silent, or of the end of the silence.
+fn silence(action: &str) -> String {
+    let op = if action == "silence" { "-I" } else { "-D" };
+    ["INPUT", "OUTPUT", "FORWARD"].map(|chain| format!("{op} {chain} -j DROP\n")).concat()
+}
+
+/// Commits rules in one iptables-restore at an instant, between two stamps.
+fn commit(body: &str, at: Option<u64>) -> Result<(u64, u64), Box<dyn Error>> {
+    let script = format!("*filter\n{body}COMMIT\n");
+    if let Some(at) = at {
+        until(at)?;
+    }
+    let t0 = monotonic_ns();
+    let mut child =
+        Command::new("iptables-restore").arg("--noflush").stdin(Stdio::piped()).spawn()?;
+    child.stdin.take().ok_or("iptables-restore took no stdin")?.write_all(script.as_bytes())?;
+    let status = child.wait()?;
+    let t1 = monotonic_ns();
+    if !status.success() {
+        return Err(format!("iptables-restore exited {status}").into());
+    }
+    Ok((t0, t1))
 }
 
 /// The options after the positional arguments: `--at NS`, `--direction D`, `--code C`, `--above N`,
@@ -559,6 +586,12 @@ fn run() -> Result<(), Box<dyn Error>> {
             println!("{}", json!({ "action": action, "device": dev, "spec": spec, "t0": t0, "t1": t1 }));
             Ok(())
         }
+        "silence" | "clear-silence" => {
+            let opts = options(&args[1..])?;
+            let (t0, t1) = commit(&silence(action), opts.at)?;
+            println!("{}", json!({ "action": action, "t0": t0, "t1": t1 }));
+            Ok(())
+        }
         _ => {
             // parsed, never pasted: only addresses reach the rules
             let list = peers(args.get(1).ok_or("and the peer's address")?)?;
@@ -567,19 +600,7 @@ fn run() -> Result<(), Box<dyn Error>> {
             for peer in &list {
                 body.push_str(&rules(action, *peer, &opts)?);
             }
-            let script = format!("*filter\n{body}COMMIT\n");
-            if let Some(at) = opts.at {
-                until(at)?;
-            }
-            let t0 = monotonic_ns();
-            let mut child =
-                Command::new("iptables-restore").arg("--noflush").stdin(Stdio::piped()).spawn()?;
-            child.stdin.take().ok_or("iptables-restore took no stdin")?.write_all(script.as_bytes())?;
-            let status = child.wait()?;
-            let t1 = monotonic_ns();
-            if !status.success() {
-                return Err(format!("iptables-restore exited {status}").into());
-            }
+            let (t0, t1) = commit(&body, opts.at)?;
             let named: Vec<String> = list.iter().map(ToString::to_string).collect();
             println!("{}", json!({ "action": action, "peer": named.join(","), "t0": t0, "t1": t1 }));
             Ok(())
@@ -622,6 +643,12 @@ mod tests {
             "-I INPUT -s 10.0.0.2/32 -p tcp -m length --length 1201:65535 -j DROP\n"
         );
         assert!(rules("reject", peer, &Options::default()).is_err());
+    }
+
+    #[test]
+    fn a_silence_drops_each_chain_and_its_end_takes_the_rules_out() {
+        assert_eq!(silence("silence"), "-I INPUT -j DROP\n-I OUTPUT -j DROP\n-I FORWARD -j DROP\n");
+        assert_eq!(silence("clear-silence"), "-D INPUT -j DROP\n-D OUTPUT -j DROP\n-D FORWARD -j DROP\n");
     }
 
     #[test]

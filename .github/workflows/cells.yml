@@ -5,8 +5,8 @@
 #           read the kernel's facts. Then it runs the harness's opt-in lab test: privileged
 #           containers, the injector and the eBPF prober on this runner.
 #   cells   Runs the cells whose names match `only`, a shard on each runner, and uploads each raw
-#           record and summary.ndjson as an artifact, for jarvis to land. With `file`, the cells
-#           come from that JSON file at the ref (cells that jarvis compiles), not the catalogs.
+#           record and summary.ndjson as an artifact, for the private repository to land. With `file`, the cells
+#           come from that JSON file at the ref (compiled cells), not the catalogs.
 #           The WS and WST cells run on the procedures subject of mark1russell7/client (CLI-33):
 #           the job checks that repository out at CLIENT_REF and builds the subject of the checkout.
 #           With `subject`, a subject as JSON (the harness's Subject) replaces it, for example a
@@ -18,11 +18,14 @@
 #           and makes its lockfile. The count of shards must divide the count of selected limiter
 #           specs. Then each cell of a spec operates on the same runner, and paired.ndjson gets
 #           the PairedTime records of rigor-bench.
+#           With E3 in `only`, the job installs the pinned containerlab for the routers of a fabric.
 #
 # Start it with: gh workflow run cells.yml -R mark1russell7/systems -f only='^T12' -f shards=4
 # A pair: gh workflow run cells.yml -R mark1russell7/systems -f pair=0.5.6,0.6.0 -f only='^O(29|30)[.]' -f shards=6
 # A pull request that changes this file runs the probe only. Each night, the schedule runs the WS
 # cells on 4 shards: the heartbeat and the reconnect of @procedures/client under real faults.
+# Each Sunday, the schedule runs the RD cells on one shard: the drills of the ladder of recovery.
+# The step of the locked rungs fails that run when a rung is not within its budgets.
 name: Cells
 
 on:
@@ -45,6 +48,7 @@ on:
         default: ""
   schedule:
     - cron: "30 3 * * *"
+    - cron: "30 9 * * 0"
   # Each pull request starts this workflow, so its summary check is always there. The job changes skips the
   # work when the pull request changes no file of the gate (CI.md of the template, "A gate with paths").
   pull_request:
@@ -75,7 +79,7 @@ jobs:
       match: ${{ steps.changes.outputs.match }}
     steps:
       - id: changes
-        uses: mark1russell7/template/.github/actions/changes@c8d2f57af6932442af82d2f2223931e47c11beb1 # main
+        uses: mark1russell7/template/.github/actions/changes@f48f29fe5b00772951e0910a90fbbe312343338c # main
         with:
           paths: |
             .github/workflows/cells.yml
@@ -166,7 +170,7 @@ jobs:
         run: echo "at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
       - id: shards
         env:
-          SHARDS: ${{ inputs.shards || '4' }}
+          SHARDS: ${{ inputs.shards || (github.event.schedule == '30 9 * * 0' && '1' || '4') }}
         run: |
           case "$SHARDS" in
             ''|*[!0-9]*) echo "::error::shards must be a whole number"; exit 1 ;;
@@ -201,6 +205,9 @@ jobs:
           mkdir -p "$RUNNER_TEMP/cells"
           {
             echo "kernel: $(uname -r)"
+            # one image can start on each cloud: the vendor tells which, and the name of the kernel does not
+            echo "vendor: $(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || echo unknown)"
+            if [ -e /dev/kvm ]; then echo "kvm: yes"; else echo "kvm: no"; fi
             echo "CONFIG_HZ: $(grep -E '^CONFIG_HZ=' "/boot/config-$(uname -r)" || echo unknown)"
             echo "CLOCK_MONOTONIC_COARSE: $(python3 -c 'import time; print(time.clock_getres(6))') s"
             echo "cpus: $(nproc)"
@@ -272,12 +279,21 @@ jobs:
             (cd "$dir" && npm install --package-lock-only --ignore-scripts --no-audit --no-fund --before "$AT" && mv package-lock.json npm-lock.json)
             echo "pair $version: $(jq -c '[.packages | to_entries[] | select(.key != "") | {key: (.key | sub("^node_modules/"; "")), value: .value.version}] | from_entries' "$dir/npm-lock.json")" | tee -a "$RUNNER_TEMP/cells/runner.txt"
           done
+      # the routers of layer E3 come from containerlab: only a run that asks for its cells pays for it
+      - name: The pinned containerlab
+        if: contains(inputs.only, 'E3')
+        run: |
+          deb=containerlab_0.82.0_linux_amd64.deb
+          curl -fsSL -o "$RUNNER_TEMP/$deb" "https://github.com/srl-labs/containerlab/releases/download/v0.82.0/$deb"
+          echo "770e18f19ef75732eb9f4e362541f509abb2b6eeadde2d5c98140190b19b519a  $RUNNER_TEMP/$deb" | sha256sum -c -
+          sudo apt-get install -y -qq "$RUNNER_TEMP/$deb"
+          echo "containerlab: $(containerlab version | sed -n 's/^ *version: *//p')" | tee -a "$RUNNER_TEMP/cells/runner.txt"
       - name: The cells
         env:
           CELLS: "1"
-          # the nightly schedule has no inputs: it runs the WS cells
-          CELLS_ONLY: ${{ inputs.only || '^WS' }}
-          CELLS_SHARD: ${{ matrix.shard }}/${{ inputs.shards || '4' }}
+          # a schedule has no inputs: the night runs the WS cells, and the Sunday runs the RD cells
+          CELLS_ONLY: ${{ inputs.only || (github.event.schedule == '30 9 * * 0' && '^RD[.]' || '^WS') }}
+          CELLS_SHARD: ${{ matrix.shard }}/${{ inputs.shards || (github.event.schedule == '30 9 * * 0' && '1' || '4') }}
           CELLS_OUT: ${{ runner.temp }}/cells
           CELLS_FILE_AT: ${{ inputs.file }}
           CELLS_PAIR: ${{ inputs.pair }}
@@ -291,6 +307,11 @@ jobs:
           if [ -z "$CELLS_HZ" ]; then echo "::error::the runner's kernel config gives no CONFIG_HZ"; exit 1; fi
           export CELLS_HZ
           pnpm --filter @systems/cells exec vitest run src/run.test.ts
+      # A failing cell does not fail this workflow, but a lost rung fails it: this step reads the records of
+      # the drills again, and it fails when a rung is not within its budgets, or when a drill has no record.
+      - name: The locked rungs of recovery
+        if: ${{ github.event.schedule == '30 9 * * 0' || (inputs.only == '^RD[.]' && inputs.shards == '1') }}
+        run: pnpm exec tsx packages/site/scripts/recovery.ts --check --run "$GITHUB_RUN_ID" --commit "$GITHUB_SHA" "$RUNNER_TEMP/cells"
       # the error of a failed build of a cell holds its error lines and its last lines: this step gives the whole log
       - name: The images of the harness that do not build, after a failure
         if: failure()
@@ -319,7 +340,7 @@ jobs:
     timeout-minutes: 2
     permissions: {}
     steps:
-      - uses: mark1russell7/template/.github/actions/gate-summary@c8d2f57af6932442af82d2f2223931e47c11beb1 # main
+      - uses: mark1russell7/template/.github/actions/gate-summary@f48f29fe5b00772951e0910a90fbbe312343338c # main
         with:
           needs: ${{ toJSON(needs) }}
           allow-skip: plan cells

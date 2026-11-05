@@ -313,7 +313,7 @@ try {
       check(typeof node === "object" && node !== null, "algebra parses an expression of a timer");
       // the schema is in an entry of its own, and the root does not give it
       const schemaEntry = await load("@mark1russell7/algebra/schema");
-      const old = schemaEntry.machineSchema.safeParse({ format: "jarvis.machine/1" });
+      const old = schemaEntry.machineSchema.safeParse({ format: "other.machine/1" });
       check(old.success === false && !("machineSchema" in module), "algebra/schema refuses a machine document of another format");
       // a window that nothing bounds: the cap less it is no bound below, which a max discards
       const doc = { title: "t", knobs: { cap: { unit: "s" }, open: { unit: "s" } } };

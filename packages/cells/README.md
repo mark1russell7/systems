@@ -362,6 +362,7 @@ The client of these cells is the MongoDB client of the harness (`image/mongo/cli
 - **A stall** is the stall of Linux TCP, from the catalog of T01. The pool's socket carries the write through it.
 - **T11.** The cell has a replica set of three members (`replicaSetOf`), at the defaults of mongod 9.0.4 with the settings of the cell. The stages of a member include an error of 2 ms in their stamps. The wall clock of mongod and of the client is in whole ms.
 - **A partial cut** holds for 40 s. Its prediction names the stages that must not come (`quiet`): an election of another member, and the write-off of the old primary.
+- **The recovery drills** (`src/recovery.ts`, SYS-94) use one member or three, with `w: "majority"`. `RECOVERY_LADDER` holds the budgets of each rung, and `recoveryRecord` makes the record of a rung from its drills. The RPO of a rung is the interval of its schedule plus the excess that a drill measured.
 - **The cache.** Each member starts with a cache of 0.25 GB for WiredTiger (`SERVER_ARGS`), thus three members fit on one runner. No timer reads the cache.
 
 ### What the runs in CI showed
@@ -477,7 +478,7 @@ The S2 cells (`src/callers.ts`, `CALLERS_CELLS`) measure the dimension "how call
 
 - `CELLS_ONLY` selects the cells whose names match a regular expression.
 - `CELLS_SHARD=i/n` takes every n-th cell from the i-th. Thus two processes can share the catalog.
-- `CELLS_OUT` is the folder of the output (the default is `out/`). Each cell writes its raw record there, in the format that jarvis lands, and one line of its verdict to `summary.ndjson`. The record keeps the warm-up run of each environment apart from the counted runs.
+- `CELLS_OUT` is the folder of the output (the default is `out/`). Each cell writes its raw record there, in the format that the private repository lands, and one line of its verdict to `summary.ndjson`. The record keeps the warm-up run of each environment apart from the counted runs.
 
 `KIND_LAB=1 pnpm --filter @systems/cells test` starts the T07 and T18 catalogs in kind. Each group of cells with one kube-proxy mode gets two new clusters in sequence. Each cluster does its share of the 11 runs of each cell. `KIND_ONLY` selects cells by their names, and `KIND_OUT` is the folder of the output (the default is `out/kind/`). CI starts the kind catalogs on the runners of GitHub (`.github/workflows/kind.yml`), with `KIND_SHARD=i/n`, and not on a shared machine. `KIND_JUDGE=<folder>` judges the downloaded records again with the cells as they are at this time.
 
