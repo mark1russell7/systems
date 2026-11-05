@@ -30,7 +30,15 @@ const FILES = fileURLToPath(new URL("../../test/f6/", import.meta.url));
 /** The noise of the pipeline: the event loop of the probe and the scheduler of the VM, in milliseconds. */
 const NOISE = 50;
 const STALL = 8;
-/** The bound of the close of a client, in milliseconds. */
+/**
+ * The bound of the close of a client, in milliseconds. The shutdown check is this bound and `NOISE`: 350 ms.
+ *
+ * The method: the design gives the bound, and the runs check it. The worst of the runs plus their spread
+ * is 312 ms + 6 ms = 318 ms, thus the margin is 32 ms. The shutdowns read 306 ms to 312 ms in seven green runs:
+ * 41949543314, 41956706480, 41960942026, 41978183882, 41980380361, 41987710158 and 41990179060.
+ * Zero false blocks in 7 runs bound that rate only near 35 percent, at 95 percent confidence.
+ * Read a false block with its run before this number changes, and measure again by the same method.
+ */
 const CLOSE_BOUND = 300;
 
 const s = (value: number) => ({ value, unit: "s" });

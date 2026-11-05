@@ -3034,6 +3034,10 @@ The first flip found a defect of the test. The shutdown of the F6 matrix had a b
 
 In [run 41990179106](https://github.com/mark1russell7/systems/actions/runs/41990179106), each of the 22 flips reads right. A second fault also stayed green first: `server.close()` also closes idle connections, thus the fault moves that close to the first sweep. Seven runs read the shutdown under the bound of 350 ms. Zero false blocks in 7 runs bound that rate only near 35 percent.
 
+The method of the bound of 350 ms: the design gives it (a close of 300 ms and a noise of 50 ms), and the runs check it. The worst of the seven runs plus their spread is 312 ms + 6 ms = 318 ms, thus the margin is 32 ms. The run numbers stand next to the bound in `f6-redis.test.ts`.
+
+A scheduled Flip run that fails stops each claim on these bounds until its owner reads that run.
+
 This item does not cover the checks of the scheduled cells. SYS-99 holds these.
 
 The two bounds of Process OK are wide. They see a timer that does not operate, and they do not see a timer that is 10 x too long.
