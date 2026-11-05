@@ -2,10 +2,10 @@
 
 ## What this repository is
 
-This repository is the home of the systems program. It holds the site, at `mark1russell7.github.io/systems`. It also holds the packages that the program publishes to npm, under the scope `@mark1russell7`. The other code of the program is in jarvis, and it moves here one package at a time.
+This repository is the home of the systems program. It holds the site, at `mark1russell7.github.io/systems`. It also holds the packages that the program publishes to npm, under the scope `@mark1russell7`. The other code of the program is in a private repository, and it moves here one package at a time.
 
-- The site copies a part of jarvis only to show it. Each copy has tests that hold it to the figures of jarvis.
-- A package moves here with its code unchanged. Only its comments change, to STE. Its jarvis tests then use the npm release.
+- The site copies a part of the private repository only to show it. Each copy has tests that hold it to the figures of that repository.
+- A package moves here with its code unchanged. Only its comments change, to STE. Its tests in the private repository then use the npm release.
 - CI publishes each release (`.github/workflows/release.yml`). To release, change the version of a package and push to main.
 - npm trusts CI only for a package that exists. Thus Mark publishes the first version of a new package by hand.
 - Push and deploy this repository without a question to Mark. Mark gave this permission on 2026-10-08.
@@ -14,8 +14,6 @@ This repository is the home of the systems program. It holds the site, at `mark1
 ## The roadmap
 
 - `docs/ROADMAP.md` is the source of truth for the work of the program.
-- The live tracker shows the same items (collection `items`). It is the folder `artifacts/systems-roadmap` of the private fleet repository. Its `artifact.json` gives the URL of the tracker for each Claude account.
-- Change the file and the tracker together. Keep the tracker current as each item starts, ships or changes.
 
 ## Writing style
 

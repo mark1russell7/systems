@@ -496,7 +496,7 @@ describe("a run measured against its cell, from the kernel's own records", () =>
     expect(read).toMatchObject({ outcome: { kind: "answered" }, void: null, finding: null, retransmissions: 1 });
     expect(read.samples).toEqual([s(0.00012), s(0.2041), s(0.00012)]);
     const verdict = verdictOf(STREAM.prediction, [read, { ...read, index: 1 }]);
-    expect(verdict).toMatchObject({ decision: "measured", band: null, outside: [] });
+    expect(verdict).toMatchObject({ decision: "measured", band: null, outside: [], slowest: s(0.2041) });
     expect(verdict.why).toMatch(/^2 runs, 6 replies: median 0\.00012 s, p99 0\.2041 s, slowest 0\.2041 s, 2 retransmissions, 0 connections ended\. a distribution/);
   });
 
