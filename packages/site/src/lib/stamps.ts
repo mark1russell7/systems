@@ -86,9 +86,16 @@ interface StudyData {
   readonly kind?: string;
 }
 
+/**
+ * The gate reads a version of two or three parts. The file of the page `results/pg` names Temurin 21.0.12.1, so its stamp
+ * leaves that version out. The text of the page names it.
+ */
+const GATE_VERSION = /^\d+\.\d+(?:\.\d+)?$/;
+
 /** This function gives the versions that a data file names. A file with two kernels gives both. */
 export function enginesOf(data: StudyData): Record<string, string> {
-  const engines = versionsIn([data.target ?? "", data.client ?? "", ...Object.values(data.clients ?? {})].join(", "));
+  const named = versionsIn([data.target ?? "", data.client ?? "", ...Object.values(data.clients ?? {})].join(", "));
+  const engines = Object.fromEntries(Object.entries(named).filter(([, version]) => GATE_VERSION.test(version)));
   for (const name of ["kubernetes", "kind"] as const) {
     const version = data[name];
     if (version !== undefined) engines[name] = version.replace(/^v/, "");

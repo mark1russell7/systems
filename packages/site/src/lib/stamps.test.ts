@@ -70,8 +70,14 @@ describe("the stamps of the site", () => {
 
   it("names the study of a page in plain words", () => {
     const stamp = stampOfPage(DATA, "results/faults");
-    expect(stamp === undefined ? "" : renderDataStamp(stamp)).toContain("The measured numbers of this page are a fixed study of redis 7.4, kernel 6.17.0.");
+    expect(stamp === undefined ? "" : renderDataStamp(stamp)).toContain("The measured numbers of this page are a fixed study of redis 7.4 and kernel 6.17.0.");
     expect(stampOfPage(DATA, "thesis")).toBeUndefined();
+  });
+
+  it("leaves out a version of four parts, which the gate does not read", () => {
+    const engines = stampOfPage(DATA, "results/pg")?.runs[0]?.engines;
+    expect(engines).toMatchObject({ postgres: "17.11", pgjdbc: "42.7.13" });
+    expect(Object.keys(engines ?? {})).not.toContain("Temurin");
   });
 
   it("gives the page of Kubernetes its first file and its newest file", () => {
