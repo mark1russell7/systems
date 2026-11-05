@@ -27,6 +27,7 @@ A **cell** (`cell.ts`) is all that one measurement needs, as data:
 - Each hop of the topology, on the network of each of its sides.
 - An injector sidecar in the namespace of the target, with NET_ADMIN. Thus the image of the target stays stock.
 - The manifest of each environment gives the HZ of its kernel, from /proc/config.gz. A host without that file (a hosted runner) gets HZ from two readings of /proc/timer_list, one second apart: its jiffies against the time of the kernel (`hzOf`). `hzFrom` tells which.
+- The manifest of each environment holds a `substrate` block (`substrate.ts`). It gives the layer, the cloud, the vendor, the kernel, HZ, KVM and the image of the runner. GitHub can schedule one image on Azure or on AWS. Thus the cloud comes from the DMI vendor, not from the name of the kernel. No statistic pools two substrates (`comparable`). A record from before the block reads through `substrateOf`, and nothing rewrites it.
 - The prober ([`@mark1russell7/prober`](https://www.npmjs.com/package/@mark1russell7/prober)): a privileged container that loads the kernel program. It watches the namespace of the client, of the target and of each hop. Each run keeps its records from its start to its end. A run whose records the prober lost is void.
 
 Each command is an argv array.
@@ -57,6 +58,10 @@ A lookup treats an expired conntrack entry as gone, thus the router forgets a fl
 The `reset-both` form sends its resets on the DESTROY event. Each reset has the sequence number that its end expects. A raw sniffer reads it from the last acknowledgment of that end.
 
 The lines of each router (`Lab.middlebox`) are the conntrack events and the resets that it sent, on CLOCK_MONOTONIC. Each run keeps the lines from its start to its end.
+
+A fabric is a topology with no hops and with `fabric` (`fabric.ts`, layer E3 of `docs/S7.md`). Four routers of FRRouting, two leaves and two spines, run eBGP over veth pairs of containerlab. The client hangs off one leaf and the target off the other, each on a new device `eth1`. Each link has the MTU of a Docker network, thus a segment is as long as on E1. Each leaf prefers spine1 by a weight, and spine2 holds the other path.
+
+The fault `silence` drops each packet of spine1 in one commit, and its links stay up. A route monitor on each leaf records each change of a route. The later move of the two leaves ends the stall of the run (`Run.heal`), and the verdict of a stall reads it. A move outside the band of the cell makes the run void. Before each run, `ready` waits for each session, for the route on spine1 and for the path on spine2. The record of the run keeps the routes and the count of established sessions (`Run.fabric`).
 
 ## The groups
 
@@ -102,6 +107,16 @@ Each run of a replica set cell starts from a set that converged. The member that
 A step-down holds its old primary out of the elections for 60 s. Thus before each run, each secondary can stand for election again (`rs.freeze(0)`), and no run inherits that hold.
 
 A fault names a member by its role at the start of a run: `primary`, or `replica` for a secondary. A cut from one member (`one`, `one-way`) cuts the first other member in the sequence of the set.
+
+### The recovery drills
+
+A drill (`Drill`, `Cell.drill`) stops a replica set during writes, removes a disk, and recovers. `drillOnce` in `drill.ts` does it, and `recovery.ts` holds the pure parts.
+
+- **The backups** are real. A `mongodump --oplog` and each slice of the oplog go to a host of their own (`ReplicaSetLab.vault`). `bsondump` reads each backup. The record keeps the last write that each backup holds (`RunBackup`).
+- **The fault** comes at `age` after that last write, on the monotonic clock. Thus a run sets the age of its newest backup.
+- **A restore** cannot have a client of the set, because a client writes to any primary. So each slice joins the oplog of the dump, and a server with no set takes the restore on the next port. The set then starts again. A second client (`--from`) sends the writes after the restore, thus no electionId of the old set stops it.
+- **An election** removes only the disk of the primary. The primary comes back at the end of the run, thus the set converges.
+- **The measure** is a set difference (`recoveryOf`). Each rule that a run breaks is a finding (`recoveryFindings`). A finding is a hole below a kept write, lost writes that the last backup does not explain, or tenant data that changed.
 
 ## The clusters of RabbitMQ
 
