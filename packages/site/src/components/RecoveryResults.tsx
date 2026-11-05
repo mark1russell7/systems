@@ -119,10 +119,8 @@ export function RecoveryRungs(): ReactElement {
           <thead>
             <tr>
               <th>Rung</th>
-              <th className="num">RPO budget</th>
-              <th className="num">Worst RPO</th>
-              <th className="num">RTO budget</th>
-              <th className="num">Worst RTO</th>
+              <th className="num">Worst RPO, of its budget</th>
+              <th className="num">Worst RTO, of its budget</th>
               <th>Verdict</th>
             </tr>
           </thead>
@@ -130,13 +128,11 @@ export function RecoveryRungs(): ReactElement {
             {rungRows().map((row) => (
               <tr key={row.rung}>
                 <th scope="row">{count(row.tenants)}</th>
-                <td className="num">{timeText(row.rpo.limit)}</td>
                 <td className="num">
-                  {timeText(row.rpo.worst)} ({shareText(row.rpo)})
+                  {timeText(row.rpo.worst)} of {timeText(row.rpo.limit)} ({shareText(row.rpo)})
                 </td>
-                <td className="num">{timeText(row.rto.limit)}</td>
                 <td className="num">
-                  {timeText(row.rto.worst)} ({shareText(row.rto)})
+                  {timeText(row.rto.worst)} of {timeText(row.rto.limit)} ({shareText(row.rto)})
                 </td>
                 <td>
                   <Verdict decision={row.outcome === "within" ? "holds" : "fails"} />
