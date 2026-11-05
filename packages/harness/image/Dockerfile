@@ -26,6 +26,6 @@ FROM alpine:3.23@sha256:865b95f46d98cf867a156fe4a135ad3fe50d2056aa3f25ed31662dff
 # tc for netem, ethtool for the offloads that decide whether netem acts on segments
 RUN apk add --no-cache iproute2 iproute2-tc iptables ethtool libelf zlib zstd-libs libgcc
 COPY --from=build /src/prober.bpf.o /src/prober/native/target/release/prober /opt/harness/
-COPY --from=build /src/harness/image/native/target/release/client /src/harness/image/native/target/release/inject /src/harness/image/native/target/release/queue /src/harness/image/native/target/release/ports /opt/harness/
+COPY --from=build /src/harness/image/native/target/release/client /src/harness/image/native/target/release/inject /src/harness/image/native/target/release/queue /src/harness/image/native/target/release/ports /src/harness/image/native/target/release/ctfull /opt/harness/
 WORKDIR /opt/harness
 CMD ["sleep", "infinity"]

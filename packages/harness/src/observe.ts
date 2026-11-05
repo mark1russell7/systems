@@ -19,6 +19,8 @@ import type { Cell, Jitter, KernelRecord, ProbeEvent, Reference, Run } from "./c
 import { requestFirst } from "./cell.ts";
 import type { DriverStepTime } from "./driver.ts";
 import { measureDriver, proxiedClose } from "./driver.ts";
+import type { ConntrackReading } from "./conntrack.ts";
+import { measureConntrack } from "./conntrack.ts";
 import type { GroupMeasured } from "./timeline.ts";
 import type { PortsReading } from "./ports.ts";
 import { measurePorts } from "./ports.ts";
@@ -106,6 +108,8 @@ export interface Measured {
   readonly queue?: QueueReading;
   /** This record is what a run of a port cell measured: the count of each search, and when each port came back. */
   readonly ports?: PortsReading;
+  /** This record is what a run of a conntrack cell measured: the flows, the count, and when a slot came back. */
+  readonly conntrack?: ConntrackReading;
   /** This record is what the second request of an HTTP client met, for a cell whose prediction says it. */
   readonly request?: RequestReading | null;
   /** This record is the time of each later band of a driver cell (`DriverBand.then`). */
@@ -472,6 +476,21 @@ export const requestOf = (events: readonly ProbeEvent[]): RequestReading | null 
 
 /** This function reads the socket of one run against its cell, as `measure` does without the second request of an HTTP client. */
 const measureSocket = (cell: Cell, run: Run): Measured => {
+  if (run.missing !== undefined)
+    return {
+      environment: run.environment,
+      index: run.index,
+      outcome: { kind: "answered" },
+      elapsed: null,
+      socket: null,
+      noticed: null,
+      steps: [],
+      probes: 0,
+      retransmissions: 0,
+      acks: 0,
+      void: `the environment cannot do this cell: ${run.missing}`,
+      finding: null,
+    };
   if (cell.group !== undefined || cell.replicaSet !== undefined || cell.cluster !== undefined) {
     const read = measureGroup(cell, run);
     return {
@@ -494,6 +513,8 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
     return measureQueue(run, cell.prediction.queue);
   if (cell.prediction.detects === null && cell.prediction.ports !== undefined)
     return measurePorts(run, cell.prediction.ports);
+  if (cell.prediction.detects === null && cell.prediction.conntrack !== undefined)
+    return measureConntrack(run, cell.prediction.conntrack);
   // a driver with more than one socket: its bands name their socket and their line
   if (cell.prediction.detects !== null && cell.prediction.driver !== undefined) return measureDriver(cell, run);
   const { events, kernel } = run;

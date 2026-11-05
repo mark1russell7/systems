@@ -2,6 +2,7 @@ import type { Cell, Subject } from "@mark1russell7/harness";
 import { ACCEPT_QUEUE_CELLS } from "./accept-queue.ts";
 import { CAL_CELLS } from "./calibration.ts";
 import { CELLS } from "./catalog.ts";
+import { CONNTRACK_CELLS } from "./conntrack.ts";
 import { T01_GRPC } from "./grpc/t01.ts";
 import { T02_GRPC } from "./grpc/t02.ts";
 import { T03_GRPC } from "./grpc/t03.ts";
@@ -70,6 +71,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...LIMITER_CELLS,
     ...ACCEPT_QUEUE_CELLS,
     ...PORT_RANGE_CELLS,
+    ...CONNTRACK_CELLS,
   ];
 };
 

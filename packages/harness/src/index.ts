@@ -39,6 +39,8 @@ export type {
   PinnedImage,
   KernelRecord,
   Prediction,
+  ConntrackPrediction,
+  HostSysctl,
   PortsPrediction,
   ProbeEvent,
   ProxyHop,
@@ -91,6 +93,8 @@ export {
 } from "./application.ts";
 export type { Crossings, Measured, Outcome, Reordering, RequestReading, SocketPlace } from "./observe.ts";
 export { crossingsOf, jitterOf, measure, reorderingOf, requestOf, socketOf } from "./observe.ts";
+export type { ConntrackReading, StallReading } from "./conntrack.ts";
+export { measureConntrack } from "./conntrack.ts";
 export type { PortsReading } from "./ports.ts";
 export { measurePorts } from "./ports.ts";
 export type { QueueConnectionReading, QueueReading } from "./queue.ts";
@@ -129,7 +133,7 @@ export {
   spreadOf,
   verdictOf,
 } from "./verdict.ts";
-export type { Agent, FaultSide, Lab, Manifest, ManifestHop, NetworkFault, Probe } from "./lab.ts";
+export type { Agent, FaultSide, HostSetting, Lab, Manifest, ManifestHop, NetworkFault, Probe } from "./lab.ts";
 export { LISTING, PUMP, PUMP_SLACK, deviceOf, endpointAfter, hzOf, openLab, routesOf, templated, toxicBody } from "./lab.ts";
 export type { ImagePlan } from "./image.ts";
 export {

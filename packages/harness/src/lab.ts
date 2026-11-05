@@ -11,6 +11,7 @@ import type {
   Hop,
   HopEvent,
   HopPlace,
+  HostSysctl,
   ImageSource,
   KernelRecord,
   MiddleboxEvent,
@@ -111,6 +112,15 @@ export interface ManifestHop {
   readonly sysctls: Readonly<Record<string, string>>;
 }
 
+/** This record is one sysctl of the host for one environment, as the harness read it. */
+export interface HostSetting {
+  readonly name: string;
+  readonly before: string;
+  readonly set: string;
+  /** This value is the read after the restore. It is null until the restore. */
+  readonly restored: string | null;
+}
+
 /** A manifest is what a lab records about its machine, its images and its settings. */
 export interface Manifest {
   readonly kernel: string;
@@ -153,6 +163,8 @@ export interface Manifest {
   };
   /** These are the sysctls of the client namespace, as read back after the harness set them. */
   readonly sysctls: Readonly<Record<string, string>>;
+  /** These are the sysctls of the host that the cell set: each value before, as set, and as restored. */
+  readonly host?: readonly HostSetting[];
   /** These are the hops of a topology, in sequence from the client. */
   readonly hops?: readonly ManifestHop[];
   /** These are the parts of a group, with their settings as each part read them back. */
@@ -291,6 +303,12 @@ export interface Lab {
   configure(values: Readonly<Record<string, string>>): Promise<Record<string, string>>;
   /** This method sets the sysctls of the target namespace through a privileged sidecar there, and reads them back. */
   targetSysctl(values: Readonly<Record<string, string>>): Promise<Record<string, string>>;
+  /** This method runs each command in the namespace of the client and in the namespace of the target. */
+  namespaceSetup(commands: readonly (readonly string[])[]): Promise<void>;
+  /** This method sets sysctls of the host through a privileged sidecar on the network of the host, and reads them back. */
+  hostSysctl(settings: readonly HostSysctl[]): Promise<void>;
+  /** This method puts back each value that `hostSysctl` changed, once, and gives the record of each. Closing the lab also does it. */
+  restoreHost(): Promise<readonly HostSetting[]>;
   /**
    * This method applies a fault between the client and the target, by default from the namespace
    * of the target. The fault is a black hole, or a reset that answers the next segment of the
@@ -555,9 +573,17 @@ export const openLab = async (
   const networks: StartedNetwork[] = [];
   // the lines of a target that writes them, on the clock of the VM
   const serverLines = lines<ProbeEvent>();
+  // the values of the host that this lab changed, which each path out of the lab puts back
+  let restoreHost: () => Promise<readonly HostSetting[]> = () => Promise.resolve([]);
   const close = async () => {
+    // a value of the host outlives the lab: the failure of the restore is the failure of the close, after the containers stop
+    const restored = await restoreHost().then(
+      () => null,
+      (error: unknown) => error,
+    );
     for (const container of opened.reverse()) await container.stop(STOP).catch(() => undefined);
     for (const network of networks.reverse()) await network.stop().catch(() => undefined);
+    if (restored !== null) throw restored;
   };
   /** This function gives the address of a container on a network, as Docker has it at this time. A container can join a network after its start. */
   const ipOn = async (container: StartedTestContainer, network: StartedNetwork): Promise<string> => {
@@ -838,6 +864,21 @@ export const openLab = async (
       return { t0: stamp.t0, t1: stamp.t1 };
     };
     const proxies = inChain.filter((hop) => hop.hop.kind === "proxy");
+    let hostAdmin: StartedTestContainer | undefined;
+    const hostChanges: HostSetting[] = [];
+    let hostDone: readonly HostSetting[] | undefined;
+    restoreHost = async () => {
+      if (hostDone !== undefined) return hostDone;
+      const restored: HostSetting[] = [];
+      for (const change of [...hostChanges].reverse()) {
+        await output(hostAdmin!, ["sysctl", "-q", "-w", `${change.name}=${change.before}`]);
+        const read = await output(hostAdmin!, ["sysctl", "-n", change.name]);
+        if (read !== change.before) throw new Error(`${change.name} reads ${read} after the restore, not ${change.before}`);
+        restored.unshift({ ...change, restored: read });
+      }
+      hostDone = restored;
+      return restored;
+    };
 
     return {
       targetIp,
@@ -871,6 +912,33 @@ export const openLab = async (
           read[key] = await output(targetAdmin, ["sysctl", "-n", key]);
         return read;
       },
+      async namespaceSetup(commands) {
+        for (const command of commands) {
+          await output(admin, [...command]);
+          await output(injector, [...command]);
+        }
+      },
+      async hostSysctl(settings) {
+        if (settings.length === 0) return;
+        // privileged and on the network of the host, and only when a cell asks for it: a value of the host applies to each container
+        if (hostAdmin === undefined) {
+          hostAdmin = await new GenericContainer(image).withNetworkMode("host").withPrivilegedMode().start();
+          opened.push(hostAdmin);
+        }
+        for (const { name, value, guard } of settings) {
+          if (guard !== undefined) {
+            const reads = Number(await output(hostAdmin, ["sysctl", "-n", guard.name]));
+            if (!(reads <= guard.atMost)) throw new Error(`${guard.name} of the host reads ${reads}, above ${guard.atMost}`);
+          }
+          const before = await output(hostAdmin, ["sysctl", "-n", name]);
+          // recorded first: a write that fails half way still has its restore
+          hostChanges.push({ name, before, set: value, restored: null });
+          await output(hostAdmin, ["sysctl", "-q", "-w", `${name}=${value}`]);
+          const set = await output(hostAdmin, ["sysctl", "-n", name]);
+          if (set !== value) throw new Error(`${name} of the host reads ${set} after the write, not ${value}`);
+        }
+      },
+      restoreHost: () => restoreHost(),
       async configure(values) {
         const read: Record<string, string> = {};
         if (Object.keys(values).length === 0) return read;

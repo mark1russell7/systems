@@ -2259,7 +2259,7 @@ Above the size of the pool, the wait grows with the queue, and a client fails at
 - **Shipped:**
 - **Links:**
 
-New flows drop at `nf_conntrack_max`. The table is global, not for each network namespace. Thus the cell sets the value on its own runner, and it restores the value.
+New flows drop at `nf_conntrack_max`. The limit is global, and the count is for each network namespace. Only the host can write the limit. Thus the cell sets the value on its own runner, and it restores the value.
 
 ### SYS-67 · Retry amplification: an exact count
 

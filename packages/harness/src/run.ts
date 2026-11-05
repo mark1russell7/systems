@@ -678,8 +678,16 @@ const inEnvironment = async (
     // the first connection must not wait for ARP: under a delay, that is a longer first round trip
     await lab.warm();
     const manifest = await lab.manifest(await lab.sysctl(cell.sysctls), settings, targetSysctls);
+    // after the first connection: a rule that starts conntrack must not count the packets of the warm-up
+    const missing = await lab
+      .namespaceSetup(cell.namespaceSetup ?? [])
+      .then(() => lab.hostSysctl(cell.hostSysctls ?? []))
+      .then(
+        () => undefined,
+        (error: unknown) => (error instanceof Error ? error.message : String(error)),
+      );
     // each run records the jitter of its program, which sets the window of its pairings
-    const timed = (run: Run): Run => ({ ...run, jitter: jitterOf(cell, run) });
+    const timed = (run: Run): Run => ({ ...run, jitter: jitterOf(cell, run), ...(missing === undefined ? {} : { missing }) });
     const warmed = timed(await once(lab, cell, environment, -1, endsEnvironment(cell)));
     const warmup: Run = { ...warmed, warmup: true };
     say(line(cell, warmup, measure(cell, warmup)));
@@ -689,7 +697,8 @@ const inEnvironment = async (
       runs.push(run);
       say(line(cell, run, measure(cell, run)));
     }
-    return { manifest, runs, warmup };
+    const host = await lab.restoreHost();
+    return { manifest: host.length === 0 ? manifest : { ...manifest, host }, runs, warmup };
   } finally {
     await lab.close();
   }
