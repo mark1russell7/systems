@@ -2994,12 +2994,12 @@ A recovery rung says nothing of the load that a design holds. SYS-93 holds that 
 
 ### SYS-100 · A flip test for each gate check of a measure
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:**
 - **Started:** 2026-11-05
-- **Shipped:**
-- **Links:**
+- **Shipped:** 2026-11-05
+- **Links:** [the run of the 22 flips](https://github.com/mark1russell7/systems/actions/runs/41990179106), [pull request](https://github.com/mark1russell7/systems/pull/365)
 
 A gate check of a measure can pass for a reason that is not the measure. A flip test shows that the check can fail. In one job, the test passes on the copy with no fault. Then one source fault of a stated size turns the same test red on its named assertion. A crash does not count as a red.
 
@@ -3031,6 +3031,10 @@ The workflow `flip.yml` holds these faults. It starts at a change to a fault sit
 | Process OK | timeout of a status read | 20 x the timeout | 20 s | 15 s |
 
 The first flip found a defect of the test. The shutdown of the F6 matrix had a bound of 2,050 ms, and the caps of the phases hold a slow close to 2 s. A close of 3 x its bound stayed green at 806 ms. Six green runs read 306 ms to 312 ms, thus the bound is the bound of the close and the noise of the test: 350 ms.
+
+In [run 41990179106](https://github.com/mark1russell7/systems/actions/runs/41990179106), each of the 22 flips reads right. A second fault also stayed green first: `server.close()` also closes idle connections, thus the fault moves that close to the first sweep. Seven runs read the shutdown under the bound of 350 ms. Zero false blocks in 7 runs bound that rate only near 35 percent.
+
+This item does not cover the checks of the scheduled cells. SYS-99 holds these.
 
 The two bounds of Process OK are wide. They see a timer that does not operate, and they do not see a timer that is 10 x too long.
 
