@@ -19,7 +19,7 @@ inputs:
     description: The command of the test, with a filter that selects only the test of the bound.
     required: true
   fails:
-    description: An extended regular expression. The output of the red run must hold it.
+    description: Extended regular expressions, one on each line. The output of the red run must hold each one.
     required: true
   prepare:
     description: A command to start before each of the two runs, for example a build.
@@ -67,10 +67,17 @@ runs:
         fi
         echo "::endgroup::"
         # A crash or a failed start also exits with 1, thus the red must name its bound
-        if ! grep -Eq 'Tests +[1-9][0-9]* failed' "$logs/fault.log" || ! grep -Eq "$FLIP_FAILS" "$logs/fault.log"; then
-          echo "::error::$FLIP_WHAT: the test is red, but not on the bound: $FLIP_FAILS"
+        if ! grep -Eq 'Tests +[1-9][0-9]* failed' "$logs/fault.log"; then
+          echo "::error::$FLIP_WHAT: the run is red, but no test failed"
           exit 1
         fi
+        while IFS= read -r pattern; do
+          if [ -z "$pattern" ]; then continue; fi
+          if ! grep -Eq -- "$pattern" "$logs/fault.log"; then
+            echo "::error::$FLIP_WHAT: the test is red, but not on the bound: $pattern"
+            exit 1
+          fi
+        done <<< "$FLIP_FAILS"
 
         git checkout -- "$FLIP_FILE"
         echo "right: $FLIP_WHAT" | tee -a "$GITHUB_STEP_SUMMARY"

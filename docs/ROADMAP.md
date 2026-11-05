@@ -3007,16 +3007,38 @@ The workflow `flip.yml` holds these faults. It starts at a change to a fault sit
 
 | Check | Bound | Fault | Result of the fault | Bound of the test |
 | --- | --- | --- | --- | --- |
-| Redis OK | request timeout | 2 x the timeout | 4 s | 3.5 s |
-| Redis OK | close at the shutdown | 3 x the bound of the QUIT | 3 s | 2.05 s |
-| HTTP OK | idle close | 2 s late | 4 s | 2.3 s |
-| HTTP OK | drain of a worker | 1 s past the deadline | deadline + 1 s | deadline + 100 ms |
+| Redis OK | request timeout, high | 2 x the timeout | 4 s | 3.5 s |
+| Redis OK | request timeout, low | half the timeout | 1 s | 1.9 s |
+| Redis OK | close at the shutdown | 3 x the bound of the QUIT | approximately 800 ms | 350 ms |
+| Redis OK | trip of readiness, late, 5 rows | 2 polls late | 4.2 s or more | 4.05 s |
+| Redis OK | trip of liveness, late, 5 rows | 2 s late | 5.8 s or more | 4.65 s |
+| Redis OK | trip of readiness, early | at the first failure | 1.2 s at the most | 1.55 s |
+| Redis OK | trip of liveness, early | 2 s early | 2.2 s at the most | 2.95 s |
+| Redis OK | release of readiness | 6 polls late | 4.8 s or more | 4 s |
+| Redis OK | release of liveness | 5 s late | 5 s or more | 4 s |
+| Redis OK | first failure of a check that only reports | 2 s late | 2 s or more | 1.65 s |
+| HTTP OK | idle close, high | 2 s late | 4 s | 2.3 s |
+| HTTP OK | idle close, low | 1 s early | 1 s | 1.85 s |
+| HTTP OK | close of an idle connection at the stop | at the first sweep | 200 ms | 150 ms |
+| HTTP OK | sweep | 3 x its interval | 600 ms | 350 ms |
+| HTTP OK | hold of a phase | half its cap | 150 ms | 295 ms |
+| HTTP OK | cut at the deadline of the drain | 2 x the cap of a phase | 3 s | 1.65 s |
+| HTTP OK | drain of a worker, late | 1 s past the deadline | deadline + 1 s | deadline + 100 ms |
+| HTTP OK | drain of a worker, early | 500 ms before the deadline | deadline - 500 ms | deadline - 100 ms |
+| HTTP OK | cooperative abort of a worker | the signal does not arrive | no abort | 100 ms |
+| HTTP OK | close of a worker | 2 s late | 2 s | 1 s |
 | Process OK | timeout of a command | 40 x the timeout | 40 s | 30 s |
 | Process OK | timeout of a status read | 20 x the timeout | 20 s | 15 s |
 
+The first flip found a defect of the test. The shutdown of the F6 matrix had a bound of 2,050 ms, and the caps of the phases hold a slow close to 2 s. A close of 3 x its bound stayed green at 806 ms. Six green runs read 306 ms to 312 ms, thus the bound is the bound of the close and the noise of the test: 350 ms.
+
 The two bounds of Process OK are wide. They see a timer that does not operate, and they do not see a timer that is 10 x too long.
 
-These bounds have no flip: the lower bound of the request timeout, the rows of the F6 matrix other than the shutdown, the other time bounds of `http-it.test.ts`, and the cases of the conformance kit other than the drain to its deadline.
+These assertions have no flip:
+
+- The `steady` assertion of a check that only reports. It is not a time bound.
+- The other cases of the conformance kit on the real clock. They read counts and order, and the mutants of `conformance.test.ts` hold the kit on the fake clock.
+- The bounds of the HTTP test that are not time bounds, for example status codes and headers.
 
 ## Decisions for Mark
 

@@ -30,6 +30,8 @@ const FILES = fileURLToPath(new URL("../../test/f6/", import.meta.url));
 /** The noise of the pipeline: the event loop of the probe and the scheduler of the VM, in milliseconds. */
 const NOISE = 50;
 const STALL = 8;
+/** The bound of the close of a client, in milliseconds. */
+const CLOSE_BOUND = 300;
 
 const s = (value: number) => ({ value, unit: "s" });
 const ms = (value: number) => ({ value, unit: "ms" });
@@ -43,7 +45,7 @@ const KNOBS: RedisKnobs = {
   client_retry_window: s(4),
   retry_base: ms(50),
   retry_cap: ms(400),
-  close_bound: ms(300),
+  close_bound: ms(CLOSE_BOUND),
   max_connection_age: { value: "infinite", unit: "s" },
   retrans_giveup_time: s(924.6),
 };
@@ -301,10 +303,11 @@ describe.skipIf(!RUN)("F6 for Redis against a real Redis 7.4 (REDIS_F6=1)", () =
         expect(exit.code, exit.posture).toBe(0);
         expect(exit.errors, exit.posture).toEqual([]);
         expect(exit.status, exit.posture).toBe("end");
-        // two phases of 1 s at the most
-        expect(exit.t - asked, exit.posture).toBeLessThanOrEqual(2000 + NOISE);
+        // The QUIT goes into the black hole, thus the close takes its bound. The caps of the phases are
+        // 1 s each and hold a slower close to 2 s, thus a bound of 2 s cannot see a slow close (SYS-100).
+        expect(exit.t - asked, exit.posture).toBeLessThanOrEqual(CLOSE_BOUND + NOISE);
       }
-      rows.push({ manifestation: "blackhole", posture: "readiness", measured: `shutdown: exits ${exits.map((exit) => `${exit.code} in ${(exit.t - asked).toFixed(0)} ms`).join(", ")}`, band: "exit 0 in ≤ 2000 ms", holds: true });
+      rows.push({ manifestation: "blackhole", posture: "readiness", measured: `shutdown: exits ${exits.map((exit) => `${exit.code} in ${(exit.t - asked).toFixed(0)} ms`).join(", ")}`, band: `exit 0 in ≤ ${CLOSE_BOUND} ms`, holds: true });
     } finally {
       await close(env);
     }
