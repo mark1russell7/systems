@@ -2474,12 +2474,12 @@ New flows drop at `nf_conntrack_max`. The table is global, not for each network 
 
 ### SYS-67 · Retry amplification: an exact count
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** S1
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:** [The law](S3.md#the-first-count-sys-67)
+- **Shipped:** 2026-11-05
+- **Links:** [The law](S3.md#the-first-count-sys-67), [the run](https://github.com/mark1russell7/systems/actions/runs/42101390324), [#325](https://github.com/mark1russell7/systems/pull/325)
 
 The tries of each hop multiply (law O08). T14 counts the tries at the target in an outage. This count needs no load generator, thus it is the first result of Q18.
 
@@ -2490,6 +2490,8 @@ The law: the target sees the product of the tries of each caller. A `RetryAgent`
 The prediction: nine cells, `T14.count.1` to `T14.count.9`, with 6, 36, 36, 108, 6, 1, 6, 36 and 2 arrivals at the target. Each listener has its own exact count.
 
 The rule: each cell has 4 counted runs. A void or infrastructure run gets one more dispatch, and the first counted runs count. A count that differs in a counted run fails its cell. The counts do not change after a result.
+
+The result (run 42101390324, 2026-11-05): each of the nine cells holds. Each cell has 4 counted runs and no void run. Each run gave the exact count at each listener, thus the law holds at each hop.
 
 ### SYS-68 · An open-loop load schedule
 
