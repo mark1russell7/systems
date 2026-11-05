@@ -2777,14 +2777,56 @@ vrnetlab starts a vendor router in a VM. The cells compare a vendor's defaults w
 
 ### SYS-91 · The cells that time a closed-loop client
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** harness
 - **Depends on:** 
-- **Started:**
+- **Started:** 2026-11-04
 - **Shipped:**
-- **Links:**
+- **Links:** [#355](https://github.com/mark1russell7/systems/pull/355)
 
 A closed-loop client hides a stall, because a slow reply delays its next send (Gil Tene, "How NOT to Measure Latency"). This item lists each cell that gives a time or a distribution under load from such a client. A record then keeps the intended send time and the maximum. The fix of a load generator waits for SYS-68.
+
+The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing of each cell, and `pacing.test.ts` holds the counts of this table. A new closed-loop cell fails that test, and the failure names this table.
+
+| Pacing | Cells | What the cell gives | Effect of the pacing |
+| --- | --- | --- | --- |
+| One request | 315 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
+| One gap | 37 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
+| Closed loop, reply times | 11 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
+| Closed loop, first write | 48 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
+| Timer | 222 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
+
+The closed-loop families:
+
+| Family | Cells | Pacing |
+| --- | --- | --- |
+| T01 | 8 | Reply times |
+| CAL | 2 | Reply times |
+| E3.F1 | 1 | Reply times |
+| T11.defaults | 16 | First write |
+| T11.border-off | 10 | First write |
+| T12.defaults | 8 | First write |
+| T12.border-off | 4 | First write |
+| T12.writes | 3 | First write |
+| CAL | 1 | First write |
+| RD.1 | 1 | First write |
+| RD.100 | 2 | First write |
+| RD.1000 | 2 | First write |
+| RD.control | 1 | First write |
+
+What the audit found:
+
+- **No published result is wrong.** The reply-time cells have no band and no gate. No page of the site gives a quantile from these cells as a latency under load. The two calibration times in `topologies.mdx` are times of one crossing with no load, and that is what the terms of those bands need.
+- **Size of the hidden part.** This example is arithmetic, not a measurement. With 1 % loss, one 200 ms stall comes in each 100 requests at a 10 ms pace. A schedule puts approximately 20 sends in that stall, thus approximately 17 % of its sends meet a stall. The closed loop gives 1 % of its samples to the stall.
+- **First writes.** The two records of October have 26 first-write cells, and 20 of them can be compared with a stage of the server. In 7 cells the first write comes at most 17 ms after that stage. In 11 cells it comes 2 to 28 s after, and in 2 cells 173 s after.
+- **Cause of those seconds.** The names and the predictions of the cells point at a blocked request that holds the client until a timer ends it. No cell tests that cause with an open-loop client, and SYS-68 can do this. Each band predicts this client, thus the bands stay true.
+- **Drills.** The writer of a drill sends each 50 ms. The worst restore is 22.95 s of a 900 s budget, and the pacing adds approximately one interval and one reply.
+- **Counts of lost writes.** T12.writes and the drills count the writes at the rate that the client reached. A stall lowers that rate, thus a count is not a count at a planned rate.
+- **Timer cells.** `setInterval` starts each request of a cell of kind. A stalled connection queues requests in its agent, and the wait counts from the tick, thus the time is correct. A stall of the event loop of the client is the only hidden part, because `setInterval` does not catch up.
+
+The maximum is in the record: a verdict of a distribution has `slowest`, the slowest reply of the cell.
+
+The intended send time is not in the record yet. The form `first + n × interval` is wrong for a closed loop: this client cannot drain, thus one stall makes each later request look late. The correct form gives each planned send that falls in a stall the reply that ends the stall. `measureLoad` in `rigor-chaos` does this with a fixed plan, and a local copy breaks the map of homes. That package is not on npm, thus this part waits and this item stays in progress. Each stored record has its `sent` lines and its interval, thus this part can read the old records too.
 
 ### SYS-92 · A topology as a graph
 
