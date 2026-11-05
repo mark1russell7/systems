@@ -326,6 +326,16 @@ jobs:
       - name: The locked rungs of recovery
         if: ${{ github.event.schedule == '30 9 * * 0' || (inputs.only == '^RD[.]' && inputs.shards == '1') }}
         run: pnpm exec tsx packages/site/scripts/recovery.ts --check --run "$GITHUB_RUN_ID" --commit "$GITHUB_SHA" "$RUNNER_TEMP/cells"
+      # The flip test of that check, in the same job: one drill 1 s over the RTO of each rung turns the rung
+      # red, a copy with one record gone stops the check, and the clean copy stays green.
+      - name: The flip of the locked rungs
+        if: ${{ github.event.schedule == '30 9 * * 0' || (inputs.only == '^RD[.]' && inputs.shards == '1') }}
+        run: pnpm exec tsx packages/site/scripts/recovery.ts --flip --run "$GITHUB_RUN_ID" --commit "$GITHUB_SHA" "$RUNNER_TEMP/cells"
+      # A rung reads worst cases, thus a drill can leave its band and its rung still holds. The week claims
+      # that its drills hold too: this is the same read and the same flip as the night.
+      - name: The drills of the week hold
+        if: ${{ github.event.schedule == '30 9 * * 0' || (inputs.only == '^RD[.]' && inputs.shards == '1') }}
+        run: pnpm exec tsx packages/site/scripts/held.ts --flip --only '^RD[.]' --shard 0/1 "$RUNNER_TEMP/cells"
       # the error of a failed build of a cell holds its error lines and its last lines: this step gives the whole log
       - name: The images of the harness that do not build, after a failure
         if: failure()

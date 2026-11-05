@@ -13,7 +13,7 @@
 // under the fault, and the two other reads exit with 1.
 
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,7 +22,7 @@ import { catalogs, selectedOf } from "../../cells/src/all.ts";
 import { FAULT_FACTOR, faultedVerdict, heldRead, slowdownSeen } from "../../cells/src/held.ts";
 import type { CellRecord, Reading, Summary } from "./judged.ts";
 import { read } from "./judged.ts";
-import { readFolders } from "./records.ts";
+import { readFolders, withoutOne } from "./records.ts";
 
 const args = process.argv.slice(2);
 const option = (name: string): string => {
@@ -59,21 +59,6 @@ const exitOf = (given: readonly string[], ...flags: readonly string[]): number |
   const script = fileURLToPath(import.meta.url);
   const done = spawnSync(process.execPath, [...process.execArgv, script, "--only", only, "--shard", shardText, ...flags, ...given], { stdio: "ignore" });
   return done.status;
-};
-
-/** This function copies a folder without its first record and the line of that record, and it gives the copy. */
-const withoutOne = (folder: string, into: string): string => {
-  const copy = join(into, "copy");
-  cpSync(folder, copy, { recursive: true });
-  const file = readdirSync(copy).filter((name) => name.endsWith(".json")).sort()[0];
-  if (file === undefined) throw new Error(`${folder} has no record`);
-  const { cell } = JSON.parse(readFileSync(join(copy, file), "utf8")) as CellRecord;
-  rmSync(join(copy, file));
-  const kept = readFileSync(join(copy, "summary.ndjson"), "utf8")
-    .split("\n")
-    .filter((line) => line.trim() !== "" && (JSON.parse(line) as Summary).name !== cell.name);
-  writeFileSync(join(copy, "summary.ndjson"), `${kept.join("\n")}\n`);
-  return copy;
 };
 
 if (flip) {

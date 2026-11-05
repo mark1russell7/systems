@@ -223,6 +223,17 @@ export const RECOVERY_LADDER: Ladder = {
   })),
 };
 
+/** This time is the size of the fault of the flip test: one drill takes this time more than the RTO of its rung. */
+export const RTO_FAULT: Quantity = s(1);
+
+/** This function gives the record of a rung with the fault of the flip test. The other drills of the record do not change. */
+export const faultedRecord = (rung: RecoveryRung, record: RungRecord): RungRecord => ({
+  ...record,
+  evidence: record.evidence.map((each) =>
+    each.kind === "worst" && each.measure === RTO ? { ...each, values: [valueIn(rung.rto, "s") + valueIn(RTO_FAULT, "s"), ...each.values.slice(1)] } : each,
+  ),
+});
+
 /** This function gives the verdict of the ladder of recovery, with `now` as the time of the verdict in ISO 8601. */
 export const recoveryVerdict = (records: readonly RungRecord[], now: string): LadderVerdict => ladderVerdict(RECOVERY_LADDER, records, { now });
 

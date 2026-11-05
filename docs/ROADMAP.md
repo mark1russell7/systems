@@ -3002,8 +3002,8 @@ SYS-94 holds rungs 1, 100 and 1,000. The next two rungs have different costs, th
 The check `Cells OK` reads only the results of the jobs, and a failing cell does not fail its job. Thus a green night proves that the lab ran, not that the cells hold. Two green nights held failing cells.
 
 - **The night.** A step judges each raw record again. It fails unless each cell of the shard has a record and reads `holds`. A cell that reads `measured`, `extend` or `inconclusive` is a "no read", and a "no read" is not a pass.
-- **The flip test.** In the same job, a fault of 1.5 x the top of each band turns each cell red, and a copy with one record gone exits with 1. The clean copy stays green.
-- **The Sunday run.** The rungs of recovery get the same flip after the run of 2026-11-08, because that run is the proof of the lock of SYS-94.
+- **The flip test.** In the same job, a fault of 1.5 x the top of each band turns each cell red. A copy with one record gone exits with 1, and the clean copy stays green.
+- **The Sunday run.** The rungs of recovery get a flip after the run of 2026-11-08, because that run is the proof of the lock of SYS-94. One drill 1 s over the RTO of each rung turns that rung to `beyond`. A copy with one record gone stops the check, and the clean copy stays green. A second step applies the read and the flip of the night to the drills.
 - **A manual run.** A dispatch of a new cell keeps its rule: a failing cell is a finding, and the step does not operate.
 - **The shell.** A step with no `shell` key has no pipefail, thus `cmd | tee file` passes when `cmd` fails. `cells.yml`, `kind.yml` and `vm.yml` set `shell: bash`. No test ran through such a pipe, and no value of the 80 `runner.txt` files of the 20 nights is empty.
 

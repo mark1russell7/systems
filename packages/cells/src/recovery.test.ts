@@ -4,7 +4,7 @@ import { valueIn } from "@mark1russell7/quantity";
 import { checkLadder, ladderVerdict, type RungRecord } from "@mark1russell7/rigor-bench";
 import { describe, expect, it } from "vitest";
 import { ALL } from "./all.ts";
-import { RECOVERY_CELLS, RECOVERY_LADDER, RECOVERY_RUNGS, RPO, recoveryRecord, recoveryVerdict } from "./recovery.ts";
+import { RECOVERY_CELLS, RECOVERY_LADDER, RECOVERY_RUNGS, RPO, RTO, faultedRecord, recoveryRecord, recoveryVerdict } from "./recovery.ts";
 
 const AT = "2026-11-04T12:00:00.000Z";
 
@@ -97,6 +97,18 @@ describe("the ladder of recovery", () => {
     const verdict = recoveryVerdict([first!, second!], AT);
     expect(verdict.held).toBe("100");
     expect(verdict.failed).toBe(true);
+  });
+
+  it("turns each rung red with one drill 1 s over its RTO, and it keeps the count of the drills", () => {
+    const clean = recordsOf();
+    RECOVERY_RUNGS.forEach((rung, at) => {
+      const records = clean.map((record, index) => (index === at ? faultedRecord(rung, record) : record));
+      const verdict = recoveryVerdict(records, AT);
+      expect(verdict.rungs[at]?.outcome, rung.name).toBe("beyond");
+      expect(verdict.failed, rung.name).toBe(true);
+      const values = (record: RungRecord) => record.evidence.find((each) => each.measure === RTO);
+      expect(values(records[at]!), rung.name).toMatchObject({ values: [valueIn(rung.rto, "s") + 1, ...Array.from({ length: 3 }, () => expect.any(Number))] });
+    });
   });
 
   it("holds each locked rung with the last record of the drills, thus a tighter budget fails each pull request", () => {
