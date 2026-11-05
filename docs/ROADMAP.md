@@ -1525,10 +1525,11 @@ One term stays open. The bundle moves before 30 s in some runs, but the law of t
 
 ### SYS-57 · MetalLB: the detection settings of memberlist, the failure time against false deaths
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-53
 - **Started:** 2026-11-03
+- **Shipped:** 2026-11-05
 - **Links:** [S2](#s2--intermediaries-and-kubernetes), [SYS-53](#sys-53--metallb-callers-outside-the-cluster-when-the-announcer-of-a-vip-is-gone)
 
 SYS-53 measured the failure time of MetalLB with the defaults of memberlist. A shorter probe interval or a smaller suspicion multiplier gives a shorter failure time. It also gives a false death to a live speaker that stops for a short time. The question: how do the two settings trade the failure time against false deaths?
@@ -1578,6 +1579,8 @@ SYS-53 measured the failure time of MetalLB with the defaults of memberlist. A s
 - **The pauses:** a measured pause is approximately 140 ms longer than its hold. The class of each pause uses the measured length.
 
 Each of the 11 claims except one is a hit, with a Brier score of 0.119. The miss is `build`: the cell with 2 runs. The claims on the pauses cover the runs that ran, not the 2 void runs.
+
+The kind page of the site shows the value of each counted run. A test of the site holds each claim of this result against these values (`packages/site/src/data/s2-detection.test.ts`).
 
 ### SYS-95 · The quiet gate of kind reads the load of the cell
 

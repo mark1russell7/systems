@@ -391,10 +391,20 @@ code.sy-tag {
   stroke-width: 2;
 }
 
-.sy-warmup {
+.sy-warmup,
+.sy-run-hollow {
   fill: var(--color-surface);
   stroke: var(--series-2);
   stroke-width: 2;
+}
+
+.sy-rows-band {
+  fill: color-mix(in srgb, var(--status-neutral) 22%, transparent);
+}
+
+.sy-rows-mark {
+  stroke: var(--color-ink);
+  stroke-width: 1.5;
 }
 
 .sy-event {
@@ -992,7 +1002,7 @@ code.sy-tag {
 /* ------------------------------------------------------------------ the stall band of SYS-48 */
 
 .sy-stall-figure,
-.sy-recovery-figure {
+.sy-rows-figure {
   display: grid;
   gap: var(--space-3);
   margin-block: var(--space-5);
@@ -1003,7 +1013,7 @@ code.sy-tag {
 }
 
 .sy-stall-figure figcaption,
-.sy-recovery-figure figcaption {
+.sy-rows-figure figcaption {
   margin: 0;
   color: var(--color-ink-muted);
   font-size: var(--text-xs);
@@ -1027,7 +1037,7 @@ code.sy-tag {
 }
 
 .sy-strip .sy-stall-mode,
-.sy-strip .sy-recovery-name {
+.sy-strip .sy-rows-name {
   fill: var(--color-ink-secondary);
   font-weight: 600;
 }

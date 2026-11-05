@@ -6,10 +6,10 @@
  *
  * A pointer over a dot, a tap or the focus shows the run. The table view gives the same runs as rows.
  */
-import { useState, type MouseEvent, type PointerEvent, type ReactElement } from "react";
+import type { ReactElement } from "react";
 import recovery from "../data/recovery-2026-11-04.json";
-import { count, countTicks, duration, spacedLabels } from "../lib/format.ts";
-import { LANES, lanesOf, useWidth } from "./Strip.tsx";
+import { count } from "../lib/format.ts";
+import { RowsFigure, timeText, type ChartRow } from "./RowsChart.tsx";
 import Verdict from "./Verdict.tsx";
 
 /** The CI run of the drills. */
@@ -96,8 +96,7 @@ export const drillRows = (): DrillRow[] =>
     };
   });
 
-/** This function writes a time in seconds, to the hundredth. */
-export const timeText = (seconds: number): string => duration(Math.round(seconds * 100) * 10);
+export { timeText };
 
 /** This function writes the part of a budget that a value uses, in two digits. */
 export const shareText = (each: Budgeted): string => `${Number(((each.worst / each.limit) * 100).toPrecision(2))} %`;
@@ -113,7 +112,7 @@ export const runText = (row: DrillRow, run: DrillRun): string => {
 /** This component gives the ladder of recovery: a row for each rung. */
 export function RecoveryRungs(): ReactElement {
   return (
-    <figure className="sy-recovery-figure not-content">
+    <figure className="sy-rows-figure not-content">
       <div className="sy-scroll">
         <table className="sy-table">
           <thead>
@@ -154,122 +153,6 @@ export function RecoveryRungs(): ReactElement {
   );
 }
 
-const PAD = 12;
-/** the height of the line above a row: the name of the drill and its median */
-const HEAD = 18;
-const ROW = 26;
-const AFTER = 8;
-const BLOCK = HEAD + ROW + AFTER;
-const DOT = 4;
-/** the distance between two lanes of dots */
-const LANE = 7;
-const REACH = 16;
-/** the width of one character in the mono font at 11 px */
-const CHARACTER = 6.7;
-
-interface Dot {
-  readonly row: DrillRow;
-  readonly run: DrillRun;
-  readonly x: number;
-  readonly y: number;
-}
-
-function Chart(props: { readonly rows: readonly DrillRow[] }): ReactElement {
-  const [ref, width] = useWidth();
-  const [active, setActive] = useState<number | null>(null);
-  const { rows } = props;
-  const highest = Math.max(...rows.flatMap((row) => row.runs.map((run) => run.rto)));
-  const to = Math.ceil((highest * 1.03) / 5) * 5;
-  const left = PAD;
-  const right = width - PAD;
-  const x = (seconds: number): number => left + ((right - left) * seconds) / to;
-  const axis = rows.length * BLOCK;
-  const height = axis + 24;
-  const ticks = countTicks(0, to, Math.max(4, Math.floor((right - left) / 72)));
-  const labels = spacedLabels(
-    ticks.map((t) => ({ t, x: x(t), text: `${count(t)} s`, width: (count(t).length + 2) * CHARACTER })),
-    width,
-  );
-
-  const dots: Dot[] = rows.flatMap((row, n) => {
-    const middle = n * BLOCK + HEAD + ROW / 2;
-    const lanes = lanesOf(
-      row.runs.map((run) => x(run.rto)),
-      2 * DOT + 2,
-    );
-    return row.runs.map((run, k): Dot => ({ row, run, x: x(run.rto), y: middle + LANES[lanes[k] ?? 0]! * LANE }));
-  });
-
-  const pointAt = (event: PointerEvent<SVGSVGElement> | MouseEvent<SVGSVGElement>): number | null => {
-    const box = event.currentTarget.getBoundingClientRect();
-    const scale = width / box.width;
-    const px = (event.clientX - box.left) * scale;
-    const py = (event.clientY - box.top) * scale;
-    let best: number | null = null;
-    let distance = REACH;
-    dots.forEach((dot, n) => {
-      const d = Math.hypot(dot.x - px, dot.y - py);
-      if (d <= distance) [best, distance] = [n, d];
-    });
-    return best;
-  };
-  const onMove = (event: PointerEvent<SVGSVGElement>): void => {
-    if (event.pointerType === "mouse") setActive(pointAt(event));
-  };
-
-  const target = active === null ? undefined : dots[active];
-  const margin = Math.min(114, width / 2);
-  const tipX = target === undefined ? 0 : Math.min(width - margin, Math.max(margin, target.x));
-  const label = `The time from the fault to the first accepted write, for each run of each drill, from 0 to ${to} s. ${rows.map((row) => `${row.label}: the median is ${timeText(row.median)}.`).join(" ")}`;
-  return (
-    <div ref={ref} className="sy-strip" onBlur={() => setActive(null)}>
-      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="group" aria-label={label} onPointerMove={onMove} onPointerLeave={() => setActive(null)} onClick={(event) => setActive(pointAt(event))}>
-        {ticks.map((t) => (
-          <line key={`grid ${t}`} className="sy-grid" x1={x(t)} x2={x(t)} y1={HEAD - 4} y2={axis} />
-        ))}
-        {rows.map((row, n) => {
-          const top = n * BLOCK + HEAD;
-          return (
-            <g key={row.id}>
-              <text className="sy-recovery-name" x={left} y={top - 6}>
-                {row.label}
-              </text>
-              <text x={right} y={top - 6} textAnchor="end">
-                {timeText(row.median)}
-              </text>
-              <line className="sy-median" x1={x(row.median)} x2={x(row.median)} y1={top} y2={top + ROW} />
-            </g>
-          );
-        })}
-        {dots.map((dot, n) => (
-          <circle key={`${dot.row.id} ${dot.run.index}`} className="sy-run" cx={dot.x} cy={dot.y} r={DOT} tabIndex={0} role="img" aria-label={`${timeText(dot.run.rto)}. ${runText(dot.row, dot.run)}`} onFocus={() => setActive(n)} />
-        ))}
-        <line className="sy-axis-line" x1={left} x2={right} y1={axis} y2={axis} />
-        {ticks.map((t) => (
-          <g key={t} className="sy-tick">
-            <line x1={x(t)} x2={x(t)} y1={axis} y2={axis + 4} />
-          </g>
-        ))}
-        {labels.map((each) => (
-          <text key={each.t} x={each.at} y={axis + 16} textAnchor={each.anchor}>
-            {each.text}
-          </text>
-        ))}
-        {target === undefined ? null : <circle className="sy-focus" cx={target.x} cy={target.y} r={DOT + 3} />}
-      </svg>
-      {target === undefined ? null : (
-        <div className="sy-tip" style={{ left: tipX, top: Math.max(0, target.y - 12) }}>
-          <strong>{timeText(target.run.rto)}</strong>
-          <span>{runText(target.row, target.run)}</span>
-        </div>
-      )}
-      <p className="sr-only" aria-live="polite">
-        {target === undefined ? "" : `${timeText(target.run.rto)}. ${runText(target.row, target.run)}`}
-      </p>
-    </div>
-  );
-}
-
 function Table(props: { readonly rows: readonly DrillRow[] }): ReactElement {
   return (
     <div className="sy-scroll">
@@ -307,24 +190,27 @@ function Table(props: { readonly rows: readonly DrillRow[] }): ReactElement {
   );
 }
 
+/** This function gives a drill as a row of the chart. */
+const chartRow = (row: DrillRow): ChartRow => ({
+  id: row.id,
+  label: row.label,
+  right: timeText(row.median),
+  median: row.median,
+  dots: row.runs.map((run) => ({ key: `${run.index}`, at: run.rto, value: timeText(run.rto), text: runText(row, run) })),
+});
+
 /** This component puts each run of each drill on one axis of seconds, with a table view. */
 export function RecoveryTimes(): ReactElement {
   const rows = drillRows();
-  const [view, setView] = useState<"chart" | "table">("chart");
+  const highest = Math.max(...rows.flatMap((row) => row.runs.map((run) => run.rto)));
+  const to = Math.ceil((highest * 1.03) / 5) * 5;
   return (
-    <figure className="sy-recovery-figure not-content">
-      <div className="sy-row">
-        <span className="sy-switch" role="group" aria-label="View">
-          <button type="button" aria-pressed={view === "chart"} onClick={() => setView("chart")}>
-            Chart
-          </button>
-          <button type="button" aria-pressed={view === "table"} onClick={() => setView("table")}>
-            Table
-          </button>
-        </span>
-      </div>
-      {view === "chart" ? <Chart rows={rows} /> : <Table rows={rows} />}
-      <figcaption>The time from the fault to the first accepted write. A dot is a counted run, and the dashed line and the number at the right are the median. The time has no detection and no human.</figcaption>
-    </figure>
+    <RowsFigure
+      rows={rows.map(chartRow)}
+      to={to}
+      label={`The time from the fault to the first accepted write, for each run of each drill, from 0 to ${to} s. ${rows.map((row) => `${row.label}: the median is ${timeText(row.median)}.`).join(" ")}`}
+      table={<Table rows={rows} />}
+      caption="The time from the fault to the first accepted write. A dot is a counted run, and the dashed line and the number at the right are the median."
+    />
   );
 }
