@@ -10,6 +10,7 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
   workflow_call:
 
@@ -17,12 +18,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   checks:
-    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@c8d2f57af6932442af82d2f2223931e47c11beb1 # main
+    uses: mark1russell7/template/.github/workflows/reusable-ci.yml@f48f29fe5b00772951e0910a90fbbe312343338c # main
     permissions:
       contents: read
     with:
@@ -37,7 +38,7 @@ jobs:
   # this job runs only in a run of CI itself: two jobs of one run cannot upload the artifact "release".
   pack:
     if: github.workflow == 'CI'
-    uses: mark1russell7/template/.github/workflows/reusable-release-build.yml@c8d2f57af6932442af82d2f2223931e47c11beb1 # main
+    uses: mark1russell7/template/.github/workflows/reusable-release-build.yml@f48f29fe5b00772951e0910a90fbbe312343338c # main
     permissions:
       contents: read
     with:

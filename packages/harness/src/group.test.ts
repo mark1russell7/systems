@@ -245,6 +245,32 @@ describe("a run of a group cell, measured", () => {
     expect(again.group?.stages[0]?.decision).toBe("fails");
   });
 
+  it("judges a measurement-only cell by its band of lost writes, and each other finding of its runs", () => {
+    const counted: Cell = {
+      ...CELL,
+      prediction: { detects: null, window: s(120), why: "measured", from: "fault", group: { lands: "new", failover: true, stages: [], lost: { low: 1, high: 2 } } },
+    };
+    // the group kept all but 4 and 5: two accepted writes lost, the top of the band
+    const inside = verdictOf(counted.prediction, [measure(counted, groupRun({}, [1, 2, 3]))]);
+    expect(inside.decision).toBe("holds");
+    expect(inside.why).toMatch(/^1 of 1 runs inside the band of lost writes \[1, 2\]/);
+    // the group kept each write: a count below the band fails the cell
+    const none = measure(counted, groupRun());
+    expect(none.finding).toBe("the group lost 0 accepted writes, outside [1, 2]");
+    expect(verdictOf(counted.prediction, [none]).decision).toBe("fails");
+    // a group that did not converge gives no count
+    expect(measure(counted, groupRun({}, null)).finding).toBe("the group did not converge, thus the count of its lost writes is not known");
+    // the error band of the client judges the cell too
+    const refused: Cell = {
+      ...counted,
+      prediction: { ...counted.prediction, group: { lands: "new", failover: true, stages: [], lost: { low: 2, high: 2 }, errors: [{ name: "ReplyError", low: s(9), high: s(12) }] } },
+    };
+    expect(verdictOf(refused.prediction, [measure(refused, groupRun({}, [1, 2, 3]))]).decision).toBe("fails");
+    // with no band, the same cell stays a measurement
+    const plain: Cell = { ...counted, prediction: { detects: null, window: s(120), why: "measured", from: "fault", group: { lands: "new", failover: true, stages: [] } } };
+    expect(verdictOf(plain.prediction, [measure(plain, groupRun())]).decision).toBe("measured");
+  });
+
   it("waits for the outcome of a group cell up to its band, or its window, and 10 s more", () => {
     expect(deadlineOf(CELL)).toBe(49_000);
     expect(deadlineOf({ ...CELL, prediction: { detects: null, window: s(90), why: "measured", from: "fault" } })).toBe(100_000);
