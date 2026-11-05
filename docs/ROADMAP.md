@@ -12,8 +12,11 @@ The program started again on 2026-11-02, after the pause of 2026-10-28. A gap th
 2. **SYS-49:** The statistics of the cells and the time verdicts come from the rigor packages, not from local copies. SYS-52 is done: the limiter pair gives its time verdict through rigor-bench.
    <!-- ste-disable-next latin-abbreviation -- VIZ is the ID of the item, not the Latin abbreviation -->
 3. **VIZ:** The site gets an interactive demo of the path of a request, from the process to the NIC. The packages of this repository run live in the browser.
-4. **S2:** CoreDNS (SYS-50), kube-vip (SYS-51) and MetalLB (SYS-53) are done. The next step is Pulsar. Do one intermediary in each context. Write the prediction before the dispatch.
+4. **S2:** CoreDNS (SYS-50), kube-vip (SYS-51), MetalLB (SYS-53) and Pulsar (SYS-56) are done. Do one intermediary in each context. Write the prediction before the dispatch.
+   - Pulsar ([SYS-56](#sys-56--pulsar-producers-when-the-broker-that-owns-their-topic-is-gone)) is in progress. A crash of the owner of a topic tests the expiry of its session and the backoff of each producer. The first run fails its law, and the second run tests the corrected law.
 5. **S3:** [The plan](S3.md) has the items SYS-58 to SYS-75. SYS-58 is the first cell. The Q17 line reuses the labs of S1, thus it comes first.
+6. **S7:** [The plan](S7.md) has the items SYS-76 to SYS-92. It starts after the open cells of S3, with SYS-76 and the first fabric, SYS-77.
+7. **The scale ladder:** [The items](#the-items-of-the-scale-ladder) are SYS-93 and SYS-94. SYS-94 starts beside the open cells of S3, and SYS-93 follows SYS-68.
 
 SITE-UX round 3 is done. Its chart shows the C-stall band of SYS-48 against the count of each mode, on the kind page.
 
@@ -102,6 +105,8 @@ S1 already records a history of writes for each group cell, thus S3 starts from 
 VMs with a kernel for each node, the failover of a host, block storage and shared fate. The cloud adds managed load balancers and real zones.
 
 Mark's decision of 2026-10-19: the VM tier runs on the hosted Linux runners of GitHub. Their KVM lets QEMU start one VM for each node. systems is public, thus its CI is free. The tier needs no hardware from Mark. The SR-IOV NIC and a cloud account wait until S4 starts. HW-1 holds that choice.
+
+The VM tier starts in S7, as [SYS-81](#sys-81--the-vm-tier-qemu-on-a-runner-and-its-bridge). The block storage and the shared fate of S4 build on it. GitHub calls nested virtualization unsupported, thus S7 treats a runner with no KVM as a void run.
 
 ### HW-1 · The lab for the NIC and the cloud parts of S4
 
@@ -193,6 +198,19 @@ A and B failed 3,481 to 3,490 requests in each run, each one a timeout, because 
 
 [PR #242](https://github.com/mark1russell7/systems/pull/242) measures the shared gate (E), a candidate that keeps the endpoints in a shared failure. The readiness probe of the kubelet leaves out each check of the shared Redis, and the controller still refuses each request with a 503. Kind run [40533209929](https://github.com/mark1russell7/systems/actions/runs/40533209929) held each of the 9 cells in 3 of 3 runs, in the bands of commit 221b5bc. E failed 4,325 to 4,729 requests by the median run in the shared dependency, and B 4,126 to 4,452. The rule of that commit needed a cut of 50 % in each mode, thus the gate stays in the kind lab, off by default ([S6.md](S6.md#the-shared-gate-e)).
 
+### S7 · Simulated environments
+
+- **Status:** later
+- **Area:** program
+- **Depends on:** S3
+- **Started:**
+- **Shipped:**
+- **Links:** [The plan](S7.md), [issue 129](https://github.com/mark1russell7/systems/issues/129)
+
+Layers of real code on false wires: routed fabrics in containerlab, VMs with a kernel for each node, k3s, and later vendor routers. Each layer proves what the layer below it cannot.
+
+Mark's request of 2026-11-04: chart each link of issue 129 into the roadmap, across the whole stack. [The plan](S7.md) gives each link an answer, the layers, the new measures, the rules that keep results comparable, and the first slice. [The items of S7](#the-items-of-s7) give the order.
+
 ## The server stack in S6
 
 These items are the part of the server stack in this repository. The server stack is a plan across repositories: one service runner here, and one procedures server in the client. [Its tracker](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb) has the whole plan, with the same ids.
@@ -218,7 +236,7 @@ On 2026-10-17, Mark decided these questions for this repository:
 - **Shipped:** 2026-10-17
 - **Links:** [The requirements](S6.md), [#46](https://github.com/mark1russell7/systems/pull/46), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-The groups A, B and E of the S6 draft move from jarvis into this repository, in STE. Each requirement tells which part of the service meets it.
+The groups A, B and E of the S6 draft move from a private repository into this repository, in STE. Each requirement tells which part of the service meets it.
 
 ### SYS-13 · The roadmap and the README tell the truth about S6
 
@@ -366,7 +384,7 @@ A stdio process, for example an MCP host, stops through the staged shutdown when
 - **Shipped:** 2026-10-18
 - **Links:** [#48](https://github.com/mark1russell7/systems/pull/48), [#50](https://github.com/mark1russell7/systems/pull/50), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-Each declaration tells what a second signal does: `ignore`, as in 0.4, or `exit`. In 0.5.0 `describe()` refuses a declaration without it, and `lint()` names a description without it. The profiles for a terminal use `exit`, and the profiles for a supervised host use `ignore`. jarvisService declares it at JAR-4.
+Each declaration tells what a second signal does: `ignore`, as in 0.4, or `exit`. In 0.5.0 `describe()` refuses a declaration without it, and `lint()` names a description without it. The profiles for a terminal use `exit`, and the profiles for a supervised host use `ignore`.
 
 ### SYS-10 · Profiles as data
 
@@ -412,7 +430,7 @@ The zod schemas of `@mark1russell7/algebra` move into a new entry, `./schema`, a
 - **Shipped:** 2026-10-18
 - **Links:** [#57](https://github.com/mark1russell7/systems/pull/57), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-An ESM service loses its express spans when its preload does not register `@opentelemetry/instrumentation/hook.mjs` before the app loads. The telemetry check of Graph found it when `@graph/server` moved to ESM. The README of the service tells it, beside an HTTP service under `run()`, with the preload of the hook.
+An ESM service loses its express spans when its preload does not register `@opentelemetry/instrumentation/hook.mjs` before the app loads. A telemetry check found it when a server moved to ESM. The README of the service tells it, beside an HTTP service under `run()`, with the preload of the hook.
 
 ### SYS-16 · run() for a process that runs one command
 
@@ -436,7 +454,7 @@ The process exits with the code of its work. A first Ctrl-C can abort at once, a
 
 `workerLoop` (A10 of S6) and `queueDrain` (A11) are `TransportImpl` factories in the root of the service. Each lane of a loop does one iteration at a time, and its sleeps and backoffs are on the clock. The drain takes jobs under a concurrency, applies the declared redelivery policy, and gives back each job that it did not start. Each unit can go through `life.request`. `lint()` applies O20 to each consumer and worker. Both pass the conformance kit of SYS-4.
 
-The lifecycle holds its process from its start to its exit, thus a process with only workers does not end while it waits. The helpers come to npm in the next PATCH of the service. They are for the heartbeat of jarvis (JAR-4), the workers of Graph (GRAPH-6, GRAPH-10) and the job queues of OTH-4.
+The lifecycle holds its process from its start to its exit, thus a process with only workers does not end while it waits. The helpers come to npm in the next PATCH of the service. They are for the heartbeats, the workers and the job queues of applications.
 
 ### SYS-21 · A stop from a message of the IPC channel
 
@@ -447,7 +465,7 @@ The lifecycle holds its process from its start to its exit, thus a process with 
 - **Shipped:** 2026-10-18
 - **Links:** [#66](https://github.com/mark1russell7/systems/pull/66), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-Windows cannot give a child a SIGTERM that the child can catch, thus the entry of Graph also stops at the IPC message `shutdown` (CI-4 of Graph). `svc.trigger("ipc-message", { match, as })` declares the message as data, and it starts the staged shutdown of SIGTERM with its exit code. `process.yml` tests a real child on Linux and on Windows.
+Windows cannot give a child a SIGTERM that the child can catch, thus a service entry can also stop at the IPC message `shutdown`. `svc.trigger("ipc-message", { match, as })` declares the message as data, and it starts the staged shutdown of SIGTERM with its exit code. `process.yml` tests a real child on Linux and on Windows.
 
 ### SYS-11 · The kind lab on ./http
 
@@ -469,7 +487,7 @@ The image of the kind lab replaces its own transport, probe server and outcome m
 - **Shipped:** 2026-10-18
 - **Links:** [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-A change of the version on main makes `release.yml` publish it. It is a MINOR, because SYS-6 changes `RequestFn` and the outcome type before 1.0. The client, jarvis and Graph then use it from npm.
+A change of the version on main makes `release.yml` publish it. It is a MINOR, because SYS-6 changes `RequestFn` and the outcome type before 1.0. The client and other applications then use it from npm.
 
 ### REL-4 · Service 0.5.1 with the worker loop, the queue drain and the IPC trigger
 
@@ -480,7 +498,7 @@ A change of the version on main makes `release.yml` publish it. It is a MINOR, b
 - **Shipped:** 2026-10-18
 - **Links:** [#69](https://github.com/mark1russell7/systems/pull/69), [npm](https://www.npmjs.com/package/@mark1russell7/service/v/0.5.1), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-This release publishes `workerLoop`, `queueDrain`, `redeliverOnce`, the trigger `ipc-message` and the hold of the process (#66). It is a PATCH, because each change adds an export or an option before 1.0, and nothing is removed. Graph (GRAPH-6) and jarvis (JAR-4) then use the helpers from npm.
+This release publishes `workerLoop`, `queueDrain`, `redeliverOnce`, the trigger `ipc-message` and the hold of the process (#66). It is a PATCH, because each change adds an export or an option before 1.0, and nothing is removed. Applications then use the helpers from npm.
 
 ### SYS-17 · The harness takes its test subjects as data
 
@@ -520,7 +538,7 @@ After CLI-33, the client owns the image of its procedures subject. Then the harn
 - **Shipped:** 2026-10-25
 - **Links:** [#158](https://github.com/mark1russell7/systems/pull/158), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-A check of the kind `progress` fires when no loop marks progress in its stall time. Today each app gives that time by hand: jarvis gives 370 s for its weather poll (JAR-4). With a field `marks`, the check names its loops. Then `lint()` finds a stall time that is shorter than the interval of the slowest loop, with its jitter and its timeout. It is a PATCH: an optional field and a new finding.
+A check of the kind `progress` fires when no loop marks progress in its stall time. Today each app gives that time by hand: for example, one app gives 370 s for a poll. With a field `marks`, the check names its loops. Then `lint()` finds a stall time that is shorter than the interval of the slowest loop, with its jitter and its timeout. It is a PATCH: an optional field and a new finding.
 
 #158 adds `marks: { loops, stall }` to a check, and `lint()` gives a `progress` finding for a short stall time or an unknown loop.
 
@@ -578,7 +596,7 @@ Some entries start a service in a process that they do not own. Examples are a s
 - **Shipped:** 2026-10-20
 - **Links:** [#106](https://github.com/mark1russell7/systems/pull/106), [#119](https://github.com/mark1russell7/systems/pull/119), [#229](https://github.com/mark1russell7/systems/pull/229), [The server stack](https://claude.ai/artifact/QbZd2i5apzg3ip5yiE57Pb)
 
-No package of systems or of the client had a rate limit for each tenant or principal. Graph limits its writes for each tenant with a sliding window of its own. With SYS-28, `svc.limiter(name, { key, policy, store, evict })` declares a keyed limiter as data, with no defaults, and `describe()` shows it. `keyedLimiter` makes its runtime: a token bucket or a sliding window for each key, on the injected monotonic clock. A refusal gives `retryAfter` as a `Quantity`, and the HTTP edge gives 429 with `Retry-After` in whole seconds.
+No package of systems or of the client had a rate limit for each tenant or principal. One application limits its writes for each tenant with a sliding window of its own. With SYS-28, `svc.limiter(name, { key, policy, store, evict })` declares a keyed limiter as data, with no defaults, and `describe()` shows it. `keyedLimiter` makes its runtime: a token bucket or a sliding window for each key, on the injected monotonic clock. A refusal gives `retryAfter` as a `Quantity`, and the HTTP edge gives 429 with `Retry-After` in whole seconds.
 
 The store is an interface, and each store decides a take in one atomic step on its own clock. `memoryStore` is the store of one replica. Without a shared store, each replica holds limit / N, and that sum holds only on average. A shared store declares `onStoreFailure`, `open` or `closed`, with no default. The eviction is exact, the count of keys has a bound, and a new key at the cap waits at most the idle span.
 
@@ -689,7 +707,7 @@ It comes in machines as a PATCH: a new export before 1.0.0.
 
 The entry `@mark1russell7/service/rules` gives O04, O09, O10, O16 and `DRAIN_RULES` as data, and it loads no module at run time. Kind imports the rules from the entry and gives them again, thus the exports of kind do not change.
 
-The review of the template item OTH-5 found it. `lint()` of the service takes its rules from the caller. But the drain rules, O10, O16 and the others, are only in `@mark1russell7/kind`, and kind loads Testcontainers. Thus each new service copies the data of the rules into its tests.
+A review of the template found it. `lint()` of the service takes its rules from the caller. But the drain rules, O10, O16 and the others, are only in `@mark1russell7/kind`, and kind loads Testcontainers. Thus each new service copies the data of the rules into its tests.
 
 With SYS-32, an entry of the service that loads no Testcontainers, for example `./rules`, gives the rules as data. The preset of the template then imports it, and the rules have one source.
 
@@ -1008,7 +1026,7 @@ One quantity missed. The prediction was 0 to 3 runs in the zone of the early sta
 
 The idle share of 60% holds for Cilium. Of 230 runs on Cilium, 2 are void or hung by the wait, approximately 0.9%. The limit is 5%. The page applies the rule again after each scan.
 
-### SYS-46 · The service gaps of the graph plumbing
+### SYS-46 · The service gaps for the plumbing of an application
 
 - **Status:** done
 - **Area:** server stack
@@ -1017,7 +1035,7 @@ The idle share of 60% holds for Cilium. Of 230 runs on Cilium, 2 are void or hun
 - **Shipped:** 2026-10-28
 - **Links:** [#260](https://github.com/mark1russell7/systems/pull/260)
 
-The graph session found five gaps in service 0.6.1 for the plumbing of its step W9. Each part of this item is a new option or a new export. Without them, each old call gives the same result.
+One application found five gaps in service 0.6.1 for the plumbing of its step W9. Each part of this item is a new option or a new export. Without them, each old call gives the same result.
 
 - **Uncaught errors.** `run({ uncaught: { exitCode, ignore } })` makes an uncaught exception or an unhandled rejection a trigger of the staged shutdown, as a signal is. The logger gets the error at `error`. `ignore` skips an error, for example an `ECONNRESET` of a peer socket, and the logger gets it at `warn`.
 - **A retrier.** `retrier({ base, factor, cap, jitter, clock, signal })` starts a function again after the `backoffDelay` of each try, on the injected clock. It has `schedule`, `reset`, `cancel` and `attempts`. The abort of its signal cancels it, for example the `signal` of the lifecycle in the drain.
@@ -1025,7 +1043,7 @@ The graph session found five gaps in service 0.6.1 for the plumbing of its step 
 - **A take with no promise.** `tryTakeSync(key)` gives the `Decision` of a memory store at once, with `retryAfter` as a quantity. It is optional on `KeyedLimiter`, and `keyedLimiter` on a `memoryStore` gives a `LocalLimiter` that has it. A shared store throws.
 - **Lines of JSON.** `consoleLogger({ level, format: "json" })` writes one line of JSON for each entry.
 
-The keys of `paths` are the probe kinds, and the decision is the `Decision` of `take()`. The names of the graph session were `live`, `ready`, `ok` and `retryAfterMs`. The package uses the names of its other calls, thus the new calls use them too.
+The keys of `paths` are the probe kinds, and the decision is the `Decision` of `take()`. The names of the first draft were `live`, `ready`, `ok` and `retryAfterMs`. The package uses the names of its other calls, thus the new calls use them too.
 
 It comes as a PATCH before 1.0.0: new optional options, an optional member of an interface, and new exports.
 
@@ -1391,6 +1409,214 @@ The changes:
 
 The `conventions` field keeps one exception for the types. `src/content.config.ts` of the site imports `astro:content`, a module that only the Astro build makes.
 
+### SYS-56 · Pulsar: producers when the broker that owns their topic is gone
+
+- **Status:** done
+- **Area:** catalogs
+- **Depends on:** SYS-53
+- **Started:** 2026-11-03
+- **Shipped:** 2026-11-04
+- **Links:** [S2](#s2--intermediaries-and-kubernetes), [SYS-53](#sys-53--metallb-callers-outside-the-cluster-when-the-announcer-of-a-vip-is-gone), [kind run 41748374742](https://github.com/mark1russell7/systems/actions/runs/41748374742), [kind run 41870080724](https://github.com/mark1russell7/systems/actions/runs/41870080724)
+
+Pulsar is the intermediary after MetalLB. One broker owns the bundle of a topic through its session in ZooKeeper. A producer finds the owner by a lookup, and it tries again on a backoff after a loss. The question: when does each producer send again after a crash of the owner, and which terms set that time?
+
+**The setup.** The lab installs Pulsar 5.0.0 from the Helm chart 4.8.0, pinned by sha256, with the image pinned by digest (`packages/kind/src/pulsar.ts`). The install has one ZooKeeper, one bookie and two brokers, and no other part. Each value of the install is set, with its reason:
+
+- The ensemble, the write quorum and the ack quorum are 1, because there is one bookie.
+- The shedding of the load and the automatic split of bundles are off. Thus only the crash moves the bundle.
+- The session timeout is the default, 30 s (`conf/broker.conf`, line 187, and the chart `values.yaml`, line 1474). The values do not set it.
+- The load manager is the default, `ModularLoadManagerImpl` (`conf/broker.conf`, line 1809).
+- The chart waits for the old znode of a broker before it starts the broker again (`templates/broker-statefulset.yaml`, lines 296–302). The first run shows that this wait does not stop the restart: the broker serves HTTP approximately 16 s after the crash. The bundle stays with the old session up to the expiry.
+
+A producer runs on each worker. It is a script of the Python client 3.13.0, over the C++ client 4.2.0, in the Pulsar image. It sends to the topic each 200 ms, with the defaults of `create_producer`. In the same pod, a probe asks the HTTP lookup for the owner each 250 ms. Each line has the monotonic clock of the node, in ms, as the other cells do. The script also writes the lines of the client log that give each try of the backoff. Before each run, the hold finds the owner from the lookups, and each producer must send with no failure.
+
+**The family.** One cell in iptables: `S2.T07.iptables.pulsar.broker-crash` (`PULSAR_CELLS` in `packages/cells/src/pulsar.ts`). The crash sends SIGKILL to the JVM of the broker that owns the topic. The clients in the cluster of the other cells are the control. The fault does not touch their service, thus they must fail no request.
+
+**The terms and their sources.** Each value is the source of Pulsar 5.0.0, of the C++ client 4.2.0 or of ZooKeeper 3.9.6:
+
+- The session of the broker expires 30 s after the last packet that ZooKeeper got from it. The server rounds each expiry up to its tick of 2 s (`ExpiryQueue.java`, lines 53–54 and 87, and `conf/zookeeper.conf`, line 21).
+- The client of ZooKeeper pings after 9 s with no other packet: half of the read timeout of 2/3 of the session timeout, less 1 s (`ClientCnxn.java`, lines 422, 1184 and 1263–1268). Thus the last packet comes 0 s to 9 s before the crash, and the expiry comes 21 s to 32 s after it.
+- Up to the expiry, a lookup gives the owner from the cache, with no check of its life (`NamespaceService.java`, lines 489–508). After it, one broker takes the bundle: the other broker, or the crashed broker after its restart. The first run found the second case.
+- The backoff of the producer starts at 100 ms, and it doubles up to 60 s. Its mandatory stop is the send timeout of 30 s less 100 ms (`lib/ProducerImpl.cc`, lines 55–57, and `pulsar/__init__.py`, line 1015).
+- The mandatory stop cuts one delay, once, so that the try comes 29.9 s after the first call. Each delay can be up to 9 % less, from the jitter (`lib/Backoff.cc`, lines 33–57).
+- Thus the tries come 0.1 s, 0.3 s, 0.7 s, 1.5 s, 3.1 s, 6.3 s, 12.7 s, 25.5 s, 29.9 s and 81.1 s after the first call, with no jitter.
+- The first try after the change of the owner succeeds, and the client resets its backoff (`lib/ProducerImpl.cc`, line 236). Each earlier try fails.
+
+**The first law.** A lookup names the other broker 20.5 s to 33 s after the crash. That band is the expiry, with 0.5 s before it and 1 s after it. Each producer is back at the first try of its backoff after that change, with a setup of up to 3 s. The judge reads each try of each producer from its log, and checks each delay against the backoff. Thus the law tests the grid of the backoff in each run, not only the time of the return.
+
+The return falls in one of three modes. In the mode of 25.5 s, the change comes before the eighth try. In the mode of 29.9 s, it comes between the eighth try and the mandatory stop. In the mode of 81.1 s, it comes after the stop. Their shares are approximately 0.27, 0.58 and 0.16.
+
+The naive law puts each return at the expiry of the session, approximately 28 s to 32 s after the crash. It misses the modes of 25.5 s and of 81.1 s.
+
+**The bands.** The first lookup with another owner is in the band of the change, and the gap of the lookups before it is at most 1.25 s. Each producer starts its backoff 0 s to 1 s after the crash. Its last try comes after the last lookup of the old owner. The try before it comes no later than the first lookup of the new owner. The setup of the last try is 0 s to 3 s. Each failed send is `late` or `timeout`, and it comes in the time from the fault to the return. The record continues to the latest return of the law, 85.2 s after the fault.
+
+**The first prediction.** Before the dispatch, the prediction `sys-56-pulsar` gives the probability of each claim:
+
+| Claim | Probability |
+| --- | --- |
+| The first dispatch builds and runs the cell with no code bug | 0.4 |
+| The owner changes in its band in each counted run | 0.8 |
+| Each producer follows the grid of the backoff in each counted run | 0.7 |
+| The control fails no request | 0.8 |
+| Each failed send is `late` or `timeout` | 0.8 |
+| Each return is 28 s to 32 s after the crash, in each run (the naive law) | 0.15 |
+| At least one run is in the mode of 81.1 s | 0.45 |
+| The cell holds in each of its 4 counted runs | 0.5 |
+
+The decision rule: the cell needs 4 counted runs. A void run, or a run that fails for a reason of the infrastructure, permits one re-dispatch, and the first counted runs count. A first run that stops on a code bug is a miss of the build. The thresholds do not change after a result is read.
+
+**The first run.** The kind run 41748374742 fails the cell. In 2 of 4 counted runs, no lookup names another owner. The first dispatch stopped on a code bug, thus the build claim is a miss. The control failed no request, and each failed send is `late` or `timeout`.
+
+| Run | Bundle taken | Stop try | Return | New owner |
+| --- | --- | --- | --- | --- |
+| Environment 0, warm-up | 30.32 s | 29.90 s | 81.4 s | the other broker |
+| Environment 0, run 0 | 29.01 s | 29.77 s | 30.1 s | the crashed broker |
+| Environment 0, run 1 | 29.43 s | 29.53 s | 29.6 s | the other broker |
+| Environment 1, warm-up | 30.41 s | 29.89 s | 79.9 s | the other broker |
+| Environment 1, run 0 | 30.96 s | 29.93 s | 78.8 s | the crashed broker |
+| Environment 1, run 1 | 29.36 s | 29.93 s | 30.0 s | the other broker |
+
+Each time is from the crash. "Bundle taken" is the first log line of a broker that tries to acquire the bundle. The warm-up runs do not count, but they have the same records.
+
+The run gives four results:
+
+1. **The crashed broker can take the bundle back.** The kubelet starts its container again, and it can win the bundle after the expiry. This term is not in the first law. It explains each failed run.
+2. **The return is a race between two timers of 30 s.** The session expires at approximately 30 s, and the mandatory stop of the producer ends at 29.9 s. In each of the 6 runs, their order sets the return. If the bundle moves first, the stop try succeeds, and the producer is back at approximately 30 s. If the stop try comes first, it fails, and the next delay is approximately 50 s. A difference of less than 1 s adds 50 s.
+3. **The mode of 25.5 s does not occur.** The bundle moves 29.0 s to 31.0 s after the crash, not 21 s to 32 s. The term of the ping does not apply in these runs. Of 6 returns, 3 are at approximately 30 s and 3 are at approximately 80 s. The shares of the first law are 0.58 and 0.16.
+4. **Jitter does not separate the two producers.** In each of the 6 runs, the first 8 delays of the two producers are equal. Thus the two return together.
+
+One term stays open. The bundle moves before 30 s in 3 of 6 runs, but the law of the expiry gives at least 30 s after the last packet. The second run keeps the source band of 20.5 s to 33 s, and it does not name this term.
+
+**The second law.** After the expiry, one broker takes the bundle: the other broker, or the crashed broker after its restart. Thus the judge accepts each owner (`owner: "either"` in the prediction `reconnects`). If no lookup names another owner, the last try of a producer comes after the start of the band of the change. The try before it comes no later than the end of that band. Each other check stays. A replay of this judge over the records of the first run holds each of the 6 runs. These runs found the term, thus the replay does not count as a result.
+
+**The second prediction.** Before the next dispatch, the prediction `sys-56-pulsar-race` gives the probability of each claim, with the same decision rule. The first run informs these numbers:
+
+| Claim | Probability |
+| --- | --- |
+| The run gives 4 counted runs with no code bug and no void run | 0.85 |
+| The bundle moves 20.5 s to 33 s after the crash in each counted run | 0.93 |
+| The bundle moves 28.5 s to 31.5 s after the crash in each counted run | 0.8 |
+| The order of the move and the stop try gives the try of each return | 0.85 |
+| Each return is 29 s to 33 s, or 75 s to 85.2 s, after the crash | 0.85 |
+| At least one counted run has each of these two modes | 0.8 |
+| The crashed broker takes the bundle back in at least one counted run | 0.75 |
+| The two producers have equal delays and the same count of tries in each counted run | 0.85 |
+| The control fails no request | 0.9 |
+| Each failed send is `late` or `timeout` | 0.9 |
+| The cell holds in each of its 4 counted runs | 0.8 |
+
+**The second run.** [Kind run 41870080724](https://github.com/mark1russell7/systems/actions/runs/41870080724) holds the cell, in 4 of 4 counted runs and with no void run. The median is 54.79 s. The control fails no request in approximately 1,304 lines of each run, and each failed send is `late` or `timeout`.
+
+| Run | First try to take the bundle | Stop try | Return | New owner |
+| --- | --- | --- | --- | --- |
+| Environment 0, run 0 | 31.13 s | 29.49 s | 79.4 s | the crashed broker |
+| Environment 0, run 1 | 29.94 s | 29.94 s | 30.2 s | the crashed broker |
+| Environment 1, run 0 | 24.70 s | 29.63 s | 80.1 s | the other broker |
+| Environment 1, run 1 | 29.07 s | 29.52 s | 29.8 s | the crashed broker |
+
+Of the 11 claims, 8 are hits, with a Brier score of 0.209:
+
+- **`build` is a miss.** The commit of the prediction changed the cell and not the snapshot of the predictions. Thus the job failed on that test, after 4 counted runs. This item corrects the snapshot.
+- **The two claims on the race are misses, with one cause.** In environment 1, run 0, the restarted broker logs a first try to take the bundle at 24.70 s. That try does not take the bundle. The other broker takes it at 30.38 s, after the stop try, and the producers return at 80.1 s. The measure read the first line of the log, not the line of the broker that takes the bundle.
+
+**The new term.** The time of the race is the try that takes the bundle, not the first try. With that time, the 2 claims hold on these runs. The band of 28.5 s to 31.5 s holds in 4 of 4, and the order holds in each judged run. This reading comes after the result, thus the outcomes stay as they are. A next run tests the term with a new prediction.
+
+One term stays open. The bundle moves before 30 s in some runs, but the law of the expiry gives at least 30 s after the last packet.
+
+### SYS-57 · MetalLB: the detection settings of memberlist, the failure time against false deaths
+
+- **Status:** done
+- **Area:** catalogs
+- **Depends on:** SYS-53
+- **Started:** 2026-11-03
+- **Shipped:** 2026-11-05
+- **Links:** [S2](#s2--intermediaries-and-kubernetes), [SYS-53](#sys-53--metallb-callers-outside-the-cluster-when-the-announcer-of-a-vip-is-gone)
+
+SYS-53 measured the failure time of MetalLB with the defaults of memberlist. A shorter probe interval or a smaller suspicion multiplier gives a shorter failure time. It also gives a false death to a live speaker that stops for a short time. The question: how do the two settings trade the failure time against false deaths?
+
+**The settings.** The sweep has four settings of the probe interval I and the multiplier m: 1 s × 4, 1 s × 2, 500 ms × 4 and 500 ms × 2. The probe timeout is I / 2. The setting 1 s × 4 is the default. It is the control of the path of the file.
+
+- The install writes each setting to the ConfigMap `metallb-memberlist-config`, with the key `config.json`, before the speakers start (`installMetallb` in `packages/kind/src/metallb.ts`).
+- The file has each of the 19 fields of `memberlistFileConfig` (`internal/speakerlist/speakerlist.go` of v0.16.1, lines 355–432). Each other value is the default of `DefaultLANConfig` of memberlist v0.5.1 (`config.go`, lines 302–341).
+- The chart mounts the ConfigMap at `/etc/metallb/memberlist` if it exists (`charts/metallb/templates/speaker.yaml`, lines 195–198 and 391–392). The speaker reads the file at its start (`speakerlist.go`, lines 77–84).
+- The install checks that each speaker logged "loading memberlist config from file". A failed check stops the install.
+- Each setting has a cluster of its own, for example `lab-iptables-2-zones-mlb500x2-0`. A test checks that each kind name of each catalog has 32 characters at most.
+
+**The family.** Eight cells in iptables, two for each setting on one cluster (`DETECTION_CELLS` in `packages/cells/src/detection.ts`):
+
+- The failure time: the zone loss of SYS-53, with the settings. The kind judge holds each run to a window.
+- The false deaths: no fault, but a schedule of pauses of the speaker of the owner. Each pause is a SIGSTOP, then a SIGCONT after its hold. The holds are 1, 2, 4, 6 and 9 s, 20 s apart. The same schedule is the load of each setting. The prediction is `measured`, thus the judge gives no verdict, and the result reads the deaths from the record.
+
+**The law.** With two speakers the suspicion timeout is S = m × I, with no confirmation. Let T0 = I + S.
+
+- The failure time is the later law of SYS-53. A tick after the shuffle of the members can probe no node (`state.go`, lines 232–274). Thus the death comes T0 to the act, 2I and T0 after the fault: 5–7.5 s, 3–5.5 s, 2.5–4 s and 1.5–3 s.
+- With two members, a gap between two probes is 1 tick or 2 ticks. In the steady chain of the ticks, the share of a gap of 1 tick is 1/4. Thus the next probe from a random phase is 0 to 2I later, and 4/7 of the phases have it in I.
+- A paused speaker is suspect at the deadline of the next probe, and dead S later. At the SIGCONT it refutes the suspicion in approximately one gossip interval, 200 ms. Thus a pause gives a false death if it is longer than the next probe and T0.
+- The least pause that gives a false death is T0. That is also the least failure time. Thus one number gives the trade-off.
+
+**The prediction.** The prediction is `sys-57-detection-sweep` in the predictions of the strategy.
+
+- The failure time is in the band of its setting in each counted run. The death comes m × I after the first suspicion. The medians rise with T0.
+- A pause gives no death if its end and the refute come before T0. A pause longer than T0, 2I and 0.1 s gives a death. Each other pause gives a death with the probability 4/7.
+- Thus the false deaths in each run are 1–2 (1 s × 4), 2–3 (1 s × 2), 3 (500 ms × 4) and 3–4 (500 ms × 2).
+- The clients in the cluster fail no request. The thawed speaker does not mark the other speaker dead at any time.
+
+**The decision rule.** The rule of SYS-53: 4 counted runs for each cell, and one re-dispatch of a cell with a void run. Each claim is a hit or a miss by its range on the raw records. The class of a pause comes from its measured length. A bias of one sign in each run names a missing term, and no band changes after a result.
+
+**The result.** The law holds, and one setting has fewer runs than the plan. [Kind run 41748420837](https://github.com/mark1russell7/systems/actions/runs/41748420837) gave 4 counted runs for 7 cells and 2 counted runs for the pauses of 500 ms × 2. The wait for a quiet VM voided the other 2 runs of that cell. The one re-dispatch, [kind run 41870241848](https://github.com/mark1russell7/systems/actions/runs/41870241848), gave no counted run: the wait voided each of its 4 runs, at 46 % to 50 % idle. Thus 30 of the 32 runs count, and the rule gives no other re-dispatch. The last row of the table has 2 runs. [SYS-95](#sys-95--the-quiet-gate-of-kind-reads-the-load-of-the-cell) takes the gate.
+
+| Setting | T0 | Median failure time | Zone-loss runs in the band | False deaths in each run | Median failed requests outside |
+| --- | --- | --- | --- | --- | --- |
+| 1 s × 4 | 5 s | 5.851 s | 4 of 4 | 2, 2, 1, 2 | 872.5 |
+| 1 s × 2 | 3 s | 3.710 s | 4 of 4 | 2, 3, 2, 3 | 553 |
+| 500 ms × 4 | 2.5 s | 2.851 s | 4 of 4 | 3, 3, 3, 3 | 424.5 |
+| 500 ms × 2 | 1.5 s | 2.054 s | 4 of 4 | 4, 4 | 306.5 |
+
+- **The failure time:** each of the 16 zone-loss runs is in the band of its setting. The medians rise with T0. The death comes m × I after the first suspicion in each of the 16 runs: gaps of 4.000–4.001 s, 2.000–2.004 s, 2.000–2.002 s and 1.001 s.
+- **The false deaths:** the 14 counted pause runs have 70 pauses. Of the 30 pauses in the class "no death", 0 gave a death. Of the 30 pauses in the class "death", 30 gave a death. The other 10 pauses gave 7 deaths, and the classes expect 6.4.
+- **The trade-off:** the setting 500 ms × 2 cuts the median failure time by 3.797 s from the default. For that cut, the failed requests fall by 65 %, and the false deaths in each run rise from 2 to 4 of 5 pauses.
+- **The controls:** the clients in the cluster fail no request in the 30 runs. The thawed speaker does not mark the other speaker dead in any of the 14 pause runs.
+- **The pauses:** a measured pause is approximately 140 ms longer than its hold. The class of each pause uses the measured length.
+
+Each of the 11 claims except one is a hit, with a Brier score of 0.119. The miss is `build`: the cell with 2 runs. The claims on the pauses cover the runs that ran, not the 2 void runs.
+
+The kind page of the site shows the value of each counted run. A test of the site holds each claim of this result against these values (`packages/site/src/data/s2-detection.test.ts`).
+
+### SYS-95 · The quiet gate of kind reads the load of the cell
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** SYS-57
+- **Started:** 2026-11-04
+- **Shipped:**
+- **Links:** [SYS-57](#sys-57--metallb-the-detection-settings-of-memberlist-the-failure-time-against-false-deaths)
+
+The kind runner waits for a quiet VM before each run (`quiet` in `packages/kind/src/run.ts`). The gate asks for 60 % idle and no container of another lab. It reads the idle share while the clients of the cell run. Thus the gate reads the load of the cell, and a heavy cell can void itself.
+
+The evidence is the 2 kind runs of SYS-57:
+
+- The median idle share is 69 % to 73 % for the zone-loss cells. It is 60, 64, 62 and 56 % for the pause cells. Thus the pause cells sit at the gate.
+- The gate voided each of the 4 runs of the re-dispatch, at 46 % to 50 % idle, and the record reads "other lab containers: none". The busiest processes are the processes of the lab.
+- In each environment, the idle share falls from approximately 59 % to 47 % in approximately 1.5 minutes, with no fault. The record does not name the cause.
+
+The work:
+
+1. Find what rises in the first 1.5 minutes of an environment.
+2. Calibrate the gate from the baseline of the cell, and write the prediction before the first run. The gate must still refuse a loaded VM. An A/A pair with a planned load proves that.
+3. Run the 2 missing runs of the pauses of 500 ms × 2, under the new gate.
+
+This item changes a gate, thus the strategist reviews the plan. The result of SYS-57 stays as it is: no gate changes after a result.
+
+**The first step has a first answer.** The cause is the read of the conntrack table by the agent of the lab. The clients fill the table, and each agent reads the whole table each second. In one record of the re-dispatch, the table grows from 9,600 to 22,000 lines in the first 75 s. In that time, the read on each of the 3 nodes grows from 91 ms to 205 ms. This is approximately 0.35 of a core, or 9 of the 12 points of idle share. The other 3 points have no name yet. The calibration reads all 9 records.
+
+**The plan.** The prediction came first, and no margin was computed before it.
+
+- The gate becomes `idle >= min(60 %, baseline - margin)`. Thus a cell that is at rest at 60 % or more keeps the gate that it has.
+- The baseline is the highest median of the settled samples of the cell, because a foreign load only lowers the idle share.
+- A floor refuses a cell that a load holds from its start.
+- The records of SYS-57 give the margin and the floor.
+- A planned load of 1 core of 4 and of half a core tests the refusal. The same cell with no load is the other half of the pair.
+
 ## The systems of S1
 
 ### REDIS · Redis and R3's compiled queue
@@ -1402,7 +1628,7 @@ The `conventions` field keeps one exception for the types. `src/content.config.t
 - **Shipped:** 2026-10-17
 - **Links:** [R3's queue](https://mark1russell7.github.io/systems/results/r3/), [#36](https://github.com/mark1russell7/systems/pull/36)
 
-Of the 115 cells that jarvis compiles from its corpus, 114 hold and 1 is a measurement only. Two gaps of the corpus failed 9 cells first, and each one held after the fix.
+Of the 115 cells that the private repository compiles from its corpus, 114 hold and 1 is a measurement only. Two gaps of the corpus failed 9 cells first, and each one held after the fix.
 
 ### SENTINEL · Valkey under Sentinel
 
@@ -1996,7 +2222,7 @@ release.yml publishes each later version from main, as for the other packages.
 
 The document of Linux TCP has the delayed-ACK timer of Linux 6.6. Each idle forget of a router counts from the ACK of the last reply, at once or up to 41 ms later.
 
-## The corpus in jarvis
+## The private corpus
 
 ### IMPORT · The corpus imports the machine documents
 
@@ -2007,7 +2233,7 @@ The document of Linux TCP has the delayed-ACK timer of Linux 6.6. Each idle forg
 - **Shipped:** 2026-10-18
 - **Links:**
 
-jarvis imports the documents of `@mark1russell7/machines` by a procedure. It takes machines 0.3.7 from npm, and it is in jarvis since 2026-10-18.
+The private repository imports the documents of `@mark1russell7/machines` by a procedure. It takes machines 0.3.7 from npm, and this import started on 2026-10-18.
 
 ### LAND · The CI records of 2026-10-17 in the corpus
 
@@ -2135,21 +2361,35 @@ The next step: Mark's next page of the item.
 
 ### SYS-58 · Valkey: the accepted writes that a failover loses
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SENTINEL
 - **Started:** 2026-11-03
-- **Shipped:**
-- **Links:** [The law](S3.md#the-first-cell-sys-58)
+- **Shipped:** 2026-11-03
+- **Links:** [The law](S3.md#the-first-cell-sys-58), [cells run 41748466040](https://github.com/mark1russell7/systems/actions/runs/41748466040), [#324](https://github.com/mark1russell7/systems/pull/324)
 
 The results of T12 report lost writes, and no law judges that count. With `min-replicas-to-write 1`, the old primary refuses writes 8.8 s to 12.1 s after a partition. Thus the group loses 140 to 244 writes for each hold, against 1,041 with no setting. A freeze of 40 s loses 0 to 2, against 199. The three cells use the lab of T12, and the harness judges a band of lost writes.
 
+**The result.** All three cells hold, each with 4 counted runs and no void run. The first dispatch needed no fix, and each of the 11 claims of the prediction hit.
+
+| Cell | Fault | Lost writes | The law | First `NOREPLICAS` | The law |
+| --- | --- | --- | --- | --- | --- |
+| `T12.writes.1` | Partition, 40 s | 203 to 231, median 216 | 140 to 244 | 10.264 s to 11.691 s | 8.8 s to 12.162 s |
+| `T12.writes.2` | Partition, 80 s | 205 to 232, median 209.5 | 140 to 244 | 10.366 s to 11.788 s | 8.8 s to 12.162 s |
+| `T12.writes.3` | Freeze, 40 s | 1 in each run | 0 to 2 | 40.053 s to 40.054 s | 40 s to 40.062 s |
+
+- **The count does not read the hold.** Twice the hold changes the median by 6.5 writes.
+- **The setting bounds the loss.** The median partition of 40 s loses 216 writes. The recorded control with no setting lost 1,041, approximately 4.8 times more. That control is from 2026-10-17, and this run did not repeat it.
+- **The old primary stays closed.** It accepts no write after the lift in the 8 counted partition runs. The group keeps none of the 10,415 refused writes.
+- **The freeze keeps its failover time.** The first write on the new primary comes 50.145 s to 50.235 s after the fault, in the band of `T12.defaults.7`.
+- **The bands are wide.** The first refusal uses 1.5 s of the 3.3 s of the law, and only the high part. The low edge can have a term that the law does not give. Two replicas acknowledge on their own phases, and the law takes one. That term is a candidate and no run measures it.
+
 ### SYS-59 · MongoDB: the writes that a rollback takes
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-58
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
@@ -2157,10 +2397,10 @@ The results of T12 report lost writes, and no law judges that count. With `min-r
 
 ### SYS-60 · RabbitMQ: confirmed publishes and duplicates
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-58
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
@@ -2168,10 +2408,10 @@ A quorum queue loses no confirmed message. A republish of an unconfirmed message
 
 ### SYS-61 · PostgreSQL: a COMMIT in flight at the fault
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-58
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
@@ -2179,10 +2419,10 @@ The client cannot know the outcome of a COMMIT with no reply (DV-38). A final re
 
 ### SYS-62 · ioredis: a resend at reconnect duplicates a write
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-58
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
@@ -2190,10 +2430,10 @@ A `SET` hides a duplicate, and an append to one list shows it. Duplicates are at
 
 ### SYS-63 · The accept queue: its count and what a client sees
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** S1
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
@@ -2201,10 +2441,10 @@ The queue holds `min(backlog, somaxconn) + 1` connections. A later SYN meets the
 
 ### SYS-64 · The port range: its count and its error
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** S1
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
@@ -2255,7 +2495,7 @@ The rule of the PgBouncer half: the prediction `sys-65-bouncer` came before any 
 
 ### SYS-66 · The conntrack table: T05 fan-in
 
-- **Status:** later
+- **Status:** blocked
 - **Area:** catalogs
 - **Depends on:** SYS-63
 - **Started:**
@@ -2266,10 +2506,10 @@ New flows drop at `nf_conntrack_max`. The table is global, not for each network 
 
 ### SYS-67 · Retry amplification: an exact count
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** S1
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
@@ -2277,7 +2517,7 @@ The tries of each hop multiply (law O08). T14 counts the tries at the target in 
 
 ### SYS-68 · An open-loop load schedule
 
-- **Status:** later
+- **Status:** blocked
 - **Area:** engines
 - **Depends on:** SYS-67
 - **Started:**
@@ -2310,10 +2550,10 @@ A sustaining retry loop keeps goodput low after the trigger stops. The cells sca
 
 ### SYS-71 · Kafka: the writes at each `acks`
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-58
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
@@ -2321,7 +2561,7 @@ A sustaining retry loop keeps goodput low after the trigger stops. The cells sca
 
 ### SYS-72 · Kafka: a paused consumer
 
-- **Status:** later
+- **Status:** blocked
 - **Area:** catalogs
 - **Depends on:** SYS-71
 - **Started:**
@@ -2332,10 +2572,10 @@ The group rebalances at `session.timeout.ms`, and a stale commit fails with a fe
 
 ### SYS-73 · etcd: a lock holder past its lease
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-58
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
@@ -2343,10 +2583,10 @@ The lease ends at its TTL, and a contender gets the lock. The frozen holder can 
 
 ### SYS-74 · etcd: a watcher after a compaction
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-73
-- **Started:**
+- **Started:** 2026-11-03
 - **Shipped:**
 - **Links:**
 
@@ -2354,33 +2594,456 @@ A resume from a compacted revision fails with a compaction error (DV-44).
 
 ### SYS-75 · etcd: linearizable reads under a partition
 
-- **Status:** waiting on Mark
+- **Status:** blocked
 - **Area:** catalogs
 - **Depends on:** SYS-73, D-CHECKER
 - **Started:**
 - **Shipped:**
 - **Links:**
 
-A linearizable read goes through the quorum, and a serializable read can be stale. A check of this history needs a solver. Mark chooses it in D-CHECKER.
+A linearizable read goes through the quorum, and a serializable read can be stale. A check of this history needs a solver. D-CHECKER chose Porcupine, as a program in CI. This item waits for SYS-73.
+
+### SYS-96 · Each open cell branch takes main, and a stack runs in one dispatch
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** SYS-76
+- **Started:** 2026-11-05
+- **Shipped:**
+- **Links:** [SYS-76](#sys-76--the-environment-of-a-record)
+
+The 12 open cell branches come from before SYS-76. A run from such a branch gives a record with no environment, and rule 1 of `docs/S7.md` asks each record to name its environment. Thus each branch takes main before its dispatch.
+
+The slots of CI limit S3. One dispatch starts at each slot notice, thus 12 dispatches wait for 12 notices. A stacked branch holds the cells of the branches under it, thus one dispatch can run them all.
+
+| Dispatch | Branch | Items | Cells |
+| --- | --- | --- | --- |
+| 1 | `cells/etcd-lease` | SYS-67, SYS-74, SYS-73 | 27 |
+| 2 | `cells/port-range` | SYS-63, SYS-64 | 14 |
+| 3 | `cells/pool-bouncer` | SYS-65 | 10 |
+| 4 | `cells/rabbit-confirms` | SYS-62, SYS-60 | 11 |
+| 5 | `cells/kafka-acks` | SYS-71 | 5 |
+| 6 | `cells/mongo-rollback` | SYS-59 | 3 |
+| 7 | `cells/pg-commit` | SYS-61 | 5 |
+
+The work:
+
+- Merge main into a stack when its dispatch is next. Main moves, and each push of a branch costs a full set of checks.
+- Merge, and do not rebase. The commit of each prediction stays in the history.
+- The resolution of each prediction states that the head moved past its commit.
+- SYS-66 follows SYS-63, and SYS-72 follows SYS-71. Each needs a dispatch of its own.
+
+This item is done when each of the 7 dispatches gives a record that names its environment.
+
+## The items of S7
+
+[The plan of S7](S7.md) gives the layers, the rules of comparison and the first slice. The lines of work are E3 (the fabric) and E4 (the VMs). Targets that need no new layer stand apart.
+
+### SYS-76 · The environment of a record
+
+- **Status:** shipped
+- **Area:** harness
+- **Depends on:** 
+- **Started:** 2026-11-04
+- **Shipped:** 2026-11-04
+- **Links:** [PR 345](https://github.com/mark1russell7/systems/pull/345)
+
+Each record gets a `substrate` block. It gives the layer, the kernel, HZ, the cloud of the runner, the presence of KVM and the image of the runner. The digest of each image stays in the manifest. Since 2026-10-28 GitHub can schedule Linux jobs on AWS and on Azure, thus `runner.txt` names the vendor too.
+
+A paired run and a median stay in one environment. The join of `--pool` refuses two substrates. A δ_abs from stage 0 applies only on Azure, the cloud that measured it. A record with no block reads through `substrateOf`, as the layer of its package, and nothing rewrites it. Its cloud is Azure before 2026-10-28, and unknown after that date.
+
+The first records show the block on a real runner. Kind run 41856630889 of the PR gives `E2 azure 7.0.0-1017-azure`, with the vendor `Microsoft Corporation`, HZ 1000 and KVM present.
+
+### SYS-77 · The first fabric: BFD against the BGP hold timer
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** SYS-76
+- **Started:** 2026-11-04
+- **Shipped:**
+- **Links:** [PR 347](https://github.com/mark1russell7/systems/pull/347)
+
+A client and Redis connect through four FRR routers in containerlab. A bridge repeats a T01 black hole on the fabric, and the band of E1 must hold. A silent drop on the active spine then tests the order of BFD, the BGP hold timer and the retransmissions of TCP. [The first slice](S7.md#the-first-slice-sys-77) has the cells, the law and the prediction.
+
+### SYS-78 · One failed path of an equal-cost set
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-92
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+One path of an equal-cost set drops each packet, while each route stays up. A share of the flows stops, and the rest stay healthy. The cell predicts that share from the hash, and it measures what each client sees.
+
+### SYS-79 · MetalLB and kube-vip in BGP mode
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-77
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+containerlab wires kind nodes to FRR through `ext-container` links. The cells ask for the order of the route withdraw and the drain of a service. A law from these cells can become a rule of `lint()`.
+
+### SYS-80 · Three sites: the writes when a route fails
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-92
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+The replication of PostgreSQL, Valkey, Kafka and etcd crosses routed links with a real delay. A route between sites fails or moves. The cells reuse the laws of S3, with the delay and the convergence as new terms. The systems must fit in 16 GB on one runner.
+
+### SYS-81 · The VM tier: QEMU on a runner, and its bridge
+
+- **Status:** in progress
+- **Area:** harness
+- **Depends on:** SYS-76
+- **Started:** 2026-11-04
+- **Shipped:**
+- **Links:** [#354](https://github.com/mark1russell7/systems/pull/354)
+
+The workflow turns on KVM with a udev rule, and QEMU boots a pinned kernel for each node. The prober runs in the guest. A bridge repeats a set of T01 cells in a VM, and an A/A pair gives the noise of the layer. A runner with no KVM gives a void run. This item starts the VM tier of S4.
+
+The first slice narrows this text. It has one guest, and that guest holds the whole lab, in place of one VM for each node. A bridge cell has no fault that needs a second kernel, and each node costs memory that a runner does not have in quantity. The second node comes with the first fault that needs a second kernel (SYS-83, SYS-84, SYS-85). The disk of a guest is an overlay on one root image, thus that node needs no other build.
+
+### SYS-82 · Each timer band at HZ 100, 250 and 1000, and on two kernels
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-81
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+One set of cells runs on kernels that differ only in HZ, then on two kernel versions. The algebra predicts each band before the run. This is the first direct test of the jiffy terms. The machine documents then name a kernel version.
+
+### SYS-83 · A power-off: the writes in the page cache
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-81
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+QEMU stops a VM with no flush. The cells ask which acknowledged writes each server loses, at each durability setting. A failed `fsync` follows, from a device that fails on request. The checker of S3 judges each history.
+
+### SYS-84 · A step of a clock: leases and locks
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-81
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+Each VM has its own clock, thus a cell can step one clock forward or back. The cells extend SYS-73 from a paused holder to a holder with a wrong clock. The question is which systems depend on a real-time clock for safety.
+
+### SYS-85 · k3s on VMs: the loss of a node
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-81
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+Three VMs run k3s, thus each node has a kernel. A power-off gives the first real loss of a node. The cells repeat the zone-loss cells of S2, and they test the claim that a blocked container stands for a lost node.
+
+### SYS-86 · k3d against kind: one cell on two distributions
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-85
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+A cell that holds on the two distributions tests a law. A cell that holds on one tests that distribution. The differences are the datastore, flannel, ServiceLB and the single process of k3s.
+
+### SYS-87 · Socket.IO: detection, reconnect and recovery
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** 
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+Socket.IO is a target on E1, and it needs no new layer. Its documents give a ping each 25 s, a timeout of 20 s and a reconnect delay of 1 to 5 s. The cells test these under the faults of T01. They also test the delivery of each mode, and the connection state recovery of each adapter.
+
+### SYS-88 · Loro: a merge after a long partition
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-80
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+Loro is a CRDT library with no transport. Its claim is a fast merge of long branches. A cell can measure the merge after a partition between sites, with a harness of its own for the transport.
+
+### SYS-89 · Shadow: an agreement test
+
+- **Status:** later
+- **Area:** harness
+- **Depends on:** 
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+Shadow runs real binaries on its own TCP, thus it says nothing of Linux timers. Its use is an exact replay of application timers at scale. This item runs one etcd cell on Shadow and on E1. It records what agrees, and it decides what Shadow can claim.
+
+### SYS-90 · A vendor router on E5
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-81
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+vrnetlab starts a vendor router in a VM. The cells compare a vendor's defaults with those of FRR and Linux. This item needs more machines than a public runner, and each vendor image has a licence to read. A paid image is a decision for Mark.
+
+### SYS-91 · The cells that time a closed-loop client
+
+- **Status:** in progress
+- **Area:** harness
+- **Depends on:** 
+- **Started:** 2026-11-04
+- **Shipped:**
+- **Links:** [#355](https://github.com/mark1russell7/systems/pull/355)
+
+A closed-loop client hides a stall, because a slow reply delays its next send (Gil Tene, "How NOT to Measure Latency"). This item lists each cell that gives a time or a distribution under load from such a client. A record then keeps the intended send time and the maximum. The fix of a load generator waits for SYS-68.
+
+The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing of each cell, and `pacing.test.ts` holds the counts of this table. A new closed-loop cell fails that test, and the failure names this table.
+
+| Pacing | Cells | What the cell gives | Effect of the pacing |
+| --- | --- | --- | --- |
+| One request | 325 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
+| One gap | 37 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
+| Closed loop, reply times | 11 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
+| Closed loop, first write | 48 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
+| Timer | 222 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
+
+The closed-loop families:
+
+| Family | Cells | Pacing |
+| --- | --- | --- |
+| T01 | 8 | Reply times |
+| CAL | 2 | Reply times |
+| E3.F1 | 1 | Reply times |
+| T11.defaults | 16 | First write |
+| T11.border-off | 10 | First write |
+| T12.defaults | 8 | First write |
+| T12.border-off | 4 | First write |
+| T12.writes | 3 | First write |
+| CAL | 1 | First write |
+| RD.1 | 1 | First write |
+| RD.100 | 2 | First write |
+| RD.1000 | 2 | First write |
+| RD.control | 1 | First write |
+
+What the audit found:
+
+- **No published result is wrong.** The reply-time cells have no band and no gate. No page of the site gives a quantile from these cells as a latency under load. The two calibration times in `topologies.mdx` are times of one crossing with no load, and that is what the terms of those bands need.
+- **Size of the hidden part.** This example is arithmetic, not a measurement. With 1 % loss, one 200 ms stall comes in each 100 requests at a 10 ms pace. A schedule puts approximately 20 sends in that stall, thus approximately 17 % of its sends meet a stall. The closed loop gives 1 % of its samples to the stall.
+- **First writes.** The two records of October have 26 first-write cells, and 20 of them can be compared with a stage of the server. In 7 cells the first write comes at most 17 ms after that stage. In 11 cells it comes 2 to 28 s after, and in 2 cells 173 s after.
+- **Cause of those seconds.** The names and the predictions of the cells point at a blocked request that holds the client until a timer ends it. No cell tests that cause with an open-loop client, and SYS-68 can do this. Each band predicts this client, thus the bands stay true.
+- **Drills.** The writer of a drill sends each 50 ms. The worst restore is 22.95 s of a 900 s budget, and the pacing adds approximately one interval and one reply.
+- **Counts of lost writes.** T12.writes and the drills count the writes at the rate that the client reached. A stall lowers that rate, thus a count is not a count at a planned rate.
+- **Timer cells.** `setInterval` starts each request of a cell of kind. A stalled connection queues requests in its agent, and the wait counts from the tick, thus the time is correct. A stall of the event loop of the client is the only hidden part, because `setInterval` does not catch up.
+
+The maximum is in the record: a verdict of a distribution has `slowest`, the slowest reply of the cell.
+
+The intended send time is not in the record yet. The form `first + n × interval` is wrong for a closed loop: this client cannot drain, thus one stall makes each later request look late. The correct form gives each planned send that falls in a stall the reply that ends the stall. `measureLoad` in `rigor-chaos` does this with a fixed plan, and a local copy breaks the map of homes. That package is not on npm, thus this part waits and this item stays in progress. Each stored record has its `sent` lines and its interval, thus this part can read the old records too.
+
+### SYS-92 · A topology as a graph
+
+- **Status:** later
+- **Area:** harness
+- **Depends on:** SYS-77
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+`Topology` is a chain of hops, thus it cannot name two paths. The first fabric gives its paths in `Topology.fabric`, apart from the chain. This item makes the topology a graph, thus a law can read its paths, and the algebra gets terms for route convergence.
+
+## The items of the scale ladder
+
+A rung is one target at one power of ten, and an automatic test holds it. A number in a document is not a rung. The format of a ladder and `ladderVerdict` are in `rigor-bench`. These two items give the first records in that format, for a public service with no product code. The rungs above 1,000 tenants are not in these items.
+
+**The order against S3 and S7.** SYS-94 comes first. It needs only the set check of SYS-58 and the replica sets of the harness, thus it starts beside the open cells of S3. SYS-93 follows it, because SYS-93 needs the open-loop schedule of SYS-68 and a measured RTO. The dispatch order of S3 and S7 does not change. S7 blocks neither item, and it gives the later drills.
+
+**The items that they share.**
+
+| Item | What SYS-93 takes | What SYS-94 takes |
+| --- | --- | --- |
+| SYS-58 | | The set check that counts each lost write |
+| SYS-59 | The write concern of the store | The replica set lab, and `w: "majority"` as the case with no loss |
+| SYS-61 | | A write with an unknown outcome at the fault, which counts apart |
+| SYS-63, SYS-64, SYS-65 | The limits of the accept queue, the ports and the pool at the rate of a rung | |
+| SYS-68 | The open-loop schedule | |
+| SYS-69, SYS-70 | The border of a stable system, as the capacity of a rung | |
+| SYS-75 | | The checker of histories, if a drill needs more than a set check |
+| SYS-76 | The environment of each record | The environment of each record |
+| SYS-83 | | A later drill: a power-off, with the page cache lost |
+| SYS-80, SYS-85 | The later rungs: zones, and 10,000 tenants on k3s | Later drills: the loss of a site or of a node |
+| SYS-91 | The list of cells that a closed loop times | |
+
+### SYS-93 · A public reference service, and rungs 1 to 1,000 in CI
+
+- **Status:** blocked
+- **Area:** engines
+- **Depends on:** SYS-68, SYS-94
+- **Started:**
+- **Shipped:**
+- **Links:**
+
+This item waits for SYS-68, and SYS-68 waits for the open-loop schedule in `mark1russell7/rigor`.
+
+A public multi-tenant service runs on the stack of this repository: `@mark1russell7/service`, `@procedures/peer` and a MongoDB replica set. It holds documents for each tenant and it sends each change over a socket. It has no product code. A gap in the stack goes to its home, and the service keeps no local copy.
+
+A ladder as data names the rungs 1, 10, 100 and 1,000 tenants. Ten percent of the tenants are active, and at least one is. Each active tenant sends 10 requests each second on an open-loop schedule. Thus the rungs run at 10, 10, 100 and 1,000 requests each second, on one runner. The other tenants are data at rest, and each record says so in `synthetic`.
+
+| Tenants | Availability | RPO | RTO | Requests with no failure that hold the limit |
+| --- | --- | --- | --- | --- |
+| 1 | 99 % | 24 h | 4 h | 381 |
+| 10 | 99.5 % | 1 h | 1 h | 765 |
+| 100 | 99.9 % | 5 min | 30 min | 3,838 |
+| 1,000 | 99.9 % | 1 min | 15 min | 3,838 |
+
+The request counts are the Wilson bound at 95 %. The availability claim has two parts: the calculation from measured failure rates and the RTO of SYS-94, and a run under a chaos schedule. The first measure sets the budgets of a read, a write, a first load, a server start and the noise of a heavy tenant. Each later run holds or improves them. A scheduled workflow and a release check call `ladderVerdict`, and they fail if a locked rung is lost.
+
+The format of a ladder has budgets on a median, a rate and a worst value. The times at p95 and p99 need a new budget kind, in `rigor-bench`.
+
+**The prediction.**
+
+| Claim | Probability |
+| --- | --- |
+| The first dispatch gives a record for each rung, with no fix after it | 0.40 |
+| No request fails at any rung | 0.75 |
+| One runner carries at least 2,000 requests each second | 0.60 |
+| Near capacity, the p99 of an open loop is at least twice that of a closed loop | 0.85 |
+| A heavy tenant at 10 times its share moves the median of the others by less than 50 % | 0.55 |
+| The naive claim: an open and a closed loop agree on the p99 near capacity | 0.08 |
+
+### SYS-94 · Recovery drills: the writes that a restore loses, and the time to service
+
+- **Status:** done
+- **Area:** catalogs
+- **Depends on:** SYS-58
+- **Started:** 2026-11-04
+- **Shipped:** 2026-11-04
+- **Links:** [#352](https://github.com/mark1russell7/systems/pull/352), [the results](https://mark1russell7.github.io/systems/results/recovery/)
+
+A drill stops the store during writes, removes its disk, and recovers from a real backup. A set difference counts each lost write. A timer runs from the fault to the first accepted write. The records go to `ladderVerdict` as `worst` budgets. A restore that nobody tested is not a backup.
+
+| Drill | Store | Fault | Recovery | The law |
+| --- | --- | --- | --- | --- |
+| `RD.1` | One node, with an oplog | Stop, disk lost | A dump with its oplog | Each write after the end of the dump is lost, and no other |
+| `RD.100.failover` | Three members, `w: "majority"` | Stop the primary, disk lost | An election | No accepted write is lost |
+| `RD.100.restore` | Three members, `w: "majority"` | Stop each member, each disk lost | A dump and the slices of the oplog | Each write after the last slice is lost, and no other |
+| `RD.1000.failover` | Three members, `w: "majority"`, 1 GB | Stop the primary, disk lost | An election | No accepted write is lost |
+| `RD.1000.restore` | Three members, `w: "majority"`, 1 GB | Stop each member, each disk lost | A dump and the slices of the oplog | The same law, and the time at a large size |
+| `RD.control` | One node, with an oplog | Stop after the dump, with no later write | A dump with its oplog | No write is lost |
+
+**What is real and what is not.** A drill cannot wait 24 h. The loss of a backup depends on the age of the newest backup at the fault. So a drill shortens the interval to 60 s, and to 10 s for a slice of the oplog. A test reads the schedule of each rung, and the record adds that interval to the measured excess. Each tenant holds 1 MB of generated data, thus the size of a restore follows the rung. The drill starts the recovery at the fault. Thus the measured RTO has no detection time and no human time, and the record says so in `synthetic`.
+
+**Two gaps that a first small restore showed.** A first restore of a small store gave one reading: a service came back approximately 31 s after the fault, on a loaded machine. That time gives a direction only. It showed two gaps:
+
+- **The size.** The time of a restore at a large size is unknown. Thus the rung of 1,000 tenants holds 1 GB, and the three rungs give the time against three sizes. Its budgets are the RPO of 60 s and the RTO of 900 s of SYS-93.
+- **The secrets.** A dump does not hold the secrets of a service. A store alone has no such secret, thus these drills cannot find this gap. The drill of SYS-93 restores the secrets from their own backup, and a request through the service reads a stored credential before the timer stops. That drill is a condition of the rung of SYS-93.
+
+A hash of the data comes before the service starts, because a service writes. The drills of this item hash only the tenants, and the writes of the second client go to another collection.
+
+**The prediction.**
+
+| Claim | Probability |
+| --- | --- |
+| The first dispatch gives 4 counted runs of each drill, with no fix after it | 0.45 |
+| In `RD.1` and `RD.100.restore`, the restored writes are an unbroken prefix of the accepted writes | 0.85 |
+| In `RD.1`, the lost writes are the count after the end of the dump, within 2 writes | 0.75 |
+| `RD.100.restore` loses at most the writes of one slice, plus the writes in flight | 0.70 |
+| `RD.100.failover` loses no accepted write | 0.92 |
+| `RD.100.failover` serves a write again within 15 s of the fault | 0.70 |
+| `RD.control` loses no write | 0.95 |
+| Each measured RTO is at most a tenth of the budget of its rung | 0.90 |
+| The naive claim: an acknowledged write survives a restore | 0.03 |
+
+**The result.** The run [41896338150](https://github.com/mark1russell7/systems/actions/runs/41896338150) at commit 779d47e, on kernel 7.0.0 with HZ 1000, gave a verdict on the first dispatch. Each of the 6 drills holds in 4 of 4 counted runs, with no void run and no fix to a drill.
+
+| Rung | RPO budget | Worst RPO | RTO budget | Worst RTO | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| Rung 1 | 24 h | 23 h | 4 h | 2.65 s | holds |
+| Rung 100 | 5 min | 4 min | 30 min | 16.42 s | holds |
+| Rung 1000 | 60 s | 44.8 s | 15 min | 22.95 s | holds |
+
+- **The law.** Each restore lost real writes: 1,155 to 1,157 in `RD.1`, and 173 to 191 in the two restores of slices. In each run, the lost writes are equal to the writes after the last backup, and no restore left a hole. Each hash of the data after a restore is equal to the hash before the fault.
+- **The copies.** Each election lost no accepted write, at 100 MB and at 1 GB. `RD.control` lost no write.
+- **The miss.** The prediction of the large size gave a ratio of 3 to 12 between the restores of 1 GB and 100 MB. The ratio is 1.44. The naive claim of a ratio under 1.5 was right. A fixed part is large at these sizes: three members start, the set starts again, and an election follows. The records do not split that part. Two sizes give no law for a far larger store.
+- **The first small restore.** Its 31 s and the 15 s to 22 s of these drills are on different machines, under different load. They agree only on the order of size.
+- **The lock.** Each rung is locked. Each Sunday, the workflow Cells repeats the drills, and a step fails that run when a rung is not within its budgets. A check of this step with a budget of 44 s failed with exit code 1 on these records. A test on each pull request reads the last record against the budgets. The first scheduled run is on 2026-11-08, and it has not run yet.
+
+### SYS-97 · A third size of a restore
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-94
+- **Started:**
+- **Shipped:**
+- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service)
+
+The restores of 100 MB and 1 GB differ by a ratio of 1.44, and the forecast was 3 to 12. A fixed part is large at these sizes. Two sizes give no law for a far larger store. Thus no claim on the page goes past 1 GB until a third size has a record.
+
+The work:
+
+- Read the free disk and the memory of a runner in the job of the drill. Three members, a dump and the slices take approximately 4 times the size of the data.
+- Try 8 GB. If a runner cannot hold it, the drill ends as void and names the reason, and the page states the limit.
+- Write the prediction first. It gives the ratio to the 1 GB restore, and the fixed part from a fit of the three sizes.
+- Add the drill to the Sunday cells, if the job stays within its time limit.
+
+### SYS-98 · Recovery rungs 10 and 10,000
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-94, SYS-97, SYS-85
+- **Started:**
+- **Shipped:**
+- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service)
+
+SYS-94 holds rungs 1, 100 and 1,000. The next two rungs have different costs, thus they have different dates.
+
+- **Rung 10.** One process with an hourly backup, an RPO of 1 h and an RTO of 1 h. It is the law of `RD.1` on another schedule, and it runs on one runner. It needs only SYS-94.
+- **Rung 10,000.** An RPO of 10 s and an RTO of 5 min, on k3s with shards of synthetic tenants. It needs SYS-85 for its place and SYS-97 for the size of its restore. It has no date until SYS-85 has one, because a rung counts only at its own place.
+
+A recovery rung says nothing of the load that a design holds. SYS-93 holds that part.
 
 ## Decisions for Mark
 
 ### D-CHECKER · The checker of linearizability and of transactions
 
-- **Status:** waiting on Mark
+- **Status:** done
 - **Area:** decisions
 - **Depends on:** S3
 - **Started:** 2026-11-03
-- **Shipped:**
+- **Shipped:** 2026-11-03
 - **Links:** [The plan of S3](S3.md#the-choice-of-a-checker)
 
-Q17 needs no solver, because a set difference gives its answers. SYS-75 needs a check of linearizability. A later transactional cell needs Elle. Each one is a choice of language for a core piece, thus Mark chooses.
+Q17 needs no solver, because a set difference gives its answers. SYS-75 needs a check of linearizability. A later transactional cell needs Elle.
+
+The choice: Option A, Porcupine, for SYS-75. It is a tool of CI and not a core piece: no package links it, and the repository already builds Go images. Check its license when SYS-75 adds it. The home of a general checker of histories is `mark1russell7/rigor`. Until rigor has it, the checker stays in its own folder of this repository, with no import of the code of this repository. Thus it can move whole.
 
 - **Option A:** Porcupine, in Go. CI runs it as a program over each exported history. The harness already builds Go images.
 - **Option B:** Elle, in Clojure, with Jepsen on the JVM. It also checks transactions.
 - **Option C:** A checker in TypeScript, from the algorithm of Wing, Gong and Lowe. It adds no toolchain, but the program must prove a new solver.
 
-The recommendation: Option A for SYS-75. Add Elle only when a transactional system joins a cell. No item before SYS-75 waits for this choice.
+Add Elle only when a transactional system joins a cell. That is a new choice.
 
 ### D-IDENTITY · A scenario identity without the defaults
 
@@ -2395,7 +3058,7 @@ A catalog cell gives each knob, and a compiled cell gives only the knobs that it
 
 Decided on 2026-10-19: the identity of a scenario holds only the settings that differ from the defaults of the documents. It is the more general choice: one scenario is one entity, in each form of a cell.
 
-Built in jarvis and merged on 2026-10-20. A setting leaves the identity only when a document names its key and its value is the default of that document. These documents are linux-tcp for the sysctls, and each server document for its settings. The projection after the merge gave each landed run its new id, and no file named an old one.
+Built in the private repository and merged on 2026-10-20. A setting leaves the identity only when a document names its key and its value is the default of that document. These documents are linux-tcp for the sysctls, and each server document for its settings. The projection after the merge gave each landed run its new id, and no file named an old one.
 
 ### D-EXTEND · A verdict for a late propagation in kind
 
@@ -2421,7 +3084,7 @@ Decided on 2026-10-19: such a cell is `extend`. The run agrees with the law, and
 
 The last step of S0. The options document of R2 lands where the app runs. A second landing does no harm.
 
-Mark's answer of 2026-10-19: yes. The jarvis session landed it on 2026-10-20: the artifact "The systems the harness runs", from `@jarvis/systems-pages` built at the main of jarvis.
+Mark's answer of 2026-10-19: yes. It landed on 2026-10-20: the artifact "The systems the harness runs", built from the main branch of the private repository.
 
 ### D-REVIEW · The judgments of 2026-10-16 and 2026-10-17
 
@@ -2434,4 +3097,4 @@ Mark's answer of 2026-10-19: yes. The jarvis session landed it on 2026-10-20: th
 
 The mechanisms of MongoDB, the name of the step-down window, the ack delay as a mechanism, and the first version of `@mark1russell7/machines`.
 
-Mark's answer of 2026-10-19: keep each of them, as `decisions.md` in jarvis records them.
+Mark's answer of 2026-10-19: keep each of them, as a private decision record tells.

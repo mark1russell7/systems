@@ -61,14 +61,14 @@ export const SET_DEFAULTS: Readonly<Record<string, number>> = {
   catchUpTakeoverDelayMillis: 30000,
 };
 
-/** This function gives the replica set of three members of T11, with its settings over the defaults. */
-export const replicaSetOf = (settings: Readonly<Record<string, number>> = {}): ReplicaSet => ({
+/** This function gives the replica set of T11, with its settings over the defaults. It has three members, unless a caller names others. */
+export const replicaSetOf = (settings: Readonly<Record<string, number>> = {}, members: readonly string[] = ["m1", "m2", "m3"]): ReplicaSet => ({
   name: SET_NAME,
   image: MONGO_IMAGE,
   programs: { server: "mongod", shell: "mongosh" },
   args: SERVER_ARGS,
   port: 27017,
-  members: ["m1", "m2", "m3"],
+  members,
   settings: { ...SET_DEFAULTS, ...settings },
   ready: "Waiting for connections",
 });

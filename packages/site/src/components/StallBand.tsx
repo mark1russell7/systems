@@ -18,7 +18,7 @@ import s2StallBand from "../data/s2-stall-band-2026-10-28.json";
 import s2StallCilium from "../data/s2-stall-cilium-2026-10-27.json";
 import { count, countTicks, spacedLabels } from "../lib/format.ts";
 import { kindCellId } from "./RunResults.tsx";
-import { useWidth } from "./Strip.tsx";
+import { LANES, lanesOf, useWidth } from "./Strip.tsx";
 import { VerdictIcon } from "./Verdict.tsx";
 
 /** The dataplanes of the stall cells of C, in the sequence of the kind page. */
@@ -131,9 +131,9 @@ const GAP = 3;
 const AFTER = 10;
 const BLOCK = HEAD + BAR + GAP + BAR + AFTER;
 const DOT = 4;
+/** the distance between two lanes of dots */
+const LANE = 7;
 const MISS = 6;
-/** the offsets of the lanes from the middle of a bar, in the sequence that the dots fill them */
-const LANES = [0, -7, 7] as const;
 const REACH = 16;
 /** the width of one character in the mono font at 11 px */
 const CHARACTER = 6.7;
@@ -141,20 +141,6 @@ const CHARACTER = 6.7;
 /** The ranges of the axis: the whole band, or its top end, where the two bands end. */
 const RANGES = { whole: { from: 0, label: "The whole band" }, top: { from: 1400, label: "The top end" } } as const;
 type Range = keyof typeof RANGES;
-
-/** This function puts each dot of a bar on a lane: the first lane where it does not cover a dot before it. */
-const lanesOf = (xs: readonly number[]): number[] => {
-  const order = xs.map((x, n) => ({ x, n })).sort((a, b) => a.x - b.x);
-  const last = LANES.map(() => -Infinity);
-  const lane = new Array<number>(xs.length).fill(0);
-  for (const { x, n } of order) {
-    const free = last.findIndex((at) => x - at >= 2 * DOT + 2);
-    const k = free >= 0 ? free : last.indexOf(Math.min(...last));
-    lane[n] = k;
-    last[k] = x;
-  }
-  return lane;
-};
 
 interface Dot {
   readonly run: BandRun;
@@ -186,9 +172,12 @@ function Chart(props: { readonly modes: readonly ModeBands[]; readonly range: Ra
     const top = row * BLOCK + HEAD;
     return (["before", "after"] as const).flatMap((copy, bar) => {
       const shown = bands.runs.filter((run) => run.copy === copy && run.value >= from);
-      const lanes = lanesOf(shown.map((run) => x(run.value)));
+      const lanes = lanesOf(
+        shown.map((run) => x(run.value)),
+        2 * DOT + 2,
+      );
       const middle = top + bar * (BAR + GAP) + BAR / 2;
-      return shown.map((run, n): Dot => ({ run, bands, x: x(run.value), y: middle + LANES[lanes[n] ?? 0]!, miss: outOfBand(run) }));
+      return shown.map((run, n): Dot => ({ run, bands, x: x(run.value), y: middle + LANES[lanes[n] ?? 0]! * LANE, miss: outOfBand(run) }));
     });
   });
   const hidden = modes.flatMap((bands) => bands.runs).filter((run) => run.value < from).length;

@@ -116,7 +116,7 @@ export const SERVICE_RULES: readonly string[] = [
  *   `Retry-After` of the policy. Otherwise a caller that does not read the header sends again too
  *   early, and the limiter refuses each early call again.
  *
- * The identifiers O29 and O30 are provisional. The corpus of the law in jarvis (R3, track B) has 28
+ * The identifiers O29 and O30 are provisional. The private corpus of the law (R3, track B) has 28
  * rules, O01 to O28. It does not have these two rules yet, thus they take the next two identifiers.
  */
 export const LIMITER_RULES: readonly Rule[] = [

@@ -33,8 +33,8 @@ export const SENTINEL_DEFAULTS: Readonly<Record<string, string>> = {
   "parallel-syncs": "1",
 };
 
-/** This function gives the group of T12: three members and three Sentinels of Valkey 9.1.2, quorum 2, with the settings of each Sentinel. */
-export const group = (sentinelSettings: Readonly<Record<string, string>> = SENTINEL_DEFAULTS): Group => ({
+/** This function gives the group of T12: three members and three Sentinels of Valkey 9.1.2, quorum 2. The settings are arguments. */
+export const group = (sentinelSettings: Readonly<Record<string, string>> = SENTINEL_DEFAULTS, memberSettings: Readonly<Record<string, string>> = MEMBER_SETTINGS): Group => ({
   name: "mymaster",
   image: VALKEY_IMAGE,
   programs: { server: "valkey-server", sentinel: "valkey-sentinel", cli: "valkey-cli" },
@@ -43,7 +43,7 @@ export const group = (sentinelSettings: Readonly<Record<string, string>> = SENTI
   members: ["m1", "m2", "m3"],
   sentinels: ["s1", "s2", "s3"],
   quorum: 2,
-  memberSettings: MEMBER_SETTINGS,
+  memberSettings,
   sentinelSettings,
   ready: { member: "Ready to accept connections", sentinel: "+monitor master" },
 });
@@ -64,7 +64,7 @@ export const GROUP_TARGET: Target = { image: VALKEY_IMAGE, port: 6379, ready: "R
 export const STAMPS: Quantity = { value: 1.003, unit: "ms" };
 
 /** This interval is the pause of the stream of writes after each reply: 50 ms. */
-const INTERVAL_MS = 50;
+export const INTERVAL_MS = 50;
 
 // ---------------------------------------------------------------------------------------------
 // the composition: the stages of the group from the Sentinel document, then the client
@@ -280,6 +280,8 @@ export interface T12Spec {
   readonly coordinated?: boolean;
   /** These are the settings of each Sentinel, when they are not the defaults. */
   readonly sentinel?: Readonly<Record<string, string>>;
+  /** These are the settings of each member, when they are not the defaults. */
+  readonly member?: Readonly<Record<string, string>>;
   /** This text is the reason that the cell is measurement-only. */
   readonly why?: string;
   /** This flag marks the calibration of the stamps: the prober watches the Sentinels too. */
@@ -287,13 +289,13 @@ export interface T12Spec {
 }
 
 /** This time is the hold of a fault whose failover the group completes before the fault lifts. */
-const HOLD = 40;
+export const HOLD = 40;
 /** This time is the window of a measurement-only cell: the move of a pinned client after its fault lifts. */
 const MEASURED_WINDOW = 120;
 
 const PRIMARY: GroupPlace = { role: "primary" };
 /** This reason is why a client that stays on its old primary through the fault has no band. */
-const PINNED =
+export const PINNED =
   "the client stays on the old primary while the fault holds: ioredis has no timer for the group, and its write waits. After the lift, the old primary is a replica again only when a Sentinel reaches it, on the SYN backoff of its kernel, from a time that no document gives";
 
 /** These are the cells of T12 over valkey-9.1-sentinel: each trigger at each position that the plan names, then the border points. */
@@ -493,7 +495,7 @@ export const t12Cell = (spec: T12Spec): Cell => ({
   probe: { mode: "stream", keepalive: false, interval: ms(INTERVAL_MS), driver: { name: "ioredis", keepAlive: s(30) } },
   fault: spec.fault,
   ...(spec.at === undefined ? {} : { faultAt: spec.at }),
-  group: group(spec.sentinel),
+  group: group(spec.sentinel, spec.member),
   ...(spec.hold === undefined ? {} : { hold: s(spec.hold) }),
   ...(spec.stall === undefined ? {} : { stall: s(spec.stall) }),
   ...(spec.coordinated === true ? { coordinated: true } : {}),

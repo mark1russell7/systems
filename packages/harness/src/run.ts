@@ -1,7 +1,9 @@
 import { valueIn } from "@mark1russell7/quantity";
 import type { Cell, FaultPlace, KernelRecord, ProbeEvent, Run } from "./cell.ts";
 import { isHopPlace, latestEndOf, requestFirst } from "./cell.ts";
+import { drillOnce } from "./drill.ts";
 import { longestOf, settled as driverSettled } from "./driver.ts";
+import { laterMove } from "./fabric.ts";
 import { groupOnce, openGroupLab } from "./group.ts";
 import type { FaultOptions, Lab, Manifest, Probe } from "./lab.ts";
 import { openLab } from "./lab.ts";
@@ -9,6 +11,7 @@ import type { Measured } from "./observe.ts";
 import { jitterOf, measure, socketOf } from "./observe.ts";
 import { openReplicaSetLab, replicaSetOnce } from "./replset.ts";
 import { clusterOnce, openClusterLab } from "./cluster.ts";
+import { readCpu, stealShare } from "./substrate.ts";
 import type { Verdict } from "./verdict.ts";
 import { STEPS, noiseOf, verdictOf } from "./verdict.ts";
 
@@ -220,6 +223,8 @@ const requestSent = (probe: Probe, within: number): Promise<ProbeEvent> =>
 
 /** This time is how long a run of a driver cell continues after its outcome, so that the record shows what came next. */
 const TAIL_MS = 1_000;
+/** This time lets the last lines of a route monitor reach the harness after a stall ends. */
+const MONITOR_MS = 200;
 
 /** This function waits for the outcome of a run of a driver cell, or for `within` ms. The outcome is the end of its band and of each later band. */
 const driverOutcome = async (cell: Cell, current: () => Run, within: number): Promise<void> => {
@@ -343,6 +348,10 @@ const once = async (
   dry = false,
 ): Promise<Run> => {
   if (cell.before === true) return beforeOnce(lab, cell, environment, index);
+  // a silence of the run before moved the routes: each run starts on the preferred path, with each session up
+  await lab.fabric?.ready();
+  const sessions = await lab.fabric?.sessions();
+  const routesFrom = lab.fabric?.routes.length ?? 0;
   // each run starts from kernels that keep nothing from the runs before it
   await lab.forget();
   const from = lab.kernel.length;
@@ -361,6 +370,10 @@ const once = async (
       throw new Error(`${(error as Error).message}; the client's last lines: ${last.join(" ")}`);
     });
   const placed = lab.topology === null ? {} : { topology: lab.topology };
+  const fabricOf = () => {
+    if (lab.fabric === undefined) throw new Error(`${cell.name} silences a router of a lab with no fabric`);
+    return lab.fabric;
+  };
   /** This function gives the run as the records show it so far: the waits read it. */
   const partial = (): Run => ({
     environment,
@@ -469,6 +482,8 @@ const once = async (
           case "server-close":
             await lab.serverClose();
             return null;
+          case "silence":
+            return fabricOf().silence();
           case "hop-event": {
             if (cell.event === undefined) throw new Error(`${cell.name} names no event`);
             const stamp = await lab.event(cell.event);
@@ -530,6 +545,9 @@ const once = async (
           case "toxic":
             await lab.toxic(null);
             return undefined;
+          case "silence":
+            await fabricOf().clear();
+            return undefined;
           default:
             return heal === null ? lab.lift("blackhole", faultAt) : undefined;
         }
@@ -567,6 +585,15 @@ const once = async (
               : await requestSent(probe, 5_000);
           heal = await lab.heal(faultAt, sent.t + valueIn(cell.stall, "s") * 1e9);
           await probe.until(["data", "error", "eof", "drop"], window * 1_000).catch(() => undefined);
+        } else if (cell.fault === "silence") {
+          // the routers end this stall: the later move of the two leaves is its end. The verdict of a
+          // stall reads it, thus a move outside the band of the cell makes the run void
+          const window = valueIn(prediction.detects ? prediction.high : prediction.window, "s");
+          await requestSent(probe, 5_000);
+          await probe.until(["data", "error", "eof", "drop"], window * 1_000).catch(() => undefined);
+          await sleep(MONITOR_MS);
+          const moved = laterMove(fabricOf().routes.slice(routesFrom), fault?.t0 ?? 0);
+          heal = moved === null ? null : { t0: moved, t1: moved };
         } else if (prediction.detects === null) {
           // a distribution: the stream ends by itself, or the connection does
           const window = valueIn(prediction.window, "s") * 1_000;
@@ -615,7 +642,7 @@ const once = async (
     index,
     events: [...probe.events],
     fault,
-    ...(cell.fault === "stall" || thawing !== null ? { heal } : {}),
+    ...(cell.fault === "stall" || cell.fault === "silence" || thawing !== null ? { heal } : {}),
     kernel: lab.kernel.slice(from),
     netns: lab.netns.client,
     targetNetns: lab.netns.target,
@@ -623,6 +650,9 @@ const once = async (
     ...placed,
     ...(lab.topology === null ? {} : { middlebox: lab.middlebox.slice(middleboxFrom) }),
     ...(cell.target.lines === true ? { server: lab.server.slice(serverFrom) } : {}),
+    ...(lab.fabric === undefined || sessions === undefined
+      ? {}
+      : { fabric: { routes: lab.fabric.routes.slice(routesFrom), established: { before: sessions, after: await lab.fabric.sessions() } } }),
   };
 };
 
@@ -645,6 +675,15 @@ const line = (cell: Cell, run: Run, read: Measured): string =>
   `${cell.name}: env ${run.environment} ${run.warmup === true ? "warm-up" : `run ${run.index}`} ${read.outcome.kind}` +
   `${read.elapsed === null ? "" : ` ${read.elapsed.value} s`}` +
   `${read.void === null ? "" : ` (void: ${read.void})`}`;
+
+/** This function adds to a run the share of the CPU that the host took while the run operated. */
+const withSteal = async (work: () => Promise<Run>): Promise<Run> => {
+  const before = readCpu();
+  const run = await work();
+  const after = readCpu();
+  const steal = before === null || after === null ? null : stealShare(before, after);
+  return steal === null ? run : { ...run, steal };
+};
 
 /**
  * This function does the part of the runs of a cell in one environment, and records its manifest.
@@ -682,12 +721,12 @@ const inEnvironment = async (
     const manifest = await lab.manifest(await lab.sysctl(cell.sysctls), settings, targetSysctls);
     // each run records the jitter of its program, which sets the window of its pairings
     const timed = (run: Run): Run => ({ ...run, jitter: jitterOf(cell, run) });
-    const warmed = timed(await once(lab, cell, environment, -1, endsEnvironment(cell)));
+    const warmed = timed(await withSteal(() => once(lab, cell, environment, -1, endsEnvironment(cell))));
     const warmup: Run = { ...warmed, warmup: true };
     say(line(cell, warmup, measure(cell, warmup)));
     const runs: Run[] = [];
     for (let index = 0; index < count; index += 1) {
-      const run = timed(await once(lab, cell, environment, index));
+      const run = timed(await withSteal(() => once(lab, cell, environment, index)));
       runs.push(run);
       say(line(cell, run, measure(cell, run)));
     }
@@ -736,15 +775,16 @@ const inReplicaSetEnvironment = async (
   count: number,
   say: (line: string) => void,
 ): Promise<{ manifest: Manifest; runs: Run[]; warmup: Run }> => {
-  const lab = await openReplicaSetLab(cell.replicaSet!);
+  const lab = await openReplicaSetLab(cell.replicaSet!, cell.drill !== undefined);
+  const once = cell.drill === undefined ? replicaSetOnce : drillOnce;
   try {
     const manifest = await lab.manifest(await lab.sysctl(cell.sysctls));
-    const warmed = await replicaSetOnce(lab, cell, environment, -1);
+    const warmed = await once(lab, cell, environment, -1);
     const warmup: Run = { ...warmed, warmup: true };
     say(line(cell, warmup, measure(cell, warmup)));
     const runs: Run[] = [];
     for (let index = 0; index < count; index += 1) {
-      const run = await replicaSetOnce(lab, cell, environment, index);
+      const run = await once(lab, cell, environment, index);
       runs.push(run);
       say(line(cell, run, measure(cell, run)));
     }

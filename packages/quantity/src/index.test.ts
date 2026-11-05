@@ -23,7 +23,7 @@ import {
 import { extentSchema, isQuantitySchema, quantitySchema, unitSchema } from "./schema.ts";
 
 describe("units", () => {
-  it("converts exactly by rational factors (SYSTEMS.md §9)", () => {
+  it("converts exactly by rational factors", () => {
     // keepalive at the defaults: 7200 s + 9 × 75 s
     expect(convert(quantity(7875, "s"), "min").value).toBe(131.25);
     expect(convert(quantity(1, "mi"), "km").value).toBe(1.609344);

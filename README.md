@@ -6,7 +6,7 @@ The site is at [mark1russell7.github.io/systems](https://mark1russell7.github.io
 
 ## Where the code lives
 
-The engines of the program are packages in this repository, and each package goes to npm under `@mark1russell7`. The corpus stays in jarvis, because it is a part of a larger graph. The site holds a copy of the results that it shows, and tests hold each copy to its figures.
+The engines of the program are packages in this repository, and each package goes to npm under `@mark1russell7`. The corpus stays in a private repository, because it is a part of a larger graph. The site holds a copy of the results that it shows, and tests hold each copy to its figures.
 
 ## Packages
 
