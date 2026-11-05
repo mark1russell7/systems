@@ -4,6 +4,7 @@ import starlight from "@astrojs/starlight";
 import { defineConfig } from "astro/config";
 import { fileURLToPath } from "node:url";
 import { writeSiteKpi } from "./src/lib/kpi.ts";
+import { writeSiteStamps } from "./src/lib/stamps.ts";
 
 const base = process.env.SITE_BASE ?? "/systems";
 
@@ -15,12 +16,21 @@ const kpi = {
   },
 };
 
+/** This integration adds `data-stamps.json` to the built site. The gate of the Pages workflow reads it. */
+const stamps = {
+  name: "site-stamps",
+  hooks: {
+    "astro:build:done": ({ dir }) => writeSiteStamps(fileURLToPath(dir), fileURLToPath(new URL("./src/data/", import.meta.url))),
+  },
+};
+
 export default defineConfig({
   site: "https://mark1russell7.github.io",
   base,
   trailingSlash: "ignore",
   integrations: [
     kpi,
+    stamps,
     starlight({
       title: "systems",
       description: "How long until a client knows that its peer is gone, computed and then measured.",

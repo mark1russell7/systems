@@ -49,6 +49,7 @@ jobs:
       # The site check: a browser opens each page at 360, 400 and 1280 px, in light and dark, before the deploy.
       # A failure stops the deploy.
       site-check: true
+      data-stamps: packages/site/dist/data-stamps.json
       site-check-pages: /,/releases/,/status/
       # The probe drives the detection lab of the home page. The check reads the TypeScript source and removes its types.
       site-check-probe: packages/site/src/check-probe.ts
