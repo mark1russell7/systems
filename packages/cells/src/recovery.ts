@@ -115,6 +115,12 @@ const WHOLE_RESTORE = "the time of a restore, from the fault to the first accept
 const AGE_OF_A_DUMP = s(60);
 const AGE_OF_A_SLICE = s(10);
 const AT_REST = s(5);
+/**
+ * The drill of 8 GB is not a rung, thus it has no budget of its own. It is the largest size on the way
+ * to the rung of 10,000 tenants, and the band is the whole budget of that rung. The time of a run comes
+ * from the fit of the three sizes, not from this band. A runner that cannot hold the drill voids it.
+ */
+const THIRD_SIZE_BAND = { low: s(0), high: s(300) };
 const { electionTimeoutMillis, heartbeatIntervalMillis } = SET_DEFAULTS as { readonly electionTimeoutMillis: number; readonly heartbeatIntervalMillis: number };
 
 /** These are the recovery drills. */
@@ -167,6 +173,16 @@ export const RECOVERY_CELLS: readonly Cell[] = [
     failover: false,
     lost: { low: 1, high: writesIn(AGE_OF_A_SLICE) },
     band: restoreBand(rungNamed("1000")),
+    what: WHOLE_RESTORE,
+  }),
+  drillCell({
+    name: "RD.8000.restore three members, each disk lost, 8 GB, a dump and slices of the oplog: the third size, for the law of the time of a restore",
+    members: THREE_MEMBERS,
+    drill: { tenants: 8_000, perTenant: TENANT, slices: 3, sliceEvery: AGE_OF_A_SLICE, age: AGE_OF_A_SLICE, recovery: "restore" },
+    lands: "same",
+    failover: false,
+    lost: { low: 1, high: writesIn(AGE_OF_A_SLICE) },
+    band: THIRD_SIZE_BAND,
     what: WHOLE_RESTORE,
   }),
   drillCell({

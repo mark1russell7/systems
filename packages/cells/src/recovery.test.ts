@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import type { GroupReading } from "@mark1russell7/harness";
+import { measureGroup, type GroupReading, type Run } from "@mark1russell7/harness";
 import { valueIn } from "@mark1russell7/quantity";
 import { checkLadder, ladderVerdict, type RungRecord } from "@mark1russell7/rigor-bench";
 import { describe, expect, it } from "vitest";
@@ -117,7 +117,38 @@ describe("the ladder of recovery", () => {
 describe("the drills", () => {
   it("are in the catalog, with a name of their own", () => {
     for (const cell of RECOVERY_CELLS) expect(ALL).toContain(cell);
-    expect(RECOVERY_CELLS.map((cell) => cell.name.split(" ")[0])).toEqual(["RD.1", "RD.100.failover", "RD.100.restore", "RD.1000.failover", "RD.1000.restore", "RD.control"]);
+    expect(RECOVERY_CELLS.map((cell) => cell.name.split(" ")[0])).toEqual([
+      "RD.1",
+      "RD.100.failover",
+      "RD.100.restore",
+      "RD.1000.failover",
+      "RD.1000.restore",
+      "RD.8000.restore",
+      "RD.control",
+    ]);
+  });
+
+  it("holds the third size outside the rungs, with the whole budget of the next rung as its band", () => {
+    const third = named("RD.8000.restore");
+    expect(third.drill).toMatchObject({ tenants: 8_000, slices: 3, recovery: "restore" });
+    expect(RECOVERY_RUNGS.map((rung) => rung.drill)).not.toContain("RD.8000.restore");
+    if (third.prediction.detects !== true) throw new Error("a detection");
+    expect(valueIn(third.prediction.high, "s")).toBe(300);
+  });
+
+  it("voids a run that the runner cannot hold, with the reason", () => {
+    const third = named("RD.8000.restore");
+    const room = { usable: { value: 9, unit: "B" }, needs: { value: 10, unit: "B" }, memory: { value: 1, unit: "B" }, peak: null };
+    const run = {
+      environment: 0,
+      index: 0,
+      events: [],
+      fault: null,
+      kernel: [],
+      lost: 0,
+      group: { members: {}, sentinels: {}, primary: "m1", at: "m1", timeline: [], after: null, holds: null, drill: { room, backups: [] } },
+    } as unknown as Run;
+    expect(measureGroup(third, run).void).toBe("the runner cannot hold the drill: 9 B of disk are usable, and the drill needs 10 B");
   });
 
   it("starts an election above the election timeout less a heartbeat, and it gives a restore a tenth of its budget", () => {

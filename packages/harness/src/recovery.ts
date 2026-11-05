@@ -1,6 +1,6 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { valueIn } from "@mark1russell7/quantity";
-import type { Drill, ProbeEvent, ReplicaSet, Run } from "./cell.ts";
+import type { Drill, ProbeEvent, ReplicaSet, Run, RunRoom } from "./cell.ts";
 import type { Writes } from "./timeline.ts";
 
 /**
@@ -21,8 +21,57 @@ export const LOSS_MARGIN = 2;
 /** This time is how long a script waits for a server to stop, in tenths of a second. */
 const STOP_TENTHS = 600;
 
+/** This part of the free disk is the oplog of one member. A server with no setting takes 5 % of its free disk. */
+const OPLOG_SHARE = 0.05;
+/** This part of the data is the room for the journal, the indexes and the slices. */
+const DISK_ROOM = 0.1;
+/** This rate is the slowest first sync that a drill waits for, in bytes each second. */
+const SLOWEST_FIRST_SYNC = 10_000_000;
+
 /** This function gives the time of a drill from the start of the backups to the fault, in seconds. */
 export const drillSpan = (drill: Drill): number => drill.slices * valueIn(drill.sliceEvery, "s") + valueIn(drill.age, "s");
+
+/** This function gives the size of the generated data of a drill, in bytes. */
+export const drillBytes = (drill: Drill): number => drill.tenants * valueIn(drill.perTenant, "B");
+
+/**
+ * This function gives the disk of a drill at its peak, in bytes. Each member holds the data, and the
+ * dump holds it once more. Each member also keeps the seed in its oplog, up to the cap of that oplog.
+ */
+export const diskNeeded = (drill: Drill, members: number, usable: number): number => {
+  const bytes = drillBytes(drill);
+  return Math.ceil((members + 1) * bytes * (1 + DISK_ROOM) + members * Math.min(bytes, usable * OPLOG_SHARE));
+};
+
+/** This function gives the longest wait for the first sync of a drill after a restore, in ms. */
+export const firstSyncWithin = (drill: Drill): number => Math.ceil((drillBytes(drill) / SLOWEST_FIRST_SYNC) * 1_000);
+
+/** This script prints the free disk that holds the data of a box, in bytes. */
+export const FREE_SCRIPT: string = "df -B1 --output=avail /data/db | tail -n 1";
+
+/** This script prints the bytes that the data of a member holds. A file can go during the read, thus an error of `du` does not stop a run. */
+export const HELD_SCRIPT: string = "du -sb /data/db 2>/dev/null || true";
+
+/** This function gives the first number of the output of `df` or `du`. Output with no number gives zero. */
+export const bytesIn = (text: string): number => {
+  const found = /\d+/.exec(text);
+  return found === null ? 0 : Number(found[0]);
+};
+
+/** This function gives the available memory from the text of `/proc/meminfo`, in bytes. */
+export const availableMemory = (text: string): number => {
+  const found = /^MemAvailable:\s+(\d+) kB$/m.exec(text);
+  if (found === null) throw new Error("/proc/meminfo has no line MemAvailable");
+  return Number(found[1]) * 1_024;
+};
+
+/** This function gives the reason that a run of a drill is void because of its runner, or null if the runner holds the drill. */
+export const roomVoid = (room: RunRoom | undefined): string | null => {
+  if (room === undefined) return null;
+  const usable = valueIn(room.usable, "B");
+  const needs = valueIn(room.needs, "B");
+  return usable >= needs ? null : `the runner cannot hold the drill: ${usable} B of disk are usable, and the drill needs ${needs} B`;
+};
 
 /**
  * This script writes the generated data of each tenant into the collection `tenants`. Each write

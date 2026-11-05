@@ -57,6 +57,7 @@ export type {
   Run,
   RunBackup,
   RunDrill,
+  RunRoom,
   RunGroup,
   RunPart,
   RunFabric,

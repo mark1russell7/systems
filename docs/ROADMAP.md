@@ -2960,10 +2960,10 @@ A hash of the data comes before the service starts, because a service writes. Th
 
 ### SYS-97 · A third size of a restore
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** catalogs
 - **Depends on:** SYS-94
-- **Started:**
+- **Started:** 2026-11-05
 - **Shipped:**
 - **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service)
 
@@ -2971,10 +2971,10 @@ The restores of 100 MB and 1 GB differ by a ratio of 1.44, and the forecast was 
 
 The work:
 
-- Read the free disk and the memory of a runner in the job of the drill. Three members, a dump and the slices take approximately 4 times the size of the data.
+- Read the free disk and the memory of a runner in the job of the drill. Three members, a dump and the slices take approximately 4 times the size of the data. The oplog of each member adds to that number: the seed goes through it, up to 5 % of the free disk. The drill reads its peak.
 - Try 8 GB. If a runner cannot hold it, the drill ends as void and names the reason, and the page states the limit.
 - Write the prediction first. It gives the ratio to the 1 GB restore, and the fixed part from a fit of the three sizes.
-- Add the drill to the Sunday cells, if the job stays within its time limit.
+- Add the drill to the Sunday cells, if the job stays within its time limit. The Sunday cells select the drills by name, thus `RD.8000.restore` joins them when it lands. The Sunday run of 2026-11-08 is the proof of the lock of SYS-94. Thus the drill lands only after a first dispatch of all the drills holds.
 
 ### SYS-98 · Recovery rungs 10 and 10,000
 
