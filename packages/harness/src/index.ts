@@ -151,7 +151,8 @@ export { AWS_FROM, cloudOf, comparable, readCpu, readHost, stealShare, substrate
 export type { BuildRecord, ImagePlan } from "./image.ts";
 export type { ContextFile } from "./locks.ts";
 export { LOCK_NAMES, cargoVersions, goVersions, jarVersions, locksOf, npmVersions, versionsOf } from "./locks.ts";
-export { commitProblems, manifestProblems } from "./pins.ts";
+export type { Pinnable, RecordCode } from "./pins.ts";
+export { commitProblems, DEBUG, DIRTY, manifestProblems, recordProblems } from "./pins.ts";
 export {
   CLIENT_NAMES,
   PINNED,
