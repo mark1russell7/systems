@@ -1014,6 +1014,18 @@ code.sy-tag {
   margin: 0;
 }
 
+.sy-recovery-budget {
+  display: block;
+  color: var(--color-ink-muted);
+  font-size: var(--text-xs);
+  white-space: normal;
+}
+
+.sy-recovery-budget > span {
+  display: inline-block;
+  white-space: nowrap;
+}
+
 .sy-stall-old rect,
 .sy-stall-old-fill {
   fill: color-mix(in srgb, var(--status-neutral) 22%, transparent);
