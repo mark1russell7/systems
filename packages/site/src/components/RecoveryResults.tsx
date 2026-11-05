@@ -110,6 +110,18 @@ export const runText = (row: DrillRow, run: DrillRun): string => {
   return `${row.id}, run ${run.index} of ${row.runs.length}. ${loss}`;
 };
 
+/** This component gives the worst value on one line, and its budget and share on the next. Thus the 4 columns fit a phone. */
+function Against({ value }: { readonly value: Budgeted }): ReactElement {
+  return (
+    <>
+      {timeText(value.worst)}
+      <span className="sy-recovery-budget">
+        <span>of {timeText(value.limit)}</span> <span>({shareText(value)})</span>
+      </span>
+    </>
+  );
+}
+
 /** This component gives the ladder of recovery: a row for each rung. */
 export function RecoveryRungs(): ReactElement {
   return (
@@ -119,8 +131,8 @@ export function RecoveryRungs(): ReactElement {
           <thead>
             <tr>
               <th>Rung</th>
-              <th className="num">Worst RPO, of its budget</th>
-              <th className="num">Worst RTO, of its budget</th>
+              <th className="num">Worst RPO</th>
+              <th className="num">Worst RTO</th>
               <th>Verdict</th>
             </tr>
           </thead>
@@ -129,10 +141,10 @@ export function RecoveryRungs(): ReactElement {
               <tr key={row.rung}>
                 <th scope="row">{count(row.tenants)}</th>
                 <td className="num">
-                  {timeText(row.rpo.worst)} of {timeText(row.rpo.limit)} ({shareText(row.rpo)})
+                  <Against value={row.rpo} />
                 </td>
                 <td className="num">
-                  {timeText(row.rto.worst)} of {timeText(row.rto.limit)} ({shareText(row.rto)})
+                  <Against value={row.rto} />
                 </td>
                 <td>
                   <Verdict decision={row.outcome === "within" ? "holds" : "fails"} />
