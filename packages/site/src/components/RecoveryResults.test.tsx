@@ -48,6 +48,7 @@ describe("the results of the recovery drills of SYS-94", () => {
     const rungs = renderToString(<RecoveryRungs />);
     expect(rungs).toContain("Worst RTO");
     expect(rungs).toContain("holds");
+    expect(rungs.match(/class="sy-recovery-budget"/g)).toHaveLength(6);
     const chart = renderToString(<RecoveryTimes />);
     expect(chart.match(/class="sy-run"/g)).toHaveLength(24);
     expect(chart.match(/class="sy-median"/g)).toHaveLength(6);

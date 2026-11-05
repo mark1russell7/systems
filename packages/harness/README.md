@@ -32,6 +32,12 @@ A **cell** (`cell.ts`) is all that one measurement needs, as data:
 
 Each command is an argv array.
 
+### A lab in a guest
+
+The folder `vm/`, the file `src/vm.ts` and the workflow `vm.yml` operate a lab in a guest of QEMU, layer E4 of `docs/S7.md`. `src/vm.ts` builds a pinned kernel and a disk, then boots that kernel directly, with no boot loader. The guest has systemd, sshd and the Docker of the runner. The images build in the guest, because the prober compiles against the BTF of the kernel that it operates on.
+
+`runCells` in that file is the one command of the cells for the runner and for a guest. Rule 3 of that document pairs the two in one job. A guest cannot read its runner, thus the runner gives its host in `LAB_RUNNER`. `substrateHere` writes E4 with that cloud and image, and with the kernel and HZ of the guest. A run also records `steal`, the share of the CPU that the host took (`stealShare`). A guest sees only the host above it, thus this number does not show the layer below a hosted runner.
+
 ## The topologies
 
 A topology (`Topology`) is the chain of hops from the client to the target, as data. Each hop is on two networks, one for each side. Network j joins element j and element j + 1: the client is element 0, and the target is the last element.

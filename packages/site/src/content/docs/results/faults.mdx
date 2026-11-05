@@ -102,6 +102,8 @@ The client drops each segment from the server that is longer than 1200 bytes. Th
 
 These cells use `netem` on each segment that the target sends. It loses, duplicates, reorders, corrupts or delays the segments. The reply times are a distribution, thus these cells have no band. A prediction of a distribution needs a simulator, and the program has no simulator at this time.
 
+Each request of these cells waits for the reply before it, thus a stall hides the sends that a fixed schedule makes in it. A quantile of these cells is the reply time of one request with no queue. It is a lower bound on a latency under load. The slowest reply is not a lower bound of that kind, and each new verdict keeps it.
+
 The cells have two workloads:
 
 - **A stream of PINGs.** The client sends 100 requests, each 10 ms after the reply before. Each reply has one segment in flight.

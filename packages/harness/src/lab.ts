@@ -26,7 +26,7 @@ import type { FabricLab } from "./fabric.ts";
 import { FABRIC_CLIENT, FABRIC_DEVICE, FABRIC_TARGET, openFabric } from "./fabric.ts";
 import { SHIPPED_CLIENTS, harnessImage, imageOf, routerImage, targetImageOf } from "./image.ts";
 import type { Substrate } from "./substrate.ts";
-import { substrateOn } from "./substrate.ts";
+import { substrateHere } from "./substrate.ts";
 
 /** This function loads Testcontainers when a lab first opens. Code that only measures and judges does not load it. */
 export const containers = (): Promise<typeof Testcontainers> => import("testcontainers");
@@ -1143,7 +1143,7 @@ export const openLab = async (
           })()),
           boot_id: await output(client, ["cat", "/proc/sys/kernel/random/boot_id"]),
           docker: `${runtime.info.containerRuntime.serverVersion} on ${runtime.info.containerRuntime.operatingSystem}`,
-          substrate: substrateOn(fabric === undefined ? "E1" : "E3"),
+          substrate: substrateHere(fabric === undefined ? "E1" : "E3"),
           ...(fabric === undefined ? {} : { fabric: fabric.manifest() }),
           target: {
             image: targetImage,

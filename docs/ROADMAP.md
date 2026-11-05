@@ -1525,10 +1525,11 @@ One term stays open. The bundle moves before 30 s in some runs, but the law of t
 
 ### SYS-57 · MetalLB: the detection settings of memberlist, the failure time against false deaths
 
-- **Status:** in progress
+- **Status:** done
 - **Area:** catalogs
 - **Depends on:** SYS-53
 - **Started:** 2026-11-03
+- **Shipped:** 2026-11-05
 - **Links:** [S2](#s2--intermediaries-and-kubernetes), [SYS-53](#sys-53--metallb-callers-outside-the-cluster-when-the-announcer-of-a-vip-is-gone)
 
 SYS-53 measured the failure time of MetalLB with the defaults of memberlist. A shorter probe interval or a smaller suspicion multiplier gives a shorter failure time. It also gives a false death to a live speaker that stops for a short time. The question: how do the two settings trade the failure time against false deaths?
@@ -1578,6 +1579,8 @@ SYS-53 measured the failure time of MetalLB with the defaults of memberlist. A s
 - **The pauses:** a measured pause is approximately 140 ms longer than its hold. The class of each pause uses the measured length.
 
 Each of the 11 claims except one is a hit, with a Brier score of 0.119. The miss is `build`: the cell with 2 runs. The claims on the pauses cover the runs that ran, not the 2 void runs.
+
+The kind page of the site shows the value of each counted run. A test of the site holds each claim of this result against these values (`packages/site/src/data/s2-detection.test.ts`).
 
 ### SYS-95 · The quiet gate of kind reads the load of the cell
 
@@ -2576,6 +2579,38 @@ A resume from a compacted revision fails with a compaction error (DV-44).
 
 A linearizable read goes through the quorum, and a serializable read can be stale. A check of this history needs a solver. D-CHECKER chose Porcupine, as a program in CI. This item waits for SYS-73.
 
+### SYS-96 · Each open cell branch takes main, and a stack runs in one dispatch
+
+- **Status:** in progress
+- **Area:** catalogs
+- **Depends on:** SYS-76
+- **Started:** 2026-11-05
+- **Shipped:**
+- **Links:** [SYS-76](#sys-76--the-environment-of-a-record)
+
+The 12 open cell branches come from before SYS-76. A run from such a branch gives a record with no environment, and rule 1 of `docs/S7.md` asks each record to name its environment. Thus each branch takes main before its dispatch.
+
+The slots of CI limit S3. One dispatch starts at each slot notice, thus 12 dispatches wait for 12 notices. A stacked branch holds the cells of the branches under it, thus one dispatch can run them all.
+
+| Dispatch | Branch | Items | Cells |
+| --- | --- | --- | --- |
+| 1 | `cells/etcd-lease` | SYS-67, SYS-74, SYS-73 | 27 |
+| 2 | `cells/port-range` | SYS-63, SYS-64 | 14 |
+| 3 | `cells/pool-bouncer` | SYS-65 | 10 |
+| 4 | `cells/rabbit-confirms` | SYS-62, SYS-60 | 11 |
+| 5 | `cells/kafka-acks` | SYS-71 | 5 |
+| 6 | `cells/mongo-rollback` | SYS-59 | 3 |
+| 7 | `cells/pg-commit` | SYS-61 | 5 |
+
+The work:
+
+- Merge main into a stack when its dispatch is next. Main moves, and each push of a branch costs a full set of checks.
+- Merge, and do not rebase. The commit of each prediction stays in the history.
+- The resolution of each prediction states that the head moved past its commit.
+- SYS-66 follows SYS-63, and SYS-72 follows SYS-71. Each needs a dispatch of its own.
+
+This item is done when each of the 7 dispatches gives a record that names its environment.
+
 ## The items of S7
 
 [The plan of S7](S7.md) gives the layers, the rules of comparison and the first slice. The lines of work are E3 (the fabric) and E4 (the VMs). Targets that need no new layer stand apart.
@@ -2641,14 +2676,16 @@ The replication of PostgreSQL, Valkey, Kafka and etcd crosses routed links with 
 
 ### SYS-81 · The VM tier: QEMU on a runner, and its bridge
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** harness
 - **Depends on:** SYS-76
-- **Started:**
+- **Started:** 2026-11-04
 - **Shipped:**
-- **Links:**
+- **Links:** [#354](https://github.com/mark1russell7/systems/pull/354)
 
 The workflow turns on KVM with a udev rule, and QEMU boots a pinned kernel for each node. The prober runs in the guest. A bridge repeats a set of T01 cells in a VM, and an A/A pair gives the noise of the layer. A runner with no KVM gives a void run. This item starts the VM tier of S4.
+
+The first slice narrows this text. It has one guest, and that guest holds the whole lab, in place of one VM for each node. A bridge cell has no fault that needs a second kernel, and each node costs memory that a runner does not have in quantity. The second node comes with the first fault that needs a second kernel (SYS-83, SYS-84, SYS-85). The disk of a guest is an overlay on one root image, thus that node needs no other build.
 
 ### SYS-82 · Each timer band at HZ 100, 250 and 1000, and on two kernels
 
@@ -2751,14 +2788,56 @@ vrnetlab starts a vendor router in a VM. The cells compare a vendor's defaults w
 
 ### SYS-91 · The cells that time a closed-loop client
 
-- **Status:** later
+- **Status:** in progress
 - **Area:** harness
 - **Depends on:** 
-- **Started:**
+- **Started:** 2026-11-04
 - **Shipped:**
-- **Links:**
+- **Links:** [#355](https://github.com/mark1russell7/systems/pull/355)
 
 A closed-loop client hides a stall, because a slow reply delays its next send (Gil Tene, "How NOT to Measure Latency"). This item lists each cell that gives a time or a distribution under load from such a client. A record then keeps the intended send time and the maximum. The fix of a load generator waits for SYS-68.
+
+The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing of each cell, and `pacing.test.ts` holds the counts of this table. A new closed-loop cell fails that test, and the failure names this table.
+
+| Pacing | Cells | What the cell gives | Effect of the pacing |
+| --- | --- | --- | --- |
+| One request | 315 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
+| One gap | 37 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
+| Closed loop, reply times | 11 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
+| Closed loop, first write | 48 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
+| Timer | 222 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
+
+The closed-loop families:
+
+| Family | Cells | Pacing |
+| --- | --- | --- |
+| T01 | 8 | Reply times |
+| CAL | 2 | Reply times |
+| E3.F1 | 1 | Reply times |
+| T11.defaults | 16 | First write |
+| T11.border-off | 10 | First write |
+| T12.defaults | 8 | First write |
+| T12.border-off | 4 | First write |
+| T12.writes | 3 | First write |
+| CAL | 1 | First write |
+| RD.1 | 1 | First write |
+| RD.100 | 2 | First write |
+| RD.1000 | 2 | First write |
+| RD.control | 1 | First write |
+
+What the audit found:
+
+- **No published result is wrong.** The reply-time cells have no band and no gate. No page of the site gives a quantile from these cells as a latency under load. The two calibration times in `topologies.mdx` are times of one crossing with no load, and that is what the terms of those bands need.
+- **Size of the hidden part.** This example is arithmetic, not a measurement. With 1 % loss, one 200 ms stall comes in each 100 requests at a 10 ms pace. A schedule puts approximately 20 sends in that stall, thus approximately 17 % of its sends meet a stall. The closed loop gives 1 % of its samples to the stall.
+- **First writes.** The two records of October have 26 first-write cells, and 20 of them can be compared with a stage of the server. In 7 cells the first write comes at most 17 ms after that stage. In 11 cells it comes 2 to 28 s after, and in 2 cells 173 s after.
+- **Cause of those seconds.** The names and the predictions of the cells point at a blocked request that holds the client until a timer ends it. No cell tests that cause with an open-loop client, and SYS-68 can do this. Each band predicts this client, thus the bands stay true.
+- **Drills.** The writer of a drill sends each 50 ms. The worst restore is 22.95 s of a 900 s budget, and the pacing adds approximately one interval and one reply.
+- **Counts of lost writes.** T12.writes and the drills count the writes at the rate that the client reached. A stall lowers that rate, thus a count is not a count at a planned rate.
+- **Timer cells.** `setInterval` starts each request of a cell of kind. A stalled connection queues requests in its agent, and the wait counts from the tick, thus the time is correct. A stall of the event loop of the client is the only hidden part, because `setInterval` does not catch up.
+
+The maximum is in the record: a verdict of a distribution has `slowest`, the slowest reply of the cell.
+
+The intended send time is not in the record yet. The form `first + n × interval` is wrong for a closed loop: this client cannot drain, thus one stall makes each later request look late. The correct form gives each planned send that falls in a stall the reply that ends the stall. `measureLoad` in `rigor-chaos` does this with a fixed plan, and a local copy breaks the map of homes. That package is not on npm, thus this part waits and this item stays in progress. Each stored record has its `sent` lines and its interval, thus this part can read the old records too.
 
 ### SYS-92 · A topology as a graph
 
@@ -2886,6 +2965,40 @@ A hash of the data comes before the service starts, because a service writes. Th
 - **The miss.** The prediction of the large size gave a ratio of 3 to 12 between the restores of 1 GB and 100 MB. The ratio is 1.44. The naive claim of a ratio under 1.5 was right. A fixed part is large at these sizes: three members start, the set starts again, and an election follows. The records do not split that part. Two sizes give no law for a far larger store.
 - **The first small restore.** Its 31 s and the 15 s to 22 s of these drills are on different machines, under different load. They agree only on the order of size.
 - **The lock.** Each rung is locked. Each Sunday, the workflow Cells repeats the drills, and a step fails that run when a rung is not within its budgets. A check of this step with a budget of 44 s failed with exit code 1 on these records. A test on each pull request reads the last record against the budgets. The first scheduled run is on 2026-11-08, and it has not run yet.
+
+### SYS-97 · A third size of a restore
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-94
+- **Started:**
+- **Shipped:**
+- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service)
+
+The restores of 100 MB and 1 GB differ by a ratio of 1.44, and the forecast was 3 to 12. A fixed part is large at these sizes. Two sizes give no law for a far larger store. Thus no claim on the page goes past 1 GB until a third size has a record.
+
+The work:
+
+- Read the free disk and the memory of a runner in the job of the drill. Three members, a dump and the slices take approximately 4 times the size of the data.
+- Try 8 GB. If a runner cannot hold it, the drill ends as void and names the reason, and the page states the limit.
+- Write the prediction first. It gives the ratio to the 1 GB restore, and the fixed part from a fit of the three sizes.
+- Add the drill to the Sunday cells, if the job stays within its time limit.
+
+### SYS-98 · Recovery rungs 10 and 10,000
+
+- **Status:** later
+- **Area:** catalogs
+- **Depends on:** SYS-94, SYS-97, SYS-85
+- **Started:**
+- **Shipped:**
+- **Links:** [SYS-94](#sys-94--recovery-drills-the-writes-that-a-restore-loses-and-the-time-to-service)
+
+SYS-94 holds rungs 1, 100 and 1,000. The next two rungs have different costs, thus they have different dates.
+
+- **Rung 10.** One process with an hourly backup, an RPO of 1 h and an RTO of 1 h. It is the law of `RD.1` on another schedule, and it runs on one runner. It needs only SYS-94.
+- **Rung 10,000.** An RPO of 10 s and an RTO of 5 min, on k3s with shards of synthetic tenants. It needs SYS-85 for its place and SYS-97 for the size of its restore. It has no date until SYS-85 has one, because a rung counts only at its own place.
+
+A recovery rung says nothing of the load that a design holds. SYS-93 holds that part.
 
 ## Decisions for Mark
 
