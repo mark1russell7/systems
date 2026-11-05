@@ -1,5 +1,6 @@
 import type { Quantity } from "@mark1russell7/quantity";
 import { quantity, valueIn } from "@mark1russell7/quantity";
+import type { LoadMeasure } from "@mark1russell7/rigor-chaos";
 import type { CallReading, ReconnectReading } from "./application.ts";
 import {
   callOf,
@@ -19,6 +20,7 @@ import type { Cell, Jitter, KernelRecord, ProbeEvent, Reference, Run } from "./c
 import { requestFirst } from "./cell.ts";
 import type { DriverStepTime } from "./driver.ts";
 import { measureDriver, proxiedClose } from "./driver.ts";
+import { loadOf } from "./load.ts";
 import type { GroupMeasured } from "./timeline.ts";
 import { measureGroup } from "./timeline.ts";
 import type { Pairing } from "./verdict.ts";
@@ -74,6 +76,8 @@ export interface Measured {
    * sample is the time from its send to the first data after it.
    */
   readonly samples?: readonly Quantity[];
+  /** This measure is the run of an open-loop cell against its schedule (`Run.schedule`). Its times are in ms. */
+  readonly load?: LoadMeasure;
   /** This count is the number of keepalive probes that the kernel sent. */
   readonly probes: number;
   /** This count is the number of segments that the kernel sent again. */
@@ -706,7 +710,10 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
   // a measurement-only cell: each request of the run and the time to its reply, and the time from
   // its reference to the end of the connection, or to the last data
   if (prediction.detects === null) {
-    const sends = events.filter((event) => event.ev === "sent").slice(1);
+    // an open-loop client names the arrival of each line, and each time counts from its planned time
+    const load = run.schedule === undefined ? undefined : loadOf(events, run.schedule);
+    if (load === null) return { ...base, ...nothing, void: "the client never started its schedule" };
+    const sends = load === undefined ? events.filter((event) => event.ev === "sent").slice(1) : [];
     // a reply ends at its last byte when the client says so (`replied`), and at its first data otherwise
     const answers = events.some((event) => event.ev === "replied") ? "replied" : "data";
     const samples = sends.flatMap((send, n) => {
@@ -750,6 +757,7 @@ const measureSocket = (cell: Cell, run: Run): Measured => {
         .filter((record) => record.mono > request.t)
         .map((record) => between(request.t, record.mono)),
       samples,
+      ...(load === undefined ? {} : { load }),
       reordering: reorderingOf(
         socket.filter((record) => record.mono > request.t),
         peerRecords.filter((record) => record.mono > request.t),

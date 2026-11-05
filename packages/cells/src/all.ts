@@ -14,6 +14,7 @@ import { T03_HIKARI } from "./pg/t03.ts";
 import { T10_HIKARI, T10_PG } from "./pg/t10.ts";
 import { T01_AMQP } from "./rabbit/t01.ts";
 import { T11_RABBIT } from "./rabbit/t11.ts";
+import { OPEN_LOOP_CELLS } from "./open-loop.ts";
 import { RECOVERY_CELLS } from "./recovery.ts";
 import { T02_CELLS } from "./t02.ts";
 import { T03_CELLS } from "./t03.ts";
@@ -42,7 +43,7 @@ export interface Subjects {
  * WST cells: the same client through a router or a proxy. The MongoDB cells of T01, T03 and T11
  * come next, then the PostgreSQL cells of T01, T03 and T10. The RabbitMQ cells of T01 and T11 come
  * next, then the gRPC cells of T01, T03 and T02. The cells of the keyed limiter (O29 and O30) and of
- * the routed fabric come next. The recovery drills are last.
+ * the routed fabric come next. The recovery drills follow, and the open-loop cells are last.
  */
 export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
   const subjects: Subjects = { procedures: PROCEDURES, ...given };
@@ -73,6 +74,7 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
     ...LIMITER_CELLS,
     ...FABRIC_CELLS,
     ...RECOVERY_CELLS,
+    ...OPEN_LOOP_CELLS,
   ];
 };
 

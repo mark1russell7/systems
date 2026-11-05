@@ -2485,14 +2485,16 @@ The tries of each hop multiply (law O08). T14 counts the tries at the target in 
 
 ### SYS-68 · An open-loop load schedule
 
-- **Status:** blocked
+- **Status:** in progress
 - **Area:** engines
-- **Depends on:** SYS-67
-- **Started:**
+- **Depends on:**
+- **Started:** 2026-11-05
 - **Shipped:**
 - **Links:**
 
-Each arrival keeps its scheduled time, with no coordinated omission. A/A cells with no fault check that. The schedule has the planned home `mark1russell7/rigor`, and this item waits for that home. The drivers stay in the images of the harness.
+Each arrival keeps its scheduled time, with no coordinated omission. A/A cells with no fault check that. The schedule and its measure come from `@mark1russell7/rigor-chaos`, and the verdict of a quantile comes from `@mark1russell7/rigor-bench`. The drivers stay in the images of the harness.
+
+The native client has the mode `schedule`. A send does not wait for a reply, and each latency counts from the planned time. Cells `OL.` have three A/A cells and a closed-loop twin. The freeze of 1 s on both clients is the positive control of the A/A gate. It also shows the omission: the same stall moves the p99 of the open loop, and only one reply of the closed loop. The HTTP driver of the reference service comes with SYS-93.
 
 ### SYS-69 · The border of a stable system
 
@@ -2787,7 +2789,7 @@ vrnetlab starts a vendor router in a VM. The cells compare a vendor's defaults w
 - **Shipped:**
 - **Links:** [#355](https://github.com/mark1russell7/systems/pull/355)
 
-A closed-loop client hides a stall, because a slow reply delays its next send (Gil Tene, "How NOT to Measure Latency"). This item lists each cell that gives a time or a distribution under load from such a client. A record then keeps the intended send time and the maximum. The fix of a load generator waits for SYS-68.
+A closed-loop client hides a stall, because a slow reply delays its next send (Gil Tene, "How NOT to Measure Latency"). This item lists each cell that gives a time or a distribution under load from such a client. A record then keeps the intended send time and the maximum. SYS-68 gives the load generator, and a family moves to it when its cells change.
 
 The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing of each cell, and `pacing.test.ts` holds the counts of this table. A new closed-loop cell fails that test, and the failure names this table.
 
@@ -2795,9 +2797,10 @@ The list is code. `pacingOf` in `packages/cells/src/pacing.ts` reads the pacing 
 | --- | --- | --- | --- |
 | One request | 315 | The time of one request, or of no request | None. No load exists, thus no send can be late. |
 | One gap | 37 | A share or a count. The gap is the input. | None. The pacing is the input of the cell. |
-| Closed loop, reply times | 11 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
+| Closed loop, reply times | 13 | A distribution, with no band and no gate | A stall hides sends. A quantile is a lower bound on a latency under load. |
 | Closed loop, first write | 48 | A time to the first accepted write after a fault | An upper bound on the recovery of the service. |
 | Timer | 222 | The cells of kind, each request started by a timer | No send waits for a reply. The record keeps no planned time. |
+| Open loop | 4 | A distribution from each planned time, with a band and a gate | None. The record keeps each planned time, and a stall counts in each arrival that it delays. |
 
 The closed-loop families:
 
@@ -2806,6 +2809,8 @@ The closed-loop families:
 | T01 | 8 | Reply times |
 | CAL | 2 | Reply times |
 | E3.F1 | 1 | Reply times |
+| OL.aa | 1 | Reply times |
+| OL.freeze | 1 | Reply times |
 | T11.defaults | 16 | First write |
 | T11.border-off | 10 | First write |
 | T12.defaults | 8 | First write |
@@ -2873,7 +2878,7 @@ A rung is one target at one power of ten, and an automatic test holds it. A numb
 - **Shipped:**
 - **Links:**
 
-This item waits for SYS-68, and SYS-68 waits for the open-loop schedule in `mark1russell7/rigor`.
+This item waits for SYS-68. The HTTP driver on a schedule is part of this item.
 
 A public multi-tenant service runs on the stack of this repository: `@mark1russell7/service`, `@procedures/peer` and a MongoDB replica set. It holds documents for each tenant and it sends each change over a socket. It has no product code. A gap in the stack goes to its home, and the service keeps no local copy.
 
