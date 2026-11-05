@@ -106,6 +106,9 @@ for (const viewport of VIEWPORTS) {
         const count = await widgets.count();
         for (let at = 0; at < count; at += 1) {
           const name = at === 0 ? `${stem}-${part}.jpg` : `${stem}-${part}-${at + 1}.jpg`;
+          // an island with client:visible hydrates only after the scroll, and then it draws at its real width
+          await widgets.nth(at).scrollIntoViewIfNeeded();
+          await tab.waitForTimeout(400);
           await widgets.nth(at).screenshot({ path: path.join(out, name), type: "jpeg", quality: 80 });
         }
       }
