@@ -7,6 +7,7 @@ import { isHopPlace } from "./cell.ts";
 import type {
   Client,
   ClientImage,
+  FabricManifest,
   FaultPlace,
   Hop,
   HopEvent,
@@ -21,7 +22,11 @@ import type {
   Topology,
   Toxic,
 } from "./cell.ts";
+import type { FabricLab } from "./fabric.ts";
+import { FABRIC_CLIENT, FABRIC_DEVICE, FABRIC_TARGET, openFabric } from "./fabric.ts";
 import { SHIPPED_CLIENTS, harnessImage, imageOf, routerImage, targetImageOf } from "./image.ts";
+import type { Substrate } from "./substrate.ts";
+import { substrateHere } from "./substrate.ts";
 
 /** This function loads Testcontainers when a lab first opens. Code that only measures and judges does not load it. */
 export const containers = (): Promise<typeof Testcontainers> => import("testcontainers");
@@ -126,6 +131,10 @@ export interface Manifest {
   readonly hzFrom?: "config" | "measured";
   readonly boot_id: string;
   readonly docker: string;
+  /** This block tells the layer, the cloud and the kernel of the record. A record from before it reads through `substrateOf`. */
+  readonly substrate?: Substrate;
+  /** This record is the fabric of a cell with `Topology.fabric`. */
+  readonly fabric?: FabricManifest;
   /** This record is the target, and its settings as it read them back. */
   readonly target: {
     readonly image: string;
@@ -354,6 +363,8 @@ export interface Lab {
    * independent of the run before it.
    */
   forget(): Promise<void>;
+  /** This part is the routed fabric of a lab with `Topology.fabric`. */
+  readonly fabric?: FabricLab;
   /** This method freezes the target with the cgroup freezer: its process stops, and its kernel continues to answer. */
   freeze(): Promise<void>;
   thaw(): Promise<void>;
@@ -571,7 +582,9 @@ export const openLab = async (
   const networks: StartedNetwork[] = [];
   // the lines of a target that writes them, on the clock of the VM
   const serverLines = lines<ProbeEvent>();
+  let fabric: FabricLab | undefined;
   const close = async () => {
+    await fabric?.close();
     for (const container of opened.reverse()) await container.stop(STOP).catch(() => undefined);
     for (const network of networks.reverse()) await network.stop().catch(() => undefined);
   };
@@ -728,7 +741,20 @@ export const openLab = async (
       .withAddedCapabilities("NET_ADMIN", "NET_RAW")
       .start();
     opened.push(injector);
-    const clientIp = await ipOn(client, networks[0]!);
+    // a fabric joins the client and the target by a device of its own: Docker keeps eth0
+    if (topology?.fabric !== undefined)
+      fabric = await openFabric({
+        fabric: topology.fabric,
+        image,
+        client,
+        server,
+        admin,
+        injector,
+        opened,
+        output,
+      });
+    const device = fabric === undefined ? "eth0" : FABRIC_DEVICE;
+    const clientIp = fabric === undefined ? await ipOn(client, networks[0]!) : FABRIC_CLIENT;
     // the peer of each hop on the side of the client: the element before it, on the network between them
     for (let at = 0; at < inChain.length; at += 1) {
       const before = at === 0 ? clientIp : inChain[at - 1]!.ip.target;
@@ -795,7 +821,7 @@ export const openLab = async (
     const begun = await records.until(["begin", "fail"], 30_000, "prober");
     if (begun.ev === "fail") throw new Error(`the prober failed: ${String(begun["why"])}`);
     const first = endpointAfter(hops, 0);
-    const targetIp = first === hops.length + 1 ? serverIp : inChain[first - 1]!.ip.client;
+    const targetIp = fabric !== undefined ? FABRIC_TARGET : first === hops.length + 1 ? serverIp : inChain[first - 1]!.ip.client;
     const targetPort = first === hops.length + 1 ? target.port : (inChain[first - 1]!.hop as ProxyHop).port;
     const targetPeer = inChain.length === 0 ? clientIp : inChain.at(-1)!.ip.target;
     const placed: RunTopology | null =
@@ -838,8 +864,8 @@ export const openLab = async (
     };
     /** This function gives the namespace and the device of netem at a place: an end, or the device of a hop toward a side. */
     const deviceAt = (place: FaultPlace): [StartedTestContainer, string] => {
-      if (place === "client") return [admin, "eth0"];
-      if (place === "target") return [injector, "eth0"];
+      if (place === "client") return [admin, device];
+      if (place === "target") return [injector, device];
       const at = hopPlace(place);
       const hop = hopNamed(at.hop);
       return [hop.injector, hop.devices[at.toward]];
@@ -865,6 +891,7 @@ export const openLab = async (
       middlebox,
       server: serverLines.seen,
       kernel: records.seen,
+      ...(fabric === undefined ? {} : { fabric }),
       async sysctl(values) {
         const settings = Object.entries(values).map(([key, value]) => `${key}=${value}`);
         if (settings.length > 0) await output(admin, ["sysctl", "-q", "-w", ...settings]);
@@ -1149,6 +1176,8 @@ export const openLab = async (
           })()),
           boot_id: await output(client, ["cat", "/proc/sys/kernel/random/boot_id"]),
           docker: `${runtime.info.containerRuntime.serverVersion} on ${runtime.info.containerRuntime.operatingSystem}`,
+          substrate: substrateHere(fabric === undefined ? "E1" : "E3"),
+          ...(fabric === undefined ? {} : { fabric: fabric.manifest() }),
           target: {
             image: targetImage,
             ...(target.subject === undefined ? {} : { subject: target.subject, base: target.image }),

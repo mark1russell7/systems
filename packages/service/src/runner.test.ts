@@ -252,11 +252,11 @@ describe("profiles as data (SYS-10)", () => {
       .startup(s(120))
       .couple({ from: "liveness", to: "readiness", effect: "fails" });
 
-  it("gives the phase block of jarvis and of the kind lab at the defaults of Kubernetes", () => {
-    const byHand = policies(service("jarvis"));
+  it("gives the phase block of the kind lab at the defaults of Kubernetes", () => {
+    const byHand = policies(service("lab"));
     for (const [name, cap] of block) byHand.phase(name, s(cap));
     byHand.cooperativeWindow(s(5)).onRepeatSignal("ignore");
-    const byProfile = policies(service("jarvis")).profile(kubernetes({ grace: s(30), preStop: s(0) }));
+    const byProfile = policies(service("lab")).profile(kubernetes({ grace: s(30), preStop: s(0) }));
     const hand = byHand.describe();
     const profiled = byProfile.describe();
     expect(profiled.shutdown.phases).toEqual(hand.shutdown.phases);

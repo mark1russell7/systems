@@ -110,6 +110,7 @@ const run: z.ZodType<KindRun> = z.object({
   }),
   target: replica.nullable(),
   paused: z.string().nullable(),
+  broker: z.string().optional(),
   replicas: z.array(replica),
   void: z.string().nullable(),
   lines: z.array(line),
@@ -174,6 +175,16 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     z.object({ kind: z.literal("stays"), failures: z.discriminatedUnion("kind", [window, none]).optional(), why: z.string() }),
     z.object({ kind: z.literal("stalls"), why: z.string() }),
     z.object({ kind: z.literal("ends"), from: reference, band: band.nullable(), window: window.optional(), of: z.enum(["socket", "tunnel"]).optional(), answer: band.optional(), why: z.string() }),
+    z.object({
+      kind: z.literal("reconnects"),
+      flip: band,
+      probe: a,
+      disconnect: band,
+      backoff: z.object({ initial: a, max: a, mandatoryStop: a, jitter: z.number(), attempt: a }),
+      setup: band,
+      outcomes: z.array(z.string()),
+      why: z.string(),
+    }),
     z.object({ kind: z.literal("measured"), why: z.string() }),
   ]);
   const cell = z.object({
@@ -215,7 +226,14 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     prediction,
     calibrates: z.boolean(),
     runs: count,
-    vip: z.object({ clients: count, announcer: z.enum(["kube-vip", "metallb"]).optional() }).optional(),
+    vip: z
+      .object({
+        clients: count,
+        announcer: z.enum(["kube-vip", "metallb"]).optional(),
+        memberlist: z.object({ probeInterval: time, probeTimeout: time, suspicionMult: count }).optional(),
+      })
+      .optional(),
+    pulsar: z.object({ clients: count, probe: time }).optional(),
   });
   const facts = z.object({
     failures: count,
@@ -239,6 +257,14 @@ const recordOf = <A>(a: z.ZodType<A>, main: z.ZodType<A>) => {
     sessions: z.object({ onTarget: count, of: count, byClient: z.record(z.string(), count) }).optional(),
     stall: z.object({ start: a.nullable(), held: a.nullable() }).optional(),
     period: z.object({ median: a, mean: a, low: a, high: a, intervals: count, byClient: z.record(z.string(), a) }).optional(),
+    reconnects: z
+      .object({
+        flip: a.nullable(),
+        gap: a.nullable(),
+        returns: z.array(z.object({ pod: z.string(), disconnect: a.nullable(), back: a.nullable(), setup: a.nullable(), tries: count })),
+        failures: z.record(z.string(), count),
+      })
+      .optional(),
   });
   const verdict = z.object({
     decision: z.enum(["holds", "fails", "extend", "measured", "calibration", "void"]),
