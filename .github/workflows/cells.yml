@@ -64,6 +64,11 @@ env:
 # The runs of a pull request share a group, and a newer push cancels the older run. Each dispatch and each
 # schedule has a group of its own. GitHub keeps only one waiting run of a group, so a shared group cancels a
 # dispatch of other cells.
+# With no shell key, a step has no pipefail: `cmd | tee file` passes when cmd fails.
+defaults:
+  run:
+    shell: bash
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -147,7 +152,7 @@ jobs:
       - name: The prober on its own, after a failure
         if: failure()
         run: |
-          image="$(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^loom-harness:' | head -n 1)"
+          image="$(docker images --format '{{.Repository}}:{{.Tag}}' | grep '^loom-harness:' | head -n 1 || true)"
           echo "image: $image"
           if [ -n "$image" ]; then
             timeout 20 docker run --rm --privileged --network none "$image" /opt/harness/prober "$(stat -Lc %i /proc/self/ns/net)" 2>&1 | head -n 400 || true

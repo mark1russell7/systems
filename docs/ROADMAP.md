@@ -3005,6 +3005,7 @@ The check `Cells OK` reads only the results of the jobs, and a failing cell does
 - **The flip test.** In the same job, a fault of 1.5 x the top of each band turns each cell red, and a copy with one record gone exits with 1. The clean copy stays green.
 - **The Sunday run.** The rungs of recovery get the same flip after the run of 2026-11-08, because that run is the proof of the lock of SYS-94.
 - **A manual run.** A dispatch of a new cell keeps its rule: a failing cell is a finding, and the step does not operate.
+- **The shell.** A step with no `shell` key has no pipefail, thus `cmd | tee file` passes when `cmd` fails. `cells.yml`, `kind.yml` and `vm.yml` set `shell: bash`. No test ran through such a pipe, and no value of the 80 `runner.txt` files of the 20 nights is empty.
 
 A recovery rung says nothing of the load that a design holds. SYS-93 holds that part.
 
