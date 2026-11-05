@@ -1,13 +1,19 @@
 import { describe, expect, it } from "vitest";
-import type { Drill, ProbeEvent, ReplicaSet, Run, RunDrill } from "./cell.ts";
+import type { Drill, ProbeEvent, ReplicaSet, Run, RunDrill, RunRoom } from "./cell.ts";
 import {
   LOSS_MARGIN,
+  availableMemory,
+  bytesIn,
+  diskNeeded,
+  drillBytes,
   drillSpan,
+  firstSyncWithin,
   hashOf,
   highestHeld,
   readOplog,
   recoveryFindings,
   recoveryOf,
+  roomVoid,
   seedScript,
   sliceQuery,
   standaloneCommand,
@@ -51,6 +57,40 @@ const WRITES: Writes = { sent: 10, acked: 10, old: 0, lost: [6, 7, 8], unknown: 
 describe("the pure parts of a drill", () => {
   it("adds the slices and the age to the time of a drill", () => {
     expect(drillSpan(DRILL)).toBe(40);
+  });
+
+  it("needs a copy for each member and the dump, the room of the journal, and the oplog of each member up to its cap", () => {
+    const large: Drill = { ...DRILL, tenants: 8_000, perTenant: { value: 1_048_576, unit: "B" } };
+    const bytes = 8_000 * 1_048_576;
+    expect(drillBytes(large)).toBe(bytes);
+    // the cap of the oplog is under the size of the data
+    expect(diskNeeded(large, 3, 90e9)).toBe(Math.ceil(4 * bytes * 1.1 + 3 * 4.5e9));
+    // the oplog takes no more than what the seed writes
+    expect(diskNeeded(large, 3, 400e9)).toBe(Math.ceil(4 * bytes * 1.1 + 3 * bytes));
+  });
+
+  it("waits for a first sync in the time of the size, at the slowest rate", () => {
+    expect(firstSyncWithin({ ...DRILL, tenants: 1, perTenant: { value: 10_000_000, unit: "B" } })).toBe(1_000);
+  });
+
+  it("reads the bytes of df and du, and the memory of meminfo", () => {
+    expect(bytesIn("90000000000\n")).toBe(90_000_000_000);
+    expect(bytesIn("1234\t/data/db\n")).toBe(1234);
+    expect(bytesIn("")).toBe(0);
+    expect(availableMemory("MemTotal:       16000000 kB\nMemAvailable:   12000000 kB\n")).toBe(12_000_000 * 1_024);
+    expect(() => availableMemory("MemTotal: 1 kB\n")).toThrow("no line MemAvailable");
+  });
+
+  it("voids a run only when the usable disk is under the need, and it names both", () => {
+    const room = (usable: number, needs: number): RunRoom => ({
+      usable: { value: usable, unit: "B" },
+      needs: { value: needs, unit: "B" },
+      memory: { value: 1, unit: "B" },
+      peak: null,
+    });
+    expect(roomVoid(undefined)).toBeNull();
+    expect(roomVoid(room(10, 10))).toBeNull();
+    expect(roomVoid(room(9, 10))).toBe("the runner cannot hold the drill: 9 B of disk are usable, and the drill needs 10 B");
   });
 
   it("writes each tenant, with the documents that its size needs and the copies of the set", () => {

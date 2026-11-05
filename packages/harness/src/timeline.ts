@@ -3,7 +3,7 @@ import { quantity, valueIn } from "@mark1russell7/quantity";
 import type { Cell, ClusterStage, KernelRecord, ProbeEvent, ReplicaSetStage, Run, SentinelEvent, SentinelStage, Stage } from "./cell.ts";
 import { socketsOf } from "./driver.ts";
 import type { RecoveryMeasured } from "./recovery.ts";
-import { recoveryFindings, recoveryOf } from "./recovery.ts";
+import { recoveryFindings, recoveryOf, roomVoid } from "./recovery.ts";
 import { INJECT, noiseOf } from "./verdict.ts";
 
 /**
@@ -331,6 +331,8 @@ export const measureGroup = (cell: Cell, run: Run): GroupReading => {
     errors: [],
   };
   const silent = { outcome: { kind: "silent" } as const, elapsed: null, socket: null, noticed: null, finding: null };
+  const refused = roomVoid(run.group?.drill?.room);
+  if (refused !== null) return { ...silent, void: refused, group: empty };
   if (ready === undefined) return { ...silent, void: "the client never became ready", group: empty };
   if (t0 === undefined || run.fault === null) return { ...silent, void: "the fault never committed", group: empty };
   if (run.lost === null)

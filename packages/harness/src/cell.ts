@@ -1314,8 +1314,22 @@ export interface RunBackup {
   readonly size: Quantity;
 }
 
+/** A run room is what the runner had for a drill, read before the seed. Each box of a lab is on the one disk of the container engine. */
+export interface RunRoom {
+  /** This size is the free disk with the data of the last run added: the seed drops that data. */
+  readonly usable: Quantity;
+  /** This size is the disk that the drill needs at its peak. A run with less is void, and it does not start. */
+  readonly needs: Quantity;
+  /** This size is the available memory of the runner. No rule reads it: a member has a small cache of its own. */
+  readonly memory: Quantity;
+  /** This size is the disk that the drill took, at the end of its backups. It is null in a run that did not get to that point. */
+  readonly peak: Quantity | null;
+}
+
 /** A run drill is what a recovery drill did in one run. */
 export interface RunDrill {
+  /** This is the room of the runner. A record of a run before SYS-97 has none. */
+  readonly room?: RunRoom;
   /** This text is the first line of `mongodump --version`. */
   readonly tool: string;
   /** This word tells where the data of the tenants came from. It is always generated data. */

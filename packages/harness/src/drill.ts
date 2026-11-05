@@ -1,9 +1,25 @@
 import { valueIn } from "@mark1russell7/quantity";
-import type { Cell, Drill, ProbeEvent, Run, RunBackup } from "./cell.ts";
+import type { Cell, Drill, ProbeEvent, Run, RunBackup, RunRoom } from "./cell.ts";
 import type { GroupClient, Stamp } from "./group.ts";
-import { deadlineOf } from "./group.ts";
+import { CONVERGE_MS, deadlineOf } from "./group.ts";
 import type { OplogTime } from "./recovery.ts";
-import { HASH_SCRIPT, hashOf, highestHeld, readOplog, seedScript, sliceQuery, standaloneCommand, stopScript } from "./recovery.ts";
+import {
+  FREE_SCRIPT,
+  HASH_SCRIPT,
+  HELD_SCRIPT,
+  availableMemory,
+  bytesIn,
+  diskNeeded,
+  firstSyncWithin,
+  hashOf,
+  highestHeld,
+  readOplog,
+  roomVoid,
+  seedScript,
+  sliceQuery,
+  standaloneCommand,
+  stopScript,
+} from "./recovery.ts";
 import type { ReplicaSetLab } from "./replset.ts";
 import { STEADY, TAIL_MS, clockOffsetOf, droppedSoFar, initiateScript, onMonotonic, replicaSetArgs, sleep, waitFor } from "./replset.ts";
 
@@ -123,7 +139,25 @@ const restore = async (lab: ReplicaSetLab, drill: Drill, primary: string): Promi
 };
 
 /**
+ * This function reads the room of the runner for a drill, with the backups of the last run removed.
+ * The usable disk adds what the members hold, because the seed drops that data.
+ */
+const roomOf = async (lab: ReplicaSetLab, drill: Drill, primary: string): Promise<RunRoom> => {
+  const free = bytesIn(await lab.exec(primary, ["sh", "-c", FREE_SCRIPT]));
+  const held = await Promise.all(lab.set.members.map((member) => lab.exec(member, ["sh", "-c", HELD_SCRIPT])));
+  const usable = held.reduce((sum, text) => sum + bytesIn(text), free);
+  const memory = availableMemory(await lab.vault(["cat", "/proc/meminfo"]));
+  return {
+    usable: { value: usable, unit: "B" },
+    needs: { value: diskNeeded(drill, lab.set.members.length, usable), unit: "B" },
+    memory: { value: memory, unit: "B" },
+    peak: null,
+  };
+};
+
+/**
  * This function does one run of a recovery drill:
+ * - The runner must have the disk of the drill. If it does not, the run is void and nothing starts.
  * - The set converges, and it loses its writes. The tenants get their data, and a hash reads it.
  * - The client writes until its stream is steady. A control stops it here.
  * - The backups go, each at its interval. The fault comes at the age of the newest backup.
@@ -139,6 +173,29 @@ export const drillOnce = async (lab: ReplicaSetLab, cell: Cell, environment: num
   await lab.unfreeze(primary);
   await lab.forget();
   await lab.vault(["sh", "-c", `rm -rf ${VAULT} && mkdir -p ${VAULT}`]);
+  const room = await roomOf(lab, drill, primary);
+  if (roomVoid(room) !== null) {
+    return {
+      environment,
+      index,
+      events: [],
+      fault: null,
+      kernel: [],
+      netns: lab.netns.client,
+      targetNetns: lab.members[primary]!.netns,
+      lost: 0,
+      group: {
+        members: lab.members,
+        sentinels: {},
+        primary,
+        at: primary,
+        timeline: [],
+        after: null,
+        holds: null,
+        drill: { room, tool: "", seed: "generated", backups: [], before: "", after: null, restored: null, second: null },
+      },
+    };
+  }
   const seeded = await lab.script(primary, seedScript(drill, set.members.length));
   if (!seeded.includes('"ok":true')) throw new Error(`the seed failed: ${seeded}`);
   const before = hashOf(await lab.script(primary, HASH_SCRIPT));
@@ -153,12 +210,16 @@ export const drillOnce = async (lab: ReplicaSetLab, cell: Cell, environment: num
   let fault: Run["fault"] = null;
   let restored: { started: number; ended: number } | null = null;
   const backups: RunBackup[] = [];
+  let peak: number | null = null;
   try {
     await writer.until(["ready"], 60_000);
     const steady = await waitFor(writer, (event) => event.ev === "ack" && Number(event["n"]) >= STEADY, 30_000);
     if (steady === undefined) throw new Error(`the client did not write ${STEADY} times in 30 s`);
     if (drill.quiet === true) await writer.stop();
-    if (restores) backups.push(...(await backupsOf(lab, drill, primary, writer)));
+    if (restores) {
+      backups.push(...(await backupsOf(lab, drill, primary, writer)));
+      peak = valueIn(room.usable, "B") - bytesIn(await lab.exec(primary, ["sh", "-c", FREE_SCRIPT]));
+    }
     const stamp = await lose(lab, drill, primary, backups.at(-1)?.last ?? null);
     fault = stamp;
     if (restores) {
@@ -185,7 +246,8 @@ export const drillOnce = async (lab: ReplicaSetLab, cell: Cell, environment: num
   }
   const settled = await lab.settle();
   const lost = settled === null ? null : settled - lostBefore;
-  const after = await lab.converge().catch(() => null);
+  // the members that lost their disk make a first sync of the whole store before the set is healthy
+  const after = await lab.converge(Math.max(CONVERGE_MS, firstSyncWithin(drill))).catch(() => null);
   const holds = after === null ? null : await lab.holds(after);
   const hash = after === null ? null : hashOf(await lab.script(after, HASH_SCRIPT));
   const events = [...writer.events, ...(successor?.events ?? [])].sort((a, b) => a.t - b.t);
@@ -206,7 +268,16 @@ export const drillOnce = async (lab: ReplicaSetLab, cell: Cell, environment: num
       timeline: onMonotonic(lab.log.slice(logFrom), clockOffsetOf(events)),
       after,
       holds,
-      drill: { tool, seed: "generated", backups, before, after: hash, restored, second },
+      drill: {
+        room: { ...room, peak: peak === null ? null : { value: peak, unit: "B" } },
+        tool,
+        seed: "generated",
+        backups,
+        before,
+        after: hash,
+        restored,
+        second,
+      },
     },
   };
 };

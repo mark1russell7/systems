@@ -214,6 +214,8 @@ jobs:
             # the speed of the CPU moves the time of a program on its first reply (the HTTP calibration)
             echo "cpu: $(lscpu | sed -n 's/^Model name: *//p' | head -n 1)"
             echo "memory: $(free -m | awk '/^Mem:/ {print $2}') MiB"
+            # the disk of the container engine: a recovery drill holds its data four times or more on it
+            echo "free disk: $(df -BM --output=avail /var/lib/docker | tail -n 1 | tr -d ' ')"
             echo "image: $ImageOS $ImageVersion"
           } | tee "$RUNNER_TEMP/cells/runner.txt"
       # The router of a middlebox lists the conntrack table each 50 to 100 ms to evict its expired
