@@ -53,7 +53,7 @@ describe("the cells of SYS-61", () => {
   it("judges each cell by its bands of counts, with no band of time", () => {
     for (const cell of COMMIT_CELLS) {
       expect(cell.prediction.detects).toBeNull();
-      expect(cell.prediction.from).toBe("fault");
+      expect(cell.prediction).toMatchObject({ from: "fault" });
       expect(cell.prediction.group?.stages).toEqual([]);
       expect(cell.prediction.group?.outcomes?.missing).toEqual({ low: 0, high: 0 });
     }
