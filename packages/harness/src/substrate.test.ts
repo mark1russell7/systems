@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import type { Host } from "./substrate.ts";
-import { cloudOf, comparable, readHost, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
+import { cloudOf, comparable, readCpu, readHost, stealShare, substrateHere, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
 
 const AZURE: Host = { kernel: "7.0.0-1017-azure", hz: 1000, vendor: "Microsoft Corporation", kvm: true, image: "ubuntu24 20261101.360.1" };
 const AWS: Host = { ...AZURE, vendor: "Amazon EC2" };
@@ -19,6 +19,63 @@ describe("the cloud of a host", () => {
   it("is unknown for another vendor, or with no vendor", () => {
     expect(cloudOf("QEMU")).toBe("unknown");
     expect(cloudOf(null)).toBe("unknown");
+  });
+});
+
+describe("the substrate of a guest", () => {
+  const GUEST: Host = { kernel: "6.18.60", hz: 1000, vendor: "QEMU", kvm: false, image: null };
+
+  it("keeps the given layer with no runner in the environment", () => {
+    expect(substrateHere("E3", AZURE, {}).layer).toBe("E3");
+    expect(substrateHere("E1", AZURE, { LAB_RUNNER: "" }).layer).toBe("E1");
+  });
+
+  it("is E4, on the runner's cloud and image, with the guest's own kernel and HZ", () => {
+    const here = substrateHere("E1", { ...GUEST, hz: 250 }, { LAB_RUNNER: JSON.stringify(AZURE) });
+    expect(here).toEqual({ layer: "E4", cloud: "azure", vendor: "Microsoft Corporation", kernel: "6.18.60", hz: 250, kvm: true, image: "ubuntu24 20261101.360.1" });
+  });
+
+  it("does not pool with the runner it came from", () => {
+    const here = substrateHere("E1", GUEST, { LAB_RUNNER: JSON.stringify(AZURE) });
+    expect(comparable(here, substrateOn("E1", AZURE))).toBe(false);
+  });
+});
+
+describe("the CPU that a host takes", () => {
+  const withStat = <T>(text: string, read: (root: string) => T): T => {
+    const root = mkdtempSync(join(tmpdir(), "substrate-"));
+    try {
+      mkdirSync(join(root, "proc"));
+      writeFileSync(join(root, "proc/stat"), text);
+      return read(root);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  };
+
+  it("reads the steal counter and the sum of the eight states", () => {
+    const cpu = withStat("cpu  100 2 30 800 10 1 2 55 40 0\ncpu0 1 2 3 4 5 6 7 8 9 0\n", readCpu);
+    // the guest counter of 40 is in user: a sum with it counts that time two times
+    expect(cpu).toEqual({ steal: 55, total: 1000 });
+  });
+
+  it("gives null with no file, or with another first line", () => {
+    const root = mkdtempSync(join(tmpdir(), "substrate-"));
+    try {
+      expect(readCpu(root)).toBeNull();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+    expect(withStat("intr 1 2 3\n", readCpu)).toBeNull();
+  });
+
+  it("gives the share between two readings", () => {
+    expect(stealShare({ steal: 10, total: 1000 }, { steal: 30, total: 1400 })).toBeCloseTo(0.05, 10);
+    expect(stealShare({ steal: 10, total: 1000 }, { steal: 10, total: 1400 })).toBe(0);
+  });
+
+  it("gives null if no tick passed", () => {
+    expect(stealShare({ steal: 10, total: 1000 }, { steal: 10, total: 1000 })).toBeNull();
   });
 });
 

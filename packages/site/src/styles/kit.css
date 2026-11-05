@@ -391,10 +391,20 @@ code.sy-tag {
   stroke-width: 2;
 }
 
-.sy-warmup {
+.sy-warmup,
+.sy-run-hollow {
   fill: var(--color-surface);
   stroke: var(--series-2);
   stroke-width: 2;
+}
+
+.sy-rows-band {
+  fill: color-mix(in srgb, var(--status-neutral) 22%, transparent);
+}
+
+.sy-rows-mark {
+  stroke: var(--color-ink);
+  stroke-width: 1.5;
 }
 
 .sy-event {
@@ -992,7 +1002,7 @@ code.sy-tag {
 /* ------------------------------------------------------------------ the stall band of SYS-48 */
 
 .sy-stall-figure,
-.sy-recovery-figure {
+.sy-rows-figure {
   display: grid;
   gap: var(--space-3);
   margin-block: var(--space-5);
@@ -1002,8 +1012,22 @@ code.sy-tag {
   background: var(--color-surface);
 }
 
+/* the one column stops at the width of the figure: a chart then reads that width, and draws its text at its own size */
+.sy-rows-figure {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* a long heading wraps, and the name of a row stays on one line */
+.sy-rows-figure .sy-table thead th {
+  white-space: normal;
+}
+
+.sy-rows-figure .sy-table tbody th {
+  white-space: nowrap;
+}
+
 .sy-stall-figure figcaption,
-.sy-recovery-figure figcaption {
+.sy-rows-figure figcaption {
   margin: 0;
   color: var(--color-ink-muted);
   font-size: var(--text-xs);
@@ -1012,6 +1036,18 @@ code.sy-tag {
 
 .sy-stall-figure .sy-legend {
   margin: 0;
+}
+
+.sy-recovery-budget {
+  display: block;
+  color: var(--color-ink-muted);
+  font-size: var(--text-xs);
+  white-space: normal;
+}
+
+.sy-recovery-budget > span {
+  display: inline-block;
+  white-space: nowrap;
 }
 
 .sy-stall-old rect,
@@ -1027,7 +1063,7 @@ code.sy-tag {
 }
 
 .sy-strip .sy-stall-mode,
-.sy-strip .sy-recovery-name {
+.sy-strip .sy-rows-name {
   fill: var(--color-ink-secondary);
   font-weight: 600;
 }

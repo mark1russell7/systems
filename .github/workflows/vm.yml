@@ -1,0 +1,156 @@
+# Runs a set of cells in a guest of QEMU, layer E4 of docs/S7.md, and on the runner beside it.
+#
+#   kvm     A udev rule gives the runner's user /dev/kvm. A runner with no KVM ends here as void: a
+#           missing capability is not a failure (rule 8), and the rule of one re-dispatch applies.
+#   kernel  Builds the pinned kernel at the HZ of the input, and checks each option of
+#           packages/harness/vm/kernel.config before the build. The cache keeps the result.
+#   root    Writes the guest's disk from packages/harness/vm/Dockerfile.
+#   arms    Operates each arm of the input in turn, in one job: rule 3, the bridge. The VM is off in an
+#           arm of the runner, thus the host is quiet. The pair e4 e4 gives the noise of the layer.
+#
+# Start it with: gh workflow run vm.yml -R mark1russell7/systems --ref <branch>
+# It uploads each record, runner.txt with the boot times and the serial console of the guest.
+name: VM
+
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: Regular expression of the names of the cells. The default is the bridge of T01.
+        type: string
+        default: "^T01 client (idle, blackhole|in flight, blackhole, tcp_retries2 = 3|in flight, a 1 s stall)$"
+      arms:
+        description: The arms in order. Each is e1 or e4.
+        type: string
+        default: e1 e4 e4 e1
+      hz:
+        description: CONFIG_HZ of the guest. 1000 is the runner's value.
+        type: choice
+        options: ["100", "250", "1000"]
+        default: "1000"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vm-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  LINUX_VERSION: 6.18.60
+  LINUX_SHA256: 3c2f44ef6acc021a7ad444d9a2e6ec1ef488ff09368793d0004a6080f69d621e
+
+jobs:
+  vm:
+    name: VM
+    runs-on: ubuntu-24.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: The runner, beside the records
+        run: |
+          VM="$RUNNER_TEMP/vm"
+          echo "VM=$VM" >> "$GITHUB_ENV"
+          mkdir -p "$VM/records"
+          {
+            echo "kernel: $(uname -r)"
+            echo "vendor: $(cat /sys/class/dmi/id/sys_vendor 2>/dev/null || echo unknown)"
+            echo "CONFIG_HZ: $(grep -E '^CONFIG_HZ=' "/boot/config-$(uname -r)" || echo unknown)"
+            echo "cpus: $(nproc)"
+            echo "cpu: $(lscpu | sed -n 's/^Model name: *//p' | head -n 1)"
+            echo "memory: $(free -m | awk '/^Mem:/ {print $2}') MiB"
+            echo "image: $ImageOS $ImageVersion"
+            df -h / "$RUNNER_TEMP"
+          } | tee "$VM/runner.txt"
+      - name: The KVM of the runner
+        id: kvm
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sleep 1
+          if [ -w /dev/kvm ]; then
+            echo "kvm: yes" | tee -a "$VM/runner.txt"
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "void: this runner has no KVM" | tee -a "$VM/runner.txt"
+            echo "::notice::void: this runner has no KVM"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: The tools of the host
+        if: steps.kvm.outputs.present == 'true'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq qemu-system-x86 qemu-utils flex bison bc libelf-dev libssl-dev dwarves
+          echo "qemu: $(qemu-system-x86_64 --version | head -n 1)" | tee -a "$VM/runner.txt"
+      # Node 26 runs the tool of this tier with no build
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        if: steps.kvm.outputs.present == 'true'
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: steps.kvm.outputs.present == 'true'
+        with:
+          node-version: 26
+          cache: pnpm
+      - name: The kernel from the cache
+        id: kernel
+        if: steps.kvm.outputs.present == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/vm/kernel
+          key: kernel-${{ env.LINUX_VERSION }}-hz${{ inputs.hz }}-${{ hashFiles('packages/harness/vm/kernel.config', 'packages/harness/src/vm.ts') }}
+      - name: The pinned kernel
+        if: steps.kvm.outputs.present == 'true' && steps.kernel.outputs.cache-hit != 'true'
+        env:
+          HZ: ${{ inputs.hz }}
+        run: |
+          started="$(date +%s)"
+          node packages/harness/src/vm.ts kernel "$VM/kernel" "$LINUX_VERSION" "$LINUX_SHA256" "$HZ"
+          echo "kernel build: $(($(date +%s) - started)) s" | tee -a "$VM/runner.txt"
+      - name: The disk of the guest
+        if: steps.kvm.outputs.present == 'true'
+        run: |
+          cp "$VM/kernel/bzImage" "$VM/kernel/config" "$VM/kernel/release" "$VM/"
+          started="$(date +%s)"
+          node packages/harness/src/vm.ts root "$VM"
+          echo "disk build: $(($(date +%s) - started)) s" | tee -a "$VM/runner.txt"
+          # a guest cannot read its runner: the harness takes this file to write the substrate (`substrateHere`)
+          jq -n --arg kernel "$(uname -r)" --arg vendor "$(cat /sys/class/dmi/id/sys_vendor)" --arg image "$ImageOS $ImageVersion" \
+            --argjson hz "$(sed -n 's/^CONFIG_HZ=//p' "/boot/config-$(uname -r)")" \
+            '{kernel: $kernel, hz: $hz, vendor: $vendor, kvm: true, image: $image}' > "$VM/runner.json"
+      # the cells of the runner: this install comes after the disk, thus no node_modules go in that image
+      - if: steps.kvm.outputs.present == 'true'
+        run: pnpm install --frozen-lockfile
+      - name: The conntrack table of the runner
+        if: steps.kvm.outputs.present == 'true'
+        run: |
+          sudo modprobe nf_conntrack
+          echo 16384 | sudo tee /sys/module/nf_conntrack/parameters/hashsize >/dev/null
+      - name: The arms
+        if: steps.kvm.outputs.present == 'true'
+        env:
+          ONLY: ${{ inputs.only }}
+          ARMS: ${{ inputs.arms }}
+        run: |
+          index=0
+          status=0
+          for layer in $ARMS; do
+            index=$((index + 1))
+            started="$(date +%s)"
+            node packages/harness/src/vm.ts arm "$VM" "$layer" "$index-$layer" "$ONLY" || status=$?
+            echo "arm $index, $layer: $(($(date +%s) - started)) s, status $status" | tee -a "$VM/runner.txt"
+          done
+          exit "$status"
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vm
+          path: |
+            ${{ runner.temp }}/vm/records/
+            ${{ runner.temp }}/vm/runner.txt
+            ${{ runner.temp }}/vm/runner.json
+            ${{ runner.temp }}/vm/console.log
+            ${{ runner.temp }}/vm/config
+          if-no-files-found: warn
+          retention-days: 30
