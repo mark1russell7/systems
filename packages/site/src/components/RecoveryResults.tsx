@@ -109,6 +109,18 @@ export const runText = (row: DrillRow, run: DrillRun): string => {
   return `${row.id}, run ${run.index} of ${row.runs.length}. ${loss}`;
 };
 
+/** This component gives the worst value on one line, and its budget and share on the next. Thus the 4 columns fit a phone. */
+function Against({ value }: { readonly value: Budgeted }): ReactElement {
+  return (
+    <>
+      {timeText(value.worst)}
+      <span className="sy-recovery-budget">
+        <span>of {timeText(value.limit)}</span> <span>({shareText(value)})</span>
+      </span>
+    </>
+  );
+}
+
 /** This component gives the ladder of recovery: a row for each rung. */
 export function RecoveryRungs(): ReactElement {
   return (
@@ -118,9 +130,7 @@ export function RecoveryRungs(): ReactElement {
           <thead>
             <tr>
               <th>Rung</th>
-              <th className="num">RPO budget</th>
               <th className="num">Worst RPO</th>
-              <th className="num">RTO budget</th>
               <th className="num">Worst RTO</th>
               <th>Verdict</th>
             </tr>
@@ -129,13 +139,11 @@ export function RecoveryRungs(): ReactElement {
             {rungRows().map((row) => (
               <tr key={row.rung}>
                 <th scope="row">{count(row.tenants)}</th>
-                <td className="num">{timeText(row.rpo.limit)}</td>
                 <td className="num">
-                  {timeText(row.rpo.worst)} ({shareText(row.rpo)})
+                  <Against value={row.rpo} />
                 </td>
-                <td className="num">{timeText(row.rto.limit)}</td>
                 <td className="num">
-                  {timeText(row.rto.worst)} ({shareText(row.rto)})
+                  <Against value={row.rto} />
                 </td>
                 <td>
                   <Verdict decision={row.outcome === "within" ? "holds" : "fails"} />
@@ -146,7 +154,7 @@ export function RecoveryRungs(): ReactElement {
         </table>
       </div>
       <figcaption>
-        The worst value of 4 counted runs of each drill, and the part of the budget that it uses. The RPO is the backup schedule of the rung plus the excess that the drill measured, thus the schedule gives most of it. Each rung has{" "}
+        The worst value of 4 counted runs of each drill, and the part of the budget that it uses. The RPO is the backup schedule of the rung plus the excess that the drill measured, thus the schedule gives most of it. Each RTO starts at the fault, thus it has no detection time and no human time. Each rung has{" "}
         <a href={`https://github.com/mark1russell7/systems/actions/runs/${RECOVERY_RUN}`}>the same CI run</a> as its record.
       </figcaption>
     </figure>
@@ -210,7 +218,7 @@ export function RecoveryTimes(): ReactElement {
       to={to}
       label={`The time from the fault to the first accepted write, for each run of each drill, from 0 to ${to} s. ${rows.map((row) => `${row.label}: the median is ${timeText(row.median)}.`).join(" ")}`}
       table={<Table rows={rows} />}
-      caption="The time from the fault to the first accepted write. A dot is a counted run, and the dashed line and the number at the right are the median."
+      caption="The time from the fault to the first accepted write. A dot is a counted run, and the dashed line and the number at the right are the median. The time has no detection time and no human time."
     />
   );
 }
