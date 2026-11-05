@@ -1,7 +1,7 @@
 import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { Cell, CellResult, Subject } from "@mark1russell7/harness";
-import { measure, noiseOf, pairingsOf, runCell } from "@mark1russell7/harness";
+import { cloudOf, measure, noiseOf, pairingsOf, readHost, runCell, substrateKey, substrateOf } from "@mark1russell7/harness";
 import { subjectSchema } from "@mark1russell7/harness/schema";
 import { describe, expect, it } from "vitest";
 import type { Subjects } from "./all.ts";
@@ -15,7 +15,7 @@ import { benchTimes, LIMITER_SPECS, limiterBench, pairedLines, pairOf } from "./
  * containers. CELLS_ONLY selects the cells whose names match a regular expression. CELLS_SHARD=i/n
  * takes every n-th cell from the i-th, so that two processes can share the catalog. Each cell
  * writes its raw record (the cell, the manifests and every run with its kernel records) to
- * CELLS_OUT, in the format that jarvis lands. It also writes one line of its verdict to
+ * CELLS_OUT, in the format that the private repository lands. It also writes one line of its verdict to
  * summary.ndjson there. A cell that fails is a finding to examine, not a failure of the runner.
  *
  * CELLS_FILE names a JSON file of cells that another repository compiles. Its cells then operate
@@ -89,7 +89,7 @@ const pairTimes = (slot: PairSlot, times: readonly BenchTime[]): void => {
 const selected: Cell[] = source.filter((each) => ONLY.test(each.name)).filter((_, at) => at % of === shard);
 
 /** This environment is the runner image, when stage 0 calibrated it. A cell without its own δ_abs gets the image's. */
-const environment = environmentOf();
+const environment = environmentOf(cloudOf(readHost().vendor));
 const inEnvironment = (cell: Cell): Cell =>
   cell.noise !== undefined || environment === undefined ? cell : { ...cell, noise: environment.noise };
 
@@ -133,6 +133,7 @@ describe.skipIf(!RUN)("the catalogs, on the harness", () => {
           band: verdict.band,
           outside: verdict.outside,
           why: verdict.why,
+          substrate: substrateKey(substrateOf(result.manifests[0] ?? {}, result.at.started)),
           ...(verdict.reordering === undefined ? {} : { reordering: verdict.reordering }),
           ...(verdict.proxy === undefined ? {} : { proxy: verdict.proxy }),
           ...(verdict.requests === undefined ? {} : { requests: verdict.requests }),

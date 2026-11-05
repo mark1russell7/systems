@@ -14,7 +14,7 @@ const band = (name: string) => {
   return null;
 };
 
-describe("the copy of the harness results holds the figures of jarvis (SYSTEMS.md §16.9)", () => {
+describe("the copy of the harness results holds the figures of the records", () => {
   it("has the twelve S1 cells and the six calibration cells, and each holds", () => {
     expect(harness.cells.filter((each) => each.group !== "calibration")).toHaveLength(12);
     expect(harness.cells.filter((each) => each.group === "calibration")).toHaveLength(6);

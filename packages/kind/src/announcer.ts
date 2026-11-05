@@ -1,5 +1,5 @@
 import type { Quantity } from "@mark1russell7/quantity";
-import type { KindCell, VipAnnouncerName } from "./cell.ts";
+import type { KindCell, VipAnnouncerName, VipSettings } from "./cell.ts";
 import type { Cluster } from "./cluster.ts";
 import { KUBE_VIP, KUBE_VIP_ARP_RATE, KUBE_VIP_IMAGE, KUBE_VIP_LEASE, holdVip, installKubeVip, vipLeaseOf, vipOf } from "./kubevip.ts";
 import { METALLB_ANNOTATION, METALLB_IMAGES, METALLB_SPAM, holdMetallb, installMetallb, metallbRecord, metallbVipOf } from "./metallb.ts";
@@ -27,8 +27,8 @@ export interface VipAnnouncer {
   readonly settle: Quantity;
   /** This function gives the VIP of a subnet, with `owner` its holder among `nodes`. */
   readonly vipOf: (subnet: string, owner: string, nodes: readonly string[]) => string;
-  /** This function installs the announcer, with the local tags of its images, by the names of `images`. */
-  readonly install: (cluster: Cluster, local: Readonly<Record<string, string>>, owner: string, nodes: readonly string[], vip: string) => Promise<void>;
+  /** This function installs the announcer, with the local tags of its images, by the names of `images`. MetalLB uses the settings of memberlist of `settings`. */
+  readonly install: (cluster: Cluster, local: Readonly<Record<string, string>>, owner: string, nodes: readonly string[], vip: string, settings?: VipSettings) => Promise<void>;
   /** This function makes `owner` the holder of the VIP before a run. It gives null, or why not. */
   readonly hold: (cluster: Cluster, owner: string, nodes: readonly string[], namespace: string, service: string) => Promise<string | null>;
   /** This function gives the state of the announcer after a run, for the line `vip`. */
@@ -66,7 +66,8 @@ export const METALLB_ANNOUNCER: VipAnnouncer = {
   service: { loadBalancerClass: null, annotation: METALLB_ANNOTATION },
   settle: METALLB_SPAM.for,
   vipOf: (subnet, owner, nodes) => metallbVipOf(subnet, owner, nodes),
-  install: (cluster, images, _owner, nodes, vip) => installMetallb(cluster, { speaker: local(images, "metallb-speaker"), controller: local(images, "metallb-controller") }, nodes, vip),
+  install: (cluster, images, _owner, nodes, vip, settings) =>
+    installMetallb(cluster, { speaker: local(images, "metallb-speaker"), controller: local(images, "metallb-controller") }, nodes, vip, settings?.memberlist),
   hold: (cluster, owner, nodes, namespace, service) => holdMetallb(cluster, owner, nodes, namespace, service),
   record: (cluster, namespace, service) => metallbRecord(cluster, namespace, service),
 };

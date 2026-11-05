@@ -22,6 +22,8 @@ export type {
   GroupPlace,
   GroupPrediction,
   GroupRole,
+  Fabric,
+  FabricManifest,
   Hop,
   HopEvent,
   HopPlace,
@@ -46,14 +48,19 @@ export type {
   Recovers,
   Reference,
   Replies,
+  Drill,
   ReplicaSet,
   ReplicaSetStage,
   RouterHop,
   RequestPrediction,
   RttRange,
   Run,
+  RunBackup,
+  RunDrill,
   RunGroup,
   RunPart,
+  RunFabric,
+  RunRoute,
   RunTopology,
   SentinelEvent,
   SentinelStage,
@@ -122,6 +129,25 @@ export {
 } from "./verdict.ts";
 export type { Agent, FaultSide, Lab, Manifest, ManifestHop, NetworkFault, Probe } from "./lab.ts";
 export { LISTING, PUMP, PUMP_SLACK, deviceOf, endpointAfter, hzOf, openLab, routesOf, templated, toxicBody } from "./lab.ts";
+export type { ClockPair, FabricLab, FabricParts, LeafViews, RouteLine } from "./fabric.ts";
+export {
+  DAEMONS,
+  FABRIC_CLIENT,
+  FABRIC_DEVICE,
+  FABRIC_TARGET,
+  FRR_IMAGE,
+  ROUTERS,
+  frrConf,
+  laterMove,
+  leafLacks,
+  monotonicAt,
+  openFabric,
+  routeLine,
+  sessionsOf,
+  topologyOf,
+} from "./fabric.ts";
+export type { Cloud, Host, Layer, Substrate, SubstrateSource } from "./substrate.ts";
+export { AWS_FROM, cloudOf, comparable, readCpu, readHost, stealShare, substrateHere, substrateKey, substrateOf, substrateOn, unpoolable } from "./substrate.ts";
 export type { ImagePlan } from "./image.ts";
 export {
   CLIENT_NAMES,
@@ -165,6 +191,23 @@ export {
   subscriptionsOf,
   viewOf,
 } from "./group.ts";
+export { drillOnce } from "./drill.ts";
+export type { OplogRead, OplogTime, RecoveryMeasured } from "./recovery.ts";
+export {
+  HASH_SCRIPT,
+  LOSS_MARGIN,
+  SEED_DOCUMENT,
+  drillSpan,
+  hashOf,
+  highestHeld,
+  readOplog,
+  recoveryFindings,
+  recoveryOf,
+  seedScript,
+  sliceQuery,
+  standaloneCommand,
+  stopScript,
+} from "./recovery.ts";
 export type { Cut, MemberLine, ReplicaSetLab, Status } from "./replset.ts";
 export {
   KEPT,
