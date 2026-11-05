@@ -162,6 +162,12 @@ starlight-toc a[aria-current="true"] {
 
 /* ------------------------------------------------------------------ the title of a page */
 
+.data-stamp {
+  margin: var(--sl-content-gap-y, 0.75rem) 0 0;
+  font-size: var(--text-xs);
+  color: var(--color-ink-muted);
+}
+
 .sy-eyebrow {
   margin: 0;
   font-family: var(--font-mono);

@@ -3007,6 +3007,101 @@ SYS-94 holds rungs 1, 100 and 1,000. The next two rungs have different costs, th
 
 A recovery rung says nothing of the load that a design holds. SYS-93 holds that part.
 
+### SYS-100 · A flip test for each gate check of a measure
+
+- **Status:** done
+- **Area:** catalogs
+- **Depends on:**
+- **Started:** 2026-11-05
+- **Shipped:** 2026-11-05
+- **Links:** [the run of the 22 flips](https://github.com/mark1russell7/systems/actions/runs/41990179106), [pull request](https://github.com/mark1russell7/systems/pull/365)
+
+A gate check of a measure can pass for a reason that is not the measure. A flip test shows that the check can fail. In one job, the test passes on the copy with no fault. Then one source fault of a stated size turns the same test red on its named assertion. A crash does not count as a red.
+
+The workflow `flip.yml` holds these faults. It starts at a change to a fault site or to a test of a bound, and at a weekly run.
+
+| Check | Bound | Fault | Result of the fault | Bound of the test |
+| --- | --- | --- | --- | --- |
+| Redis OK | request timeout, high | 2 x the timeout | 4 s | 3.5 s |
+| Redis OK | request timeout, low | half the timeout | 1 s | 1.9 s |
+| Redis OK | close at the shutdown | 3 x the bound of the QUIT | approximately 800 ms | 350 ms |
+| Redis OK | trip of readiness, late, 5 rows | 2 polls late | 4.2 s or more | 4.05 s |
+| Redis OK | trip of liveness, late, 5 rows | 2 s late | 5.8 s or more | 4.65 s |
+| Redis OK | trip of readiness, early | at the first failure | 1.2 s at the most | 1.55 s |
+| Redis OK | trip of liveness, early | 2 s early | 2.2 s at the most | 2.95 s |
+| Redis OK | release of readiness | 6 polls late | 4.8 s or more | 4 s |
+| Redis OK | release of liveness | 5 s late | 5 s or more | 4 s |
+| Redis OK | first failure of a check that only reports | 2 s late | 2 s or more | 1.65 s |
+| HTTP OK | idle close, high | 2 s late | 4 s | 2.3 s |
+| HTTP OK | idle close, low | 1 s early | 1 s | 1.85 s |
+| HTTP OK | close of an idle connection at the stop | at the first sweep | 200 ms | 150 ms |
+| HTTP OK | sweep | 3 x its interval | 600 ms | 350 ms |
+| HTTP OK | hold of a phase | half its cap | 150 ms | 295 ms |
+| HTTP OK | cut at the deadline of the drain | 2 x the cap of a phase | 3 s | 1.65 s |
+| HTTP OK | drain of a worker, late | 1 s past the deadline | deadline + 1 s | deadline + 100 ms |
+| HTTP OK | drain of a worker, early | 500 ms before the deadline | deadline - 500 ms | deadline - 100 ms |
+| HTTP OK | cooperative abort of a worker | the signal does not arrive | no abort | 100 ms |
+| HTTP OK | close of a worker | 2 s late | 2 s | 1 s |
+| Process OK | timeout of a command | 40 x the timeout | 40 s | 30 s |
+| Process OK | timeout of a status read | 20 x the timeout | 20 s | 15 s |
+
+The first flip found a defect of the test. The shutdown of the F6 matrix had a bound of 2,050 ms, and the caps of the phases hold a slow close to 2 s. A close of 3 x its bound stayed green at 806 ms. Six green runs read 306 ms to 312 ms, thus the bound is the bound of the close and the noise of the test: 350 ms.
+
+In [run 41990179106](https://github.com/mark1russell7/systems/actions/runs/41990179106), each of the 22 flips reads right. A second fault also stayed green first: `server.close()` also closes idle connections, thus the fault moves that close to the first sweep. Seven runs read the shutdown under the bound of 350 ms. Zero false blocks in 7 runs bound that rate only near 35 percent.
+
+The method of the bound of 350 ms: the design gives it (a close of 300 ms and a noise of 50 ms), and the runs check it. The worst of the seven runs plus their spread is 312 ms + 6 ms = 318 ms, thus the margin is 32 ms. The run numbers stand next to the bound in `f6-redis.test.ts`.
+
+A scheduled Flip run that fails stops each claim on these bounds until its owner reads that run.
+
+This item does not cover the checks of the scheduled cells. SYS-99 holds these.
+
+The two bounds of Process OK are wide. They see a timer that does not operate, and they do not see a timer that is 10 x too long.
+
+These assertions have no flip:
+
+- The `steady` assertion of a check that only reports. It is not a time bound.
+- The other cases of the conformance kit on the real clock. They read counts and order, and the mutants of `conformance.test.ts` hold the kit on the fake clock.
+- The bounds of the HTTP test that are not time bounds, for example status codes and headers.
+
+### SYS-101 · A 30-day limit for the studies of the site that depend on current code
+
+- **Status:** in progress
+- **Area:** site
+- **Depends on:** SYS-99
+- **Started:** 2026-11-05
+- **Shipped:**
+- **Links:** [the issue of the limit](https://github.com/mark1russell7/systems/issues/368)
+
+A page with a fixed study has no age limit today. Thus a page can show old numbers about code that changed. This item gives each study an age limit of 30 days and a scheduled refresh inside that limit. The study can drop the limit only if its numbers do not depend on current code. The stamp and the text of the page then say this.
+
+The word "current" needs a test, because each dated study can say that its numbers came from older code. A study does not depend on current code only if both of these are true:
+
+- No run of current code can reproduce its numbers.
+- The page makes no claim about the current code.
+
+This is the first read of the 17 pages, from their text, their data files and their imports. No cell operated for this read.
+
+| Pages | Why | Limit |
+| --- | --- | --- |
+| `results/kind`, `results/faults`, `results/topologies`, `results/r3` | The subject is code of this repository: the service, or the TCP client of the harness. The page `results/r3` is read only from its first rows. | 30 days |
+| `results/sentinel`, `results/http`, `results/mongodb`, `results/pg`, `results/rabbitmq`, `results/grpc`, `results/mesh` | The subject has a pinned version, but the driver, the prober and the bands of the catalog are code of this repository. | 30 days |
+| `results/calibration` | Its text says that stage 0 occurs again after each change. | 30 days |
+| `results/timers` | The rule for a void run is in the current harness. | 30 days |
+| The home page, `lab/detection` | The band comes from the current algebra at each build, beside the runs of 2026-10-08. | 30 days |
+| `results/harness`, `results/cells` | These are records of one lab machine, on kernel 6.6 at HZ 250. Their Q cells are not in the catalog, thus no run can reproduce them. The text says that they are history and links to `results/faults`. | none |
+
+These commits came after 2026-10-17: 55 in the machines, 33 in the image of the harness and 9 in the algebra. The verdict has 5 and the prober has 4. The kernel of the runner also changed from 6.17 to 7.0. Thus the first refresh can fail some cells. Each failure is a finding, and no band gets wider to hide it. A prediction comes before the first dispatch.
+
+The original runs took approximately 148 runner hours. This figure includes the runs again of `results/r3` and `results/mesh`, and it does not include the series S2. Four weekly rounds at 3 jobs take approximately 12 hours each.
+
+The order of the work:
+
+1. By 2026-11-14: the schedule, the commits in the stamps, and the public text of the limit.
+2. The age shows on each page from its first stamp. Each limit starts at the first green read of its study or on 2026-12-07, at the earlier of these. The study of 2026-10-08 reaches 30 days on 2026-11-07, and the study of 2026-10-13 on 2026-11-12. Thus a limit at the first stamp fails the gate of the Pages workflow at once.
+3. On 2026-12-07, each limit is on. A page with no green read fails the gate, or gets an exception with a date in the public issue of the limit.
+
+The check `Kind OK` cannot fail on a cell. Thus `results/kind` and `results/mesh` need the check of SYS-99 in the workflow `kind.yml` first, with a flip test.
+
 ## Decisions for Mark
 
 ### D-CHECKER · The checker of linearizability and of transactions
