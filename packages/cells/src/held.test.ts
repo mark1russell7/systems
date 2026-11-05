@@ -1,8 +1,8 @@
 import type { Cell, Decision, Measured, Verdict } from "@mark1russell7/harness";
 import { verdictOf } from "@mark1russell7/harness";
-import { s } from "@mark1russell7/quantity";
 import { describe, expect, it } from "vitest";
 import { selectedOf } from "./all.ts";
+import { s } from "./catalog.ts";
 import { FAULT_DETECTION, faulted, faultedVerdict, heldRead, slowdownSeen } from "./held.ts";
 
 const verdict = (decision: Decision): Verdict => ({ decision, counted: 11, voided: 0, band: null, outside: [], median: null, medianInterval: null, why: decision });

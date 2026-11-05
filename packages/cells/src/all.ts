@@ -80,6 +80,13 @@ export const catalogs = (given: Partial<Subjects> = {}): readonly Cell[] => {
 export const ALL: readonly Cell[] = catalogs();
 
 /**
+ * These are the selections of the scheduled runs of the workflow Cells, by name. The read of the
+ * records takes a name and not a regular expression: `night` is the selection of the nightly run,
+ * and `drills` is the selection of the Sunday run.
+ */
+export const SCHEDULED_CELLS: Readonly<Record<string, RegExp>> = { night: /^WS/, drills: /^RD[.]/ };
+
+/**
  * This function gives the cells of one shard: the cells whose names match `only`, then each `of`-th
  * cell from the `shard`-th. The runner and the read of its records use this one selection.
  */

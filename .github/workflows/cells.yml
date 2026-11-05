@@ -320,7 +320,7 @@ jobs:
         if: ${{ github.event.schedule == '30 3 * * *' || (inputs.only == '^WS' && inputs.shards == '4') }}
         env:
           SHARD: ${{ matrix.shard }}
-        run: pnpm exec tsx packages/site/scripts/held.ts --flip --only '^WS' --shard "$SHARD/4" "$RUNNER_TEMP/cells"
+        run: pnpm exec tsx packages/site/scripts/held.ts --flip --cells night --shard "$SHARD/4" "$RUNNER_TEMP/cells"
       # A lost rung fails this workflow too: this step reads the records of the drills again, and it fails
       # when a rung is not within its budgets, or when a drill has no record.
       - name: The locked rungs of recovery
